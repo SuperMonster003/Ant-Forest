@@ -16,7 +16,10 @@ auto();
 engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
 
+let cwd = files.cwd();
+
 let config = {
+    main_user_switcher: false, // if you are multi-account user, you may specify a "main account" to switch
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "/sdcard/Scripts/Log/AutoJsLog.txt", // up to 512KB per file; leave 0 if not needed
     list_swipe_interval: 350, // unit: millisecond; set this value bigger if errors like "CvException" occurred
@@ -133,7 +136,8 @@ function antForest() {
                 }
 
                 function setSpecificUser() {
-                    if (!files.exists("/sdcard/Scripts/PWMAP.txt")) return;
+                    if (!config.main_user_switcher) return;
+                    if (!files.exists(cwd + "/Tools/MAINUSER.txt")) return messageAction("用户智能切换功能暂不可用", 1, 1);
 
                     let user_list = {
                         "G8441": {
