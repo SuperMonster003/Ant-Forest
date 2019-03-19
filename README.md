@@ -1,5 +1,7 @@
-# Ant_Forest
+# Ant_Forest 
 Alipay ant forest auto-collect script  
+
+![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic.png?raw=true)  
   
 # v1.0.0
 ###### 2019/03/19 - 此版本依赖设备本地密文映射文件 因此暂不可用
