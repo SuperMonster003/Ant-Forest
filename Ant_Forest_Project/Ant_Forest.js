@@ -136,7 +136,8 @@ function antForest() {
                 }
 
                 function setSpecificUser() {
-                    if (!config.main_user_switcher) return;
+                    return;
+                    // if (!config.main_user_switcher) return;
                     if (!files.exists(cwd + "/Tools/MAINUSER.txt")) return messageAction("用户智能切换功能暂不可用", 1, 1);
 
                     let user_list = {
@@ -694,6 +695,9 @@ function antForest() {
                 }
                 if (max_try_times < 0) restartAlipayToHeroList();
 
+                let rankListReady = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
+                if (!waitForAction(rankListReady, 2000)) restartAlipayToHeroList(); // just in case
+
                 // tool function(s) //
 
                 function restartAlipayToHeroList() {
@@ -789,9 +793,12 @@ function antForest() {
             own = current_app.total_energy_collect_own,
             friends = getCurrentEnergyAmount() - init - own;
 
-        own && log("Energy from yourself: " + own + "g");
-        friends && log("Energy from friends: " + friends + "g");
-        if (!own && !friends) log("A fruitless attempt");
+        let msg = [];
+        own && msg.push("Energy from yourself: " + own + "g");
+        friends && msg.push("Energy from friends: " + friends + "g");
+        if (!msg.length) return toastLog("A fruitless attempt");
+        msg.forEach(msg => log(msg));
+        toast(msg.join("\n"));
     }
 
     function endProcess() {
