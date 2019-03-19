@@ -1,7 +1,7 @@
 # Ant_Forest
 Alipay ant forest auto-collect script  
   
-# v1.0.1
+# v1.0.0
 ###### 2019/03/19 - 此版本依赖设备本地密文映射文件 因此暂不可用
 * `新增` 自动收取好友能量 (基于Auto.js控件/颜色识别)
 * `新增` 自动帮收好友能量
