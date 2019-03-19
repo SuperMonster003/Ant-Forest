@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Mar 19, 2019
- * @version 1.0.0
+ * @version 1.1.0
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -467,7 +467,7 @@ function antForest() {
             if (!init()) return;
 
             let area; // bounds limited to friends list items inside screen
-            let list_end_signal;
+            let list_end_signal = 0;
             let thread_list_end = threads.start(endOfListThread);
             let max_safe_swipe_times = 125; // just for avoiding infinite loop
 
