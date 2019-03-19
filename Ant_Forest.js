@@ -483,6 +483,7 @@ function antForest() {
                 swipeUp();
             }
 
+            thread_list_end.isAlive() && thread_list_end.interrupt();
             return list_end_signal;
 
 
@@ -793,7 +794,7 @@ function antForest() {
         threads.shutDownAll(); // kill all threads started by threads.start()
         current_app.kill_when_done || closeWindows();
         current_app.is_screen_on || KeyCode("KEYCODE_POWER");
-        current_app.kill_when_done && killCurrentApp(current_app.package_name)
+        current_app.kill_when_done && killCurrentApp(current_app.package_name);
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
@@ -1043,7 +1044,7 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
 }
 
 /**
- * @param {object|array} func - an object or object with *.bounds() or [func, additional function]
+ * @param {object|array} f - an object or object with *.bounds() or [func, additional function]
  * <br>
  *     - text("abc").desc("def")<br>
  *     - text("abc").desc("def").bounds()
@@ -1159,7 +1160,7 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
 
 /**
  * wait some period of time and do clicking if "f" was found
- * @param {number|object|object[]|function|function[]|boolean|function+number[]} f - if "f" then waiting
+ * @param {number|object|object[]|function|function[]|boolean|function,number[]} f_or_with_click_interval - if "f" then waiting
  * <br>
  *     - number - 5000 - equals to "sleep(5000)"<br>
  *     - object - text("abc") - equals to "() => text("abc").exists()"<br>
@@ -1226,271 +1227,6 @@ function showSplitLine(extra_str) {
 }
 
 /**
- * swipe until "f" is in screen
- * @param {object|object[]|string} f - what you wanna find
- * <br>
- *     - object - text("abc") - object you wanna find"<br>
- *     - string - "butterfly.jpg/png" - picture you wanna find<br>
- *     - array - [num(s), obj(s)] - a multi-condition array (all shown in screen at the same time)
- *
- * @param {number|number[]} [screen_area] - restrict for smaller finding area
- * <br>
- *     - null - default is fullscreen<br>
- *     - 4 nums - [left, top, right, bottom] like [10, 50, 700, 1080] for [10, 50, 700, 1080]<br>
- *     - 2 nums - [default, default, right, bottom] like [700, 1080] for [def, def, 700, 1080]<br>
- *     - 1 num - [default, default, default, bottom] like 1080 or [1080] for [def, def, def, 1080]
- *
- * @param {number} [max=timeout=20000;max_swipe_times=50] - set max finding time or max swipe times
- * <br>
- *     - max>=1000 - set max as timeout<br>
- *     - max<1000 - set max as max_swipe_times
- * @param {number|string} [direction="up"] - swipe direction
- * <br>
- *     - 0|left|l or 1|up|u or 2|right|r or 3|down|d for different direction to swipe
- *
- * @param {number} [swipe_time=300] - the time spent for each swiping
- * @param {number} [check_interval=300] - the time spent between every swiping
- * @param {number|number[]} [swipe_area] - restrict for smaller swiping area
- * <br>
- *     - usage is same as "screen_area"
- *
- * @param {number} [inside_or_contain=0] - object inside screen bounds or screen bounds contains object (not for image)
- * <br>
- *     - 0 - contains - screen bounds contains object - just needs a little little bit object bounds shown in screen<br>
- *     - 1 - inside - object inside screen bounds - the whole object bounds must be inside the screen bounds
- *
- * @param {string} [if_click=0] - click after "f" found - ONLY "click" can be introduced if you need a click
- * @param special_bad_situation {...function|function[]|object|object[]}
- * @returns {boolean} - if timed out or max swipe time reached
- */
-function makeInScreen(f, screen_area, max, direction, swipe_time, check_interval, swipe_area, inside_or_contain, if_click, special_bad_situation) {
-    let timeout = max && max >= 1000 ? max : 20000,
-        max_swipe_times = max && max > 0 && max <= 999 ? max : 50,
-        bad_situation_pending = 1000;
-    direction = handleDirection(direction);
-    check_interval = check_interval || 300;
-    swipe_time = swipe_time || 300;
-    inside_or_contain = inside_or_contain ? 1 : 0;
-    if (if_click !== "click") if_click = 0;
-
-    if (typeof f === "string" && checkImageName(f)) tryRequestScreenCapture();
-
-    let screen_bounds = {
-        left: 0,
-        top: 0,
-        right: WIDTH,
-        bottom: HEIGHT
-    };
-    let swipe_bounds = {
-        left: WIDTH * 0.1,
-        top: HEIGHT * 0.3,
-        right: WIDTH * 0.9,
-        bottom: HEIGHT * 0.7
-    };
-
-    if (screen_area) adjustBounds(screen_area, screen_bounds);
-    if (swipe_area) adjustBounds(swipe_area, swipe_bounds);
-
-    setSwipeBoundsCenter();
-
-    sleep(200);
-    return findF();
-
-    // tool function(s) //
-
-    function findF() {
-        while (timeout > 0 && max_swipe_times--) {
-            if (checkFunc(f)) break;
-            if (bad_situation_pending >= 1000) {
-                if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
-                if (special_bad_situation) checkBadSituation(special_bad_situation);
-                bad_situation_pending %= 1000;
-            }
-            swipe();
-            sleep(check_interval);
-            timeout -= (check_interval + swipe_time);
-            bad_situation_pending += check_interval + swipe_time;
-        }
-        let valid = timeout > 0 && max_swipe_times >= 0;
-        if (valid && if_click && typeof f !== "string") {
-            sleep(200);
-            clickBounds(f);
-        }
-        return valid;
-    }
-
-    function setSwipeBoundsCenter() {
-        swipe_bounds.left_center = [swipe_bounds.left, (swipe_bounds.top + swipe_bounds.bottom) / 2];
-        swipe_bounds.top_center = [(swipe_bounds.left + swipe_bounds.right) / 2, swipe_bounds.top];
-        swipe_bounds.right_center = [swipe_bounds.right, (swipe_bounds.top + swipe_bounds.bottom) / 2];
-        swipe_bounds.bottom_center = [(swipe_bounds.left + swipe_bounds.right) / 2, swipe_bounds.bottom];
-    }
-
-    function adjustBounds(area, bounds) {
-        if (typeof area === "number") {
-            bounds.bottom = area;
-        } else if (Object.prototype.toString.call(area).slice(8, -1) === "Array") {
-            switch (area.length) {
-                case 1:
-                    bounds.bottom = area[0];
-                    break;
-                case 2:
-                    bounds.right = area[0];
-                    bounds.bottom = area[1];
-                    break;
-                case 4:
-                    bounds.left = area[0];
-                    bounds.top = area[1];
-                    bounds.right = area[2];
-                    bounds.bottom = area[3];
-                    break;
-                default:
-                    messageAction("\"makeInScreen\"area参数元素数量不合法", 9, 1, 1);
-            }
-        } else {
-            messageAction("\"makeInScreen\"area参数不合法", 9, 1, 1);
-        }
-    }
-
-    function checkFunc(f) {
-        if (typeof f === "object") {
-            let classof = Object.prototype.toString.call(f).slice(8, -1);
-            if (classof !== "Array") return inside_or_contain ? f.exists() && inBounds(f.findOnce().bounds()) : f.exists() && containBounds(f.findOnce().bounds());
-            return handleArray(f);
-        } else if (typeof f === "string") return handleImage(f);
-        else messageAction("\"makeInScreen\"f参数不合法", 9, 1, 1);
-    }
-
-    function handleArray(arr) {
-        for (let i = 0, len = arr.length; i < len; i += 1) {
-            if (!(typeof arr[i]).match(/object|string/)) messageAction("\"makeInScreen\"数组参数含不合法元素", 9, 1);
-            if (!checkFunc(arr[i])) return false;
-        }
-        return true;
-    }
-
-    function handleDirection(direction) {
-        if (!direction) return 1;
-        if (typeof direction === "number") return direction in {0: 1, 2: 1, 3: 1} ? direction : 1;
-        if (direction.match(/^l(eft)?$/)) return 0;
-        else if (direction.match(/^r(ight)?$/)) return 2;
-        else if (direction.match(/^b(ottom)?$/)) return 3;
-        else return 1;
-    }
-
-    function checkImageName(path) {
-        return path.match(/^\/?(sdcard|emulated)|\.jpg$|\.png$/i);
-    }
-
-    function handleImage(path) {
-        if (!checkImageName(path)) messageAction("\"makeInScreen\"f作为图片路径输入不合法", 9, 1);
-        let img_template = images.read(path);
-        if (!img_template) messageAction("未找到\"" + path + "\"文件", 9, 1);
-        let found_image = findImage(captureScreen(), img_template);
-        let image_bounds;
-        if (found_image) image_bounds = {
-            left: found_image.x,
-            top: found_image.y,
-            right: found_image.x + img_template.width,
-            bottom: found_image.y + img_template.height
-        };
-        let valid = inside_or_contain ? found_image && inBounds(image_bounds) : found_image && containBounds(image_bounds);
-        if (valid && if_click) {
-            sleep(300);
-            click((image_bounds.left + image_bounds.right) / 2, (image_bounds.top + image_bounds.bottom) / 2);
-        }
-        return valid;
-    }
-
-    function inBounds(bounds) {
-        return bounds.right > bounds.left && bounds.bottom > bounds.top &&
-            (direction === 2 ? bounds.left > screen_bounds.left : bounds.left >= screen_bounds.left) &&
-            (direction === 3 ? bounds.top > screen_bounds.top : bounds.top >= screen_bounds.top) &&
-            (direction === 0 ? bounds.right < screen_bounds.right : bounds.right <= screen_bounds.right) &&
-            (direction === 1 ? bounds.bottom < screen_bounds.bottom : bounds.bottom <= screen_bounds.bottom);
-    }
-
-    function containBounds(bounds) {
-        return bounds.right > bounds.left && bounds.bottom > bounds.top &&
-            (
-                (
-                    (bounds.right >= screen_bounds.left && bounds.right <= screen_bounds.right) ||
-                    (bounds.left <= screen_bounds.right && bounds.left >= screen_bounds.left)
-                ) &&
-                (
-                    (bounds.bottom >= screen_bounds.top && bounds.bottom <= screen_bounds.bottom) ||
-                    (bounds.top <= screen_bounds.bottom && bounds.top >= screen_bounds.top)
-                )
-            );
-    }
-
-    function swipe() {
-        let coordinate_a, coordinate_b;
-        switch (direction) {
-            case 0:
-                coordinate_a = swipe_bounds.right_center;
-                coordinate_b = swipe_bounds.left_center;
-                break;
-            case 1:
-                coordinate_a = swipe_bounds.bottom_center;
-                coordinate_b = swipe_bounds.top_center;
-                break;
-            case 2:
-                coordinate_a = swipe_bounds.left_center;
-                coordinate_b = swipe_bounds.right_center;
-                break;
-            case 3:
-                coordinate_a = swipe_bounds.top_center;
-                coordinate_b = swipe_bounds.bottom_center;
-                break;
-            default:
-                messageAction("\"makeInScreen\"direction参数不合法", 9, 1);
-        }
-        gesture(swipe_time, coordinate_a, coordinate_b);
-    }
-}
-
-/**
- * swipe until "f" is in screen then click it
- * @param {object|object[]|string} f - what you wanna find
- * <br>
- *     - object - text("abc") - object you wanna find"<br>
- *     - string - "butterfly.jpg/png" - picture you wanna find<br>
- *     - array - [num(s), obj(s)] - a multi-condition array (all shown in screen at the same time)
- *
- * @param {number|number[]} [screen_area] - restrict for smaller finding area
- * <br>
- *     - null - default is fullscreen<br>
- *     - 4 nums - [left, top, right, bottom] like [10, 50, 700, 1080] for [10, 50, 700, 1080]<br>
- *     - 2 nums - [default, default, right, bottom] like [700, 1080] for [def, def, 700, 1080]<br>
- *     - 1 num - [default, default, default, bottom] like 1080 or [1080] for [def, def, def, 1080]
- *
- * @param {number} [max=timeout=20000;max_swipe_times=50] - set max finding time or max swipe times
- * <br>
- *     - max>=1000 - set max as timeout<br>
- *     - max<1000 - set max as max_swipe_times
- * @param {number|string} [direction="up"] - swipe direction
- * <br>
- *     - 0|left|l or 1|up|u or 2|right|r or 3|down|d for different direction to swipe
- *
- * @param {number} [swipe_time=300] - the time spent for each swiping
- * @param {number} [check_interval=300] - the time spent between every swiping
- * @param {number|number[]} [swipe_area] - restrict for smaller swiping area
- * <br>
- *     - usage is same as "screen_area"
- *
- * @param {number} [inside_or_contain=0] - object inside screen bounds or screen bounds contains object (not for image)
- * <br>
- *     - 0 - contains - screen bounds contains object - just needs a little little bit object bounds shown in screen<br>
- *     - 1 - inside - object inside screen bounds - the whole object bounds must be inside the screen bounds
- *
- * @returns {boolean} - if timed out or max swipe time reached
- */
-function makeInScreenAndClick(f, screen_area, max, direction, swipe_time, check_interval, swipe_area, inside_or_contain) {
-    return makeInScreen(f, screen_area, max, direction, swipe_time, check_interval, swipe_area, inside_or_contain, "click");
-}
-
-/**
  * check any situations may block the process while clicking, waiting or swiping
  * @param bad_situations {...function|function[]|object|object[]}
  */
@@ -1508,138 +1244,5 @@ function checkBadSituation(bad_situations) {
                 sleep(1500);
             }
         }
-    }
-}
-
-function refreshObjects() {
-    let refreshing_obj_thread = threads.start(function () {
-        let kw_ok_btn = textMatches(/OK|确定/); // may 确认 or something else
-        waitForActionAndClickBounds(kw_ok_btn, 10000);
-    });
-    alert("Alert for refreshing objects");
-    refreshing_obj_thread.interrupt();
-    sleep(700);
-}
-
-function calcDuration(time_str, return_unit, no_unit, precision, ingore_negtive, language) {
-    let units = unit();
-    let now = new Date(),
-        time1,
-        time2;
-    if (typeof time_str === "string") {
-        time1 = parsePara(time_str.match(/\d+/g));
-        time2 = now;
-    } else {
-        time1 = parsePara(time_str[0].match(/\d+/g));
-        time2 = parsePara(time_str[1].match(/\d+/g));
-    }
-
-    let duration_is_neg,
-        duration_ms = time1 - time2;
-    if (duration_ms < 0) duration_is_neg = true;
-    duration_ms = Math.abs(duration_ms);
-
-    let user_defined_ret_unit = !!return_unit;
-    return_unit = return_unit || handleAutoReturnUnit(duration_ms);
-    language = language || "en";
-
-    return !user_defined_ret_unit ? returnResult().formatted_text : (no_unit ? returnResult().data : returnResult().formatted_text);
-
-    // tool function(s) //
-
-    function parsePara(str_arr) {
-        let time = new Date();
-        if (str_arr.length === 3) {
-            time.setFullYear(str_arr[0], str_arr[1] - 1, str_arr[2]);
-        } else if (str_arr.length === 6) {
-            time.setFullYear(str_arr[0], str_arr[1] - 1, str_arr[2]);
-            time.setHours(str_arr[3], str_arr[4], str_arr[5]);
-        } else {
-            toastLog("输入的时间字符串不合法");
-            exit();
-        }
-        return time;
-    }
-
-    function handleAutoReturnUnit(time) {
-        let one_second_ms = 1000,
-            one_minute_ms = 60 * one_second_ms,
-            one_hour_ms = 60 * one_minute_ms,
-            one_day_ms = 24 * one_hour_ms;
-        if (time >= one_day_ms) return "d";
-        if (time >= one_hour_ms) return "h";
-        if (time >= one_minute_ms) return "m";
-        if (time >= one_second_ms) return "s";
-        if (time < one_second_ms) return "s";
-    }
-
-    function unit() {
-        return {
-            "ms": new Unit(1, "毫秒", "millisecond"),
-            "s": new Unit(1000, "秒", "second"),
-            "m": new Unit(60000, "分", "minute"),
-            "h": new Unit(3600000, "时", "hour"),
-            "d": new Unit(3600000 * 24, "天", "day"),
-            "M": new Unit(3600000 * 24 * 30, "月", "month"),
-            "y": new Unit(3600000 * 24 * 365, "年", "year")
-        };
-
-        function Unit(base, text_ch, text_en) {
-            this.base = base;
-            this.text_ch = text_ch;
-            this.text_en = text_en;
-        }
-    }
-
-    function returnResult() {
-        precision = precision === 0 ? 0 : (precision || 2);
-        let num = (duration_ms / units[return_unit].base).toFixed(precision) - 0,
-            numWithSign = () => duration_is_neg && !ingore_negtive ? -num : num;
-
-        function unitText() {
-            if (language === "en") return num > 1 ? " " + units[return_unit].text_en + "s" : " " + units[return_unit].text_en;
-            if (language === "ch") return units[return_unit].text_ch;
-        }
-
-        return {
-            formatted_text: numWithSign() + unitText(),
-            data: numWithSign(),
-        }
-    }
-}
-
-function saveCurrentScreenCapture(key_name) {
-
-    tryRequestScreenCapture();
-
-    let path_prefix = "/sdcard/Scripts/Log/Capture/",
-        file_name = key_name + "_" + getDateStr() + "_" + getTimeStr() + ".png",
-        path = path_prefix + file_name;
-
-    files.create(path_prefix);
-    captureScreen(path);
-    messageAction("已存储屏幕截图文件: ", 0);
-    messageAction(file_name, 0);
-
-    // tool function(s) //
-
-    function getDateStr(interval_days) {
-        interval_days = interval_days || 0;
-        let calc_date = new Date(new Date().getTime() + interval_days * 24 * 3600000),
-            year = calc_date.getFullYear(),
-            month_ori = calc_date.getMonth() + 1,
-            month = month_ori < 10 ? "0" + month_ori : month_ori,
-            day_ori = calc_date.getDate(),
-            day = day_ori < 10 ? "0" + day_ori : day_ori;
-        return year + month + day;
-    }
-
-    function getTimeStr() {
-        let now = new Date(),
-            norm_str = time => (time < 10 ? "0" : "") + time,
-            hour = norm_str(now.getHours()),
-            minute = norm_str(now.getMinutes()),
-            second = norm_str(now.getSeconds());
-        return hour + minute + second;
     }
 }
