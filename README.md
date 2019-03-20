@@ -1,10 +1,16 @@
 # Ant_Forest 
 Alipay ant forest auto-collect script  
 
-![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png)  
+![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png?raw=true)  
   
+# v1.1.1
+##### 2019/03/20 
+* `修复` 文件依赖关系
+* `修复` 密文工具
+* `优化` 文件结构
+
 # v1.1.0
-##### 2019/03/19 - 脚本可用性暂未测试 
+###### 2019/03/19 - 脚本可用性暂未测试 
 * `新增` 自动检测/生成/引用本地"密文映射"文件
 * `移除` 指定账户智能切换功能 (暂时关闭)
 * `修复` 收取完毕返回好友列表时 当前屏幕信息没有及时处理即开始滑屏
