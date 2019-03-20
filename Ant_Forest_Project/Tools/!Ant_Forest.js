@@ -19,7 +19,7 @@ while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.my
 let config = {
     main_user_switcher: false, // if you are multi-account user, you may specify a "main account" to switch
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
-    auto_js_log_record_path: "/sdcard/Scripts/Log/AutoJsLog.txt", // up to 512KB per file; leave 0 if not needed
+    auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 350, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     show_collection_details: false, // whether to see nicknames with collection amounts in console
     show_help_details: false, // whether to see nicknames with help amounts in console
@@ -27,7 +27,7 @@ let config = {
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collet_img_intensity: 0, // 0 <= x <= 6, more samples for helping energy balls image matching, at the cost of time however
+    help_collect_img_intensity: 0, // 0 <= x <= 6, more samples for helping energy balls image matching, at the cost of time however
 };
 
 let WIDTH = device.width,
@@ -65,22 +65,15 @@ function antForest() {
 
         function setAutoJsLogPath() {
 
-            let config_value = config.auto_js_log_record_path;
+            let log_path = config.auto_js_log_record_path;
 
-            if (config_value === 0) return;
+            if (!log_path) return;
 
-            let path_norm = config_value || "/sdcard/Scripts/Log/AutoJsLog.txt";
-
-            files.create(path_norm);
+            files.create(log_path);
 
             console.setGlobalLogConfig({
-                file: path_norm,
+                file: log_path,
             });
-
-            if (!config_value) {
-                messageAction("Auto.js日志记录路径使用默认配置", 0, 0, 0, "up");
-                messageAction(path_norm.slice(7), 0, 0, 1);
-            }
         }
 
         function setParams() {
@@ -624,7 +617,7 @@ function antForest() {
                     orange_threshold = config.color_threshold_help_collect_balls,
                     clicked_flag;
 
-                let i = Math.min(parseInt(config.help_collet_img_intensity || 0), 6);
+                let i = Math.min(parseInt(config.help_collect_img_intensity || 0), 6);
                 while (i-- && (sleep(200) || 1)) capt_img_arr.push(images.toBytes(captureScreen())); // for energy balls' flicker
 
                 kw_energy_ball.find().forEach(w => {
@@ -1181,28 +1174,6 @@ function waitForActionAndClickBounds(f_or_with_click_interval, timeout_or_with_i
     if (!waitForAction(func, timeout_or_with_interval, msg, msg_level, if_needs_toast, if_needs_arrow, special_bad_situation)) return false;
     sleep(click_interval);
     return clickBounds(func);
-}
-
-/**
- * decrypt an encrypted array
- * @param arr - encrypted array by another tool
- * @returns {Array} - a decrypted arary
- */
-function restoredPasswordArr(arr) {
-    let result = [],
-        map = JSON.parse(files.read("/sdcard/Scripts/PWMAP.txt")),
-        skip_times = 0;
-    arr.forEach((value, index) => {
-        if (skip_times) return skip_times -= 1;
-        if (map[value] === "\\" && map[arr[index + 1]] === "u") {
-            let tmp_str = "";
-            for (let i = 0; i < 4; i += 1) tmp_str += map[arr[index + i + 2]];
-            tmp_str = "%u" + tmp_str;
-            result.push(unescape(tmp_str));
-            skip_times = 5;
-        } else result.push(map[value]);
-    });
-    return result;
 }
 
 /**

@@ -1,7 +1,21 @@
-# Ant_Forest 
-Alipay ant forest auto-collect script  
+# Ant_Forest  
 
-![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png?raw=true)  
+![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png?raw=true)
+###### 蚂蚁森林能量收取工具
+
+******
+### 使用说明
+******
+1. 下载"Ant_Forest_Project"目录  
+2. 将目录中的全部文件 (或目录本身) 放置于手机存储    
+3. 使用"Auto.js"运行"Ant_Forest.js"文件  
+4. 欢迎使用并反馈
+> 手机存储目录推荐"Auto.js"默认可识别目录 (如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )  
+"Auto.js"版本不低于 `4.1.0 Alpha5`
+
+******
+### 版本历史
+******
   
 # v1.1.1
 ##### 2019/03/20 
