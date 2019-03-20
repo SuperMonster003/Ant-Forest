@@ -1,7 +1,7 @@
 # Ant_Forest  
 
 ![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png?raw=true)
-###### 蚂蚁森林能量收取工具
+###### 蚂蚁森林能量收取工具 (基于Auto.js)
 
 ******
 ### 使用说明
@@ -38,7 +38,7 @@
 ~~** 主账户收取完毕可自动切换之前的账户 (如果有此账户信息)~~  
 * 自动解锁屏幕  
 ** 解锁模块来源 [e1399579](https://github.com/e1399579/autojs)  
-** 结合 `Xposed Edge Pro` 或 `Tasker` 实现定时启动  
+** 可结合 `Xposed Edge Pro` 或 `Tasker` 实现定时启动  
 ~~** 可通过配置向导页面实现解锁密码录入~~  
 * 适应恶劣条件  
 ** 脚本在恶劣条件下仍可正常运行或识别异常 (网络条件较差/意外来电/支付宝异常退出/广告弹窗等)  
