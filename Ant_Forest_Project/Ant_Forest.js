@@ -1,3 +1,7 @@
+/**
+ * @description launcher
+ */
+
 auto();
 
 // just set the tool name here in an easy way ^_^

@@ -17,7 +17,8 @@ engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
 
 let config = {
-    main_user_switcher: false, // if you are multi-account user, you may specify a "main account" to switch
+    main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
+    help_collect_switch: true, // set "false value" if you do not wanna give a hand, and, leave it "true value" if you like "surprise"
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 350, // unit: millisecond; set this value bigger if errors like "CvException" occurred
@@ -27,7 +28,7 @@ let config = {
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collect_img_intensity: 0, // 0 <= x <= 6, more samples for helping energy balls image matching, at the cost of time however
+    help_collect_intensity: 10, // 10 <= x <= 20 is recommended, more samples for image matching, at the cost of time however
 };
 
 let WIDTH = device.width,
@@ -336,7 +337,7 @@ function antForest() {
                     "Settings": "_next",
                     "General": "_next",
                     "Language": "_next",
-                    "简体中文": () => text("简体中文").findOnce().parent().parent().parent().children().size() === 2,
+                    "\u7b80\u4f53\u4e2d\u6587": () => text("简体中文").findOnce().parent().parent().parent().children().size() === 2,
                     "Save": () => !text("Save").exists(),
                 };
 
@@ -423,7 +424,7 @@ function antForest() {
 
             function getEnergyDiff() {
                 let energy_rec = current_app.total_energy_init,
-                    tmp_energy_rec;
+                    tmp_energy_rec = undefined;
                 if (!waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 5000)) return 0;
                 energy_rec = tmp_energy_rec;
                 while (waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 1000)) {
@@ -436,6 +437,14 @@ function antForest() {
         function checkFriendsEnergy() {
 
             let kw_rank_list_self = idMatches(/.*J_rank_list_self/);
+
+            let kw_energy_balls = className("Button").descMatches(/\xa0|收集能量\d+克/),
+                kw_energy_balls_normal = className("Button").desc("\xa0"),
+                kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
+
+            let help_flag = config.help_collect_switch,
+                thread_help_monitor = undefined,
+                help_balls_coords = {};
 
             if (!init()) return;
 
@@ -451,9 +460,7 @@ function antForest() {
 
                 while ((pop_pt_y = targets[0].pop() || targets[1].pop())) {
                     click(WIDTH * 0.5, pop_pt_y + cY(60));
-                    forestPageGetReady();
-                    collectBalls();
-                    helpCollect();
+                    forestPageGetReady() && collectBalls();
                     backToHeroList();
                 }
 
@@ -468,7 +475,12 @@ function antForest() {
             // key function(s) //
 
             function init() {
-                waitForAction(kw_more_friends, 8000); // just in case
+                let max_try_times_more_friends_btn = 8;
+                while (!waitForAction(kw_more_friends, 5000) && max_try_times_more_friends_btn--) {
+                    launchThisApp(current_app.intent, "no_msg");
+                }
+                if (max_try_times_more_friends_btn < 0) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
+
                 kw_more_friends.click();
 
                 let max_try_times = 180,
@@ -479,11 +491,11 @@ function antForest() {
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
 
-                threads.start(expandHeroList);
-                return sleep(500) || 1; // a small interval for page ready
+                threads.start(expandHeroListThread);
+                return ~sleep(500); // a small interval for page ready
             }
 
-            function expandHeroList() {
+            function expandHeroListThread() {
                 let kw_list_more = idMatches(/.*J_rank_list_more/);
                 while (!desc("没有更多了").exists()) {
                     kw_list_more.exists() && kw_list_more.click();
@@ -520,7 +532,7 @@ function antForest() {
                         if (pt_green) return checkBlackList(w) && targets_green.unshift(pt_green.y);
 
                         let pt_orange = images.findColor(capt_img, config.color_orange, find_color_options);
-                        if (pt_orange) return checkBlackList(w) && targets_green.unshift(pt_orange.y);
+                        if (pt_orange) return checkBlackList(w) && targets_orange.unshift(pt_orange.y);
                     } catch (e) {
                         log(find_color_options); ////TEST////
                         log(w.bounds()); ////TEST////
@@ -572,94 +584,135 @@ function antForest() {
             function forestPageGetReady() {
                 let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
                 waitForAction(kw_wait_for_awhile, 5000);
+
                 let max_safe_wait_times = 600;
                 while (kw_wait_for_awhile.exists() && max_safe_wait_times--) sleep(200); // keep waiting for at most 2 min
 
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
                 if (!waitForAction(kw_forest_page, 5000)) return;
 
-                sleep(1000); // average time is about 879.83 ms after energy balls ready (Sony G8441)
+                // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
+                if (!waitForAction(kw_energy_balls, 5000)) return;
+
+                if (help_flag) thread_help_monitor = threads.start(helpMonitorThread);
+
+                return true;
+
+                // tool function(s) //
+
+                function helpMonitorThread() {
+                    if (!waitForAction(kw_energy_balls_normal, 1000)) return;
+
+                    let orange = config.color_orange,
+                        orange_threshold = config.color_threshold_help_collect_balls,
+                        intensity = config.help_collect_intensity;
+
+                    let count = 0;
+                    let thread_counter = threads.start(function () {
+                        while (count < intensity) ~sleep(100) && count++;
+                    });
+
+                    while (count < intensity) {
+                        let all_normal_balls = kw_energy_balls_normal.find(),
+                            norm_balls_size = all_normal_balls.size(),
+                            help_balls_size = Object.keys(help_balls_coords).length;
+                        if (!norm_balls_size || norm_balls_size === help_balls_size) return;
+
+                        all_normal_balls.forEach(w => {
+                            let b = w.bounds(),
+                                top = b.top;
+                            if (top in help_balls_coords) return;
+
+                            let options = {
+                                region: [b.left, top, b.width(), b.height()],
+                                threshold: orange_threshold,
+                            };
+                            if (!images.findColor(captureScreen(), orange, options)) return;
+
+                            help_balls_coords[top] = {x: b.centerX(), y: b.centerY()};
+                        });
+                    }
+
+                    thread_counter.isAlive() && thread_counter.interrupt(); // just in case
+                    return "thread ends here";
+                }
             }
 
             function collectBalls() {
 
-                let checkRipeBalls = () => descMatches(/收集能量\d+克/).find(),
-                    ripe_balls,
-                    ripe_flag,
-                    safe_max_try_times = 6;
+                take() && help();
 
-                let kw_collected = desc("你收取TA"),
-                    ori_collected_amount = getOperateData(kw_collected),
-                    collected_amount = ori_collected_amount,
-                    tmp_collected_amount;
+                // main function(s) //
 
-                while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
-                    ripe_flag = 1;
-                    ripe_balls.forEach(w => clickBounds(w.bounds()));
+                function take() {
+                    let checkRipeBalls = () => kw_energy_balls_ripe.find(),
+                        ripe_balls,
+                        ripe_flag,
+                        safe_max_try_times = 6;
 
-                    if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 5000)) break;
-                    collected_amount = tmp_collected_amount;
-                    while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 500)) {
+                    let kw_collected = desc("你收取TA"),
+                        ori_collected_amount = getOperateData(kw_collected),
+                        collected_amount = ori_collected_amount,
+                        tmp_collected_amount = undefined;
+
+                    while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
+                        ripe_flag = 1;
+                        ripe_balls.forEach(w => clickBounds(w.bounds()));
+
+                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 3500)) break;
                         collected_amount = tmp_collected_amount;
-                    }
-                }
-
-                if (ripe_flag && config.show_collection_details) {
-                    let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
-                    log(friend_name + ": " + (collected_amount - ori_collected_amount) + "g (collect)");
-                }
-            }
-
-            function helpCollect() {
-                let kw_energy_ball = className("Button").desc("\xa0"),
-                    capt_img_arr = [images.toBytes(captureScreen())],
-                    orange = config.color_orange,
-                    orange_threshold = config.color_threshold_help_collect_balls,
-                    clicked_flag;
-
-                let i = Math.min(parseInt(config.help_collect_img_intensity || 0), 6);
-                while (i-- && (sleep(200) || 1)) capt_img_arr.push(images.toBytes(captureScreen())); // for energy balls' flicker
-
-                kw_energy_ball.find().forEach(w => {
-                    let b = w.bounds();
-                    let options = {
-                        region: [b.left, b.top, b.width(), b.height()],
-                        threshold: orange_threshold,
-                    };
-
-                    let pt;
-                    for (let i = 0, len = capt_img_arr.length; i < len; i += 1) {
-                        if (pt = images.findColor(images.fromBytes(capt_img_arr[i]), orange, options)) break;
+                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 500)) {
+                            collected_amount = tmp_collected_amount;
+                        }
                     }
 
-                    if (!pt) return;
-                    click(b.centerX(), b.centerY());
-                    clicked_flag = true;
-                });
+                    if (ripe_flag && config.show_collection_details) {
+                        let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
+                        log(friend_name + ": " + (collected_amount - ori_collected_amount) + "g (collect)");
+                    }
 
-                if (!clicked_flag) return;
+                    return true;
+                }
 
-                let kw_helped = desc("你给TA助力"),
-                    ori_helped_amount = getOperateData(kw_helped),
-                    helped_amount = ori_helped_amount,
-                    tmp_helped_amount;
+                function help() {
+
+                    if (!config.help_collect_switch) return;
+
+                    thread_help_monitor.join(); //// safe enough ?
+
+                    let coords_arr = Object.keys(help_balls_coords);
+                    if (!coords_arr.length) return;
+                    coords_arr.forEach(coords => {
+                        let pt = help_balls_coords[coords];
+                        click(pt.x, pt.y);
+                    });
+
+                    let kw_helped = desc("你给TA助力"),
+                        ori_helped_amount = getOperateData(kw_helped),
+                        helped_amount = ori_helped_amount,
+                        tmp_helped_amount = undefined;
 
 
-                if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 5000)) return;
-                helped_amount = tmp_helped_amount;
-                while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 500)) {
+                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 5000)) return;
                     helped_amount = tmp_helped_amount;
-                }
+                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 500)) {
+                        helped_amount = tmp_helped_amount;
+                    }
 
-                if (config.show_help_details) {
-                    let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
-                    log(friend_name + ": " + (helped_amount - ori_helped_amount) + "g (help)");
+                    if (config.show_help_details) {
+                        let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
+                        log(friend_name + ": " + (helped_amount - ori_helped_amount) + "g (help)");
+                    }
+
+                    help_balls_coords = {};
                 }
             }
 
             function backToHeroList() {
                 let ident_hero_list = textMatches(/.+排行榜/);
                 let kw_back_btn = id("com.alipay.mobile.nebula:id/h5_tv_nav_back");
+
+                if (ident_hero_list.exists()) return;
 
                 let max_try_times = 3;
                 while (max_try_times--) {
@@ -683,7 +736,7 @@ function antForest() {
                 if (list_end_signal) return;
 
                 let bottom_data = getRankListSelfBottom(),
-                    tmp_bottom_data;
+                    tmp_bottom_data = undefined;
 
                 swipe(WIDTH * 0.5, HEIGHT * 0.9, WIDTH * 0.5, HEIGHT * 0.1, 150);
 
@@ -816,9 +869,8 @@ function antForest() {
             ss = duration_date_obj.getSeconds(),
             hh_str = (!hh ? "" : (fillZero(hh) + "时")),
             mm_str = (!mm && !hh ? "" : (fillZero(mm) + "分")),
-            ss_str = (!mm && !hh ? ss : fillZero(ss)) + "秒",
-            countdown_str = "剩余: " + hh_str + mm_str + ss_str;
-        return countdown_str;
+            ss_str = (!mm && !hh ? ss : fillZero(ss)) + "秒";
+        return "剩余: " + hh_str + mm_str + ss_str;
     }
 }
 
