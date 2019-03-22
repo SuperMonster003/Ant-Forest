@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 20, 2019
- * @version 1.1.1
+ * @last_modified Mar 22, 2019
+ * @version 1.2.0
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -19,11 +19,10 @@ while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.my
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
     help_collect_switch: true, // set "false value" if you do not wanna give a hand, and, leave it "true value" if you like "surprise"
+    show_console_log_details: true, // whether to show message details of each friend in console
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 350, // unit: millisecond; set this value bigger if errors like "CvException" occurred
-    show_collection_details: false, // whether to see nicknames with collection amounts in console
-    show_help_details: false, // whether to see nicknames with help amounts in console
     color_green: "#1da06d", // color for collect icon with a hand pattern
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
@@ -55,14 +54,23 @@ function antForest() {
     // main function(s) //
 
     function init() {
+        let init_operation_logged = null;
+
+        showAppTitle();
         setScreenMetrics(WIDTH, HEIGHT);
         unlock_module.unlock();
         setAutoJsLogPath();
         setParams();
         getReady();
-        loginSpecificUser();
+        loginSpecificUser(); // init_operation_logged doesn't set, and needs optimization
+
+        if (init_operation_logged) showSplitLine();
 
         // tool function(s) //
+
+        function showAppTitle() {
+            messageAction("开始\"蚂蚁森林\"任务", 1, 0, 0, "both");
+        }
 
         function setAutoJsLogPath() {
 
@@ -104,6 +112,7 @@ function antForest() {
                 this.total_energy_init = 0;
                 this.total_energy_collect_own = 0;
                 this.blacklist = handleFirstTimeRunBlacklist();
+                this.friends = {};
 
                 // tool function(s) //
 
@@ -121,6 +130,7 @@ function antForest() {
                         if ((result = app.getPackageName(pkg_samples[i]))) {
                             messageAction("已获取新的" + joined_pkg_name + "包名", 3, 1);
                             messageAction(result, 3, 0, 1);
+                            init_operation_logged = 1;
                             return result;
                         }
                     }
@@ -132,13 +142,30 @@ function antForest() {
                 }
 
                 function handleFirstTimeRunBlacklist() {
-                    let blacklist = loadState("blacklist", {}); // {friend_name: timestamp}
+                    let blacklist_title_flag = 0;
+                    let blacklist = loadState("blacklist", {
+                        // Bastien: {
+                        //     time_str: "今天11:07",
+                        //     reason: "protect_cover",
+                        // },
+                    }); // {friend_name: {time_str::, reason::}}
                     Object.keys(blacklist).forEach(name => {
-                        if (checkBlackTimeStr(blacklist[name])) return;
+                        if (checkBlackTimeStr(blacklist[name].time_str)) return;
                         delete blacklist[name];
-                        messageAction("已从黑名单中移除: " + name, 0);
+                        blacklistTitle();
+                        messageAction(name, 1, 0, 1);
                     });
+                    if (blacklist_title_flag) showSplitLine();
                     return blacklist;
+
+                    // tool function(s) //
+
+                    function blacklistTitle() {
+                        if (blacklist_title_flag) return;
+                        if (init_operation_logged) showSplitLine();
+                        messageAction("已从黑名单中移除:", 1);
+                        blacklist_title_flag = 1;
+                    }
                 }
 
                 // function function(s) //
@@ -177,12 +204,17 @@ function antForest() {
                 if (!swipe_intv || isNaN(swipe_intv) || swipe_intv < 300 || swipe_intv > 1000) {
                     config.list_swipe_interval = swipe_intv < 300 ? 300 : 1000; // min safe value i believe
                     messageAction("配置参数\"list_swipe_interval\"已校正为: " + config.list_swipe_interval, 3);
+                    init_operation_logged = 1;
                 }
 
-                if (typeof config.show_collection_details !== "boolean") {
-                    config.show_collection_details = !!config.show_collection_details; // set to Boolean forcely
-                    messageAction("配置参数\"show_collection_details\"已校正为: " + config.show_collection_details, 1);
-                }
+                let boolean_correct = ["main_user_switch", "help_collect_switch", "show_console_log_details"];
+                boolean_correct.forEach(value => {
+                    if (typeof config[value] !== "boolean") {
+                        config[value] = !!config[value]; // set to Boolean by force
+                        messageAction("配置参数\"" + value + "\"已校正为: " + config[value], 1);
+                        init_operation_logged = 1;
+                    }
+                });
             }
         }
 
@@ -236,7 +268,7 @@ function antForest() {
             while (!waitForAction(kw_user_acc_input, 10000) && max_try_times_user_acc_input--) {
                 clickBounds([kw_login_with_new_user, "try"]) || clickBounds([kw_switch_account, "try"]);
             }
-            if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 4, 1, 1);
+            if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 8, 1);
 
             kw_user_acc_input.findOnce().children().forEach(w => {
                 if (w.className() === "android.widget.EditText") w.setText(specific_user.login_username);
@@ -446,6 +478,8 @@ function antForest() {
                 thread_help_monitor = undefined,
                 help_balls_coords = {};
 
+            let thread_blacklist_check = undefined;
+
             if (!init()) return;
 
             let area; // bounds limited to friends list items inside screen
@@ -456,12 +490,17 @@ function antForest() {
             while (max_safe_swipe_times--) {
 
                 let targets = getCurrentScreenTargets(), // [[targets_green], [targets_orange]]
-                    pop_pt_y;
+                    pop_item;
 
-                while ((pop_pt_y = targets[0].pop() || targets[1].pop())) {
-                    click(WIDTH * 0.5, pop_pt_y + cY(60));
-                    forestPageGetReady() && collectBalls();
+                while ((pop_item = targets[0].pop() || targets[1].pop())) {
+                    let name = pop_item.name;
+                    config.show_console_log_details && messageAction(name, "title"); // name title
+                    if (inBlackList(name)) continue;
+                    current_app.friends[name] = {};
+                    click(WIDTH * 0.5, pop_item.y + cY(60));
+                    forestPageGetReady(name) && collectBalls(name);
                     backToHeroList();
+                    showSplitLine();
                 }
 
                 if (list_end_signal) break;
@@ -527,16 +566,16 @@ function antForest() {
                     capt_img = capt_img || captCurrentScreen();
                     let find_color_options = getFindColorOptions(w);
 
+                    // special treatment for first 3 ones
+                    let name = w.parent().child(1).desc() || w.parent().child(2).desc();
+
                     try {
                         let pt_green = images.findColor(capt_img, config.color_green, find_color_options);
-                        if (pt_green) return checkBlackList(w) && targets_green.unshift(pt_green.y);
+                        if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
                         let pt_orange = images.findColor(capt_img, config.color_orange, find_color_options);
-                        if (pt_orange) return checkBlackList(w) && targets_orange.unshift(pt_orange.y);
+                        if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
-                        log(find_color_options); ////TEST////
-                        log(w.bounds()); ////TEST////
-                        log(w.desc()); ////TEST////
                         throw Error(e);
                     }
                 });
@@ -564,29 +603,15 @@ function antForest() {
                         threshold: config.color_threshold_rank_list,
                     };
                 }
-
-                function checkBlackList(w) {
-
-                    // special treatment for first 3 ones
-                    let getFriendName = w => w.parent().child(1).desc() || w.parent().child(2).desc();
-
-                    // if not in black list, then return true
-                    return !(getFriendName(w) in current_app.blacklist);
-                }
-
-                // function timeArea(pt) {
-                //     let in_time_area = boundsInside(~~(pt.x - cX(92)), ~~(pt.y - cY(92)), ~~(pt.x + cX(92)), ~~(pt.y + cY(92))).descMatches(/\d+’/);
-                //     if (!in_time_area.exists()) return false;
-                //     return in_time_area.findOnce().bounds();
-                // }
             }
 
-            function forestPageGetReady() {
+            function forestPageGetReady(name) {
+
                 let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
                 waitForAction(kw_wait_for_awhile, 5000);
 
-                let max_safe_wait_times = 600;
-                while (kw_wait_for_awhile.exists() && max_safe_wait_times--) sleep(200); // keep waiting for at most 2 min
+                let max_safe_wait_times = 1200;
+                while (kw_wait_for_awhile.exists() && max_safe_wait_times--) sleep(100); // keep waiting for at most 2 min
 
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
                 if (!waitForAction(kw_forest_page, 5000)) return;
@@ -595,13 +620,14 @@ function antForest() {
                 if (!waitForAction(kw_energy_balls, 5000)) return;
 
                 if (help_flag) thread_help_monitor = threads.start(helpMonitorThread);
+                thread_blacklist_check = threads.start(blacklistCheckThread);
 
                 return true;
 
                 // tool function(s) //
 
                 function helpMonitorThread() {
-                    if (!waitForAction(kw_energy_balls_normal, 1000)) return;
+                    if (!waitForAction(kw_energy_balls_normal, 1500)) return;
 
                     let orange = config.color_orange,
                         orange_threshold = config.color_threshold_help_collect_balls,
@@ -636,9 +662,69 @@ function antForest() {
                     thread_counter.isAlive() && thread_counter.interrupt(); // just in case
                     return "thread ends here";
                 }
+
+                function blacklistCheckThread() {
+                    let kw_list = className("android.widget.ListView"),
+                        kw_list_more = desc("点击加载更多"),
+                        kw_protect_cover = desc("使用了保护罩");
+                    if (!waitForAction(kw_list, 1500)) return; // just in case
+
+                    let thread_list_more = threads.start(listMoreThread);
+                    let thread_list_monitor = threads.start(listMonitorThread);
+
+                    thread_list_more.join();
+                    thread_list_monitor.join();
+
+                    // tool function(s) //
+
+                    function listMoreThread() {
+                        let safe_max_try_times = 50;
+                        while (!desc("没有更多").exists() && safe_max_try_times--) {
+                            kw_list_more.exists() && ~kw_list_more.click();
+                            sleep(200);
+                        }
+                    }
+
+                    function listMonitorThread() {
+                        let interruptThreadListMore = () => thread_list_more.isAlive() && thread_list_more.interrupt();
+                        let dates_arr = getDatesArr();
+                        if (!dates_arr || !kw_protect_cover.exists()) return interruptThreadListMore();
+                        let cover = kw_protect_cover.findOnce(),
+                            cover_top = cover.bounds().top;
+                        let i = 1;
+                        for (let len = dates_arr.length; i < len; i += 1) {
+                            if (cover_top < dates_arr[i].bounds().top) break;
+                        }
+
+                        let time_str = dates_arr[i - 1].desc() + cover.parent().parent().child(1).desc();
+                        current_app.blacklist[name] = {
+                            time_str: time_str,
+                            reason: "protect_cover",
+                        };
+                        if (config.show_console_log_details) blackListMsg("add", name);
+                        return interruptThreadListMore();
+
+                        // tool function(s) //
+
+                        function getDatesArr() {
+                            let renewDatesArr = () => kw_list.findOnce().children().filter(w => !w.childCount());
+                            let safe_max_try_times = 18;
+                            while (safe_max_try_times--) {
+                                let dates_arr = renewDatesArr();
+                                for (let i = 0, len = dates_arr.length; i < len; i += 1) {
+                                    let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
+                                    if (kw_protect_cover.exists() || over_two_days) {
+                                        interruptThreadListMore();
+                                        return renewDatesArr();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
-            function collectBalls() {
+            function collectBalls(name) {
 
                 take() && help();
 
@@ -655,6 +741,13 @@ function antForest() {
                         collected_amount = ori_collected_amount,
                         tmp_collected_amount = undefined;
 
+                    thread_blacklist_check.join(); // safe enough ?
+
+                    if (current_app.blacklist[name]) {
+                        thread_help_monitor.isAlive() && thread_help_monitor.interrupt();
+                        return;
+                    }
+
                     while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
                         ripe_flag = 1;
                         ripe_balls.forEach(w => clickBounds(w.bounds()));
@@ -666,9 +759,8 @@ function antForest() {
                         }
                     }
 
-                    if (ripe_flag && config.show_collection_details) {
-                        let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
-                        log(friend_name + ": " + (collected_amount - ori_collected_amount) + "g (collect)");
+                    if (ripe_flag && config.show_console_log_details) {
+                        messageAction("收取: " + (collected_amount - ori_collected_amount) + "g", 1, 0, 1);
                     }
 
                     return true;
@@ -699,9 +791,8 @@ function antForest() {
                         helped_amount = tmp_helped_amount;
                     }
 
-                    if (config.show_help_details) {
-                        let friend_name = textMatches(/.*的蚂蚁森林/).findOnce().text().match(/.+(?=的蚂蚁森林)/)[0];
-                        log(friend_name + ": " + (helped_amount - ori_helped_amount) + "g (help)");
+                    if (config.show_console_log_details) {
+                        messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
                     }
 
                     help_balls_coords = {};
@@ -799,6 +890,36 @@ function antForest() {
                     return 2; // just a backup plan
                 }
             }
+
+            function inBlackList(name) {
+                let blacklist = current_app.blacklist;
+                if (!(name in blacklist)) return;
+                if (!config.show_console_log_details) return true;
+                return blackListMsg("exist", name, "split_line");
+            }
+
+            function blackListMsg(msg_str, name, split_line_flag) {
+                let messages = {
+                    "add": "已加入黑名单",
+                    "exist": "黑名单好友",
+                };
+                let reasons = {
+                    "protect_cover": "好友使用能量保护罩",
+                    "by_user": "用户自行设置",
+                };
+
+                let message = messages[msg_str];
+                messageAction(message, 1, 0, 1);
+                if (msg_str === "exist") messageAction("已跳过收取", 1, 0, 2);
+
+                let current_black_friend = current_app.blacklist[name];
+                let reason_str = current_black_friend.reason;
+                let reason = reasons[reason_str];
+                messageAction(reason, 1, 0, 2);
+                if (reason_str === "protect_cover") messageAction(checkBlackTimeStr(current_black_friend.time_str), 1, 0, 2);
+                split_line_flag && showSplitLine();
+                return true;
+            }
         }
 
         function goBackToAfHome() {
@@ -829,6 +950,7 @@ function antForest() {
 
     function endProcess() {
         threads.shutDownAll(); // kill all threads started by threads.start()
+        current_app.saveState("blacklist", current_app.blacklist); ////TEMP////
         current_app.kill_when_done || closeWindows();
         current_app.is_screen_on || KeyCode("KEYCODE_POWER");
         current_app.kill_when_done && killCurrentApp(current_app.package_name);
@@ -870,7 +992,7 @@ function antForest() {
             hh_str = (!hh ? "" : (fillZero(hh) + "时")),
             mm_str = (!mm && !hh ? "" : (fillZero(mm) + "分")),
             ss_str = (!mm && !hh ? ss : fillZero(ss)) + "秒";
-        return "剩余: " + hh_str + mm_str + ss_str;
+        return hh_str + mm_str + ss_str + "后解除";
     }
 }
 
@@ -887,9 +1009,7 @@ function launchThisApp(intent, no_msg_flag) {
     let max_retry_times = 7;
     while (max_retry_times--) {
         let max_launch_times = 3;
-        if (!no_msg_flag) {
-            current_app.first_time_run ? messageAction("开始" + current_app.quote_name + "任务", 1, 0, 0, "both") : toast("ReAF");
-        }
+        if (!no_msg_flag && !current_app.first_time_run) toast("重新开始" + current_app.quote_name + "任务");
         while (max_launch_times--) {
             app.startActivity(intent);
             if (waitForAction(() => currentPackage() === current_app.package_name, 5000)) break;
@@ -949,7 +1069,7 @@ function killCurrentApp(package_name) {
  *     - 1 - "-> I got you now"<br>
  *     - 3 - "---> I got you now"
  *
- * @param {number} [if_needs_split_line] - if needs a split line
+ * @param {number|string} [if_needs_split_line] - if needs a split line
  * <br>
  *     - 32-bit hyphen line - "------------" (length: 32)
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
