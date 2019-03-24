@@ -6,6 +6,7 @@
  */
 let WIDTH = device.width,
     HEIGHT = device.height;
+
 function Secure(robot, max_retry_times) {
     this.robot = robot;
     this.max_retry_times = max_retry_times || 10;
@@ -59,7 +60,11 @@ function Secure(robot, max_retry_times) {
         if (!(isLocked && isSecure)) return true;
         //log("解锁");
         for (var i = 0; i < this.max_retry_times; i++) {
-            if (this.unlock(password, pattern_size)) {
+            if (!password) {
+                console.error("图案解锁密码为空");
+                exit();
+            }
+            else if (this.unlock(password, pattern_size)) {
                 return true;
             } else {
                 //toastLog("解锁失败，重试");
@@ -81,15 +86,15 @@ function Secure(robot, max_retry_times) {
         var x = WIDTH / 2;
         var y = HEIGHT - 100;
         this.robot.swipe(x, y, x, 100, 750);
-        sleep(1000); // 等待动画
+        sleep(500); // 等待动画
     };
 
     this.unlock = function (password, pattern_size) {
-        var len = password.length;
+        // var len = password.length;
 
-        if (len < 4) {
-            throw new Error("密码至少4位");
-        }
+        // if (len < 4) {
+        //     throw new Error("密码至少4位");
+        // }
 
         return this.secure.unlock(password, pattern_size);
     };
@@ -131,19 +136,11 @@ function Secure(robot, max_retry_times) {
     };
 
     this.unlockPassword = function (password) {
-        if (typeof password !== "string") {
-            password = password.join("");
-        }
+        if (Object.prototype.toString.call(password).slice(8, -1) === "Array") password = password.join("");
         setText(0, password); // 输入密码
-        var confirm;
-        if (confirm = text("确认").findOnce()) {
-            confirm.click();
-        } else {
-            KeyCode("KEYCODE_ENTER"); // 按Enter
-        }
-
-        sleep(1500);
-        return this.checkUnlock();
+        let confirm = text("确认").findOnce();
+        confirm ? confirm.click() : KeyCode("KEYCODE_ENTER"); // 按Enter
+        return ~sleep(1500) && this.checkUnlock();
     };
 }
 
@@ -190,7 +187,7 @@ function NativeSecure(secure) {
     };
 
     this.checkUnlock = function () {
-        sleep(1500); // 等待动画
+        sleep(500); // 等待动画
         if (id("android:id/message").textContains("重试").exists()) {
             toastLog("密码错误");
             return this.failed();
@@ -204,15 +201,15 @@ function MIUISecure(secure) {
     this.__proto__ = secure;
 
     this.hasLayer = function () {
-        return id("com.android.keyguard:id/unlock_screen_sim_card_info").exists() 
-        || id("com.android.keyguard:id/miui_unlock_screen_digital_clock").exists() 
-        || id("com.android.keyguard:id/miui_porch_notification_and_music_control_container").exists()
-        || id("com.android.keyguard:id/notification_message_view").exists();
+        return id("com.android.keyguard:id/unlock_screen_sim_card_info").exists()
+            || id("com.android.keyguard:id/miui_unlock_screen_digital_clock").exists()
+            || id("com.android.keyguard:id/miui_porch_notification_and_music_control_container").exists()
+            || id("com.android.keyguard:id/notification_message_view").exists();
     };
 
     this.unlock = function (password, pattern_size) {
         var len = password.length;
-        
+
         if (id("com.android.keyguard:id/lockPattern").exists()) {
             return this.unlockPattern(password, len, pattern_size);
         } else if (id("com.android.keyguard:id/miui_mixed_password_input_field").exists()) {
@@ -220,7 +217,7 @@ function MIUISecure(secure) {
         } else if (id("com.android.keyguard:id/numeric_inputview").exists()) {
             return this.unlockKey(password, len);
         } else {
-           // toastLog("识别锁定方式失败，型号：" + device.brand + " " + device.product + " " + device.release);
+            // toastLog("识别锁定方式失败，型号：" + device.brand + " " + device.product + " " + device.release);
             return this.checkUnlock();
         }
     };
@@ -259,11 +256,11 @@ function MIUI10Secure(secure) {
     this.secure = new NativeSecure(secure);
 
     this.hasLayer = function () {
-        return id("com.android.systemui:id/awesome_lock_screen_container").exists() 
-        || id("com.android.systemui:id/notification_container_parent").exists() 
-        || id("com.android.systemui:id/keyguard_header").exists()
-        || id("com.android.systemui:id/keyguard_carrier_text").exists()
-        || id("com.android.systemui:id/notification_panel").exists();
+        return id("com.android.systemui:id/awesome_lock_screen_container").exists()
+            || id("com.android.systemui:id/notification_container_parent").exists()
+            || id("com.android.systemui:id/keyguard_header").exists()
+            || id("com.android.systemui:id/keyguard_carrier_text").exists()
+            || id("com.android.systemui:id/notification_panel").exists();
     };
 
     this.unlock = function (password, pattern_size) {

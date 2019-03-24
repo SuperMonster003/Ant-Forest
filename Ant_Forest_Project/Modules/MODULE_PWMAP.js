@@ -22,7 +22,7 @@ function ModulePWMAP() {
     function pwmapEncrypt(input, no_clip_flag) {
 
         checkPWMAPFile();
-        input = input || userInput("请输入要加密的字符串");
+        input = !arguments.length && userInput("请输入要加密的字符串") || input;
         let thread_monitor = monitorRunningTime("正在加密中 请稍候...");
 
         let encrypt_power = Math.min(parseInt(config.encrypt_power), 2) || 1;
@@ -60,7 +60,7 @@ function ModulePWMAP() {
     function pwmapDecrypt(input, no_clip_flag) {
 
         checkPWMAPFile();
-        input = input || userInput("请输入要解密的字符串数组");
+        input = !arguments.length && userInput("请输入要解密的字符串数组") || input;
         let thread_monitor = monitorRunningTime("正在解密中 请稍候...");
 
         let decrypted = decrypt(input);
@@ -71,10 +71,14 @@ function ModulePWMAP() {
         // tool function(s) //
 
         function decrypt(encrypted_arr) {
+            if (typeof encrypted_arr === "undefined") return undefined;
+            if (encrypted_arr === null) return encrypted_arr;
+
             let arr = encrypted_arr,
                 skip_times = 0,
                 result = "";
             if (typeof arr === "string") {
+                if (!arr.length) return "";
                 if (arr[0] !== "[") ~toast("输入的加密字符串不合法") && exit();
                 arr = arr.slice(1, -1).split(/, ?/).map(value => value.replace(/^"([^]+)"$/g, "$1"));
             }

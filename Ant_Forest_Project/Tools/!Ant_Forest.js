@@ -2,7 +2,7 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 22, 2019
+ * @last_modified Mar 23, 2019
  * @version 1.2.0
  * @author SuperMonster003
  *
@@ -35,8 +35,7 @@ let WIDTH = device.width,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
-    storage = storages.create("checkin"),
-    storage_permanent = storages.create("permanent"),
+    storage = require("../Modules/MODULE_STORAGE").create("af"),
     current_app = {};
 
 antForest();
@@ -107,7 +106,6 @@ function antForest() {
                 this.firstTimeRunConditionFun = firstTimeRunCondition;
                 this.saveState = saveState;
                 this.loadState = loadState;
-                this.loadStateArr = loadStateArr;
                 this.specific_user = setSpecificUser();
                 this.total_energy_init = 0;
                 this.total_energy_collect_own = 0;
@@ -143,17 +141,11 @@ function antForest() {
 
                 function handleFirstTimeRunBlacklist() {
                     let blacklist_title_flag = 0;
-                    let blacklist = loadState("blacklist", {
-                        // Bastien: {
-                        //     time_str: "今天11:07",
-                        //     reason: "protect_cover",
-                        // },
-                    }); // {friend_name: {time_str::, reason::}}
+                    let blacklist = loadState("blacklist", {}); // {friend_name: {time_str::, reason::}}
                     Object.keys(blacklist).forEach(name => {
                         if (checkBlackTimeStr(blacklist[name].time_str)) return;
                         delete blacklist[name];
-                        blacklistTitle();
-                        messageAction(name, 1, 0, 1);
+                        config.show_console_log_details && blacklistTitle() && messageAction(name, 1, 0, 1);
                     });
                     if (blacklist_title_flag) showSplitLine();
                     return blacklist;
@@ -161,10 +153,10 @@ function antForest() {
                     // tool function(s) //
 
                     function blacklistTitle() {
-                        if (blacklist_title_flag) return;
+                        if (blacklist_title_flag) return 1;
                         if (init_operation_logged) showSplitLine();
                         messageAction("已从黑名单中移除:", 1);
-                        blacklist_title_flag = 1;
+                        return blacklist_title_flag = 1;
                     }
                 }
 
@@ -177,32 +169,22 @@ function antForest() {
                     return kw_af_title.exists() && desc("合种").exists() || kw_login_or_switch.exists();
                 }
 
-                function saveState(zone, state, permanent_flag) {
-                    if (!zone) messageAction("无效的\"save_zone\"参数", 8, 1);
-                    let zone_info = "af_" + zone.toString(),
-                        state_info = state || 1;
-                    permanent_flag ? storage_permanent.put(zone_info, state_info) : storage.put(zone_info, state_info);
+                function saveState(key, value) {
+                    if (!key) messageAction("无效的\"save_key\"参数", 8, 1);
+                    storage.put(key, value);
                 }
 
-                function loadState(zone, default_value, permanent_flag) {
-                    if (!zone) messageAction("无效的\"load_zone\"参数", 8, 1);
-                    let zone_info = "af_" + zone.toString();
-                    return permanent_flag ? storage_permanent.get(zone_info, default_value) : storage.get(zone_info, default_value);
-                }
-
-                function loadStateArr(arr) {
-                    for (let i = 0, len = arr.length; i < len; i += 1) {
-                        if (!storage.get("af_" + arr[i].toString())) return false;
-                    }
-                    return true;
+                function loadState(key, default_value) {
+                    if (!key) messageAction("无效的\"load_key\"参数", 8, 1);
+                    return storage.get(key, default_value);
                 }
             }
 
             function checkConfig() {
 
-                let swipe_intv = config.list_swipe_interval;
-                if (!swipe_intv || isNaN(swipe_intv) || swipe_intv < 300 || swipe_intv > 1000) {
-                    config.list_swipe_interval = swipe_intv < 300 ? 300 : 1000; // min safe value i believe
+                let swipe_interval = config.list_swipe_interval;
+                if (!swipe_interval || isNaN(swipe_interval) || swipe_interval < 300 || swipe_interval > 1000) {
+                    config.list_swipe_interval = swipe_interval < 300 ? 300 : 1000; // min safe value i believe
                     messageAction("配置参数\"list_swipe_interval\"已校正为: " + config.list_swipe_interval, 3);
                     init_operation_logged = 1;
                 }
@@ -404,11 +386,10 @@ function antForest() {
         requestScreenCapture();
 
         let kw_more_friends = desc("查看更多好友"),
-            kw_cooperation_btn = desc("合种");
-
-        let kw_ripe_energy_balls = className("android.widget.Button").filter(function (w) {
-            return !!w.desc().match(/.*克/);
-        });
+            kw_cooperation_btn = desc("合种"),
+            kw_ripe_energy_balls = className("android.widget.Button").filter(function (w) {
+                return !!w.desc().match(/.*克/);
+            });
 
         checkOwnEnergy();
         checkFriendsEnergy();
@@ -507,7 +488,8 @@ function antForest() {
                 swipeUp();
             }
 
-            thread_list_end.isAlive() && thread_list_end.interrupt();
+            thread_list_end.interrupt();
+
             return list_end_signal;
 
 
@@ -619,6 +601,8 @@ function antForest() {
                 // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
                 if (!waitForAction(kw_energy_balls, 5000)) return;
 
+                let protect_color_detected_flag = false;
+
                 if (help_flag) thread_help_monitor = threads.start(helpMonitorThread);
                 thread_blacklist_check = threads.start(blacklistCheckThread);
 
@@ -627,7 +611,7 @@ function antForest() {
                 // tool function(s) //
 
                 function helpMonitorThread() {
-                    if (!waitForAction(kw_energy_balls_normal, 1500)) return;
+                    if (!waitForAction(()=>kw_energy_balls_normal.exists() && protect_color_detected_flag, 1500)) return;
 
                     let orange = config.color_orange,
                         orange_threshold = config.color_threshold_help_collect_balls,
@@ -659,8 +643,7 @@ function antForest() {
                         });
                     }
 
-                    thread_counter.isAlive() && thread_counter.interrupt(); // just in case
-                    return "thread ends here";
+                    return ~thread_counter.interrupt();
                 }
 
                 function blacklistCheckThread() {
@@ -672,53 +655,77 @@ function antForest() {
                     let thread_list_more = threads.start(listMoreThread);
                     let thread_list_monitor = threads.start(listMonitorThread);
 
+                    let protect_color = images.findColor(captureScreen(), -4262312, {
+                        region: [298, 218, 120, 22],
+                        threshold: 4,
+                    });
+                    protect_color_detected_flag = true;
+                    if(!protect_color) {
+                        thread_list_more.interrupt();
+                        thread_list_monitor.interrupt();
+                        return log("颜色识别确认无保护罩");
+                    }
                     thread_list_more.join();
                     thread_list_monitor.join();
 
                     // tool function(s) //
 
                     function listMoreThread() {
-                        let safe_max_try_times = 50;
+                        if (!waitForAction(kw_list_more, 2000)) return;
+
+                        let safe_max_try_times = 50; // 10 sec at most
                         while (!desc("没有更多").exists() && safe_max_try_times--) {
-                            kw_list_more.exists() && ~kw_list_more.click();
+                            kw_list_more.exists() && kw_list_more.click();
                             sleep(200);
                         }
                     }
 
                     function listMonitorThread() {
-                        let interruptThreadListMore = () => thread_list_more.isAlive() && thread_list_more.interrupt();
                         let dates_arr = getDatesArr();
-                        if (!dates_arr || !kw_protect_cover.exists()) return interruptThreadListMore();
-                        let cover = kw_protect_cover.findOnce(),
-                            cover_top = cover.bounds().top;
-                        let i = 1;
-                        for (let len = dates_arr.length; i < len; i += 1) {
-                            if (cover_top < dates_arr[i].bounds().top) break;
-                        }
+                        if (dates_arr && kw_protect_cover.exists()) addBlacklist();
 
-                        let time_str = dates_arr[i - 1].desc() + cover.parent().parent().child(1).desc();
-                        current_app.blacklist[name] = {
-                            time_str: time_str,
-                            reason: "protect_cover",
-                        };
-                        if (config.show_console_log_details) blackListMsg("add", name);
-                        return interruptThreadListMore();
+                        thread_list_more.interrupt();
 
                         // tool function(s) //
 
                         function getDatesArr() {
-                            let renewDatesArr = () => kw_list.findOnce().children().filter(w => !w.childCount());
+                            if (!waitForAction(kw_list, 2000)) return;
+                            let renewDatesArr = () => {
+                                // 3 arrays at most which can enhance efficiency a little bit
+                                return kw_list.findOnce().children().filter(w => !w.childCount()).slice(0, 3);
+                            };
                             let safe_max_try_times = 18;
                             while (safe_max_try_times--) {
-                                let dates_arr = renewDatesArr();
-                                for (let i = 0, len = dates_arr.length; i < len; i += 1) {
-                                    let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
+                                let dates_arr = renewDatesArr(),
+                                    max_i = dates_arr.length;
+                                for (let i = 0; i < max_i; i += 1) {
+                                    // let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
+                                    let over_two_days = dates_arr[i].desc().length === 5; // like: "03-22"
                                     if (kw_protect_cover.exists() || over_two_days) {
-                                        interruptThreadListMore();
-                                        return renewDatesArr();
+                                        thread_list_more.interrupt();
+                                        return max_i < 3 ? renewDatesArr() : dates_arr; // 样本数达到3个则无需重新获取
                                     }
                                 }
+                                sleep(100); // necessary or not ?
                             }
+                        }
+
+                        function addBlacklist() {
+                            let cover = kw_protect_cover.findOnce(),
+                                cover_top = cover.bounds().top;
+                            let i = 1;
+                            for (let len = dates_arr.length; i < len; i += 1) {
+                                if (cover_top < dates_arr[i].bounds().top) break;
+                            }
+
+                            let date_str = dates_arr[i - 1].desc(); // "今天" or "昨天"
+                            let time_str_clip = cover.parent().parent().child(1).desc(); // like: "03:19"
+                            let time_str = date_str + time_str_clip;
+                            current_app.blacklist[name] = {
+                                time_str: time_str,
+                                reason: "protect_cover",
+                            };
+                            if (config.show_console_log_details) blackListMsg("add", name);
                         }
                     }
                 }
@@ -726,7 +733,13 @@ function antForest() {
 
             function collectBalls(name) {
 
-                take() && help();
+                let help_start_signal = false;
+
+                let thread_take = threads.start(take);
+                let thread_help = threads.start(help);
+
+                thread_take.join();
+                thread_help.join();
 
                 // main function(s) //
 
@@ -742,11 +755,9 @@ function antForest() {
                         tmp_collected_amount = undefined;
 
                     thread_blacklist_check.join(); // safe enough ?
+                    help_start_signal = true;
 
-                    if (current_app.blacklist[name]) {
-                        thread_help_monitor.isAlive() && thread_help_monitor.interrupt();
-                        return;
-                    }
+                    if (current_app.blacklist[name]) return thread_help_monitor.interrupt();
 
                     while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
                         ripe_flag = 1;
@@ -769,6 +780,10 @@ function antForest() {
                 function help() {
 
                     if (!config.help_collect_switch) return;
+
+                    let safe_max_wait_signal_times = 50; // 10 sec at most
+                    while (!help_start_signal && safe_max_wait_signal_times--) sleep(200);
+                    if (safe_max_wait_signal_times < 0) return;
 
                     thread_help_monitor.join(); //// safe enough ?
 
@@ -950,7 +965,7 @@ function antForest() {
 
     function endProcess() {
         threads.shutDownAll(); // kill all threads started by threads.start()
-        current_app.saveState("blacklist", current_app.blacklist); ////TEMP////
+        current_app.saveState("blacklist", current_app.blacklist);
         current_app.kill_when_done || closeWindows();
         current_app.is_screen_on || KeyCode("KEYCODE_POWER");
         current_app.kill_when_done && killCurrentApp(current_app.package_name);
