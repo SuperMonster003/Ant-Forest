@@ -19,10 +19,11 @@ function ModulePWMAP() {
 
     // main function(s) //
 
-    function pwmapEncrypt(input, no_clip_flag) {
+    function pwmapEncrypt(input) {
 
         checkPWMAPFile();
-        input = !arguments.length && userInput("请输入要加密的字符串") || input;
+        let is_empty_input = !arguments.length;
+        input = is_empty_input && userInput("请输入要加密的字符串") || input;
         let thread_monitor = monitorRunningTime("正在加密中 请稍候...");
 
         let encrypt_power = Math.min(parseInt(config.encrypt_power), 2) || 1;
@@ -34,7 +35,7 @@ function ModulePWMAP() {
 
         let regexp = new RegExp(/[A-Za-z0-9`~!@#$%^&*()_+=\-\[\]}{'\\;:\/?.>,<| ]/);
         let encrypted = "[" + input.map(value => "\"" + value + "\"") + "]";
-        !no_clip_flag && ~setClip(encrypted) && toast("密文数组已复制剪切板");
+        is_empty_input && ~setClip(encrypted) && toast("密文数组已复制剪切板");
         return encrypted;
 
         // tool function(s) //
@@ -57,15 +58,16 @@ function ModulePWMAP() {
         }
     }
 
-    function pwmapDecrypt(input, no_clip_flag) {
+    function pwmapDecrypt(input) {
 
         checkPWMAPFile();
-        input = !arguments.length && userInput("请输入要解密的字符串数组") || input;
+        let is_empty_input = !arguments.length;
+        input = is_empty_input && userInput("请输入要解密的字符串数组") || input;
         let thread_monitor = monitorRunningTime("正在解密中 请稍候...");
 
         let decrypted = decrypt(input);
         thread_monitor.interrupt();
-        !no_clip_flag && ~setClip(decrypted) && toast("解密字符串已复制剪切板");
+        is_empty_input && ~setClip(decrypted) && toast("解密字符串已复制剪切板");
         return decrypted;
 
         // tool function(s) //

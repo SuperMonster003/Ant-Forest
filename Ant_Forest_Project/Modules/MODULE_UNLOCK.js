@@ -15,7 +15,7 @@ function Unlock() {
     let storage_config = storage.get("config", {});
     if (!storage_config.no_longer_prompt) unlockConfigWizard();
 
-    let password = decrypt(storage_config.password, "no_clip") || "",
+    let password = decrypt(storage_config.password) || "",
         pattern_size = storage_config.pattern_size, // could be undefined
         max_try_times = storage_config.max_try_times; // could be undefined
 
@@ -37,6 +37,8 @@ function Unlock() {
         let config = {},
             config_now_flag = true,
             no_longer_prompt = storage_config.no_longer_prompt;
+
+        let alert_info = {};
 
         let thread_step00 = threads.start(function () {
 
@@ -63,7 +65,7 @@ function Unlock() {
                 storage_config.no_longer_prompt = no_longer_prompt;
                 step_00.cancel();
             }).on("positive", () => {
-                if (!config_now_flag) return toast("请取消勾选\"不再提示\"选项");
+                if (!config_now_flag) return alertTitle(step_00, "请取消勾选\"不再提示\"选项");
                 step_00.cancel();
             });
 
@@ -112,8 +114,8 @@ function Unlock() {
                 }).show();
             }).on("positive", () => {
                 password = step_01.getInputEditText().getText().toString();
-                if (password && password.length < 4) return toast("密码长度不小于4位");
-                config["password"] = encrypt(password, "no_clip");
+                if (password && password.length < 4) return alertTitle(step_01, "密码长度不小于4位");
+                config["password"] = encrypt(password);
                 step_02.show();
                 step_01.cancel();
             }).on("input_change", (dialog, input) => {
@@ -206,6 +208,46 @@ function Unlock() {
         thread_sub_steps.join();
 
         storage.put("config", Object.assign(storage_config, config));
+
+        // tool function(s) //
+
+        function alertTitle(dialog, message, duration) {
+            if (!alert_info[dialog]) alert_info[dialog] = {};
+
+            let ori_text = alert_info[dialog].ori_text || "",
+                ori_color = alert_info[dialog].ori_color || "",
+                thread_alert;
+
+            try {
+                thread_alert = threads.start(function () {
+                    if (!ori_text) {
+                        ori_text = dialog.getTitleView().getText();
+                        alert_info[dialog].ori_text = ori_text;
+                    }
+                    if (!ori_color) {
+                        ori_color = dialog.getTitleView().getTextColors().colors[0];
+                        alert_info[dialog].ori_color = ori_color;
+                    }
+
+                    dialog.getTitleView().setText(message);
+                    dialog.getTitleView().setTextColor(colors.parseColor("#cc5588"));
+
+                    sleep(duration || 3000);
+
+                    dialog.getTitleView().setText(ori_text);
+                    dialog.getTitleView().setTextColor(ori_color);
+                });
+            } catch (e) {
+                // try recovering title state
+                try {
+                    thread_alert && thread_alert.interrupt();
+                    ori_text && dialog.getTitleView().setText(ori_text);
+                    ori_color && dialog.getTitleView().setTextColor(ori_color);
+                } catch (e) {
+                    // nothing to do here
+                }
+            }
+        }
     }
 }
 

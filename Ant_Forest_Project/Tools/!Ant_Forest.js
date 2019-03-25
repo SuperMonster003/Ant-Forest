@@ -18,7 +18,7 @@ while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.my
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    help_collect_switch: true, // set "false value" if you do not wanna give a hand, and, leave it "true value" if you like "surprise"
+    help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
@@ -27,7 +27,8 @@ let config = {
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collect_intensity: 10, // 10 <= x <= 20 is recommended, more samples for image matching, at the cost of time however
+    help_collect_intensity: 10, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
+    max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
 let WIDTH = device.width,
@@ -88,9 +89,12 @@ function antForest() {
 
             current_app = new App("蚂蚁森林");
             current_app.is_screen_on = unlock_module.is_screen_on;
-            current_app.kill_when_done = currentPackage() !== current_app.package_name;
+            current_app.ori_app_package = currentPackage();
+            current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
 
             checkConfig();
+            setMaxRunTime();
+
 
             // constructor //
 
@@ -110,7 +114,7 @@ function antForest() {
                 this.total_energy_init = 0;
                 this.total_energy_collect_own = 0;
                 this.blacklist = handleFirstTimeRunBlacklist();
-                this.friends = {};
+                this.current_friend = {};
 
                 // tool function(s) //
 
@@ -141,9 +145,9 @@ function antForest() {
 
                 function handleFirstTimeRunBlacklist() {
                     let blacklist_title_flag = 0;
-                    let blacklist = loadState("blacklist", {}); // {friend_name: {time_str::, reason::}}
+                    let blacklist = loadState("blacklist", {}); // {friend_name: {timestamp::, reason::}}
                     Object.keys(blacklist).forEach(name => {
-                        if (checkBlackTimeStr(blacklist[name].time_str)) return;
+                        if (checkBlackTimestamp(blacklist[name].timestamp)) return;
                         delete blacklist[name];
                         config.show_console_log_details && blacklistTitle() && messageAction(name, 1, 0, 1);
                     });
@@ -185,7 +189,15 @@ function antForest() {
                 let swipe_interval = config.list_swipe_interval;
                 if (!swipe_interval || isNaN(swipe_interval) || swipe_interval < 300 || swipe_interval > 1000) {
                     config.list_swipe_interval = swipe_interval < 300 ? 300 : 1000; // min safe value i believe
-                    messageAction("配置参数\"list_swipe_interval\"已校正为: " + config.list_swipe_interval, 3);
+                    messageAction("校正\"list_swipe_interval\": " + config.list_swipe_interval, 3);
+                    init_operation_logged = 1;
+                }
+
+                let max_running_time = config.max_running_time,
+                    parsed_max_time = +max_running_time;
+                if (max_running_time && parsed_max_time !== 0 && (!parsed_max_time || max_running_time < 1 || max_running_time > 60)) {
+                    config.max_running_time = max_running_time < 1 ? 1 : 60;
+                    messageAction("校正\"max_running_time\": " + config.max_running_time, 3);
                     init_operation_logged = 1;
                 }
 
@@ -193,9 +205,22 @@ function antForest() {
                 boolean_correct.forEach(value => {
                     if (typeof config[value] !== "boolean") {
                         config[value] = !!config[value]; // set to Boolean by force
-                        messageAction("配置参数\"" + value + "\"已校正为: " + config[value], 1);
+                        messageAction("校正\"" + value + "\": " + config[value], 1);
                         init_operation_logged = 1;
                     }
+                });
+            }
+
+            function setMaxRunTime() {
+                let max = config.max_running_time;
+
+                if (!max || !+max) return;
+
+                threads.start(function () {
+                    sleep(+max * 60000);
+                    let exit_msg = "超时强制退出";
+                    messageAction(exit_msg, 4, 1, 0, "both_n");
+                    ~threads.shutDownAll() && exit();
                 });
             }
         }
@@ -468,12 +493,17 @@ function antForest() {
                     pop_item;
 
                 while ((pop_item = targets[0].pop() || targets[1].pop())) {
-                    let name = pop_item.name;
-                    config.show_console_log_details && messageAction(name, "title"); // name title
-                    if (inBlackList(name)) continue;
+                    current_app.current_friend = {
+                        name: pop_item.name,
+                        console_logged: 0,
+                    };
+                    config.show_console_log_details && messageAction(current_app.current_friend.name, "title"); // name title
+                    if (inBlackList()) continue;
                     click(WIDTH * 0.5, pop_item.y + cY(60));
-                    forestPageGetReady() && collectBalls(name);
-                    ~backToHeroList() && showSplitLine();
+                    forestPageGetReady() && collectBalls();
+                    backToHeroList();
+                    current_app.current_friend.console_logged || messageAction("无能量球可操作", 1, 0, 1);
+                    showSplitLine();
                 }
 
                 if (!list_end_signal) swipeUp();
@@ -605,7 +635,7 @@ function antForest() {
                 return true;
             }
 
-            function collectBalls(name) {
+            function collectBalls() {
 
                 let blacklist_passed_flag = true;
 
@@ -632,7 +662,8 @@ function antForest() {
                         threshold: 4,
                     });
                     if (protect_color_match) blacklist_passed_flag = false;
-                    else return console.verbose("-> 颜色识别无保护罩"); ////TEST////
+                    // else return console.verbose("-> 颜色识别无保护罩"); ////TEST////
+                    else return;
 
                     let thread_list_more = threads.start(listMoreThread);
                     let thread_list_monitor = threads.start(listMonitorThread);
@@ -695,11 +726,20 @@ function antForest() {
                             let date_str = dates_arr[i - 1].desc(); // "今天" or "昨天"
                             let time_str_clip = cover.parent().parent().child(1).desc(); // like: "03:19"
                             let time_str = date_str + time_str_clip;
-                            current_app.blacklist[name] = {
-                                time_str: time_str,
+                            current_app.blacklist[current_app.current_friend.name] = {
+                                timestamp: getTimestamp(time_str),
                                 reason: "protect_cover",
                             };
-                            if (config.show_console_log_details) blackListMsg("add", name);
+                            if (config.show_console_log_details) blackListMsg("add");
+
+                            // tool function(s) //
+
+                            function getTimestamp(time_str) {
+                                let now = new Date();
+                                let time = new Date();
+                                let time_offset = time_str.match(/昨天/) && -24;
+                                return new Date(new Date(time.setHours(now.getHours() + time_offset)).toDateString() + " " + time_str.slice(2)).getTime(); // timestamp when protect cover took effect
+                            }
                         }
                     }
                 }
@@ -710,8 +750,7 @@ function antForest() {
                         ripe_flag,
                         safe_max_try_times = 6;
 
-                    let kw_collected = desc("你收取TA"),
-                        ori_collected_amount = getOperateData(kw_collected),
+                    let ori_collected_amount = getOperateData("collect"),
                         collected_amount = ori_collected_amount,
                         tmp_collected_amount = undefined;
 
@@ -719,15 +758,16 @@ function antForest() {
                         ripe_flag = 1;
                         ripe_balls.forEach(w => clickBounds(w.bounds()));
 
-                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 3500)) break;
+                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 3500)) break;
                         collected_amount = tmp_collected_amount;
-                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData(kw_collected)), 500)) {
+                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 300)) {
                             collected_amount = tmp_collected_amount;
                         }
                     }
 
                     if (ripe_flag && config.show_console_log_details) {
                         messageAction("收取: " + (collected_amount - ori_collected_amount) + "g", 1, 0, 1);
+                        current_app.current_friend.console_logged = 1;
                     }
 
                     return true;
@@ -739,8 +779,8 @@ function antForest() {
 
                     thread_help_monitor.join();
 
-                    let kw_helped = desc("你给TA助力"),
-                        ori_helped_amount = getOperateData(kw_helped),
+                    // let kw_helped = desc("你给TA助力");
+                    let ori_helped_amount = getOperateData("help"),
                         helped_amount = ori_helped_amount,
                         tmp_helped_amount = undefined;
 
@@ -751,14 +791,15 @@ function antForest() {
                         click(pt.x, pt.y);
                     });
 
-                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 5000)) return;
+                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 5000)) return;
                     helped_amount = tmp_helped_amount;
-                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 500)) {
+                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 300)) {
                         helped_amount = tmp_helped_amount;
                     }
 
                     if (config.show_console_log_details) {
                         messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
+                        current_app.current_friend.console_logged = 1;
                     }
 
                     help_balls_coords = {}; // reset
@@ -870,40 +911,66 @@ function antForest() {
                 }
             }
 
-            function getOperateData(kw) {
-
-                let idx_collected_node = null,
-                    max_try_times = 4;
-                while (max_try_times--) {
-                    try {
-                        idx_collected_node = idx_collected_node || getCollectedNodeIdx();
-                        return kw.findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
-                    } catch (e) {
-                        // nothing to do here
-                    }
-                }
-                if (max_try_times < 0) return 0 / 0;
+            function getOperateData(ident) {
+                if (ident === "help") return getHelpData();
+                if (ident === "collect") return getCollectData();
+                return NaN;
 
                 // tool function(s) //
 
-                function getCollectedNodeIdx() {
-                    for (let i = 0, len = kw.findOnce().parent().children().size(); i < len; i += 1) {
-                        let current_node_desc = kw.findOnce().parent().child(i).desc();
-                        if (!current_node_desc) continue;
-                        if (current_node_desc.match(/\d+g/)) return i;
+                function getHelpData() {
+                    let max_try_times = 4;
+                    while (max_try_times--) {
+                        try {
+                            return idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1).desc().match(/\d+/)[0] - 0;
+                        } catch (e) {
+                            try {
+                                return descMatches(/\d+g/).filter(function (w) {
+                                    return w.bounds().right > ~~(WIDTH * 0.95);
+                                }).findOnce().desc().match(/\d+/)[0] - 0;
+                            } catch (e) {
+                                // nothing to do here
+                            }
+                        }
                     }
-                    return 2; // just a backup plan
+                    return NaN;
+                }
+
+                function getCollectData() {
+                    let kw_collected = desc("你收取TA"),
+                        idx_collected_node = null,
+                        max_try_times = 4;
+                    while (max_try_times--) {
+                        try {
+                            idx_collected_node = idx_collected_node || getCollectedNodeIdx();
+                            return kw_collected.findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
+                        } catch (e) {
+                            // nothing to do here
+                        }
+                    }
+                    if (max_try_times < 0) return 0 / 0;
+
+                    // tool function(s) //
+
+                    function getCollectedNodeIdx() {
+                        for (let i = 0, len = kw_collected.findOnce().parent().children().size(); i < len; i += 1) {
+                            let current_node_desc = kw_collected.findOnce().parent().child(i).desc();
+                            if (!current_node_desc) continue;
+                            if (current_node_desc.match(/\d+g/)) return i;
+                        }
+                        return 2; // just a backup plan
+                    }
                 }
             }
 
-            function inBlackList(name) {
+            function inBlackList() {
+                let name = current_app.current_friend.name;
                 let blacklist = current_app.blacklist;
                 if (!(name in blacklist)) return;
-                if (!config.show_console_log_details) return true;
-                return blackListMsg("exist", name, "split_line");
+                return config.show_console_log_details ? blackListMsg("exist", "split_line") : true;
             }
 
-            function blackListMsg(msg_str, name, split_line_flag) {
+            function blackListMsg(msg_str, split_line_flag) {
                 let messages = {
                     "add": "已加入黑名单",
                     "exist": "黑名单好友",
@@ -917,13 +984,14 @@ function antForest() {
                 messageAction(message, 1, 0, 1);
                 if (msg_str === "exist") messageAction("已跳过收取", 1, 0, 2);
 
+                let name = current_app.current_friend.name;
                 let current_black_friend = current_app.blacklist[name];
                 let reason_str = current_black_friend.reason;
                 let reason = reasons[reason_str];
                 messageAction(reason, 1, 0, 2);
-                if (reason_str === "protect_cover") messageAction(checkBlackTimeStr(current_black_friend.time_str), 1, 0, 2);
+                if (reason_str === "protect_cover") messageAction(checkBlackTimestamp(current_black_friend.timestamp), 1, 0, 2);
                 split_line_flag && showSplitLine();
-                return true;
+                return current_app.current_friend.console_logged = 1;
             }
         }
 
@@ -956,19 +1024,28 @@ function antForest() {
     function endProcess() {
         threads.shutDownAll(); // kill all threads started by threads.start()
         current_app.saveState("blacklist", current_app.blacklist);
-        current_app.kill_when_done || closeWindows();
+        current_app.kill_when_done ? endAlipay() : closeAfWindows();
         current_app.is_screen_on || KeyCode("KEYCODE_POWER");
-        current_app.kill_when_done && killCurrentApp(current_app.package_name);
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
         // tool function(s) //
 
-        function closeWindows() {
+        function closeAfWindows() {
             let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/),
-                kw_close = desc("关闭"),
-                kw_back_btn = id("com.alipay.mobile.antui:id/back_button");
-            while (clickBounds([kw_close, "try"]) || kw_login_with_new_user.exists() && clickBounds([kw_back_btn, "try"])) sleep(600);
+                kw_back_btn = id("com.alipay.mobile.antui:id/back_button"),
+                kw_af_title = text("蚂蚁森林"),
+                kw_close = desc("关闭");
+            while (!~"condition listed as below" ||
+            kw_af_title.exists() && clickBounds([kw_close, "try"]) ||
+            kw_login_with_new_user.exists() && clickBounds([kw_back_btn, "try"])) {
+                sleep(600);
+            }
+        }
+
+        function endAlipay() {
+            launchPackage(current_app.ori_app_package); // pull to front
+            killCurrentApp(current_app.package_name);
         }
     }
 
@@ -979,15 +1056,13 @@ function antForest() {
         return descMatches(/\d+g/).findOnce().desc().match(/\d+/)[0] - 0;
     }
 
-    function checkBlackTimeStr(time_str) {
+    function checkBlackTimestamp(timestamp) {
+
         let now = new Date();
-        let time = new Date();
-        let time_offset = time_str.match(/今天/) && 24;
-        let unblacklist_date_obj = new Date(new Date(time.setHours(now.getHours() + time_offset)).toDateString() + " " + time_str.slice(2));
-
-        let duration_ms = unblacklist_date_obj.getTime() - now.getTime();
-
+        let duration_ms = timestamp + 86400000 - now.getTime();
         if (duration_ms <= 0) return;
+
+        if (!config.show_console_log_details) return true;
 
         let duration_date_obj = new Date(Date.parse(now.toDateString()) + duration_ms);
         let fillZero = num => ("0" + num).slice(-2);
