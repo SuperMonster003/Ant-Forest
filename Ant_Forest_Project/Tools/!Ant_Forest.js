@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 23, 2019
- * @version 1.2.0
+ * @last_modified Mar 24, 2019
+ * @version 1.2.1
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -22,7 +22,7 @@ let config = {
     show_console_log_details: true, // whether to show message details of each friend in console
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
-    list_swipe_interval: 240, // unit: millisecond; set this value bigger if errors like "CvException" occurred
+    list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     color_green: "#1da06d", // color for collect icon with a hand pattern
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
@@ -739,17 +739,17 @@ function antForest() {
 
                     thread_help_monitor.join();
 
+                    let kw_helped = desc("你给TA助力"),
+                        ori_helped_amount = getOperateData(kw_helped),
+                        helped_amount = ori_helped_amount,
+                        tmp_helped_amount = undefined;
+
                     let coords_arr = Object.keys(help_balls_coords);
                     if (!coords_arr.length) return;
                     coords_arr.forEach(coords => {
                         let pt = help_balls_coords[coords];
                         click(pt.x, pt.y);
                     });
-
-                    let kw_helped = desc("你给TA助力"),
-                        ori_helped_amount = getOperateData(kw_helped),
-                        helped_amount = ori_helped_amount,
-                        tmp_helped_amount = undefined;
 
                     if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 5000)) return;
                     helped_amount = tmp_helped_amount;

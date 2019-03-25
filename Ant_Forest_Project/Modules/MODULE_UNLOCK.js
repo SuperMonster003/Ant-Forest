@@ -90,13 +90,26 @@ function Unlock() {
 
             let step_01 = dialogs.build(Object.assign({}, common_steps_params, {
                 title: "输入锁屏解锁密码",
-                content: "--  Step  1 / 3  --\n\n密码长度不少于4位\n无密码请留空",
+                negative: "查看示例",
+                negativeColor: "#88bb88",
+                content: "--  Step  1 / 3  --\n\n密码长度不少于4位\n无密码请留空\n图案解锁点数大于9使用逗号分隔",
                 inputHint: "密码将以密文形式存储在本地",
             })).on("neutral", () => {
                 step_01.cancel();
             }).on("negative", () => {
-                step_00.show();
-                step_01.cancel();
+                dialogs.build({
+                    title: "锁屏密码示例",
+                    content: "滑动即可解锁: (留空)\n\nPIN解锁: 1001\n\n密码解锁: 10btv69\n\n图案解锁: (点阵序号从1开始)\n3×3点阵 - 1235789 或 1,2,3,5,7,8,9\n4×4点阵 - 1,2,3,4,8,12,16\n注: 点阵密码可简化",
+                    positive: "关闭",
+                    neutral: "了解点阵简化",
+                    neutralColor: "#88bb88",
+                }).on("neutral", () => {
+                    dialogs.build({
+                        title: "图案解锁密码简化",
+                        content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6\n\n*此功能暂未实现\nsince Mar 25, 2019",
+                        positive: "关闭",
+                    }).show();
+                }).show();
             }).on("positive", () => {
                 password = step_01.getInputEditText().getText().toString();
                 if (password && password.length < 4) return toast("密码长度不小于4位");
