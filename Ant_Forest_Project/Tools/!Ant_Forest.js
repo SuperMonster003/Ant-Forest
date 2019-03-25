@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Mar 25, 2019
- * @version 1.3.0
+ * @version 1.3.1
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -408,7 +408,7 @@ function antForest() {
 
     function checkEnergy() {
 
-        requestScreenCapture();
+        tryRequestScreenCapture();
 
         let kw_more_friends = desc("查看更多好友"),
             kw_cooperation_btn = desc("合种"),
@@ -1486,4 +1486,30 @@ function checkBadSituation(bad_situations) {
             }
         }
     }
+}
+
+function tryRequestScreenCapture() {
+    if (current_app.request_screen_capture_flag) return;
+
+    current_app.request_screen_capture_flag = 1;
+
+    let thread_req = threads.start(function () {
+        let max_try_times = 4;
+        while (!requestScreenCapture() && max_try_times--) sleep(3000);
+    });
+    let thread_prompt = threads.start(function () {
+        let kw_no_longer_prompt = id("com.android.systemui:id/remember");
+        if (!waitForAction(kw_no_longer_prompt, 5000)) return;
+        kw_no_longer_prompt.click();
+
+        let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
+        if (!waitForAction(kw_start_now_btn, 2000)) return;
+        kw_start_now_btn.click();
+    });
+    threads.start(function () {
+        if (!waitForAction(() => !thread_req.isAlive() && !thread_prompt.isAlive(), 8000)) {
+            thread_req.interrupt();
+            thread_prompt.interrupt();
+        }
+    }); // thread_req_timeout
 }
