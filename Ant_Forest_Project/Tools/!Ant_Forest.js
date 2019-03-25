@@ -22,10 +22,10 @@ let config = {
     show_console_log_details: true, // whether to show message details of each friend in console
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
-    list_swipe_interval: 350, // unit: millisecond; set this value bigger if errors like "CvException" occurred
+    list_swipe_interval: 240, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     color_green: "#1da06d", // color for collect icon with a hand pattern
     color_orange: "#f99137", // color for help icon with a heart pattern
-    color_threshold_rank_list: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
+    color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     help_collect_intensity: 10, // 10 <= x <= 20 is recommended, more samples for image matching, at the cost of time however
 };
@@ -451,25 +451,19 @@ function antForest() {
 
             let kw_rank_list_self = idMatches(/.*J_rank_list_self/);
 
+            if (!rankListReady()) return;
+
             let kw_energy_balls = className("Button").descMatches(/\xa0|收集能量\d+克/),
                 kw_energy_balls_normal = className("Button").desc("\xa0"),
                 kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
 
-            let help_flag = config.help_collect_switch,
-                thread_help_monitor = undefined,
-                help_balls_coords = {};
+            let help_switch = config.help_collect_switch,
+                help_balls_coords = {},
+                thread_list_end = threads.start(endOfListThread),
+                list_end_signal = 0;
 
-            let thread_blacklist_check = undefined;
-
-            if (!init()) return;
-
-            let area; // bounds limited to friends list items inside screen
-            let list_end_signal = 0;
-            let thread_list_end = threads.start(endOfListThread);
             let max_safe_swipe_times = 125; // just for avoiding infinite loop
-
             while (max_safe_swipe_times--) {
-
                 let targets = getCurrentScreenTargets(), // [[targets_green], [targets_orange]]
                     pop_item;
 
@@ -477,25 +471,22 @@ function antForest() {
                     let name = pop_item.name;
                     config.show_console_log_details && messageAction(name, "title"); // name title
                     if (inBlackList(name)) continue;
-                    current_app.friends[name] = {};
                     click(WIDTH * 0.5, pop_item.y + cY(60));
-                    forestPageGetReady(name) && collectBalls(name);
-                    backToHeroList();
-                    showSplitLine();
+                    forestPageGetReady() && collectBalls(name);
+                    ~backToHeroList() && showSplitLine();
                 }
 
-                if (list_end_signal) break;
-                swipeUp();
+                if (!list_end_signal) swipeUp();
+                else break;
             }
 
             thread_list_end.interrupt();
 
             return list_end_signal;
 
-
             // key function(s) //
 
-            function init() {
+            function rankListReady() {
                 let max_try_times_more_friends_btn = 8;
                 while (!waitForAction(kw_more_friends, 5000) && max_try_times_more_friends_btn--) {
                     launchThisApp(current_app.intent, "no_msg");
@@ -505,43 +496,40 @@ function antForest() {
                 kw_more_friends.click();
 
                 let max_try_times = 180,
-                    rankListReady = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount(),
+                    condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount(),
                     kw_try_again = desc("再试一次");
-                while (!waitForAction(rankListReady, 500) && max_try_times--) {
+                while (!waitForAction(condition_rank_list_ready, 500) && max_try_times--) {
                     kw_try_again.exists() && kw_try_again.click(); // for desc("服务器打瞌睡了").exists()
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
 
                 threads.start(expandHeroListThread);
                 return ~sleep(500); // a small interval for page ready
-            }
 
-            function expandHeroListThread() {
-                let kw_list_more = idMatches(/.*J_rank_list_more/);
-                while (!desc("没有更多了").exists()) {
-                    kw_list_more.exists() && kw_list_more.click();
-                    sleep(200);
+                // tool function(s) //
+
+                function expandHeroListThread() {
+                    let kw_list_more = idMatches(/.*J_rank_list_more/);
+                    while (!desc("没有更多了").exists()) {
+                        kw_list_more.exists() && kw_list_more.click();
+                        sleep(200);
+                    }
                 }
             }
 
             function getCurrentScreenTargets() {
 
-                let kw_title_reference = textMatches(/.+排行榜/);
-
                 waitForAction(kw_rank_list_self, 8000); // make page ready
+
+                let screen_area = getRankListScreenArea();
 
                 let targets_green = [],
                     targets_orange = [];
 
-                area = area || {
-                    l: ~~(WIDTH * 0.7),
-                    t: kw_title_reference.exists() ? kw_title_reference.findOnce().parent().parent().bounds().bottom + 1 : cY(145),
-                };
-
                 let capt_img,
                     regexp_energy_amount = new RegExp("\\d\+\(\\\.\\d\+\)\?\(k\?g|t\)");
 
-                boundsInside(area.l, area.t, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find().forEach(w => {
+                boundsInside(screen_area.l, screen_area.t, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find().forEach(w => {
                     let state_ident_node = w.parent().child(w.parent().childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
@@ -566,6 +554,19 @@ function antForest() {
 
                 // tool function(s) //
 
+                function getRankListScreenArea() {
+                    let kw_title_ref = textMatches(/.+排行榜/);
+
+                    if (!current_app.rank_list_screen_area) {
+                        current_app.rank_list_screen_area = {
+                            l: ~~(WIDTH * 0.7),
+                            t: kw_title_ref.exists() ? kw_title_ref.findOnce().parent().parent().bounds().bottom + 1 : cY(145),
+                        };
+                    }
+
+                    return current_app.rank_list_screen_area;
+                }
+
                 function captCurrentScreen() {
                     let capt_img = captureScreen();
                     let max_try_times_wait_for_capt = 25;
@@ -577,17 +578,17 @@ function antForest() {
                 function getFindColorOptions(w) {
                     let parent_node = w.parent();
                     let region_ref = {
-                        l: area.l,
+                        l: screen_area.l,
                         t: parent_node.bounds().top,
                     };
                     return {
                         region: [region_ref.l, region_ref.t, WIDTH - region_ref.l, parent_node.bounds().centerY() - region_ref.t],
-                        threshold: config.color_threshold_rank_list,
+                        threshold: config.color_threshold_rank_list_icons,
                     };
                 }
             }
 
-            function forestPageGetReady(name) {
+            function forestPageGetReady() {
 
                 let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
                 waitForAction(kw_wait_for_awhile, 5000);
@@ -601,76 +602,48 @@ function antForest() {
                 // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
                 if (!waitForAction(kw_energy_balls, 5000)) return;
 
-                let protect_color_detected_flag = false;
-
-                if (help_flag) thread_help_monitor = threads.start(helpMonitorThread);
-                thread_blacklist_check = threads.start(blacklistCheckThread);
-
                 return true;
+            }
 
-                // tool function(s) //
+            function collectBalls(name) {
 
-                function helpMonitorThread() {
-                    if (!waitForAction(()=>kw_energy_balls_normal.exists() && protect_color_detected_flag, 1500)) return;
+                let blacklist_passed_flag = true;
 
-                    let orange = config.color_orange,
-                        orange_threshold = config.color_threshold_help_collect_balls,
-                        intensity = config.help_collect_intensity;
+                let thread_blacklist_check = threads.start(blacklistCheckThread);
+                thread_blacklist_check.join();
 
-                    let count = 0;
-                    let thread_counter = threads.start(function () {
-                        while (count < intensity) ~sleep(100) && count++;
-                    });
+                if (!blacklist_passed_flag) return;
 
-                    while (count < intensity) {
-                        let all_normal_balls = kw_energy_balls_normal.find(),
-                            norm_balls_size = all_normal_balls.size(),
-                            help_balls_size = Object.keys(help_balls_coords).length;
-                        if (!norm_balls_size || norm_balls_size === help_balls_size) return;
+                let thread_take = threads.start(take);
+                let thread_help = threads.start(help);
 
-                        all_normal_balls.forEach(w => {
-                            let b = w.bounds(),
-                                top = b.top;
-                            if (top in help_balls_coords) return;
+                thread_take.join();
+                thread_help.join();
 
-                            let options = {
-                                region: [b.left, top, b.width(), b.height()],
-                                threshold: orange_threshold,
-                            };
-                            if (!images.findColor(captureScreen(), orange, options)) return;
-
-                            help_balls_coords[top] = {x: b.centerX(), y: b.centerY()};
-                        });
-                    }
-
-                    return ~thread_counter.interrupt();
-                }
+                // main function(s) //
 
                 function blacklistCheckThread() {
-                    let kw_list = className("android.widget.ListView"),
-                        kw_list_more = desc("点击加载更多"),
-                        kw_protect_cover = desc("使用了保护罩");
-                    if (!waitForAction(kw_list, 1500)) return; // just in case
+
+                    let kw_list = className("android.widget.ListView");
+                    if (!waitForAction(kw_list, 2000)) return; // just in case
+
+                    let protect_color_match = images.findColor(captureScreen(), -4262312, {
+                        region: [298, 218, 120, 22],
+                        threshold: 4,
+                    });
+                    if (protect_color_match) blacklist_passed_flag = false;
+                    else return console.verbose("-> 颜色识别无保护罩"); ////TEST////
 
                     let thread_list_more = threads.start(listMoreThread);
                     let thread_list_monitor = threads.start(listMonitorThread);
 
-                    let protect_color = images.findColor(captureScreen(), -4262312, {
-                        region: [298, 218, 120, 22],
-                        threshold: 4,
-                    });
-                    protect_color_detected_flag = true;
-                    if(!protect_color) {
-                        thread_list_more.interrupt();
-                        thread_list_monitor.interrupt();
-                        return log("颜色识别确认无保护罩");
-                    }
                     thread_list_more.join();
                     thread_list_monitor.join();
 
                     // tool function(s) //
 
                     function listMoreThread() {
+                        let kw_list_more = desc("点击加载更多");
                         if (!waitForAction(kw_list_more, 2000)) return;
 
                         let safe_max_try_times = 50; // 10 sec at most
@@ -681,6 +654,7 @@ function antForest() {
                     }
 
                     function listMonitorThread() {
+                        let kw_protect_cover = desc("使用了保护罩");
                         let dates_arr = getDatesArr();
                         if (dates_arr && kw_protect_cover.exists()) addBlacklist();
 
@@ -729,19 +703,6 @@ function antForest() {
                         }
                     }
                 }
-            }
-
-            function collectBalls(name) {
-
-                let help_start_signal = false;
-
-                let thread_take = threads.start(take);
-                let thread_help = threads.start(help);
-
-                thread_take.join();
-                thread_help.join();
-
-                // main function(s) //
 
                 function take() {
                     let checkRipeBalls = () => kw_energy_balls_ripe.find(),
@@ -753,11 +714,6 @@ function antForest() {
                         ori_collected_amount = getOperateData(kw_collected),
                         collected_amount = ori_collected_amount,
                         tmp_collected_amount = undefined;
-
-                    thread_blacklist_check.join(); // safe enough ?
-                    help_start_signal = true;
-
-                    if (current_app.blacklist[name]) return thread_help_monitor.interrupt();
 
                     while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
                         ripe_flag = 1;
@@ -779,13 +735,9 @@ function antForest() {
 
                 function help() {
 
-                    if (!config.help_collect_switch) return;
+                    let thread_help_monitor = threads.start(helpMonitorThread);
 
-                    let safe_max_wait_signal_times = 50; // 10 sec at most
-                    while (!help_start_signal && safe_max_wait_signal_times--) sleep(200);
-                    if (safe_max_wait_signal_times < 0) return;
-
-                    thread_help_monitor.join(); //// safe enough ?
+                    thread_help_monitor.join();
 
                     let coords_arr = Object.keys(help_balls_coords);
                     if (!coords_arr.length) return;
@@ -799,7 +751,6 @@ function antForest() {
                         helped_amount = ori_helped_amount,
                         tmp_helped_amount = undefined;
 
-
                     if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 5000)) return;
                     helped_amount = tmp_helped_amount;
                     while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData(kw_helped)), 500)) {
@@ -810,7 +761,46 @@ function antForest() {
                         messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
                     }
 
-                    help_balls_coords = {};
+                    help_balls_coords = {}; // reset
+
+                    // tool function(s) //
+
+                    function helpMonitorThread() {
+                        if (!help_switch) return;
+                        if (!waitForAction(kw_energy_balls_normal, 1500)) return;
+
+                        let orange = config.color_orange,
+                            orange_threshold = config.color_threshold_help_collect_balls,
+                            intensity = config.help_collect_intensity;
+
+                        let count = 0;
+                        let thread_counter = threads.start(function () {
+                            while (count < intensity) ~sleep(100) && count++;
+                        });
+
+                        while (count < intensity) {
+                            let all_normal_balls = kw_energy_balls_normal.find(),
+                                norm_balls_size = all_normal_balls.size(),
+                                help_balls_size = Object.keys(help_balls_coords).length;
+                            if (!norm_balls_size || norm_balls_size === help_balls_size) return;
+
+                            all_normal_balls.forEach(w => {
+                                let b = w.bounds(),
+                                    top = b.top;
+                                if (top in help_balls_coords) return;
+
+                                let options = {
+                                    region: [b.left, top, b.width(), b.height()],
+                                    threshold: orange_threshold,
+                                };
+                                if (!images.findColor(captureScreen(), orange, options)) return;
+
+                                help_balls_coords[top] = {x: b.centerX(), y: b.centerY()};
+                            });
+                        }
+
+                        return ~thread_counter.interrupt();
+                    }
                 }
             }
 
@@ -834,7 +824,7 @@ function antForest() {
 
                 function restartAlipayToHeroList() {
                     launchThisApp(current_app.intent, "no_msg");
-                    init();
+                    rankListReady();
                 }
             }
 
