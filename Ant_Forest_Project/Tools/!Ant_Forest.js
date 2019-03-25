@@ -651,7 +651,7 @@ function antForest() {
                     while (new Date().getTime() - now < intensity_time) {
 
                         let capt = captureScreen();
-                        help_balls_capts.unshift(images.toBase64(images.clip(capt, 298, 218, 120, 22))); // blacklist identify area
+                        help_balls_capts.unshift(images.toBase64(images.clip(capt, cX(298), cY(218), cX(120), cY(22)))); // blacklist identify area
 
                         if (!waitForAction(kw_energy_balls_normal, intensity_time)) return;
 
@@ -719,7 +719,7 @@ function antForest() {
                                 sleep(100);
                             }
                         }
-                    } else capt = images.clip(captureScreen(), 298, 218, 120, 22);
+                    } else capt = images.clip(captureScreen(), cX(298), cY(218), cX(120), cY(22));
 
                     let protect_color_match = images.findColor(capt, -4262312, {
                         threshold: 4,
