@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 24, 2019
- * @version 1.2.1
+ * @last_modified Mar 25, 2019
+ * @version 1.3.0
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -483,8 +483,10 @@ function antForest() {
                 kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
 
             let help_switch = config.help_collect_switch,
+                help_balls_capts = [],
                 help_balls_coords = {},
                 thread_list_end = threads.start(endOfListThread),
+                thread_help_monitor = undefined,
                 list_end_signal = 0;
 
             let max_safe_swipe_times = 125; // just for avoiding infinite loop
@@ -629,10 +631,51 @@ function antForest() {
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
                 if (!waitForAction(kw_forest_page, 5000)) return;
 
+                thread_help_monitor = threads.start(helpMonitorThread);
+
                 // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
                 if (!waitForAction(kw_energy_balls, 5000)) return;
 
                 return true;
+
+                // tool function(s) //
+
+                function helpMonitorThread() {
+
+                    let orange = config.color_orange,
+                        orange_threshold = config.color_threshold_help_collect_balls,
+                        intensity_time = config.help_collect_intensity * 100;
+
+                    let now = new Date().getTime();
+
+                    while (new Date().getTime() - now < intensity_time) {
+
+                        let capt = captureScreen();
+                        help_balls_capts.unshift(images.toBase64(images.clip(capt, 298, 218, 120, 22))); // blacklist identify area
+
+                        if (!waitForAction(kw_energy_balls_normal, intensity_time)) return;
+
+                        let all_normal_balls = kw_energy_balls_normal.find(),
+                            norm_balls_size = all_normal_balls.size(),
+                            help_balls_size = Object.keys(help_balls_coords).length;
+
+                        if (!norm_balls_size || norm_balls_size === help_balls_size) return;
+
+                        all_normal_balls.forEach(w => {
+                            let b = w.bounds(),
+                                top = b.top;
+                            if (top in help_balls_coords) return;
+
+                            let options = {
+                                region: [b.left, top, b.width(), b.height()],
+                                threshold: orange_threshold,
+                            };
+                            if (!images.findColor(capt, orange, options)) return;
+
+                            help_balls_coords[top] = {x: b.centerX(), y: b.centerY()};
+                        });
+                    }
+                }
             }
 
             function collectBalls() {
@@ -642,7 +685,7 @@ function antForest() {
                 let thread_blacklist_check = threads.start(blacklistCheckThread);
                 thread_blacklist_check.join();
 
-                if (!blacklist_passed_flag) return;
+                if (!blacklist_passed_flag) return thread_help_monitor.interrupt();
 
                 let thread_take = threads.start(take);
                 let thread_help = threads.start(help);
@@ -654,16 +697,39 @@ function antForest() {
 
                 function blacklistCheckThread() {
 
-                    let kw_list = className("android.widget.ListView");
-                    if (!waitForAction(kw_list, 2000)) return; // just in case
+                    let max_wait_times = 10;
+                    while (!help_balls_capts.length && max_wait_times--) {
+                        if (thread_help_monitor.isAlive()) sleep(100);
+                        else {
+                            max_wait_times = -1;
+                            break;
+                        }
+                    }
 
-                    let protect_color_match = images.findColor(captureScreen(), -4262312, {
-                        region: [298, 218, 120, 22],
+                    let capt;
+
+                    if (max_wait_times >= 0) {
+                        let max_try_times = 5;
+                        while (max_try_times--) {
+                            try {
+                                capt = images.fromBase64(help_balls_capts[0]);
+                                break;
+                            } catch (e) {
+                                log(e); ////TEST////
+                                sleep(100);
+                            }
+                        }
+                    } else capt = images.clip(captureScreen(), 298, 218, 120, 22);
+
+                    let protect_color_match = images.findColor(capt, -4262312, {
                         threshold: 4,
                     });
                     if (protect_color_match) blacklist_passed_flag = false;
                     // else return console.verbose("-> 颜色识别无保护罩"); ////TEST////
                     else return;
+
+                    let kw_list = className("android.widget.ListView");
+                    if (!waitForAction(kw_list, 2000)) return; // just in case
 
                     let thread_list_more = threads.start(listMoreThread);
                     let thread_list_monitor = threads.start(listMonitorThread);
@@ -775,7 +841,7 @@ function antForest() {
 
                 function help() {
 
-                    let thread_help_monitor = threads.start(helpMonitorThread);
+                    if (!help_switch) return;
 
                     thread_help_monitor.join();
 
@@ -803,45 +869,6 @@ function antForest() {
                     }
 
                     help_balls_coords = {}; // reset
-
-                    // tool function(s) //
-
-                    function helpMonitorThread() {
-                        if (!help_switch) return;
-                        if (!waitForAction(kw_energy_balls_normal, 1500)) return;
-
-                        let orange = config.color_orange,
-                            orange_threshold = config.color_threshold_help_collect_balls,
-                            intensity = config.help_collect_intensity;
-
-                        let count = 0;
-                        let thread_counter = threads.start(function () {
-                            while (count < intensity) ~sleep(100) && count++;
-                        });
-
-                        while (count < intensity) {
-                            let all_normal_balls = kw_energy_balls_normal.find(),
-                                norm_balls_size = all_normal_balls.size(),
-                                help_balls_size = Object.keys(help_balls_coords).length;
-                            if (!norm_balls_size || norm_balls_size === help_balls_size) return;
-
-                            all_normal_balls.forEach(w => {
-                                let b = w.bounds(),
-                                    top = b.top;
-                                if (top in help_balls_coords) return;
-
-                                let options = {
-                                    region: [b.left, top, b.width(), b.height()],
-                                    threshold: orange_threshold,
-                                };
-                                if (!images.findColor(captureScreen(), orange, options)) return;
-
-                                help_balls_coords[top] = {x: b.centerX(), y: b.centerY()};
-                            });
-                        }
-
-                        return ~thread_counter.interrupt();
-                    }
                 }
             }
 
