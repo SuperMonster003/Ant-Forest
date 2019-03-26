@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 25, 2019
- * @version 1.3.1
+ * @last_modified Mar 26, 2019
+ * @version 1.3.2
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -341,7 +341,7 @@ function antForest() {
 
         function changeLangToChs() {
 
-            getReady() && handleTxtPipeline();
+            getReady() && ~handleTxtPipeline() && showSplitLine();
 
             function getReady() {
                 let kw_close_btn = desc("Close");
@@ -411,10 +411,11 @@ function antForest() {
         tryRequestScreenCapture();
 
         let kw_more_friends = desc("查看更多好友"),
-            kw_cooperation_btn = desc("合种"),
-            kw_ripe_energy_balls = className("android.widget.Button").filter(function (w) {
-                return !!w.desc().match(/.*克/);
-            });
+            kw_cooperation_btn = desc("合种");
+
+        let kw_energy_balls = className("Button").descMatches(/\xa0|收集能量\d+克/),
+            kw_energy_balls_normal = className("Button").desc("\xa0"),
+            kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
 
         checkOwnEnergy();
         checkFriendsEnergy();
@@ -427,7 +428,7 @@ function antForest() {
             current_app.total_energy_init = getCurrentEnergyAmount();
 
             waitForAction(() => kw_more_friends.exists() || kw_cooperation_btn.exists(), 5000); // just in case
-            sleep(1000); // make energy balls ready
+            waitForAction(kw_energy_balls, 1000); // make energy balls ready
 
             let check_time = config.non_break_check_time;
             if (!check_time || !check_time.length) return checkOnce();
@@ -441,20 +442,25 @@ function antForest() {
             if (in_check_remain_range) checkRemain();
             else if (!checkOnce()) return;
 
-            current_app.total_energy_collect_own = getEnergyDiff();
+            current_app.total_energy_collect_own += getEnergyDiff();
 
             // tool function(s) //
 
             function checkRemain() {
-                toastLog("Checking remaining time");
+                toast("Non-stop checking time");
                 while (new Date() < max_time && (sleep(180) || 1)) checkOnce();
-                toastLog("Checking completed");
+                toast("Checking completed");
             }
 
             function checkOnce() {
-                let selector_buttons = kw_ripe_energy_balls.find();
-                if (!selector_buttons.size()) return;
+                let selector_buttons = kw_energy_balls_ripe.find(),
+                    buttons_size = selector_buttons.size();
+                if (!buttons_size) return;
                 selector_buttons.forEach(w => clickBounds(w.bounds()));
+                if (buttons_size === 6) {
+                    current_app.total_energy_collect_own += getEnergyDiff(); // wait for energy balls being stable
+                    return checkOnce(); // recursion has not been tested yet since Mar 26, 2019
+                }
                 return true;
             }
 
@@ -468,7 +474,7 @@ function antForest() {
                 while (waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 1000)) {
                     energy_rec = tmp_energy_rec;
                 }
-                return energy_rec - current_app.total_energy_init;
+                return (energy_rec - current_app.total_energy_init) || 0;
             }
         }
 
@@ -477,10 +483,6 @@ function antForest() {
             let kw_rank_list_self = idMatches(/.*J_rank_list_self/);
 
             if (!rankListReady()) return;
-
-            let kw_energy_balls = className("Button").descMatches(/\xa0|收集能量\d+克/),
-                kw_energy_balls_normal = className("Button").desc("\xa0"),
-                kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
 
             let help_switch = config.help_collect_switch,
                 help_balls_capts = [],
@@ -1493,10 +1495,23 @@ function tryRequestScreenCapture() {
 
     current_app.request_screen_capture_flag = 1;
 
-    let thread_req = threads.start(function () {
-        let max_try_times = 4;
-        while (!requestScreenCapture() && max_try_times--) sleep(3000);
-    });
+    let thread_req;
+    let max_try_times = 5;
+    while (max_try_times--) {
+        thread_req = threads.start(function () {
+            try {
+                return requestScreenCapture();
+            } catch(e) {
+                if (!max_try_times) throw Error(e);
+            }
+        });
+        thread_req.join(500);
+        if (!thread_req.isAlive()) break;
+        thread_req.interrupt();
+    }
+
+    if (max_try_times < 0) ~console.error("截图权限申请失败") && exit();
+
     let thread_prompt = threads.start(function () {
         let kw_no_longer_prompt = id("com.android.systemui:id/remember");
         if (!waitForAction(kw_no_longer_prompt, 5000)) return;
