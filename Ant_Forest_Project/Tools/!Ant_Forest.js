@@ -682,7 +682,8 @@ function antForest() {
 
             function collectBalls() {
 
-                let blacklist_passed_flag = true;
+                let blacklist_passed_flag = true,
+                    take_clicked_flag = false;
 
                 let thread_blacklist_check = threads.start(blacklistCheckThread);
                 thread_blacklist_check.join();
@@ -692,8 +693,9 @@ function antForest() {
                 let thread_take = threads.start(take);
                 let thread_help = threads.start(help);
 
-                thread_take.join();
                 thread_help.join();
+                help_balls_coords = {}; // reset
+                thread_take.join();
 
                 // main function(s) //
 
@@ -813,6 +815,9 @@ function antForest() {
                 }
 
                 function take() {
+                    if (!waitForAction(kw_energy_balls, 1000)) return;
+                    if (!kw_energy_balls_ripe.exists()) return take_clicked_flag = 1;
+
                     let checkRipeBalls = () => kw_energy_balls_ripe.find(),
                         ripe_balls,
                         ripe_flag,
@@ -825,6 +830,7 @@ function antForest() {
                     while ((ripe_balls = checkRipeBalls()).size() && safe_max_try_times--) {
                         ripe_flag = 1;
                         ripe_balls.forEach(w => clickBounds(w.bounds()));
+                        take_clicked_flag = 1;
 
                         if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 3500)) break;
                         collected_amount = tmp_collected_amount;
@@ -854,6 +860,10 @@ function antForest() {
 
                     let coords_arr = Object.keys(help_balls_coords);
                     if (!coords_arr.length) return;
+                    if (!waitForAction(() => !!take_clicked_flag || !thread_take.isAlive(), 2000)) {
+                        // return;
+                        return messageAction("等待take()信号超时", 3, 0, 1); ////TEST////
+                    }
                     coords_arr.forEach(coords => {
                         let pt = help_balls_coords[coords];
                         click(pt.x, pt.y);
@@ -869,8 +879,6 @@ function antForest() {
                         messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
                         current_app.current_friend.console_logged = 1;
                     }
-
-                    help_balls_coords = {}; // reset
                 }
             }
 
@@ -1083,7 +1091,7 @@ function antForest() {
             let old_pgk = current_app.ori_app_package;
             let intent = context.getPackageManager().getLaunchIntentForPackage(old_pgk);
 
-            if (old_pgk in special_list) killCurrentApp(current_app.package_name);
+            if (old_pgk in special_list || intent === null) killCurrentApp(current_app.package_name);
             else {
                 let special_class = special_list[old_pgk],
                     keycode_flag = special_class && special_class.match(/KEYCODE/),
