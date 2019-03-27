@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 26, 2019
- * @version 1.3.2
+ * @last_modified Mar 27, 2019
+ * @version 1.3.3
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -1073,8 +1073,32 @@ function antForest() {
         }
 
         function endAlipay() {
-            launchPackage(current_app.ori_app_package); // pull to front
-            killCurrentApp(current_app.package_name);
+
+            // do not bring back or bring back to a certain specific page (activity class name)
+            let special_list = {
+                "org.autojs.autojs": "",
+                "com.zhan_dui.evermemo": "KEYCODE_BACK",
+            };
+
+            let old_pgk = current_app.ori_app_package;
+            let intent = context.getPackageManager().getLaunchIntentForPackage(old_pgk);
+
+            if (old_pgk in special_list) killCurrentApp(current_app.package_name);
+            else {
+                let special_class = special_list[old_pgk],
+                    keycode_flag = special_class && special_class.match(/KEYCODE/),
+                    class_name_flag = special_class && !special_class.match(/KEYCODE/);
+
+                intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+                intent.setAction(android.content.Intent.ACTION_MAIN);
+                if (class_name_flag) intent.setComponent(new android.content.ComponentName(old_pgk, special_class));
+                app.startActivity(intent);
+
+                if (keycode_flag) {
+                    if (!waitForAction(() => currentPackage() === old_pgk, 5000)) return;
+                    ~KeyCode(special_class) && sleep(2000);
+                }
+            }
         }
     }
 
@@ -1149,12 +1173,28 @@ function launchThisApp(intent, no_msg_flag) {
  * Close current app, and wait for at most 15s
  * Property "first_time_run" will be 0
  */
-function killCurrentApp(package_name) {
+function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     let pkg = package_name || current_app.package_name;
-    shell("am force-stop " + pkg, true);
+    let shell_error = shell("am force-stop " + pkg, true).error;
+    if (!!shell_error) {
+        messageAction(shell_error.split(/\n/)[0], 4, 1);
+        return keycode_back_unacceptable_flag ? false : tryMinimizeApp();
+    }
     waitForAction(() => currentPackage() !== pkg, 15000, "关闭" + pkg + "失败", 9, 1);
     current_app.first_time_run = 0;
     return true;
+
+    // tool function(s) //
+
+    function tryMinimizeApp() {
+        let max_try_times = 20;
+        while (max_try_times--) {
+            KeyCode("KEYCODE_BACK");
+            if (waitForAction(() => currentPackage() !== pkg, 2000)) break;
+        }
+        if (max_try_times < 0) return messageAction("最小化当前应用失败", 4, 1);
+        return true;
+    }
 }
 
 /**
@@ -1501,7 +1541,7 @@ function tryRequestScreenCapture() {
         thread_req = threads.start(function () {
             try {
                 return requestScreenCapture();
-            } catch(e) {
+            } catch (e) {
                 if (!max_try_times) throw Error(e);
             }
         });
