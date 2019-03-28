@@ -20,7 +20,7 @@ let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
     help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
-    floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
+    floaty_msg_switch: false, // important will show in floaty way with "true value" or toast way with "false value"
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
