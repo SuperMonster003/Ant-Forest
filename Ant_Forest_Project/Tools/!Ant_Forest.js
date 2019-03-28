@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 27, 2019
- * @version 1.3.3
+ * @last_modified Mar 28, 2019
+ * @version 1.3.4
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -20,6 +20,7 @@ let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
     help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
+    floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
@@ -1050,18 +1051,96 @@ function antForest() {
             own = current_app.total_energy_collect_own,
             friends = getCurrentEnergyAmount() - init - own;
 
-        let msg = [];
-        own && msg.push("Energy from yourself: " + own + "g");
-        friends && msg.push("Energy from friends: " + friends + "g");
-        if (!msg.length) return toastLog("A fruitless attempt");
-        msg.forEach(msg => log(msg));
-        toast(msg.join("\n"));
+        return msgNotice(energyStr(friends, own) || "A fruitless attempt");
+
+        // tool function(s) //
+
+        function floatyMsg(msg, timeout) {
+            threads.start(function () {
+
+                current_app.floaty_msg_signal = 1;
+
+                let text_lines = msg.split("\n").length;
+
+                timeout = (timeout = parseInt(timeout) || 3000) && Math.min(Math.max(timeout, 1000), 8000);
+
+                let window = floaty.window(
+                    <card id="card" cardBackgroundColor="#cc113911" cardCornerRadius="10sp" cardElevation="0" cardPreventCornerOverlap="true">
+                        <horizontal id="log_bg" padding="20sp 10sp" gravity="center">
+                            <text id="log" textSize="15dp" textColor="#f0fffff0" layout_gravity="center" gravity="center" typeface="sans" textStyle="bold" lineSpacingExtra="4"></text>
+                        </horizontal>
+                    </card>
+                );
+
+                window.card.setVisibility(4); // invisible
+
+                let get_width = NaN,
+                    min_width = 0;
+                let thread_init_text = threads.start(function () {
+                    while (!window.log.getText()) window.log.setText(" ");
+                    while (!min_width) {
+                        try {
+                            min_width = window.log_bg.getWidth();
+                        } catch (e) {
+                            sleep(100)
+                        }
+                    }
+                });
+
+                thread_init_text.join();
+
+                let error_flag = 0;
+                let thread_set_text = threads.start(function () {
+                    while (window.log.getText() !== msg || window.log_bg.getWidth() <= min_width) {
+                        try {
+                            window.log.setText(msg);
+                        } catch (e) {
+                            sleep(100);
+                            return error_flag = 1;
+                        }
+                    }
+                });
+
+                thread_set_text.join();
+
+                setInterval(() => {
+                    if (get_width) return;
+                    try {
+                        get_width = window.log_bg.getWidth();
+                        if (!get_width) return;
+                        let auto_width = (WIDTH - get_width) / 2,
+                            auto_height = HEIGHT * (0.75 - 0.014 * (text_lines - 1));
+                        if (!error_flag) window.setPosition(auto_width, auto_height);
+                        else {
+                            window.setPosition(0.1 * WIDTH, auto_height);
+                            window.setSize(WIDTH * (16 / 15 - 0.2), -2);
+                        }
+                        window.card.setVisibility(0); // visible
+                        setTimeout(() => current_app.floaty_msg_signal = 0, timeout);
+                    } catch (e) {
+                    }
+                }, 200);
+            });
+        }
+
+        function energyStr(friends_num, self_num) {
+            let msg = "";
+            if (self_num) msg = "Energy from yourself: " + self_num + "g";
+            if (friends_num) msg += (self_num ? "\n" : "") + "Energy from friends: " + friends_num + "g";
+            return msg;
+        }
+
+        function msgNotice(msg) {
+            msg.split("\n").forEach(msg => log(msg));
+            config.floaty_msg_switch ? floatyMsg(msg, 3500) : toast(msg);
+        }
     }
 
     function endProcess() {
-        threads.shutDownAll(); // kill all threads started by threads.start()
         current_app.saveState("blacklist", current_app.blacklist);
         current_app.kill_when_done ? endAlipay() : closeAfWindows();
+        waitForAction(() => !current_app.floaty_msg_signal, 8000);
+        threads.shutDownAll(); // kill all threads started by threads.start()
         current_app.is_screen_on || KeyCode("KEYCODE_POWER");
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
