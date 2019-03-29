@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 28, 2019
- * @version 1.3.4
+ * @last_modified Mar 29, 2019
+ * @version 1.3.5
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -28,7 +28,7 @@ let config = {
     color_orange: "#f99137", // color for help icon with a heart pattern
     color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collect_intensity: 10, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
+    help_collect_intensity: 16, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
@@ -632,14 +632,29 @@ function antForest() {
                 while (kw_wait_for_awhile.exists() && max_safe_wait_times--) sleep(100); // keep waiting for at most 2 min
 
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
-                if (!waitForAction(kw_forest_page, 5000)) return;
+                // if (!waitForAction(kw_forest_page, 8000)) return;
+
+                ////TEST////
+                if (!waitForAction(kw_forest_page, 8000)) {
+                    messageAction("进入好友森林超时", 3, 1);
+                    saveCurrentScreenCapture("Friend_Forest_Page");
+                    return false;
+                }
+                ////TEST END////
 
                 thread_help_monitor = threads.start(helpMonitorThread);
 
                 // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
-                if (!waitForAction(kw_energy_balls, 5000)) return;
+                // return waitForAction(kw_energy_balls, 5000);
 
+                ////TEST////
+                if (!waitForAction(kw_energy_balls, 3000)) {
+                    messageAction("等待能量球超时", 3, 1);
+                    saveCurrentScreenCapture("No_Energy_Balls");
+                    return false;
+                }
                 return true;
+                ////TEST END////
 
                 // tool function(s) //
 
@@ -841,7 +856,9 @@ function antForest() {
                     }
 
                     if (ripe_flag && config.show_console_log_details) {
-                        messageAction("收取: " + (collected_amount - ori_collected_amount) + "g", 1, 0, 1);
+                        let harvest = collected_amount - ori_collected_amount;
+                        if (isNaN(harvest)) messageAction("收取: 统计数据无效", 0, 0, 1);
+                        else messageAction("收取: " + harvest + "g", harvest ? 1 : 0, 0, 1);
                         current_app.current_friend.console_logged = 1;
                     }
 
@@ -1623,7 +1640,7 @@ function tryRequestScreenCapture() {
     current_app.request_screen_capture_flag = 1;
 
     let thread_req;
-    let max_try_times = 5;
+    let max_try_times = 6;
     while (max_try_times--) {
         thread_req = threads.start(function () {
             try {
@@ -1632,12 +1649,12 @@ function tryRequestScreenCapture() {
                 if (!max_try_times) throw Error(e);
             }
         });
-        thread_req.join(500);
+        thread_req.join(1500);
         if (!thread_req.isAlive()) break;
         thread_req.interrupt();
     }
 
-    if (max_try_times < 0) ~console.error("截图权限申请失败") && exit();
+    if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
 
     let thread_prompt = threads.start(function () {
         let kw_no_longer_prompt = id("com.android.systemui:id/remember");
@@ -1648,10 +1665,51 @@ function tryRequestScreenCapture() {
         if (!waitForAction(kw_start_now_btn, 2000)) return;
         kw_start_now_btn.click();
     });
+
     threads.start(function () {
-        if (!waitForAction(() => !thread_req.isAlive() && !thread_prompt.isAlive(), 8000)) {
+        let max_try_times = 50;
+        while(thread_req.isAlive() && max_try_times--) sleep(200);
+        if (max_try_times < 0) {
             thread_req.interrupt();
             thread_prompt.interrupt();
-        }
+            messageAction("截图权限申请失败", 8, 1);
+        };
     }); // thread_req_timeout
+}
+
+// only for development test
+function saveCurrentScreenCapture(key_name) {
+
+    tryRequestScreenCapture();
+
+    let path_prefix = "/sdcard/Scripts/Log/Capture/",
+        file_name = key_name + "_" + getDateStr() + "_" + getTimeStr() + ".png",
+        path = path_prefix + file_name;
+
+    files.create(path_prefix);
+    captureScreen(path);
+    messageAction("已存储屏幕截图文件: ", 0);
+    messageAction(file_name, 0);
+
+    // tool function(s) //
+
+    function getDateStr(interval_days) {
+        interval_days = interval_days || 0;
+        let calc_date = new Date(new Date().getTime() + interval_days * 24 * 3600000),
+            year = calc_date.getFullYear(),
+            month_ori = calc_date.getMonth() + 1,
+            month = month_ori < 10 ? "0" + month_ori : month_ori,
+            day_ori = calc_date.getDate(),
+            day = day_ori < 10 ? "0" + day_ori : day_ori;
+        return year + month + day;
+    }
+
+    function getTimeStr() {
+        let now = new Date(),
+            norm_str = time => (time < 10 ? "0" : "") + time,
+            hour = norm_str(now.getHours()),
+            minute = norm_str(now.getMinutes()),
+            second = norm_str(now.getSeconds());
+        return hour + minute + second;
+    }
 }
