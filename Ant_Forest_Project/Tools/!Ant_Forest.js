@@ -20,7 +20,7 @@ let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
     help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
-    floaty_msg_switch: false, // important will show in floaty way with "true value" or toast way with "false value"
+    floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
     non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
@@ -1065,78 +1065,143 @@ function antForest() {
 
     function showResult() {
         let init = current_app.total_energy_init,
-            own = current_app.total_energy_collect_own,
-            friends = getCurrentEnergyAmount() - init - own;
+            own = current_app.total_energy_collect_own || 0,
+            friends = (getCurrentEnergyAmount() - init - own) || 0;
 
         return msgNotice(energyStr(friends, own) || "A fruitless attempt");
 
         // tool function(s) //
 
-        function floatyMsg(msg, timeout) {
-            threads.start(function () {
+        function showFloatyResult(you, friends, timeout) {
 
-                current_app.floaty_msg_signal = 1;
+            current_app.floaty_msg_signal = 1;
+            timeout = Math.ceil(timeout / 1000) * 1000;
 
-                let text_lines = msg.split("\n").length;
+            let hints = [];
 
-                timeout = (timeout = parseInt(timeout) || 3000) && Math.min(Math.max(timeout, 1000), 8000);
+            if (you) hints.push("YOURSELF: " + you);
+            if (friends) hints.push("FRIENDS: " + friends);
+            let hint_len = hints.length;
+            if (hint_len === 2) hints = hints.map(str => str.replace(/(\w{3})\w+(?=:)/, "$1")); // %alias%.slice(0, 3) + ": \d+g"
+            if (hint_len === 1) hints = hints.map(str => str.replace(/(\w+)(?=:).*/, "$1")); // %alias% only
+            if (!hints.length) {
+                let pickUpOneNote = () => {
+                    let notes = "NEVER.contains(SAY+DIE)%5cnLIFE+!%3d%3d+ALL+ROSES%5cnIMPOSSIBLE+%3d%3d%3d+undefined%5cnGOD.FAIR()+%3d%3d%3d+true%5cn%2f((%3f!GIVE+(UP%7cIN)).)%2b%2fi%5cnWORKMAN+%3d+new+Work()%5cnLUCK.length+%3d%3d%3d+Infinity%5cnLLIST.next+%3d%3d%3d+LUCKY%5cnBLESSING.discard(DISGUISE)%5cnWATER.drink().drink()".split("%5cn");
+                    return decodeURIComponent(notes[~~(Math.random() * notes.length)]).replace(/\+(?!\/)/g, " ");
+                };
+                hints = [pickUpOneNote()];
+                hint_len = hints.length;
+            }
 
-                let window = floaty.window(
-                    <card id="card" cardBackgroundColor="#cc113911" cardCornerRadius="10sp" cardElevation="0" cardPreventCornerOverlap="true">
-                        <horizontal id="log_bg" padding="20sp 10sp" gravity="center">
-                            <text id="log" textSize="15dp" textColor="#f0fffff0" layout_gravity="center" gravity="center" typeface="sans" textStyle="bold" lineSpacingExtra="4"></text>
-                        </horizontal>
-                    </card>
-                );
+            let timeout_prefix = "(",
+                timeout_suffix = ")",
+                base_height = HEIGHT * 2 / 3,
+                message_height = cY(80),
+                hint_height = message_height * 0.7,
+                timeout_height = hint_height,
+                color_stripe_height = message_height * 0.2;
 
-                window.card.setVisibility(4); // invisible
+            let message_layout =
+                <frame gravity="center">
+                    <text id="text" bg="#cc000000" size="24" padding="10 2" color="#ccffffff" gravity="center">
+                    </text>
+                </frame>;
 
-                let get_width = NaN,
-                    min_width = 0;
-                let thread_init_text = threads.start(function () {
-                    while (!window.log.getText()) window.log.setText(" ");
-                    while (!min_width) {
-                        try {
-                            min_width = window.log_bg.getWidth();
-                        } catch (e) {
-                            sleep(100)
-                        }
-                    }
-                });
+            let timeout_layout =
+                <frame gravity="center">
+                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center">
+                    </text>
+                </frame>;
 
-                thread_init_text.join();
+            let color_stripe_layout =
+                <frame gravity="center">
+                    <text id="text" bg="#ffffffff" size="24" padding="10 2" color="{{colors.toString(-1)}}" gravity="center">
+                    </text>
+                </frame>;
 
-                let error_flag = 0;
-                let thread_set_text = threads.start(function () {
-                    while (window.log.getText() !== msg || window.log_bg.getWidth() <= min_width) {
-                        try {
-                            window.log.setText(msg);
-                        } catch (e) {
-                            sleep(100);
-                            return error_flag = 1;
-                        }
-                    }
-                });
+            let hint_layout =
+                <frame gravity="center">
+                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center">
+                    </text>
+                </frame>;
 
-                thread_set_text.join();
+            let message_raw_win = floaty.rawWindow(message_layout);
+            message_raw_win.text.setText((you + friends).toString() || "0");
+            message_raw_win.setSize(-2, 0);
 
+            waitForAction(() => message_raw_win.getWidth() > 0, 5000);
+            let min_width = Math.max(message_raw_win.getWidth(), WIDTH / 2, WIDTH / 4 * hint_len);
+
+            let left_pos = (WIDTH - min_width) / 2;
+            message_raw_win.setPosition(left_pos, base_height);
+            message_raw_win.setSize(min_width, message_height);
+
+            let hint_top_pos = base_height - color_stripe_height - hint_height,
+                color_stripe_up_top_pos = base_height - color_stripe_height,
+                color_stripe_down_top_pos = base_height + message_height,
+                timeout_top_pos = base_height + message_height + color_stripe_height;
+
+            let avg_width = ~~(min_width / hint_len);
+
+            let stripe_color_map = {
+                "YOU": "#7dae17",
+                "FRI": "#2ba653",
+                "OTHER": "#907aa3",
+            };
+
+            for (let i = 0; i < hint_len; i += 1) {
+                let current_hint = hints[i],
+                    current_hint_color = "#cc" + (stripe_color_map[current_hint.slice(0, 3)] || stripe_color_map["OTHER"]).slice(1);
+                let color_stripe_bg = colors.parseColor(current_hint_color);
+                let current_left_pos = left_pos + avg_width * i;
+                let current_width = i === hint_len - 1 ? min_width - (hint_len - 1) * avg_width : avg_width;
+
+                let color_stripe_raw_win_down = floaty.rawWindow(color_stripe_layout);
+                color_stripe_raw_win_down.setSize(1, 0);
+                color_stripe_raw_win_down.text.setBackgroundColor(color_stripe_bg);
+                color_stripe_raw_win_down.setPosition(current_left_pos, color_stripe_down_top_pos);
+
+                let color_stripe_raw_win_up = floaty.rawWindow(color_stripe_layout);
+                color_stripe_raw_win_up.setSize(1, 0);
+                color_stripe_raw_win_up.text.setBackgroundColor(color_stripe_bg);
+                color_stripe_raw_win_up.setPosition(current_left_pos, color_stripe_up_top_pos);
+
+                let hint_raw_win = floaty.rawWindow(hint_layout);
+                hint_raw_win.setSize(1, 0);
+                hint_raw_win.text.setText(current_hint);
+                hint_raw_win.setPosition(current_left_pos, hint_top_pos);
+
+                color_stripe_raw_win_down.setSize(current_width, color_stripe_height);
+                color_stripe_raw_win_up.setSize(current_width, color_stripe_height);
+                hint_raw_win.setSize(current_width, hint_height);
+            }
+
+            let timeout_raw_win = floaty.rawWindow(timeout_layout);
+            timeout_raw_win.setSize(1, 0);
+            timeout_raw_win.setPosition(left_pos, timeout_top_pos);
+            timeout_raw_win.setSize(min_width, timeout_height);
+
+            ui.run(() => {
+                let tt = timeout / 1000;
+                let tt_text = () => timeout_prefix + tt-- + timeout_suffix;
+                timeout_raw_win.text.setText(tt_text());
                 setInterval(() => {
-                    if (get_width) return;
-                    try {
-                        get_width = window.log_bg.getWidth();
-                        if (!get_width) return;
-                        let auto_width = (WIDTH - get_width) / 2,
-                            auto_height = HEIGHT * (0.75 - 0.014 * (text_lines - 1));
-                        if (!error_flag) window.setPosition(auto_width, auto_height);
-                        else {
-                            window.setPosition(0.1 * WIDTH, auto_height);
-                            window.setSize(WIDTH * (16 / 15 - 0.2), -2);
-                        }
-                        window.card.setVisibility(0); // visible
-                        setTimeout(() => current_app.floaty_msg_signal = 0, timeout);
-                    } catch (e) {
+                    if (tt < 0) return;
+                    if (tt < 1) {
+                        floaty.closeAll();
+                        current_app.floaty_msg_signal = 0;
+                        return tt--;
                     }
-                }, 200);
+                    let max_try_times = 3;
+                    while (max_try_times--) {
+                        try {
+                            timeout_raw_win.text.setText(tt_text());
+                            break;
+                        } catch (e) {
+                            // nothing to do here
+                        }
+                    }
+                }, 1000);
             });
         }
 
@@ -1149,7 +1214,7 @@ function antForest() {
 
         function msgNotice(msg) {
             msg.split("\n").forEach(msg => log(msg));
-            config.floaty_msg_switch ? floatyMsg(msg, 3500) : toast(msg);
+            config.floaty_msg_switch ? showFloatyResult(own, friends, 3500) : toast(msg);
         }
     }
 
@@ -1668,12 +1733,12 @@ function tryRequestScreenCapture() {
 
     threads.start(function () {
         let max_try_times = 50;
-        while(thread_req.isAlive() && max_try_times--) sleep(200);
+        while (thread_req.isAlive() && max_try_times--) sleep(200);
         if (max_try_times < 0) {
             thread_req.interrupt();
             thread_prompt.interrupt();
-            messageAction("截图权限申请失败", 8, 1);
-        };
+            messageAction("截图权限申请超时", 8, 1);
+        }
     }); // thread_req_timeout
 }
 
