@@ -1711,6 +1711,16 @@ function tryRequestScreenCapture() {
 
     current_app.request_screen_capture_flag = 1;
 
+    let thread_prompt = threads.start(function () {
+        let kw_no_longer_prompt = id("com.android.systemui:id/remember");
+        if (!waitForAction(kw_no_longer_prompt, 5000)) return;
+        kw_no_longer_prompt.click();
+
+        let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
+        if (!waitForAction(kw_start_now_btn, 2000)) return;
+        kw_start_now_btn.click();
+    });
+
     let thread_req;
     let max_try_times = 6;
     while (max_try_times--) {
@@ -1727,16 +1737,6 @@ function tryRequestScreenCapture() {
     }
 
     if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
-
-    let thread_prompt = threads.start(function () {
-        let kw_no_longer_prompt = id("com.android.systemui:id/remember");
-        if (!waitForAction(kw_no_longer_prompt, 5000)) return;
-        kw_no_longer_prompt.click();
-
-        let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
-        if (!waitForAction(kw_start_now_btn, 2000)) return;
-        kw_start_now_btn.click();
-    });
 
     threads.start(function () {
         let max_try_times = 50;
