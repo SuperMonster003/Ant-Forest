@@ -1130,7 +1130,7 @@ function antForest() {
             message_raw_win.setSize(-2, 0);
 
             waitForAction(() => message_raw_win.getWidth() > 0, 5000);
-            let min_width = Math.max(message_raw_win.getWidth(), WIDTH / 2, WIDTH / 4 * hint_len);
+            let min_width = Math.max(message_raw_win.getWidth(), ~~(WIDTH * 0.54), WIDTH / 4 * hint_len);
 
             let left_pos = (WIDTH - min_width) / 2;
             message_raw_win.setPosition(left_pos, base_height);
@@ -1543,10 +1543,16 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
  * @return {boolean} if reached max check time;
  */
 function clickBounds(f, if_continuous, max_check_times, check_interval, padding, special_bad_situation) {
+
+    let classof = param => Object.prototype.toString.call(param).slice(8, -1);
+
+    if (!f) return messageAction("clickBounds的f参数无效", 0, 0, 0) && 0;
+
     let func = f,
         additionFunc;
-    if (Object.prototype.toString.call(f).slice(8, -1) === "Array") {
+    if (classof(f) === "Array") {
         func = f[0];
+        if (!func) return messageAction("clickBounds的f[0]参数无效", 0, 0, 0) && 0;
         additionFunc = f[1];
     }
 
@@ -1572,16 +1578,17 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     let posb;
     let bad_situation_pending = 1000;
 
-    let max_try_times_posb = 3;
+    let max_try_times_posb = 3,
+        getPosb = ()=> func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
     while (max_try_times_posb--) {
         try {
-            posb = func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
+            posb = getPosb();
         } catch (e) {
             sleep(500);
-            if (!func.exists()) break;
+            if (!func.exists()) break; // may be a better idea to use BoundsInside()
         }
     }
-    if (max_try_times_posb < 0) posb = func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds(); // let console show specific error messages
+    if (max_try_times_posb < 0) posb = getPosb(); // let console show specific error messages
 
     if (if_continuous.length) {
         while (max_check_times--) {
