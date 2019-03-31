@@ -38,12 +38,6 @@ function Unlock() {
             config_now_flag = true,
             no_longer_prompt = storage_config.no_longer_prompt;
 
-        let bugs = {
-            "dialogs_inputHint": ["4.1.1 Alpha2"], // maybe more
-        };
-        let app_ver = app.autojs.versionName;
-        let inputHintBug = ~bugs.dialogs_inputHint.indexOf(app_ver) && undefined;
-
         let alert_info = {};
 
         let thread_step00 = threads.start(function () {
@@ -97,13 +91,17 @@ function Unlock() {
             };
 
             let step_01 = dialogs.build(Object.assign({}, common_steps_params, {
-                title: "输入锁屏解锁密码",
+                title: "设置锁屏解锁密码",
                 negative: "查看示例",
                 negativeColor: "#88bb88",
-                content: "--  Step  1 / 3  --\n\n密码长度不少于4位\n无密码请留空\n图案解锁点数大于9使用逗号分隔",
-                inputHint: inputHintBug && "密码将以密文形式存储在本地",
-                items: inputHintBug && undefined || ["A"],
-            })).on("neutral", () => {
+                content: "--  Step  1 / 3  --\n\n密码长度不小于4位\n无密码直接点击下一步\n\n若采用图案解锁方式\n点数大于9需使用逗号分隔\n\n点击扑克牌花色设置密码\n密码将以密文形式存储在本地",
+                items: ["\u2665\u2660\u2666\u2663"],
+            })).on("item_select", () => {
+                dialogs.rawInput("输入锁屏解锁密码", "", input => {
+                    password = input;
+                    step_01.setItems([password ? Array(9).join("*") : "\u2665\u2660\u2666\u2663"]);
+                });
+            }).on("neutral", () => {
                 step_01.cancel();
             }).on("negative", () => {
                 dialogs.build({
@@ -120,19 +118,16 @@ function Unlock() {
                     }).show();
                 }).show();
             }).on("positive", () => {
-                password = step_01.getInputEditText().getText().toString();
                 if (password && password.length < 4) return alertTitle(step_01, "密码长度不小于4位");
                 config["password"] = encrypt(password);
                 step_02.show();
                 step_01.cancel();
-            }).on("input_change", (dialog, input) => {
-                //
             });
 
             let step_02 = dialogs.build(Object.assign({}, common_steps_params, {
                 title: "设置解锁最大尝试次数",
                 content: "--  Step  2 / 3  --\n\n当前值: 10",
-                inputHint: inputHintBug && "设置新值或跳过此步配置",
+                inputHint: "设置新值或跳过此步配置",
                 positive: "跳过",
             })).on("input_change", (dialog, input) => {
                 let try_times_range = [3, 30];
@@ -173,7 +168,7 @@ function Unlock() {
             let step_03 = dialogs.build(Object.assign({}, common_steps_params, {
                 title: "设置图案解锁边长",
                 content: "--  Step  3 / 3  --\n\n当前值: 3",
-                inputHint: inputHintBug && "设置新值或跳过此步配置",
+                inputHint: "设置新值或跳过此步配置",
                 positive: "完成",
             })).on("input_change", (dialog, input) => {
                 let pattern_size_range = [3, 6];
