@@ -23,7 +23,7 @@ function customStorage() {
 
         let storage_dir = "../.local/";
         let file = storage_dir + name + ".nfe";
-        files.create(file);
+        files.createWithDirs(file);
         let opened = files.open(file);
         let readFile = () => files.read(file);
 
