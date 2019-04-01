@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Mar 29, 2019
- * @version 1.3.5
+ * @last_modified Apr 1, 2019
+ * @version 1.3.7
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -37,6 +37,7 @@ let WIDTH = device.width,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
+    getVerName = unlock_module.getVerName,
     storage = require("../Modules/MODULE_STORAGE").create("af"),
     current_app = {};
 
@@ -74,6 +75,16 @@ function antForest() {
         }
 
         function setAutoJsLogPath() {
+
+            let bug_versions = ["Pro 7.0.0-2", "Pro 7.0.0-3"];
+            let current_autojs_package = context.packageName; // thanks to [  (32****32)] from QQ group [Auto.js Pro]
+            let current_autojs_version = getVerName(current_autojs_package);
+            if (~bug_versions.indexOf(current_autojs_version)) {
+                messageAction("日志保存功能已禁用", 1);
+                messageAction("此Auto.js版本不兼容", 1, 0, 1);
+                messageAction(current_autojs_version, 1, 0, 1);
+                return init_operation_logged = 1;
+            }
 
             let log_path = config.auto_js_log_record_path;
 
@@ -230,7 +241,7 @@ function antForest() {
             let pkg = current_app.package_name;
             if (currentPackage() !== pkg) {
                 app.launch(pkg);
-                if (currentPackage() === "org.autojs.autojs") return sleep(1000);
+                if (currentPackage().match(/^org\.autojs/)) return sleep(1000);
             }
 
             if (current_app.specific_user) {
@@ -1246,6 +1257,7 @@ function antForest() {
             // do not bring back or bring back to a certain specific page (activity class name)
             let special_list = {
                 "org.autojs.autojs": "",
+                "org.autojs.autojspro": "",
                 "com.zhan_dui.evermemo": "KEYCODE_BACK",
             };
 
