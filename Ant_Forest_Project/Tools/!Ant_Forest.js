@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 1, 2019
- * @version 1.3.7
+ * @last_modified Apr 3, 2019
+ * @version 1.4.0
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -90,7 +90,7 @@ function antForest() {
 
             if (!log_path) return;
 
-            files.create(log_path);
+            files.createWithDirs(log_path);
 
             console.setGlobalLogConfig({
                 file: log_path,
@@ -1770,7 +1770,7 @@ function saveCurrentScreenCapture(key_name) {
         file_name = key_name + "_" + getDateStr() + "_" + getTimeStr() + ".png",
         path = path_prefix + file_name;
 
-    files.create(path_prefix);
+    files.createWithDirs(path_prefix);
     captureScreen(path);
     messageAction("已存储屏幕截图文件: ", 0);
     messageAction(file_name, 0);

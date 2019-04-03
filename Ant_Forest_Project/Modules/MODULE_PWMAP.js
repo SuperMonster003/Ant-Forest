@@ -115,7 +115,7 @@ function ModulePWMAP() {
      */
     function generatePWMAP() {
         if (files.exists(path_pwmap)) if (!confirm("密文文件已存在\n继续操作将覆盖已有文件\n新的密文文件生成后\n涉及密文的全部相关代码\n均需重新设置才能解密\n确定要继续吗?")) exit();
-        files.create(path_pwmap);
+        files.createWithDirs(path_pwmap);
         files.open(path_pwmap);
 
         let str_map = "~!@#$%^&*`'-_+=,./\\ 0123456789:;?AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz()[]<>{}|\"";
