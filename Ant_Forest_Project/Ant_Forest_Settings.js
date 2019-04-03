@@ -1,7 +1,6 @@
 // visibility="{{config['is_cycle'] ? 'visible' : 'gone'}}"
 // <horizontal w="*" h="1sp" bg="#cccccc" margin="10 0"></horizontal> // 分割线
 // 删除日志保留功能 在自己的本地配置里保存一个路径 如果有这个路径 就设置 默认关闭
-// 恢复默认设置
 
 
 "ui";
@@ -9,6 +8,25 @@
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let w = ~~(WIDTH * 0.78) + "px"; // item text width
+
+let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
+let storage_config = storage.get("config");
+let session_config = storage_config;
+
+function obj_equal(obj_a, obj_b) {
+    let keys_a = Object.keys(obj_a),
+        keys_a_len = keys_a.length,
+        keys_b = Object.keys(obj_b),
+        keys_b_len = keys_b.length;
+    if (keys_a_len !== keys_b_len) return false;
+    for (let i = 0; i < keys_a_len; i += 1) {
+        let key_a = keys_a[i],
+            value_a = obj_a[key_a];
+        if (!(key_a in obj_b)) return false;
+        if (value_a !== obj_b[key_a]) return false;
+    }
+    return true;
+}
 
 let config = {
     account_switch: false, // if you are multi-account user, you may specify a "main account" to switch
@@ -50,12 +68,14 @@ let hint = {
     },
 };
 
+let assignment = {};
+
 ui.layout(
     <vertical id="main">
         <linear bg="#03a6ef" w="*">
             <text id="title" text="Ant_Forest" textColor="#ffffff" textSize="19" textStyle="bold" margin="16 16 186 16"/>
 
-            <vertical margin="13 0 13">
+            <vertical margin="13 0">
                 <grid id="icon_save">
                     <img src="@drawable/{{this}}" width="31" bg="?selectableItemBackgroundBorderless" tint="#bbcccc"/>
                 </grid>
@@ -63,6 +83,8 @@ ui.layout(
             </vertical>
 
         </linear>
+
+
         <ScrollView>
             <vertical>
                 <vertical>
@@ -158,12 +180,6 @@ ui.layout(
                             <text text="0" textColor="#888888" textSize="13sp"/>
                         </vertical>
                     </horizontal>
-                    <horizontal w="*" padding="6" margin="0 5">
-                        <vertical>
-                            <text text="帮收功能检测密度" textColor="#111111" textSize="16"/>
-                            <text text="16" textColor="#888888" textSize="13sp"/>
-                        </vertical>
-                    </horizontal>
                 </vertical>
 
 
@@ -195,7 +211,6 @@ ui.layout(
                 </vertical>
 
 
-
             </vertical>
         </ScrollView>
     </vertical>
@@ -218,52 +233,97 @@ function initSwitch(sw_id) {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 let modified_flag = false,
     sub_page_flag = false;
 
 let main_view = ui.main;
 let parent = main_view.getParent();
-let views = {
-    test_view: ui.inflate(<vertical><linear bg="#03a6ef">
-            <text id="title" text="Ant_Forest" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
-        </linear>
-        </vertical>
-    ),
-};
-let sub_view = views["test_view"];
+
+
+//ui.layout(<vertical id="main"><text/></vertical>);
+
+function setPage(title, title_bg_color) {
+    title_bg_color = title_bg_color || "#03a6ef"; // sky blue
+    let new_view = ui.inflate(<vertical></vertical>);
+    new_view.addView(ui.inflate(<linear id="_title_bg">
+        <text id="_title_text" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
+    </linear>));
+    new_view._title_text.text(title);
+    let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
+    new_view._title_bg.setBackgroundColor(title_bg);
+    new_view.addView(ui.inflate(<ScrollView>
+        <vertical id="scroll_view"></vertical>
+    </ScrollView>));
+    new_view.scroll_view.addView(ui.inflate(<frame>
+        <frame margin="0 0 0 8"></frame>
+    </frame>));
+    return new_view;
+}
+
+function setItem(type, title, hint, sub_head_color) {
+
+    if (type === "sub_head") return setSubHead(title, sub_head_color);
+
+    let switch_type = type === "switch";
+    let new_view = ui.inflate(
+        <horizontal id="_item_area" padding="16 8" gravity="left|center">
+            <vertical id="_content" w="{{w}}" h="40" gravity="left|center">
+                <text id="_title" textColor="#111111" textSize="16"/>
+            </vertical>
+        </horizontal>);
+    new_view._title.text(title);
+
+    if (hint) {
+        let hint_view = ui.inflate(<text id="_hint" textColor="#888888" textSize="13sp"/>);
+        hint_view._hint.text(hint);
+        new_view._content.addView(hint_view);
+    }
+
+    if (switch_type) {
+        new_view._item_area.addView(ui.inflate(<Switch/>));
+    }
+
+    return new_view;
+
+    // tool function(s) //
+
+    function setSubHead(title, sub_head_color) {
+        sub_head_color = sub_head_color || "#03a6ef";
+        let new_view = ui.inflate(<vertical>
+            <text id="_text" textSize="14" margin="16 8"/>
+        </vertical>);
+        new_view._text.text(title);
+        let title_color = typeof sub_head_color === "string" ? colors.parseColor(sub_head_color) : sub_head_color;
+        new_view._text.setTextColor(title_color);
+        return new_view;
+    }
+}
+
+
+let page_help_collect = setPage("帮收功能");
+let add = view => page_help_collect.scroll_view.addView(view);
+//add(setItem("sub_head", "基本设置"));
+add(setItem("switch", "总开关"));
+add(setItem("sub_head", "高级设置"));
+add(setItem("item", "检测密度", "16"));
+add(setItem("item", "颜色色值", "#f99137")); // 在文字后面跟一个颜色指示方块
+add(setItem("item", "颜色检测阈值", "60"));
+
+// 开关
+// 默认状态 读取存储
+// 监测状态 ON/OFF on("click")... 写入存储
+
+
+let sub_view = page_help_collect;
+
 
 ui.menu_help_switch.on("click", () => {
 
     parent.addView(sub_view);
-    sub_view.addView(ui.inflate(<ScrollView>
-        <vertical>
-            <text text="123" />
-        </vertical>
-    </ScrollView>))
 
     smoothScrollMenu([main_view, sub_view], "full_left");
-
-
     sub_page_flag = true;
 });
-
 
 
 ui.emitter.on("back_pressed", e => {
@@ -274,8 +334,6 @@ ui.emitter.on("back_pressed", e => {
         sub_page_flag = false;
     }
 });
-
-
 
 
 function smoothScrollMenu(views, shiftings, duration) {
@@ -324,7 +382,8 @@ function smoothScrollMenu(views, shiftings, duration) {
     setTimeout(() => {
         if (shiftings[0] === -WIDTH && sub_view) {
             sub_view.scrollBy(WIDTH, 0);
-            parent.removeView(sub_view);
+            let child_count = parent.getChildCount();
+            while (child_count > 1) parent.removeView(parent.getChildAt(--child_count));
         }
         clearInterval(scroll_interval);
     }, duration + 200); // 200: a safe interval just in case
