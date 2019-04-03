@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Apr 3, 2019
- * @version 1.4.0
+ * @version 1.4.2
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
