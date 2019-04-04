@@ -76,7 +76,7 @@ function Secure(robot, max_retry_times) {
     };
 
     this.failed = function () {
-        KeyCode("KEYCODE_POWER");
+        shell("input keyevent 26");
         engines.stopAll();
         exit();
         return false;

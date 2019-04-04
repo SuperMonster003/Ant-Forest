@@ -5,8 +5,10 @@ importClass(android.view.ViewGroup);
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
+let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
+let storage_config = storage.get("config", {});
+let session_config = Object.assign({}, storage_config);
 let def = undefined;
-
 let defs = {
     "item_area_width": ~~(WIDTH * 0.78) + "px",
     "sub_head_color": "#03a6ef",
@@ -14,10 +16,35 @@ let defs = {
     "save_btn_on_color": "#ffffff",
     "save_btn_off_color": "#bbcccc",
 };
-
-let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
-let storage_config = storage.get("config", {});
-let session_config = Object.assign({}, storage_config);
+let assignment = {
+    session_params: {
+        "tint_c": null,
+        "text_c": null,
+    },
+    "basic_settings": {
+        "title": "基本功能",
+        "sub_head_color": def,
+    },
+    "help_collect": {
+        "title": "帮收功能",
+        "config_conj": "help_collect_switch",
+        "hint": {
+            "0": "已关闭",
+            "1": "已开启",
+        },
+        get listener() {
+            return {
+                "switch": {
+                    "check": state => {
+                        this.view["_hint"].setText(this.hint[+state]);
+                        saveSession(this.config_conj, !!state);
+                        log("session_config:\n" + session_config); ////TEST////
+                    },
+                },
+            };
+        },
+    },
+};
 
 function obj_equal(obj_a, obj_b) {
     if (!obj_a || !obj_b) return false;
@@ -70,26 +97,8 @@ let hint = {
     },
 };
 
-
-//ui.icon_save.setDataSource(["ic_save_black_48dp"]);
-
-//initSwitch(["help_collect", "non_break_check", "account_switch", "launch_notice"]);
-
-function initSwitch(sw_id) {
-    let sw = typeof sw_id === "string" ? [sw_id] : sw_id;
-    sw.forEach(sw_id => {
-        ui["sw_" + sw_id].on("check", checked => {
-            ui["hint_" + sw_id].setText(hint[sw_id][+checked]);
-        });
-        ui["sw_" + sw_id].setChecked(!!config[sw_id]);
-        ui["title_" + sw_id].setText(hint[sw_id]["title"])
-    });
-}
-
-
 let modified_flag = false,
     sub_page_flag = false;
-
 
 function setSaveBtn(new_view) {
     let save_btn = getLayoutSaveBtn("OFF");
@@ -121,47 +130,18 @@ function setPage(title, title_bg_color, additions) {
 }
 
 
-let assignment = {
-    "basic_settings": {
-        "title": "基本功能",
-        "sub_head_color": def,
-    },
-    "help_collect": {
-        "title": "帮收功能",
-        "config_conj": "help_collect_switch",
-        "hint": {
-            "0": "已关闭",
-            "1": "已开启",
-        },
-        get listener() {
-            return {
-                "switch": {
-                    "check": state => {
-                        this.view["_hint"].setText(this.hint[+state]);
-                        saveSession(this.config_conj, !!state);
-                        log(session_config);
-                    },
-                },
-            };
-        },
-    },
-};
-
-
-ui.layout(<vertical id="main">
-    <text/>
-</vertical>);
+ui.layout(
+    <vertical id="main">
+        <text/>
+    </vertical>
+);
 ui.statusBarColor("#03a6ef");
-let main = ui.main;
+
 let homepage = setPage("Ant_Forest", def, setSaveBtn);
 homepage.add = (type, item_id) => homepage.scroll_view.addView(setItem(type, item_id));
-
 homepage.add("sub_head", "basic_settings");
 homepage.add("switch", "help_collect");
-homepage.add("switch", "help_collect");
-
-main.getParent().addView(homepage);
-
+ui.main.getParent().addView(homepage);
 
 function setItem(type, item_id) {
 
@@ -261,7 +241,7 @@ ui.emitter.on("back_pressed", e => {
 });
 
 
-function smoothScrollMenu(views, shiftings, duration) {
+function smoothScrollMenu(views, shifting, duration) {
 
     // views expects not more than 2 params
     if (Object.prototype.toString.call(views).slice(8, -1) !== "Array") views = [views];
@@ -271,15 +251,15 @@ function smoothScrollMenu(views, shiftings, duration) {
 
     duration = duration || 180;
 
-    if (shiftings === "full_left") {
-        shiftings = [WIDTH, 0];
+    if (shifting === "full_left") {
+        shifting = [WIDTH, 0];
         sub_view && sub_view.scrollBy(-WIDTH, 0);
-    } else if (shiftings === "full_right") {
-        shiftings = [-WIDTH, 0];
+    } else if (shifting === "full_right") {
+        shifting = [-WIDTH, 0];
     }
 
-    let dx = shiftings[0],
-        dy = shiftings[1];
+    let dx = shifting[0],
+        dy = shifting[1];
 
     let each_move_time = 10;
 
@@ -305,7 +285,7 @@ function smoothScrollMenu(views, shiftings, duration) {
         dy -= pty;
     }, each_move_time);
     setTimeout(() => {
-        if (shiftings[0] === -WIDTH && sub_view) {
+        if (shifting[0] === -WIDTH && sub_view) {
             sub_view.scrollBy(WIDTH, 0);
             let child_count = parent.getChildCount();
             while (child_count > 1) parent.removeView(parent.getChildAt(--child_count));
@@ -317,8 +297,8 @@ function smoothScrollMenu(views, shiftings, duration) {
 function setLayout(view, left, top, right, bottom) {
     let args_len = arguments.length;
 
-    let layout_params = view.getLayoutParams();
-    ori_left_margin = layout_params.leftMargin,
+    let layout_params = view.getLayoutParams(),
+        ori_left_margin = layout_params.leftMargin,
         ori_top_margin = layout_params.topMargin,
         ori_right_margin = layout_params.rightMargin,
         ori_bottom_margin = layout_params.bottomMargin,
@@ -359,7 +339,6 @@ function setLayout(view, left, top, right, bottom) {
     }
 }
 
-
 function saveSession(key, value) {
     if (key !== undefined) session_config[key] = value;
     let changed_state = !obj_equal(session_config, storage_config);
@@ -385,19 +364,18 @@ function reDrawSaveBtn(switch_state) {
 }
 
 function getLayoutSaveBtn(switch_state) {
-    let on_view = ui.inflate(
-        <vertical margin="13 0">
-            <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{defs.save_btn_on_color}}"/>
-            <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="#ffffff" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
-        </vertical>
-    );
-
-    let off_view = ui.inflate(
-        <vertical margin="13 0">
-            <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{defs.save_btn_off_color}}"/>
-            <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="#bbcccc" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
-        </vertical>
-    );
+    function layoutSaveBtn(icon_tint_color, save_text_color) {
+        assignment.session_params.tint_c = icon_tint_color;
+        assignment.session_params.text_c = save_text_color;
+        return ui.inflate(
+            <vertical margin="13 0">
+                <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{assignment.session_params.tint_c}}"/>
+                <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="{{assignment.session_params.text_c}}" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
+            </vertical>
+        );
+    }
+    let on_view = layoutSaveBtn(defs.save_btn_on_color, "#ffffff");
+    let off_view = layoutSaveBtn(defs.save_btn_off_color, "#bbcccc");
 
     let view = switch_state === "ON" ? on_view : off_view;
 

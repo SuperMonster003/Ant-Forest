@@ -1079,6 +1079,8 @@ function antForest() {
             own = current_app.total_energy_collect_own || 0,
             friends = (getCurrentEnergyAmount() - init - own) || 0;
 
+        if (!~init) return msgNotice("数据统计失败");
+
         return msgNotice(energyStr(friends, own) || "A fruitless attempt");
 
         // tool function(s) //
@@ -1090,8 +1092,11 @@ function antForest() {
 
             let hints = [];
 
-            if (you) hints.push("YOURSELF: " + you);
-            if (friends) hints.push("FRIENDS: " + friends);
+            if (!~you) hints.push("SORRY");
+            else {
+                if (you) hints.push("YOURSELF: " + you);
+                if (friends) hints.push("FRIENDS: " + friends);
+            }
             let hint_len = hints.length;
             if (hint_len === 2) hints = hints.map(str => str.replace(/(\w{3})\w+(?=:)/, "$1")); // %alias%.slice(0, 3) + ": \d+g"
             if (hint_len === 1) hints = hints.map(str => str.replace(/(\w+)(?=:).*/, "$1")); // %alias% only
@@ -1137,7 +1142,7 @@ function antForest() {
                 </frame>;
 
             let message_raw_win = floaty.rawWindow(message_layout);
-            message_raw_win.text.setText((you + friends).toString() || "0");
+            message_raw_win.text.setText(!~you && "Statistics Failed" || (you + friends).toString() || "0");
             message_raw_win.setSize(-2, 0);
 
             waitForAction(() => message_raw_win.getWidth() > 0, 5000);
@@ -1157,6 +1162,7 @@ function antForest() {
             let stripe_color_map = {
                 "YOU": "#7dae17",
                 "FRI": "#2ba653",
+                "SOR": "#a3555e", // SORRY
                 "OTHER": "#907aa3",
             };
 
@@ -1225,6 +1231,7 @@ function antForest() {
 
         function msgNotice(msg) {
             msg.split("\n").forEach(msg => log(msg));
+            if (msg.match(/(失败)|(错误)/)) own = -1;
             config.floaty_msg_switch ? showFloatyResult(own, friends, 3500) : toast(msg);
         }
     }
@@ -1234,7 +1241,7 @@ function antForest() {
         current_app.kill_when_done ? endAlipay() : closeAfWindows();
         waitForAction(() => !current_app.floaty_msg_signal, 8000);
         threads.shutDownAll(); // kill all threads started by threads.start()
-        current_app.is_screen_on || KeyCode("KEYCODE_POWER");
+        current_app.is_screen_on || shell("input keyevent 26");
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
@@ -1277,8 +1284,19 @@ function antForest() {
 
                 if (keycode_flag) {
                     if (!waitForAction(() => currentPackage() === old_pgk, 5000)) return;
-                    ~KeyCode(special_class) && sleep(2000);
+                    keycode(special_class) && sleep(2000);
                 }
+            }
+
+            // tool function(s) //
+
+            function keycode(keycode_name) {
+                let table = {
+                    "KEYCODE_BACK": "4",
+                    "KEYCODE_HOME": "3",
+                    "KEYCODE_POWER": "26",
+                };
+                return ~shell("input keyevent " + table[keycode_name]);
             }
         }
     }
@@ -1370,7 +1388,7 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     function tryMinimizeApp() {
         let max_try_times = 20;
         while (max_try_times--) {
-            KeyCode("KEYCODE_BACK");
+            shell("input keyevent 4");
             if (waitForAction(() => currentPackage() !== pkg, 2000)) break;
         }
         if (max_try_times < 0) return messageAction("最小化当前应用失败", 4, 1);
@@ -1458,7 +1476,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
         case "h":
             msg_level = 4;
             console.error(msg);
-            KeyCode("KEYCODE_HOME");
+            shell("input keyevent 3");
             exit();
             break; // useless, just for inspection
         case "t":
