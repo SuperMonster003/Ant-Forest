@@ -1,13 +1,20 @@
 "ui";
 
-importClass(android.widget.LinearLayout);
-importClass(android.view.ViewGroup);
-
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
 let storage_config = storage.get("config", {});
 let session_config = Object.assign({}, storage_config);
+let saveSession = () => null;
+let needSave = () => !obj_equal(session_config, storage_config);
+let dynamic_views = [];
+let updateAllValues = () => dynamic_views.forEach(view => view.updateOpr(view));
+let session_params = {
+    //~ no need to set values here
+    //~ as all params will be set/modified automatically
+    "save_btn_tint_color": null,
+    "save_btn_text_color": null,
+};
 let def = undefined;
 let defs = {
     "item_area_width": ~~(WIDTH * 0.78) + "px",
@@ -16,35 +23,383 @@ let defs = {
     "save_btn_on_color": "#ffffff",
     "save_btn_off_color": "#bbcccc",
 };
-let assignment = {
-    session_params: {
-        "tint_c": null,
-        "text_c": null,
-    },
-    "basic_settings": {
-        "title": "基本功能",
-        "sub_head_color": def,
-    },
-    "help_collect": {
-        "title": "帮收功能",
-        "config_conj": "help_collect_switch",
-        "hint": {
-            "0": "已关闭",
-            "1": "已开启",
+let pages = [];
+
+function LayoutSubHead(title, sub_head_color, update_opr) {
+    this.title = title;
+    this.sub_head_color = sub_head_color;
+    if (update_opr) {
+        Object.defineProperties(this, {
+            updateOpr: {
+                get: () => view => params.updateOpr(view),
+            },
+        });
+    }
+}
+
+function LayoutSwitch(title, params) {
+    this.title = title;
+    this.config_conj = params.config_conj;
+    this.hint = params.hint;
+    Object.defineProperties(this, {
+        listener: {
+            get: function () {
+                return params.listeners;
+            },
         },
-        get listener() {
-            return {
-                "switch": {
-                    "check": state => {
-                        this.view["_hint"].setText(this.hint[+state]);
-                        saveSession(this.config_conj, !!state);
-                        log("session_config:\n" + session_config); ////TEST////
-                    },
-                },
-            };
+    });
+    if (params.update_opr) {
+        Object.defineProperties(this, {
+            updateOpr: {
+                get: () => view => params.updateOpr(view),
+            },
+        });
+    }
+}
+
+function LayoutOptionMenu(title, params) {
+    this.title = title;
+    this.config_conj = params.config_conj;
+    this.hint = params.hint;
+    this.next_page = params.next_page;
+    if (params.updateOpr) {
+        Object.defineProperties(this, {
+            updateOpr: {
+                get: () => view => params.updateOpr(view),
+            },
+        });
+    }
+}
+
+function LayoutButton(title, params) {
+    this.title = title;
+    this.hint = params.hint;
+    this.new_window = params.new_window;
+    if (params.updateOpr) {
+        Object.defineProperties(this, {
+            updateOpr: {
+                get: () => view => params.updateOpr(view),
+            },
+        });
+    }
+}
+
+initUI();
+
+let homepage = setHomePage("Ant_Forest");
+let help_collect_page = setPage("帮收功能");
+let non_break_check_page = setPage("监测自己能量");
+
+homepage.add("sub_head", new LayoutSubHead("基本功能"));
+homepage.add("options", new LayoutOptionMenu("帮收功能", {
+    "config_conj": "help_collect_switch",
+    "hint": {
+        "0": "已关闭",
+        "1": "已开启",
+    },
+    "next_page": help_collect_page,
+    "updateOpr": function (view) {
+        view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+    },
+}));
+homepage.add("options", new LayoutOptionMenu("监测自己能量", {
+    "config_conj": "non_break_check_time_area",
+    "hint": {
+        "0": "已关闭",
+        "1": "已开启",
+    },
+    "next_page": non_break_check_page,
+    "updateOpr": function (view) {
+        view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+    },
+}));
+homepage.add("sub_head", new LayoutSubHead("重置"));
+homepage.add("button", new LayoutButton("恢复默认设置", {
+    "hint": "还原部分或全部设置",
+    "new_window": () => {
+        let diag = dialogs.build({
+            // content: "可选择还原任何修改过的设置\n也可以一键还原全部设置\n\n注意: 此操作无法撤销",
+            // neutral: "放弃",
+            // negative: "选择还原",
+            // positive: "全部还原",
+            title: "还原设置",
+            content: "此操作无法撤销",
+            negative: "放弃",
+            positive: "还原",
+            canceledOnTouchOutside: false,
+            autoDismiss: false,
+        });
+        //diag.on("neutral", () => diag.cancel());
+        diag.on("negative", () => diag.cancel());
+        diag.on("positive", () => {
+            let diag_sub = dialogs.build({
+                title: "全部还原",
+                content: "确定要还原全部设置吗",
+                negative: "放弃",
+                positive: "确定",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_sub.on("positive", () => {
+                // reset();
+                updateAllValues();
+                let diag_sub_sub = dialogs.build({
+                    title: "还原完毕",
+                    positive: "确定",
+                });
+                diag_sub_sub.on("positive", () => {
+                    diag_sub_sub.cancel();
+                    diag_sub.cancel();
+                    diag.cancel();
+                });
+                diag_sub_sub.show();
+            });
+            diag_sub.on("negative", () => diag_sub.cancel());
+            diag_sub.show();
+        });
+        diag.show();
+    },
+}));
+help_collect_page.add("switch", new LayoutSwitch("总开关", {
+    config_conj: "help_collect_switch",
+    listeners: {
+        "switch": {
+            "check": function (state) {
+                //ui["_hint"].setText(this.hint[+state]);
+                saveSession(this.config_conj, !!state);
+            },
         },
     },
-};
+}));
+non_break_check_page.add("switch", new LayoutSwitch("总开关", {
+    config_conj: "non_break_check_time_area",
+    listeners: {
+        "switch": {
+            "check": function (state) {
+                saveSession(this.config_conj, !!state);
+            },
+        },
+    },
+}));
+
+ui.emitter.on("back_pressed", e => {
+    let len = pages.length,
+        need_save = needSave();
+    if (len === 1 && !need_save) return; // "back" function
+    e.consumed = true; // make default "back" dysfunctional
+    len === 1 && need_save ? showDialog() : pageJump("back");
+
+    // tool function(s) //
+
+    function showDialog() {
+        let diag = dialogs.build({
+            "title": "设置未保存",
+            "content": "确定要退出吗",
+            //"items": ["1. 查看本次更改的设置", "2. 撤销本次更改的设置", "3. 还原部分或全部设置"],
+            "neutral": "返回",
+            "negative": "强制退出",
+            "positive": "保存并退出",
+            "autoDismiss": false,
+            "canceledOnTouchOutside": false,
+        });
+        diag.on("neutral", () => diag.cancel());
+        diag.on("negative", () => ui.finish());
+        diag.on("positive", () => {
+            storage.put("config", session_config);
+            ui.finish();
+        });
+
+        // let ori_content = diag.getContentView().getText().toString();
+        // diag.setContent(ori_content + "\n\n您还可以:");
+
+        diag.show();
+    }
+});
+
+// tool function(s) //
+
+function initUI(status_bar_color) {
+    ui.layout(
+        <vertical id="main">
+            <text/>
+        </vertical>
+    );
+    ui.statusBarColor(status_bar_color || "#03a6ef");
+}
+
+function setHomePage(home_title) {
+    let homepage = setPage(home_title, def, setSaveBtn);
+    saveSession = _saveSession;
+    ui.main.getParent().addView(homepage);
+    pages[0] = homepage;
+    return homepage;
+
+    // tool function(s) //
+
+    function setSaveBtn(new_view) {
+        let save_btn = getLayoutSaveBtn("OFF");
+        new_view._title_text.setWidth(~~(552 * WIDTH / 720));
+        new_view._title_bg.addView(save_btn);
+    }
+
+    function _saveSession(key, value) {
+        if (key !== undefined) session_config[key] = value;
+        let need_save_flag = needSave();
+        reDrawSaveBtn(need_save_flag ? "ON" : "OFF");
+        updateAllValues();
+    }
+
+    function reDrawSaveBtn(switch_state) {
+        let parent = homepage.icon_save_img.getParent();
+        parent.removeAllViews();
+        parent.addView(getLayoutSaveBtn(switch_state));
+    }
+
+    function getLayoutSaveBtn(switch_state) {
+        let view,
+            on_view = saveBtnView(defs.save_btn_on_color, "#ffffff"),
+            off_view = saveBtnView(defs.save_btn_off_color, "#bbcccc");
+
+        view = switch_state === "ON" ? on_view : off_view;
+
+        view.icon_save_text.on("click", () => {
+            if (!needSave()) return toast("不用保存"); ////TEST////
+            storage.put("config", session_config);
+            storage_config = Object.assign({}, session_config);
+            reDrawSaveBtn("OFF");
+            toast("已保存");
+        });
+
+        return view;
+
+        // tool function(s) //
+
+        function saveBtnView(icon_tint_color, save_text_color) {
+            session_params.save_btn_tint_color = icon_tint_color;
+            session_params.save_btn_text_color = save_text_color;
+            return ui.inflate(
+                <vertical margin="13 0">
+                    <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{session_params.save_btn_tint_color}}"/>
+                    <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="{{session_params.save_btn_text_color}}" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
+                </vertical>
+            );
+        }
+    }
+}
+
+function setPage(title, title_bg_color, additions) {
+    title_bg_color = title_bg_color || defs["title_bg_color"];
+    let new_view = ui.inflate(<vertical></vertical>);
+    new_view.addView(ui.inflate(
+        <linear id="_title_bg">
+            <vertical id="back_btn_area" margin="8 6 -10 -10" visibility="gone">
+                <img src="@drawable/ic_chevron_left_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff"/>
+                <text id="back_btn_text" text=" " gravity="center" textSize="10" textStyle="bold" marginTop="-45" h="45" gravity="bottom|center"/>
+            </vertical>
+            <text id="_title_text" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
+        </linear>
+    ));
+    new_view._title_text.text(title);
+    let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
+    new_view._title_bg.setBackgroundColor(title_bg);
+
+    if (additions) typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
+
+    new_view.addView(ui.inflate(<ScrollView>
+        <vertical id="scroll_view"></vertical>
+    </ScrollView>));
+    new_view.scroll_view.addView(ui.inflate(<frame>
+        <frame margin="0 0 0 8"></frame>
+    </frame>));
+
+    new_view.add = (type, item_params) => {
+        let sub_view = setItem(type, item_params);
+        new_view.scroll_view.addView(sub_view);
+        if (sub_view.updateOpr) dynamic_views.push(sub_view);
+    };
+    return new_view;
+
+    // tool function(s) //
+
+    function setItem(type, item_params) {
+
+        if (type === "sub_head") return setSubHead(item_params);
+
+        let new_view = ui.inflate(
+            <horizontal id="_item_area" padding="16 8" gravity="left|center">
+                <vertical id="_content" w="{{defs.item_area_width}}" h="40" gravity="left|center">
+                    <text id="_title" textColor="#111111" textSize="16"/>
+                </vertical>
+            </horizontal>);
+
+        let title = item_params["title"];
+        new_view._title.text(title);
+
+        let hint = item_params["hint"];
+        if (hint) {
+            let hint_view = ui.inflate(<text id="_hint" textColor="#888888" textSize="13sp"/>);
+            hint_view._hint.text(type === "button" ? hint : hint[+!!session_config[item_params.config_conj]]);
+            new_view._content.addView(hint_view);
+        }
+
+        if (type === "switch") {
+            let sw_view = ui.inflate(<Switch id="switch"/>);
+            new_view._item_area.addView(sw_view);
+            item_params.view = new_view;
+            sw_view["switch"].setChecked(!!session_config[item_params.config_conj]);
+
+            let listener_ids = item_params["listener"];
+            Object.keys(listener_ids).forEach(id => {
+                let listeners = listener_ids[id];
+                Object.keys(listeners).forEach(listener => {
+                    new_view[id].on(listener, listeners[listener].bind(item_params));
+                });
+            });
+        } else if (type === "options") {
+            let opt_view = ui.inflate(
+                <vertical>
+                    <img margin="19 0" src="@drawable/ic_chevron_right_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
+                </vertical>
+            );
+            new_view._item_area.addView(opt_view);
+            item_params.view = new_view;
+            new_view._item_area.on("click", () => pageJump("next", item_params.next_page));
+        } else if (type === "button") {
+            new_view._item_area.on("click", () => item_params.new_window());
+        }
+
+        if (item_params.updateOpr) new_view.updateOpr = item_params.updateOpr.bind(new_view);
+
+        return new_view;
+
+        // tool function(s) //
+
+        function setSubHead(item) {
+            let title = item["title"],
+                sub_head_color = item["sub_head_color"] || defs["sub_head_color"];
+
+            let new_view = ui.inflate(
+                <vertical>
+                    <text id="_text" textSize="14" margin="16 8"/>
+                </vertical>
+            );
+            new_view._text.text(title);
+            let title_color = typeof sub_head_color === "string" ? colors.parseColor(sub_head_color) : sub_head_color;
+            new_view._text.setTextColor(title_color);
+
+            return new_view;
+        }
+    }
+}
+
+function pageJump(direction, next_page) {
+    if (direction.match(/back|previous|last/)) {
+        smoothScrollMenu("full_right");
+        return pages.pop();
+    }
+    pages.push(next_page);
+    smoothScrollMenu("full_left");
+}
 
 function obj_equal(obj_a, obj_b) {
     if (!obj_a || !obj_b) return false;
@@ -62,197 +417,22 @@ function obj_equal(obj_a, obj_b) {
     return true;
 }
 
-let config = {
-    account_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    help_collect: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
-    show_console_log_details: true, // whether to show message details of each friend in console
-    floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
-    non_break_check: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
-    auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
-    list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
-    color_green: "#1da06d", // color for collect icon with a hand pattern
-    color_orange: "#f99137", // color for help icon with a heart pattern
-    color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collect_intensity: 16, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
-    max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
-    launch_notice: 5,
-};
+function smoothScrollMenu(shifting, duration) {
 
-let hint = {
-    non_break_check: {
-        "title": "监测自己能量",
-        "0": "已关闭: 不监测自己可收取的能量",
-        "1": "当前已设置时间区间: 2",
-    },
-    account_switch: {
-        "title": "账户功能",
-        "0": "已关闭: 忽略支付宝账户直接操作蚂蚁森林",
-        "1": "当前主账户: wu***hotmail.com",
-    },
-    launch_notice: {
-        "title": "运行提示",
-        "0": "已关闭: 无提示直接运行脚本",
-        "1": "5秒",
-    },
-};
+    if (pages.length < 2) return;
 
-let modified_flag = false,
-    sub_page_flag = false;
+    let len = pages.length;
 
-function setSaveBtn(new_view) {
-    let save_btn = getLayoutSaveBtn("OFF");
-    new_view._title_text.setWidth(~~(552 * WIDTH / 720));
-    new_view._title_bg.addView(save_btn);
-}
+    let main_view = pages[len - 2],
+        sub_view = pages[len - 1];
 
-function setPage(title, title_bg_color, additions) {
-    title_bg_color = title_bg_color || defs["title_bg_color"];
-    let new_view = ui.inflate(<vertical></vertical>);
-    new_view.addView(ui.inflate(
-        <linear id="_title_bg">
-            <text id="_title_text" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
-        </linear>
-    ));
-    new_view._title_text.text(title);
-    let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
-    new_view._title_bg.setBackgroundColor(title_bg);
-
-    if (additions) typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
-
-    new_view.addView(ui.inflate(<ScrollView>
-        <vertical id="scroll_view"></vertical>
-    </ScrollView>));
-    new_view.scroll_view.addView(ui.inflate(<frame>
-        <frame margin="0 0 0 8"></frame>
-    </frame>));
-    return new_view;
-}
-
-
-ui.layout(
-    <vertical id="main">
-        <text/>
-    </vertical>
-);
-ui.statusBarColor("#03a6ef");
-
-let homepage = setPage("Ant_Forest", def, setSaveBtn);
-homepage.add = (type, item_id) => homepage.scroll_view.addView(setItem(type, item_id));
-homepage.add("sub_head", "basic_settings");
-homepage.add("switch", "help_collect");
-ui.main.getParent().addView(homepage);
-
-function setItem(type, item_id) {
-
-    let item = assignment[item_id];
-    item.item_id = item_id;
-
-    if (type === "sub_head") return setSubHead(item);
-
-
-    let new_view = ui.inflate(
-        <horizontal id="_item_area" padding="16 8" gravity="left|center">
-            <vertical id="_content" w="{{defs.item_area_width}}" h="40" gravity="left|center">
-                <text id="_title" textColor="#111111" textSize="16"/>
-            </vertical>
-        </horizontal>);
-
-    let title = item["title"];
-    new_view._title.text(title);
-
-    let hint = item["hint"];
-    if (hint) {
-        let hint_view = ui.inflate(<text id="_hint" textColor="#888888" textSize="13sp"/>);
-        hint_view._hint.text(hint[+!!session_config[item.config_conj]]);
-        new_view._content.addView(hint_view);
-    }
-
-    let switch_type = type === "switch";
-    if (switch_type) {
-        let sw_view = ui.inflate(<Switch id="switch"/>);
-        new_view._item_area.addView(sw_view);
-        item.view = new_view;
-        sw_view["switch"].setChecked(!!session_config[item.config_conj]);
-
-
-        let listener_ids = item["listener"];
-        Object.keys(listener_ids).forEach(id => {
-            let listeners = listener_ids[id];
-            Object.keys(listeners).forEach(listener => {
-                new_view[id].on(listener, listeners[listener]);
-            });
-        });
-
-    }
-
-    return new_view;
-
-    // tool function(s) //
-
-    function setSubHead(item) {
-        let title = item["title"],
-            sub_head_color = item["sub_head_color"] || defs["sub_head_color"];
-
-        let new_view = ui.inflate(
-            <vertical>
-                <text id="_text" textSize="14" margin="16 8"/>
-            </vertical>
-        );
-        new_view._text.text(title);
-        let title_color = typeof sub_head_color === "string" ? colors.parseColor(sub_head_color) : sub_head_color;
-        new_view._text.setTextColor(title_color);
-
-        return new_view;
-    }
-}
-
-
-//let page_help_collect = setPage("帮收功能");
-//add = view => page_help_collect.scroll_view.addView(view);
-//add(setItem("sub_head", "基本设置"));
-//add(setItem("switch", "总开关"));
-//add(setItem("sub_head", "高级设置"));
-//add(setItem("item", "检测密度", "16"));
-//add(setItem("item", "颜色色值", "#f99137")); // 在文字后面跟一个颜色指示方块
-//add(setItem("item", "颜色检测阈值", "60"));
-
-
-//let sub_view = page_help_collect;
-
-
-//ui.menu_help_collect.on("click", () => {
-//    parent.addView(sub_view);
-//    smoothScrollMenu([main_view, sub_view], "full_left");
-//    sub_page_flag = true;
-//});
-
-
-ui.emitter.on("back_pressed", e => {
-    return;
-
-
-    e.consumed = sub_page_flag || modified_flag;
-    if (modified_flag && !sub_page_flag) toast("You need to save before exit");
-    else {
-        smoothScrollMenu([main_view, sub_view], "full_right");
-        sub_page_flag = false;
-    }
-});
-
-
-function smoothScrollMenu(views, shifting, duration) {
-
-    // views expects not more than 2 params
-    if (Object.prototype.toString.call(views).slice(8, -1) !== "Array") views = [views];
-
-    let main_view = views[0],
-        sub_view = views[1];
+    let parent = ui.main.getParent();
 
     duration = duration || 180;
 
     if (shifting === "full_left") {
         shifting = [WIDTH, 0];
+        parent.addView(sub_view);
         sub_view && sub_view.scrollBy(-WIDTH, 0);
     } else if (shifting === "full_right") {
         shifting = [-WIDTH, 0];
@@ -288,106 +468,8 @@ function smoothScrollMenu(views, shifting, duration) {
         if (shifting[0] === -WIDTH && sub_view) {
             sub_view.scrollBy(WIDTH, 0);
             let child_count = parent.getChildCount();
-            while (child_count > 1) parent.removeView(parent.getChildAt(--child_count));
+            parent.removeView(parent.getChildAt(--child_count));
         }
         clearInterval(scroll_interval);
     }, duration + 200); // 200: a safe interval just in case
-}
-
-function setLayout(view, left, top, right, bottom) {
-    let args_len = arguments.length;
-
-    let layout_params = view.getLayoutParams(),
-        ori_left_margin = layout_params.leftMargin,
-        ori_top_margin = layout_params.topMargin,
-        ori_right_margin = layout_params.rightMargin,
-        ori_bottom_margin = layout_params.bottomMargin,
-        ori_width = layout_params.width,
-        ori_height = layout_params.height;
-
-    let new_layout = new ViewGroup.MarginLayoutParams(layout_params);
-
-    if (args_len === 3) {
-        new_layout.setMargins(ori_left_margin, ori_top_margin, ori_right_margin, ori_bottom_margin);
-
-        let reValue = (value, ori) => {
-            if (value === "*") return ViewGroup.LayoutParams.MATCH_PARENT;
-            if (value === "auto") return ViewGroup.LayoutParams.WRAP_CONTENT;
-            if (value === "-") return ori;
-            return value;
-        };
-
-        left = reValue(left, ori_width);
-        top = reValue(top, ori_height);
-
-        let new_layout_params = new LinearLayout.LayoutParams(new_layout);
-        new_layout_params.width = left;
-        new_layout_params.height = top;
-
-        view.setLayoutParams(new_layout_params);
-    } else if (args_len === 5) {
-        let left_margin = typeof left === "undefined" ? ori_left_margin : left,
-            top_margin = typeof top === "undefined" ? ori_top_margin : top,
-            right_margin = typeof right === "undefined" ? ori_right_margin : right,
-            bottom_margin = typeof bottom === "undefined" ? ori_bottom_margin : bottom;
-
-        new_layout.setMargins(left_margin, top_margin, right_margin, bottom_margin);
-
-        let new_layout_params = new LinearLayout.LayoutParams(new_layout);
-
-        view.setLayoutParams(new_layout_params);
-    }
-}
-
-function saveSession(key, value) {
-    if (key !== undefined) session_config[key] = value;
-    let changed_state = !obj_equal(session_config, storage_config);
-    let last_changed_state = defs["last_changed_state"];
-
-    if (changed_state === last_changed_state) return;
-
-    if (changed_state) {
-        log("save on");
-        reDrawSaveBtn("ON");
-        defs["last_changed_state"] = true;
-    } else {
-        log("save off");
-        reDrawSaveBtn("OFF");
-        defs["last_changed_state"] = false;
-    }
-}
-
-function reDrawSaveBtn(switch_state) {
-    let parent = homepage.icon_save_img.getParent();
-    parent.removeAllViews();
-    parent.addView(getLayoutSaveBtn(switch_state));
-}
-
-function getLayoutSaveBtn(switch_state) {
-    function layoutSaveBtn(icon_tint_color, save_text_color) {
-        assignment.session_params.tint_c = icon_tint_color;
-        assignment.session_params.text_c = save_text_color;
-        return ui.inflate(
-            <vertical margin="13 0">
-                <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{assignment.session_params.tint_c}}"/>
-                <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="{{assignment.session_params.text_c}}" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
-            </vertical>
-        );
-    }
-    let on_view = layoutSaveBtn(defs.save_btn_on_color, "#ffffff");
-    let off_view = layoutSaveBtn(defs.save_btn_off_color, "#bbcccc");
-
-    let view = switch_state === "ON" ? on_view : off_view;
-
-    view.icon_save_text.on("click", () => {
-        if (obj_equal(session_config, storage_config)) return toast("不用保存");
-        storage.put("config", session_config);
-        storage_config = session_config;
-        session_config = {};
-        reDrawSaveBtn("OFF");
-        defs["last_changed_state"] = false;
-        toast("已保存");
-    });
-
-    return view;
 }
