@@ -1,9 +1,19 @@
 "ui";
 
+let DEFAULT = {
+    help_collect_switch: true,
+    non_break_check_time_area: [],
+    help_collect_intensity: 16,
+};
+
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
 let storage_config = storage.get("config", {});
+if (!obj_equal(storage_config, DEFAULT)) {
+    storage_config = Object.assign({}, DEFAULT, storage_config);
+    storage.put("config", storage_config);
+} // to fill storage data
 let session_config = Object.assign({}, storage_config);
 let saveSession = () => null;
 let needSave = () => !obj_equal(session_config, storage_config);
@@ -25,10 +35,12 @@ let defs = {
 };
 let pages = [];
 
-function LayoutSubHead(title, sub_head_color, update_opr) {
+
+function LayoutSubHead(title, params) {
+    params = params || {};
     this.title = title;
-    this.sub_head_color = sub_head_color;
-    if (update_opr) {
+    this.sub_head_color = params.sub_head_color;
+    if (params.updateOpr) {
         Object.defineProperties(this, {
             updateOpr: {
                 get: () => view => params.updateOpr(view),
@@ -48,7 +60,7 @@ function LayoutSwitch(title, params) {
             },
         },
     });
-    if (params.update_opr) {
+    if (params.updateOpr) {
         Object.defineProperties(this, {
             updateOpr: {
                 get: () => view => params.updateOpr(view),
@@ -110,13 +122,15 @@ homepage.add("options", new LayoutOptionMenu("监测自己能量", {
     },
     "next_page": non_break_check_page,
     "updateOpr": function (view) {
-        view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+        let value = session_config[this.config_conj];
+        let on_off = +!!(typeof value === "object" ? value.length : value);
+        view._hint.text(this.hint[on_off]);
     },
 }));
 homepage.add("sub_head", new LayoutSubHead("重置"));
-homepage.add("button", new LayoutButton("恢复默认设置", {
-    "hint": "还原部分或全部设置",
-    "new_window": () => {
+homepage.add("button", new LayoutButton("还原设置", {
+    hint: "还原部分或全部设置",
+    new_window: () => {
         let diag = dialogs.build({
             // content: "可选择还原任何修改过的设置\n也可以一键还原全部设置\n\n注意: 此操作无法撤销",
             // neutral: "放弃",
@@ -171,6 +185,27 @@ help_collect_page.add("switch", new LayoutSwitch("总开关", {
         },
     },
 }));
+//add(setItem("item", "检测密度", "16"));
+//add(setItem("item", "颜色色值", "#f99137")); // 在文字后面跟一个颜色指示方块
+//add(setItem("item", "颜色检测阈值", "60"));
+help_collect_page.add("button", new LayoutButton("检测密度", {
+    config_conj: "help_collect_intensity",
+    hint: "hint",
+    new_window: () => {
+        let diag = dialogs.build({
+            title: "帮收功能检测密度",
+            content: "推荐值: 10 <= x <= 20",
+            neutral: "恢复默认值",
+            negative: "返回",
+            positive: "修改",
+
+        });
+        //diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text(session_config[this.config_conj].toString());
+    },
+}));
 non_break_check_page.add("switch", new LayoutSwitch("总开关", {
     config_conj: "non_break_check_time_area",
     listeners: {
@@ -179,6 +214,11 @@ non_break_check_page.add("switch", new LayoutSwitch("总开关", {
                 saveSession(this.config_conj, !!state);
             },
         },
+    },
+    updateOpr: function (view) {
+        let value = session_config[this.config_conj];
+        let on_off = !!(typeof value === "object" ? value.length : value);
+        view.switch.setChecked(on_off);
     },
 }));
 
@@ -215,6 +255,8 @@ ui.emitter.on("back_pressed", e => {
         diag.show();
     }
 });
+
+updateAllValues();
 
 // tool function(s) //
 
@@ -338,7 +380,7 @@ function setPage(title, title_bg_color, additions) {
         let hint = item_params["hint"];
         if (hint) {
             let hint_view = ui.inflate(<text id="_hint" textColor="#888888" textSize="13sp"/>);
-            hint_view._hint.text(type === "button" ? hint : hint[+!!session_config[item_params.config_conj]]);
+            typeof hint === "string" && hint_view._hint.text(hint);
             new_view._content.addView(hint_view);
         }
 
