@@ -7,7 +7,7 @@
 auto();
 
 /**
- * bug versions not enable to use dialogs.build({inputHint: xxx}) function
+ * bug versions not able to use dialogs.build({inputHint: xxx}) function
  * @type {string[]}
  */
 let bug_dialogs_inputHint_Versions = ["4.1.1 Alpha2", "Pro 7.0.0-1", "Pro 7.0.0-2"];

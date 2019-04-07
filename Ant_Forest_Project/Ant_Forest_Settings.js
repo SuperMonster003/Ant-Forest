@@ -2,6 +2,7 @@
 
 let DEFAULT = {
     help_collect_switch: true,
+    non_break_check_switch: false,
     non_break_check_time_area: [],
     help_collect_intensity: 16,
 };
@@ -9,12 +10,9 @@ let DEFAULT = {
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
-let storage_config = storage.get("config", {});
-if (!obj_equal(storage_config, DEFAULT)) {
-    storage_config = Object.assign({}, DEFAULT, storage_config);
-    storage.put("config", storage_config);
-} // to fill storage data
-let session_config = Object.assign({}, storage_config);
+let storage_config = initStorageConfig();
+// let session_config = Object.assign({}, storage_config); // shallow copy
+let session_config = JSON.parse(JSON.stringify(storage_config)); // deep copy
 let saveSession = () => null;
 let needSave = () => !obj_equal(session_config, storage_config);
 let dynamic_views = [];
@@ -35,75 +33,14 @@ let defs = {
 };
 let pages = [];
 
-
-function LayoutSubHead(title, params) {
-    params = params || {};
-    this.title = title;
-    this.sub_head_color = params.sub_head_color;
-    if (params.updateOpr) {
-        Object.defineProperties(this, {
-            updateOpr: {
-                get: () => view => params.updateOpr(view),
-            },
-        });
-    }
-}
-
-function LayoutSwitch(title, params) {
-    this.title = title;
-    this.config_conj = params.config_conj;
-    this.hint = params.hint;
-    Object.defineProperties(this, {
-        listener: {
-            get: function () {
-                return params.listeners;
-            },
-        },
-    });
-    if (params.updateOpr) {
-        Object.defineProperties(this, {
-            updateOpr: {
-                get: () => view => params.updateOpr(view),
-            },
-        });
-    }
-}
-
-function LayoutOptionMenu(title, params) {
-    this.title = title;
-    this.config_conj = params.config_conj;
-    this.hint = params.hint;
-    this.next_page = params.next_page;
-    if (params.updateOpr) {
-        Object.defineProperties(this, {
-            updateOpr: {
-                get: () => view => params.updateOpr(view),
-            },
-        });
-    }
-}
-
-function LayoutButton(title, params) {
-    this.title = title;
-    this.hint = params.hint;
-    this.new_window = params.new_window;
-    if (params.updateOpr) {
-        Object.defineProperties(this, {
-            updateOpr: {
-                get: () => view => params.updateOpr(view),
-            },
-        });
-    }
-}
-
 initUI();
 
 let homepage = setHomePage("Ant_Forest");
 let help_collect_page = setPage("帮收功能");
 let non_break_check_page = setPage("监测自己能量");
 
-homepage.add("sub_head", new LayoutSubHead("基本功能"));
-homepage.add("options", new LayoutOptionMenu("帮收功能", {
+homepage.add("sub_head", new Layout("基本功能"));
+homepage.add("options", new Layout("帮收功能", {
     "config_conj": "help_collect_switch",
     "hint": {
         "0": "已关闭",
@@ -114,8 +51,8 @@ homepage.add("options", new LayoutOptionMenu("帮收功能", {
         view._hint.text(this.hint[+!!session_config[this.config_conj]]);
     },
 }));
-homepage.add("options", new LayoutOptionMenu("监测自己能量", {
-    "config_conj": "non_break_check_time_area",
+homepage.add("options", new Layout("监测自己能量", {
+    "config_conj": "non_break_check_switch",
     "hint": {
         "0": "已关闭",
         "1": "已开启",
@@ -127,8 +64,8 @@ homepage.add("options", new LayoutOptionMenu("监测自己能量", {
         view._hint.text(this.hint[on_off]);
     },
 }));
-homepage.add("sub_head", new LayoutSubHead("重置"));
-homepage.add("button", new LayoutButton("还原设置", {
+homepage.add("sub_head", new Layout("重置"));
+homepage.add("button", new Layout("还原设置", {
     hint: "还原部分或全部设置",
     new_window: () => {
         let diag = dialogs.build({
@@ -174,7 +111,7 @@ homepage.add("button", new LayoutButton("还原设置", {
         diag.show();
     },
 }));
-help_collect_page.add("switch", new LayoutSwitch("总开关", {
+help_collect_page.add("switch", new Layout("总开关", {
     config_conj: "help_collect_switch",
     listeners: {
         "switch": {
@@ -188,7 +125,7 @@ help_collect_page.add("switch", new LayoutSwitch("总开关", {
 //add(setItem("item", "检测密度", "16"));
 //add(setItem("item", "颜色色值", "#f99137")); // 在文字后面跟一个颜色指示方块
 //add(setItem("item", "颜色检测阈值", "60"));
-help_collect_page.add("button", new LayoutButton("检测密度", {
+help_collect_page.add("button", new Layout("检测密度", {
     config_conj: "help_collect_intensity",
     hint: "hint",
     new_window: () => {
@@ -206,8 +143,8 @@ help_collect_page.add("button", new LayoutButton("检测密度", {
         view._hint.text(session_config[this.config_conj].toString());
     },
 }));
-non_break_check_page.add("switch", new LayoutSwitch("总开关", {
-    config_conj: "non_break_check_time_area",
+non_break_check_page.add("switch", new Layout("总开关", {
+    config_conj: "non_break_check_switch",
     listeners: {
         "switch": {
             "check": function (state) {
@@ -258,7 +195,44 @@ ui.emitter.on("back_pressed", e => {
 
 updateAllValues();
 
+// constructor //
+
+function Layout(title, params) {
+    params = params || {};
+    this.title = title;
+    this.sub_head_color = params.sub_head_color;
+    this.config_conj = params.config_conj;
+    this.next_page = params.next_page;
+    this.new_window = params.new_window;
+    this.hint = params.hint;
+    if (params.listeners) {
+        Object.defineProperties(this, {
+            listener: {
+                get: function () {
+                    return params.listeners;
+                },
+            },
+        });
+    }
+    if (params.updateOpr) {
+        Object.defineProperties(this, {
+            updateOpr: {
+                get: () => view => params.updateOpr(view),
+            },
+        });
+    }
+}
+
 // tool function(s) //
+
+function initStorageConfig() {
+    let storage_config = storage.get("config", {});
+    if (!obj_equal(storage_config, DEFAULT)) {
+        storage_config = Object.assign({}, DEFAULT, storage_config);
+        storage.put("config", storage_config); // to fill storage data
+    }
+    return storage_config;
+}
 
 function initUI(status_bar_color) {
     ui.layout(
