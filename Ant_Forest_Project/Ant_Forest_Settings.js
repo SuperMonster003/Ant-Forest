@@ -5,6 +5,8 @@ let DEFAULT = {
     non_break_check_switch: false,
     non_break_check_time_area: [],
     help_collect_intensity: 16,
+    help_collect_color: "#F99137",
+    help_collect_color_threshold: 60,
 };
 
 let WIDTH = device.width;
@@ -12,7 +14,8 @@ let HEIGHT = device.height;
 let storage = storage = require("./Modules/MODULE_STORAGE").create("af_cfg");
 let storage_config = initStorageConfig();
 // let session_config = Object.assign({}, storage_config); // shallow copy
-let session_config = JSON.parse(JSON.stringify(storage_config)); // deep copy
+// let session_config = JSON.parse(JSON.stringify(storage_config)); // incomplete deep copy
+let session_config = deepCloneObject(storage_config); // deep copy
 let saveSession = () => null;
 let needSave = () => !obj_equal(session_config, storage_config);
 let dynamic_views = [];
@@ -32,6 +35,7 @@ let defs = {
     "save_btn_off_color": "#bbcccc",
 };
 let pages = [];
+let alert_info = {};
 
 initUI();
 
@@ -122,27 +126,139 @@ help_collect_page.add("switch", new Layout("总开关", {
         },
     },
 }));
-//add(setItem("item", "检测密度", "16"));
-//add(setItem("item", "颜色色值", "#f99137")); // 在文字后面跟一个颜色指示方块
-//add(setItem("item", "颜色检测阈值", "60"));
+help_collect_page.add("sub_head", new Layout("高级设置"));
 help_collect_page.add("button", new Layout("检测密度", {
     config_conj: "help_collect_intensity",
     hint: "hint",
-    new_window: () => {
+    new_window: function () {
         let diag = dialogs.build({
             title: "帮收功能检测密度",
-            content: "推荐值: 10 <= x <= 20",
-            neutral: "恢复默认值",
+            content: "数据值与好友森林页面橙色能量球图片样本采集密度成正相关",
+            inputHint: "{x|10<=x<=20,x∈N*}",
+            neutral: "使用默认值",
             negative: "返回",
             positive: "修改",
-
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
         });
-        //diag.show();
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            let input = diag.getInputEditText().getText().toString();
+            if (input === "") return dialog.dismiss();
+            let value = input - 0;
+            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+            if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
+            if (value !== "") saveSession(this.config_conj, value);
+            diag.dismiss();
+        });
+        diag.show();
     },
     updateOpr: function (view) {
         view._hint.text(session_config[this.config_conj].toString());
     },
 }));
+help_collect_page.add("button", new Layout("颜色色值", {
+    config_conj: "help_collect_color",
+    hint: "hint",
+    new_window: function () {
+        let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
+            _lim255 = regexp_num_0_to_255.source;
+        let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
+        let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
+        let current_color = undefined;
+        let diag = dialogs.build({
+            title: "帮收功能颜色色值",
+            content: "用于好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
+            inputHint: "RGB(RR,GG,BB) | #RRGGBB",
+            neutral: "使用默认值",
+            negative: "返回",
+            positive: "修改",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            if (diag.getInputEditText().getText().toString() !== "") {
+                if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
+                saveSession(this.config_conj, "#" + colors.toString(current_color).slice(3));
+            }
+            diag.dismiss();
+        });
+        diag.on("input_change", (dialog, input) => {
+            let color = "";
+            try {
+                if (input.match(regexp_hex_color)) {
+                    color = colors.parseColor("#" + input.slice(-6));
+                } else if (input.match(regexp_rgb_color)) {
+                    let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                    color = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                }
+                dialog.getTitleView().setTextColor(color || -570425344);
+                dialog.getContentView().setTextColor(color || -1979711488);
+                dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
+            } catch (e) {
+            }
+            current_color = color;
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text(session_config[this.config_conj].toString());
+    },
+}));
+help_collect_page.add("button", new Layout("颜色检测阈值", {
+    config_conj: "help_collect_color_threshold",
+    hint: "hint",
+    new_window: function () {
+        let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
+            _lim255 = regexp_num_0_to_255.source;
+        let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
+        let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
+        let current_color = undefined;
+        let diag = dialogs.build({
+            title: "帮收功能颜色色值",
+            content: "用于好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
+            inputHint: "RGB(RR,GG,BB) | #RRGGBB",
+            neutral: "使用默认值",
+            negative: "返回",
+            positive: "修改",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            if (diag.getInputEditText().getText().toString() !== "") {
+                if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
+                saveSession(this.config_conj, "#" + colors.toString(current_color).slice(3));
+            }
+            diag.dismiss();
+        });
+        diag.on("input_change", (dialog, input) => {
+            let color = "";
+            try {
+                if (input.match(regexp_hex_color)) {
+                    color = colors.parseColor("#" + input.slice(-6));
+                } else if (input.match(regexp_rgb_color)) {
+                    let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                    color = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                }
+                dialog.getTitleView().setTextColor(color || -570425344);
+                dialog.getContentView().setTextColor(color || -1979711488);
+                dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
+            } catch (e) {
+            }
+            current_color = color;
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text(session_config[this.config_conj].toString());
+    },
+}));
+//add(setItem("item", "颜色检测阈值", "60"));
 non_break_check_page.add("switch", new Layout("总开关", {
     config_conj: "non_break_check_switch",
     listeners: {
@@ -203,8 +319,14 @@ function Layout(title, params) {
     this.sub_head_color = params.sub_head_color;
     this.config_conj = params.config_conj;
     this.next_page = params.next_page;
-    this.new_window = params.new_window;
     this.hint = params.hint;
+    if (params.new_window) {
+        Object.defineProperties(this, {
+            showWindow: {
+                get: () => params.new_window.bind(this),
+            }
+        });
+    }
     if (params.listeners) {
         Object.defineProperties(this, {
             listener: {
@@ -224,6 +346,18 @@ function Layout(title, params) {
 }
 
 // tool function(s) //
+
+function deepCloneObject(obj) {
+    let classOfObj = Object.prototype.toString.call(obj).slice(8, -1);
+    if (classOfObj === "Null" || classOfObj !== "Object") return obj;
+    let new_obj = classOfObj === "Array" ? [] : {};
+    for (let i in obj) {
+        if (obj.hasOwnProperty(i)) {
+            new_obj[i] = classOfObj === "Array" ? obj[i] : deepCloneObject(obj[i]);
+        }
+    }
+    return new_obj;
+}
 
 function initStorageConfig() {
     let storage_config = storage.get("config", {});
@@ -279,7 +413,7 @@ function setHomePage(home_title) {
         view = switch_state === "ON" ? on_view : off_view;
 
         view.icon_save_text.on("click", () => {
-            if (!needSave()) return toast("不用保存"); ////TEST////
+            if (!needSave()) return;
             storage.put("config", session_config);
             storage_config = Object.assign({}, session_config);
             reDrawSaveBtn("OFF");
@@ -381,7 +515,7 @@ function setPage(title, title_bg_color, additions) {
             item_params.view = new_view;
             new_view._item_area.on("click", () => pageJump("next", item_params.next_page));
         } else if (type === "button") {
-            new_view._item_area.on("click", () => item_params.new_window());
+            new_view._item_area.on("click", () => item_params.showWindow());
         }
 
         if (item_params.updateOpr) new_view.updateOpr = item_params.updateOpr.bind(new_view);
@@ -488,4 +622,36 @@ function smoothScrollMenu(shifting, duration) {
         }
         clearInterval(scroll_interval);
     }, duration + 200); // 200: a safe interval just in case
+}
+
+function alertTitle(dialog, message, duration) {
+    alert_info[dialog] = alert_info[dialog] || {};
+    alert_info["message_showing"] ? alert_info["message_showing"]++ : (alert_info["message_showing"] = 1);
+
+    let ori_text = alert_info[dialog].ori_text || "",
+        ori_color = alert_info[dialog].ori_color || "";
+
+    if (!ori_text) {
+        ori_text = dialog.getTitleView().getText();
+        alert_info[dialog].ori_text = ori_text;
+    }
+    if (!ori_color) {
+        ori_color = dialog.getTitleView().getTextColors().colors[0];
+        alert_info[dialog].ori_color = ori_color;
+    }
+
+    setTitleInfo(dialog, message, colors.parseColor("#cc5588"));
+
+    setTimeout(() => {
+        alert_info["message_showing"]--;
+        if (alert_info["message_showing"]) return;
+        setTitleInfo(dialog, ori_text, ori_color);
+    }, duration || 3000);
+
+    // tool function(s) //
+
+    function setTitleInfo(dialog, text, color) {
+        dialog.getTitleView().setText(text);
+        dialog.getTitleView().setTextColor(color);
+    }
 }

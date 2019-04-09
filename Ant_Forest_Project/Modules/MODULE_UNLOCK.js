@@ -278,40 +278,34 @@ function Unlock() {
         // tool function(s) //
 
         function alertTitle(dialog, message, duration) {
-            if (!alert_info[dialog]) alert_info[dialog] = {};
+            alert_info[dialog] = alert_info[dialog] || {};
+            alert_info["message_showing"] ? alert_info["message_showing"]++ : (alert_info["message_showing"] = 1);
 
             let ori_text = alert_info[dialog].ori_text || "",
-                ori_color = alert_info[dialog].ori_color || "",
-                thread_alert;
+                ori_color = alert_info[dialog].ori_color || "";
 
-            try {
-                thread_alert = threads.start(function () {
-                    if (!ori_text) {
-                        ori_text = dialog.getTitleView().getText();
-                        alert_info[dialog].ori_text = ori_text;
-                    }
-                    if (!ori_color) {
-                        ori_color = dialog.getTitleView().getTextColors().colors[0];
-                        alert_info[dialog].ori_color = ori_color;
-                    }
+            if (!ori_text) {
+                ori_text = dialog.getTitleView().getText();
+                alert_info[dialog].ori_text = ori_text;
+            }
+            if (!ori_color) {
+                ori_color = dialog.getTitleView().getTextColors().colors[0];
+                alert_info[dialog].ori_color = ori_color;
+            }
 
-                    dialog.getTitleView().setText(message);
-                    dialog.getTitleView().setTextColor(colors.parseColor("#cc5588"));
+            setTitleInfo(dialog, message, colors.parseColor("#cc5588"));
 
-                    sleep(duration || 3000);
+            setTimeout(() => {
+                alert_info["message_showing"]--;
+                if (alert_info["message_showing"]) return;
+                setTitleInfo(dialog, ori_text, ori_color);
+            }, duration || 3000);
 
-                    dialog.getTitleView().setText(ori_text);
-                    dialog.getTitleView().setTextColor(ori_color);
-                });
-            } catch (e) {
-                // try recovering title state
-                try {
-                    thread_alert && thread_alert.interrupt();
-                    ori_text && dialog.getTitleView().setText(ori_text);
-                    ori_color && dialog.getTitleView().setTextColor(ori_color);
-                } catch (e) {
-                    // nothing to do here
-                }
+            // tool function(s) //
+
+            function setTitleInfo(dialog, text, color) {
+                dialog.getTitleView().setText(text);
+                dialog.getTitleView().setTextColor(color);
             }
         }
     }

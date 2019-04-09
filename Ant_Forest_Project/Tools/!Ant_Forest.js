@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 7, 2019
- * @version 1.4.7
+ * @last_modified Apr 8, 2019
+ * @version 1.4.8
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -11,7 +11,7 @@
  * @borrows {@link https://github.com/Nick-Hopps/Ant-Forest-autoscript}
  */
 
-auto().waitFor();
+auto.waitFor();
 
 engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
