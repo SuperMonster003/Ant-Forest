@@ -3,9 +3,9 @@
 let DEFAULT = {
     help_collect_switch: true,
     non_break_check_switch: false,
-    non_break_check_time_area: [],
+    non_break_check_time_area: [["07:28:00", "07:28:47"]],
     help_collect_intensity: 16,
-    help_collect_color: "#F99137",
+    help_collect_color: "#f99137",
     help_collect_color_threshold: 60,
 };
 
@@ -63,9 +63,7 @@ homepage.add("options", new Layout("监测自己能量", {
     },
     "next_page": non_break_check_page,
     "updateOpr": function (view) {
-        let value = session_config[this.config_conj];
-        let on_off = +!!(typeof value === "object" ? value.length : value);
-        view._hint.text(this.hint[on_off]);
+        view._hint.text(this.hint[+!!session_config[this.config_conj]]);
     },
 }));
 homepage.add("sub_head", new Layout("重置"));
@@ -128,13 +126,18 @@ help_collect_page.add("switch", new Layout("总开关", {
     listeners: {
         "_switch": {
             "check": function (state) {
-                //ui["_hint"].setText(this.hint[+state]);
                 saveSession(this.config_conj, !!state);
+                let parent = this.view.getParent();
+                let child_count = parent.getChildCount();
+                while (child_count-- > 2) {
+                    parent.getChildAt(child_count).setVisibility(state ? 0 : 5);
+                }
             },
         },
     },
     updateOpr: function (view) {
-        view["_switch"].setChecked(!!session_config[this.config_conj]);
+        let session_conf = !!session_config[this.config_conj];
+        view["_switch"].setChecked(session_conf);
     },
 }));
 help_collect_page.add("sub_head", new Layout("高级设置"));
@@ -144,7 +147,7 @@ help_collect_page.add("button", new Layout("检测密度", {
     new_window: function () {
         let diag = dialogs.build({
             title: "帮收功能检测密度",
-            content: "数据值与好友森林页面橙色能量球图片样本采集密度(即样本数量)成正相关",
+            content: "好友森林橙色能量球图片样本采集密度",
             inputHint: "{x|10<=x<=20,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
@@ -180,8 +183,8 @@ help_collect_page.add("button", new Layout("颜色色值", {
         let current_color = undefined;
         let diag = dialogs.build({
             title: "帮收功能颜色色值",
-            content: "好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
-            inputHint: "RGB(RR,GG,BB) | #RRGGBB",
+            content: "好友森林识别橙色能量球的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
+            inputHint: "rgb(RR,GG,BB) | #RRGGBB",
             neutral: "使用默认值",
             negative: "返回",
             positive: "修改",
@@ -193,7 +196,7 @@ help_collect_page.add("button", new Layout("颜色色值", {
         diag.on("positive", dialog => {
             if (diag.getInputEditText().getText().toString() !== "") {
                 if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
-                saveSession(this.config_conj, "#" + colors.toString(current_color).slice(3));
+                saveSession(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
             }
             diag.dismiss();
         });
@@ -216,7 +219,11 @@ help_collect_page.add("button", new Layout("颜色色值", {
         diag.show();
     },
     updateOpr: function (view) {
-        view._hint.text(session_config[this.config_conj].toString());
+        let color_str = session_config[this.config_conj].toString();
+        view._hint.text(color_str);
+        view._hint_color_indicator.text(" \u25D1");
+        view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
+        view._hint_color_indicator.setVisibility(0);
     },
 }));
 help_collect_page.add("button", new Layout("颜色检测阈值", {
@@ -225,7 +232,7 @@ help_collect_page.add("button", new Layout("颜色检测阈值", {
     new_window: function () {
         let diag = dialogs.build({
             title: "帮收功能颜色检测阈值",
-            content: "用于好友森林页面橙色能量球识别的参照色值阈值",
+            content: "好友森林识别橙色能量球的参照色值阈值",
             inputHint: "{x|28<=x<=83,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
@@ -256,13 +263,52 @@ non_break_check_page.add("switch", new Layout("总开关", {
         "_switch": {
             "check": function (state) {
                 saveSession(this.config_conj, !!state);
+                let parent = this.view.getParent();
+                let child_count = parent.getChildCount();
+                while (child_count-- > 2) {
+                    parent.getChildAt(child_count).setVisibility(state ? 0 : 5);
+                }
             },
         },
     },
     updateOpr: function (view) {
-        let value = session_config[this.config_conj];
-        let on_off = !!(typeof value === "object" ? value.length : value);
-        view["_switch"].setChecked(on_off);
+        let session_conf = !!session_config[this.config_conj];
+        view["_switch"].setChecked(session_conf);
+    },
+}));
+non_break_check_page.add("sub_head", new Layout("基本设置"));
+non_break_check_page.add("button", new Layout("管理时间区间", {
+    config_conj: "non_break_check_time_area",
+    hint: "hint",
+    new_window: function () {
+        let diag = dialogs.build({
+            title: "能量监测时间区间",
+            content: "指定时间区间内不断监测自己可收取的能量球\n\n点击时间区间可删除\/修改区间\n点击\"添加项目\"设置新区间",
+            // inputHint: "{x|10<=x<=20,x∈N*}",
+            items: ["1", "2"],
+            neutral: "添加项目",
+            negative: "返回",
+            positive: "确认修改",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            let input = diag.getInputEditText().getText().toString();
+            if (input === "") return dialog.dismiss();
+            let value = input - 0;
+            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+            if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
+            saveSession(this.config_conj, value);
+            diag.dismiss();
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        let time_areas = session_config[this.config_conj];
+        let time_area_amount = time_areas ? time_areas.length : 0;
+        view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: [" + time_areas[0][0] + ", " + time_areas[0][1] + "]")) : "未设置");
     },
 }));
 
@@ -478,13 +524,17 @@ function setPage(title, title_bg_color, additions) {
 
         let hint = item_params["hint"];
         if (hint) {
-            let hint_view = ui.inflate(<text id="_hint" textColor="#888888" textSize="13sp"/>);
+            let hint_view = ui.inflate(
+                <horizontal>
+                    <text id="_hint" textColor="#888888" textSize="13sp"/>
+                    <text id="_hint_color_indicator" visibility="gone" textColor="#888888" textSize="13sp"/>
+                </horizontal>);
             typeof hint === "string" && hint_view._hint.text(hint);
             new_view._content.addView(hint_view);
         }
 
         if (type === "switch") {
-            let sw_view = ui.inflate(<Switch id="_switch"/>);
+            let sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
             new_view._item_area.addView(sw_view);
             item_params.view = new_view;
 
@@ -641,7 +691,8 @@ function alertTitle(dialog, message, duration) {
     // tool function(s) //
 
     function setTitleInfo(dialog, text, color) {
-        dialog.getTitleView().setText(text);
-        dialog.getTitleView().setTextColor(color);
+        let title_view = dialog.getTitleView();
+        title_view.setText(text);
+        title_view.setTextColor(color);
     }
 }
