@@ -96,8 +96,7 @@ homepage.add("button", new Layout("还原设置", {
                 canceledOnTouchOutside: false,
             });
             diag_sub.on("positive", () => {
-                // reset();
-                updateAllValues();
+                reset();
                 let diag_sub_sub = dialogs.build({
                     title: "还原完毕",
                     positive: "确定",
@@ -108,6 +107,15 @@ homepage.add("button", new Layout("还原设置", {
                     diag.cancel();
                 });
                 diag_sub_sub.show();
+
+                // tool function(s) //
+
+                function reset() {
+                    session_config = deepCloneObject(DEFAULT);
+                    storage_config = deepCloneObject(DEFAULT);
+                    storage.put("config", DEFAULT);
+                    updateAllValues();
+                }
             });
             diag_sub.on("negative", () => diag_sub.cancel());
             diag_sub.show();
@@ -118,12 +126,15 @@ homepage.add("button", new Layout("还原设置", {
 help_collect_page.add("switch", new Layout("总开关", {
     config_conj: "help_collect_switch",
     listeners: {
-        "switch": {
+        "_switch": {
             "check": function (state) {
                 //ui["_hint"].setText(this.hint[+state]);
                 saveSession(this.config_conj, !!state);
             },
         },
+    },
+    updateOpr: function (view) {
+        view["_switch"].setChecked(!!session_config[this.config_conj]);
     },
 }));
 help_collect_page.add("sub_head", new Layout("高级设置"));
@@ -133,7 +144,7 @@ help_collect_page.add("button", new Layout("检测密度", {
     new_window: function () {
         let diag = dialogs.build({
             title: "帮收功能检测密度",
-            content: "数据值与好友森林页面橙色能量球图片样本采集密度成正相关",
+            content: "数据值与好友森林页面橙色能量球图片样本采集密度(即样本数量)成正相关",
             inputHint: "{x|10<=x<=20,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
@@ -149,7 +160,7 @@ help_collect_page.add("button", new Layout("检测密度", {
             let value = input - 0;
             if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
             if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
-            if (value !== "") saveSession(this.config_conj, value);
+            saveSession(this.config_conj, value);
             diag.dismiss();
         });
         diag.show();
@@ -169,7 +180,7 @@ help_collect_page.add("button", new Layout("颜色色值", {
         let current_color = undefined;
         let diag = dialogs.build({
             title: "帮收功能颜色色值",
-            content: "用于好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
+            content: "好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
             inputHint: "RGB(RR,GG,BB) | #RRGGBB",
             neutral: "使用默认值",
             negative: "返回",
@@ -212,15 +223,10 @@ help_collect_page.add("button", new Layout("颜色检测阈值", {
     config_conj: "help_collect_color_threshold",
     hint: "hint",
     new_window: function () {
-        let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
-            _lim255 = regexp_num_0_to_255.source;
-        let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
-        let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
-        let current_color = undefined;
         let diag = dialogs.build({
-            title: "帮收功能颜色色值",
-            content: "用于好友森林页面橙色能量球识别的参照色值\n\n示例:\nrgb(67,160,71)\n#43A047",
-            inputHint: "RGB(RR,GG,BB) | #RRGGBB",
+            title: "帮收功能颜色检测阈值",
+            content: "用于好友森林页面橙色能量球识别的参照色值阈值",
+            inputHint: "{x|28<=x<=83,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
             positive: "修改",
@@ -230,27 +236,13 @@ help_collect_page.add("button", new Layout("颜色检测阈值", {
         diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
         diag.on("negative", () => diag.dismiss());
         diag.on("positive", dialog => {
-            if (diag.getInputEditText().getText().toString() !== "") {
-                if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
-                saveSession(this.config_conj, "#" + colors.toString(current_color).slice(3));
-            }
+            let input = diag.getInputEditText().getText().toString();
+            if (input === "") return dialog.dismiss();
+            let value = input - 0;
+            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+            if (value > 83 || value < 28) return alertTitle(dialog, "输入值范围不合法");
+            saveSession(this.config_conj, value);
             diag.dismiss();
-        });
-        diag.on("input_change", (dialog, input) => {
-            let color = "";
-            try {
-                if (input.match(regexp_hex_color)) {
-                    color = colors.parseColor("#" + input.slice(-6));
-                } else if (input.match(regexp_rgb_color)) {
-                    let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
-                    color = colors.rgb(+nums[0], +nums[1], +nums[2]);
-                }
-                dialog.getTitleView().setTextColor(color || -570425344);
-                dialog.getContentView().setTextColor(color || -1979711488);
-                dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
-            } catch (e) {
-            }
-            current_color = color;
         });
         diag.show();
     },
@@ -258,11 +250,10 @@ help_collect_page.add("button", new Layout("颜色检测阈值", {
         view._hint.text(session_config[this.config_conj].toString());
     },
 }));
-//add(setItem("item", "颜色检测阈值", "60"));
 non_break_check_page.add("switch", new Layout("总开关", {
     config_conj: "non_break_check_switch",
     listeners: {
-        "switch": {
+        "_switch": {
             "check": function (state) {
                 saveSession(this.config_conj, !!state);
             },
@@ -271,7 +262,7 @@ non_break_check_page.add("switch", new Layout("总开关", {
     updateOpr: function (view) {
         let value = session_config[this.config_conj];
         let on_off = !!(typeof value === "object" ? value.length : value);
-        view.switch.setChecked(on_off);
+        view["_switch"].setChecked(on_off);
     },
 }));
 
@@ -493,10 +484,9 @@ function setPage(title, title_bg_color, additions) {
         }
 
         if (type === "switch") {
-            let sw_view = ui.inflate(<Switch id="switch"/>);
+            let sw_view = ui.inflate(<Switch id="_switch"/>);
             new_view._item_area.addView(sw_view);
             item_params.view = new_view;
-            sw_view["switch"].setChecked(!!session_config[item_params.config_conj]);
 
             let listener_ids = item_params["listener"];
             Object.keys(listener_ids).forEach(id => {
