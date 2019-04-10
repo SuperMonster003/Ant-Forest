@@ -25,6 +25,7 @@ let session_params = {
     //~ as all params will be set/modified automatically
     "save_btn_tint_color": null,
     "save_btn_text_color": null,
+    "non_break_check_time_area_diag_confirm_delete": null,
 };
 let def = undefined;
 let defs = {
@@ -33,6 +34,7 @@ let defs = {
     "title_bg_color": "#03a6ef",
     "save_btn_on_color": "#ffffff",
     "save_btn_off_color": "#bbcccc",
+    "empty_non_break_check_time_area_hint": "*点击添加按钮添加新时间区间*",
 };
 let pages = [];
 let alert_info = {};
@@ -68,7 +70,7 @@ homepage.add("options", new Layout("监测自己能量", {
 }));
 homepage.add("sub_head", new Layout("重置"));
 homepage.add("button", new Layout("还原设置", {
-    hint: "还原部分或全部设置",
+    // hint: "还原部分或全部设置",
     new_window: () => {
         let diag = dialogs.build({
             // content: "可选择还原任何修改过的设置\n也可以一键还原全部设置\n\n注意: 此操作无法撤销",
@@ -151,7 +153,7 @@ help_collect_page.add("button", new Layout("检测密度", {
             inputHint: "{x|10<=x<=20,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
-            positive: "修改",
+            positive: "确认修改",
             autoDismiss: false,
             canceledOnTouchOutside: false,
         });
@@ -187,7 +189,7 @@ help_collect_page.add("button", new Layout("颜色色值", {
             inputHint: "rgb(RR,GG,BB) | #RRGGBB",
             neutral: "使用默认值",
             negative: "返回",
-            positive: "修改",
+            positive: "确认修改",
             autoDismiss: false,
             canceledOnTouchOutside: false,
         });
@@ -236,7 +238,7 @@ help_collect_page.add("button", new Layout("颜色检测阈值", {
             inputHint: "{x|28<=x<=83,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
-            positive: "修改",
+            positive: "确认修改",
             autoDismiss: false,
             canceledOnTouchOutside: false,
         });
@@ -281,27 +283,122 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
     config_conj: "non_break_check_time_area",
     hint: "hint",
     new_window: function () {
+        let updateTimeAreaAmount = diag => {
+            let items = [];
+            diag.getItems().toArray().forEach((value, index) => items[index] = value);
+            let items_len = items.length;
+            let area_amount = items_len;
+            if (items_len === 1 && items[0] === defs.empty_non_break_check_time_area_hint) area_amount = 0;
+            updateContentData(/(当前区间总数: )\d*/, "$1" + area_amount);
+        };
         let diag = dialogs.build({
             title: "能量监测时间区间",
-            content: "指定时间区间内不断监测自己可收取的能量球\n\n点击时间区间可删除\/修改区间\n点击\"添加项目\"设置新区间",
-            items: session_config[this.config_conj].map(value => timeRangeArrayToStr(value)),
-            neutral: "添加项目",
+            content: "指定时间区间内不断监测自己可收取的能量球\n\n当前区间总数: ",
+            items: function () {
+                let session_value = session_config[this.config_conj];
+                if (session_value.length) return session_value.map(value => timeRangeArrayToStr(value));
+                return [defs.empty_non_break_check_time_area_hint];
+            }.bind(this)(),
+            neutral: "添加",
             negative: "返回",
             positive: "确认修改",
             autoDismiss: false,
             canceledOnTouchOutside: false,
         });
-        diag.on("item_select", () => {
-            dialogs.rawInput("输入任意字符", "", input => {
-                diag.setItems(input.split(""));
+        updateTimeAreaAmount(diag);
+        diag.on("item_select", (index, content) => {
+            if (content === defs.empty_non_break_check_time_area_hint) return;
+            let diag_one_item = dialogs.build({
+                title: "编辑时间区间",
+                content: "示例:\n07:20:00 - 07:22:28\n7:20:00-7:22:28\n7 20 0 7 22 28",
+                contentColor: "#546e7a",
+                inputPrefill: content,
+                neutral: "删除",
+                neutralColor: "#ff3300",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
             });
+            diag_one_item.on("neutral", () => {
+                if (session_params.non_break_check_time_area_diag_confirm_delete) return deleteCurrentItem();
+                let diag_confirm_delete = dialogs.build({
+                    title: "确认删除吗",
+                    checkBoxPrompt: "不再提示",
+                    negative: "返回",
+                    positive: "确认",
+                });
+                diag_confirm_delete.on("check", chk => chk && (session_params.non_break_check_time_area_diag_confirm_delete = 1));
+                diag_confirm_delete.on("negative", () => diag_confirm_delete.dismiss());
+                diag_confirm_delete.on("positive", () => {
+                    deleteCurrentItem();
+                    diag_confirm_delete.dismiss();
+                });
+                diag_confirm_delete.show();
+
+                // tool function(s) //
+
+                function deleteCurrentItem() {
+                    manageItems(diag, "delete", "", index);
+                    updateTimeAreaAmount(diag);
+                    diag_one_item.dismiss();
+                }
+            });
+            diag_one_item.on("negative", () => diag_one_item.dismiss());
+            diag_one_item.on("positive", () => {
+                let successFunc = item_str => {
+                    manageItems(diag, "modify", item_str, index);
+                    return diag_one_item.dismiss();
+                };
+
+                return checkInputArea(diag_one_item, successFunc);
+            });
+            diag_one_item.show();
         });
         diag.on("neutral", diag => {
+            let diag_add_area = dialogs.build({
+                title: "添加时间区间",
+                content: "示例:\n07:20:00 - 07:22:28\n7:20:00-7:22:28\n7 20 0 7 22 28",
+                inputHint: "hh1:mm1:ss1 - hh2:mm2:ss2",
+                // neutral: "了解定时任务",
+                negative: "返回",
+                positive: "确定",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+                // checkBoxPrompt: "添加到Auto.js定时任务",
+            });
+            diag_add_area.on("check", checked => {
+                // // // //
+            });
+            diag_add_area.on("neutral", () => {
+                let diag_about_timed_task = dialogs.build({
+                    title: "Auto.js定时任务",
+                    content: "对于已设置的时间区间 需满足:\n1. 脚本在运行中\n2. 当前支付宝页面为蚂蚁森林主页\n3. 当前时间在时间区间内\n才能循环监测自己的能量球\n\n定时任务可实现第1步的自动运行 从而保证后续步骤的预期执行\n\n添加Auto.js定时任务可选方式\n- 添加时间区间时勾选\"添加到Auto.js定时任务\"\n- Auto.js脚本面板中设置某个脚本定时执行\n- 使用本设置工具的\"管理定时任务\"功能添加定时任务 (仅限蚂蚁森林相关任务)\n\n管理Auto.js定时任务可选方式\n- Auto.js管理面板查看并管理全部定时任务\n- 使用本设置工具的\"管理定时任务\"功能 (仅限蚂蚁森林相关任务)\n\n除了Auto.js自带的定时任务功能 还可以配合Tasker及Xposed Edge Pro等工具实现定时任务功能",
+                    positive: "返回",
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                });
+                diag_about_timed_task.on("positive", () => diag_about_timed_task.dismiss());
+                diag_about_timed_task.show();
+            });
+            diag_add_area.on("negative", () => diag_add_area.dismiss());
+            diag_add_area.on("positive", () => {
+                let successFunc = item_str => {
+                    manageItems(diag, "add", item_str);
+                    updateTimeAreaAmount(diag);
+                    return diag_add_area.dismiss();
+                };
 
+                return checkInputArea(diag_add_area, successFunc);
+            });
+            diag_add_area.show();
         });
         diag.on("negative", () => diag.dismiss());
         diag.on("positive", () => {
-            saveSession(this.config_conj, diag.getItems().toArray().map(value => timeRangeStrToArray(value)));
+            let items = [];
+            diag.getItems().toArray().forEach((value, index) => items[index] = value);
+            if (items.length === 1 && items[0] === defs.empty_non_break_check_time_area_hint) saveSession(this.config_conj, []);
+            else saveSession(this.config_conj, items.map(value => timeRangeStrToArray(value)));
             diag.dismiss();
         });
         diag.show();
@@ -310,24 +407,30 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
 
         function timeRangeStrToArray(str) {
             // "07:28:00 - 07:28:47" -> ["07:28:00", "07:28:47"]
-            return str.split(" - ");
+            return str ? str.split(" - ") : [];
         }
 
         function timeRangeArrayToStr(arr) {
             // ["07:28:00", "07:28:47"] -> "07:28:00 - 07:28:47"
             return arr.join(" - ");
         }
+
+        function updateContentData(regexp, value) {
+            let ori_content = diag.getContentView().getText().toString();
+            diag.setContent(ori_content.replace(regexp, value));
+        }
     },
     updateOpr: function (view) {
         let time_areas = session_config[this.config_conj];
         let time_area_amount = time_areas ? time_areas.length : 0;
-        view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: [" + time_areas[0][0] + ", " + time_areas[0][1] + "]")) : "未设置");
+        view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: " + time_areas[0][0] + " - " + time_areas[0][1])) : "未设置");
     },
 }));
 
 ui.emitter.on("back_pressed", e => {
     let len = pages.length,
         need_save = needSave();
+    if (!checkSpecialPages()) return e.consumed = true;
     if (len === 1 && !need_save) return; // "back" function
     e.consumed = true; // make default "back" dysfunctional
     len === 1 && need_save ? showDialog() : pageJump("back");
@@ -356,6 +459,36 @@ ui.emitter.on("back_pressed", e => {
         // diag.setContent(ori_content + "\n\n您还可以:");
 
         diag.show();
+    }
+
+    function checkSpecialPages() {
+        return checkEmptyNonBreakArea();
+
+        // tool function(s) //
+
+        function checkEmptyNonBreakArea() {
+            let pages_len = pages.length,
+                last_page = pages[pages_len - 1];
+            if (!last_page || !last_page._title_text) return true;
+            if (last_page._title_text.getText() !== "监测自己能量") return true;
+            if (session_config.non_break_check_time_area[0] !== undefined) return true;
+            if (last_page._switch.checked === false) return true;
+            let diag_alert = dialogs.build({
+                title: "提示",
+                content: "未设置任何时间区间\n\n继续返回将关闭\"监测自己能量\"功能",
+                negative: "放弃返回",
+                positive: "继续返回",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_alert.on("negative", () => diag_alert.dismiss());
+            diag_alert.on("positive", () => {
+                last_page._switch.setChecked(false);
+                pageJump("back");
+                diag_alert.dismiss();
+            });
+            diag_alert.show();
+        }
     }
 });
 
@@ -729,5 +862,64 @@ function alertTitle(dialog, message, duration) {
         let title_view = dialog.getTitleView();
         title_view.setText(text);
         title_view.setTextColor(color);
+    }
+}
+
+function manageItems(dialog, operation, item_content, item_index) {
+    let ori_items = [];
+    dialog.getItems() ? dialog.getItems().toArray().forEach((value, index) => ori_items[index] = value) : [];
+    if (operation === "add") {
+        if (ori_items.length === 1 && ori_items[0] === defs.empty_non_break_check_time_area_hint) ori_items = [];
+        if (!item_index && item_index !== 0) return dialog.setItems(ori_items.concat(item_content));
+        return dialog.setItems(ori_items.slice(0, item_index).concat(item_content).concat(ori_items.slice(item_index)));
+    } else if (operation === "delete") {
+        if (ori_items.length === 1) return dialog.setItems([defs.empty_non_break_check_time_area_hint]);
+        if (!item_index && item_index !== 0) return dialog.setItems(ori_items.slice(0, -1));
+        ori_items.splice(item_index, 1);
+        return dialog.setItems(ori_items);
+    } else if (operation === "modify") {
+        ori_items.splice(!item_index && item_index !== 0 ? ori_items.length - 1 : item_index, 1, item_content);
+        return dialog.setItems(ori_items);
+    }
+}
+
+function checkInputArea(dialog, successFunc) {
+    let regs_hh = /([01]?\d|2[0-3])/.source,
+        regs_mm_ss = /([0-5]?\d)/.source;
+    let regexp_time_area = new RegExp("^" + regs_hh + "\\D+(" + regs_mm_ss + "\\D+){2}" + regs_hh + "(\\D+" + regs_mm_ss + "){2}" + "$");
+    let input = dialog.getInputEditText().getText().toString();
+    if (input === "") return ~dialog.dismiss();
+    if (!input.match(regexp_time_area)) return alertTitle(dialog, "时间区间格式不合法");
+    let splits = input.split(/\D+/).map(value => ("0" + value).slice(-2));
+    let time_str_a = splits[0] + ":" + splits[1] + ":" + splits[2],
+        time_str_b = splits[3] + ":" + splits[4] + ":" + splits[5];
+    let time_diff = calcTimeDiff(time_str_a, time_str_b);
+    if (time_diff <= 0) return alertTitle(dialog, "结束时间需晚于开始时间");
+    if (time_diff > 600000) return alertTitle(dialog, "区间不可大于10分钟");
+    if (time_diff < 30000) return alertTitle(dialog, "区间不可小于30秒钟");
+
+    let item_str = time_str_a + " - " + time_str_b;
+    if (time_diff < 300000) return successFunc(item_str);
+
+    let diag_big_area = dialogs.build({
+        title: "提示",
+        content: "时间区间大于5分钟\n确定要保存这个区间吗\n\n通常情况下\n检测区间只需1-3分钟即可保证自己能量球的收取",
+        negative: "返回",
+        positive: "确定",
+    });
+    diag_big_area.on("negative", () => diag_big_area.dismiss());
+    diag_big_area.on("positive", () => {
+        diag_big_area.dismiss();
+        return successFunc(item_str);
+    });
+    diag_big_area.show();
+
+    // tool function(s) //
+
+    function calcTimeDiff(str_a, str_b) {
+        let now = new Date();
+        let time_a = now.setHours.apply(now, str_a.split(":")),
+            time_b = now.setHours.apply(now, str_b.split(":"));
+        return time_b - time_a;
     }
 }
