@@ -17,7 +17,7 @@ let storage_config = initStorageConfig();
 // let session_config = JSON.parse(JSON.stringify(storage_config)); // incomplete deep copy
 let session_config = deepCloneObject(storage_config); // deep copy
 let saveSession = () => null;
-let needSave = () => !obj_equal(session_config, storage_config);
+let needSave = () => !equalObjects(session_config, storage_config);
 let dynamic_views = [];
 let updateAllValues = () => dynamic_views.forEach(view => view.updateOpr(view));
 let session_params = {
@@ -284,26 +284,39 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
         let diag = dialogs.build({
             title: "能量监测时间区间",
             content: "指定时间区间内不断监测自己可收取的能量球\n\n点击时间区间可删除\/修改区间\n点击\"添加项目\"设置新区间",
-            // inputHint: "{x|10<=x<=20,x∈N*}",
-            items: ["1", "2"],
+            items: session_config[this.config_conj].map(value => timeRangeArrayToStr(value)),
             neutral: "添加项目",
             negative: "返回",
             positive: "确认修改",
             autoDismiss: false,
             canceledOnTouchOutside: false,
         });
-        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+        diag.on("item_select", () => {
+            dialogs.rawInput("输入任意字符", "", input => {
+                diag.setItems(input.split(""));
+            });
+        });
+        diag.on("neutral", diag => {
+
+        });
         diag.on("negative", () => diag.dismiss());
-        diag.on("positive", dialog => {
-            let input = diag.getInputEditText().getText().toString();
-            if (input === "") return dialog.dismiss();
-            let value = input - 0;
-            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-            if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
-            saveSession(this.config_conj, value);
+        diag.on("positive", () => {
+            saveSession(this.config_conj, diag.getItems().toArray().map(value => timeRangeStrToArray(value)));
             diag.dismiss();
         });
         diag.show();
+
+        // tool function(s) //
+
+        function timeRangeStrToArray(str) {
+            // "07:28:00 - 07:28:47" -> ["07:28:00", "07:28:47"]
+            return str.split(" - ");
+        }
+
+        function timeRangeArrayToStr(arr) {
+            // ["07:28:00", "07:28:47"] -> "07:28:00 - 07:28:47"
+            return arr.join(" - ");
+        }
     },
     updateOpr: function (view) {
         let time_areas = session_config[this.config_conj];
@@ -398,7 +411,7 @@ function deepCloneObject(obj) {
 
 function initStorageConfig() {
     let storage_config = storage.get("config", {});
-    if (!obj_equal(storage_config, DEFAULT)) {
+    if (!equalObjects(storage_config, DEFAULT)) {
         storage_config = Object.assign({}, DEFAULT, storage_config);
         storage.put("config", storage_config); // to fill storage data
     }
@@ -591,20 +604,42 @@ function pageJump(direction, next_page) {
     smoothScrollMenu("full_left");
 }
 
-function obj_equal(obj_a, obj_b) {
-    if (!obj_a || !obj_b) return false;
-    let keys_a = Object.keys(obj_a),
-        keys_a_len = keys_a.length,
-        keys_b = Object.keys(obj_b),
-        keys_b_len = keys_b.length;
-    if (keys_a_len !== keys_b_len) return false;
-    for (let i = 0; i < keys_a_len; i += 1) {
-        let key_a = keys_a[i],
-            value_a = obj_a[key_a];
-        if (!(key_a in obj_b)) return false;
-        if (value_a !== obj_b[key_a]) return false;
+function equalObjects(obj_a, obj_b) {
+    let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+    let class_of_a = classOf(obj_a),
+        class_of_b = classOf(obj_b),
+        type_of_a = typeof obj_a,
+        type_of_b = typeof obj_b;
+    let matchFeature = (a, b, feature) => a === feature && b === feature;
+    if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
+    if (matchFeature(class_of_a, class_of_b, "Null")) return true;
+
+    if (class_of_a === "Array") {
+        if (class_of_b !== "Array") return false;
+        let len_a = obj_a.length,
+            len_b = obj_b.length;
+        if (len_a !== len_b) return false;
+        for (let i = 0, len = obj_a.length; i < len; i += 1) {
+            if (!equalObjects(obj_a[i], obj_b[i])) return false;
+        }
+        return true;
     }
-    return true;
+
+    if (class_of_a === "Object") {
+        if (class_of_b !== "Object") return false;
+        let keys_a = Object.keys(obj_a),
+            keys_b = Object.keys(obj_b),
+            len_a = keys_a.length,
+            len_b = keys_b.length;
+        if (len_a !== len_b) return false;
+        if (!equalObjects(keys_a, keys_b)) return false;
+        for (let i in obj_a) {
+            if (obj_a.hasOwnProperty(i)) {
+                if (!equalObjects(obj_a[i], obj_b[i])) return false;
+            }
+        }
+        return true;
+    }
 }
 
 function smoothScrollMenu(shifting, duration) {
