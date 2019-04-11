@@ -41,7 +41,7 @@ function promptConfig() {
     prompt_config_thread.join();
     no_longer_prompt_flag && storage_af.put("config_prompted", 1);
     if (config_now_flag) {
-        shell("am start -n org.autojs.autojspro/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
+        shell("am start -n org.autojs.autojs" + (app.getAppName("org.autojs.autojspro") ? "pro" : "") + "/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
         //engines.execScriptFile("./!Ant_Forest_Settings.js");
         storage_af.put("af_postponed", true);
         exit();
