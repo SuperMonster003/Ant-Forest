@@ -4,8 +4,6 @@
  @author SuperMonster003 (corresponding author)
  */
 
-auto();
-
 /**
  * bug versions not able to use dialogs.build({inputHint: xxx}) function
  * @type {string[]}

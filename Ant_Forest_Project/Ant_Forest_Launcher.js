@@ -2,7 +2,7 @@
  * @description launcher
  */
 
-auto();
+auto.waitFor();
 
 // just set the tool name here in an easy way ^_^
 let config = {

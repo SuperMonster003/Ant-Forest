@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 10, 2019
- * @version 1.4.10
+ * @last_modified Apr 11, 2019
+ * @version 1.5.0
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -16,21 +16,56 @@ auto.waitFor();
 engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
 
+let storage_af = require("../Modules/MODULE_STORAGE").create("af");
+let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
+if (!storage_af.get("config_prompted")) promptConfig();
+
+function promptConfig() {
+    let no_longer_prompt_flag = false,
+        config_now_flag = 0;
+    let prompt_config_thread = threads.start(function () {
+        let diag = dialogs.build({
+            title: "参数调整提示",
+            content: "运行前建议进行一些个性化参数调整\n需要现在打开配置页面吗\n\n点击\"跳过\"将使用默认配置\n以后可随时运行此脚本进行参数调整\n-> \"Ant_Forest_Settings.js\"",
+            negative: "跳过",
+            positive: "现在配置",
+            checkBoxPrompt: "不再提示",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("check", checked => no_longer_prompt_flag = !!checked);
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", () => ++config_now_flag && diag.dismiss());
+        diag.show();
+    });
+    prompt_config_thread.join();
+    no_longer_prompt_flag && storage_af.put("config_prompted", 1);
+    if (config_now_flag) {
+        shell("am start -n org.autojs.autojspro/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
+        //engines.execScriptFile("./!Ant_Forest_Settings.js");
+        storage_af.put("af_postponed", true);
+        exit();
+    }
+}
+
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
+    // help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
     floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
-    non_break_check_time: ["07:28:00", "07:28:47"], // period for non-stop checking your own energy balls; leave [] if you don't need
+    // non_break_check_switch: true, // whether to make a non-stop checking for your own energy balls
+    // non_break_check_time_area: [["07:28:00", "07:28:47"]], // period for non-stop checking your own energy balls; leave [] if you don't need
     auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
-    color_green: "#1da06d", // color for collect icon with a hand pattern
-    color_orange: "#f99137", // color for help icon with a heart pattern
-    color_threshold_rank_list_icons: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    color_threshold_help_collect_balls: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    help_collect_intensity: 16, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
+    ready_to_collect_color: "#1da06d", // color for collect icon with a hand pattern
+    // help_collect_color: "#f99137", // color for help icon with a heart pattern
+    rank_list_icons_color_threshold: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
+    // help_collect_color_threshold: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
+    // help_collect_intensity: 16, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
+
+Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
 
 let WIDTH = device.width,
     HEIGHT = device.height,
@@ -38,7 +73,6 @@ let WIDTH = device.width,
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
     getVerName = unlock_module.getVerName,
-    storage = require("../Modules/MODULE_STORAGE").create("af"),
     current_app = {};
 
 antForest();
@@ -187,12 +221,12 @@ function antForest() {
 
                 function saveState(key, value) {
                     if (!key) messageAction("无效的\"save_key\"参数", 8, 1);
-                    storage.put(key, value);
+                    storage_af.put(key, value);
                 }
 
                 function loadState(key, default_value) {
                     if (!key) messageAction("无效的\"load_key\"参数", 8, 1);
-                    return storage.get(key, default_value);
+                    return storage_af.get(key, default_value);
                 }
             }
 
@@ -442,25 +476,27 @@ function antForest() {
             waitForAction(() => kw_more_friends.exists() || kw_cooperation_btn.exists(), 5000); // just in case
             waitForAction(kw_energy_balls, 1000); // make energy balls ready
 
-            let check_time = config.non_break_check_time;
-            if (!check_time || !check_time.length) return checkOnce();
+            if (config.non_break_check_switch) {
+                let check_times = config.non_break_check_time_area;
+                for (let i = 0, len = check_times.length; i < len; i += 1) {
+                    if (!check_times[i] || !check_times[i].length) continue;
+                    let check_time = check_times[i];
+                    let now = new Date(),
+                        today_date = now.toDateString(),
+                        min_time = Date.parse(today_date + " " + check_time[0]),
+                        max_time = Date.parse(today_date + " " + check_time[1]),
+                        in_check_remain_range = min_time < now && now < max_time;
+                    if (in_check_remain_range) checkRemain(max_time);
+                }
+            }
 
-            let now = new Date(),
-                today_date = now.toDateString(),
-                min_time = Date.parse(today_date + " " + check_time[0]),
-                max_time = Date.parse(today_date + " " + check_time[1]),
-                in_check_remain_range = min_time < now && now < max_time;
-
-            if (in_check_remain_range) checkRemain();
-            else if (!checkOnce()) return;
-
-            current_app.total_energy_collect_own += getEnergyDiff();
+            checkOnce() && (current_app.total_energy_collect_own += getEnergyDiff());
 
             // tool function(s) //
 
-            function checkRemain() {
+            function checkRemain(max_time) {
                 toast("Non-stop checking time");
-                while (new Date() < max_time && (sleep(180) || 1)) checkOnce();
+                while (new Date() < max_time) ~sleep(180) && checkOnce();
                 toast("Checking completed");
             }
 
@@ -586,10 +622,10 @@ function antForest() {
                     let name = w.parent().child(1).desc() || w.parent().child(2).desc();
 
                     try {
-                        let pt_green = images.findColor(capt_img, config.color_green, find_color_options);
+                        let pt_green = images.findColor(capt_img, config.ready_to_collect_color, find_color_options);
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
-                        let pt_orange = images.findColor(capt_img, config.color_orange, find_color_options);
+                        let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
                         if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
                         throw Error(e);
@@ -629,7 +665,7 @@ function antForest() {
                     };
                     return {
                         region: [region_ref.l, region_ref.t, WIDTH - region_ref.l, parent_node.bounds().centerY() - region_ref.t],
-                        threshold: config.color_threshold_rank_list_icons,
+                        threshold: config.rank_list_icons_color_threshold,
                     };
                 }
             }
@@ -671,8 +707,8 @@ function antForest() {
 
                 function helpMonitorThread() {
 
-                    let orange = config.color_orange,
-                        orange_threshold = config.color_threshold_help_collect_balls,
+                    let orange = config.help_collect_color,
+                        orange_threshold = config.help_collect_color_threshold,
                         intensity_time = config.help_collect_intensity * 100;
 
                     let now = new Date().getTime();
@@ -924,8 +960,8 @@ function antForest() {
                 }
                 if (max_try_times < 0) restartAlipayToHeroList();
 
-                let rankListReady = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
-                if (!waitForAction(rankListReady, 2000)) restartAlipayToHeroList(); // just in case
+                let condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
+                if (!waitForAction(condition_rank_list_ready, 2000)) restartAlipayToHeroList(); // just in case
 
                 // tool function(s) //
 
@@ -1609,7 +1645,7 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     let bad_situation_pending = 1000;
 
     let max_try_times_posb = 3,
-        getPosb = ()=> func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
+        getPosb = () => func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
     while (max_try_times_posb--) {
         try {
             posb = getPosb();
