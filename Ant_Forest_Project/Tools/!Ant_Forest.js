@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 11, 2019
- * @version 1.5.0
+ * @last_modified Apr 12, 2019
+ * @version 1.5.1
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -19,34 +19,6 @@ while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.my
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
 if (!storage_af.get("config_prompted")) promptConfig();
-
-function promptConfig() {
-    let no_longer_prompt_flag = false,
-        config_now_flag = 0;
-    let prompt_config_thread = threads.start(function () {
-        let diag = dialogs.build({
-            title: "参数调整提示",
-            content: "运行前建议进行一些个性化参数调整\n需要现在打开配置页面吗\n\n点击\"跳过\"将使用默认配置\n以后可随时运行此脚本进行参数调整\n-> \"Ant_Forest_Settings.js\"",
-            negative: "跳过",
-            positive: "现在配置",
-            checkBoxPrompt: "不再提示",
-            autoDismiss: false,
-            canceledOnTouchOutside: false,
-        });
-        diag.on("check", checked => no_longer_prompt_flag = !!checked);
-        diag.on("negative", () => diag.dismiss());
-        diag.on("positive", () => ++config_now_flag && diag.dismiss());
-        diag.show();
-    });
-    prompt_config_thread.join();
-    no_longer_prompt_flag && storage_af.put("config_prompted", 1);
-    if (config_now_flag) {
-        shell("am start -n org.autojs.autojs" + (app.getAppName("org.autojs.autojspro") ? "pro" : "") + "/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
-        //engines.execScriptFile("./!Ant_Forest_Settings.js");
-        storage_af.put("af_postponed", true);
-        exit();
-    }
-}
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
@@ -72,7 +44,7 @@ let WIDTH = device.width,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
-    getVerName = unlock_module.getVerName,
+    current_autojs_version = getVerName(context.packageName),
     current_app = {};
 
 antForest();
@@ -111,8 +83,7 @@ function antForest() {
         function setAutoJsLogPath() {
 
             let bug_versions = ["Pro 7.0.0-2", "Pro 7.0.0-3"];
-            let current_autojs_package = context.packageName; // thanks to [  (32****32)] from QQ group [Auto.js Pro]
-            let current_autojs_version = getVerName(current_autojs_package);
+
             if (~bug_versions.indexOf(current_autojs_version)) {
                 messageAction("日志保存功能已禁用", 1);
                 messageAction("此Auto.js版本不兼容", 1, 0, 1);
@@ -1364,6 +1335,36 @@ function antForest() {
     }
 }
 
+// tool function(s) //
+
+function promptConfig() {
+    let no_longer_prompt_flag = false,
+        config_now_flag = 0;
+    let prompt_config_thread = threads.start(function () {
+        let diag = dialogs.build({
+            title: "参数调整提示",
+            content: "运行前建议进行一些个性化参数调整\n需要现在打开配置页面吗\n\n点击\"跳过\"将使用默认配置\n以后可随时运行此脚本进行参数调整\n-> \"Ant_Forest_Settings.js\"",
+            negative: "跳过",
+            positive: "现在配置",
+            checkBoxPrompt: "不再提示",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("check", checked => no_longer_prompt_flag = !!checked);
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", () => ++config_now_flag && diag.dismiss());
+        diag.show();
+    });
+    prompt_config_thread.join();
+    no_longer_prompt_flag && storage_af.put("config_prompted", 1);
+    if (config_now_flag) {
+        shell("am start -n org.autojs.autojs" + (app.getAppName("org.autojs.autojspro") ? "pro" : "") + "/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
+        //engines.execScriptFile("./!Ant_Forest_Settings.js");
+        storage_af.put("af_postponed", true);
+        exit();
+    }
+}
+
 // global tool function(s) //
 // MODIFIED to adapt this app //
 
@@ -1813,6 +1814,13 @@ function tryRequestScreenCapture() {
             messageAction("截图权限申请超时", 8, 1);
         }
     }); // thread_req_timeout
+}
+
+function getVerName(package_name) {
+    let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+    for (let i in pkgs) {
+        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName
+    }
 }
 
 // only for development test

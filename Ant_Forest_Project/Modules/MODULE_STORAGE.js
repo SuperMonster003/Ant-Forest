@@ -22,8 +22,7 @@ function customStorage() {
     function Storage(name) {
 
         let storage_dir = "../.local/";
-        let file = storage_dir + name + ".nfe";
-        files.createWithDirs(file);
+        let file = createFile(storage_dir);
         let opened = files.open(file);
         let readFile = () => files.read(file);
 
@@ -32,6 +31,12 @@ function customStorage() {
         this.put = put;
         this.remove = remove;
         this.clear = clear;
+
+        function createFile(dir) {
+            let file = dir + name + ".nfe";
+            files.createWithDirs(file);
+            return file;
+        }
 
         function contains(key) {
             let read = readFile();

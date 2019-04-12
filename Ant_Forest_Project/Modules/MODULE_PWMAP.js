@@ -150,7 +150,7 @@ function ModulePWMAP() {
                 alert("密文文件及密文生成文件均不存在 请检查文件目录");
                 exit();
             }
-            alert("密文文件不存在 即将生成新的密文文件");
+            toast("密文文件不存在\n已生成新的密文文件");
             generatePWMAP();
         }
         pwmap_map = JSON.parse(files.read(path_pwmap));

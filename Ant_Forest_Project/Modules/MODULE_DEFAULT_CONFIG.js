@@ -6,5 +6,11 @@ module.exports = {
 		help_collect_intensity: 16,
 		help_collect_color: "#f99137",
 		help_collect_color_threshold: 60,
+		auto_unlock_switch: false,
 	},
+	"unlock": {
+		unlock_code: null,
+		unlock_pattern_size: 3,
+		unlock_max_try_times: 10,
+	}
 };

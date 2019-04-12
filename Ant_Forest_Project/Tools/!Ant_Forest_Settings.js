@@ -1,12 +1,20 @@
 "ui";
 auto.waitFor();
 
-let DEFAULT = require("../Modules/MODULE_DEFAULT_CONFIG").af;
+let DEFAULT = require("../Modules/MODULE_DEFAULT_CONFIG").af,
+    DEFAULT_UNLOCK = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
+
+
+let bug_dialogs_input_vers = ["4.1.1 Alpha2", "Pro 7.0.0-1", "Pro 7.0.0-2"];
+let bug_dialogs_items_vers = ["4.1.0 Alpha5"];
+let current_autojs_ver = getVerName(context.packageName);
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
+let storage_unlock = require("../Modules/MODULE_STORAGE").create("unlock");
+let encrypt = new (require("../Modules/MODULE_PWMAP.js"))().pwmapEncrypt;
 let storage_config = initStorageConfig();
 // let session_config = Object.assign({}, storage_config); // shallow copy
 // let session_config = JSON.parse(JSON.stringify(storage_config)); // incomplete deep copy
@@ -39,6 +47,7 @@ initUI();
 let homepage = setHomePage("Ant_Forest");
 let help_collect_page = setPage("帮收功能");
 let non_break_check_page = setPage("监测自己能量");
+let auto_unlock_page = setPage("自动解锁");
 
 homepage.add("sub_head", new Layout("基本功能"));
 homepage.add("options", new Layout("帮收功能", {
@@ -63,16 +72,40 @@ homepage.add("options", new Layout("监测自己能量", {
         view._hint.text(this.hint[+!!session_config[this.config_conj]]);
     },
 }));
+homepage.add("sub_head", new Layout("高级功能"));
+homepage.add("options", new Layout("自动解锁", {
+    "config_conj": "auto_unlock_switch",
+    "hint": {
+        "0": "已关闭",
+        "1": "已开启",
+    },
+    "next_page": auto_unlock_page,
+    "updateOpr": function (view) {
+        view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+    },
+}));
 homepage.add("sub_head", new Layout("重置"));
 homepage.add("button", new Layout("还原设置", {
     new_window: () => {
         let diag = dialogs.build({
             title: "还原初始设置",
-            content: "此操作无法撤销",
+            content: "此操作无法撤销\n\n以下功能内部设置不会被还原:\n1. 自动解锁",
+            neutral: "了解内部配置",
             negative: "放弃",
             positive: "全部还原",
             canceledOnTouchOutside: false,
             autoDismiss: false,
+        });
+        diag.on("neutral", () => {
+            let diag_keep_internals = dialogs.build({
+                title: "还原时保留内部设置",
+                content: "有些功能属于共享功能\n-> 如自动解锁功能\n\n还原时只还原此功能的总开关状态\n而不会改变内部的配置\n-> 如自动解锁功能的解锁密码",
+                positive: "关闭",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_keep_internals.on("positive", () => diag_keep_internals.dismiss());
+            diag_keep_internals.show();
         });
         diag.on("negative", () => diag.dismiss());
         diag.on("positive", () => {
@@ -100,8 +133,9 @@ homepage.add("button", new Layout("还原设置", {
                 // tool function(s) //
 
                 function reset() {
-                    session_config = deepCloneObject(DEFAULT);
-                    storage_config = deepCloneObject(DEFAULT);
+                    let def_DEFAULT = Object.assign({}, DEFAULT, storage_unlock.get("config", {}));
+                    session_config = deepCloneObject(def_DEFAULT);
+                    storage_config = deepCloneObject(def_DEFAULT);
                     storage_cfg.put("config", DEFAULT);
                     updateAllValues();
                 }
@@ -415,6 +449,136 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
         view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: " + time_areas[0][0] + " - " + time_areas[0][1])) : "未设置");
     },
 }));
+auto_unlock_page.add("switch", new Layout("总开关", {
+    config_conj: "auto_unlock_switch",
+    listeners: {
+        "_switch": {
+            "check": function (state) {
+                saveSession(this.config_conj, !!state);
+                let parent = this.view.getParent();
+                let child_count = parent.getChildCount();
+                while (child_count-- > 2) {
+                    parent.getChildAt(child_count).setVisibility(state ? 0 : 5);
+                }
+            },
+        },
+    },
+    updateOpr: function (view) {
+        let session_conf = !!session_config[this.config_conj];
+        view["_switch"].setChecked(session_conf);
+    },
+}));
+auto_unlock_page.add("sub_head", new Layout("基本设置"));
+auto_unlock_page.add("button", new Layout("锁屏密码", {
+    config_conj: "unlock_code",
+    hint: "hint",
+    new_window: function () {
+        let diag = dialogs.build({
+            title: "设置锁屏解锁密码",
+            neutral: "查看示例",
+            neutralColor: "#88bb88",
+            negative: "返回",
+            positive: "确认",
+            content: "密码长度不小于4位\n无密码请留空\n\n若采用图案解锁方式\n总点阵数大于9需使用逗号分隔",
+            inputHint: "密码将以密文形式存储在本地",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => {
+            dialogs.build({
+                title: "锁屏密码示例",
+                content: "滑动即可解锁: (留空)\n\nPIN解锁: 1001\n\n密码解锁: 10btv69\n\n图案解锁: (点阵序号从1开始)\n3×3点阵 - 1235789 或 1,2,3,5,7,8,9\n4×4点阵 - 1,2,3,4,8,12,16\n注: 点阵密码可简化",
+                positive: "关闭",
+                neutral: "了解点阵简化",
+                neutralColor: "#88bb88",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            }).on("neutral", () => {
+                dialogs.build({
+                    title: "图案解锁密码简化",
+                    content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6\n\n*此功能暂未实现\nsince Mar 25, 2019",
+                    positive: "关闭",
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                }).show();
+            }).show();
+        });
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            let input = diag.getInputEditText().getText().toString();
+            if (input && input.length < 4) return alertTitle(diag, "密码长度不小于4位");
+            saveSession(this.config_conj, input ? encrypt(input) : "");
+            diag.dismiss();
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text(session_config[this.config_conj] ? "已设置" : "空");
+    },
+}));
+auto_unlock_page.add("sub_head", new Layout("高级设置"));
+auto_unlock_page.add("button", new Layout("最大尝试次数", {
+    config_conj: "unlock_max_try_times",
+    hint: "hint",
+    new_window: function () {
+        let diag = dialogs.build({
+            title: "设置解锁最大尝试次数",
+            inputHint: "{x|3<=x<=15,x∈N*}",
+            neutral: "使用默认值",
+            negative: "返回",
+            positive: "确认",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            let input = diag.getInputEditText().getText().toString();
+            if (input === "") return dialog.dismiss();
+            let value = input - 0;
+            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+            if (value > 15 || value < 3) return alertTitle(dialog, "输入值范围不合法");
+            saveSession(this.config_conj, value);
+            diag.dismiss();
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
+    },
+}));
+auto_unlock_page.add("button", new Layout("图案解锁点阵边长", {
+    config_conj: "unlock_pattern_size",
+    hint: "hint",
+    new_window: function () {
+        let diag = dialogs.build({
+            title: "设置图案解锁边长",
+            content: "图案解锁通常为N×N的点阵\n通常边长N为3\n\n若未使用图案解锁方式\n请保留默认值",
+            inputHint: "{x|3<=x<=6,x∈N*}",
+            neutral: "使用默认值",
+            negative: "返回",
+            positive: "确认",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", dialog => {
+            let input = diag.getInputEditText().getText().toString();
+            if (input === "") return dialog.dismiss();
+            let value = input - 0;
+            if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+            if (value > 6 || value < 3) return alertTitle(dialog, "输入值范围不合法");
+            saveSession(this.config_conj, value);
+            diag.dismiss();
+        });
+        diag.show();
+    },
+    updateOpr: function (view) {
+        view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
+    },
+}));
+
 
 ui.emitter.on("back_pressed", e => {
     let len = pages.length,
@@ -481,7 +645,6 @@ ui.emitter.on("back_pressed", e => {
     }
 
     function quitNow() {
-        log(storage_af.get("af_postponed"));
         if (storage_af.get("af_postponed")) {
             engines.execScriptFile("./!Ant_Forest.js");
             storage_af.remove("af_postponed");
@@ -542,7 +705,7 @@ function deepCloneObject(obj) {
 }
 
 function initStorageConfig() {
-    let storage_config = storage_cfg.get("config", {});
+    let storage_config = Object.assign({}, storage_cfg.get("config", {}), storage_unlock.get("config", {}));
     if (!equalObjects(storage_config, DEFAULT)) {
         storage_config = Object.assign({}, DEFAULT, storage_config);
         storage_cfg.put("config", storage_config); // to fill storage data
@@ -596,8 +759,7 @@ function setHomePage(home_title) {
 
         view.icon_save_text.on("click", () => {
             if (!needSave()) return;
-            storage_cfg.put("config", session_config);
-            storage_config = Object.assign({}, session_config);
+            clickSaveBtn();
             reDrawSaveBtn("OFF");
             toast("已保存");
         });
@@ -831,36 +993,66 @@ function smoothScrollMenu(shifting, duration) {
     }, duration + 200); // 200: a safe interval just in case
 }
 
+function clickSaveBtn() {
+    let session_config_without_unlock = deepCloneObject(session_config);
+    writeUnlockStorage();
+    storage_cfg.put("config", session_config_without_unlock);
+    storage_config = deepCloneObject(session_config);
+
+    // tool function(s) //
+
+    function writeUnlockStorage() {
+        let ori_config = deepCloneObject(DEFAULT_UNLOCK),
+            tmp_config = {};
+        for (let i in ori_config) {
+            if (ori_config.hasOwnProperty(i)) {
+                tmp_config[i] = session_config[i];
+                delete session_config_without_unlock[i];
+            }
+        }
+        storage_unlock.put("config", tmp_config);
+    }
+}
+
 function alertTitle(dialog, message, duration) {
     alert_info[dialog] = alert_info[dialog] || {};
     alert_info["message_showing"] ? alert_info["message_showing"]++ : (alert_info["message_showing"] = 1);
 
     let ori_text = alert_info[dialog].ori_text || "",
-        ori_color = alert_info[dialog].ori_color || "";
+        ori_text_color = alert_info[dialog].ori_text_color || "",
+        ori_bg_color = alert_info[dialog].ori_bg_color || "";
 
+    let ori_title_view = dialog.getTitleView();
     if (!ori_text) {
-        ori_text = dialog.getTitleView().getText();
+        ori_text = ori_title_view.getText();
         alert_info[dialog].ori_text = ori_text;
     }
-    if (!ori_color) {
-        ori_color = dialog.getTitleView().getTextColors().colors[0];
-        alert_info[dialog].ori_color = ori_color;
+    if (!ori_text_color) {
+        ori_text_color = ori_title_view.getTextColors().colors[0];
+        alert_info[dialog].ori_text_color = ori_text_color;
     }
 
-    setTitleInfo(dialog, message, colors.parseColor("#cc5588"));
+    if (!ori_bg_color) {
+        let bg_color_obj = ori_title_view.getBackground();
+        ori_bg_color = bg_color_obj && bg_color_obj.getColor() || -1;
+        alert_info[dialog].ori_bg_color = ori_bg_color;
+    }
+
+    setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffcdd2"));
 
     setTimeout(() => {
         alert_info["message_showing"]--;
         if (alert_info["message_showing"]) return;
-        setTitleInfo(dialog, ori_text, ori_color);
+        setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
     }, duration || 3000);
 
     // tool function(s) //
 
-    function setTitleInfo(dialog, text, color) {
+    function setTitleInfo(dialog, text, color, bg) {
         let title_view = dialog.getTitleView();
         title_view.setText(text);
         title_view.setTextColor(color);
+        title_view.setBackgroundColor(bg);
     }
 }
 
@@ -920,5 +1112,12 @@ function checkInputArea(dialog, successFunc) {
         let time_a = now.setHours.apply(now, str_a.split(":")),
             time_b = now.setHours.apply(now, str_b.split(":"));
         return time_b - time_a;
+    }
+}
+
+function getVerName(package_name) {
+    let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+    for (let i in pkgs) {
+        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName
     }
 }
