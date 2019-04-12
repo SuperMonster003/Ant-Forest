@@ -16,6 +16,10 @@ auto.waitFor();
 engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
 
+let current_autojs_package = context.packageName;
+let current_autojs_version = getVerName(current_autojs_package);
+checkBugVersions();
+
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
 if (!storage_af.get("config_prompted")) promptConfig();
@@ -44,8 +48,6 @@ let WIDTH = device.width,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
-    current_autojs_package = context.packageName,
-    current_autojs_version = getVerName(current_autojs_package),
     current_app = {};
 
 antForest();
@@ -65,7 +67,6 @@ function antForest() {
     function init() {
         let init_operation_logged = null;
 
-        checkBugVersions();
         showAppTitle();
         setScreenMetrics(WIDTH, HEIGHT);
         unlock_module.unlock();
@@ -77,48 +78,6 @@ function antForest() {
         if (init_operation_logged) showSplitLine();
 
         // tool function(s) //
-
-        function checkBugVersions() {
-            let thread_bug_dialogs = threads.start(function () {
-                let bug_versions = {
-                    "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常",
-                    "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常",
-                    "Pro 7.0.0-7": "脚本运行后可能导致Auto.js崩溃",
-                };
-                if (!(current_autojs_version in bug_versions)) return;
-                let diag_bug = dialogs.build({
-                    title: "Auto.js版本异常提示",
-                    content: "脚本可能无法正常运行\n建议更换Auto.js版本\n或等待脚本后续更新\n\nAuto.js版本:\n-> " + current_autojs_version +
-                        "\n\n异常详情:\n-> " + bug_versions[current_autojs_version],
-                    neutral: "为何出现此提示",
-                    neutralColor: "#03a6ef",
-                    negative: "退出",
-                    negativeColor: "#33bb33",
-                    positive: "尝试继续",
-                    positiveColor: "#ee3300",
-                    autoDismiss: false,
-                    canceledOnTouchOutside: false,
-                });
-                diag_bug.on("neutral", () => {
-                    let diag_bug_reason = dialogs.build({
-                        title: "什么是版本异常",
-                        content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
-                            "您看到的异常提示源于开发者提供的测试结果",
-                        positive: "我知道了",
-                        autoDismiss: false,
-                        canceledOnTouchOutside: false,
-                    });
-                    diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
-                    diag_bug_reason.show();
-                });
-                diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
-                diag_bug.on("positive", () => {
-                    diag_bug.dismiss();
-                });
-                diag_bug.show();
-            });
-            thread_bug_dialogs.join("");
-        }
 
         function showAppTitle() {
             messageAction("开始\"蚂蚁森林\"任务", 1, 0, 0, "both");
@@ -1377,6 +1336,48 @@ function antForest() {
 }
 
 // tool function(s) //
+
+function checkBugVersions() {
+    let thread_bug_dialogs = threads.start(function () {
+        let bug_versions = {
+            "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常",
+            "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常",
+            "Pro 7.0.0-7": "脚本运行后可能导致Auto.js崩溃",
+        };
+        if (!(current_autojs_version in bug_versions)) return;
+        let diag_bug = dialogs.build({
+            title: "Auto.js版本异常提示",
+            content: "脚本可能无法正常运行\n建议更换Auto.js版本\n或等待脚本后续更新\n\nAuto.js版本:\n-> " + current_autojs_version +
+                "\n\n异常详情:\n-> " + bug_versions[current_autojs_version],
+            neutral: "为何出现此提示",
+            neutralColor: "#03a6ef",
+            negative: "退出",
+            negativeColor: "#33bb33",
+            positive: "尝试继续",
+            positiveColor: "#ee3300",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag_bug.on("neutral", () => {
+            let diag_bug_reason = dialogs.build({
+                title: "什么是版本异常",
+                content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
+                    "您看到的异常提示源于开发者提供的测试结果",
+                positive: "我知道了",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
+            diag_bug_reason.show();
+        });
+        diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
+        diag_bug.on("positive", () => {
+            diag_bug.dismiss();
+        });
+        diag_bug.show();
+    });
+    thread_bug_dialogs.join("");
+}
 
 function promptConfig() {
     let no_longer_prompt_flag = false,
