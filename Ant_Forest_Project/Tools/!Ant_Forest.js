@@ -44,7 +44,8 @@ let WIDTH = device.width,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
-    current_autojs_version = getVerName(context.packageName),
+    current_autojs_package = context.packageName,
+    current_autojs_version = getVerName(current_autojs_package),
     current_app = {};
 
 antForest();
@@ -262,13 +263,21 @@ function antForest() {
             if (!current_app.specific_user) return true;
 
             let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/);
-            let shell_cmd_acc_manager = "am start -n com.eg.android.AlipayGphone/com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_";
+            let intent_alipay_acc_manager = {
+                action: "VIEW",
+                packageName: "com.eg.android.AlipayGphone",
+                className: "com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_",
+            };
 
-            shell(shell_cmd_acc_manager, true);
+            app.startActivity(intent_alipay_acc_manager);
 
-            let max_wait_times = 5,
-                try_times = 0;
-            while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) shell(shell_cmd_acc_manager + " -S", true);
+            let max_wait_times = 8,
+                try_times = 0,
+                kw_back_btn = id("com.alipay.mobile.antui:id/back_button");
+            while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
+                kw_back_btn.exists() && kw_back_btn.click() || keycode(4) && sleep(2500);
+                app.startActivity(intent_alipay_acc_manager);
+            }
             if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
 
             let specific_user = current_app.specific_user;
@@ -926,7 +935,7 @@ function antForest() {
 
                 let max_try_times = 3;
                 while (max_try_times--) {
-                    kw_back_btn.exists() ? kw_back_btn.click() : shell("input keyevent KEYCODE_BACK", true);
+                    kw_back_btn.exists() ? kw_back_btn.click() : keycode(4);
                     if (waitForAction(ident_hero_list, 3000)) return true;
                 }
                 if (max_try_times < 0) restartAlipayToHeroList();
@@ -1074,7 +1083,7 @@ function antForest() {
 
             let max_try_times = 3;
             while (max_try_times--) {
-                kw_back_btn.exists() ? kw_back_btn.click() : shell("input keyevent KEYCODE_BACK", true);
+                kw_back_btn.exists() ? kw_back_btn.click() : keycode(4);
                 if (waitForAction(ident_af_home, 3000)) return true;
             }
             if (max_try_times < 0) launchThisApp(current_app.intent, "no_msg");
@@ -1248,7 +1257,7 @@ function antForest() {
         current_app.kill_when_done ? endAlipay() : closeAfWindows();
         waitForAction(() => !current_app.floaty_msg_signal, 8000);
         threads.shutDownAll(); // kill all threads started by threads.start()
-        current_app.is_screen_on || shell("input keyevent 26");
+        current_app.is_screen_on || keycode(26);
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
@@ -1293,17 +1302,6 @@ function antForest() {
                     if (!waitForAction(() => currentPackage() === old_pgk, 5000)) return;
                     keycode(special_class) && sleep(2000);
                 }
-            }
-
-            // tool function(s) //
-
-            function keycode(keycode_name) {
-                let table = {
-                    "KEYCODE_BACK": "4",
-                    "KEYCODE_HOME": "3",
-                    "KEYCODE_POWER": "26",
-                };
-                return ~shell("input keyevent " + table[keycode_name]);
             }
         }
     }
@@ -1358,8 +1356,8 @@ function promptConfig() {
     prompt_config_thread.join();
     no_longer_prompt_flag && storage_af.put("config_prompted", 1);
     if (config_now_flag) {
-        shell("am start -n org.autojs.autojs" + (app.getAppName("org.autojs.autojspro") ? "pro" : "") + "/org.autojs.autojs.external.open.RunIntentActivity -d file://" + files.cwd().replace(/Tools\/?$/, "") + "/Tools/!Ant_Forest_Settings.js" + " -t application/x-javascript", true);
         //engines.execScriptFile("./!Ant_Forest_Settings.js");
+        runJsFile("!Ant_Forest_Settings", current_autojs_package);
         storage_af.put("af_postponed", true);
         exit();
     }
@@ -1425,7 +1423,7 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     function tryMinimizeApp() {
         let max_try_times = 20;
         while (max_try_times--) {
-            shell("input keyevent 4");
+            keycode(4);
             if (waitForAction(() => currentPackage() !== pkg, 2000)) break;
         }
         if (max_try_times < 0) return messageAction("最小化当前应用失败", 4, 1);
@@ -1513,7 +1511,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
         case "h":
             msg_level = 4;
             console.error(msg);
-            shell("input keyevent 3");
+            keycode(3);
             exit();
             break; // useless, just for inspection
         case "t":
@@ -1858,4 +1856,23 @@ function saveCurrentScreenCapture(key_name) {
             second = norm_str(now.getSeconds());
         return hour + minute + second;
     }
+}
+
+function keycode(keycode_name) {
+    // "KEYCODE_BACK" <=> "4"
+    // "KEYCODE_HOME" <=> "3",
+    // "KEYCODE_POWER" <=> "26",
+    return ~shell("input keyevent " + keycode_name);
+}
+
+function runJsFile(js_path, autojs_pkg_name) {
+    autojs_pkg_name = autojs_pkg_name || "org.autojs.autojs";
+    if (autojs_pkg_name === "pro") autojs_pkg_name = "org.autojs.autojspro";
+    js_path = "\/" + js_path.replace(/^\//, "").replace(/\.js$/, "") + ".js";
+    app.startActivity({
+        action: "VIEW",
+        packageName: autojs_pkg_name,
+        className: "org.autojs.autojs.external.open.RunIntentActivity",
+        data: "file://" + files.cwd() + js_path,
+    });
 }
