@@ -1,13 +1,11 @@
 "ui";
 auto.waitFor();
 
+// given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
+let dialogs = require("../Modules/__dialogs__pro_v6.js")(runtime, {});
+
 let DEFAULT = require("../Modules/MODULE_DEFAULT_CONFIG").af,
     DEFAULT_UNLOCK = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
-
-
-let bug_dialogs_input_vers = ["4.1.1 Alpha2", "Pro 7.0.0-1", "Pro 7.0.0-2"];
-let bug_dialogs_items_vers = ["4.1.0 Alpha5"];
-let current_autojs_ver = getVerName(context.packageName);
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
@@ -374,7 +372,7 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
                     return diag_one_item.dismiss();
                 };
 
-                return checkInputArea(diag_one_item, successFunc);
+                return checkInputTimeArea(diag_one_item, successFunc);
             });
             diag_one_item.show();
         });
@@ -412,7 +410,7 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
                     return diag_add_area.dismiss();
                 };
 
-                return checkInputArea(diag_add_area, successFunc);
+                return checkInputTimeArea(diag_add_area, successFunc);
             });
             diag_add_area.show();
         });
@@ -436,6 +434,47 @@ non_break_check_page.add("button", new Layout("管理时间区间", {
         function timeRangeArrayToStr(arr) {
             // ["07:28:00", "07:28:47"] -> "07:28:00 - 07:28:47"
             return arr.join(" - ");
+        }
+
+        function checkInputTimeArea(dialog, successFunc) {
+            let regs_hh = /([01]?\d|2[0-3])/.source,
+                regs_mm_ss = /([0-5]?\d)/.source;
+            let regexp_time_area = new RegExp("^" + regs_hh + "\\D+(" + regs_mm_ss + "\\D+){2}" + regs_hh + "(\\D+" + regs_mm_ss + "){2}" + "$");
+            let input = dialog.getInputEditText().getText().toString();
+            if (input === "") return ~dialog.dismiss();
+            if (!input.match(regexp_time_area)) return alertTitle(dialog, "时间区间格式不合法");
+            let splits = input.split(/\D+/).map(value => ("0" + value).slice(-2));
+            let time_str_a = splits[0] + ":" + splits[1] + ":" + splits[2],
+                time_str_b = splits[3] + ":" + splits[4] + ":" + splits[5];
+            let time_diff = calcTimeDiff(time_str_a, time_str_b);
+            if (time_diff <= 0) return alertTitle(dialog, "结束时间需晚于开始时间");
+            if (time_diff > 600000) return alertTitle(dialog, "区间不可大于10分钟");
+            if (time_diff < 30000) return alertTitle(dialog, "区间不可小于30秒钟");
+
+            let item_str = time_str_a + " - " + time_str_b;
+            if (time_diff < 300000) return successFunc(item_str);
+
+            let diag_big_area = dialogs.build({
+                title: "提示",
+                content: "时间区间大于5分钟\n确定要保存这个区间吗\n\n通常情况下\n检测区间只需1-3分钟即可保证自己能量球的收取",
+                negative: "返回",
+                positive: "确定",
+            });
+            diag_big_area.on("negative", () => diag_big_area.dismiss());
+            diag_big_area.on("positive", () => {
+                diag_big_area.dismiss();
+                return successFunc(item_str);
+            });
+            diag_big_area.show();
+
+            // tool function(s) //
+
+            function calcTimeDiff(str_a, str_b) {
+                let now = new Date();
+                let time_a = now.setHours.apply(now, str_a.split(":")),
+                    time_b = now.setHours.apply(now, str_b.split(":"));
+                return time_b - time_a;
+            }
         }
 
         function updateContentData(regexp, value) {
@@ -485,7 +524,7 @@ auto_unlock_page.add("button", new Layout("锁屏密码", {
             canceledOnTouchOutside: false,
         });
         diag.on("neutral", () => {
-            dialogs.build({
+            let diag_demo = dialogs.build({
                 title: "锁屏密码示例",
                 content: "滑动即可解锁: (留空)\n\nPIN解锁: 1001\n\n密码解锁: 10btv69\n\n图案解锁: (点阵序号从1开始)\n3×3点阵 - 1235789 或 1,2,3,5,7,8,9\n4×4点阵 - 1,2,3,4,8,12,16\n注: 点阵密码可简化",
                 positive: "关闭",
@@ -493,15 +532,20 @@ auto_unlock_page.add("button", new Layout("锁屏密码", {
                 neutralColor: "#88bb88",
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
-            }).on("neutral", () => {
-                dialogs.build({
+            });
+            diag_demo.on("neutral", () => {
+                let diag_simplified_pattern = dialogs.build({
                     title: "图案解锁密码简化",
                     content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6\n\n*此功能暂未实现\nsince Mar 25, 2019",
                     positive: "关闭",
                     autoDismiss: false,
                     canceledOnTouchOutside: false,
-                }).show();
-            }).show();
+                });
+                diag_simplified_pattern.on("positive", () => diag_simplified_pattern.dismiss());
+                diag_simplified_pattern.show();
+            });
+            diag_demo.on("positive", () => diag_demo.dismiss());
+            diag_demo.show();
         });
         diag.on("negative", () => diag.dismiss());
         diag.on("positive", dialog => {
@@ -603,10 +647,7 @@ ui.emitter.on("back_pressed", e => {
         });
         diag.on("neutral", () => diag.cancel());
         diag.on("negative", () => quitNow());
-        diag.on("positive", () => {
-            storage_cfg.put("config", session_config);
-            quitNow();
-        });
+        diag.on("positive", () => ~clickSaveBtn() && quitNow());
 
         // let ori_content = diag.getContentView().getText().toString();
         // diag.setContent(ori_content + "\n\n您还可以:");
@@ -646,6 +687,7 @@ ui.emitter.on("back_pressed", e => {
 
     function quitNow() {
         if (storage_af.get("af_postponed")) {
+            toast("即将运行蚂蚁森林");
             engines.execScriptFile("./!Ant_Forest.js");
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
@@ -1071,53 +1113,5 @@ function manageItems(dialog, operation, item_content, item_index) {
     } else if (operation === "modify") {
         ori_items.splice(!item_index && item_index !== 0 ? ori_items.length - 1 : item_index, 1, item_content);
         return dialog.setItems(ori_items);
-    }
-}
-
-function checkInputArea(dialog, successFunc) {
-    let regs_hh = /([01]?\d|2[0-3])/.source,
-        regs_mm_ss = /([0-5]?\d)/.source;
-    let regexp_time_area = new RegExp("^" + regs_hh + "\\D+(" + regs_mm_ss + "\\D+){2}" + regs_hh + "(\\D+" + regs_mm_ss + "){2}" + "$");
-    let input = dialog.getInputEditText().getText().toString();
-    if (input === "") return ~dialog.dismiss();
-    if (!input.match(regexp_time_area)) return alertTitle(dialog, "时间区间格式不合法");
-    let splits = input.split(/\D+/).map(value => ("0" + value).slice(-2));
-    let time_str_a = splits[0] + ":" + splits[1] + ":" + splits[2],
-        time_str_b = splits[3] + ":" + splits[4] + ":" + splits[5];
-    let time_diff = calcTimeDiff(time_str_a, time_str_b);
-    if (time_diff <= 0) return alertTitle(dialog, "结束时间需晚于开始时间");
-    if (time_diff > 600000) return alertTitle(dialog, "区间不可大于10分钟");
-    if (time_diff < 30000) return alertTitle(dialog, "区间不可小于30秒钟");
-
-    let item_str = time_str_a + " - " + time_str_b;
-    if (time_diff < 300000) return successFunc(item_str);
-
-    let diag_big_area = dialogs.build({
-        title: "提示",
-        content: "时间区间大于5分钟\n确定要保存这个区间吗\n\n通常情况下\n检测区间只需1-3分钟即可保证自己能量球的收取",
-        negative: "返回",
-        positive: "确定",
-    });
-    diag_big_area.on("negative", () => diag_big_area.dismiss());
-    diag_big_area.on("positive", () => {
-        diag_big_area.dismiss();
-        return successFunc(item_str);
-    });
-    diag_big_area.show();
-
-    // tool function(s) //
-
-    function calcTimeDiff(str_a, str_b) {
-        let now = new Date();
-        let time_a = now.setHours.apply(now, str_a.split(":")),
-            time_b = now.setHours.apply(now, str_b.split(":"));
-        return time_b - time_a;
-    }
-}
-
-function getVerName(package_name) {
-    let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
-    for (let i in pkgs) {
-        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName
     }
 }

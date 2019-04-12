@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Apr 12, 2019
- * @version 1.5.1
+ * @version 1.5.2
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -1340,8 +1340,8 @@ function antForest() {
 function checkBugVersions() {
     let thread_bug_dialogs = threads.start(function () {
         let bug_versions = {
-            "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常",
-            "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常",
+            // "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常", // solved since v1.5.2
+            // "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常", solved since v1.5.2
             "Pro 7.0.0-7": "脚本运行后可能导致Auto.js崩溃",
         };
         if (!(current_autojs_version in bug_versions)) return;
