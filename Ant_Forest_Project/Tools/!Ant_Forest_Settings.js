@@ -687,7 +687,7 @@ ui.emitter.on("back_pressed", e => {
 
     function quitNow() {
         if (storage_af.get("af_postponed")) {
-            toast("即将运行蚂蚁森林");
+            toast("配置结束\n即将运行蚂蚁森林");
             engines.execScriptFile("./!Ant_Forest.js");
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
