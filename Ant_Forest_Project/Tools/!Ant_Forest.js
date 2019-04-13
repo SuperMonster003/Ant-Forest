@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 12, 2019
- * @version 1.5.2
+ * @last_modified Apr 13, 2019
+ * @version 1.5.3
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -167,20 +167,25 @@ function antForest() {
                     let blacklist_title_flag = 0;
                     let blacklist = loadState("blacklist", {}); // {friend_name: {timestamp::, reason::}}
                     Object.keys(blacklist).forEach(name => {
-                        if (checkBlackTimestamp(blacklist[name].timestamp)) return;
-                        delete blacklist[name];
-                        config.show_console_log_details && blacklistTitle() && messageAction(name, 1, 0, 1);
+                        if (!checkBlackTimestamp(blacklist[name].timestamp)) {
+                            delete blacklist[name];
+                            blacklistTitle(name);
+                        }
                     });
-                    if (blacklist_title_flag) showSplitLine();
+                    blacklist_title_flag && showSplitLine();
                     return blacklist;
 
                     // tool function(s) //
 
-                    function blacklistTitle() {
-                        if (blacklist_title_flag) return 1;
-                        if (init_operation_logged) showSplitLine();
-                        messageAction("已从黑名单中移除:", 1);
-                        return blacklist_title_flag = 1;
+                    function blacklistTitle(name) {
+                        if (!config.show_console_log_details) return;
+
+                        if (!blacklist_title_flag) {
+                            init_operation_logged && showSplitLine();
+                            messageAction("已从黑名单中移除:", 1);
+                            blacklist_title_flag = 1;
+                        }
+                        messageAction(name, 1, 0, 1);
                     }
                 }
 
@@ -607,8 +612,10 @@ function antForest() {
                         let pt_green = images.findColor(capt_img, config.ready_to_collect_color, find_color_options);
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
-                        let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
-                        if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
+                        if (help_switch) {
+                            let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
+                            if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
+                        }
                     } catch (e) {
                         throw Error(e);
                     }
@@ -841,11 +848,12 @@ function antForest() {
                             let date_str = dates_arr[i - 1].desc(); // "今天" or "昨天"
                             let time_str_clip = cover.parent().parent().child(1).desc(); // like: "03:19"
                             let time_str = date_str + time_str_clip;
+
                             current_app.blacklist[current_app.current_friend.name] = {
                                 timestamp: getTimestamp(time_str),
                                 reason: "protect_cover",
                             };
-                            if (config.show_console_log_details) blackListMsg("add");
+                            blackListMsg("add");
 
                             // tool function(s) //
 
@@ -1048,13 +1056,13 @@ function antForest() {
             }
 
             function inBlackList() {
-                let name = current_app.current_friend.name;
-                let blacklist = current_app.blacklist;
-                if (!(name in blacklist)) return;
-                return config.show_console_log_details ? blackListMsg("exist", "split_line") : true;
+                return current_app.current_friend.name in current_app.blacklist ? blackListMsg("exist", "split_line") : false;
             }
 
             function blackListMsg(msg_str, split_line_flag) {
+
+                if (!config.show_console_log_details) return true;
+
                 let messages = {
                     "add": "已加入黑名单",
                     "exist": "黑名单好友",
@@ -1064,16 +1072,14 @@ function antForest() {
                     "by_user": "用户自行设置",
                 };
 
-                let message = messages[msg_str];
-                messageAction(message, 1, 0, 1);
-                if (msg_str === "exist") messageAction("已跳过收取", 1, 0, 2);
+                messageAction(messages[msg_str], 1, 0, 1);
+                msg_str === "exist" && messageAction("已跳过收取", 1, 0, 2);
 
                 let name = current_app.current_friend.name;
                 let current_black_friend = current_app.blacklist[name];
                 let reason_str = current_black_friend.reason;
-                let reason = reasons[reason_str];
-                messageAction(reason, 1, 0, 2);
-                if (reason_str === "protect_cover") messageAction(checkBlackTimestamp(current_black_friend.timestamp), 1, 0, 2);
+                messageAction(reasons[reason_str], 1, 0, 2);
+                reason_str === "protect_cover" && messageAction(checkBlackTimestamp(current_black_friend.timestamp), 1, 0, 2);
                 split_line_flag && showSplitLine();
                 return current_app.current_friend.console_logged = 1;
             }
@@ -1316,6 +1322,8 @@ function antForest() {
     }
 
     function checkBlackTimestamp(timestamp) {
+
+        if (typeof timestamp === "undefined") return true;
 
         let now = new Date();
         let duration_ms = timestamp + 86400000 - now.getTime();

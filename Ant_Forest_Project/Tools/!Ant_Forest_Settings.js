@@ -26,12 +26,14 @@ let session_params = {
     //~ as all params will be set/modified automatically
     "save_btn_tint_color": null,
     "save_btn_text_color": null,
+    "info_color": null,
     "non_break_check_time_area_diag_confirm_delete": null,
 };
 let def = undefined;
 let defs = {
     "item_area_width": ~~(WIDTH * 0.78) + "px",
     "sub_head_color": "#03a6ef",
+    "info_color": "#78909c",
     "title_bg_color": "#03a6ef",
     "save_btn_on_color": "#ffffff",
     "save_btn_off_color": "#bbcccc",
@@ -46,6 +48,9 @@ let homepage = setHomePage("Ant_Forest");
 let help_collect_page = setPage("帮收功能");
 let non_break_check_page = setPage("监测自己能量");
 let auto_unlock_page = setPage("自动解锁");
+let blacklist_page = setPage("黑名单管理");
+let cover_blacklist_page = setPage("能量罩黑名单");
+let self_def_blacklist_page = setPage("自定义黑名单");
 
 homepage.add("sub_head", new Layout("基本功能"));
 homepage.add("options", new Layout("帮收功能", {
@@ -82,6 +87,10 @@ homepage.add("options", new Layout("自动解锁", {
         view._hint.text(this.hint[+!!session_config[this.config_conj]]);
     },
 }));
+homepage.add("options", new Layout("黑名单管理", {
+    "next_page": blacklist_page,
+}));
+
 homepage.add("sub_head", new Layout("重置"));
 homepage.add("button", new Layout("还原设置", {
     new_window: () => {
@@ -144,6 +153,7 @@ homepage.add("button", new Layout("还原设置", {
         diag.show();
     },
 }));
+
 help_collect_page.add("switch", new Layout("总开关", {
     config_conj: "help_collect_switch",
     listeners: {
@@ -622,6 +632,35 @@ auto_unlock_page.add("button", new Layout("图案解锁点阵边长", {
         view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
     },
 }));
+blacklist_page.add("options", new Layout("能量罩黑名单", {
+    hint: "hint",
+    next_page: cover_blacklist_page,
+    updateOpr: function (view) {
+        let amount = 0;
+        let blacklist = storage_af.get("blacklist", {});
+        for (let name in blacklist) {
+            if (blacklist.hasOwnProperty(name)) {
+                if (blacklist[name].reason === "protect_cover") amount += 1;
+            }
+        }
+        view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
+    },
+}));
+//cover_blacklist_page.add("list", new Layout("当前能量罩黑名单人员", {}));
+blacklist_page.add("options", new Layout("自定义黑名单", {
+    hint: "hint",
+    next_page: self_def_blacklist_page,
+    updateOpr: function (view) {
+        let amount = 0;
+        let blacklist = storage_af.get("blacklist", {});
+        for (let name in blacklist) {
+            if (blacklist.hasOwnProperty(name)) {
+                if (blacklist[name].reason === "by_user") amount += 1;
+            }
+        }
+        view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
+    },
+}));
 
 
 ui.emitter.on("back_pressed", e => {
@@ -704,6 +743,7 @@ function Layout(title, params) {
     params = params || {};
     this.title = title;
     this.sub_head_color = params.sub_head_color;
+    this.info_color = params.info_color;
     this.config_conj = params.config_conj;
     this.next_page = params.next_page;
     this.hint = params.hint;
@@ -860,6 +900,7 @@ function setPage(title, title_bg_color, additions) {
     function setItem(type, item_params) {
 
         if (type === "sub_head") return setSubHead(item_params);
+        if (type === "info") return setInfo(item_params);
 
         let new_view = ui.inflate(
             <horizontal id="_item_area" padding="16 8" gravity="left|center">
@@ -902,7 +943,7 @@ function setPage(title, title_bg_color, additions) {
             );
             new_view._item_area.addView(opt_view);
             item_params.view = new_view;
-            new_view._item_area.on("click", () => pageJump("next", item_params.next_page));
+            new_view._item_area.on("click", () => item_params.next_page && pageJump("next", item_params.next_page));
         } else if (type === "button") {
             new_view._item_area.on("click", () => item_params.showWindow());
         }
@@ -925,6 +966,24 @@ function setPage(title, title_bg_color, additions) {
             new_view._text.text(title);
             let title_color = typeof sub_head_color === "string" ? colors.parseColor(sub_head_color) : sub_head_color;
             new_view._text.setTextColor(title_color);
+
+            return new_view;
+        }
+
+        function setInfo(item) {
+            let title = item["title"],
+                info_color = item["info_color"] || defs["info_color"];
+            session_params.info_color = info_color;
+
+            let new_view = ui.inflate(
+                <linear>
+                    <img src="@drawable/ic_info_outline_black_48dp" width="17" margin="16 1 -12 0" tint="{{session_params.info_color}}"></img>
+                    <text id="_info_text" textSize="13" margin="16"/>
+                </linear>
+            );
+            new_view._info_text.text(title);
+            let title_color = typeof info_color === "string" ? colors.parseColor(info_color) : sub_head_color;
+            new_view._info_text.setTextColor(title_color);
 
             return new_view;
         }
@@ -991,48 +1050,52 @@ function smoothScrollMenu(shifting, duration) {
 
     duration = duration || 180;
 
-    if (shifting === "full_left") {
-        shifting = [WIDTH, 0];
-        parent.addView(sub_view);
-        sub_view && sub_view.scrollBy(-WIDTH, 0);
-    } else if (shifting === "full_right") {
-        shifting = [-WIDTH, 0];
-    }
+    try {
 
-    let dx = shifting[0],
-        dy = shifting[1];
-
-    let each_move_time = 10;
-
-    let neg_x = dx < 0,
-        neg_y = dy < 0;
-
-    let abs = num => num < 0 && -num || num;
-    dx = abs(dx);
-    dy = abs(dy);
-
-    let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0,
-        pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
-
-    let scroll_interval = setInterval(function () {
-        if (!dx && !dy) return;
-        let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
-            move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
-        let scroll_x = neg_x && -move_x || move_x,
-            scroll_y = neg_y && -move_y || move_y;
-        sub_view && sub_view.scrollBy(scroll_x, scroll_y);
-        main_view.scrollBy(scroll_x, scroll_y);
-        dx -= ptx;
-        dy -= pty;
-    }, each_move_time);
-    setTimeout(() => {
-        if (shifting[0] === -WIDTH && sub_view) {
-            sub_view.scrollBy(WIDTH, 0);
-            let child_count = parent.getChildCount();
-            parent.removeView(parent.getChildAt(--child_count));
+        if (shifting === "full_left") {
+            shifting = [WIDTH, 0];
+            parent.addView(sub_view);
+            sub_view && sub_view.scrollBy(-WIDTH, 0);
+        } else if (shifting === "full_right") {
+            shifting = [-WIDTH, 0];
         }
-        clearInterval(scroll_interval);
-    }, duration + 200); // 200: a safe interval just in case
+
+        let dx = shifting[0],
+            dy = shifting[1];
+
+        let each_move_time = 10;
+
+        let neg_x = dx < 0,
+            neg_y = dy < 0;
+
+        let abs = num => num < 0 && -num || num;
+        dx = abs(dx);
+        dy = abs(dy);
+
+        let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0,
+            pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
+
+        let scroll_interval = setInterval(function () {
+            if (!dx && !dy) return;
+            let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
+                move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
+            let scroll_x = neg_x && -move_x || move_x,
+                scroll_y = neg_y && -move_y || move_y;
+            sub_view && sub_view.scrollBy(scroll_x, scroll_y);
+            main_view.scrollBy(scroll_x, scroll_y);
+            dx -= ptx;
+            dy -= pty;
+        }, each_move_time);
+        setTimeout(() => {
+            if (shifting[0] === -WIDTH && sub_view) {
+                sub_view.scrollBy(WIDTH, 0);
+                let child_count = parent.getChildCount();
+                parent.removeView(parent.getChildAt(--child_count));
+            }
+            clearInterval(scroll_interval);
+        }, duration + 200); // 200: a safe interval just in case
+    } catch (e) {
+    }
 }
 
 function clickSaveBtn() {
