@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 13, 2019
- * @version 1.5.3
+ * @last_modified Apr 14, 2019
+ * @version 1.5.4
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -475,9 +475,9 @@ function antForest() {
                         in_check_remain_range = min_time < now && now < max_time;
                     if (in_check_remain_range) checkRemain(max_time);
                 }
+                checkOnce();
+                current_app.total_energy_collect_own += getEnergyDiff();
             }
-
-            checkOnce() && (current_app.total_energy_collect_own += getEnergyDiff());
 
             // tool function(s) //
 

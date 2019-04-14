@@ -646,7 +646,6 @@ blacklist_page.add("options", new Layout("能量罩黑名单", {
         view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
     },
 }));
-//cover_blacklist_page.add("list", new Layout("当前能量罩黑名单人员", {}));
 blacklist_page.add("options", new Layout("自定义黑名单", {
     hint: "hint",
     next_page: self_def_blacklist_page,
@@ -661,6 +660,23 @@ blacklist_page.add("options", new Layout("自定义黑名单", {
         view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
     },
 }));
+// cover_blacklist_page.add("list", new Layout("能量罩黑名单成员", {
+//     list_head: ["支付宝好友昵称", "黑名单自动解除"],
+//     data_source: (function () {
+//         let blacklist = storage_af.get("blacklist", {});
+//         let cover_blacklist = [];
+//         for (let name in blacklist) {
+//             if (blacklist.hasOwnProperty(name)) {
+//                 if (blacklist[name].reason === "protect_cover") cover_blacklist.push({
+//                     name: name,
+//                     timestamp: blacklist[name].timestamp,
+//                 });
+//             }
+//         }
+//         return cover_blacklist;
+//     })(),
+// }));
+
 
 
 ui.emitter.on("back_pressed", e => {
@@ -901,6 +917,7 @@ function setPage(title, title_bg_color, additions) {
 
         if (type === "sub_head") return setSubHead(item_params);
         if (type === "info") return setInfo(item_params);
+        if (type === "list") return setList(item_params);
 
         let new_view = ui.inflate(
             <horizontal id="_item_area" padding="16 8" gravity="left|center">
