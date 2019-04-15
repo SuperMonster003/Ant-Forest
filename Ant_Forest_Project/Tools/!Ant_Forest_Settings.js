@@ -577,7 +577,7 @@ auto_unlock_page.add("button", new Layout("最大尝试次数", {
     new_window: function () {
         let diag = dialogs.build({
             title: "设置解锁最大尝试次数",
-            inputHint: "{x|3<=x<=15,x∈N*}",
+            inputHint: "{x|5<=x<=50,x∈N*}",
             neutral: "使用默认值",
             negative: "返回",
             positive: "确认",
@@ -591,7 +591,7 @@ auto_unlock_page.add("button", new Layout("最大尝试次数", {
             if (input === "") return dialog.dismiss();
             let value = input - 0;
             if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-            if (value > 15 || value < 3) return alertTitle(dialog, "输入值范围不合法");
+            if (value > 50 || value < 5) return alertTitle(dialog, "输入值范围不合法");
             saveSession(this.config_conj, value);
             diag.dismiss();
         });

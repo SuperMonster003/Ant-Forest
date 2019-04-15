@@ -26,18 +26,11 @@ if (!storage_af.get("config_prompted")) promptConfig();
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    // help_collect_switch: true, // set "false value" if you do not wanna give a hand; leave it "true value" if you like "surprise"
     show_console_log_details: true, // whether to show message details of each friend in console
     floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
-    // non_break_check_switch: true, // whether to make a non-stop checking for your own energy balls
-    // non_break_check_time_area: [["07:28:00", "07:28:47"]], // period for non-stop checking your own energy balls; leave [] if you don't need
-    auto_js_log_record_path: "../Log/AutoJsLog.txt", // up to 512KB per file; leave "false value" if not needed
     list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     ready_to_collect_color: "#1da06d", // color for collect icon with a hand pattern
-    // help_collect_color: "#f99137", // color for help icon with a heart pattern
     rank_list_icons_color_threshold: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    // help_collect_color_threshold: 60, // 30 ~< x <= 83 is recommended; the smaller, the stricter; max limit tested on Sony G8441
-    // help_collect_intensity: 16, // 10 <= x <= 20 is recommended; more samples for image matching, at the cost of time however
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
@@ -69,7 +62,8 @@ function antForest() {
 
         showAppTitle();
         setScreenMetrics(WIDTH, HEIGHT);
-        unlock_module.unlock();
+        checkSdk();
+        unlock();
         setAutoJsLogPath();
         setParams();
         getReady();
@@ -83,7 +77,27 @@ function antForest() {
             messageAction("开始\"蚂蚁森林\"任务", 1, 0, 0, "both");
         }
 
+        function checkSdk() {
+            if (+shell("getprop ro.build.version.sdk").result >= 24) return true;
+            messageAction("脚本无法继续", 4);
+            messageAction("安卓系统版本低于7.0", 8, 1, 1, 1);
+        }
+
+        function unlock() {
+            let is_screen_on = unlock_module.is_screen_on;
+            current_app.is_screen_on = is_screen_on;
+            if (!is_screen_on && !config.auto_unlock_switch) {
+                messageAction("脚本无法继续", 4);
+                messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
+            }
+            unlock_module.unlock();
+        }
+
         function setAutoJsLogPath() {
+
+            let log_path = config.auto_js_log_record_path;
+
+            if (!log_path) return;
 
             let bug_versions = ["Pro 7.0.0-2", "Pro 7.0.0-3"];
 
@@ -93,10 +107,6 @@ function antForest() {
                 messageAction(current_autojs_version, 1, 0, 1);
                 return init_operation_logged = 1;
             }
-
-            let log_path = config.auto_js_log_record_path;
-
-            if (!log_path) return;
 
             files.createWithDirs(log_path);
 
@@ -108,7 +118,6 @@ function antForest() {
         function setParams() {
 
             current_app = new App("蚂蚁森林");
-            current_app.is_screen_on = unlock_module.is_screen_on;
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
 
@@ -460,6 +469,8 @@ function antForest() {
 
             current_app.total_energy_init = getCurrentEnergyAmount();
 
+            let check = () => checkOnce() && (current_app.total_energy_collect_own += getEnergyDiff());
+
             waitForAction(() => kw_more_friends.exists() || kw_cooperation_btn.exists(), 5000); // just in case
             waitForAction(kw_energy_balls, 1000); // make energy balls ready
 
@@ -475,15 +486,15 @@ function antForest() {
                         in_check_remain_range = min_time < now && now < max_time;
                     if (in_check_remain_range) checkRemain(max_time);
                 }
-                checkOnce();
-                current_app.total_energy_collect_own += getEnergyDiff();
             }
+
+            check();
 
             // tool function(s) //
 
             function checkRemain(max_time) {
                 toast("Non-stop checking time");
-                while (new Date() < max_time) ~sleep(180) && checkOnce();
+                while (new Date() < max_time) ~sleep(180) && check();
                 toast("Checking completed");
             }
 
@@ -629,10 +640,16 @@ function antForest() {
                     let kw_title_ref = textMatches(/.+排行榜/);
 
                     if (!current_app.rank_list_screen_area) {
-                        current_app.rank_list_screen_area = {
-                            l: ~~(WIDTH * 0.7),
-                            t: kw_title_ref.exists() ? kw_title_ref.findOnce().parent().parent().bounds().bottom + 1 : cY(145),
-                        };
+                        current_app.rank_list_screen_area = {};
+                        current_app.rank_list_screen_area.l = ~~(WIDTH * 0.7);
+                        let ref_top = null;
+                        try {
+                            waitForAction(kw_title_ref, 500);
+                            ref_top = kw_title_ref.findOnce().parent().parent().bounds().bottom + 1;
+                        } catch (e) {
+                            // nothing to do here
+                        }
+                        current_app.rank_list_screen_area.t = ref_top || cY(145);
                     }
 
                     return current_app.rank_list_screen_area;
@@ -1522,6 +1539,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
         msg = "> " + msg;
         for (let i = 0; i < if_needs_arrow; i += 1) msg = "-" + msg;
     }
+    let exit_flag = false;
     switch (msg_level) {
         case 0:
         case "verbose":
@@ -1557,14 +1575,14 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
         case "x":
             msg_level = 4;
             console.error(msg);
-            exit();
+            exit_flag = true;
             break;
         case 9:
         case "h":
             msg_level = 4;
             console.error(msg);
             keycode(3);
-            exit();
+            exit_flag = true;
             break; // useless, just for inspection
         case "t":
         case "title":
@@ -1573,6 +1591,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
             break;
     }
     if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? if_needs_split_line : "");
+    exit_flag && exit();
     current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
     return !(msg_level in {3: 1, 4: 1});
 }

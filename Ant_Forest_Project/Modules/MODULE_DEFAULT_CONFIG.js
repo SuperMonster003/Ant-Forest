@@ -11,6 +11,7 @@ module.exports = {
 	"unlock": {
 		unlock_code: null,
 		unlock_pattern_size: 3,
-		unlock_max_try_times: 10,
+		unlock_max_try_times: 20,
+		dismiss_layer_gesture_time: 250,
 	}
 };
