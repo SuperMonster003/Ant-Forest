@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 14, 2019
- * @version 1.5.4
+ * @last_modified Apr 16, 2019
+ * @version 1.5.6
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -117,7 +117,7 @@ function antForest() {
 
         function setParams() {
 
-            current_app = new App("蚂蚁森林");
+            current_app = Object.assign(current_app, new App("蚂蚁森林"));
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
 
@@ -623,10 +623,10 @@ function antForest() {
                         let pt_green = images.findColor(capt_img, config.ready_to_collect_color, find_color_options);
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
-                        if (help_switch) {
-                            let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
-                            if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
-                        }
+                        // keep on even if "help_switch" is false
+                        // sometimes there will be collectible balls in forest after click orange "help collect" icon
+                        let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
+                        if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
                         throw Error(e);
                     }
@@ -1279,7 +1279,7 @@ function antForest() {
 
     function endProcess() {
         current_app.saveState("blacklist", current_app.blacklist);
-        current_app.kill_when_done ? endAlipay() : closeAfWindows();
+        current_app.kill_when_done ? endAlipay(closeAfWindows) : closeAfWindows();
         waitForAction(() => !current_app.floaty_msg_signal, 8000);
         threads.shutDownAll(); // kill all threads started by threads.start()
         current_app.is_screen_on || keycode(26);
@@ -1300,34 +1300,12 @@ function antForest() {
             }
         }
 
-        function endAlipay() {
-
-            // do not bring back or bring back to a certain specific page (activity class name)
-            let special_list = {
-                "org.autojs.autojs": "",
-                "org.autojs.autojspro": "",
-                "com.zhan_dui.evermemo": "KEYCODE_BACK",
-            };
+        function endAlipay(minimizeFunc) {
 
             let old_pgk = current_app.ori_app_package;
-            let intent = context.getPackageManager().getLaunchIntentForPackage(old_pgk);
+            killCurrentApp(current_app.package_name, null, minimizeFunc);
 
-            if (old_pgk in special_list || intent === null) killCurrentApp(current_app.package_name);
-            else {
-                let special_class = special_list[old_pgk],
-                    keycode_flag = special_class && special_class.match(/KEYCODE/),
-                    class_name_flag = special_class && !special_class.match(/KEYCODE/);
-
-                intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
-                intent.setAction(android.content.Intent.ACTION_MAIN);
-                if (class_name_flag) intent.setComponent(new android.content.ComponentName(old_pgk, special_class));
-                app.startActivity(intent);
-
-                if (keycode_flag) {
-                    if (!waitForAction(() => currentPackage() === old_pgk, 5000)) return;
-                    keycode(special_class) && sleep(2000);
-                }
-            }
+            return waitForAction(() => currentPackage() === old_pgk, 5000);
         }
     }
 
@@ -1476,11 +1454,11 @@ function launchThisApp(intent, no_msg_flag) {
  * Close current app, and wait for at most 15s
  * Property "first_time_run" will be 0
  */
-function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
+function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFunc) {
     let pkg = package_name || current_app.package_name;
     let shell_error = shell("am force-stop " + pkg, true).error;
     if (!!shell_error) {
-        messageAction(shell_error.split(/\n/)[0], 4, 1);
+        // messageAction(shell_error.split(/\n/)[0], 4, 1);
         return keycode_back_unacceptable_flag ? false : tryMinimizeApp();
     }
     waitForAction(() => currentPackage() !== pkg, 15000, "关闭" + pkg + "失败", 9, 1);
@@ -1490,6 +1468,7 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     // tool function(s) //
 
     function tryMinimizeApp() {
+        minimizeFunc && minimizeFunc();
         let max_try_times = 20;
         while (max_try_times--) {
             keycode(4);
