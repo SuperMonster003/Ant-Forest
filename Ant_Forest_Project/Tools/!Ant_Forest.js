@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Apr 17, 2019
- * @version 1.5.8
+ * @version 1.5.9
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -28,7 +28,7 @@ let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
     show_console_log_details: true, // whether to show message details of each friend in console
     floaty_msg_switch: true, // important will show in floaty way with "true value" or toast way with "false value"
-    list_swipe_interval: 300, // unit: millisecond; set this value bigger if errors like "CvException" occurred
+    list_swipe_time: 100, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     ready_to_collect_color: "#1da06d", // color for collect icon with a hand pattern
     rank_list_icons_color_threshold: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
@@ -218,13 +218,6 @@ function antForest() {
             }
 
             function checkConfig() {
-
-                let swipe_interval = config.list_swipe_interval;
-                if (!swipe_interval || isNaN(swipe_interval) || swipe_interval < 300 || swipe_interval > 1000) {
-                    config.list_swipe_interval = swipe_interval < 300 ? 300 : 1000; // min safe value i believe
-                    messageAction("校正\"list_swipe_interval\": " + config.list_swipe_interval, 3);
-                    init_operation_logged = 1;
-                }
 
                 let max_running_time = config.max_running_time,
                     parsed_max_time = +max_running_time;
@@ -600,8 +593,6 @@ function antForest() {
 
                 waitForAction(kw_rank_list_self, 8000); // make page ready
 
-                let screen_area = getRankListScreenArea();
-
                 let targets_green = [],
                     targets_orange = [];
 
@@ -628,6 +619,7 @@ function antForest() {
                         let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
                         if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
+                        log(find_color_options); ////TEST////
                         throw Error(e);
                     }
                 });
@@ -636,42 +628,17 @@ function antForest() {
 
                 // tool function(s) //
 
-                function getRankListScreenArea() {
-                    let kw_title_ref = textMatches(/.+排行榜/);
-
-                    if (!current_app.rank_list_screen_area) {
-                        current_app.rank_list_screen_area = {};
-                        current_app.rank_list_screen_area.l = ~~(WIDTH * 0.7);
-                        let ref_top = null;
-                        try {
-                            waitForAction(kw_title_ref, 500);
-                            ref_top = kw_title_ref.findOnce().parent().parent().bounds().bottom + 1;
-                        } catch (e) {
-                            // nothing to do here
-                        }
-                        current_app.rank_list_screen_area.t = ref_top || cY(145);
-                    }
-
-                    return current_app.rank_list_screen_area;
-                }
-
                 function getScreenSamples() {
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let samples = boundsInside(screen_area.l, screen_area.t, WIDTH, HEIGHT - 1)
-                            .descMatches(regexp_energy_amount).find();
-                        if (checkSamples(samples)) return samples;
+                        let samples = boundsInside(~~(WIDTH * 0.7), 1, WIDTH, HEIGHT - 1)
+                            .descMatches(regexp_energy_amount).filter(function (w) {
+                                let bounds = w.bounds();
+                                return bounds.bottom > bounds.top;
+                            }).find();
+                        if (samples.size()) return samples;
                     }
-                    return messageAction("刷新样本区域失败", 3, 0, 0, "both");
-
-                    // tool function(s) //
-
-                    function checkSamples(samples) {
-                        for (let i = 0, len = samples.size(); i < len; i += 1) {
-                            if (samples[i].bounds().centerY() <= 0) return !~sleep(200);
-                        }
-                        return true;
-                    }
+                    return messageAction("刷新样本区域失败", 3, 0, 0, "both"); ////TEST////
                 }
 
                 function captCurrentScreen() {
@@ -685,7 +652,7 @@ function antForest() {
                 function getFindColorOptions(w) {
                     let parent_node = w.parent();
                     let region_ref = {
-                        l: screen_area.l,
+                        l: ~~(WIDTH * 0.7),
                         t: parent_node.bounds().top,
                     };
                     return {
@@ -1000,28 +967,31 @@ function antForest() {
             function swipeUp() {
                 if (list_end_signal) return;
 
-                let bottom_data = getRankListSelfBottom(),
-                    tmp_bottom_data = undefined;
+                let bottom_data = undefined,
+                    tmp_bottom_data = getRankListSelfBottom();
 
-                swipe(WIDTH * 0.5, HEIGHT * 0.9, WIDTH * 0.5, HEIGHT * 0.1, 150);
+                let half_width = ~~(WIDTH * 0.5);
+                gesture(config.list_swipe_time, [half_width, HEIGHT * 0.9], [half_width, HEIGHT * 0.1]);
 
-                while (waitForAction(() => bottom_data !== (tmp_bottom_data = getRankListSelfBottom()), 100)) {
+                while (bottom_data !== tmp_bottom_data) {
                     bottom_data = tmp_bottom_data;
+                    sleep(50);
+                    tmp_bottom_data = getRankListSelfBottom();
                 } // wait for data stable
-
-                // sleep(config.list_swipe_interval);
 
                 // tool function(s) //
 
                 function getRankListSelfBottom() {
-                    let max_try_times = 30;
+                    let max_try_times = 50;
                     while (max_try_times--) {
                         try {
                             return idMatches(/.*J_rank_list_self/).findOnce().bounds().bottom;
                         } catch (e) {
                             // nothing to do here
+                            messageAction("R-list self bounds bottom failed once", 3); ////TEST////
                         }
                     }
+                    return new Date().getTime() * Math.random();
                 }
             }
 
