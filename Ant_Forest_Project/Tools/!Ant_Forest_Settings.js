@@ -96,7 +96,7 @@ homepage.add("button", new Layout("还原设置", {
     new_window: () => {
         let diag = dialogs.build({
             title: "还原初始设置",
-            content: "此操作无法撤销\n\n以下功能内部设置不会被还原:\n1. 自动解锁",
+            content: "此操作无法撤销\n\n以下功能内部配置不会被还原:\n1. 自动解锁",
             neutral: "了解内部配置",
             negative: "放弃",
             positive: "全部还原",

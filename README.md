@@ -75,9 +75,16 @@
 ******
 ### 版本历史
 ******
+# v1.5.8
+###### 2019/04/17
+* `新增` 锁屏布局截图工具 方便用户发送锁屏布局信息给开发者  
+* `修复` 判断初始准备条件时可能出现无法匹配ViewId的问题 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483958381)_  
+* `优化` 解锁模块稳定性
+
 # v1.5.7
 ###### 2019/04/17
-* `优化` 排行榜样本采集稳定性  
+* `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4)_  
+* `文件` 删除无关文件以缩小仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_
 
 # v1.5.6
 ###### 2019/04/16
@@ -99,7 +106,8 @@
 
 # v1.5.3
 ###### 2019/04/13
-* `新增` 图形配置页面黑名单管理骨架
+* `新增` 图形配置页面黑名单管理骨架  
+* `文件` 上传dialogs模块 _[issue #2](https://github.com/SuperMonster003/Ant_Forest/issues/2)_  
 
 # v1.5.2
 ###### 2019/04/12
@@ -127,7 +135,7 @@
 # v1.4.10
 ###### 2019/04/10
 * `修复` 图形配置页面对象相等判定工具的逻辑错误  
-* `修复` 部分函数内部变量覆盖函数定义的问题 (github issue #1)  
+* `修复` 部分函数内部变量覆盖函数定义的问题 _[issue #1](https://github.com/SuperMonster003/Ant_Forest/issues/1)_  
 * `优化` 完善图形配置页面自己能量时间区间管理工具  
 
 # v1.4.9

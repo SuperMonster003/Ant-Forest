@@ -3,7 +3,7 @@
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Apr 17, 2019
- * @version 1.5.7
+ * @version 1.5.8
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -201,9 +201,8 @@ function antForest() {
                 // function function(s) //
 
                 function firstTimeRunCondition() {
-                    let txt_h5_title_id = "com.alipay.mobile.nebula:id/h5_tv_title",
-                        kw_af_title = id(txt_h5_title_id).textMatches(/蚂蚁森林|Ant Forest/),
-                        kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
+                    let kw_af_title = idMatches(/.*h5_tv_title/).textMatches(/蚂蚁森林|Ant Forest/);
+                    let kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
                     return kw_af_title.exists() && desc("合种").exists() || kw_login_or_switch.exists();
                 }
 
@@ -1006,7 +1005,7 @@ function antForest() {
 
                 swipe(WIDTH * 0.5, HEIGHT * 0.9, WIDTH * 0.5, HEIGHT * 0.1, 150);
 
-                while (waitForAction(() => bottom_data !== (tmp_bottom_data = getRankListSelfBottom()), 50)) {
+                while (waitForAction(() => bottom_data !== (tmp_bottom_data = getRankListSelfBottom()), 100)) {
                     bottom_data = tmp_bottom_data;
                 } // wait for data stable
 
@@ -1015,12 +1014,12 @@ function antForest() {
                 // tool function(s) //
 
                 function getRankListSelfBottom() {
-                    let max_try_times = 5;
+                    let max_try_times = 30;
                     while (max_try_times--) {
                         try {
                             return idMatches(/.*J_rank_list_self/).findOnce().bounds().bottom;
                         } catch (e) {
-                            sleep(100);
+                            // nothing to do here
                         }
                     }
                 }
