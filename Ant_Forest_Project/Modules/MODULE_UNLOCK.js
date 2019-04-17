@@ -68,12 +68,14 @@ function unlock(password, max_try_times, pattern_size) {
         else return;
 
         let half_width = ~~(WIDTH / 2),
-            height_d = ~~(HEIGHT * 0.9),
-            height_c = ~~(HEIGHT * 0.8),
-            height_b = ~~(HEIGHT * 0.6),
-            height_a = ~~(HEIGHT * 0.2);
+            height_a = ~~(HEIGHT * 0.95),
+            height_b = ~~(HEIGHT * 0.9),
+            height_c = ~~(HEIGHT * 0.82),
+            height_d = ~~(HEIGHT * 0.67),
+            height_e = ~~(HEIGHT * 0.46),
+            height_f = ~~(HEIGHT * 0.05);
 
-        let max_try_times_dismiss_layer = 5;
+        let max_try_times_dismiss_layer = 20;
         let data_from_storage_flag = false;
         let chances_for_storage_data = 3;
         let gesture_time = storage_unlock.get("dismiss_layer_gesture_time");
@@ -82,10 +84,10 @@ function unlock(password, max_try_times, pattern_size) {
         else gesture_time = DEFAULT_UNLOCK.dismiss_layer_gesture_time;
 
         while (max_try_times_dismiss_layer--) {
-            gesture(gesture_time, [half_width, height_d], [half_width, height_c], [half_width, height_b], [half_width, height_a]);
-            if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
+            gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
+            if (waitForAction(() => !kw_preview_container.exists(), 1200)) break;
             if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
-            else gesture_time += 100;
+            else gesture_time += 80;
         }
         if (max_try_times_dismiss_layer < 0) messageAction("消除解锁页面提示层失败", 8, 1, 0, 1);
         storage_unlock.put("dismiss_layer_gesture_time", gesture_time);
@@ -130,10 +132,9 @@ function unlock(password, max_try_times, pattern_size) {
         if (!cond_all_unlock_ways()) errorMsg("无法确定解锁方式");
 
         device.keepScreenOn();
-
-        if (kw_lock_pattern_view.exists()) unlockPattern();
-        else if (kw_password_view.exists()) unlockPassword();
-        else if (kw_pin_view) unlockPin();
+        if (kw_lock_pattern_view && kw_lock_pattern_view.exists()) unlockPattern();
+        else if (kw_password_view && kw_password_view.exists()) unlockPassword();
+        else if (kw_pin_view && kw_pin_view.exists()) unlockPin();
 
         device.cancelKeepingAwake();
 
@@ -163,12 +164,12 @@ function unlock(password, max_try_times, pattern_size) {
             let chances_for_storage_data = 3;
 
             if (gesture_unlock_swipe_time) data_from_storage_flag = true;
-            else gesture_unlock_swipe_time = gesture_pts_params.length * 100;
+            else gesture_unlock_swipe_time = gesture_pts_params.length * 80;
 
             while (gesture_unlock_swipe_time <= 8000 && max_try_times-- > 0) {
                 gesture(gesture_unlock_swipe_time, gesture_pts_params);
                 if (checkUnlockResult()) break;
-                if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) gesture_unlock_swipe_time += 200;
+                if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) gesture_unlock_swipe_time += 80;
             }
             if (gesture_unlock_swipe_time > 8000) errorMsg("图案解锁方案失败");
 

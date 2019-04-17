@@ -22,10 +22,10 @@ let diag = dialogs.build({
     title: "解锁布局抓取",
     content: "请按照以下步骤抓取解锁布局\n\n" +
         "1. 屏幕自动关闭后自动亮起\n" +
-        "2. 亮起后滑动屏幕进入图案解锁页面并截屏\n" +
+        "2. 自动滑动屏幕进入图案解锁页面\n" +
+        "注: 若自动滑动失败请手动滑动\n" +
         "3. 等待手机震动后再手动解锁\n" +
-        "4. 出现布局后截屏\n" +
-        "5. 将两份截屏发送给开发者",
+        "4. 出现布局后按提示操作",
     positive: "开始",
     negative: "放弃",
 });
@@ -70,22 +70,24 @@ function dismissLayer() {
     if (waitForAction(() => kw_preview_container = cond_preview_container(), 500)) sleep(500);
 
     let half_width = ~~(WIDTH / 2),
-        height_d = ~~(HEIGHT * 0.9),
-        height_c = ~~(HEIGHT * 0.8),
-        height_b = ~~(HEIGHT * 0.6),
-        height_a = ~~(HEIGHT * 0.2);
+        height_a = ~~(HEIGHT * 0.95),
+        height_b = ~~(HEIGHT * 0.9),
+        height_c = ~~(HEIGHT * 0.82),
+        height_d = ~~(HEIGHT * 0.67),
+        height_e = ~~(HEIGHT * 0.46),
+        height_f = ~~(HEIGHT * 0.05);
 
-    let max_try_times_dismiss_layer = 5;
-    let gesture_time = 250;
+    let max_try_times_dismiss_layer = 20;
+    let gesture_time = 80;
 
     while (max_try_times_dismiss_layer--) {
-        gesture(gesture_time, [half_width, height_d], [half_width, height_c], [half_width, height_b], [half_width, height_a]);
-        if (waitForAction(() => !kw_preview_container.exists(), 1100)) break;
-        gesture_time += 100;
+        gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
+        if (waitForAction(() => !kw_preview_container.exists(), 1200)) break;
+        gesture_time += 80;
     }
 
     if (max_try_times_dismiss_layer < 0 && !waitForAction(() => !kw_preview_container.exists(), 25000)) ~alert("消除解锁页面提示层失败") && exit();
-    return log("OK");
+    return true;
 }
 
 // global function(s) //

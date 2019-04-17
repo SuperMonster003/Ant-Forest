@@ -1901,7 +1901,7 @@ function keycode(keycode_name) {
     // "KEYCODE_BACK" <=> "4"
     // "KEYCODE_HOME" <=> "3",
     // "KEYCODE_POWER" <=> "26",
-    return ~shell("input keyevent " + keycode_name);
+    return shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
 }
 
 function runJsFile(js_path, autojs_pkg_name) {

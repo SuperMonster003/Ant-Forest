@@ -77,6 +77,7 @@
 ******
 # v1.5.9
 ###### 2019/04/17
+* `修复` 部分机型shell模拟按键返回137导致按键无效的问题  
 * `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483967078)_
 
 # v1.5.8
