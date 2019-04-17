@@ -35,8 +35,8 @@ let defs = {
     "sub_head_color": "#03a6ef",
     "info_color": "#78909c",
     "title_bg_color": "#03a6ef",
-    "save_btn_on_color": "#ffffff",
-    "save_btn_off_color": "#bbcccc",
+    "btn_on_color": "#ffffff",
+    "btn_off_color": "#bbcccc",
     "empty_non_break_check_time_area_hint": "*点击添加按钮添加新时间区间*",
 };
 let pages = [];
@@ -850,8 +850,8 @@ function setHomePage(home_title) {
 
     function getLayoutSaveBtn(switch_state) {
         let view,
-            on_view = saveBtnView(defs.save_btn_on_color, "#ffffff"),
-            off_view = saveBtnView(defs.save_btn_off_color, "#bbcccc");
+            on_view = saveBtnView(defs.btn_on_color, "#ffffff"),
+            off_view = saveBtnView(defs.btn_off_color, "#bbcccc");
 
         view = switch_state === "ON" ? on_view : off_view;
 

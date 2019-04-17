@@ -2,5 +2,6 @@
 /build
 /release
 /captures
+/Github_Material
 *.apk
 *.exe

@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 16, 2019
- * @version 1.5.6
+ * @last_modified Apr 17, 2019
+ * @version 1.5.7
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -606,10 +606,11 @@ function antForest() {
                 let targets_green = [],
                     targets_orange = [];
 
-                let capt_img,
-                    regexp_energy_amount = new RegExp("\\d\+\(\\\.\\d\+\)\?\(k\?g|t\)");
+                let capt_img;
+                let regexp_energy_amount = new RegExp("\\d\+\(\\\.\\d\+\)\?\(k\?g|t\)");
+                let screenAreaSamples = getScreenSamples() || [];
 
-                boundsInside(screen_area.l, screen_area.t, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find().forEach(w => {
+                screenAreaSamples.forEach(w => {
                     let state_ident_node = w.parent().child(w.parent().childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
@@ -653,6 +654,25 @@ function antForest() {
                     }
 
                     return current_app.rank_list_screen_area;
+                }
+
+                function getScreenSamples() {
+                    let max_try_times = 5;
+                    while (max_try_times--) {
+                        let samples = boundsInside(screen_area.l, screen_area.t, WIDTH, HEIGHT - 1)
+                            .descMatches(regexp_energy_amount).find();
+                        if (checkSamples(samples)) return samples;
+                    }
+                    return messageAction("刷新样本区域失败", 3, 0, 0, "both");
+
+                    // tool function(s) //
+
+                    function checkSamples(samples) {
+                        for (let i = 0, len = samples.size(); i < len; i += 1) {
+                            if (samples[i].bounds().centerY() <= 0) return !~sleep(200);
+                        }
+                        return true;
+                    }
                 }
 
                 function captCurrentScreen() {

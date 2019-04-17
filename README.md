@@ -1,6 +1,6 @@
 # Ant_Forest  
 
-![AF_Pic](https://github.com/SuperMonster003/Ant_Forest/blob/master/Github_Material/AF_Pic_361%C3%97103.png?raw=true)
+![AF_Pic](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/Ant_Forest_Banner_361%C3%97103.png)
 ###### 蚂蚁森林能量收取工具 (基于Auto.js)
 
 ******
@@ -29,12 +29,12 @@
 > Root: `可能需要Root` `(未Root设备未做运行测试)`
   
 > "Auto.js"已测试版本:   
->> `4.1.0 alpha 5`  
->> `4.1.1 alpha 2`    
->> `Pro 7.0.0-3`  
->> `Pro 7.0.0-4`  
->> `Pro 7.0.0-5`  
->> `Pro 7.0.0-6` `(推荐使用)`
+>> [`4.1.0 alpha 5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk)  
+>> [`4.1.1 alpha 2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk)  
+>> [`Pro 7.0.0-3`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-3%5D(b3f9d279).apk)  
+>> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk)  
+>> [`Pro 7.0.0-5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-5%5D(b281150c).apk)  
+>> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk) `(推荐使用)`
 
 >"Auto.js"不适用版本:  
 >> `Pro 7.0.0-7` `(运行后强制退出)`
@@ -75,6 +75,10 @@
 ******
 ### 版本历史
 ******
+# v1.5.7
+###### 2019/04/17
+* `优化` 排行榜样本采集稳定性  
+
 # v1.5.6
 ###### 2019/04/16
 * `新增` 解锁模块加入MIUI支持  
