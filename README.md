@@ -1,7 +1,8 @@
-# Ant_Forest  
+# Ant Forest  
 
 ![AF_Pic](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/Ant_Forest_Banner_361%C3%97103.png)
-###### 蚂蚁森林能量收取工具 (基于Auto.js)
+###### 蚂蚁森林能量智能收取脚本 (基于Auto.js)
+###### Auto.js-based alipay ant forest energy intelligent collection script
 
 ******
 ### 小私房话
@@ -78,6 +79,7 @@
 ******
 # v1.5.10
 ###### 2019/04/18
+* `新增` 适配采用"Gxzw"屏下指纹设备的自动解锁方案 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484361198)_  
 * `优化` 锁屏布局工具控件信息采集方式  
 
 # v1.5.9

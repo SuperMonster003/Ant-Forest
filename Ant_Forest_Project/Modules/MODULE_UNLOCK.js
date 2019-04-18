@@ -120,11 +120,27 @@ function unlock(password, max_try_times, pattern_size) {
             kw_pin_view_miui.exists() && kw_pin_view_miui ||
             null;
 
+        let special_view_bounds = null;
+        let special_views = {
+            "gxzw": [idMatches(/.*[Gg][Xx][Zz][Ww].*/), [0.0875, 0.47, 0.9125, 0.788]],
+            "test": [idMatches(/test_test/), [0, 0, 1, 1]],
+            "test2": [idMatches(/test_test_2/), [0, 0.5, 1, 0.9]],
+        };
+        let cond_special_view = () => {
+            let special_view_keys = Object.keys(special_views);
+            for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
+                let value = special_views[special_view_keys[i]];
+                if (value[0].exists()) return value[1];
+            }
+            return null;
+        };
+
         let cond_all_unlock_ways = () => {
             return (kw_lock_pattern_view = cond_lock_pattern_view()) ||
-            (kw_password_view = cond_password_view()) ||
-            (kw_pin_view = cond_pin_view()) ||
-            null;
+                (kw_password_view = cond_password_view()) ||
+                (kw_pin_view = cond_pin_view()) ||
+                (special_view_bounds = cond_special_view()) ||
+                null;
         };
 
         waitForAction(() => cond_all_unlock_ways() || isUnlocked(), 2000);
@@ -132,9 +148,11 @@ function unlock(password, max_try_times, pattern_size) {
         if (!cond_all_unlock_ways()) errorMsg("无法确定解锁方式");
 
         device.keepScreenOn();
+
         if (kw_lock_pattern_view && kw_lock_pattern_view.exists()) unlockPattern();
         else if (kw_password_view && kw_password_view.exists()) unlockPassword();
         else if (kw_pin_view && kw_pin_view.exists()) unlockPin();
+        else handleSpecials();
 
         device.cancelKeepingAwake();
 
@@ -244,6 +262,32 @@ function unlock(password, max_try_times, pattern_size) {
                 pw.forEach(num => click_keypad(+num));
             }
         }
+
+        function handleSpecials() {
+            let pw = password.split(/\D+/).join("").split("");
+            let l = ~~(special_view_bounds[0] * WIDTH),
+                t = ~~(special_view_bounds[1] * HEIGHT),
+                r = ~~(special_view_bounds[2] * WIDTH),
+                b = ~~(special_view_bounds[3] * HEIGHT);
+            let w = ~~((r - l) / 3),
+                h = ~~((b - t) / 4),
+                x1 = l + ~~(w / 2),
+                y1 = t + ~~(h / 2);
+            let keypads = ["Trembling Keypads"];
+            for (let j = 1; j <= 4; j += 1) {
+                for (let i = 1; i <= 3; i += 1) {
+                    keypads[(j - 1) * 3 + i] = {
+                        x: x1 + w * (i - 1),
+                        y: y1 + h * (j - 1),
+                    };
+                }
+            }
+
+            let click_keypad = num => click(keypads[num || 11].x, keypads[num || 11].y);
+            pw.forEach(num => click_keypad(+num));
+
+            checkUnlockResult() || errorMsg("尝试特殊解锁方案失败");
+        }
     }
 }
 
@@ -267,7 +311,7 @@ function errorMsg(msg) {
     if (typeof msg === "string") msg = [msg];
     messageAction("解锁失败", 4, 1);
     msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
-    messageAction(device.brand + " " + device.product + " " + device.release, 8, 0, 2, 1);
+    messageAction(device.brand + " " + device.product + " " + device.release, 4, 0, 2, 1);
     keycode(26);
     exit();
 }
