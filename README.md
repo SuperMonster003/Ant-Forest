@@ -37,6 +37,7 @@
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk) `(推荐使用)`
 
 >"Auto.js"不适用版本:  
+>> `4.0.1 Alpha` `(UI运行异常)`  
 >> `Pro 7.0.0-7` `(运行后强制退出)`
 
 ******
@@ -75,14 +76,18 @@
 ******
 ### 版本历史
 ******
+# v1.5.10
+###### 2019/04/18
+* `优化` 锁屏布局工具控件信息采集方式  
+
 # v1.5.9
 ###### 2019/04/17
-* `修复` 部分机型shell模拟按键返回137导致按键无效的问题  
+* `修复` shell模拟按键返回代码137导致按键无效的问题  
 * `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483967078)_
 
 # v1.5.8
 ###### 2019/04/17
-* `新增` 锁屏布局截图工具 方便用户发送锁屏布局信息给开发者  
+* `新增` 锁屏布局工具 方便用户发送锁屏布局信息给开发者  
 * `修复` 判断初始准备条件时可能出现无法匹配ViewId的问题 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483958381)_  
 * `优化` 解锁模块稳定性
 

@@ -104,8 +104,8 @@ function unlock(password, max_try_times, pattern_size) {
             kw_lock_pattern_view_miui.exists() && kw_lock_pattern_view_miui ||
             null;
 
-        let kw_password_view_common = id("com.android.systemui:id/passwordEntry");
-        let kw_password_view_miui = id("com.android.keyguard:id/miui_mixed_password_input_field"); // borrowed from e1399579 and modified
+        let kw_password_view_common = idMatches(/.*passwordEntry/);
+        let kw_password_view_miui = idMatches("com.android.keyguard:id/miui_mixed_password_input_field"); // borrowed from e1399579 and modified
         let kw_password_view = null;
         let cond_password_view = () =>
             kw_password_view_common.exists() && kw_password_view_common ||
@@ -268,7 +268,7 @@ function errorMsg(msg) {
     messageAction("解锁失败", 4, 1);
     msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
     messageAction(device.brand + " " + device.product + " " + device.release, 8, 0, 2, 1);
-    shell("input keyevent 26");
+    keycode(26);
     exit();
 }
 
@@ -388,7 +388,8 @@ function keycode(keycode_name) {
     // "KEYCODE_BACK" <=> "4"
     // "KEYCODE_HOME" <=> "3",
     // "KEYCODE_POWER" <=> "26",
-    return ~shell("input keyevent " + keycode_name);
+    shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
+    return true;
 }
 
 // export module //

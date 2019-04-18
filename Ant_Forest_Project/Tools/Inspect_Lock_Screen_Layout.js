@@ -11,12 +11,9 @@ let path_unlock_page = path_base + "Unlock_Page.png";
 let path_unlock_bounds = path_base + "Unlock_Bounds.png";
 let path_device_info = path_base + "Device_Info.txt";
 files.createWithDirs(path_device_info);
-let device_info_file = files.open(path_device_info);
-files.write(path_device_info, device.brand + " " + device.product + " " + device.release);
-device_info_file.close();
-
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
+let info = device.brand + " " + device.product + " " + device.release + "\n\n";
 
 let diag = dialogs.build({
     title: "解锁布局抓取",
@@ -31,30 +28,71 @@ let diag = dialogs.build({
 });
 diag.on("positive", () => {
     threads.start(function () {
-        shell("input keyevent 26");
+        keycode(26);
         waitForAction(() => !device.isScreenOn(), 8000);
+
         sleep(500);
         device.wakeUp();
         waitForAction(() => device.isScreenOn(), 8000);
-        device.keepScreenOn();
         sleep(1000);
+
+        device.keepScreenOn();
+
+        info += captSelectorInfo("Container View");
         captureScreen(path_container_page);
         sleep(500);
+
         dismissLayer();
         sleep(800);
+
+        info += captSelectorInfo("Unlock View");
         app.sendBroadcast("inspect_layout_bounds");
         captureScreen(path_unlock_page);
         device.vibrate(500);
+
+        let device_info_file = files.open(path_device_info);
+        files.write(path_device_info, info);
+        device_info_file.close();
+
         if (!waitForAction(() => isUnlocked(), 25000)) ~alert("等待手动解锁超时") && exit();
         sleep(1000);
         captureScreen(path_unlock_bounds);
+
         device.cancelKeepingAwake();
-        alert("布局抓取完毕\n\n请将\"" + path_base + "\"目录下的文件 (通常为3个png和1个txt文件) 全部发送给开发者\n\n发送之前请仔细检查截图或文本中是否包含隐私信息\n如有请不要提交\n\n返回键可退出布局分析页面");
+        setClip(path_base);
+
+        alert("布局抓取完毕\n\n" +
+            "请将\"" + path_base + "\"目录下的文件 (通常为3个png和1个txt文件) 全部发送给开发者\n\n" +
+            "发送之前请仔细检查截图或文本中是否包含隐私信息\n" +
+            "如有请不要提交或修改后提交\n\n" +
+            "文件路径已复制到剪贴板中\n" +
+            "返回键可退出布局分析页面");
     });
 });
 diag.show();
 
 // tool function(s) //
+
+function captSelectorInfo(title) {
+    let split_line = "-----------------------";
+    let info = "";
+    let addSplitLine = no_cr_flag => info += split_line + (no_cr_flag ? "" : "\n");
+    let addText = (text, no_cr_flag, split_lines_count) => {
+        split_lines_count = split_lines_count || 0;
+        split_lines_count-- > 0 && addSplitLine();
+        info += text + (no_cr_flag ? "" : "\n");
+        split_lines_count-- > 0 && addSplitLine();
+    };
+    let addSelector = (w, content_name) => ~addText(w[content_name]()) && addText("-> " + w.bounds());
+
+    addText("[ " + title + "]", 0, 1);
+
+    ~addText("_text_", 0, 2) && textMatches(/.+/).find().forEach(w => addSelector(w, "text"));
+    ~addText("_desc_", 0, 2) && descMatches(/.+/).find().forEach(w => addSelector(w, "desc"));
+    ~addText("_id_", 0, 2) && idMatches(/.+/).find().forEach(w => addSelector(w, "id"));
+
+    return info;
+}
 
 function dismissLayer() {
     let kw_preview_container_common = id("com.android.systemui:id/preview_container");
@@ -245,5 +283,6 @@ function keycode(keycode_name) {
     // "KEYCODE_BACK" <=> "4"
     // "KEYCODE_HOME" <=> "3",
     // "KEYCODE_POWER" <=> "26",
-    return ~shell("input keyevent " + keycode_name);
+    shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
+    return true;
 }
