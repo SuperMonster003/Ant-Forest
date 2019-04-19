@@ -2,8 +2,8 @@
  * @overview alipay ant forest auto-collect script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 18, 2019
- * @version 1.5.10
+ * @last_modified Apr 19, 2019
+ * @version 1.5.11
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}

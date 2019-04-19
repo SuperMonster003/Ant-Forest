@@ -41,6 +41,53 @@ function unlock(password, max_try_times, pattern_size) {
     while (!device.isScreenOn() && safe_max_wakeup_times--) ~device.wakeUp() && sleep(500);
     if (safe_max_wakeup_times < 0) errorMsg("屏幕亮起失败");
 
+    let kw_lock_pattern_view_common = id("com.android.systemui:id/lockPatternView");
+    let kw_lock_pattern_view_miui = idMatches(/com.android.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
+    let kw_lock_pattern_view = null;
+    let cond_lock_pattern_view = () =>
+        kw_lock_pattern_view_common.exists() && kw_lock_pattern_view_common ||
+        kw_lock_pattern_view_miui.exists() && kw_lock_pattern_view_miui ||
+        null;
+
+    let kw_password_view_common = idMatches(/.*passwordEntry/);
+    let kw_password_view_miui = idMatches("com.android.keyguard:id/miui_mixed_password_input_field"); // borrowed from e1399579 and modified
+    let kw_password_view = null;
+    let cond_password_view = () =>
+        kw_password_view_common.exists() && kw_password_view_common ||
+        kw_password_view_miui.exists() && kw_password_view_miui ||
+        null;
+
+    let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
+    let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
+    let kw_pin_view = null;
+    let cond_pin_view = () =>
+        kw_pin_view_common.exists() && kw_pin_view_common ||
+        kw_pin_view_miui.exists() && kw_pin_view_miui ||
+        null;
+
+    let special_view_bounds = null;
+    let special_views = {
+        "gxzw": [idMatches(/.*[Gg][Xx][Zz][Ww].*/), [0.0875, 0.47, 0.9125, 0.788]],
+        "test": [idMatches(/test_test/), [0, 0, 1, 1]],
+        "test2": [idMatches(/test_test_2/), [0, 0.5, 1, 0.9]],
+    };
+    let cond_special_view = () => {
+        let special_view_keys = Object.keys(special_views);
+        for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
+            let value = special_views[special_view_keys[i]];
+            if (value[0].exists()) return value[1];
+        }
+        return null;
+    };
+
+    let cond_all_unlock_ways = () => {
+        return (kw_lock_pattern_view = cond_lock_pattern_view()) ||
+            (kw_password_view = cond_password_view()) ||
+            (kw_pin_view = cond_pin_view()) ||
+            (special_view_bounds = cond_special_view()) ||
+            null;
+    };
+
     if (isUnlocked()) return true;
 
     if (lock_type === "none") return true;
@@ -85,7 +132,7 @@ function unlock(password, max_try_times, pattern_size) {
 
         while (max_try_times_dismiss_layer--) {
             gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
-            if (waitForAction(() => !kw_preview_container.exists(), 1200)) break;
+            if (waitForAction(() => !kw_preview_container.exists() || cond_all_unlock_ways(), 1200)) break;
             if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
             else gesture_time += 80;
         }
@@ -95,53 +142,6 @@ function unlock(password, max_try_times, pattern_size) {
 
     function advancedUnlock() {
         if (!password) errorMsg("密码为空");
-
-        let kw_lock_pattern_view_common = id("com.android.systemui:id/lockPatternView");
-        let kw_lock_pattern_view_miui = idMatches(/com.android.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
-        let kw_lock_pattern_view = null;
-        let cond_lock_pattern_view = () =>
-            kw_lock_pattern_view_common.exists() && kw_lock_pattern_view_common ||
-            kw_lock_pattern_view_miui.exists() && kw_lock_pattern_view_miui ||
-            null;
-
-        let kw_password_view_common = idMatches(/.*passwordEntry/);
-        let kw_password_view_miui = idMatches("com.android.keyguard:id/miui_mixed_password_input_field"); // borrowed from e1399579 and modified
-        let kw_password_view = null;
-        let cond_password_view = () =>
-            kw_password_view_common.exists() && kw_password_view_common ||
-            kw_password_view_miui.exists() && kw_password_view_miui ||
-            null;
-
-        let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
-        let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
-        let kw_pin_view = null;
-        let cond_pin_view = () =>
-            kw_pin_view_common.exists() && kw_pin_view_common ||
-            kw_pin_view_miui.exists() && kw_pin_view_miui ||
-            null;
-
-        let special_view_bounds = null;
-        let special_views = {
-            "gxzw": [idMatches(/.*[Gg][Xx][Zz][Ww].*/), [0.0875, 0.47, 0.9125, 0.788]],
-            "test": [idMatches(/test_test/), [0, 0, 1, 1]],
-            "test2": [idMatches(/test_test_2/), [0, 0.5, 1, 0.9]],
-        };
-        let cond_special_view = () => {
-            let special_view_keys = Object.keys(special_views);
-            for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
-                let value = special_views[special_view_keys[i]];
-                if (value[0].exists()) return value[1];
-            }
-            return null;
-        };
-
-        let cond_all_unlock_ways = () => {
-            return (kw_lock_pattern_view = cond_lock_pattern_view()) ||
-                (kw_password_view = cond_password_view()) ||
-                (kw_pin_view = cond_pin_view()) ||
-                (special_view_bounds = cond_special_view()) ||
-                null;
-        };
 
         waitForAction(() => cond_all_unlock_ways() || isUnlocked(), 2000);
         if (isUnlocked()) return;

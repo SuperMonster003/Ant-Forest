@@ -37,7 +37,8 @@
 >> [`Pro 7.0.0-5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-5%5D(b281150c).apk)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk) `(推荐使用)`
 
->"Auto.js"不适用版本:  
+>"Auto.js"不适用版本:
+>> `3.1.0 Beta` `(相对路径异常)`  
 >> `4.0.1 Alpha` `(UI运行异常)`  
 >> `Pro 7.0.0-7` `(运行后强制退出)`
 
@@ -77,6 +78,10 @@
 ******
 ### 版本历史
 ******
+# v1.5.11
+###### 2019/04/19
+* `修复` 自动解锁可能出现的异常重复上滑现象 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484503159)_
+
 # v1.5.10
 ###### 2019/04/18
 * `新增` 适配采用"Gxzw"屏下指纹设备的自动解锁方案 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484361198)_  
