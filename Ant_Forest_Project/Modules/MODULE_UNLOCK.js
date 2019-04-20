@@ -154,7 +154,7 @@ function unlock(password, max_try_times, pattern_size) {
         else if (kw_pin_view && kw_pin_view.exists()) unlockPin();
         else handleSpecials();
 
-        device.cancelKeepingAwake();
+        ~device.keepScreenDim() && device.cancelKeepingAwake();
 
         // tool function(s) //
 

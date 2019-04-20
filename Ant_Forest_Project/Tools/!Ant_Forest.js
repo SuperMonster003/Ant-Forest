@@ -1,14 +1,12 @@
 /**
- * @overview alipay ant forest auto-collect script
+ * @overview alipay ant forest energy intelligent collection script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 19, 2019
- * @version 1.5.11
+ * @last_modified Apr 20, 2019
+ * @version 1.5.12
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
- * @borrows {@link https://github.com/hyb1996/Auto.js}
- * @borrows {@link https://github.com/Nick-Hopps/Ant-Forest-autoscript}
  */
 
 auto.waitFor();
@@ -1400,7 +1398,6 @@ function promptConfig() {
 }
 
 // global tool function(s) //
-// MODIFIED to adapt this app //
 
 // modified for this app optimization //
 /**
