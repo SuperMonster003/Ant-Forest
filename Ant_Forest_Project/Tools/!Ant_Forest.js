@@ -30,6 +30,9 @@ let config = {
     ready_to_collect_color: "#1da06d", // color for collect icon with a hand pattern
     rank_list_icons_color_threshold: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
+    lose_focus_monitor_switch: true, // don't try to run away from me unless you turn this switch off
+    lose_focus_monitor_common_time: 120000, // give you 120 sec, and i will pull you back, my sweet energy balls
+    lose_focus_monitor_white_list: [], // i can pretend not to see app packages here, just pretend, you know
 };
 
 Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
@@ -48,6 +51,7 @@ antForest();
 function antForest() {
     init();
     launchThisApp(current_app.intent);
+    loseFocusMonitor();
     checkLanguage();
     checkEnergy();
     showResult();
@@ -201,7 +205,11 @@ function antForest() {
                 function firstTimeRunCondition() {
                     let kw_af_title = idMatches(/.*h5_tv_title/).textMatches(/蚂蚁森林|Ant Forest/);
                     let kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
-                    return kw_af_title.exists() && desc("合种").exists() || kw_login_or_switch.exists();
+                    try {
+                        return kw_af_title.exists() && desc("合种").exists() || kw_login_or_switch.exists();
+                    } catch (e) {
+                        return !~sleep(200);
+                    }
                 }
 
                 function saveState(key, value) {
@@ -357,6 +365,39 @@ function antForest() {
                 if (current_logged_in_user_ident === specific_user.username_ident) return true;
             }
         }
+    }
+
+    function loseFocusMonitor() {
+        if (!config.lose_focus_monitor_switch) return true;
+        let lose_focus_monitor_interval = 300;
+        let lose_focus_monitor_common_time = config.lose_focus_monitor_common_time;
+        let max_try_times_lose_focus = ~~(lose_focus_monitor_common_time / lose_focus_monitor_interval);
+        let max_try_times_lose_focue_backup = max_try_times_lose_focus;
+        let whitelist = config.lose_focus_monitor_white_list;
+        current_app.thread_lose_focus_monitor = threads.start(function () {
+            while (~sleep(300)) {
+                max_try_times_lose_focus = max_try_times_lose_focue_backup;
+                while ((currentPackage() !== current_app.package_name) && max_try_times_lose_focus--) {
+                    current_app.lose_focus_flag = true;
+                    if (~whitelist.indexOf(currentPackage())) max_try_times_lose_focus++; // i dislike whitelist... so do i...
+                    sleep(lose_focus_monitor_interval);
+                }
+                current_app.lose_focus_flag = false;
+                if (max_try_times_lose_focus < 0) {
+                    launchPackage(current_app.package_name);
+                    let max_try_times_pull_back = 5;
+                    while (!waitForAction(() => currentPackage() === current_app.package_name, 3000) && max_try_times_pull_back--) {
+                        launchPackage(current_app.package_name);
+                    }
+                    if (max_try_times_pull_back < 0) {
+                        messageAction("脚本无法继续", 4, 1);
+                        messageAction("自动拉回支付宝失败", 8, 0, 1, 1);
+                    }
+                    messageAction("自动将支付宝拉回前台", 3, 1, 0, "up");
+                    messageAction("已达最大失焦超时: " + (lose_focus_monitor_common_time / 1000) + "秒", 3, 0, 1);
+                }
+            }
+        });
     }
 
     /**
@@ -599,6 +640,7 @@ function antForest() {
                 let screenAreaSamples = getScreenSamples() || [];
 
                 screenAreaSamples.forEach(w => {
+                    waitForAction(() => !!w.parent(), 3000); // just in case
                     let state_ident_node = w.parent().child(w.parent().childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
@@ -986,7 +1028,6 @@ function antForest() {
                             return idMatches(/.*J_rank_list_self/).findOnce().bounds().bottom;
                         } catch (e) {
                             // nothing to do here
-                            messageAction("R-list self bounds bottom failed once", 3); ////TEST////
                         }
                     }
                     return new Date().getTime() * Math.random();
@@ -1103,6 +1144,8 @@ function antForest() {
     }
 
     function showResult() {
+        current_app.thread_lose_focus_monitor.interrupt(); // need to monitor no longer
+
         let init = current_app.total_energy_init,
             own = current_app.total_energy_collect_own || 0,
             friends = (getCurrentEnergyAmount() - init - own) || 0;
@@ -1561,6 +1604,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
     return !(msg_level in {3: 1, 4: 1});
 }
 
+// modified for this app optimization //
 /**
  * wait some period of time for "f" being FALSE
  * @param {number|object|object[]|function|function[]} f - if "f" then waiting
@@ -1579,6 +1623,7 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
  * @returns {boolean} - if timed out
  */
 function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toast, if_needs_arrow, special_bad_situation) {
+    while (current_app.lose_focus_flag) sleep(200); // dangerous? umm... do not worry
     timeout_or_with_interval = timeout_or_with_interval || [10000, 300];
     if (typeof timeout_or_with_interval === "number") timeout_or_with_interval = [timeout_or_with_interval, 300];
     let timeout = timeout_or_with_interval[0],
@@ -1853,7 +1898,7 @@ function tryRequestScreenCapture() {
 function getVerName(package_name) {
     let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
     for (let i in pkgs) {
-        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName
+        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName;
     }
 }
 
