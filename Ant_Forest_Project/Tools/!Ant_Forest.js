@@ -655,7 +655,7 @@ function antForest() {
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
                         // keep on even if "help_switch" is false
-                        // sometimes there will be collectible balls in forest after click orange "help collect" icon
+                        // sometimes there may be collectible balls in forest after clicking orange "help collect" icon
                         let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
                         if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
@@ -1940,10 +1940,41 @@ function saveCurrentScreenCapture(key_name) {
 }
 
 function keycode(keycode_name) {
-    // "KEYCODE_BACK" <=> "4"
-    // "KEYCODE_HOME" <=> "3",
-    // "KEYCODE_POWER" <=> "26",
-    return shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
+    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+    switch (keycode_name.toString()) {
+        case "KEYCODE_HOME":
+        case "3":
+        case "home":
+            return ~home();
+        case "KEYCODE_BACK":
+        case "4":
+        case "back":
+            return ~back();
+        case "KEYCODE_APP_SWITCH":
+        case "187":
+        case "recents":
+        case "recent":
+        case "recent_apps":
+            return ~recents();
+        case "powerDialog":
+        case "power_dialog":
+        case "powerMenu":
+        case "power_menu":
+            return ~powerDialog();
+        case "notifications":
+        case "notification":
+            return ~notifications();
+        case "quickSettings":
+        case "quickSetting":
+        case "quick_settings":
+        case "quick_setting":
+            return ~quickSettings();
+        case "splitScreen":
+        case "split_screen":
+            return splitScreen();
+        default:
+            return keyEvent(keycode_name);
+    }
 }
 
 function runJsFile(js_path, autojs_pkg_name) {

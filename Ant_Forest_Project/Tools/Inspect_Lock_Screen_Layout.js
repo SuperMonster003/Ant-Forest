@@ -280,9 +280,39 @@ function showSplitLine(extra_str) {
 }
 
 function keycode(keycode_name) {
-    // "KEYCODE_BACK" <=> "4"
-    // "KEYCODE_HOME" <=> "3",
-    // "KEYCODE_POWER" <=> "26",
-    shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
-    return true;
+    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+    switch (keycode_name.toString()) {
+        case "KEYCODE_HOME":
+        case "3":
+        case "home":
+            return ~home();
+        case "KEYCODE_BACK":
+        case "4":
+        case "back":
+            return ~back();
+        case "KEYCODE_APP_SWITCH":
+        case "187":
+        case "recents":
+        case "recent":
+        case "recent_apps":
+            return ~recents();
+        case "powerDialog":
+        case "power_dialog":
+        case "powerMenu":
+        case "power_menu":
+            return ~powerDialog();
+        case "notifications":
+        case "notification":
+            return ~notifications();
+        case "quickSettings":
+        case "quickSetting":
+        case "quick_settings":
+        case "quick_setting":
+            return ~quickSettings();
+        case "splitScreen":
+        case "split_screen":
+            return splitScreen();
+        default:
+            return keyEvent(keycode_name);
+    }
 }

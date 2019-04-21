@@ -147,14 +147,14 @@ function unlock(password, max_try_times, pattern_size) {
         if (isUnlocked()) return;
         if (!cond_all_unlock_ways()) errorMsg("无法确定解锁方式");
 
-        device.keepScreenOn();
+        device.keepScreenOn(300000); // 5 min at most
 
         if (kw_lock_pattern_view && kw_lock_pattern_view.exists()) unlockPattern();
         else if (kw_password_view && kw_password_view.exists()) unlockPassword();
         else if (kw_pin_view && kw_pin_view.exists()) unlockPin();
         else handleSpecials();
 
-        ~device.keepScreenDim() && device.cancelKeepingAwake();
+        device.cancelKeepingAwake();
 
         // tool function(s) //
 
@@ -429,11 +429,41 @@ function showSplitLine(extra_str) {
 }
 
 function keycode(keycode_name) {
-    // "KEYCODE_BACK" <=> "4"
-    // "KEYCODE_HOME" <=> "3",
-    // "KEYCODE_POWER" <=> "26",
-    shell("input keyevent " + keycode_name).code && KeyCode(keycode_name);
-    return true;
+    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+    switch (keycode_name.toString()) {
+        case "KEYCODE_HOME":
+        case "3":
+        case "home":
+            return ~home();
+        case "KEYCODE_BACK":
+        case "4":
+        case "back":
+            return ~back();
+        case "KEYCODE_APP_SWITCH":
+        case "187":
+        case "recents":
+        case "recent":
+        case "recent_apps":
+            return ~recents();
+        case "powerDialog":
+        case "power_dialog":
+        case "powerMenu":
+        case "power_menu":
+            return ~powerDialog();
+        case "notifications":
+        case "notification":
+            return ~notifications();
+        case "quickSettings":
+        case "quickSetting":
+        case "quick_settings":
+        case "quick_setting":
+            return ~quickSettings();
+        case "splitScreen":
+        case "split_screen":
+            return splitScreen();
+        default:
+            return keyEvent(keycode_name);
+    }
 }
 
 // export module //
