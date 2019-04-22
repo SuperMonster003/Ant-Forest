@@ -792,7 +792,7 @@ function Layout(title, params) {
 
 function deepCloneObject(obj) {
     let classOfObj = Object.prototype.toString.call(obj).slice(8, -1);
-    if (classOfObj === "Null" || classOfObj !== "Object") return obj;
+    if (classOfObj === "Null" || classOfObj !== "Object" && classOfObj !== "Array") return obj;
     let new_obj = classOfObj === "Array" ? [] : {};
     for (let i in obj) {
         if (obj.hasOwnProperty(i)) {
