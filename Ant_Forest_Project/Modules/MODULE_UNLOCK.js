@@ -12,8 +12,7 @@ let WIDTH = device.width,
     decrypt = new PWMAP().pwmapDecrypt,
     is_screen_on = device.isScreenOn(),
     keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE),
-    isUnlocked = () => !keyguard_manager.isKeyguardLocked(),
-    lock_type = getLockType();
+    isUnlocked = () => !keyguard_manager.isKeyguardLocked();
 
 let storage_unlock_config = storage_unlock.get("config", {});
 let password = decrypt(storage_unlock_config.unlock_code) || "",
@@ -29,17 +28,22 @@ function Unlock() {
 
 // tool function(s) //
 
-function getLockType() {
-    let adv = keyguard_manager.isKeyguardSecure();
-    if (adv) return "advanced"; // pattern, code, PIN and so forth
-    return !is_screen_on && isUnlocked() ? "none" : "swipe";
-}
-
 function unlock(password, max_try_times, pattern_size) {
 
     let safe_max_wakeup_times = 60; // 30 sec
     while (!device.isScreenOn() && safe_max_wakeup_times--) ~device.wakeUp() && sleep(500);
     if (safe_max_wakeup_times < 0) errorMsg("屏幕亮起失败");
+
+    let kw_preview_container_common = id("com.android.systemui:id/preview_container");
+    let kw_preview_container_miui = idMatches(/com.android.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_miui10 = idMatches(/com.android.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
+    let kw_preview_container = null;
+    let cond_preview_container = () => {
+        return kw_preview_container = kw_preview_container_common.exists() && kw_preview_container_common ||
+            kw_preview_container_miui.exists() && kw_preview_container_miui ||
+            kw_preview_container_miui10.exists() && kw_preview_container_miui10 ||
+            null;
+    };
 
     let kw_lock_pattern_view_common = id("com.android.systemui:id/lockPatternView");
     let kw_lock_pattern_view_miui = idMatches(/com.android.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
@@ -68,8 +72,8 @@ function unlock(password, max_try_times, pattern_size) {
     let special_view_bounds = null;
     let special_views = {
         "gxzw": [idMatches(/.*[Gg][Xx][Zz][Ww].*/), [0.0875, 0.47, 0.9125, 0.788]],
-        "test": [idMatches(/test_test/), [0, 0, 1, 1]],
-        "test2": [idMatches(/test_test_2/), [0, 0.5, 1, 0.9]],
+        // "test": [idMatches(/test_test/), [0, 0, 1, 1]],
+        // "test2": [idMatches(/test_test_2/), [0, 0.5, 1, 0.9]],
     };
     let cond_special_view = () => {
         let special_view_keys = Object.keys(special_views);
@@ -88,31 +92,17 @@ function unlock(password, max_try_times, pattern_size) {
             null;
     };
 
-    if (isUnlocked()) return true;
-
-    if (lock_type === "none") return true;
-
-    dismissLayer();
-
-    if (lock_type === "swipe") return true;
-
-    advancedUnlock();
+    let max_try_times_unlock_check = 3;
+    while (max_try_times_unlock_check--) {
+        if (!waitForAction(() => isUnlocked() || cond_preview_container() || cond_all_unlock_ways(), 3000)) errorMsg("无法判断当前解锁条件");
+        if (isUnlocked()) return true;
+        if (cond_all_unlock_ways()) advancedUnlock();
+        if (cond_preview_container()) dismissLayer();
+    }
 
     // tool function(s) //
 
     function dismissLayer() {
-        let kw_preview_container_common = id("com.android.systemui:id/preview_container");
-        let kw_preview_container_miui = idMatches(/com.android.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
-        let kw_preview_container_miui10 = idMatches(/com.android.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
-        let kw_preview_container = null;
-        let cond_preview_container = () =>
-            kw_preview_container_common.exists() && kw_preview_container_common ||
-            kw_preview_container_miui.exists() && kw_preview_container_miui ||
-            kw_preview_container_miui10.exists() && kw_preview_container_miui10 ||
-            null;
-
-        if (waitForAction(() => kw_preview_container = cond_preview_container(), 500)) sleep(500);
-        else return;
 
         let half_width = ~~(WIDTH / 2),
             height_a = ~~(HEIGHT * 0.95),
@@ -132,20 +122,17 @@ function unlock(password, max_try_times, pattern_size) {
 
         while (max_try_times_dismiss_layer--) {
             gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
-            if (waitForAction(() => !kw_preview_container.exists() || cond_all_unlock_ways(), 1200)) break;
+            if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
+            if (cond_all_unlock_ways()) break;
             if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
             else gesture_time += 80;
         }
-        if (max_try_times_dismiss_layer < 0) messageAction("消除解锁页面提示层失败", 8, 1, 0, 1);
+        if (max_try_times_dismiss_layer < 0) errorMsg("消除解锁页面提示层失败");
         storage_unlock.put("dismiss_layer_gesture_time", gesture_time);
     }
 
     function advancedUnlock() {
         if (!password) errorMsg("密码为空");
-
-        waitForAction(() => cond_all_unlock_ways() || isUnlocked(), 2000);
-        if (isUnlocked()) return;
-        if (!cond_all_unlock_ways()) errorMsg("无法确定解锁方式");
 
         device.keepScreenOn(300000); // 5 min at most
 
