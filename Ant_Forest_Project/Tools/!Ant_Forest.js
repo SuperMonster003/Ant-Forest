@@ -2,8 +2,8 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 20, 2019
- * @version 1.5.12
+ * @last_modified Apr 22, 2019
+ * @version 1.5.14
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -405,7 +405,10 @@ function antForest() {
      */
     function checkLanguage() {
         let kw_h5_title = id("com.alipay.mobile.nebula:id/h5_tv_title");
-        waitForAction(kw_h5_title, 5000); // just in case
+        if (!waitForAction(kw_h5_title, 10000)) {
+            messageAction("语言检测已跳过", 3);
+            return messageAction("语言控件信息查找超时", 3, 0, 1, 1);
+        }
         if (kw_h5_title.findOnce().text().match(/蚂蚁森林/)) return true;
         changeLangToChs();
         launchThisApp(current_app.intent, "no_msg");
@@ -1460,8 +1463,9 @@ function launchThisApp(intent, no_msg_flag) {
         if (max_launch_times < 0) messageAction("打开" + current_app.quote_name + "失败", 8, 1, 0, 1);
         current_app.first_time_run = 0;
         if (current_app.firstTimeRunConditionFun === null || current_app.firstTimeRunConditionFun === undefined) break;
-        let max_wait_times = 20,
-            max_click_reload_times = 80;
+        let max_wait_times = 8;
+        let max_wait_times_backup = max_wait_times;
+        let max_click_reload_times = 80;
         while (!waitForAction(current_app.firstTimeRunConditionFun, 3000) && max_wait_times-- && max_click_reload_times) {
             if (desc("重新加载").exists()) {
                 try {
@@ -1469,9 +1473,10 @@ function launchThisApp(intent, no_msg_flag) {
                 } catch (e) {
                     // nothing to do here
                 }
-                max_wait_times = 20;
+                max_wait_times = max_wait_times_backup;
                 max_click_reload_times--;
             }
+            if ((max_wait_times_backup - max_wait_times + 1) % 2 && currentPackage() !== current_app.package_name) app.startActivity(intent);
         }
         if (max_launch_times >= 0 && max_click_reload_times > 0) break;
         killCurrentApp();
