@@ -18,11 +18,11 @@ let info = device.brand + " " + device.product + " " + device.release + "\n\n";
 let diag = dialogs.build({
     title: "解锁布局抓取",
     content: "请按照以下步骤抓取解锁布局\n\n" +
-        "1. 屏幕自动关闭后自动亮起\n" +
-        "2. 自动滑动屏幕进入图案解锁页面\n" +
-        "注: 若自动滑动失败请手动滑动\n" +
-        "3. 等待手机震动后再手动解锁\n" +
-        "4. 出现布局后按提示操作",
+        "1. 屏幕 [自动关闭] 后 [自动亮起]\n" +
+        "2. [自动滑动屏幕] 进入图案解锁页面\n" +
+        "注: 若手机 [震动两下] 或 [自动滑动失败] 请 [手动滑动]\n" +
+        "3. 等待手机 [长震] 后再 [手动解锁]\n" +
+        "4. 出现布局后 [按提示操作]",
     positive: "开始",
     negative: "放弃",
 });
@@ -61,12 +61,19 @@ diag.on("positive", () => {
         device.cancelKeepingAwake();
         setClip(path_base);
 
-        alert("布局抓取完毕\n\n" +
-            "请将\"" + path_base + "\"目录下的文件 (通常为3个png和1个txt文件) 全部发送给开发者\n\n" +
-            "发送之前请仔细检查截图或文本中是否包含隐私信息\n" +
-            "如有请不要提交或修改后提交\n\n" +
-            "文件路径已复制到剪贴板中\n" +
-            "返回键可退出布局分析页面");
+        let diag_ok = dialogs.build({
+            title: "布局抓取完毕",
+            content: "请将\"" + path_base + "\"目录下的文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n" +
+                "发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n" +
+                "如有请 [不要提交] 或 [修改后提交]\n\n" +
+                "文件路径已复制到剪贴板中\n" +
+                "[返回键] 可退出布局分析页面",
+            positive: "好的",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag_ok.on("positive", () => diag_ok.dismiss());
+        diag_ok.show();
     });
 });
 diag.show();
@@ -96,16 +103,24 @@ function captSelectorInfo(title) {
 
 function dismissLayer() {
     let kw_preview_container_common = id("com.android.systemui:id/preview_container");
-    let kw_preview_container_miui = idMatches(/com.android.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
-    let kw_preview_container_miui10 = idMatches(/com.android.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_miui = idMatches(/com\.android\.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_miui10 = idMatches(/com\.android\.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_emui = idMatches(/com\.android\.systemui:id\/.*(keyguard|lock)_indication.*/);
     let kw_preview_container = null;
-    let cond_preview_container = () =>
-        kw_preview_container_common.exists() && kw_preview_container_common ||
-        kw_preview_container_miui.exists() && kw_preview_container_miui ||
-        kw_preview_container_miui10.exists() && kw_preview_container_miui10 ||
-        null;
+    let cond_preview_container = () => {
+        return kw_preview_container = kw_preview_container_common.exists() && kw_preview_container_common ||
+            kw_preview_container_miui.exists() && kw_preview_container_miui ||
+            kw_preview_container_miui10.exists() && kw_preview_container_miui10 ||
+            kw_preview_container_emui.exists() && kw_preview_container_emui ||
+            null;
+    };
 
-    if (waitForAction(() => kw_preview_container = cond_preview_container(), 500)) sleep(500);
+    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 1500)) {
+        device.vibrate(200);
+        sleep(500);
+        device.vibrate(200);
+        return;
+    }
 
     let half_width = ~~(WIDTH / 2),
         height_a = ~~(HEIGHT * 0.95),
@@ -171,11 +186,15 @@ function tryRequestScreenCapture() {
 
 function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
     if (if_needs_toast) toast(msg);
-    if (typeof if_needs_split_line === "string" && if_needs_split_line.match(/^both(_n)?$|up/)) {
-        showSplitLine();
-        if (if_needs_split_line === "both") if_needs_split_line = 1;
-        else if (if_needs_split_line === "both_n") if_needs_split_line = "\n";
-        else if (if_needs_split_line === "up") if_needs_split_line = 0;
+    let split_line_style = "";
+    if (typeof if_needs_split_line === "string") {
+        if (if_needs_split_line.match(/dash/)) split_line_style = "dash";
+        if (if_needs_split_line.match(/^both(_n)?|up/)) {
+            showSplitLine("", split_line_style);
+            if (if_needs_split_line.match(/both_n/)) if_needs_split_line = "\n";
+            else if (if_needs_split_line.match(/both/)) if_needs_split_line = 1;
+            else if (if_needs_split_line.match(/up/)) if_needs_split_line = 0;
+        }
     }
     if (if_needs_arrow) {
         if (if_needs_arrow > 10) messageAction("\"if_needs_arrow\"参数不可大于10", 8, 1, 0, 1);
@@ -233,8 +252,9 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
             console.log("[ " + msg + " ]");
             break;
     }
-    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? if_needs_split_line : "");
+    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? (if_needs_split_line === "dash" ? "" : if_needs_split_line) : "", split_line_style);
     exit_flag && exit();
+    if (typeof current_app !== "undefined") current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
     return !(msg_level in {3: 1, 4: 1});
 }
 
@@ -271,10 +291,20 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
     }
 }
 
-function showSplitLine(extra_str) {
+/**
+ * @param {string} [extra_str=""] string you wanna append after the split line
+ * @param {string} [style] "dash" for a dash line
+ * console.log({a 32-bit hyphen split line});
+ **/
+function showSplitLine(extra_str, style) {
     extra_str = extra_str || "";
     let split_line = "";
-    for (let i = 0; i < 32; i += 1) split_line += "-";
+    if (style === "dash") {
+        for (let i = 0; i < 16; i += 1) split_line += "- ";
+        split_line += "-";
+    } else {
+        for (let i = 0; i < 32; i += 1) split_line += "-";
+    }
     log(split_line + extra_str);
     return true;
 }

@@ -174,8 +174,7 @@ module.exports = function(__runtime__, scope){
             }else if(itemsSelectMode == 'multi'){
                 builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex == undefined ? null : properties.itemsSelectedIndex, 
                     function(dialog, view, indices, texts){
-                        builder.emit("multi_choice", toJsArray(indices, (l, i)=> parseInt(l.get(i)),
-                            toJsArray(texts, (l, i)=> l.get(i).toString())), builder.dialog);
+                        builder.emit("multi_choice", indices, texts, builder.dialog);
                             return true;                        
                     });
             }else{

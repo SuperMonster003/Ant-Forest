@@ -14,6 +14,24 @@ auto.waitFor();
 engines.myEngine().setTag("exclusive_task", "af");
 while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) sleep(500);
 
+let WIDTH = device.width,
+    HEIGHT = device.height,
+    cX = num => Math.floor(num * WIDTH / 720),
+    cY = num => Math.floor(num * HEIGHT / 1280),
+    unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
+    current_app = {};
+let PWMAP = require("../Modules/MODULE_PWMAP.js"),
+    encrypt = new PWMAP().pwmapEncrypt;
+
+let special_exec_command = engines.myEngine().execArgv.special_exec_command;
+let special_exec_list = ["collect_friends_list"];
+if (special_exec_command && !~special_exec_list.indexOf(special_exec_command)) {
+    toast("未知的执行命令参数:\n" + special_exec_command);
+    messageAction("脚本无法继续", 4, 0, 0, "up");
+    messageAction("未知的执行命令参数", 4, 0, 1);
+    messageAction(special_exec_command, 8, 0, 2, 1);
+}
+
 let current_autojs_package = context.packageName;
 let current_autojs_version = getVerName(current_autojs_package);
 checkBugVersions();
@@ -30,19 +48,9 @@ let config = {
     ready_to_collect_color: "#1da06d", // color for collect icon with a hand pattern
     rank_list_icons_color_threshold: 10, // 0 <= x <= 66 is recommended; the smaller, the stricter; max limit tested on Sony G8441
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
-    lose_focus_monitor_switch: true, // don't try to run away from me unless you turn this switch off
-    lose_focus_monitor_common_time: 120000, // give you 120 sec, and i will pull you back, my sweet energy balls
-    lose_focus_monitor_white_list: [], // i can pretend not to see app packages here, just pretend, you know
 };
 
 Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
-
-let WIDTH = device.width,
-    HEIGHT = device.height,
-    cX = num => Math.floor(num * WIDTH / 720),
-    cY = num => Math.floor(num * HEIGHT / 1280),
-    unlock_module = new (require("../Modules/MODULE_UNLOCK.js")),
-    current_app = {};
 
 antForest();
 
@@ -51,7 +59,6 @@ antForest();
 function antForest() {
     init();
     launchThisApp(current_app.intent);
-    loseFocusMonitor();
     checkLanguage();
     checkEnergy();
     showResult();
@@ -367,39 +374,6 @@ function antForest() {
         }
     }
 
-    function loseFocusMonitor() {
-        if (!config.lose_focus_monitor_switch) return true;
-        let lose_focus_monitor_interval = 300;
-        let lose_focus_monitor_common_time = config.lose_focus_monitor_common_time;
-        let max_try_times_lose_focus = ~~(lose_focus_monitor_common_time / lose_focus_monitor_interval);
-        let max_try_times_lose_focue_backup = max_try_times_lose_focus;
-        let whitelist = config.lose_focus_monitor_white_list;
-        current_app.thread_lose_focus_monitor = threads.start(function () {
-            while (~sleep(300)) {
-                max_try_times_lose_focus = max_try_times_lose_focue_backup;
-                while ((currentPackage() !== current_app.package_name) && max_try_times_lose_focus--) {
-                    current_app.lose_focus_flag = true;
-                    if (~whitelist.indexOf(currentPackage())) max_try_times_lose_focus++; // i dislike whitelist... so do i...
-                    sleep(lose_focus_monitor_interval);
-                }
-                current_app.lose_focus_flag = false;
-                if (max_try_times_lose_focus < 0) {
-                    launchPackage(current_app.package_name);
-                    let max_try_times_pull_back = 5;
-                    while (!waitForAction(() => currentPackage() === current_app.package_name, 3000) && max_try_times_pull_back--) {
-                        launchPackage(current_app.package_name);
-                    }
-                    if (max_try_times_pull_back < 0) {
-                        messageAction("脚本无法继续", 4, 1);
-                        messageAction("自动拉回支付宝失败", 8, 0, 1, 1);
-                    }
-                    messageAction("自动将支付宝拉回前台", 3, 1, 0, "up");
-                    messageAction("已达最大失焦超时: " + (lose_focus_monitor_common_time / 1000) + "秒", 3, 0, 1);
-                }
-            }
-        });
-    }
-
     /**
      * will be set to configured language or Chinese by default
      */
@@ -483,8 +457,6 @@ function antForest() {
     }
 
     function checkEnergy() {
-
-        tryRequestScreenCapture();
 
         let kw_more_friends = desc("查看更多好友"),
             kw_cooperation_btn = desc("合种");
@@ -617,8 +589,11 @@ function antForest() {
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
 
-                threads.start(expandHeroListThread);
-                return ~sleep(500); // a small interval for page ready
+                let thread_expand_hero_list = threads.start(expandHeroListThread);
+
+                if (special_exec_command !== "collect_friends_list") return ~sleep(500); // a small interval for page ready
+
+                return collectFriendsListData();
 
                 // tool function(s) //
 
@@ -629,9 +604,62 @@ function antForest() {
                         sleep(200);
                     }
                 }
+
+                function collectFriendsListData() {
+
+                    let start_timestamp = new Date().getTime();
+                    let first_time_collect_flag = true;
+                    let thread_keep_toast = threads.start(function () {
+                        while (1) {
+                            messageAction("正在采集好友列表数据", first_time_collect_flag ? 1 : 0, 1);
+                            sleep(first_time_collect_flag ? 4000: 6000);
+                            first_time_collect_flag = false;
+                        }
+                    });
+                    thread_expand_hero_list.join("");
+                    let friend_list_data = getFriendsListData();
+                    storage_af.put("friends_list_data", friend_list_data);
+                    thread_keep_toast.interrupt();
+                    messageAction("采集完毕", 1, 1);
+                    messageAction("用时 " + (new Date().getTime() - start_timestamp) + " 毫秒", 1, 0, 1);
+                    messageAction("总计 " + friend_list_data.list_length + " 项", 1, 0, 1);
+                    current_app.floaty_msg_signal = 0;
+                    return endProcess();
+
+                    // tool function (s) //
+
+                    function getFriendsListData() {
+                        let kw_rank_list = idMatches(/.*J_rank_list/);
+                        let rank_list = [];
+                        kw_rank_list.findOnce().children().forEach((child, idx) => {
+
+                            let rank_num = idx < 3 ? idx + 1 : child.child(0) && child.child(0).desc() || child.child(1) && child.child(1).desc();
+                            let nickname = child.child(1) && child.child(1).desc() || child.child(2) && child.child(2).desc();
+                            if (+rank_num) {
+                                rank_list.push({
+                                    rank_num: +rank_num,
+                                    nickname: nickname,
+                                });
+                            }
+                        });
+                        let max_rank_num_length = rank_list[rank_list.length - 1].rank_num.toString().length;
+                        let fill_zeros = new Array(max_rank_num_length).join("0");
+                        rank_list.map(o => {
+                            o.rank_num = (fill_zeros + o.rank_num).slice(-max_rank_num_length);
+                        });
+
+                        return {
+                            timestamp: new Date().getTime(),
+                            list_data: rank_list,
+                            list_length: rank_list.length,
+                        };
+                    }
+                }
             }
 
             function getCurrentScreenTargets() {
+
+                tryRequestScreenCapture();
 
                 waitForAction(kw_rank_list_self, 8000); // make page ready
 
@@ -654,11 +682,13 @@ function antForest() {
                     let name = w.parent().child(1).desc() || w.parent().child(2).desc();
 
                     try {
+                        if (!checkRegion(find_color_options.region)) return;
+
                         let pt_green = images.findColor(capt_img, config.ready_to_collect_color, find_color_options);
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
-                        // keep on even if "help_switch" is false
-                        // sometimes there may be collectible balls in forest after clicking orange "help collect" icon
+                        if (!help_switch) return;
+
                         let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
                         if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
@@ -681,7 +711,7 @@ function antForest() {
                             }).find();
                         if (samples.size()) return samples;
                     }
-                    return messageAction("刷新样本区域失败", 3, 0, 0, "both"); ////TEST////
+                    return messageAction("刷新样本区域失败", 3, 0, 0, "both_dash"); ////TEST////
                 }
 
                 function captCurrentScreen() {
@@ -702,6 +732,13 @@ function antForest() {
                         region: [region_ref.l, region_ref.t, WIDTH - region_ref.l, parent_node.bounds().centerY() - region_ref.t],
                         threshold: config.rank_list_icons_color_threshold,
                     };
+                }
+
+                function checkRegion(arr) {
+                    for (let i = 0, len = arr.length; i < len; i += 1) {
+                        if (arr[i] < 0) return false;
+                    }
+                    return true;
                 }
             }
 
@@ -1147,8 +1184,6 @@ function antForest() {
     }
 
     function showResult() {
-        current_app.thread_lose_focus_monitor.interrupt(); // need to monitor no longer
-
         let init = current_app.total_energy_init,
             own = current_app.total_energy_collect_own || 0,
             friends = (getCurrentEnergyAmount() - init - own) || 0;
@@ -1447,7 +1482,7 @@ function promptConfig() {
 
 // modified for this app optimization //
 /**
- * Launch app, and wait for condition(s) ready for at most 5 times
+ * Launch app, and wait for conditions ready if specified
  */
 function launchThisApp(intent, no_msg_flag) {
     intent = intent || null;
@@ -1541,11 +1576,15 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFu
  **/
 function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
     if (if_needs_toast) toast(msg);
-    if (typeof if_needs_split_line === "string" && if_needs_split_line.match(/^both(_n)?$|up/)) {
-        showSplitLine();
-        if (if_needs_split_line === "both") if_needs_split_line = 1;
-        else if (if_needs_split_line === "both_n") if_needs_split_line = "\n";
-        else if (if_needs_split_line === "up") if_needs_split_line = 0;
+    let split_line_style = "";
+    if (typeof if_needs_split_line === "string") {
+        if (if_needs_split_line.match(/dash/)) split_line_style = "dash";
+        if (if_needs_split_line.match(/^both(_n)?|up/)) {
+            showSplitLine("", split_line_style);
+            if (if_needs_split_line.match(/both_n/)) if_needs_split_line = "\n";
+            else if (if_needs_split_line.match(/both/)) if_needs_split_line = 1;
+            else if (if_needs_split_line.match(/up/)) if_needs_split_line = 0;
+        }
     }
     if (if_needs_arrow) {
         if (if_needs_arrow > 10) messageAction("\"if_needs_arrow\"参数不可大于10", 8, 1, 0, 1);
@@ -1603,9 +1642,9 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
             console.log("[ " + msg + " ]");
             break;
     }
-    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? if_needs_split_line : "");
+    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? (if_needs_split_line === "dash" ? "" : if_needs_split_line) : "", split_line_style);
     exit_flag && exit();
-    current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
+    if (typeof current_app !== "undefined") current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
     return !(msg_level in {3: 1, 4: 1});
 }
 
@@ -1628,7 +1667,6 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
  * @returns {boolean} - if timed out
  */
 function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toast, if_needs_arrow, special_bad_situation) {
-    while (current_app.lose_focus_flag) sleep(200); // dangerous? umm... do not worry
     timeout_or_with_interval = timeout_or_with_interval || [10000, 300];
     if (typeof timeout_or_with_interval === "number") timeout_or_with_interval = [timeout_or_with_interval, 300];
     let timeout = timeout_or_with_interval[0],
@@ -1826,12 +1864,18 @@ function waitForActionAndClickBounds(f_or_with_click_interval, timeout_or_with_i
 
 /**
  * @param {string} [extra_str=""] string you wanna append after the split line
+ * @param {string} [style] "dash" for a dash line
  * console.log({a 32-bit hyphen split line});
  **/
-function showSplitLine(extra_str) {
+function showSplitLine(extra_str, style) {
     extra_str = extra_str || "";
     let split_line = "";
-    for (let i = 0; i < 32; i += 1) split_line += "-";
+    if (style === "dash") {
+        for (let i = 0; i < 16; i += 1) split_line += "- ";
+        split_line += "-";
+    } else {
+        for (let i = 0; i < 32; i += 1) split_line += "-";
+    }
     log(split_line + extra_str);
     return true;
 }

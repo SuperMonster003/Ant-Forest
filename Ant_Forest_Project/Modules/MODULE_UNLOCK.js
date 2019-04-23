@@ -35,18 +35,20 @@ function unlock(password, max_try_times, pattern_size) {
     if (safe_max_wakeup_times < 0) errorMsg("屏幕亮起失败");
 
     let kw_preview_container_common = id("com.android.systemui:id/preview_container");
-    let kw_preview_container_miui = idMatches(/com.android.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
-    let kw_preview_container_miui10 = idMatches(/com.android.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_miui = idMatches(/com\.android\.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_miui10 = idMatches(/com\.android\.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/); // borrowed from e1399579 and modified
+    let kw_preview_container_emui = idMatches(/com\.android\.systemui:id\/.*(keyguard|lock)_indication.*/);
     let kw_preview_container = null;
     let cond_preview_container = () => {
         return kw_preview_container = kw_preview_container_common.exists() && kw_preview_container_common ||
             kw_preview_container_miui.exists() && kw_preview_container_miui ||
             kw_preview_container_miui10.exists() && kw_preview_container_miui10 ||
+            kw_preview_container_emui.exists() && kw_preview_container_emui ||
             null;
     };
 
     let kw_lock_pattern_view_common = id("com.android.systemui:id/lockPatternView");
-    let kw_lock_pattern_view_miui = idMatches(/com.android.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
+    let kw_lock_pattern_view_miui = idMatches(/com\.android\.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
     let kw_lock_pattern_view = null;
     let cond_lock_pattern_view = () =>
         kw_lock_pattern_view_common.exists() && kw_lock_pattern_view_common ||
@@ -54,7 +56,7 @@ function unlock(password, max_try_times, pattern_size) {
         null;
 
     let kw_password_view_common = idMatches(/.*passwordEntry/);
-    let kw_password_view_miui = idMatches("com.android.keyguard:id/miui_mixed_password_input_field"); // borrowed from e1399579 and modified
+    let kw_password_view_miui = idMatches(/com\.android\.keyguard:id\/miui_mixed_password_input_field/); // borrowed from e1399579 and modified
     let kw_password_view = null;
     let cond_password_view = () =>
         kw_password_view_common.exists() && kw_password_view_common ||
@@ -63,10 +65,12 @@ function unlock(password, max_try_times, pattern_size) {
 
     let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
     let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
+    let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?码区域/);
     let kw_pin_view = null;
     let cond_pin_view = () =>
         kw_pin_view_common.exists() && kw_pin_view_common ||
         kw_pin_view_miui.exists() && kw_pin_view_miui ||
+        kw_pin_view_emui.exists() && kw_pin_view_emui ||
         null;
 
     let special_view_bounds = null;
@@ -201,11 +205,13 @@ function unlock(password, max_try_times, pattern_size) {
             let getNumericKeypad = num => id("com.android.systemui:id/key" + num);
             let kw_nums_container = id("com.android.systemui:id/container");
             let getNumericInputView = num => id("com.android.keyguard:id/numeric_inputview").text(num + ""); // miui; borrowed from e1399579 and modified
+            let getNumsBySingleDesc = num => desc(num);
 
             while (max_try_times--) {
                 if (getNumericKeypad(9).exists()) clickNumsByKeypad();
                 else if (kw_nums_container.exists()) clickNumsByContainer();
                 else if (getNumericInputView(9).exists()) clickNumsByInputView();
+                else if (getNumsBySingleDesc(9).exists()) clickNumsBySingleDesc();
                 else errorMsg("无可用的PIN解锁参考控件");
 
                 let kw_enter_key = id("com.android.systemui:id/key_enter");
@@ -222,6 +228,7 @@ function unlock(password, max_try_times, pattern_size) {
             }
 
             function clickNumsByKeypad() {
+                testNumSelectors(getNumericKeypad);
                 pw.forEach(num => getNumericKeypad(num).click());
             }
 
@@ -247,6 +254,19 @@ function unlock(password, max_try_times, pattern_size) {
 
                 let click_keypad = num => click(keypads[num || 11].x, keypads[num || 11].y);
                 pw.forEach(num => click_keypad(+num));
+            }
+
+            function clickNumsBySingleDesc() {
+                testNumSelectors(getNumsBySingleDesc);
+                pw.forEach(num => getNumsBySingleDesc(num).click());
+            }
+
+            function testNumSelectors(func) {
+                let test_nums = "1234567890";
+                let test_result = true;
+                test_nums.split("").forEach(num => test_result = test_result && func(num).exists());
+                if (!test_result) errorMsg(["PIN解锁方案失败", "未能通过全部控件检测"]);
+                return true;
             }
         }
 
@@ -307,11 +327,15 @@ function errorMsg(msg) {
 
 function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
     if (if_needs_toast) toast(msg);
-    if (typeof if_needs_split_line === "string" && if_needs_split_line.match(/^both(_n)?$|up/)) {
-        showSplitLine();
-        if (if_needs_split_line === "both") if_needs_split_line = 1;
-        else if (if_needs_split_line === "both_n") if_needs_split_line = "\n";
-        else if (if_needs_split_line === "up") if_needs_split_line = 0;
+    let split_line_style = "";
+    if (typeof if_needs_split_line === "string") {
+        if (if_needs_split_line.match(/dash/)) split_line_style = "dash";
+        if (if_needs_split_line.match(/^both(_n)?|up/)) {
+            showSplitLine("", split_line_style);
+            if (if_needs_split_line.match(/both_n/)) if_needs_split_line = "\n";
+            else if (if_needs_split_line.match(/both/)) if_needs_split_line = 1;
+            else if (if_needs_split_line.match(/up/)) if_needs_split_line = 0;
+        }
     }
     if (if_needs_arrow) {
         if (if_needs_arrow > 10) messageAction("\"if_needs_arrow\"参数不可大于10", 8, 1, 0, 1);
@@ -369,8 +393,9 @@ function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_
             console.log("[ " + msg + " ]");
             break;
     }
-    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? if_needs_split_line : "");
+    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? (if_needs_split_line === "dash" ? "" : if_needs_split_line) : "", split_line_style);
     exit_flag && exit();
+    if (typeof current_app !== "undefined") current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
     return !(msg_level in {3: 1, 4: 1});
 }
 
@@ -407,10 +432,20 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
     }
 }
 
-function showSplitLine(extra_str) {
+/**
+ * @param {string} [extra_str=""] string you wanna append after the split line
+ * @param {string} [style] "dash" for a dash line
+ * console.log({a 32-bit hyphen split line});
+ **/
+function showSplitLine(extra_str, style) {
     extra_str = extra_str || "";
     let split_line = "";
-    for (let i = 0; i < 32; i += 1) split_line += "-";
+    if (style === "dash") {
+        for (let i = 0; i < 16; i += 1) split_line += "- ";
+        split_line += "-";
+    } else {
+        for (let i = 0; i < 32; i += 1) split_line += "-";
+    }
     log(split_line + extra_str);
     return true;
 }

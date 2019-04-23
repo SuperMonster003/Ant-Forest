@@ -35,7 +35,7 @@
 >> [`Pro 7.0.0-3`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-3%5D(b3f9d279).apk)  
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk)  
 >> [`Pro 7.0.0-5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-5%5D(b281150c).apk)  
->> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk) `(推荐使用)`
+>> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk)
 
 >"Auto.js"不适用版本:
 >> `3.1.0 Beta` `(相对路径异常)`  
@@ -78,6 +78,16 @@
 ******
 ### 版本历史
 ******
+# v1.5.15
+###### 2019/04/23
+* `新增` 适配部分EMUI机型的自动解锁方案 _[issue #8](https://github.com/SuperMonster003/Ant_Forest/issues/8#issuecomment-485403816)_  
+* `修复` 帮收功能关闭后依然进入可帮收好友森林的问题
+* `修复` 锁屏布局工具滑动失败导致脚本异常退出的问题
+* `修复` 引入的dialogs模块中多选对话框功能异常 (临时解决方案)
+* `优化` 增加截图区域检测 防止OpenCV组件异常
+* `优化` messageAction工具实用性 (增加dash显示方式)
+* `优化` 去除容易导致死循环的失焦拉回功能 `添加于 v1.5.12`
+
 # v1.5.14
 ###### 2019/04/22
 * `修复` 首次运行可能导致支付宝拉起失败且脚本长时间无响应的问题
@@ -91,7 +101,7 @@
 
 # v1.5.12
 ###### 2019/04/20
-* `新增` 支付宝失焦后在指定时间内自动拉回功能 (可设置开关及白名单)
+* `新增` ~~支付宝失焦后在指定时间内自动拉回功能 (可设置开关及白名单)~~ `去除于 v1.5.15`
 * `修复` 解锁模块可能导致屏幕无法超时自动关闭的问题  
 
 # v1.5.11
