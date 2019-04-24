@@ -132,7 +132,8 @@ function unlock(password, max_try_times, pattern_size) {
             else gesture_time += 80;
         }
         if (max_try_times_dismiss_layer < 0) errorMsg("消除解锁页面提示层失败");
-        storage_unlock.put("dismiss_layer_gesture_time", gesture_time);
+        storage_unlock_config.dismiss_layer_gesture_time = gesture_time;
+        storage_unlock.put("config", storage_unlock_config);
     }
 
     function advancedUnlock() {
@@ -173,16 +174,16 @@ function unlock(password, max_try_times, pattern_size) {
             let chances_for_storage_data = 3;
 
             if (gesture_unlock_swipe_time) data_from_storage_flag = true;
-            else gesture_unlock_swipe_time = gesture_pts_params.length * 80;
+            else gesture_unlock_swipe_time = DEFAULT_UNLOCK.gesture_unlock_swipe_time;
 
-            while (gesture_unlock_swipe_time <= 8000 && max_try_times-- > 0) {
+            while (gesture_unlock_swipe_time <= 5000 && max_try_times-- > 0) {
                 gesture(gesture_unlock_swipe_time, gesture_pts_params);
                 if (checkUnlockResult()) break;
                 if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) gesture_unlock_swipe_time += 80;
             }
-            if (gesture_unlock_swipe_time > 8000) errorMsg("图案解锁方案失败");
-
-            storage_unlock.put("gesture_unlock_swipe_time", gesture_unlock_swipe_time);
+            if (gesture_unlock_swipe_time > 5000) errorMsg("图案解锁方案失败");
+            storage_unlock_config.gesture_unlock_swipe_time = gesture_unlock_swipe_time;
+            storage_unlock.put("config", storage_unlock_config);
         }
 
         function unlockPassword() {
