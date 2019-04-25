@@ -119,7 +119,7 @@ function unlock(password, max_try_times, pattern_size) {
         let max_try_times_dismiss_layer = 20;
         let data_from_storage_flag = false;
         let chances_for_storage_data = 3;
-        let gesture_time = storage_unlock.get("dismiss_layer_gesture_time");
+        let gesture_time = storage_unlock_config.dismiss_layer_gesture_time;
 
         if (gesture_time) data_from_storage_flag = true;
         else gesture_time = DEFAULT_UNLOCK.dismiss_layer_gesture_time;
@@ -169,7 +169,7 @@ function unlock(password, max_try_times, pattern_size) {
             if (typeof password === "string") gesture_pts_params = password.match(/\D+/) ? password.split(/\D+/) : password.split("");
             gesture_pts_params = gesture_pts_params.map(value => [points[value].x, points[value].y]);
 
-            let gesture_unlock_swipe_time = storage_unlock.get("gesture_unlock_swipe_time");
+            let gesture_unlock_swipe_time = storage_unlock_config.gesture_unlock_swipe_time;
             let data_from_storage_flag = false;
             let chances_for_storage_data = 3;
 

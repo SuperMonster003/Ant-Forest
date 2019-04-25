@@ -893,15 +893,18 @@ message_showing_page
         new_window: function () {
             let diag = dialogs.build({
                 title: "关于消息提示配置",
-                content: "请先自行随意把玩\n4月25日晚补充完整",
-                // inputHint: "{x|120<=x<=1600,x∈N*}",
-                // neutral: "使用默认值",
-                // negative: "返回",
-                // positive: "确认",
-                positive: "加油",
-                // autoDismiss: false,
-                // canceledOnTouchOutside: false,
+                content: "控制台消息\n\n" +
+                    "简略: 只显示最终收取能量总计数据\n" +
+                    "详细: 显示每个好友收取/帮收数据\n" +
+                    "开发者测试模式: 详细显示操作信息\n\n" +
+                    "运行结果展示\n\n" +
+                    "Floaty: 彩色悬浮窗方式\n" +
+                    "Toast: 消息浮动框方式",
+                positive: "关闭",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
             });
+            diag.on("positive", () => diag.dismiss());
             diag.show();
         },
     }))
@@ -1167,7 +1170,7 @@ function setPage(title, title_bg_color, additions) {
             let sw_view;
             if (type === "switch") sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
             if (type === "checkbox_switch") sw_view = ui.inflate(<vertical padding="8 0 0 0">
-                <checkbox id="_checkbox_switch" checked="true"/>
+                <checkbox id="_checkbox_switch" checked="false"/>
             </vertical>);
             new_view._item_area.addView(sw_view);
             item_params.view = new_view;
