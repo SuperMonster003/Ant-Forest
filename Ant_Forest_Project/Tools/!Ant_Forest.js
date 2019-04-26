@@ -12,6 +12,7 @@
 try {
     auto.waitFor();
 } catch (e) {
+    debugInfo("auto.waitFor()不可用");
     auto();
 }
 
@@ -31,10 +32,23 @@ debugInfo("整合代码配置与本地配置");
 
 debugConfigInfo();
 
-engines.myEngine().setTag("exclusive_task", "af");
 let queue_flag = false;
 let queue_start_timestamp = new Date().getTime();
-while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) (queue_flag = true) && sleep(500);
+let engines_support_flag = true;
+try {
+    engines.myEngine().setTag("exclusive_task", "af");
+    if (typeof engines.myEngine().execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
+    while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) {
+        queue_flag = true;
+        sleep(500);
+    }
+} catch (e) {
+    let error_msg = "此版本Engines模块功能异常";
+    messageAction(error_msg, 3);
+    debugInfo(e);
+    engines_support_flag = false;
+    debugInfo("Engines支持性标记: false")
+}
 queue_flag && debugInfo("任务排队用时: " + (new Date().getTime() - queue_start_timestamp) / 1000 + "秒", 0, 0, 0, "up");
 
 let WIDTH = device.width,
@@ -46,18 +60,24 @@ let WIDTH = device.width,
 let unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
 debugInfo("成功导入解锁模块");
 
-let special_exec_command = engines.myEngine().execArgv.special_exec_command;
-let special_exec_list = ["collect_friends_list"];
-if (special_exec_command && ~debugInfo("执行特殊指令: " + special_exec_command) && !~special_exec_list.indexOf(special_exec_command)) {
-    messageAction("未知的执行命令参数:\n" + special_exec_command, null, 1);
-    messageAction("脚本无法继续", 4, 0, 0, "up");
-    messageAction("未知的执行命令参数", 4, 0, 1);
-    messageAction(special_exec_command, 8, 0, 2, 1);
+let special_exec_command = "";
+if (!engines_support_flag) {
+    messageAction("跳过\"执行特殊指令\"检查", 3);
+    messageAction("Engines模块功能异常", 3, 0, 1);
+} else {
+    special_exec_command = engines.myEngine().execArgv.special_exec_command;
+    let special_exec_list = ["collect_friends_list"];
+    if (special_exec_command && ~debugInfo("执行特殊指令: " + special_exec_command) && !~special_exec_list.indexOf(special_exec_command)) {
+        messageAction("未知的执行命令参数:\n" + special_exec_command, null, 1);
+        messageAction("脚本无法继续", 4, 0, 0, "up");
+        messageAction("未知的执行命令参数", 4, 0, 1);
+        messageAction(special_exec_command, 8, 0, 2, 1);
+    }
 }
 
 let current_autojs_package = context.packageName;
-let current_autojs_version = getVerName(current_autojs_package);
-debugInfo("当前Auto.js版本: " + current_autojs_version);
+let current_autojs_version = getVerName(current_autojs_package) || 0;
+debugInfo("当前Auto.js版本: " + (current_autojs_version || "未知版本"));
 checkBugVersions();
 
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
@@ -118,7 +138,7 @@ function antForest() {
         }
 
         function setAutoJsLogPath() {
-
+            // need more actions here
             let log_path = config.auto_js_log_record_path;
 
             if (!log_path) return debugInfo("日志存储功能关闭");
@@ -1585,18 +1605,22 @@ function antForest() {
 
 function checkBugVersions() {
     let thread_bug_dialogs = threads.start(function () {
-        let bug_map = {
+        let bug_code_map = {
             "failed": "版本信息获取失败\n不建议使用此版本运行项目",
             "ab_cwd": "cwd()方法功能异常",
+            "ab_relative_path": "相对路径功能异常",
             "ab_find_forEach": "UiSelector.find().forEach()方法功能异常",
             "ab_floaty": "Floaty模块异常",
-            "ab_gesture": "gesture()方法功能异常",
+            "ab_SimpActAuto": "SimpleActionAutomator模块异常",
             "ab_inflate": "ui.inflate()方法功能异常",
             "ab_uiSelector": "UiSelector模块功能异常",
             "ab_ui_layout": "图形配置页面布局异常",
             "crash_autojs": "脚本运行后导致Auto.js崩溃",
+            "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
             "crash_ui_settings": "图形配置页面崩溃",
             "dislocation_floaty": "Floaty模块绘制存在错位现象",
+            "forcibly_update": "强制更新",
+            "na_login": "无法登陆Auto.js账户",
             "un_cwd": "不支持cwd()方法及相对路径",
             "un_engines": "不支持Engines模块",
             "un_execArgv": "不支持Engines模块的execArgv对象",
@@ -1605,43 +1629,164 @@ function checkBugVersions() {
             "un_runtime": "不支持runtime参数",
             "un_view_bind": "不支持view对象绑定自定义方法",
         };
-        let bug_versions = {
-            // "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常", // solved since v1.5.2
-            // "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常", solved since v1.5.2
-            "Pro 7.0.0-7": "脚本运行后可能导致Auto.js崩溃",
-        };
-        if (!(current_autojs_version in bug_versions)) return debugInfo("当前版本非BUG版本");
-        let diag_bug = dialogs.build({
-            title: "Auto.js版本异常提示",
-            content: "脚本可能无法正常运行\n建议更换Auto.js版本\n\nAuto.js版本:\n-> " + current_autojs_version +
-                "\n\n异常详情:\n-> " + bug_versions[current_autojs_version],
-            neutral: "为何出现此提示",
-            neutralColor: "#03a6ef",
-            negative: "退出",
-            negativeColor: "#33bb33",
-            positive: "尝试继续",
-            positiveColor: "#ee3300",
-            autoDismiss: false,
-            canceledOnTouchOutside: false,
-        });
-        diag_bug.on("neutral", () => {
-            let diag_bug_reason = dialogs.build({
-                title: "什么是版本异常",
-                content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
-                    "您看到的异常提示源于开发者提供的测试结果",
-                positive: "我知道了",
+
+        let bugs_check_result = checkBugs(current_autojs_version);
+        if (bugs_check_result === 0) return debugInfo("Bug版本检查: 正常");
+        if (bugs_check_result === "") return debugInfo("Bug版本检查: 未知");
+        bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
+        debugInfo("Bug版本检查: 确诊");
+        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + current_autojs_version +
+            "\n\n异常详情:" + bugs_check_result.join("");
+
+        try {
+            let diag_bug = dialogs.build({
+                title: "Auto.js版本异常提示",
+                content: bug_content,
+                neutral: "为何出现此提示",
+                neutralColor: "#03a6ef",
+                negative: "退出",
+                negativeColor: "#33bb33",
+                positive: "尝试继续",
+                positiveColor: "#ee3300",
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
-            diag_bug_reason.show();
-        });
-        diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
-        diag_bug.on("positive", () => {
-            debugInfo("用户选择了尝试运行BUG版本");
-            diag_bug.dismiss();
-        });
-        diag_bug.show();
+            diag_bug.on("neutral", () => {
+                let diag_bug_reason = dialogs.build({
+                    title: "什么是版本异常",
+                    content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
+                        "您看到的异常提示源于开发者提供的测试结果",
+                    positive: "我知道了",
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                });
+                diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
+                diag_bug_reason.show();
+            });
+            diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
+            diag_bug.on("positive", () => {
+                debugInfo("用户选择了尝试运行Bug版本");
+                diag_bug.dismiss();
+            });
+            diag_bug.show();
+        } catch (e) {
+            threads.start(function () {
+                events.observeKey();
+                events.onKeyDown("volume_up", function (event) {
+                    debugInfo("用户按下音量加键");
+                    let kw_ok_btn = textMatches(/OK|确定/);
+                    if (kw_ok_btn.exists()) {
+                        let posb = kw_ok_btn.findOnce().bounds();
+                        debugInfo("尝试点击确定按钮");
+                        click(posb.centerX(), posb.centerY());
+                    }
+                    messageAction("脚本已停止", 4, 1);
+                    messageAction("用户终止运行", 4, 0, 1);
+                    exit();
+                });
+            });
+            debugInfo("此版本Dialogs模块功能异常");
+            debugInfo("使用Alert()方法替代");
+            alert(bug_content + "\n\n" +
+                "按'确定/OK'键尝试继续执行\n" +
+                "按'音量加/VOL+'键停止执行");
+        }
+
+        // tool function(s) //
+
+        /**
+         * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
+         */
+        function checkBugs(ver_name) {
+            ver_name = ver_name || 0;
+
+            // version <= 3.0.0 Alpha20
+            if (ver_name.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings"];
+            }
+
+            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
+            if (ver_name.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines"];
+            }
+
+            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
+            if (ver_name.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines"];
+            }
+
+            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
+            if (ver_name.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+                return ["un_inflate", "un_runtime", "un_engines"];
+            }
+
+            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
+            if (ver_name.match(/^((3\.1\.0 Alpha[6-9])|(3\.1\.1 Alpha[1-2]?))$/)) {
+                return ["un_inflate", "un_engines"];
+            }
+
+            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
+            if (ver_name.match(/^3\.1\.1 Alpha[34]$/)) {
+                return ["ab_inflate", "un_engines"];
+            }
+
+            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
+            if (ver_name.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+                return ["un_execArgv", "ab_inflate"];
+            }
+
+            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
+            if (ver_name.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+                return ["dislocation_floaty", "ab_inflate"];
+            }
+
+            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
+            if (ver_name.match(/^4\.1\.0 Alpha[34]$/)) {
+                return ["ab_SimpActAuto"];
+            }
+
+            // version === Pro 7.0.0-(1|2)
+            if (ver_name.match(/^Pro 7\.0\.0-[12]$/)) {
+                return ["ab_relative_path"];
+            }
+
+            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
+            if (ver_name.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
+                return ["crash_autojs"];
+            }
+
+            // version >= 4.0.4 Alpha5 || version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
+            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
+            if (ver_name.match(/^(4\.0\.4 Alpha([5-9]|1[01])|(4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
+                ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/)) {
+                return 0; // known normal
+            }
+
+            switch (ver_name) {
+                case 0:
+                    return ["failed"];
+                case "4.0.3 Alpha6":
+                    return ["ab_floaty", "ab_inflate"];
+                case "4.0.4 Alpha":
+                    return ["dislocation_floaty", "un_view_bind"];
+                case "4.0.4 Alpha3":
+                    return ["dislocation_floaty", "ab_ui_layout"];
+                case "4.0.4 Alpha4":
+                    return ["ab_find_forEach"];
+                case "4.0.4 Alpha12":
+                    return ["un_execArgv"];
+                case "4.0.5 Alpha":
+                    return ["ab_uiSelector"];
+                case "Pro 7.0.0-0":
+                    return ["na_login"];
+                case "Pro 7.0.0-3":
+                    return ["crash_ui_call_ui"];
+                case "Pro 7.0.0-5":
+                    return ["forcibly_update"];
+                default:
+                    return ""; // unrecorded version
+            }
+        }
     });
     thread_bug_dialogs.join("");
 }
@@ -2176,22 +2321,25 @@ function tryRequestScreenCapture() {
     });
 
     let thread_req;
-    let max_try_times = 6;
+    let max_try_times = 3;
     let max_try_times_backup = max_try_times;
-    while (max_try_times--) {
+    let try_count = 0;
+    while (++try_count && max_try_times--) {
         let req_result = false;
         thread_req = threads.start(function () {
+            let count = try_count;
             try {
                 req_result = requestScreenCapture();
-                debugInfo("截图权限申请结果: " + req_result + " (" + (max_try_times_backup - max_try_times) + "\/" + max_try_times_backup + ")");
+
+                debugInfo("截图权限申请结果: " + req_result + " (" + count + "\/" + max_try_times_backup + ")");
                 if (req_result) thread_req.interrupt();
             } catch (e) {
-                debugInfo("截图权限申请结果: 单次异常" + " (" + (max_try_times_backup - max_try_times) + "\/" + max_try_times_backup + ")");
+                debugInfo("截图权限申请结果: 单次异常" + " (" + count + "\/" + max_try_times_backup + ")");
                 if (max_try_times) debugInfo(e);
                 else throw Error(e);
             }
         });
-        thread_req.join(1500);
+        thread_req.join(1000);
         if (!thread_req.isAlive() && req_result) {
             thread_prompt.interrupt();
             break;
@@ -2223,14 +2371,11 @@ function saveCurrentScreenCapture(key_name, no_msg_flag) {
         path = path_prefix + file_name;
 
     files.createWithDirs(path_prefix);
-    let capt = captureScreen(path);
-    debugInfo("生成屏幕截图: " + images.getName(capt));
+    captureScreen(path);
     if (!no_msg_flag) {
         messageAction("已存储屏幕截图文件: ", 0);
         messageAction(file_name, 0);
     }
-    debugInfo("已回收屏幕截图: " + images.getName(capt));
-    capt.recycle();
 
     // tool function(s) //
 
@@ -2294,7 +2439,7 @@ function keycode(keycode_name) {
 }
 
 function runJsFile(js_path, autojs_pkg_name) {
-    autojs_pkg_name = autojs_pkg_name || "org.autojs.autojs";
+    autojs_pkg_name = autojs_pkg_name || context.packageName;
     if (autojs_pkg_name === "pro") autojs_pkg_name = "org.autojs.autojspro";
     js_path = "\/" + js_path.replace(/^\//, "").replace(/\.js$/, "") + ".js";
     app.startActivity({
@@ -2318,7 +2463,7 @@ function debugInfo() {
 }
 
 function debugConfigInfo() {
+    ////SUSPENDED////
     let cfg = config || {};
     if (!cfg.message_showing_switch || !cfg.debug_info_switch) return true;
-
 }

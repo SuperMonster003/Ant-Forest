@@ -8,12 +8,14 @@
 ### 小私房话
 ******
 :smile:  
-开发者测试模式上线  
-默认关闭 可在图形配置页面开启  
-开启后控制台可以显示详细的操作信息  
-可以帮助用户了解运行过程  
+新增了Bug提示功能  
+尽情感受Bug版本的贴心提示吧  
+开发者测试模式更加完善  
+控制台可以显示非常详细的操作信息      
+可在图形配置页面开启/关闭  
+不仅可以帮助用户了解运行过程  
 有助于脚本报错时自行排错  
-还可以帮助开发者快速定位出错原因  
+还可以帮助开发者快速定位出错原因    
 :smirk:  
 图形配置界面目前功能有限  
 黑名单配置暂不可用 (5月前上线)  
@@ -34,17 +36,25 @@
 > Root: `可能需要Root` `(未Root设备未做运行测试)`
   
 > "Auto.js"已测试版本:   
->> [`4.1.0 alpha 5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk)  
->> [`4.1.1 alpha 2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk)  
->> [`Pro 7.0.0-3`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-3%5D(b3f9d279).apk)  
->> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk)  
->> [`Pro 7.0.0-5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-5%5D(b281150c).apk)  
->> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk)
+>> [`4.0.4 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha5%5D(2caea4b4).apk?raw=true)  
+>> [`4.0.4 Alpha6`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha6%5D(3bd7f41f).apk?raw=true)  
+>> [`4.0.4 Alpha7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha7%5D(9ca9e0fd).apk?raw=true)  
+>> [`4.0.4 Alpha8`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha8%5D(bc2d6359).apk?raw=true)  
+>> [`4.0.4 Alpha9`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha9%5D(1aef8167).apk?raw=true)  
+>> [`4.0.4 Alpha10`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha10%5D(805e19a6).apk?raw=true)  
+>> [`4.0.4 Alpha11`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha11%5D(d3adc9b3).apk?raw=true)  
+>> [`4.1.0 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha%5D(7312bb3f).apk?raw=true)  
+>> [`4.1.0 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha2%5D(3a990e03).apk?raw=true)  
+>> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true) `(推荐)`  
+>> [`4.1.1 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.1_alpha%5D(accea680).apk?raw=true)  
+>> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true) `(推荐)`  
+>> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
+>> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
+>> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true) `(推荐)`  
+
 
 >"Auto.js"不适用版本:
->> `3.1.0 Beta` `(相对路径异常)`  
->> `4.0.1 Alpha` `(UI运行异常)`  
->> `Pro 7.0.0-7` `(运行后强制退出)`
+>> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
 ******
 ### 功能简介
@@ -84,6 +94,7 @@
 ******
 # v1.5.18
 ###### 2019/04/26
+* `新增` Bug版本检测提示 (当前所有版本)  
 * `优化` 完善开发者测试模式  
 * `优化` 及时回收新生成的images对象  
 * `优化` 用press()方法模拟点击  
