@@ -2,14 +2,18 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 25, 2019
- * @version 1.5.17
+ * @last_modified Apr 26, 2019
+ * @version 1.5.18
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
  */
 
-auto.waitFor();
+try {
+    auto.waitFor();
+} catch (e) {
+    auto();
+}
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
@@ -79,7 +83,6 @@ function antForest() {
         let init_operation_logged = null;
 
         showAppTitle();
-        setScreenMetrics(WIDTH, HEIGHT);
         checkSdk();
         unlock();
         setAutoJsLogPath();
@@ -140,6 +143,7 @@ function antForest() {
 
         function setParams() {
 
+            images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
             current_app = Object.assign(current_app, new App("蚂蚁森林"));
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
@@ -401,12 +405,8 @@ function antForest() {
                 let kw_close_btn = desc("Close");
                 let max_try_times_close_btn = 10;
                 while (max_try_times_close_btn--) {
-                    try {
-                        clickBounds([kw_close_btn, "try"]);
-                        break;
-                    } catch (e) {
-                        sleep(500);
-                    }
+                    if (clickBounds([kw_close_btn, "try"])) break;
+                    sleep(500);
                 }
                 let kw_homepage = className("android.widget.TextView").idContains("tab_description");
                 if (waitForAction(kw_homepage, 2000)) return true;
@@ -558,6 +558,28 @@ function antForest() {
                 thread_energy_balls_monitor = undefined,
                 list_end_signal = 0;
 
+            blacklist_ident_capts.__proto__.add = function (capture, max_length) {
+                max_length = max_length || 3;
+                if (this.length >= max_length) {
+                    debugInfo("黑名单采集样本已达阈值: " + max_length);
+                    let last_capt = this.pop();
+                    debugInfo(">移除并回收最旧样本: " + images.getName(last_capt));
+                    last_capt.recycle();
+                }
+                let new_capt = images.clip(capture, cX(298), cY(218), cX(120), cY(22));
+                blacklist_ident_capts.unshift(new_capt);
+                debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
+            };
+            blacklist_ident_capts.__proto__.clear = function () {
+                debugInfo("回收全部黑名单采集样本");
+                this.forEach(capt => {
+                    capt.recycle();
+                    debugInfo(">已回收: " + images.getName(capt));
+                });
+                this.splice(0, this.length);
+                debugInfo("黑名单采集样本已清空");
+            };
+
             debugInfo("已开启排行榜底部监测线程");
             let thread_list_end = threads.start(endOfListThread);
 
@@ -576,7 +598,8 @@ function antForest() {
                     let message_switch_on = config.console_log_details || config.debug_info_switch;
                     if (message_switch_on) messageAction(current_app.current_friend.name, "title"); // name title
                     if (inBlackList()) continue;
-                    click(WIDTH * 0.5, pop_item.y + cY(60));
+                    // click(WIDTH * 0.5, pop_item.y + cY(60));
+                    press(WIDTH * 0.5, pop_item.y + cY(60), 1);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                     forestPageGetReady() && collectBalls();
                     backToHeroList();
@@ -690,14 +713,14 @@ function antForest() {
 
             function getCurrentScreenTargets() {
 
-                tryRequestScreenCapture();
+                current_app.request_screen_capture_flag || tryRequestScreenCapture();
 
                 waitForAction(kw_rank_list_self, 8000); // make page ready
 
                 let targets_green = [],
                     targets_orange = [];
 
-                let capt_img;
+                let rank_list_capt_img;
                 let regexp_energy_amount = new RegExp("\\d\+\(\\\.\\d\+\)\?\(k\?g|t\)");
                 let screenAreaSamples = getScreenSamples() || [];
 
@@ -706,7 +729,7 @@ function antForest() {
                     let state_ident_node = w.parent().child(w.parent().childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
-                    capt_img = capt_img || captCurrentScreen();
+                    rank_list_capt_img = rank_list_capt_img || getRankListScreenCapture();
                     let find_color_options = getFindColorOptions(w);
 
                     // special treatment for first 3 ones
@@ -715,17 +738,22 @@ function antForest() {
                     try {
                         if (!checkRegion(find_color_options.region)) return;
 
-                        let pt_green = images.findColor(capt_img, config.ready_to_collect_color, find_color_options);
+                        let pt_green = images.findColor(rank_list_capt_img, config.ready_to_collect_color, find_color_options);
                         if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
 
                         if (!help_switch) return;
 
-                        let pt_orange = images.findColor(capt_img, config.help_collect_color, find_color_options);
+                        let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_color, find_color_options);
                         if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
                     } catch (e) {
                         throw Error(e);
                     }
                 });
+
+                if (rank_list_capt_img) {
+                    rank_list_capt_img.recycle();
+                    debugInfo("已回收排行榜屏幕截图: " + images.getName(rank_list_capt_img));
+                }
 
                 return [targets_green, targets_orange];
 
@@ -741,15 +769,19 @@ function antForest() {
                             }).find();
                         if (samples.size()) return samples;
                     }
-                    return debugInfo("刷新样本区域失败");
+                    return !~debugInfo("刷新样本区域失败");
                 }
 
-                function captCurrentScreen() {
-                    let capt_img = captureScreen();
+                /**
+                 * to make sure the capture source is from the rank list
+                 */
+                function getRankListScreenCapture() {
+                    let rank_list_screen_capt = images.copy(captureScreen());
+                    debugInfo("生成排行榜截图: " + images.getName(rank_list_screen_capt));
                     let max_try_times_wait_for_capt = 25;
                     while (!textMatches(/.+排行榜/).exists() && max_try_times_wait_for_capt--) sleep(80); // wait for capturing finished
                     if (max_try_times_wait_for_capt < 0) messageAction("截图辅助定位控件可能已失效", 3);
-                    return capt_img;
+                    return rank_list_screen_capt;
                 }
 
                 function getFindColorOptions(w) {
@@ -795,7 +827,7 @@ function antForest() {
                     return false;
                 }
 
-                let blacklist_ident_capt_flag = true;
+                current_app.blacklist_need_capture_flag = true;
                 debugInfo("已开启能量球监测线程");
                 thread_energy_balls_monitor = threads.start(energyBallsMonitorThread);
 
@@ -821,17 +853,18 @@ function antForest() {
 
                     while (new Date().getTime() - now < intensity_time) {
 
-                        let capt = captureScreen();
-                        blacklist_ident_capt_flag && blacklist_ident_capts.unshift(images.toBase64(images.clip(capt, cX(298), cY(218), cX(120), cY(22)))); // blacklist identify area
+                        let screen_capture = images.copy(captureScreen());
+                        debugInfo("存储屏幕截图: " + images.getName(screen_capture));
+                        if (current_app.blacklist_need_capture_flag) blacklist_ident_capts.add(screen_capture);
 
                         if (!waitForAction(kw_energy_balls_normal, intensity_time)) return debugInfo("指定时间内未发现能量球");
 
                         let all_normal_balls = kw_energy_balls_normal.find(),
                             norm_balls_size = all_normal_balls.size(),
-                            help_balls_size = Object.keys(help_balls_coords).length;
+                            help_balls_size = () => Object.keys(help_balls_coords).length;
 
                         if (!norm_balls_size) return debugInfo("没有需要采集状态的能量球");
-                        if (norm_balls_size === help_balls_size) return debugInfo("橙色球状态全部采集完毕");
+                        if (norm_balls_size === help_balls_size()) return debugInfo("橙色球状态全部采集完毕");
 
                         all_normal_balls.forEach(w => {
                             let b = w.bounds(),
@@ -842,13 +875,16 @@ function antForest() {
                                 region: [b.left, top, b.width(), b.height()],
                                 threshold: orange_threshold,
                             };
-                            if (!images.findColor(capt, orange, options)) return;
+                            if (!images.findColor(screen_capture, orange, options)) return;
 
                             let cx = b.centerX();
                             let cy = b.centerY();
                             help_balls_coords[top] = {x: cx, y: cy};
                             debugInfo("记录橙色球坐标: (" + cx + ", " + cy + ")");
                         });
+                        if (!help_balls_size()) debugInfo("未采集到橙色球: " + images.getName(screen_capture));
+                        screen_capture.recycle();
+                        debugInfo("已回收屏幕截图: " + images.getName(screen_capture));
                     }
                 }
             }
@@ -884,38 +920,31 @@ function antForest() {
 
                     let max_wait_times = 10;
                     while (!blacklist_ident_capts.length && max_wait_times--) {
-                        if (thread_energy_balls_monitor.isAlive()) sleep(100);
-                        else {
-                            max_wait_times = -1;
-                            break;
-                        }
+                        if (!thread_energy_balls_monitor.isAlive()) break;
+                        sleep(100);
                     }
+                    let blacklist_ident_capts_len = blacklist_ident_capts.length;
 
-                    let capt;
-
-                    if (max_wait_times >= 0) {
-                        debugInfo("使用能量球监测线程截图数据");
-                        let max_try_times = 5;
-                        while (max_try_times--) {
-                            try {
-                                debugInfo("能量球监测样本截图采集数量: " + blacklist_ident_capts.length);
-                                capt = images.fromBase64(blacklist_ident_capts[0]);
-                                break;
-                            } catch (e) {
-                                debugInfo("截图base64数据解析错误");
-                                debugInfo(e);
-                                sleep(100);
-                            }
-                        }
+                    if (blacklist_ident_capts_len) {
+                        debugInfo("使用能量球监测线程采集数据");
+                        debugInfo("黑名单采集样本数量: " + blacklist_ident_capts_len);
                     } else {
-                        debugInfo("未使用能量球监测线程截图数据");
-                        capt = images.clip(captureScreen(), cX(298), cY(218), cX(120), cY(22));
+                        debugInfo("能量球监测线程未能采集数据");
+                        let screen_capture_new = images.copy(captureScreen());
+                        debugInfo("生成屏幕截图: " + images.getName(screen_capture_new));
+                        blacklist_ident_capts.add(screen_capture_new);
+                        debugInfo("已回收屏幕截图: " + images.getName(screen_capture_new));
+                        screen_capture_new.recycle();
                     }
 
-                    let protect_color_match = images.findColor(capt, -4262312, {
+                    let protect_color_match = images.findColor(blacklist_ident_capts[0], -4262312, {
                         threshold: 4,
                     });
-                    blacklist_ident_capts = [];
+
+                    current_app.blacklist_need_capture_flag = false;
+                    debugInfo("发送黑名单停止采集信号");
+                    blacklist_ident_capts.clear();
+
                     if (protect_color_match) blacklist_passed_flag = false;
                     else return debugInfo("颜色识别无保护罩");
 
@@ -1074,7 +1103,8 @@ function antForest() {
                     } else debugInfo("收取线程信号返回正常");
                     coords_arr.forEach(coords => {
                         let pt = help_balls_coords[coords];
-                        click(pt.x, pt.y);
+                        // click(pt.x, pt.y);
+                        press(pt.x, pt.y, 1);
                     });
                     debugInfo("点击帮收能量球: " + coords_arr.length + "个");
 
@@ -1132,8 +1162,21 @@ function antForest() {
                 let half_width = ~~(WIDTH * 0.5);
                 let bottom_height = HEIGHT * 0.9;
                 let top_height = HEIGHT * 0.1;
-                gesture(config.list_swipe_time, [half_width, bottom_height], [half_width, top_height]);
+
                 debugInfo("上滑屏幕: " + (bottom_height - top_height) + "px");
+                // gesture(config.list_swipe_time, [half_width, bottom_height], [half_width, top_height]);
+                let max_try_times_swipe = 3;
+                let max_try_times_swipe_backup = max_try_times_swipe;
+                while (max_try_times_swipe--) {
+                    if (swipe(half_width, bottom_height, half_width, top_height, config.list_swipe_time)) break;
+                    let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
+                    debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
+                    sleep(200);
+                }
+                if (max_try_times_swipe < 0) {
+                    messageAction("脚本无法继续", 4);
+                    messageAction("SimpleActionAutomator模块异常", 8, 1, 1, 1);
+                }
 
                 let debug_start_timestamp = new Date().getTime();
                 debugInfo("等待排行榜列表稳定");
@@ -1542,6 +1585,26 @@ function antForest() {
 
 function checkBugVersions() {
     let thread_bug_dialogs = threads.start(function () {
+        let bug_map = {
+            "failed": "版本信息获取失败\n不建议使用此版本运行项目",
+            "ab_cwd": "cwd()方法功能异常",
+            "ab_find_forEach": "UiSelector.find().forEach()方法功能异常",
+            "ab_floaty": "Floaty模块异常",
+            "ab_gesture": "gesture()方法功能异常",
+            "ab_inflate": "ui.inflate()方法功能异常",
+            "ab_uiSelector": "UiSelector模块功能异常",
+            "ab_ui_layout": "图形配置页面布局异常",
+            "crash_autojs": "脚本运行后导致Auto.js崩溃",
+            "crash_ui_settings": "图形配置页面崩溃",
+            "dislocation_floaty": "Floaty模块绘制存在错位现象",
+            "un_cwd": "不支持cwd()方法及相对路径",
+            "un_engines": "不支持Engines模块",
+            "un_execArgv": "不支持Engines模块的execArgv对象",
+            "un_inflate": "不支持ui.inflate()方法",
+            "un_relative_path": "不支持相对路径",
+            "un_runtime": "不支持runtime参数",
+            "un_view_bind": "不支持view对象绑定自定义方法",
+        };
         let bug_versions = {
             // "4.1.0 Alpha5": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块items属性异常", // solved since v1.5.2
             // "4.1.1 Alpha2": "无法使用蚂蚁森林图形配置界面\n-> dialogs模块inputHint\/inputPrefill属性异常", solved since v1.5.2
@@ -1550,7 +1613,7 @@ function checkBugVersions() {
         if (!(current_autojs_version in bug_versions)) return debugInfo("当前版本非BUG版本");
         let diag_bug = dialogs.build({
             title: "Auto.js版本异常提示",
-            content: "脚本可能无法正常运行\n建议更换Auto.js版本\n或等待脚本后续更新\n\nAuto.js版本:\n-> " + current_autojs_version +
+            content: "脚本可能无法正常运行\n建议更换Auto.js版本\n\nAuto.js版本:\n-> " + current_autojs_version +
                 "\n\n异常详情:\n-> " + bug_versions[current_autojs_version],
             neutral: "为何出现此提示",
             neutralColor: "#03a6ef",
@@ -1630,6 +1693,7 @@ function launchThisApp(intent, no_msg_flag) {
     if (typeof intent !== "object") messageAction("\"launchThisApp\"的intent参数类型不正确", 8, 1, 0, 1);
     intent && debugInfo("启动参数intent类型: " + typeof intent);
     let max_retry_times = 7;
+    let max_retry_times_backup = max_retry_times;
     while (max_retry_times--) {
         let max_launch_times = 3;
         if (!no_msg_flag && !current_app.first_time_run) messageAction("重新开始" + current_app.quote_name + "任务", null, 1);
@@ -1647,22 +1711,17 @@ function launchThisApp(intent, no_msg_flag) {
             debugInfo("未设置启动完成条件参数");
             break;
         }
-        let max_wait_times = 8;
+        let max_wait_times = 5;
         let max_wait_times_backup = max_wait_times;
-        let max_click_reload_times = 80;
         debugInfo("开始监测启动完成条件");
-        while (!waitForAction(current_app.firstTimeRunConditionFun, 2000) && max_wait_times-- && max_click_reload_times) {
-            if (desc("重新加载").exists()) {
-                try {
-                    clickBounds(desc("重新加载"));
-                } catch (e) {
-                    // nothing to do here
-                }
-                max_wait_times = max_wait_times_backup;
-                max_click_reload_times--;
-            }
-            let timeout_package_name = !((max_wait_times_backup - max_wait_times) % 2) && currentPackage() !== current_app.package_name;
-            let timeout_single_time_check = !((max_wait_times_backup - max_wait_times) % 3);
+        let check_duration = () => max_wait_times_backup === max_wait_times ? 8000 : 2000;
+        while (!waitForAction(current_app.firstTimeRunConditionFun, check_duration()) && max_wait_times--) {
+            clickBounds([desc("重新加载"), "try"]);
+
+            let wait_times_count = max_wait_times_backup - max_wait_times;
+            debugInfo("启动条件检测未通过: (" + wait_times_count + "\/" + max_wait_times_backup + ")");
+            let timeout_package_name = !(wait_times_count % 2) && currentPackage() !== current_app.package_name;
+            let timeout_single_time_check = !(wait_times_count % 3);
 
             if (!timeout_package_name && !timeout_single_time_check) continue;
 
@@ -1671,14 +1730,14 @@ function launchThisApp(intent, no_msg_flag) {
                 debugInfo(">" + currentPackage());
             } else debugInfo("单次启动条件检测超时");
 
-            debugInfo(">重新加载intent参数启动应用");
+            debugInfo(">重新启动intent");
             app.startActivity(intent);
         }
-        if (max_launch_times >= 0 && max_click_reload_times > 0) {
+        if (max_launch_times >= 0 && max_wait_times >= 0) {
             debugInfo("启动完成条件监测完毕");
             break;
         }
-        debugInfo("强制结束支付宝应用");
+        debugInfo("强制结束支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");
         killCurrentApp(current_app.package_name);
     }
     if (max_retry_times < 0) messageAction(current_app.quote_name + "首页状态准备失败", 8, 1, 0, 1);
@@ -1970,7 +2029,12 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
                 if (special_bad_situation) checkBadSituation(special_bad_situation);
                 bad_situation_pending %= 1000;
             }
-            click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+            try {
+                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+            } catch (e) {
+                // nothing to do here
+            }
             sleep(check_interval);
             bad_situation_pending += check_interval;
         }
@@ -1978,7 +2042,12 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
         if ((func.toString().match(/^Rect\(/) || func.exists())) {
             if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
             if (special_bad_situation) checkBadSituation(special_bad_situation);
-            click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+            try {
+                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+            } catch (e) {
+                max_check_times = -1;
+            }
         }
     }
 
@@ -2134,9 +2203,13 @@ function tryRequestScreenCapture() {
 }
 
 function getVerName(package_name) {
-    let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
-    for (let i in pkgs) {
-        if (pkgs[i].packageName.toString() === package_name) return pkgs[i].versionName;
+    try {
+        let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+        for (let i in pkgs) {
+            if (pkgs[i].packageName.toString() == package_name) return pkgs[i].versionName;
+        }
+    } catch (e) {
+        // nothing to do here;
     }
 }
 
@@ -2150,11 +2223,14 @@ function saveCurrentScreenCapture(key_name, no_msg_flag) {
         path = path_prefix + file_name;
 
     files.createWithDirs(path_prefix);
-    captureScreen(path);
+    let capt = captureScreen(path);
+    debugInfo("生成屏幕截图: " + images.getName(capt));
     if (!no_msg_flag) {
         messageAction("已存储屏幕截图文件: ", 0);
         messageAction(file_name, 0);
     }
+    debugInfo("已回收屏幕截图: " + images.getName(capt));
+    capt.recycle();
 
     // tool function(s) //
 

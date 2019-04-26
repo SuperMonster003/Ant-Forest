@@ -1,10 +1,15 @@
+"ui";
+
 /**
  * @description ui launcher
  */
 
-"ui";
 ui.finish();
-auto.waitFor();
+try {
+    auto.waitFor();
+} catch (e) {
+    auto();
+}
 
 // just set the tool name here in an easy way ^_^
 let config = {

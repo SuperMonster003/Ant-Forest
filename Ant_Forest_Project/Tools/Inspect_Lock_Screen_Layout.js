@@ -1,4 +1,8 @@
-auto.waitFor();
+try {
+    auto.waitFor();
+} catch (e) {
+    auto();
+}
 tryRequestScreenCapture();
 
 let WIDTH = device.width;

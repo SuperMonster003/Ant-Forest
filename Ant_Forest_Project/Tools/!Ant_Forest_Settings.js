@@ -1,5 +1,9 @@
 "ui";
-auto.waitFor();
+try {
+    auto.waitFor();
+} catch (e) {
+    auto();
+}
 
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
 let dialogs = require("../Modules/__dialogs__pro_v6.js")(runtime, {});
