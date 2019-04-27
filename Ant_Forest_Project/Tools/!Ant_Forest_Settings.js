@@ -51,6 +51,7 @@ initUI();
 
 let homepage = setHomePage("Ant_Forest");
 let help_collect_page = setPage("帮收功能");
+let self_collect_page = setPage("自收功能");
 let non_break_check_page = setPage("监测自己能量");
 let auto_unlock_page = setPage("自动解锁");
 let blacklist_page = setPage("黑名单管理");
@@ -60,6 +61,17 @@ let message_showing_page = setPage("消息提示");
 
 homepage
     .add("sub_head", new Layout("基本功能"))
+    .add("options", new Layout("自收功能", {
+        "config_conj": "self_collect_switch",
+        "hint": {
+            "0": "已关闭",
+            "1": "已开启",
+        },
+        "next_page": self_collect_page,
+        "updateOpr": function (view) {
+            view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+        },
+    }))
     .add("options", new Layout("帮收功能", {
         "config_conj": "help_collect_switch",
         "hint": {
@@ -67,17 +79,6 @@ homepage
             "1": "已开启",
         },
         "next_page": help_collect_page,
-        "updateOpr": function (view) {
-            view._hint.text(this.hint[+!!session_config[this.config_conj]]);
-        },
-    }))
-    .add("options", new Layout("监测自己能量", {
-        "config_conj": "non_break_check_switch",
-        "hint": {
-            "0": "已关闭",
-            "1": "已开启",
-        },
-        "next_page": non_break_check_page,
         "updateOpr": function (view) {
             view._hint.text(this.hint[+!!session_config[this.config_conj]]);
         },
@@ -170,6 +171,40 @@ homepage
             diag.show();
         },
     }));
+
+self_collect_page
+    .add("switch", new Layout("总开关", {
+        config_conj: "self_collect_switch",
+        listeners: {
+            "_switch": {
+                "check": function (state) {
+                    saveSession(this.config_conj, !!state);
+                    let parent = this.view.getParent();
+                    let child_count = parent.getChildCount();
+                    while (child_count-- > 2) {
+                        parent.getChildAt(child_count).setVisibility(state ? 0 : 4);
+                    }
+                },
+            },
+        },
+        updateOpr: function (view) {
+            let session_conf = !!session_config[this.config_conj];
+            view["_switch"].setChecked(session_conf);
+        },
+    }))
+    .add("sub_head", new Layout("高级功能"))
+    .add("options", new Layout("监测自己能量", {
+        "config_conj": "non_break_check_switch",
+        "hint": {
+            "0": "已关闭",
+            "1": "已开启",
+        },
+        "next_page": non_break_check_page,
+        "updateOpr": function (view) {
+            view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+        },
+    }))
+    .add("info", new Layout("关闭自收功能将不再收取自己能量"));
 
 help_collect_page
     .add("switch", new Layout("总开关", {

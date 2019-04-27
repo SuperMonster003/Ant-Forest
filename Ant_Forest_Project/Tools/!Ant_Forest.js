@@ -518,9 +518,12 @@ function antForest() {
 
         function checkOwnEnergy() {
 
-            debugInfo("开始检查自己能量");
             current_app.total_energy_init = getCurrentEnergyAmount();
             debugInfo("初始能量: " + current_app.total_energy_init + "g");
+
+            if (!config.self_collect_switch) return debugInfo("收取自己能量功能开关未开启");
+
+            debugInfo("开始检查自己能量");
 
             let check = () => checkOnce() && (current_app.total_energy_collect_own += getEnergyDiff());
 
