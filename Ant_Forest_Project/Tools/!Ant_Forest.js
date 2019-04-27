@@ -766,26 +766,28 @@ function antForest() {
                 let screenAreaSamples = getScreenSamples() || [];
 
                 screenAreaSamples.forEach(w => {
-                    waitForAction(() => !!w.parent(), 3000); // just in case
-                    let state_ident_node = w.parent().child(w.parent().childCount() - 2);
+                    let parent_node = w.parent();
+                    let parent_node_cy = parent_node.bounds().centerY();
+                    waitForAction(() => !!parent_node, 3000); // just in case
+                    let state_ident_node = parent_node.child(parent_node.childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
                     rank_list_capt_img = rank_list_capt_img || getRankListScreenCapture();
                     let find_color_options = getFindColorOptions(w);
 
                     // special treatment for first 3 ones
-                    let name = w.parent().child(1).desc() || w.parent().child(2).desc();
+                    let name = parent_node.child(1).desc() || parent_node.child(2).desc();
 
                     try {
                         if (!checkRegion(find_color_options.region)) return;
 
                         let pt_green = images.findColor(rank_list_capt_img, config.ready_to_collect_color, find_color_options);
-                        if (pt_green) return targets_green.unshift({name: name, y: pt_green.y});
+                        if (pt_green) return targets_green.unshift({name: name, y: parent_node_cy});
 
                         if (!help_switch) return;
 
                         let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_color, find_color_options);
-                        if (pt_orange) return targets_orange.unshift({name: name, y: pt_orange.y});
+                        if (pt_orange) return targets_orange.unshift({name: name, y: parent_node_cy});
                     } catch (e) {
                         throw Error(e);
                     }

@@ -4,8 +4,6 @@
  * @description ui launcher
  */
 
-ui.finish();
-
 try {
     auto.waitFor();
 } catch (e) {
@@ -18,6 +16,7 @@ let config = {
 };
 
 exec();
+ui.finish();
 
 // tool function(s) //
 
