@@ -2,8 +2,8 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
- * @last_modified Apr 26, 2019
- * @version 1.5.18
+ * @last_modified Apr 27, 2019
+ * @version 1.5.19
  * @author SuperMonster003
  *
  * @borrows {@link https://github.com/e1399579/autojs}
@@ -12,7 +12,7 @@
 try {
     auto.waitFor();
 } catch (e) {
-    debugInfo("auto.waitFor()不可用");
+    messageAction("auto.waitFor()不可用", 0, 0, 0, "up");
     auto();
 }
 
@@ -24,11 +24,22 @@ let config = {
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
-let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
-Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
-debugInfo("开发者测试模式已开启", 0, 0, 0, "up");
-debugInfo("成功接入\"af_cfg\"本地存储");
-debugInfo("整合代码配置与本地配置");
+let unlock_module;
+
+try {
+    let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
+    Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
+    unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
+    debugInfo("开发者测试模式已开启", 0, 0, 0, "up");
+    debugInfo("成功接入\"af_cfg\"本地存储");
+    debugInfo("整合代码配置与本地配置");
+    debugInfo("成功导入解锁模块");
+} catch (e) {
+    messageAction("模块导入功能异常", 3, 0, 0, "up");
+    messageAction("开发者测试模式已自动开启", 3);
+    config.message_showing_switch = true;
+    config.debug_info_switch = true;
+}
 
 debugConfigInfo();
 
@@ -51,14 +62,14 @@ try {
 }
 queue_flag && debugInfo("任务排队用时: " + (new Date().getTime() - queue_start_timestamp) / 1000 + "秒", 0, 0, 0, "up");
 
-let WIDTH = device.width,
-    HEIGHT = device.height,
+if (typeof device === "undefined") {
+    messageAction("此版本Device模块功能无效", 3);
+}
+let WIDTH = typeof device !== "undefined" && device.width || 0,
+    HEIGHT = typeof device !== "undefined" && device.height || 0,
     cX = num => Math.floor(num * WIDTH / 720),
     cY = num => Math.floor(num * HEIGHT / 1280),
     current_app = {};
-
-let unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
-debugInfo("成功导入解锁模块");
 
 let special_exec_command = "";
 if (!engines_support_flag) {
@@ -75,7 +86,13 @@ if (!engines_support_flag) {
     }
 }
 
-let current_autojs_package = context.packageName;
+let current_autojs_package = "";
+try {
+    current_autojs_package = context.packageName;
+} catch (e) {
+    messageAction("无法获取当前Auto.js包名", 3);
+    messageAction("Context对象无效", 3, 0, 1);
+}
 let current_autojs_version = getVerName(current_autojs_package) || 0;
 debugInfo("当前Auto.js版本: " + (current_autojs_version || "未知版本"));
 checkBugVersions();
@@ -127,6 +144,10 @@ function antForest() {
         }
 
         function unlock() {
+            if (!unlock_module) {
+                messageAction("自动解锁功能无法使用", 3);
+                return messageAction("解锁模块未导入", 3, 0, 1);
+            }
             let is_screen_on = unlock_module.is_screen_on;
             current_app.is_screen_on = is_screen_on;
             if (!is_screen_on && !config.auto_unlock_switch) {
@@ -1604,72 +1625,73 @@ function antForest() {
 // tool function(s) //
 
 function checkBugVersions() {
-    let thread_bug_dialogs = threads.start(function () {
-        let bug_code_map = {
-            "failed": "版本信息获取失败\n不建议使用此版本运行项目",
-            "ab_cwd": "cwd()方法功能异常",
-            "ab_relative_path": "相对路径功能异常",
-            "ab_find_forEach": "UiSelector.find().forEach()方法功能异常",
-            "ab_floaty": "Floaty模块异常",
-            "ab_SimpActAuto": "SimpleActionAutomator模块异常",
-            "ab_inflate": "ui.inflate()方法功能异常",
-            "ab_uiSelector": "UiSelector模块功能异常",
-            "ab_ui_layout": "图形配置页面布局异常",
-            "crash_autojs": "脚本运行后导致Auto.js崩溃",
-            "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
-            "crash_ui_settings": "图形配置页面崩溃",
-            "dislocation_floaty": "Floaty模块绘制存在错位现象",
-            "forcibly_update": "强制更新",
-            "na_login": "无法登陆Auto.js账户",
-            "un_cwd": "不支持cwd()方法及相对路径",
-            "un_engines": "不支持Engines模块",
-            "un_execArgv": "不支持Engines模块的execArgv对象",
-            "un_inflate": "不支持ui.inflate()方法",
-            "un_relative_path": "不支持相对路径",
-            "un_runtime": "不支持runtime参数",
-            "un_view_bind": "不支持view对象绑定自定义方法",
-        };
+    let bug_code_map = {
+        "failed": "版本信息获取失败\n不建议使用此版本运行项目",
+        "ab_cwd": "cwd()方法功能异常",
+        "ab_relative_path": "相对路径功能异常",
+        "ab_find_forEach": "UiSelector.find().forEach()方法功能异常",
+        "ab_floaty": "Floaty模块异常",
+        "ab_SimpActAuto": "SimpleActionAutomator模块异常",
+        "ab_inflate": "ui.inflate()方法功能异常",
+        "ab_uiSelector": "UiSelector模块功能异常",
+        "ab_ui_layout": "图形配置页面布局异常",
+        "crash_autojs": "脚本运行后导致Auto.js崩溃",
+        "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
+        "crash_ui_settings": "图形配置页面崩溃",
+        "dislocation_floaty": "Floaty模块绘制存在错位现象",
+        "forcibly_update": "强制更新",
+        "na_login": "无法登陆Auto.js账户",
+        "un_cwd": "不支持cwd()方法及相对路径",
+        "un_engines": "不支持Engines模块",
+        "un_execArgv": "不支持Engines模块的execArgv对象",
+        "un_inflate": "不支持ui.inflate()方法",
+        "un_relative_path": "不支持相对路径",
+        "un_runtime": "不支持runtime参数",
+        "un_view_bind": "不支持view对象绑定自定义方法",
+    };
 
-        let bugs_check_result = checkBugs(current_autojs_version);
-        if (bugs_check_result === 0) return debugInfo("Bug版本检查: 正常");
-        if (bugs_check_result === "") return debugInfo("Bug版本检查: 未知");
-        bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
-        debugInfo("Bug版本检查: 确诊");
-        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + current_autojs_version +
-            "\n\n异常详情:" + bugs_check_result.join("");
+    let bugs_check_result = checkBugs(current_autojs_version);
+    if (bugs_check_result === 0) return debugInfo("Bug版本检查: 正常");
+    if (bugs_check_result === "") return debugInfo("Bug版本检查: 未知");
+    bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
+    debugInfo("Bug版本检查: 确诊");
+    let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + (current_autojs_version || "/* 版本检测失败 */") +
+        "\n\n异常详情:" + bugs_check_result.join("");
 
-        try {
-            let diag_bug = dialogs.build({
-                title: "Auto.js版本异常提示",
-                content: bug_content,
-                neutral: "为何出现此提示",
-                neutralColor: "#03a6ef",
-                negative: "退出",
-                negativeColor: "#33bb33",
-                positive: "尝试继续",
-                positiveColor: "#ee3300",
+    try {
+        let diag_bug = dialogs.build({
+            title: "Auto.js版本异常提示",
+            content: bug_content,
+            neutral: "为何出现此提示",
+            neutralColor: "#03a6ef",
+            negative: "退出",
+            negativeColor: "#33bb33",
+            positive: "尝试继续",
+            positiveColor: "#ee3300",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag_bug.on("neutral", () => {
+            let diag_bug_reason = dialogs.build({
+                title: "什么是版本异常",
+                content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
+                    "您看到的异常提示源于开发者提供的测试结果",
+                positive: "我知道了",
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag_bug.on("neutral", () => {
-                let diag_bug_reason = dialogs.build({
-                    title: "什么是版本异常",
-                    content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
-                        "您看到的异常提示源于开发者提供的测试结果",
-                    positive: "我知道了",
-                    autoDismiss: false,
-                    canceledOnTouchOutside: false,
-                });
-                diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
-                diag_bug_reason.show();
-            });
-            diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
-            diag_bug.on("positive", () => {
-                debugInfo("用户选择了尝试运行Bug版本");
-                diag_bug.dismiss();
-            });
-            diag_bug.show();
-        } catch (e) {
+            diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
+            diag_bug_reason.show();
+        });
+        diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
+        diag_bug.on("positive", () => {
+            debugInfo("用户选择了尝试运行Bug版本");
+            diag_bug.dismiss();
+        });
+        diag_bug.show();
+    } catch (e) {
+        let threads_functional_flag = typeof threads !== "undefined";
+        if (threads_functional_flag) {
             threads.start(function () {
                 events.observeKey();
                 events.onKeyDown("volume_up", function (event) {
@@ -1685,110 +1707,115 @@ function checkBugVersions() {
                     exit();
                 });
             });
-            debugInfo("此版本Dialogs模块功能异常");
-            debugInfo("使用Alert()方法替代");
+        }
+        debugInfo("此版本Dialogs模块功能异常");
+        debugInfo("使用Alert()方法替代");
+        if (threads_functional_flag) {
             alert(bug_content + "\n\n" +
                 "按'确定/OK'键尝试继续执行\n" +
                 "按'音量加/VOL+'键停止执行");
+        } else {
+            alert(bug_content + "\n\n" +
+                "按'确定/OK'键停止执行");
+            exit();
+        }
+    }
+
+    // tool function(s) //
+
+    /**
+     * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
+     */
+    function checkBugs(ver_name) {
+        ver_name = ver_name || "0";
+
+        // version <= 3.0.0 Alpha20
+        if (ver_name.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+            return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings"];
         }
 
-        // tool function(s) //
-
-        /**
-         * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
-         */
-        function checkBugs(ver_name) {
-            ver_name = ver_name || 0;
-
-            // version <= 3.0.0 Alpha20
-            if (ver_name.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings"];
-            }
-
-            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-            if (ver_name.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines"];
-            }
-
-            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-            if (ver_name.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
-                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines"];
-            }
-
-            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-            if (ver_name.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
-                return ["un_inflate", "un_runtime", "un_engines"];
-            }
-
-            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (ver_name.match(/^((3\.1\.0 Alpha[6-9])|(3\.1\.1 Alpha[1-2]?))$/)) {
-                return ["un_inflate", "un_engines"];
-            }
-
-            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-            if (ver_name.match(/^3\.1\.1 Alpha[34]$/)) {
-                return ["ab_inflate", "un_engines"];
-            }
-
-            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-            if (ver_name.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
-                return ["un_execArgv", "ab_inflate"];
-            }
-
-            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-            if (ver_name.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
-                return ["dislocation_floaty", "ab_inflate"];
-            }
-
-            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
-            if (ver_name.match(/^4\.1\.0 Alpha[34]$/)) {
-                return ["ab_SimpActAuto"];
-            }
-
-            // version === Pro 7.0.0-(1|2)
-            if (ver_name.match(/^Pro 7\.0\.0-[12]$/)) {
-                return ["ab_relative_path"];
-            }
-
-            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
-            if (ver_name.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
-                return ["crash_autojs"];
-            }
-
-            // version >= 4.0.4 Alpha5 || version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
-            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            if (ver_name.match(/^(4\.0\.4 Alpha([5-9]|1[01])|(4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
-                ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/)) {
-                return 0; // known normal
-            }
-
-            switch (ver_name) {
-                case 0:
-                    return ["failed"];
-                case "4.0.3 Alpha6":
-                    return ["ab_floaty", "ab_inflate"];
-                case "4.0.4 Alpha":
-                    return ["dislocation_floaty", "un_view_bind"];
-                case "4.0.4 Alpha3":
-                    return ["dislocation_floaty", "ab_ui_layout"];
-                case "4.0.4 Alpha4":
-                    return ["ab_find_forEach"];
-                case "4.0.4 Alpha12":
-                    return ["un_execArgv"];
-                case "4.0.5 Alpha":
-                    return ["ab_uiSelector"];
-                case "Pro 7.0.0-0":
-                    return ["na_login"];
-                case "Pro 7.0.0-3":
-                    return ["crash_ui_call_ui"];
-                case "Pro 7.0.0-5":
-                    return ["forcibly_update"];
-                default:
-                    return ""; // unrecorded version
-            }
+        // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
+        if (ver_name.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+            return ["un_cwd", "un_inflate", "un_runtime", "un_engines"];
         }
-    });
-    thread_bug_dialogs.join("");
+
+        // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
+        if (ver_name.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+            return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines"];
+        }
+
+        // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
+        if (ver_name.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+            return ["un_inflate", "un_runtime", "un_engines"];
+        }
+
+        // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
+        if (ver_name.match(/^((3\.1\.0 Alpha[6-9])|(3\.1\.1 Alpha[1-2]?))$/)) {
+            return ["un_inflate", "un_engines"];
+        }
+
+        // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
+        if (ver_name.match(/^3\.1\.1 Alpha[34]$/)) {
+            return ["ab_inflate", "un_engines"];
+        }
+
+        // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
+        if (ver_name.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+            return ["un_execArgv", "ab_inflate"];
+        }
+
+        // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
+        if (ver_name.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+            return ["dislocation_floaty", "ab_inflate"];
+        }
+
+        // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
+        if (ver_name.match(/^4\.1\.0 Alpha[34]$/)) {
+            return ["ab_SimpActAuto"];
+        }
+
+        // version === Pro 7.0.0-(1|2)
+        if (ver_name.match(/^Pro 7\.0\.0-[12]$/)) {
+            return ["ab_relative_path"];
+        }
+
+        // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
+        if (ver_name.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
+            return ["crash_autojs"];
+        }
+
+        // version >= 4.0.4 Alpha5 || version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
+        // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
+        if (ver_name.match(/^(4\.0\.4 Alpha([5-9]|1[01])|(4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
+            ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/)) {
+            return 0; // known normal
+        }
+
+        switch (ver_name) {
+            case "0":
+                return ["failed"];
+            case "4.0.3 Alpha6":
+                return ["ab_floaty", "ab_inflate"];
+            case "4.0.4 Alpha":
+                return ["dislocation_floaty", "un_view_bind"];
+            case "4.0.4 Alpha3":
+                return ["dislocation_floaty", "ab_ui_layout"];
+            case "4.0.4 Alpha4":
+                return ["ab_find_forEach"];
+            case "4.0.4 Alpha12":
+                return ["un_execArgv"];
+            case "4.0.5 Alpha":
+                return ["ab_uiSelector"];
+            case "Pro 7.0.0-0":
+                return ["na_login"];
+            case "Pro 7.0.0-3":
+                return ["crash_ui_call_ui"];
+            case "Pro 7.0.0-5":
+                return ["forcibly_update"];
+            default:
+                return ""; // unrecorded version
+        }
+    }
 }
 
 function promptConfig() {
@@ -2351,6 +2378,8 @@ function tryRequestScreenCapture() {
 }
 
 function getVerName(package_name) {
+    if (!package_name) return;
+
     try {
         let pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
         for (let i in pkgs) {
