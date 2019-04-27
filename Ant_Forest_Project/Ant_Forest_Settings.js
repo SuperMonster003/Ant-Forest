@@ -4,21 +4,32 @@
  * @description ui launcher
  */
 
-try {
-    auto.waitFor();
-} catch (e) {
-    auto();
-}
-
 // just set the tool name here in an easy way ^_^
 let config = {
     tool_name: "Ant_Forest_Settings",
 };
 
+loadingLayout();
 exec();
 ui.finish();
 
 // tool function(s) //
+
+function loadingLayout() {
+    ui.layout(
+        <vertical>
+            <horizontal h="56" bg="#03a6ef">
+                <text textColor="#ffffff" textSize="19" textStyle="bold" margin="16" text="... ..."/>
+            </horizontal>
+            <horizontal h="*" w="auto" layout_gravity="center">
+                <frame layout_gravity="center" margin="0 -20 0 0">
+                    <text textColor="#64b5f6" text="Loading..." textSize="40" layout="center"/>
+                </frame>
+            </horizontal>
+        </vertical>
+    );
+    ui.statusBarColor("#03a6ef");
+}
 
 function exec() {
 
