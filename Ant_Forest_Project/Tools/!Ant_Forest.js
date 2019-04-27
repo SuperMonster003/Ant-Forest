@@ -643,7 +643,7 @@ function antForest() {
                     if (message_switch_on) messageAction(current_app.current_friend.name, "title"); // name title
                     if (inBlackList()) continue;
                     // click(WIDTH * 0.5, pop_item.y + cY(60));
-                    press(WIDTH * 0.5, pop_item.y + cY(60), 1);
+                    press(WIDTH * 0.5, pop_item.y, 1);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                     forestPageGetReady() && collectBalls();
                     backToHeroList();
@@ -770,7 +770,6 @@ function antForest() {
 
                 screenAreaSamples.forEach(w => {
                     let parent_node = w.parent();
-                    let parent_node_cy = parent_node.bounds().centerY();
                     waitForAction(() => !!parent_node, 3000); // just in case
                     let state_ident_node = parent_node.child(parent_node.childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
@@ -779,18 +778,20 @@ function antForest() {
                     let find_color_options = getFindColorOptions(w);
 
                     // special treatment for first 3 ones
-                    let name = parent_node.child(1).desc() || parent_node.child(2).desc();
+                    let name_node = parent_node.child(1).desc() && parent_node.child(1) || parent_node.child(2);
+                    let name = name_node.desc();
+                    let name_node_top = name_node.bounds().top;
 
                     try {
                         if (!checkRegion(find_color_options.region)) return;
 
                         let pt_green = images.findColor(rank_list_capt_img, config.ready_to_collect_color, find_color_options);
-                        if (pt_green) return targets_green.unshift({name: name, y: parent_node_cy});
+                        if (pt_green) return targets_green.unshift({name: name, y: name_node_top});
 
                         if (!help_switch) return;
 
                         let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_color, find_color_options);
-                        if (pt_orange) return targets_orange.unshift({name: name, y: parent_node_cy});
+                        if (pt_orange) return targets_orange.unshift({name: name, y: name_node_top});
                     } catch (e) {
                         throw Error(e);
                     }
