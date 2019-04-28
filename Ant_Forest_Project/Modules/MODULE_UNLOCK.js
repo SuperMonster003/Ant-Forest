@@ -1,6 +1,5 @@
 /**
  * @description module for unlocking your phone
- * @borrows {@link https://github.com/hyb1996/Auto.js}
  * @author SuperMonster003
  */
 
@@ -433,11 +432,6 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
     }
 }
 
-/**
- * @param {string} [extra_str=""] string you wanna append after the split line
- * @param {string} [style] "dash" for a dash line
- * console.log({a 32-bit hyphen split line});
- **/
 function showSplitLine(extra_str, style) {
     extra_str = extra_str || "";
     let split_line = "";
@@ -483,7 +477,7 @@ function keycode(keycode_name) {
             return ~quickSettings();
         case "splitScreen":
         case "split_screen":
-            return splitScreen();
+            return ~splitScreen();
         default:
             return keyEvent(keycode_name);
     }

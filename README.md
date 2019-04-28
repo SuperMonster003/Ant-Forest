@@ -94,7 +94,11 @@
 ******
 # v1.5.20
 ###### 2019/04/28
-* `文件` 使用Git命令真正精简仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_  
+* `新增` 按键监听 VOL+: 停止所有脚本 VOL-: 停止当前脚本  
+* `修复` 控件点击偶尔出现假死现象  
+* `修复` 排行榜点击目标时误点击虚拟按键的问题  
+* `优化` 使用Git命令真正精简仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_  
+* `优化` 点击"查看更多好友"增加备用方案  
 
 # v1.5.19
 ###### 2019/04/27
@@ -176,7 +180,7 @@
 # v1.5.7
 ###### 2019/04/17
 * `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4)_  
-* `文件` 删除无关文件以缩小仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_
+* `优化` 删除无关文件以缩小仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_
 
 # v1.5.6
 ###### 2019/04/16
@@ -199,7 +203,7 @@
 # v1.5.3
 ###### 2019/04/13
 * `新增` 图形配置页面黑名单管理骨架  
-* `文件` 上传dialogs模块 _[issue #2](https://github.com/SuperMonster003/Ant_Forest/issues/2)_  
+* `修复` dialogs模块缺失 _[issue #2](https://github.com/SuperMonster003/Ant_Forest/issues/2)_  
 
 # v1.5.2
 ###### 2019/04/12

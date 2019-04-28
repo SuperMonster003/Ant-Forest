@@ -1,12 +1,11 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  * @last_modified Apr 28, 2019
  * @version 1.5.20
  * @author SuperMonster003
  *
- * @borrows {@link https://github.com/e1399579/autojs}
+ * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
  */
 
 try {
@@ -24,14 +23,13 @@ let config = {
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
-let unlock_module;
+let unlock_module = null;
 
 try {
     let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
     Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
     unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
-    debugInfo("开发者测试模式已开启", 0, 0, 0, "up");
-    debugInfo("成功接入\"af_cfg\"本地存储");
+    debugInfo("成功接入\"af_cfg\"本地存储", 0, 0, 0, "up");
     debugInfo("整合代码配置与本地配置");
     debugInfo("成功导入解锁模块");
 } catch (e) {
@@ -49,9 +47,14 @@ let engines_support_flag = true;
 try {
     engines.myEngine().setTag("exclusive_task", "af");
     if (typeof engines.myEngine().execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
-    while (engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length) {
-        queue_flag = true;
-        sleep(500);
+    let checkExclusiveTasks = () => engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length;
+    let init_ex_tasks_check = checkExclusiveTasks();
+    if (init_ex_tasks_check) {
+        debugInfo("排他性任务排队中: " + init_ex_tasks_check + "项");
+        while (checkExclusiveTasks()) {
+            queue_flag = true;
+            sleep(500);
+        }
     }
 } catch (e) {
     let error_msg = "此版本Engines模块功能异常";
@@ -116,20 +119,43 @@ function antForest() {
     // main function(s) //
 
     function init() {
-        debugInfo("准备初始化");
         let init_operation_logged = null;
 
-        showAppTitle();
+        debugInfo("准备初始化");
+        setVolKeysListener();
         checkSdk();
         unlock();
         setAutoJsLogPath();
         setParams();
         loginSpecificUser(); // init_operation_logged doesn't set, and needs optimization
         debugInfo("初始化完毕");
+        showAppTitle();
 
         if (init_operation_logged) showSplitLine();
 
         // tool function(s) //
+
+        function setVolKeysListener() {
+            debugInfo("设置音量加键监听器");
+            threads.start(function () {
+                events.observeKey();
+                events.onKeyDown("volume_up", function (event) {
+                    messageAction("强制停止所有脚本", 4, 0, 0, "up");
+                    messageAction("用户按下'音量加/VOL+'键", 4, 0, 1, 1);
+                    engines.stopAllAndToast();
+                });
+            });
+
+            debugInfo("设置音量减键监听器");
+            threads.start(function () {
+                events.observeKey();
+                events.onKeyDown("volume_down", function (event) {
+                    messageAction("强制停止当前脚本", 3, 0, 0, "up");
+                    messageAction("用户按下'音量减/VOL-'键", 3, 0, 1, 1);
+                    engines.myEngine().forceStop();
+                });
+            });
+        }
 
         function showAppTitle() {
             messageAction("开始\"蚂蚁森林\"任务", 1, 0, 0, "both");
@@ -137,10 +163,10 @@ function antForest() {
 
         function checkSdk() {
             let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
+            debugInfo("安卓系统SDK版本: " + current_sdk_ver);
             if (current_sdk_ver >= 24) return true;
             messageAction("脚本无法继续", 4);
             messageAction("安卓系统版本低于7.0", 8, 1, 1, 1);
-            debugInfo("安卓系统SDK版本: " + current_sdk_ver);
         }
 
         function unlock() {
@@ -154,6 +180,7 @@ function antForest() {
                 messageAction("脚本无法继续", 4);
                 messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
             }
+            debugInfo("尝试自动解锁");
             unlock_module.unlock();
             debugInfo("自动解锁完毕");
         }
@@ -340,7 +367,7 @@ function antForest() {
                 try_times = 0,
                 kw_back_btn = id("com.alipay.mobile.antui:id/back_button");
             while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
-                kw_back_btn.exists() && kw_back_btn.click() || keycode(4) && sleep(2500);
+                clickObject(kw_back_btn) || keycode(4) && sleep(2500);
                 app.startActivity(intent_alipay_acc_manager);
             }
             if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
@@ -668,19 +695,27 @@ function antForest() {
             // key function(s) //
 
             function rankListReady() {
-                let max_try_times_more_friends_btn = 8;
+                let max_try_times_more_friends_btn = 2;
                 while (!waitForAction(kw_more_friends, 5000) && max_try_times_more_friends_btn--) {
                     launchThisApp(current_app.intent, "no_msg");
                 }
-                if (max_try_times_more_friends_btn < 0) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
+                if (max_try_times_more_friends_btn < 0) return messageAction("未能定位到\"查看更多好友\"按钮", 3, 1);
+                debugInfo("定位到\"查看更多好友\"按钮");
 
-                kw_more_friends.click();
+                if (!clickObject(kw_more_friends)) {
+                    debugInfo("备份方案点击\"查看更多好友\"");
+                    makeInScreen(kw_more_friends, {
+                        swipe_time: 200,
+                        check_interval: 100,
+                        if_click: "click",
+                    });
+                }
 
                 let max_try_times = 180,
                     condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount(),
                     kw_try_again = desc("再试一次");
                 while (!waitForAction(condition_rank_list_ready, 500) && max_try_times--) {
-                    kw_try_again.exists() && kw_try_again.click(); // for desc("服务器打瞌睡了").exists()
+                    clickObject(kw_try_again); // for desc("服务器打瞌睡了").exists()
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
                 debugInfo("排行榜状态准备完毕");
@@ -697,7 +732,7 @@ function antForest() {
                 function expandHeroListThread() {
                     let kw_list_more = idMatches(/.*J_rank_list_more/);
                     while (!desc("没有更多了").exists()) {
-                        kw_list_more.exists() && kw_list_more.click();
+                        clickObject(kw_list_more);
                         sleep(200);
                     }
                     debugInfo("排行榜展开完毕");
@@ -770,7 +805,8 @@ function antForest() {
 
                 screenAreaSamples.forEach(w => {
                     let parent_node = w.parent();
-                    waitForAction(() => !!parent_node, 3000); // just in case
+                    if (!parent_node) return debugInfo("采集到无效的排行榜好友样本");
+
                     let state_ident_node = parent_node.child(parent_node.childCount() - 2);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
@@ -780,18 +816,18 @@ function antForest() {
                     // special treatment for first 3 ones
                     let name_node = parent_node.child(1).desc() && parent_node.child(1) || parent_node.child(2);
                     let name = name_node.desc();
-                    let name_node_top = name_node.bounds().top;
+                    let name_node_cy = name_node.bounds().centerY();
 
                     try {
                         if (!checkRegion(find_color_options.region)) return;
 
                         let pt_green = images.findColor(rank_list_capt_img, config.ready_to_collect_color, find_color_options);
-                        if (pt_green) return targets_green.unshift({name: name, y: name_node_top});
+                        if (pt_green) return targets_green.unshift({name: name, y: name_node_cy});
 
                         if (!help_switch) return;
 
                         let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_color, find_color_options);
-                        if (pt_orange) return targets_orange.unshift({name: name, y: name_node_top});
+                        if (pt_orange) return targets_orange.unshift({name: name, y: name_node_cy});
                     } catch (e) {
                         throw Error(e);
                     }
@@ -812,7 +848,8 @@ function antForest() {
                         let samples = boundsInside(~~(WIDTH * 0.7), 1, WIDTH, HEIGHT - 1)
                             .descMatches(regexp_energy_amount).filter(function (w) {
                                 let bounds = w.bounds();
-                                return bounds.bottom > bounds.top;
+                                let b_bottom = bounds.bottom;
+                                return b_bottom > bounds.top && b_bottom < HEIGHT * 0.95;
                             }).find();
                         if (samples.size()) return samples;
                     }
@@ -1017,7 +1054,7 @@ function antForest() {
 
                         let safe_max_try_times = 50; // 10 sec at most
                         while (!desc("没有更多").exists() && safe_max_try_times--) {
-                            kw_list_more.exists() && kw_list_more.click();
+                            clickObject(kw_list_more);
                             sleep(200);
                         }
                         debugInfo("动态列表展开完毕");
@@ -1178,7 +1215,7 @@ function antForest() {
 
                 let max_try_times = 3;
                 while (max_try_times--) {
-                    kw_back_btn.exists() ? kw_back_btn.click() : keycode(4);
+                    clickObject(kw_back_btn) || keycode(4);
                     if (waitForAction(ident_hero_list, 3000)) {
                         debugInfo("返回排行榜成功");
                         return true;
@@ -1362,7 +1399,7 @@ function antForest() {
 
             let max_try_times = 5;
             while (max_try_times--) {
-                kw_back_btn.exists() ? kw_back_btn.click() : keycode(4);
+                clickObject(kw_back_btn) || keycode(4);
                 if (waitForAction(ident_af_home, 3000)) {
                     debugInfo("返回蚂蚁森林主页成功");
                     return true;
@@ -2355,12 +2392,12 @@ function tryRequestScreenCapture() {
         let kw_no_longer_prompt = id("com.android.systemui:id/remember");
         if (!waitForAction(kw_no_longer_prompt, 5000)) return;
         debugInfo("勾选\"不再提示\"复选框");
-        kw_no_longer_prompt.click();
+        clickObject(kw_no_longer_prompt) || clickBounds(kw_no_longer_prompt);
 
         let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
         if (!waitForAction(kw_start_now_btn, 2000)) return;
         debugInfo("点击\"立即开始\"按钮");
-        kw_start_now_btn.click();
+        clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
     });
 
     let thread_req;
@@ -2477,7 +2514,7 @@ function keycode(keycode_name) {
             return ~quickSettings();
         case "splitScreen":
         case "split_screen":
-            return splitScreen();
+            return ~splitScreen();
         default:
             return keyEvent(keycode_name);
     }
@@ -2511,4 +2548,261 @@ function debugConfigInfo() {
     ////SUSPENDED////
     let cfg = config || {};
     if (!cfg.message_showing_switch || !cfg.debug_info_switch) return true;
+}
+
+function clickObject(obj_keyword, buffering_time) {
+    let max_try_times = 3;
+    let max_try_times_backup = max_try_times;
+    while (max_try_times--) {
+        if (!obj_keyword) return;
+        if (buffering_time && !waitForAction(obj_keyword, buffering_time) || !obj_keyword.exists()) return;
+
+        let thread_click = threads.start(function () {
+            obj_keyword.click();
+        });
+        thread_click.join(1000);
+        if (!thread_click.isAlive()) break;
+        let current_run_count = max_try_times_backup - max_try_times;
+        debugInfo("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+        thread_click.interrupt();
+    }
+    if (max_try_times < 0) return messageAction("click()方法超时", 3);
+    return true;
+}
+
+/**
+ * swipe until "f" is in screen
+ * @param {object|object[]|string} f - what you wanna find
+ * <br>
+ *     - object - text("abc") - object you wanna find"<br>
+ *     - string - "butterfly.jpg/png" - picture you wanna find<br>
+ *     - array - [num(s), obj(s)] - a multi-condition array (all shown in screen at the same time)
+ *
+ * @param {Object} params - restrict for smaller finding area
+ * @param {number|number[]} [params.screen_area] - restrict for smaller finding area
+ * <br>
+ *     - null - default is fullscreen<br>
+ *     - 4 nums - [left, top, right, bottom] like [10, 50, 700, 1080] for [10, 50, 700, 1080]<br>
+ *     - 2 nums - [default, default, right, bottom] like [700, 1080] for [def, def, 700, 1080]<br>
+ *     - 1 num - [default, default, default, bottom] like 1080 or [1080] for [def, def, def, 1080]
+ *
+ * @param {number} [params.max=timeout=20000;max_swipe_times=50] - set max finding time or max swipe times
+ * <br>
+ *     - max>=1000 - set max as timeout<br>
+ *     - max<1000 - set max as max_swipe_times
+ * @param {number|string} [params.direction="up"] - swipe direction
+ * <br>
+ *     - 0|left|l or 1|up|u or 2|right|r or 3|down|d for different direction to swipe
+ *
+ * @param {number} [params.swipe_time=300] - the time spent for each swiping
+ * @param {number} [params.check_interval=300] - the time spent between every swiping
+ * @param {number|number[]} [params.swipe_area] - restrict for smaller swiping area
+ * <br>
+ *     - usage is same as "screen_area"
+ *
+ * @param {number} [params.inside_or_contain=0] - object inside screen bounds or screen bounds contains object (not for image)
+ * <br>
+ *     - 0 - contains - screen bounds contains object - just needs a little little bit object bounds shown in screen<br>
+ *     - 1 - inside - object inside screen bounds - the whole object bounds must be inside the screen bounds
+ *
+ * @param {string} [params.if_click=0] - click after "f" found - ONLY "click" can be introduced if you need a click
+ * @param {...function|function[]|object|object[]} params.special_bad_situation
+ * @returns {boolean} - if timed out or max swipe time reached
+ */
+function makeInScreen(f, params) {
+    params = params || {};
+    let screen_area = params.screen_area;
+    let max = params.max;
+    let direction = params.direction;
+    let swipe_time = params.swipe_time;
+    let check_interval = params.check_interval;
+    let swipe_area = params.swipe_area;
+    let inside_or_contain = params.inside_or_contain;
+    let if_click = params.if_click;
+    let special_bad_situation = params.special_bad_situation;
+
+    let timeout = max && max >= 1000 ? max : 20000,
+        max_swipe_times = max && max > 0 && max <= 999 ? max : 50,
+        bad_situation_pending = 1000;
+    direction = handleDirection(direction);
+    check_interval = check_interval || 300;
+    swipe_time = swipe_time || 300;
+    inside_or_contain = inside_or_contain ? 1 : 0;
+    if (if_click !== "click") if_click = 0;
+
+    if (typeof f === "string" && checkImageName(f)) tryRequestScreenCapture();
+
+    let screen_bounds = {
+        left: 0,
+        top: 0,
+        right: WIDTH,
+        bottom: HEIGHT
+    };
+    let swipe_bounds = {
+        left: WIDTH * 0.1,
+        top: HEIGHT * 0.3,
+        right: WIDTH * 0.9,
+        bottom: HEIGHT * 0.7
+    };
+
+    if (screen_area) adjustBounds(screen_area, screen_bounds);
+    if (swipe_area) adjustBounds(swipe_area, swipe_bounds);
+
+    setSwipeBoundsCenter();
+
+    sleep(200);
+    return findF();
+
+    // tool function(s) //
+
+    function findF() {
+        while (timeout > 0 && max_swipe_times--) {
+            if (checkFunc(f)) break;
+            if (bad_situation_pending >= 1000) {
+                if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
+                if (special_bad_situation) checkBadSituation(special_bad_situation);
+                bad_situation_pending %= 1000;
+            }
+            swipe();
+            sleep(check_interval);
+            timeout -= (check_interval + swipe_time);
+            bad_situation_pending += check_interval + swipe_time;
+        }
+        let valid = timeout > 0 && max_swipe_times >= 0;
+        if (valid && if_click && typeof f !== "string") {
+            sleep(200);
+            clickBounds(f);
+        }
+        return valid;
+    }
+
+    function setSwipeBoundsCenter() {
+        swipe_bounds.left_center = [swipe_bounds.left, (swipe_bounds.top + swipe_bounds.bottom) / 2];
+        swipe_bounds.top_center = [(swipe_bounds.left + swipe_bounds.right) / 2, swipe_bounds.top];
+        swipe_bounds.right_center = [swipe_bounds.right, (swipe_bounds.top + swipe_bounds.bottom) / 2];
+        swipe_bounds.bottom_center = [(swipe_bounds.left + swipe_bounds.right) / 2, swipe_bounds.bottom];
+    }
+
+    function adjustBounds(area, bounds) {
+        if (typeof area === "number") {
+            bounds.bottom = area;
+        } else if (Object.prototype.toString.call(area).slice(8, -1) === "Array") {
+            switch (area.length) {
+                case 1:
+                    bounds.bottom = area[0];
+                    break;
+                case 2:
+                    bounds.right = area[0];
+                    bounds.bottom = area[1];
+                    break;
+                case 4:
+                    bounds.left = area[0];
+                    bounds.top = area[1];
+                    bounds.right = area[2];
+                    bounds.bottom = area[3];
+                    break;
+                default:
+                    messageAction("\"makeInScreen\"area参数元素数量不合法", 9, 1, 1);
+            }
+        } else {
+            messageAction("\"makeInScreen\"area参数不合法", 9, 1, 1);
+        }
+    }
+
+    function checkFunc(f) {
+        if (typeof f === "object") {
+            let classof = Object.prototype.toString.call(f).slice(8, -1);
+            if (classof !== "Array") return inside_or_contain ? f.exists() && inBounds(f.findOnce().bounds()) : f.exists() && containBounds(f.findOnce().bounds());
+            return handleArray(f);
+        } else if (typeof f === "string") return handleImage(f);
+        else messageAction("\"makeInScreen\"f参数不合法", 9, 1, 1);
+    }
+
+    function handleArray(arr) {
+        for (let i = 0, len = arr.length; i < len; i += 1) {
+            if (!(typeof arr[i]).match(/object|string/)) messageAction("\"makeInScreen\"数组参数含不合法元素", 9, 1);
+            if (!checkFunc(arr[i])) return false;
+        }
+        return true;
+    }
+
+    function handleDirection(direction) {
+        if (!direction) return 1;
+        if (typeof direction === "number") return direction in {0: 1, 2: 1, 3: 1} ? direction : 1;
+        if (direction.match(/^l(eft)?$/)) return 0;
+        else if (direction.match(/^r(ight)?$/)) return 2;
+        else if (direction.match(/^b(ottom)?$/)) return 3;
+        else return 1;
+    }
+
+    function checkImageName(path) {
+        return path.match(/^\/?(sdcard|emulated)|\.jpg$|\.png$/i);
+    }
+
+    function handleImage(path) {
+        if (!checkImageName(path)) messageAction("\"makeInScreen\"f作为图片路径输入不合法", 9, 1);
+        let img_template = images.read(path);
+        if (!img_template) messageAction("未找到\"" + path + "\"文件", 9, 1);
+        let found_image = findImage(captureScreen(), img_template);
+        let image_bounds;
+        if (found_image) image_bounds = {
+            left: found_image.x,
+            top: found_image.y,
+            right: found_image.x + img_template.width,
+            bottom: found_image.y + img_template.height
+        };
+        let valid = inside_or_contain ? found_image && inBounds(image_bounds) : found_image && containBounds(image_bounds);
+        if (valid && if_click) {
+            sleep(300);
+            click((image_bounds.left + image_bounds.right) / 2, (image_bounds.top + image_bounds.bottom) / 2);
+        }
+        return valid;
+    }
+
+    function inBounds(bounds) {
+        return bounds.right > bounds.left && bounds.bottom > bounds.top &&
+            (direction === 2 ? bounds.left > screen_bounds.left : bounds.left >= screen_bounds.left) &&
+            (direction === 3 ? bounds.top > screen_bounds.top : bounds.top >= screen_bounds.top) &&
+            (direction === 0 ? bounds.right < screen_bounds.right : bounds.right <= screen_bounds.right) &&
+            (direction === 1 ? bounds.bottom < screen_bounds.bottom : bounds.bottom <= screen_bounds.bottom);
+    }
+
+    function containBounds(bounds) {
+        return bounds.right > bounds.left && bounds.bottom > bounds.top &&
+            (
+                (
+                    (bounds.right >= screen_bounds.left && bounds.right <= screen_bounds.right) ||
+                    (bounds.left <= screen_bounds.right && bounds.left >= screen_bounds.left)
+                ) &&
+                (
+                    (bounds.bottom >= screen_bounds.top && bounds.bottom <= screen_bounds.bottom) ||
+                    (bounds.top <= screen_bounds.bottom && bounds.top >= screen_bounds.top)
+                )
+            );
+    }
+
+    function swipe() {
+        let coordinate_a, coordinate_b;
+        switch (direction) {
+            case 0:
+                coordinate_a = swipe_bounds.right_center;
+                coordinate_b = swipe_bounds.left_center;
+                break;
+            case 1:
+                coordinate_a = swipe_bounds.bottom_center;
+                coordinate_b = swipe_bounds.top_center;
+                break;
+            case 2:
+                coordinate_a = swipe_bounds.left_center;
+                coordinate_b = swipe_bounds.right_center;
+                break;
+            case 3:
+                coordinate_a = swipe_bounds.top_center;
+                coordinate_b = swipe_bounds.bottom_center;
+                break;
+            default:
+                messageAction("\"makeInScreen\"direction参数不合法", 9, 1);
+        }
+        gesture(swipe_time, coordinate_a, coordinate_b);
+    }
 }
