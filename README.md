@@ -52,7 +52,6 @@
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
 >> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true) `(推荐)`  
 
-
 >"Auto.js"不适用版本:
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
@@ -88,10 +87,13 @@
 * 图形配置页面  
 * ###### 其他功能详见[使用说明书](https://github.com/SuperMonster003/Ant_Forest/blob/master/Ant_Forest_Project/Documents/Ant_Forest_User_Manual.md)
 
-
 ******
 ### 版本历史
 ******
+# v1.5.21
+###### 2019/04/29
+* `新增` 图形配置页面自定义黑名单页面骨架  
+
 # v1.5.20
 ###### 2019/04/28
 * `新增` 按键监听 VOL+: 停止所有脚本 VOL-: 停止当前脚本  

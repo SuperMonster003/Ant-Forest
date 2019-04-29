@@ -39,6 +39,7 @@ let defs = {
     sub_head_color: "#03a6ef",
     info_color: "#78909c",
     title_bg_color: "#03a6ef",
+    "list_title_bg_color": "#afefff",
     btn_on_color: "#ffffff",
     btn_off_color: "#bbcccc",
     split_line_color: "#bbcccc",
@@ -56,7 +57,203 @@ let non_break_check_page = setPage("监测自己能量");
 let auto_unlock_page = setPage("自动解锁");
 let blacklist_page = setPage("黑名单管理");
 let cover_blacklist_page = setPage("能量罩黑名单");
-let self_def_blacklist_page = setPage("自定义黑名单");
+let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view => setButtons(parent_view,
+    ["restore", "RESTORE", "OFF", btn_view => {
+        if (equalObjects(blacklist, blacklist_backup)) return;
+        let diag = dialogs.build({
+            title: "恢复列表数据",
+            content: "要恢复本次会话开始前的列表数据吗\n\n此操作不可撤销",
+            neutral: "查看恢复列表",
+            neutralColor: "#88bb88",
+            negative: "返回",
+            positive: "确定",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => {
+            let diag_restore_list = dialogs.build({
+                title: "查看恢复列表",
+                content: "共计" + blacklist_backup.length + "项",
+                positive: "返回",
+                items: (function () {
+                    let split_line = "";
+                    for (let i = 0; i < 18; i += 1) split_line += "- ";
+                    let items = [split_line];
+                    blacklist_backup.forEach(o => items.push("好友昵称: " + o.name, "解除时间: " + convertTimestamp(o.timestamp).time_str, split_line));
+                    return items.length > 1 ? items : ["列表为空"];
+                })(),
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_restore_list.on("positive", () => diag_restore_list.dismiss());
+            diag_restore_list.show();
+        });
+        diag.on("negative", () => diag.dismiss());
+        diag.on("positive", () => {
+            diag.dismiss();
+            blacklist.splice(0, blacklist.length);
+            deleted_items_idx = {};
+            deleted_items_idx_count = 0;
+            let remove_btn = list_page_view.getParent()._text_remove.getParent();
+            remove_btn.switch_off();
+            btn_view.switch_off();
+            list_page_view.check_all.setChecked(false);
+            blacklist_backup.forEach(value => blacklist.push(Object.assign(value, {checked: false})));
+        });
+        diag.show();
+    }],
+    ["delete_forever", "REMOVE", "OFF", btn_view => {
+        threads.start(function () {
+            if (!deleted_items_idx_count) return;
+            let old_count = undefined;
+            while (deleted_items_idx_count !== old_count) {
+                old_count = deleted_items_idx_count;
+                sleep(100);
+            }
+            let deleted_items_idx_keys = Object.keys(deleted_items_idx);
+            deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => deleted_items_idx[idx] && blacklist.splice(idx, 1));
+            deleted_items_idx = {};
+            deleted_items_idx_count = 0;
+            let restore_btn = list_page_view.getParent()._text_restore.getParent();
+            if (!equalObjects(blacklist, blacklist_backup)) restore_btn.switch_on();
+            list_page_view.check_all.setChecked(false);
+            btn_view.switch_off();
+        });
+    }],
+    ["add_circle", "NEW", "ON", btn_view => {
+        let tmp_selected_friends = [];
+        let blacklist_selected_friends = [];
+        blacklist.forEach(o => blacklist_selected_friends.push(o.name));
+
+        let diag = dialogs.build({
+            title: "添加新数据",
+            content: "从好友列表中选择并添加好友\n或手动输入好友昵称",
+            items: [" "],
+            neutral: "从列表中选择",
+            neutralColor: "#88bb88",
+            negative: "手动添加",
+            negativeColor: "#88bb88",
+            positive: "确认添加",
+            autoDismiss: false,
+            canceledOnTouchOutside: false,
+        });
+        diag.on("neutral", () => {
+            let diag_add_from_list = dialogs.build({
+                title: "列表选择好友",
+                content: "",
+                positive: "确认选择",
+                items: ["列表为空"],
+                itemsSelectMode: "multi",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_add_from_list.on("positive", () => {
+                refreshDiag();
+                diag_add_from_list.dismiss();
+            });
+            diag_add_from_list.on("multi_choice", (items, indices_damaged_, dialog) => {
+                if (items.length === 1 && items[0] === "列表为空") return;
+                if (items) items.forEach(name => tmp_selected_friends.push(name.split(". ")[1]));
+            });
+            diag_add_from_list.show();
+
+            refreshAddFromListDiag();
+
+            // tool function(s) //
+
+            function refreshAddFromListDiag() {
+                let items = [];
+                let friends_list = storage_af.get("friends_list_data");
+                if (friends_list && friends_list.list_data) {
+                    friends_list.list_data.forEach(o => {
+                        let nickname = o.nickname;
+                        if (!~blacklist_selected_friends.indexOf(nickname) && !~tmp_selected_friends.indexOf(nickname)) {
+                            items.push(o.rank_num + ". " + nickname);
+                        }
+                    });
+                }
+                let items_len = items.length;
+                items = items_len ? items : ["列表为空"];
+                diag_add_from_list.setItems(items);
+                let content_info = (friends_list.timestamp ? ("上次刷新: " + convertTimestamp(friends_list.timestamp, "force_return").time_str + "\n") : "") +
+                    "当前可添加的好友总数: " + items_len;
+                diag_add_from_list.setContent(content_info);
+            }
+        });
+        diag.on("negative", () => {
+            let input_ok_flag = true;
+            let diag_add_manually = dialogs.build({
+                title: "手动添加好友",
+                content: "手动添加易出错\n且无法输入特殊字符\n强烈建议使用列表导入功能",
+                inputHint: "输入好友备注昵称 (非账户名)",
+                positive: "添加到选择区",
+                negative: "返回",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_add_manually.on("negative", () => diag_add_manually.dismiss());
+            diag_add_manually.on("positive", () => {
+                if (!input_ok_flag) return;
+                refreshDiag();
+                diag_add_manually.dismiss();
+            });
+            diag_add_manually.on("input", input => {
+                if (!input) return;
+                if (~blacklist_selected_friends.indexOf(input)) {
+                    input_ok_flag = false;
+                    return alert(input + "\n在黑名单列表中已存在\n不可重复添加");
+                }
+                if (~tmp_selected_friends.indexOf(input)) {
+                    input_ok_flag = false;
+                    return ~alert(input + "\n在选择区中已存在\n不可重复添加");
+                }
+                tmp_selected_friends.push(input);
+            });
+            diag_add_manually.show();
+        });
+        diag.on("positive", () => {
+            tmp_selected_friends.forEach(name => blacklist.push({
+                name: name,
+                timestamp: Infinity,
+            }));
+            if (tmp_selected_friends.length) setTimeout(() => parent_view.blacklist.smoothScrollBy(0, Math.pow(10, 5)), 200);
+            let restore_btn = list_page_view.getParent()._text_restore.getParent();
+            equalObjects(blacklist, blacklist_backup) ? restore_btn.switch_off() : restore_btn.switch_on();
+            diag.dismiss();
+        });
+        diag.on("item_select", (idx, item, dialog) => {
+            let diag_items = diag.getItems().toArray();
+            if (diag_items.length === 1 && diag_items[0] === "还没有选择好友\xa0") return;
+            let delete_confirm_diag = dialogs.build({
+                title: "确认移除此项吗",
+                positive: "确认",
+                negative: "返回",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
+            delete_confirm_diag.on("positive", () => {
+                tmp_selected_friends.splice(idx, 1);
+                refreshDiag();
+                delete_confirm_diag.dismiss();
+            });
+            delete_confirm_diag.show();
+        });
+        diag.show();
+
+        refreshDiag();
+
+        // tool function(s) //
+
+        function refreshDiag() {
+            let tmp_items_len = tmp_selected_friends.length;
+            let tmp_items = tmp_items_len ? tmp_selected_friends : ["\xa0"];
+            diag.setItems(tmp_items);
+            let content_info = tmp_items_len ? ("当前选择区好友总数: " + tmp_items_len) : "从好友列表中选择并添加好友\n或手动输入好友昵称";
+            diag.setContent(content_info);
+        }
+    }]),
+    "no_margin_bottom");
 let message_showing_page = setPage("消息提示");
 
 homepage
@@ -782,22 +979,30 @@ blacklist_page
         },
     }))
     .add("info", new Layout("5月1日之前完成黑名单配置功能"));
-//  .add("list", new Layout("能量罩黑名单成员", {
-//     list_head: ["支付宝好友昵称", "黑名单自动解除"],
-//     data_source: (function () {
-//         let blacklist = storage_af.get("blacklist", {});
-//         let cover_blacklist = [];
-//         for (let name in blacklist) {
-//             if (blacklist.hasOwnProperty(name)) {
-//                 if (blacklist[name].reason === "protect_cover") cover_blacklist.push({
-//                     name: name,
-//                     timestamp: blacklist[name].timestamp,
-//                 });
-//             }
-//         }
-//         return cover_blacklist;
-//     })(),
-// }));
+
+self_def_blacklist_page
+    .add("list", new Layout("能量罩黑名单成员", {
+        list_head: [{title: "支付宝好友昵称", width: 0.58}, {title: "黑名单自动解除"}],
+        data_source: (function () {
+            return [
+                {name: "name_test_01", timestamp: "1728465246323"},
+                {name: "name_test_02", timestamp: "1428465246323"},
+                {name: "name_test_03", timestamp: 0},
+            ];
+            let blacklist = storage_af.get("blacklist", {});
+            let cover_blacklist = [];
+            for (let name in blacklist) {
+                if (blacklist.hasOwnProperty(name)) {
+                    if (blacklist[name].reason === "protect_cover") cover_blacklist.push({
+                        name: name,
+                        timestamp: blacklist[name].timestamp,
+                    });
+                }
+            }
+            return cover_blacklist;
+        })(),
+        list_checkbox: true,
+    }));
 
 message_showing_page
     .add("switch", new Layout("总开关", {
@@ -1003,6 +1208,9 @@ function Layout(title, params) {
     this.info_color = params.info_color;
     this.config_conj = params.config_conj;
     this.next_page = params.next_page;
+    this.data_source = params.data_source;
+    this.list_head = params.list_head;
+    this.list_checkbox = params.list_checkbox;
     this.hint = params.hint;
     if (params.new_window) {
         Object.defineProperties(this, {
@@ -1121,7 +1329,7 @@ function setHomePage(home_title) {
     }
 }
 
-function setPage(title, title_bg_color, additions) {
+function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
     title_bg_color = title_bg_color || defs["title_bg_color"];
     let new_view = ui.inflate(<vertical></vertical>);
     new_view.addView(ui.inflate(
@@ -1143,10 +1351,11 @@ function setPage(title, title_bg_color, additions) {
     new_view.addView(ui.inflate(<ScrollView>
         <vertical id="scroll_view"></vertical>
     </ScrollView>));
-    new_view.scroll_view.addView(ui.inflate(<frame>
-        <frame margin="0 0 0 8"></frame>
-    </frame>));
-
+    if (!no_margin_bottom_flag) {
+        new_view.scroll_view.addView(ui.inflate(<frame>
+            <frame margin="0 0 0 8"></frame>
+        </frame>));
+    }
     new_view.add = (type, item_params) => {
         let sub_view = setItem(type, item_params);
         new_view.scroll_view.addView(sub_view);
@@ -1273,13 +1482,13 @@ function setPage(title, title_bg_color, additions) {
         }
 
         function setInfo(item) {
-            let title = item["title"],
-                info_color = item["info_color"] || defs["info_color"];
+            let title = item["title"];
+            let info_color = item["info_color"] || defs["info_color"];
             session_params.info_color = info_color;
 
             let new_view = ui.inflate(
                 <linear>
-                    <img src="@drawable/ic_info_outline_black_48dp" width="17" margin="15 1 -12 0" tint="{{session_params.info_color}}"></img>
+                    <img src="@drawable/ic_info_outline_black_48dp" width="17" margin="16 1 -12 0" tint="{{session_params.info_color}}"></img>
                     <text id="_info_text" textSize="13" margin="16"/>
                 </linear>
             );
@@ -1288,6 +1497,118 @@ function setPage(title, title_bg_color, additions) {
             new_view._info_text.setTextColor(title_color);
 
             return new_view;
+        }
+
+        function setList(item) {
+            let list_title_bg_color = item["list_title_bg_color"] || defs["list_title_bg_color"];
+            let list_head = item["list_head"] || [];
+            session_params.list_head = list_head;
+            let list_checkbox = item["list_checkbox"] ? "visible" : "gone";
+            session_params.list_checkbox = list_checkbox;
+            let data_source = item["data_source"] || [];
+
+            let new_view = ui.inflate(
+                <vertical>
+                    <horizontal id="_list_title_bg">
+                        <horizontal margin="8 0" h="50" w="210">
+                            <checkbox id="_check_all" visibility="gone" layout_gravity="left|center" clickable="false"/>
+                        </horizontal>
+                    </horizontal>
+                    <vertical>
+                        <list id="_list_data" fastScrollEnabled="true" focusable="true" stackFromBottom="true" scrollbars="none">
+                            <horizontal>
+                                <horizontal margin="8 0" w="210">
+                                    <checkbox id="_checkbox" visibility="{{session_params.list_checkbox}}" checked="{{this.checked}}" h="50" margin="0 0 -16" layout_gravity="left|center" clickable="false"/>
+                                    <text text="{{this.name}}" h="50" textSize="15" margin="16 0 0" ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
+                                </horizontal>
+                                <text text="{{convertTimestamp(+this.timestamp).time_str}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                            </horizontal>
+                        </list>
+                    </vertical>
+                </vertical>
+            );
+
+            new_view._list_data.setDataSource(data_source);
+            new_view._list_title_bg.attr("bg", list_title_bg_color);
+            list_checkbox && new_view._check_all.setVisibility(0);
+            list_head.forEach((title_obj, idx) => {
+                let list_title_view = ui.inflate(
+                    <text textSize="15"/>
+                );
+                list_title_view.setText(title_obj.title);
+                list_title_view.on("click", () => {
+                    let key_name = Object.keys(data_source)[idx];
+                    let ascend_data = data_source.sort((a, b) => a[key_name] > b[key_name]);
+                    if (data_source[0] === ascend_data[0]) data_source = ascend_data;
+                    else data_source = ascend_data.sort(() => 1);
+                });
+
+                if (idx === 0) new_view["_check_all"].getParent().addView(list_title_view);
+                else new_view["_list_title_bg"].addView(list_title_view);
+
+                list_title_view.attr("gravity", "left|center");
+                list_title_view.attr("layout_gravity", "left|center");
+                list_title_view.attr("ellipsize", "end");
+                list_title_view.attr("lines", "1");
+            });
+
+            return new_view;
+        }
+    }
+}
+
+function setButtons(parent_view, button_params_arr) {
+    let buttons_view = ui.inflate(<horizontal id="btn"></horizontal>);
+    let buttons_count = 0;
+    for (let i = 1, len = arguments.length; i < len; i += 1) {
+        let arg = arguments[i];
+        if (typeof arg !== "object") continue; // just in case
+        buttons_view.btn.addView(getButtonLayout.apply(null, arg));
+        buttons_count += 1;
+    }
+    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (parent_view.back_btn_area.visibility === 0 ? 52 : 0)) * WIDTH / 720));
+    parent_view._title_bg.addView(buttons_view);
+
+    // tool function(s) //
+
+    function getButtonLayout(button_icon_file_name, button_text, switch_state, btn_click_listener, other_params) {
+        other_params = other_params || {};
+        session_params.button_icon_file_name = button_icon_file_name.replace(/^(ic_)?(.*?)(_black_48dp)?$/, "ic_$2_black_48dp");
+        session_params.button_text = button_text;
+        let btn_text = button_text.toLowerCase();
+        let btn_icon_id = "_icon_" + btn_text;
+        session_params.btn_icon_id = btn_icon_id;
+        let btn_text_id = "_text_" + btn_text;
+        session_params.btn_text_id = btn_text_id;
+        let def_on_color = defs.btn_on_color;
+        let def_off_color = defs.btn_off_color;
+        let view = buttonView(); ///
+        let switch_on_color = [other_params["btn_on_icon_color"] || def_on_color, other_params["btn_on_text_color"] || def_on_color];
+        let switch_off_color = [other_params["btn_off_icon_color"] || def_off_color, other_params["btn_off_text_color"] || def_off_color];
+        view.switch_on = () => {
+            view[btn_icon_id].attr("tint", switch_on_color[0]);
+            view[btn_text_id].setTextColor(colors.parseColor(switch_on_color[1]));
+        };
+        view.switch_off = () => {
+            view[btn_icon_id].attr("tint", switch_off_color[0]);
+            view[btn_text_id].setTextColor(colors.parseColor(switch_off_color[1]));
+        };
+
+        switch_state === "OFF" ? view.switch_off() : view.switch_on();
+
+        view[btn_text_id].on("click", () => btn_click_listener && btn_click_listener(view));
+
+        return view;
+
+        // tool function(s) //
+
+        function buttonView() {
+            return ui.inflate(
+                <vertical margin="13 0">
+                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" width="31" bg="?selectableItemBackgroundBorderless"/>
+                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
+                </vertical>
+            );
         }
     }
 }
@@ -1509,4 +1830,31 @@ function checkSpecialPagesBeforeJumpBack() {
         });
         diag_alert.show();
     }
+}
+
+// temporarily placed here //
+function convertTimestamp(time_param, force_return_flag) {
+    let timestamp = +time_param;
+    let time_str = "";
+    let time = new Date();
+    if (!force_return_flag) {
+        if (timestamp === Infinity || timestamp === 0) time_str = "永不";
+        else if (!timestamp) time_str = "时间戳无效";
+        else if (timestamp <= time.getTime()) time_str = "下次运行";
+    }
+    if (!time_str) {
+        time.setTime(timestamp);
+        let fillZero = num => ("0" + num).slice(-2);
+        let yy = time.getFullYear();
+        let MM = fillZero(time.getMonth() + 1);
+        let dd = fillZero(time.getDate());
+        let hh = fillZero(time.getHours());
+        let mm = fillZero(time.getMinutes());
+        time_str = yy + "\/" + MM + "\/" + dd + " " + hh + ":" + mm;
+    }
+
+    return {
+        time_str: time_str,
+        timestamp: timestamp,
+    };
 }

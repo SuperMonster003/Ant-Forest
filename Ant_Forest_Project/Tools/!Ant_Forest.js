@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Apr 28, 2019
- * @version 1.5.20
+ * @last_modified Apr 29, 2019
+ * @version 1.5.21
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
