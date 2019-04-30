@@ -198,8 +198,8 @@ let self_def_blacklist_page = setPage("自定义黑名单", def, parent_view => 
 
             function refreshAddFromListDiag() {
                 let items = [];
-                let friends_list = storage_af.get("friends_list_data");
-                if (friends_list && friends_list.list_data) {
+                let friends_list = storage_af.get("friends_list_data", {});
+                if (friends_list.list_data) {
                     friends_list.list_data.forEach(o => {
                         let nickname = o.nickname;
                         if (!~blacklist_selected_friends.indexOf(nickname) && !~tmp_selected_friends.indexOf(nickname)) {
@@ -210,7 +210,7 @@ let self_def_blacklist_page = setPage("自定义黑名单", def, parent_view => 
                 let items_len = items.length;
                 items = items_len ? items : ["列表为空"];
                 diag_add_from_list.setItems(items);
-                session_params.last_friend_list_refresh_timestamp = friends_list.timestamp;
+                session_params.last_friend_list_refresh_timestamp = friends_list.timestamp || -1;
                 let content_info = (friends_list.timestamp ? ("上次刷新: " + convertTimestamp(friends_list.timestamp, "force_return").time_str + "\n") : "") +
                     "当前可添加的好友总数: " + items_len;
                 diag_add_from_list.setContent(content_info);
