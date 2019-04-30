@@ -17,29 +17,38 @@ let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 let storage_unlock = require("../Modules/MODULE_STORAGE").create("unlock");
 let encrypt = new (require("../Modules/MODULE_PWMAP.js"))().pwmapEncrypt;
+
+let session_params = {
+    //~ no need to set values here
+    //~ as all params will be set/modified automatically
+    save_btn_tint_color: null,
+    save_btn_text_color: null,
+    info_color: null,
+    non_break_check_time_area_diag_confirm_delete: null,
+    deleted_items_idx: {},
+    deleted_items_idx_count: 0,
+};
+
 let storage_config = initStorageConfig();
 // let session_config = Object.assign({}, storage_config); // shallow copy
 // let session_config = JSON.parse(JSON.stringify(storage_config)); // incomplete deep copy
 let session_config = deepCloneObject(storage_config); // deep copy
-let saveSession = () => null;
+let saveSession = (key, value) => {
+    if (key !== undefined) session_config[key] = value;
+    let btn_save = session_params["btn_save"];
+    needSave() ? btn_save.switch_on() : btn_save.switch_off();
+    updateAllValues();
+};
 let needSave = () => !equalObjects(session_config, storage_config);
 let dynamic_views = [];
 let updateAllValues = () => dynamic_views.forEach(view => view.updateOpr(view));
-let session_params = {
-    //~ no need to set values here
-    //~ as all params will be set/modified automatically
-    "save_btn_tint_color": null,
-    "save_btn_text_color": null,
-    "info_color": null,
-    "non_break_check_time_area_diag_confirm_delete": null,
-};
 let def = undefined;
 let defs = {
     item_area_width: ~~(WIDTH * 0.78) + "px",
     sub_head_color: "#03a6ef",
     info_color: "#78909c",
     title_bg_color: "#03a6ef",
-    "list_title_bg_color": "#afefff",
+    list_title_bg_color: "#afefff",
     btn_on_color: "#ffffff",
     btn_off_color: "#bbcccc",
     split_line_color: "#bbcccc",
@@ -56,10 +65,12 @@ let self_collect_page = setPage("自收功能");
 let non_break_check_page = setPage("监测自己能量");
 let auto_unlock_page = setPage("自动解锁");
 let blacklist_page = setPage("黑名单管理");
-let cover_blacklist_page = setPage("能量罩黑名单");
-let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view => setButtons(parent_view,
+let cover_blacklist_page = setPage("能量罩黑名单", def, def, "no_margin_bottom");
+let self_def_blacklist_page = setPage("自定义黑名单", def, parent_view => setButtons(parent_view,
     ["restore", "RESTORE", "OFF", btn_view => {
-        if (equalObjects(blacklist, blacklist_backup)) return;
+        let blacklist_backup = session_params.blacklist_by_user;
+        let data_source = session_params.data_source;
+        if (equalObjects(session_config[data_source], blacklist_backup)) return;
         let diag = dialogs.build({
             title: "恢复列表数据",
             content: "要恢复本次会话开始前的列表数据吗\n\n此操作不可撤销",
@@ -90,40 +101,53 @@ let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view =>
         });
         diag.on("negative", () => diag.dismiss());
         diag.on("positive", () => {
+            let list_page_view = findViewByTag(parent_view, "list_page_view");
             diag.dismiss();
-            blacklist.splice(0, blacklist.length);
-            deleted_items_idx = {};
-            deleted_items_idx_count = 0;
-            let remove_btn = list_page_view.getParent()._text_remove.getParent();
+            session_config[data_source].splice(0, session_config[data_source].length);
+            session_params.deleted_items_idx = {};
+            session_params.deleted_items_idx_count = 0;
+            let remove_btn = parent_view._text_remove.getParent();
             remove_btn.switch_off();
             btn_view.switch_off();
-            list_page_view.check_all.setChecked(false);
-            blacklist_backup.forEach(value => blacklist.push(Object.assign(value, {checked: false})));
+            list_page_view._check_all.setChecked(false);
+            blacklist_backup.forEach(value => session_config[data_source].push(Object.assign(value, {checked: false})));
+            saveSession("blacklist_by_user", session_config[data_source]);
         });
         diag.show();
     }],
     ["delete_forever", "REMOVE", "OFF", btn_view => {
-        threads.start(function () {
-            if (!deleted_items_idx_count) return;
+        if (!session_params.deleted_items_idx_count) return;
+        let data_source = session_params.data_source;
+
+        let thread_items_stable = threads.start(function () {
             let old_count = undefined;
-            while (deleted_items_idx_count !== old_count) {
-                old_count = deleted_items_idx_count;
-                sleep(100);
+            while (session_params.deleted_items_idx_count !== old_count) {
+                old_count = session_params.deleted_items_idx_count;
+                sleep(50);
             }
-            let deleted_items_idx_keys = Object.keys(deleted_items_idx);
-            deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => deleted_items_idx[idx] && blacklist.splice(idx, 1));
-            deleted_items_idx = {};
-            deleted_items_idx_count = 0;
-            let restore_btn = list_page_view.getParent()._text_restore.getParent();
-            if (!equalObjects(blacklist, blacklist_backup)) restore_btn.switch_on();
-            list_page_view.check_all.setChecked(false);
-            btn_view.switch_off();
         });
+        thread_items_stable.join(800);
+
+        let deleted_items_idx_keys = Object.keys(session_params.deleted_items_idx);
+        deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => session_params.deleted_items_idx[idx] && session_config[data_source].splice(idx, 1));
+        saveSession("blacklist_by_user", session_config[data_source]);
+        session_params.deleted_items_idx = {};
+        session_params.deleted_items_idx_count = 0;
+
+        let list_page_view = findViewByTag(parent_view, "list_page_view");
+        let restore_btn = parent_view._text_restore.getParent();
+        if (!equalObjects(session_config[data_source], session_params.blacklist_by_user)) restore_btn.switch_on();
+        else restore_btn.switch_off();
+        list_page_view._check_all.setChecked(false);
+        btn_view.switch_off();
     }],
     ["add_circle", "NEW", "ON", btn_view => {
         let tmp_selected_friends = [];
         let blacklist_selected_friends = [];
-        blacklist.forEach(o => blacklist_selected_friends.push(o.name));
+        let data_source = session_params.data_source;
+        let list_page_view = findViewByTag(parent_view, "list_page_view");
+
+        session_config[data_source].forEach(o => blacklist_selected_friends.push(o.name));
 
         let diag = dialogs.build({
             title: "添加新数据",
@@ -141,11 +165,22 @@ let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view =>
             let diag_add_from_list = dialogs.build({
                 title: "列表选择好友",
                 content: "",
+                neutral: "刷新列表",
+                neutralColor: "#26a69a",
                 positive: "确认选择",
                 items: ["列表为空"],
                 itemsSelectMode: "multi",
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
+            });
+            diag_add_from_list.on("neutral", () => {
+                engines.execScriptFile("./!Ant_Forest.js", {
+                    arguments: {
+                        special_exec_command: "collect_friends_list",
+                    },
+                });
+                diag_add_from_list.dismiss();
+                setTimeout(() => toast("即将打开\"支付宝\"刷新好友列表"), 500);
             });
             diag_add_from_list.on("positive", () => {
                 refreshDiag();
@@ -175,6 +210,7 @@ let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view =>
                 let items_len = items.length;
                 items = items_len ? items : ["列表为空"];
                 diag_add_from_list.setItems(items);
+                session_params.last_friend_list_refresh_timestamp = friends_list.timestamp;
                 let content_info = (friends_list.timestamp ? ("上次刷新: " + convertTimestamp(friends_list.timestamp, "force_return").time_str + "\n") : "") +
                     "当前可添加的好友总数: " + items_len;
                 diag_add_from_list.setContent(content_info);
@@ -212,18 +248,19 @@ let self_def_blacklist_page = setPage("自定义黑名单", null, parent_view =>
             diag_add_manually.show();
         });
         diag.on("positive", () => {
-            tmp_selected_friends.forEach(name => blacklist.push({
+            tmp_selected_friends.forEach(name => session_config[data_source].push({
                 name: name,
                 timestamp: Infinity,
             }));
-            if (tmp_selected_friends.length) setTimeout(() => parent_view.blacklist.smoothScrollBy(0, Math.pow(10, 5)), 200);
+            if (tmp_selected_friends.length) setTimeout(() => parent_view._list_data.smoothScrollBy(0, Math.pow(10, 5)), 200);
             let restore_btn = list_page_view.getParent()._text_restore.getParent();
-            equalObjects(blacklist, blacklist_backup) ? restore_btn.switch_off() : restore_btn.switch_on();
+            equalObjects(session_config[data_source], session_params.blacklist_by_user) ? restore_btn.switch_off() : restore_btn.switch_on();
+            saveSession("blacklist_by_user", session_config[data_source]);
             diag.dismiss();
         });
         diag.on("item_select", (idx, item, dialog) => {
             let diag_items = diag.getItems().toArray();
-            if (diag_items.length === 1 && diag_items[0] === "还没有选择好友\xa0") return;
+            if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
             let delete_confirm_diag = dialogs.build({
                 title: "确认移除此项吗",
                 positive: "确认",
@@ -311,7 +348,7 @@ homepage
         new_window: () => {
             let diag = dialogs.build({
                 title: "还原初始设置",
-                content: "此操作无法撤销\n\n以下功能内部配置不会被还原:\n1. 自动解锁",
+                content: "此操作无法撤销\n如需保留此次会话内容请先保存\n\n以下功能内部配置不会被还原:\n1. 自动解锁\n2. 黑名单管理",
                 neutral: "了解内部配置",
                 negative: "放弃",
                 positive: "全部还原",
@@ -320,8 +357,8 @@ homepage
             });
             diag.on("neutral", () => {
                 let diag_keep_internals = dialogs.build({
-                    title: "还原时保留内部设置",
-                    content: "有些功能属于共享功能\n-> 如自动解锁功能\n\n还原时只还原此功能的总开关状态\n而不会改变内部的配置\n-> 如自动解锁功能的解锁密码",
+                    title: "保留内部配置",
+                    content: "包含内部配置的功能\n只还原此功能的开闭状态\n而不会清空内部保存的数据\n-> 如解锁密码/黑名单列表等",
                     positive: "关闭",
                     autoDismiss: false,
                     canceledOnTouchOutside: false,
@@ -355,7 +392,7 @@ homepage
                     // tool function(s) //
 
                     function reset() {
-                        let def_DEFAULT = Object.assign({}, DEFAULT, storage_unlock.get("config", {}));
+                        let def_DEFAULT = Object.assign({}, DEFAULT, storage_unlock.get("config", {}), isolateBlacklistStorage());
                         session_config = deepCloneObject(def_DEFAULT);
                         storage_config = deepCloneObject(def_DEFAULT);
                         storage_cfg.put("config", DEFAULT);
@@ -954,13 +991,7 @@ blacklist_page
         hint: "hint",
         next_page: cover_blacklist_page,
         updateOpr: function (view) {
-            let amount = 0;
-            let blacklist = storage_af.get("blacklist", {});
-            for (let name in blacklist) {
-                if (blacklist.hasOwnProperty(name)) {
-                    if (blacklist[name].reason === "protect_cover") amount += 1;
-                }
-            }
+            let amount = session_config.blacklist_protect_cover.length;
             view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
         },
     }))
@@ -968,41 +999,223 @@ blacklist_page
         hint: "hint",
         next_page: self_def_blacklist_page,
         updateOpr: function (view) {
-            let amount = 0;
-            let blacklist = storage_af.get("blacklist", {});
-            for (let name in blacklist) {
-                if (blacklist.hasOwnProperty(name)) {
-                    if (blacklist[name].reason === "by_user") amount += 1;
-                }
-            }
+            let amount = session_config.blacklist_by_user.length;
             view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
         },
+    }));
+
+cover_blacklist_page
+    .add("list", new Layout("/*能量罩黑名单成员*/", {
+        list_head: [{title: "支付宝好友昵称", width: 0.58}, {title: "黑名单自动解除"}],
+        data_source: "blacklist_protect_cover",
+        list_checkbox: "gone",
+        listeners: {
+            "_list_data": {
+                "item_bind": function (item_view, item_holder) {
+                    item_view._checkbox.setVisibility(8);
+                }
+            },
+        }
     }))
-    .add("info", new Layout("5月1日之前完成黑名单配置功能"));
+    .add("info", new Layout("能量罩黑名单由脚本自动管理"));
 
 self_def_blacklist_page
-    .add("list", new Layout("能量罩黑名单成员", {
+    .add("list", new Layout("/*自定义黑名单成员*/", {
         list_head: [{title: "支付宝好友昵称", width: 0.58}, {title: "黑名单自动解除"}],
-        data_source: (function () {
-            return [
-                {name: "name_test_01", timestamp: "1728465246323"},
-                {name: "name_test_02", timestamp: "1428465246323"},
-                {name: "name_test_03", timestamp: 0},
-            ];
-            let blacklist = storage_af.get("blacklist", {});
-            let cover_blacklist = [];
-            for (let name in blacklist) {
-                if (blacklist.hasOwnProperty(name)) {
-                    if (blacklist[name].reason === "protect_cover") cover_blacklist.push({
-                        name: name,
-                        timestamp: blacklist[name].timestamp,
+        data_source: "blacklist_by_user",
+        list_checkbox: "visible",
+        listeners: {
+            "_list_data": {
+                "item_long_click": function (e, item, idx, item_view, list_view) {
+                    item_view._checkbox.checked && item_view._checkbox.click();
+                    e.consumed = true;
+                    let data_source = session_params.data_source;
+                    let edit_item_diag = dialogs.build({
+                        title: "编辑列表项",
+                        content: "点击需要编辑的项",
+                        positive: "确认",
+                        negative: "返回",
+                        items: ["\xa0"],
+                        autoDismiss: false,
+                        canceledOnTouchOutside: false,
                     });
-                }
-            }
-            return cover_blacklist;
-        })(),
-        list_checkbox: true,
-    }));
+
+                    refreshItems();
+
+                    edit_item_diag.on("positive", () => {
+                        let new_item = {};
+                        new_item.name = edit_item_diag.getItems().toArray()[0].split(": ")[1];
+                        let input = edit_item_diag.getItems().toArray()[1].split(": ")[1];
+                        if (input === "永不") new_item.timestamp = Infinity;
+                        else {
+                            let time_nums = input.split(/\D+/);
+                            new_item.timestamp = new Date(+time_nums[0], time_nums[1] - 1, +time_nums[2], +time_nums[3], +time_nums[4]).getTime();
+                        }
+                        session_config[data_source].splice(idx, 1, new_item);
+                        session_params["btn_restore"].switch_on();
+                        saveSession("blacklist_by_user", session_config[data_source]);
+                        edit_item_diag.dismiss();
+                    });
+                    edit_item_diag.on("negative", () => edit_item_diag.dismiss());
+                    edit_item_diag.on("item_select", (idx, list_item, dialog) => {
+                        let list_item_prefix = list_item.split(": ")[0];
+                        let list_item_content = list_item.split(": ")[1];
+
+                        if (list_item_prefix === "好友昵称") {
+                            dialogs.rawInput("修改" + list_item_prefix, list_item_content, input => {
+                                if (input) refreshItems(list_item_prefix, input);
+                            });
+                        }
+
+                        if (list_item_prefix === "解除时间") {
+                            edit_item_diag.dismiss();
+                            ui.main.getParent().addView(setTimePickerView());
+                        }
+
+                        // tool function(s) //
+
+                        function setTimePickerView() {
+                            let time_picker_view = ui.inflate(
+                                <frame bg="#ffffff">
+                                    <scroll>
+                                        <vertical padding="16">
+                                            <frame h="1" bg="#acacac" w="*"/>
+                                            <frame w="auto" layout_gravity="center" marginTop="15">
+                                                <text text="设置日期" textColor="#01579b" textSize="16sp"/>
+                                            </frame>
+                                            <datepicker h="160" id="datepicker" datePickerMode="spinner" marginTop="-10"/>
+                                            <frame h="1" bg="#acacac" w="*"/>
+                                            <frame w="auto" layout_gravity="center" marginTop="15">
+                                                <text text="设置时间" textColor="#01579b" textSize="16sp"/>
+                                            </frame>
+                                            <timepicker h="160" id="timepicker" timePickerMode="spinner" marginTop="-10"/>
+                                            <frame h="1" bg="#acacac" w="*"/>
+                                            <frame w="auto" layout_gravity="center" margin="0 30 0 25">
+                                                <text id="time_str" text="" textColor="#bf360c" textSize="15sp"/>
+                                            </frame>
+                                            <horizontal w="auto" layout_gravity="center">
+                                                <button id="back_btn" text="返回" margin="10 0" backgroundTint="#eeeeee"/>
+                                                <button id="zero_btn" text="设置 '永不'" margin="10 0" backgroundTint="#fff9c4"/>
+                                                <button id="confirm_btn" text="确认选择" margin="10 0" backgroundTint="#dcedc8"/>
+                                                <button id="add_btn" text="增加" margin="10 0" visibility="gone"/>
+                                            </horizontal>
+                                        </vertical>
+                                    </scroll>
+                                </frame>
+                            );
+
+                            setTimeStr();
+                            time_picker_view.setTag("time_picker");
+
+                            time_picker_view.datepicker.setOnDateChangedListener(setTimeStr);
+                            time_picker_view.timepicker.setOnTimeChangedListener(setTimeStr);
+                            time_picker_view.back_btn.on("click", () => closeTimePickerPage());
+                            time_picker_view.zero_btn.on("click", () => closeTimePickerPage(0));
+                            time_picker_view.confirm_btn.on("click", () => {
+                                let datepicker = time_picker_view.datepicker;
+                                let timepicker = time_picker_view.timepicker;
+                                let set_time = new Date(datepicker.getYear(), datepicker.getMonth(), datepicker.getDayOfMonth(), timepicker.getCurrentHour(), timepicker.getCurrentMinute()).getTime();
+                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                closeTimePickerPage(set_time);
+                            });
+
+                            return time_picker_view;
+
+                            // tool function(s) //
+
+                            function setTimeStr() {
+                                let datepicker = time_picker_view.datepicker;
+                                let timepicker = time_picker_view.timepicker;
+                                let fillZero = num => ("0" + num).slice(-2);
+                                let time_str = "已选择:  " +
+                                    datepicker.getYear() + "年" +
+                                    fillZero(datepicker.getMonth() + 1) + "月" +
+                                    fillZero(datepicker.getDayOfMonth()) + "日 " +
+                                    fillZero(timepicker.getCurrentHour()) + ":" +
+                                    fillZero(timepicker.getCurrentMinute());
+                                time_picker_view.time_str.setText(time_str);
+                            }
+
+                            function closeTimePickerPage(return_value) {
+                                edit_item_diag.show();
+                                let parent = ui.main.getParent();
+                                let child_count = parent.getChildCount();
+                                for (let i = 0; i < child_count; i += 1) {
+                                    let child_view = parent.getChildAt(i);
+                                    if (child_view.findViewWithTag("time_picker")) parent.removeView(child_view);
+                                }
+                                if (typeof return_value !== "undefined") {
+                                    refreshItems(list_item_prefix, convertTimestamp(return_value).time_str);
+                                }
+                            }
+                        }
+                    });
+                    edit_item_diag.show();
+
+                    // tool function(s) //
+
+                    function refreshItems(prefix, value) {
+                        let value_obj = {};
+                        let key_map = {
+                            0: "好友昵称",
+                            1: "解除时间",
+                        };
+                        if (!prefix && !value) {
+                            value_obj = {};
+                            value_obj[key_map[0]] = item.name;
+                            value_obj[key_map[1]] = convertTimestamp(item.timestamp).time_str;
+                        } else {
+                            edit_item_diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(": ")[1])
+                        }
+                        if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
+                        let items = [];
+                        Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
+                        edit_item_diag.setItems(items);
+                    }
+                },
+                "item_click": function (item, idx, item_view, list_view) {
+                    item_view._checkbox.click();
+                },
+                "item_bind": function (item_view, item_holder) {
+                    item_view._checkbox.on("click", checkbox_view => {
+                        let remove_btn_view = session_params["btn_remove"];
+                        let item = item_holder.item;
+                        let aim_checked = !item.checked;
+                        item.checked = aim_checked;
+                        let idx = item_holder.position;
+                        session_params.deleted_items_idx[idx] = aim_checked;
+                        aim_checked ? session_params.deleted_items_idx_count++ : session_params.deleted_items_idx_count--;
+                        session_params.deleted_items_idx_count ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
+                        this.view._check_all.setChecked(session_params.deleted_items_idx_count === session_config[session_params.data_source].length);
+                    });
+                },
+            },
+            "_check_all": {
+                "click": function (view) {
+                    let aim_checked = view.checked;
+                    let blacklist_len = session_config[session_params.data_source].length;
+                    if (!blacklist_len) return view.checked = !aim_checked;
+
+                    session_config[session_params.data_source].forEach((o, idx) => {
+                        let o_new = deepCloneObject(o);
+                        o_new.checked = aim_checked;
+                        session_config[session_params.data_source].splice(idx, 1, o_new);
+                    });
+
+                    session_params.deleted_items_idx_count = aim_checked ? blacklist_len : 0;
+                    session_params.deleted_items_idx = session_params.deleted_items_idx || {};
+                    for (let i = 0; i < blacklist_len; i += 1) {
+                        session_params.deleted_items_idx[i] = aim_checked;
+                    }
+
+                    let remove_btn = session_params["btn_remove"];
+                    aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
+                },
+            },
+        },
+    }))
+    .add("info", new Layout("长按列表项可编辑项目"))
+    .add("info", new Layout("点击标题可排序"));
 
 message_showing_page
     .add("switch", new Layout("总开关", {
@@ -1177,7 +1390,7 @@ ui.emitter.on("back_pressed", e => {
         });
         diag.on("neutral", () => diag.cancel());
         diag.on("negative", () => quitNow());
-        diag.on("positive", () => ~clickSaveBtn() && quitNow());
+        diag.on("positive", () => saveNow() && quitNow());
 
         // let ori_content = diag.getContentView().getText().toString();
         // diag.setContent(ori_content + "\n\n您还可以:");
@@ -1252,12 +1465,28 @@ function deepCloneObject(obj) {
 }
 
 function initStorageConfig() {
-    let storage_config = Object.assign({}, storage_cfg.get("config", {}), storage_unlock.get("config", {}));
-    if (!equalObjects(storage_config, DEFAULT)) {
-        storage_config = Object.assign({}, DEFAULT, storage_config);
-        storage_cfg.put("config", storage_config); // to fill storage data
-    }
+    let storage_config = Object.assign({}, DEFAULT, storage_cfg.get("config", {}));
+    storage_cfg.put("config", storage_config); // to refill storage data
+    storage_config = Object.assign({}, storage_config, storage_unlock.get("config", {}), isolateBlacklistStorage());
     return storage_config;
+}
+
+function isolateBlacklistStorage() {
+    let blacklist = storage_af.get("blacklist", {});
+    let blacklist_protect_cover = [];
+    let blacklist_by_user = [];
+    for (let name in blacklist) {
+        if (blacklist.hasOwnProperty(name)) {
+            if (blacklist[name].reason === "protect_cover") blacklist_protect_cover.push({name: name, timestamp: blacklist[name].timestamp});
+            if (blacklist[name].reason === "by_user") blacklist_by_user.push({name: name, timestamp: blacklist[name].timestamp});
+        }
+    }
+    session_params.blacklist_protect_cover = blacklist_protect_cover;
+    session_params.blacklist_by_user = blacklist_by_user;
+    return {
+        blacklist_protect_cover: blacklist_protect_cover,
+        blacklist_by_user: blacklist_by_user,
+    };
 }
 
 function initUI(status_bar_color) {
@@ -1270,71 +1499,28 @@ function initUI(status_bar_color) {
 }
 
 function setHomePage(home_title) {
-    let homepage = setPage(home_title, def, setSaveBtn);
-    saveSession = _saveSession;
+    let homepage = setPage(home_title, def, parent_view => setButtons(parent_view,
+        ["save", "SAVE", "OFF", btn_view => {
+            if (!needSave()) return;
+            saveNow();
+            btn_view.switch_off();
+            toast("已保存");
+        }]
+    ));
+
     ui.main.getParent().addView(homepage);
-    homepage.back_btn_area.setVisibility(8);
+    homepage._back_btn_area.setVisibility(8);
     pages[0] = homepage;
     return homepage;
-
-    // tool function(s) //
-
-    function setSaveBtn(new_view) {
-        let save_btn = getLayoutSaveBtn("OFF");
-        new_view._title_text.setWidth(~~(552 * WIDTH / 720));
-        new_view._title_bg.addView(save_btn);
-    }
-
-    function _saveSession(key, value) {
-        if (key !== undefined) session_config[key] = value;
-        let need_save_flag = needSave();
-        reDrawSaveBtn(need_save_flag ? "ON" : "OFF");
-        updateAllValues();
-    }
-
-    function reDrawSaveBtn(switch_state) {
-        let parent = homepage.icon_save_img.getParent();
-        parent.removeAllViews();
-        parent.addView(getLayoutSaveBtn(switch_state));
-    }
-
-    function getLayoutSaveBtn(switch_state) {
-        let view,
-            on_view = saveBtnView(defs.btn_on_color, "#ffffff"),
-            off_view = saveBtnView(defs.btn_off_color, "#bbcccc");
-
-        view = switch_state === "ON" ? on_view : off_view;
-
-        view.icon_save_text.on("click", () => {
-            if (!needSave()) return;
-            clickSaveBtn();
-            reDrawSaveBtn("OFF");
-            toast("已保存");
-        });
-
-        return view;
-
-        // tool function(s) //
-
-        function saveBtnView(icon_tint_color, save_text_color) {
-            session_params.save_btn_tint_color = icon_tint_color;
-            session_params.save_btn_text_color = save_text_color;
-            return ui.inflate(
-                <vertical margin="13 0">
-                    <img id="icon_save_img" src="@drawable/ic_save_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="{{session_params.save_btn_tint_color}}"/>
-                    <text id="icon_save_text" text="SAVE" gravity="center" textSize="10" textColor="{{session_params.save_btn_text_color}}" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
-                </vertical>
-            );
-        }
-    }
 }
 
 function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
+    session_params.page_title = title;
     title_bg_color = title_bg_color || defs["title_bg_color"];
     let new_view = ui.inflate(<vertical></vertical>);
     new_view.addView(ui.inflate(
         <linear id="_title_bg">
-            <vertical id="back_btn_area" margin="8 6 -10 -10">
+            <vertical id="_back_btn_area" margin="8 6 -10 -10">
                 <img src="@drawable/ic_chevron_left_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff"/>
                 <text id="back_btn_text" text=" " gravity="center" textSize="10" textStyle="bold" marginTop="-45" h="45" gravity="bottom|center"/>
             </vertical>
@@ -1348,17 +1534,21 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
 
     if (additions) typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
 
-    new_view.addView(ui.inflate(<ScrollView>
-        <vertical id="scroll_view"></vertical>
-    </ScrollView>));
+    new_view.addView(ui.inflate(
+        <ScrollView>
+            <vertical id="_scroll_view"></vertical>
+        </ScrollView>
+    ));
     if (!no_margin_bottom_flag) {
-        new_view.scroll_view.addView(ui.inflate(<frame>
-            <frame margin="0 0 0 8"></frame>
-        </frame>));
+        new_view._scroll_view.addView(ui.inflate(
+            <frame>
+                <frame margin="0 0 0 8"></frame>
+            </frame>
+        ));
     }
     new_view.add = (type, item_params) => {
         let sub_view = setItem(type, item_params);
-        new_view.scroll_view.addView(sub_view);
+        new_view._scroll_view.addView(sub_view);
         if (sub_view.updateOpr) dynamic_views.push(sub_view);
         return new_view;
     };
@@ -1487,9 +1677,9 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             session_params.info_color = info_color;
 
             let new_view = ui.inflate(
-                <linear>
+                <linear padding="0 0 0 -16">
                     <img src="@drawable/ic_info_outline_black_48dp" width="17" margin="16 1 -12 0" tint="{{session_params.info_color}}"></img>
-                    <text id="_info_text" textSize="13" margin="16"/>
+                    <text id="_info_text" textSize="13" margin="16 16 0 0"/>
                 </linear>
             );
             new_view._info_text.text(title);
@@ -1499,48 +1689,52 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             return new_view;
         }
 
-        function setList(item) {
-            let list_title_bg_color = item["list_title_bg_color"] || defs["list_title_bg_color"];
-            let list_head = item["list_head"] || [];
-            session_params.list_head = list_head;
-            let list_checkbox = item["list_checkbox"] ? "visible" : "gone";
-            session_params.list_checkbox = list_checkbox;
-            let data_source = item["data_source"] || [];
+        function setList(item_params) {
+            let list_title_bg_color = item_params["list_title_bg_color"] || defs["list_title_bg_color"];
+            let list_head = item_params["list_head"] || [];
+            session_params.first_list_width = ~~((list_head[0].width || 0.3) * WIDTH) + "px";
+            session_params.list_checkbox = item_params["list_checkbox"];
+            let data_source = item_params["data_source"] || "unknown_key_name"; // just a key name
+            session_params.data_source = data_source;
 
             let new_view = ui.inflate(
                 <vertical>
                     <horizontal id="_list_title_bg">
-                        <horizontal margin="8 0" h="50" w="210">
-                            <checkbox id="_check_all" visibility="gone" layout_gravity="left|center" clickable="false"/>
+                        <horizontal h="50" w="{{session_params.first_list_width}}" margin="8 0 0 0">
+                            <checkbox id="_check_all" visibility="{{session_params.list_checkbox}}" layout_gravity="left|center" clickable="false"/>
                         </horizontal>
                     </horizontal>
                     <vertical>
                         <list id="_list_data" fastScrollEnabled="true" focusable="true" stackFromBottom="true" scrollbars="none">
                             <horizontal>
-                                <horizontal margin="8 0" w="210">
-                                    <checkbox id="_checkbox" visibility="{{session_params.list_checkbox}}" checked="{{this.checked}}" h="50" margin="0 0 -16" layout_gravity="left|center" clickable="false"/>
+                                <horizontal w="{{session_params.first_list_width}}">
+                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16" layout_gravity="left|center" clickable="false"/>
                                     <text text="{{this.name}}" h="50" textSize="15" margin="16 0 0" ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
                                 </horizontal>
-                                <text text="{{convertTimestamp(+this.timestamp).time_str}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <text text="{{convertTimestamp(+this.timestamp).time_str}}" textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center" gravity="left|center"/>
                             </horizontal>
                         </list>
                     </vertical>
                 </vertical>
             );
 
-            new_view._list_data.setDataSource(data_source);
+            new_view._list_data.setDataSource(session_config[data_source]);
             new_view._list_title_bg.attr("bg", list_title_bg_color);
-            list_checkbox && new_view._check_all.setVisibility(0);
+            new_view.setTag("list_page_view");
             list_head.forEach((title_obj, idx) => {
-                let list_title_view = ui.inflate(
+                let list_title_view = idx ? ui.inflate(
                     <text textSize="15"/>
+                ) : ui.inflate(
+                    <text textSize="15" padding="{{session_params.list_checkbox === 'gone' ? 8 : 0}} 0 0 0"/>
                 );
                 list_title_view.setText(title_obj.title);
                 list_title_view.on("click", () => {
-                    let key_name = Object.keys(data_source)[idx];
-                    let ascend_data = data_source.sort((a, b) => a[key_name] > b[key_name]);
-                    if (data_source[0] === ascend_data[0]) data_source = ascend_data;
-                    else data_source = ascend_data.sort(() => 1);
+                    if (!session_config[data_source][0]) return;
+                    let key_name = Object.keys(session_config[data_source][0])[idx];
+                    session_params["list_sort_flag_" + key_name] = session_params["list_sort_flag_" + key_name] || 1;
+                    let ascend_data = session_config[data_source].sort((a, b) => b[key_name] < a[key_name]);
+                    session_config[data_source] = session_params["list_sort_flag_" + key_name] < 0 ? ascend_data.sort(() => 1) : ascend_data;
+                    session_params["list_sort_flag_" + key_name] *= -1;
                 });
 
                 if (idx === 0) new_view["_check_all"].getParent().addView(list_title_view);
@@ -1551,6 +1745,18 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
                 list_title_view.attr("ellipsize", "end");
                 list_title_view.attr("lines", "1");
             });
+
+            item_params.view = new_view;
+
+            let listener_ids = item_params["listener"] || [];
+            Object.keys(listener_ids).forEach(id => {
+                let listeners = listener_ids[id];
+                Object.keys(listeners).forEach(listener => {
+                    new_view[id].on(listener, listeners[listener].bind(item_params));
+                });
+            });
+
+            if (item_params.updateOpr) new_view.updateOpr = item_params.updateOpr.bind(new_view);
 
             return new_view;
         }
@@ -1566,7 +1772,7 @@ function setButtons(parent_view, button_params_arr) {
         buttons_view.btn.addView(getButtonLayout.apply(null, arg));
         buttons_count += 1;
     }
-    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (parent_view.back_btn_area.visibility === 0 ? 52 : 0)) * WIDTH / 720));
+    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (session_params.page_title !== "Ant_Forest" ? 52 : 5)) * WIDTH / 720));
     parent_view._title_bg.addView(buttons_view);
 
     // tool function(s) //
@@ -1597,6 +1803,7 @@ function setButtons(parent_view, button_params_arr) {
         switch_state === "OFF" ? view.switch_off() : view.switch_on();
 
         view[btn_text_id].on("click", () => btn_click_listener && btn_click_listener(view));
+        session_params["btn_" + btn_text] = view;
 
         return view;
 
@@ -1605,7 +1812,7 @@ function setButtons(parent_view, button_params_arr) {
         function buttonView() {
             return ui.inflate(
                 <vertical margin="13 0">
-                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" width="31" bg="?selectableItemBackgroundBorderless"/>
+                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" width="31" bg="?selectableItemBackgroundBorderless" margin="0 -1 0 0"/>
                     <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
                 </vertical>
             );
@@ -1671,7 +1878,7 @@ function smoothScrollMenu(shifting, duration) {
 
     let parent = ui.main.getParent();
 
-    duration = duration || 180;
+    duration = duration || 120;
 
     try {
 
@@ -1721,11 +1928,13 @@ function smoothScrollMenu(shifting, duration) {
     }
 }
 
-function clickSaveBtn() {
-    let session_config_without_unlock = deepCloneObject(session_config);
+function saveNow() {
+    let session_config_mixed = deepCloneObject(session_config);
     writeUnlockStorage();
-    storage_cfg.put("config", session_config_without_unlock);
+    writeBlacklist();
+    storage_cfg.put("config", session_config_mixed); // only "cfg" reserved now (without unlock, blacklist, etc)
     storage_config = deepCloneObject(session_config);
+    return true;
 
     // tool function(s) //
 
@@ -1735,10 +1944,33 @@ function clickSaveBtn() {
         for (let i in ori_config) {
             if (ori_config.hasOwnProperty(i)) {
                 tmp_config[i] = session_config[i];
-                delete session_config_without_unlock[i];
+                delete session_config_mixed[i];
             }
         }
         storage_unlock.put("config", tmp_config);
+    }
+
+    function writeBlacklist() {
+        let blacklist = {};
+        let blacklist_by_user = session_config_mixed.blacklist_by_user;
+        log(blacklist_by_user)
+        blacklist_by_user.forEach(o => {
+            blacklist[o.name] = {
+                reason: "by_user",
+                timestamp: o.timestamp === Infinity ? 0 : o.timestamp,
+            }
+        });
+        let blacklist_protect_cover = session_config_mixed.blacklist_protect_cover;
+        blacklist_protect_cover.forEach(o => {
+            let name = o.name;
+            blacklist[name] = blacklist[name] || {
+                reason: "protect_cover",
+                timestamp: o.timestamp,
+            }
+        });
+        storage_af.put("blacklist", blacklist);
+        delete session_config_mixed.blacklist_protect_cover;
+        delete session_config_mixed.blacklist_by_user;
     }
 }
 
@@ -1857,4 +2089,13 @@ function convertTimestamp(time_param, force_return_flag) {
         time_str: time_str,
         timestamp: timestamp,
     };
+}
+
+function findViewByTag(parent_view, tag_name) {
+    if (!tag_name) return;
+    let len = parent_view.getChildCount();
+    for (let i = 0; i < len; i += 1) {
+        let aim_view = parent_view.getChildAt(i);
+        if (aim_view.findViewWithTag(tag_name)) return aim_view;
+    }
 }

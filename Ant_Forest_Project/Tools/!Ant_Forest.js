@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Apr 29, 2019
- * @version 1.5.21
+ * @last_modified Apr 30, 2019
+ * @version 1.6.0
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -765,14 +765,17 @@ function antForest() {
                         let kw_rank_list = idMatches(/.*J_rank_list/);
                         let rank_list = [];
                         kw_rank_list.findOnce().children().forEach((child, idx) => {
-
-                            let rank_num = idx < 3 ? idx + 1 : child.child(0) && child.child(0).desc() || child.child(1) && child.child(1).desc();
-                            let nickname = child.child(1) && child.child(1).desc() || child.child(2) && child.child(2).desc();
-                            if (+rank_num) {
-                                rank_list.push({
-                                    rank_num: +rank_num,
-                                    nickname: nickname,
-                                });
+                            try {
+                                let rank_num = idx < 3 ? idx + 1 : child.child(0) && child.child(0).desc() || child.child(1) && child.child(1).desc();
+                                let nickname = child.child(1) && child.child(1).desc() || child.child(2) && child.child(2).desc();
+                                if (+rank_num) {
+                                    rank_list.push({
+                                        rank_num: +rank_num,
+                                        nickname: nickname,
+                                    });
+                                }
+                            } catch (e) {
+                                // nothing to do here
                             }
                         });
                         let max_rank_num_length = rank_list[rank_list.length - 1].rank_num.toString().length;
@@ -1106,7 +1109,7 @@ function antForest() {
                             let time_str = date_str + time_str_clip;
 
                             current_app.blacklist[current_app.current_friend.name] = {
-                                timestamp: getTimestamp(time_str),
+                                timestamp: getTimestamp(time_str) + 86400000,
                                 reason: "protect_cover",
                             };
                             blackListMsg("add");
@@ -1386,7 +1389,8 @@ function antForest() {
                 let current_black_friend = current_app.blacklist[name];
                 let reason_str = current_black_friend.reason;
                 messageAction(reasons[reason_str], 1, 0, 2);
-                reason_str === "protect_cover" && messageAction(checkBlackTimestamp(current_black_friend.timestamp), 1, 0, 2);
+                let check_result = checkBlackTimestamp(current_black_friend.timestamp);
+                if (typeof check_result === "string") messageAction(check_result, 1, 0, 2);
                 split_line_flag && showSplitLine();
                 return current_app.current_friend.console_logged = 1;
             }
@@ -1646,9 +1650,10 @@ function antForest() {
     function checkBlackTimestamp(timestamp) {
 
         if (typeof timestamp === "undefined") return true;
+        if (timestamp === 0) return true;
 
         let now = new Date();
-        let duration_ms = timestamp + 86400000 - now.getTime();
+        let duration_ms = timestamp - now.getTime();
         if (duration_ms <= 0) return;
 
         if (!config.console_log_details && !config.debug_info_switch) return true;
@@ -1925,12 +1930,16 @@ function launchThisApp(intent, no_msg_flag) {
         while (max_launch_times--) {
             debugInfo("加载intent参数启动应用");
             app.startActivity(intent);
-            let cond_succ_flag = waitForAction(() => currentPackage() === current_app.package_name, 5000);
+            let cond_succ_flag = waitForAction(() => {
+                let condition_a = () => currentPackage() === current_app.package_name;
+                let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$/);
+                return condition_a() || condition_b();
+            }, 5000);
             debugInfo("应用启动" + (cond_succ_flag ? "成功" : "超时"));
             if (cond_succ_flag) break;
             else debugInfo(">" + currentPackage());
         }
-        if (max_launch_times < 0) messageAction("打开" + current_app.quote_name + "失败", 8, 1, 0, 1);
+        if (max_launch_times < 0) messageAction("打开\"支付宝\"失败", 8, 1, 0, 1);
         current_app.first_time_run = 0;
         if (current_app.firstTimeRunConditionFun === null || current_app.firstTimeRunConditionFun === undefined) {
             debugInfo("未设置启动完成条件参数");
