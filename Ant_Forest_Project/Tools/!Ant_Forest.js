@@ -363,11 +363,10 @@ function antForest() {
 
             app.startActivity(intent_alipay_acc_manager);
 
-            let max_wait_times = 8,
-                try_times = 0,
-                kw_back_btn = id("com.alipay.mobile.antui:id/back_button");
+            let max_wait_times = 8;
+            let try_times = 0;
             while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
-                clickObject(kw_back_btn) || keycode(4) && sleep(2500);
+                jumpBackOnce();
                 app.startActivity(intent_alipay_acc_manager);
             }
             if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
@@ -711,9 +710,15 @@ function antForest() {
                     });
                 }
 
-                let max_try_times = 180,
-                    condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount(),
-                    kw_try_again = desc("再试一次");
+                let max_try_times = 180;
+                let condition_rank_list_ready = () => {
+                    try {
+                        return kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
+                    } catch (e) {
+                        // nothing to do here
+                    }
+                };
+                let kw_try_again = desc("再试一次");
                 while (!waitForAction(condition_rank_list_ready, 500) && max_try_times--) {
                     clickObject(kw_try_again); // for desc("服务器打瞌睡了").exists()
                 }
@@ -1212,13 +1217,12 @@ function antForest() {
 
             function backToHeroList() {
                 let ident_hero_list = textMatches(/.+排行榜/);
-                let kw_back_btn = id("com.alipay.mobile.nebula:id/h5_tv_nav_back");
 
                 if (ident_hero_list.exists()) return;
 
                 let max_try_times = 3;
                 while (max_try_times--) {
-                    clickObject(kw_back_btn) || keycode(4);
+                    jumpBackOnce();
                     if (waitForAction(ident_hero_list, 3000)) {
                         debugInfo("返回排行榜成功");
                         return true;
@@ -1397,14 +1401,11 @@ function antForest() {
         }
 
         function goBackToAfHome() {
-
-            let kw_back_btn = id("com.alipay.mobile.nebula:id/h5_tv_nav_back"),
-                ident_af_home = desc("合种");
-
+            let kw_ident_af_home = desc("合种");
             let max_try_times = 5;
             while (max_try_times--) {
-                clickObject(kw_back_btn) || keycode(4);
-                if (waitForAction(ident_af_home, 3000)) {
+                jumpBackOnce();
+                if (waitForAction(kw_ident_af_home, 3000)) {
                     debugInfo("返回蚂蚁森林主页成功");
                     return true;
                 }
@@ -1611,12 +1612,11 @@ function antForest() {
         function closeAfWindows() {
             debugInfo("关闭全部蚂蚁森林相关页面");
             let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/),
-                kw_back_btn = id("com.alipay.mobile.antui:id/back_button"),
                 kw_af_title = text("蚂蚁森林"),
                 kw_close = desc("关闭");
             while (!~"condition listed as below" ||
             kw_af_title.exists() && clickBounds([kw_close, "try"]) ||
-            kw_login_with_new_user.exists() && clickBounds([kw_back_btn, "try"])) {
+            kw_login_with_new_user.exists() && jumpBackOnce()) {
                 sleep(600);
             }
             debugInfo("相关页面关闭完毕");
@@ -1910,6 +1910,18 @@ function promptConfig() {
         storage_af.put("af_postponed", true);
         exit();
     }
+}
+
+function jumpBackOnce(specific_kw) {
+    let kw_back_btn_common_desc = desc("返回");
+    let kw_back_btn_atnui_id = idMatches(/.*back.button/);
+    let kw_back_btn_h5_id = idMatches(/.*h5.(tv.)?nav.back/);
+    let click_result = specific_kw ?
+        clickObject(specific_kw) :
+        clickObject(kw_back_btn_common_desc) ||
+        clickObject(kw_back_btn_atnui_id) ||
+        clickObject(kw_back_btn_h5_id);
+    click_result || keycode(4) && ~messageAction("使用模拟按键返回方式", 3) && sleep(2500);
 }
 
 // global tool function(s) //
@@ -2560,14 +2572,15 @@ function debugConfigInfo() {
 }
 
 function clickObject(obj_keyword, buffering_time) {
+    let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
     let max_try_times = 3;
     let max_try_times_backup = max_try_times;
     while (max_try_times--) {
-        if (!obj_keyword) return;
-        if (buffering_time && !waitForAction(obj_keyword, buffering_time) || !obj_keyword.exists()) return;
+        if (!obj_kw) return;
+        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return;
 
         let thread_click = threads.start(function () {
-            obj_keyword.click();
+            obj_kw.click();
         });
         thread_click.join(1000);
         if (!thread_click.isAlive()) break;
