@@ -70,8 +70,9 @@ if (typeof device === "undefined") {
 }
 let WIDTH = typeof device !== "undefined" && device.width || 0,
     HEIGHT = typeof device !== "undefined" && device.height || 0,
-    cX = num => Math.floor(num * WIDTH / 720),
-    cY = num => Math.floor(num * HEIGHT / 1280),
+    cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1)),
+    cY = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)), // forcibly scaled by 16:9
+    cYact = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)), // scaled by actual ratio
     current_app = {};
 
 let special_exec_command = "";
@@ -378,7 +379,7 @@ function antForest() {
             if (current_logged_in_user_ident === specific_user_ident) return true;
 
             let kw_specific_user_ident = text(specific_user.username_ident),
-                kw_me = textMatches(/我的|Me/).boundsInside(0, 0.7 * HEIGHT, WIDTH, HEIGHT),
+                kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, cY(1280)),
                 kw_switch_account = idMatches(/.*switchAccount.*/),
                 kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
             if (clickBounds([kw_specific_user_ident, "try"])) {
@@ -668,8 +669,8 @@ function antForest() {
                     let message_switch_on = config.console_log_details || config.debug_info_switch;
                     if (message_switch_on) messageAction(current_app.current_friend.name, "title"); // name title
                     if (inBlackList()) continue;
-                    // click(WIDTH * 0.5, pop_item.y + cY(60));
-                    press(WIDTH * 0.5, pop_item.y, 1);
+                    // click(cX(0.5), pop_item.y + cY(60));
+                    press(cX(0.5), pop_item.y, 1);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                     forestPageGetReady() && collectBalls();
                     backToHeroList();
@@ -853,11 +854,11 @@ function antForest() {
                 function getScreenSamples() {
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let samples = boundsInside(~~(WIDTH * 0.7), 1, WIDTH, HEIGHT - 1)
+                        let samples = boundsInside(cX(0.7), 1, WIDTH, cY(1280) - 1)
                             .descMatches(regexp_energy_amount).filter(function (w) {
                                 let bounds = w.bounds();
                                 let b_bottom = bounds.bottom;
-                                return b_bottom > bounds.top && b_bottom < HEIGHT * 0.95;
+                                return b_bottom > bounds.top && b_bottom < cY(0.95);
                             }).find();
                         if (samples.size()) return samples;
                     }
@@ -879,7 +880,7 @@ function antForest() {
                 function getFindColorOptions(w) {
                     let parent_node = w.parent();
                     let region_ref = {
-                        l: ~~(WIDTH * 0.7),
+                        l: cX(0.7),
                         t: parent_node.bounds().top,
                     };
                     return {
@@ -1250,9 +1251,9 @@ function antForest() {
                 let bottom_data = undefined,
                     tmp_bottom_data = getRankListSelfBottom();
 
-                let half_width = ~~(WIDTH * 0.5);
-                let bottom_height = HEIGHT * 0.9;
-                let top_height = HEIGHT * 0.1;
+                let half_width = cX(0.5);
+                let bottom_height = cY(0.9);
+                let top_height = cY(0.1);
 
                 debugInfo("上滑屏幕: " + (bottom_height - top_height) + "px");
                 // gesture(config.list_swipe_time, [half_width, bottom_height], [half_width, top_height]);
@@ -1301,7 +1302,7 @@ function antForest() {
                 let kw_end_ident = descMatches(/没有更多了|邀请/);
                 while (1) {
                     try {
-                        while (!(kw_end_ident.exists() && kw_end_ident.findOnce().bounds().top < HEIGHT)) sleep(200);
+                        while (!(kw_end_ident.exists() && kw_end_ident.findOnce().bounds().top < cY(1280))) sleep(200);
                         debugInfo("列表底部已到达");
                         return list_end_signal = 1;
                     } catch (e) {
@@ -1325,7 +1326,7 @@ function antForest() {
                         } catch (e) {
                             try {
                                 return descMatches(/\d+g/).filter(function (w) {
-                                    return w.bounds().right > ~~(WIDTH * 0.95);
+                                    return w.bounds().right > cX(0.95);
                                 }).findOnce().desc().match(/\d+/)[0] - 0;
                             } catch (e) {
                                 debugInfo("获取\"帮收\"数据出错");
@@ -1465,7 +1466,7 @@ function antForest() {
 
             let timeout_prefix = "(",
                 timeout_suffix = ")",
-                base_height = HEIGHT * 2 / 3,
+                base_height = cY(2 / 3),
                 message_height = cY(80),
                 hint_height = message_height * 0.7,
                 timeout_height = hint_height,
@@ -1500,7 +1501,7 @@ function antForest() {
             message_raw_win.setSize(-2, 0);
 
             waitForAction(() => message_raw_win.getWidth() > 0, 5000);
-            let min_width = Math.max(message_raw_win.getWidth(), ~~(WIDTH * 0.54), WIDTH / 4 * hint_len);
+            let min_width = Math.max(message_raw_win.getWidth(), cX(0.54), cX(0.25) * hint_len);
 
             let left_pos = (WIDTH - min_width) / 2;
             message_raw_win.setPosition(left_pos, base_height);
@@ -2658,13 +2659,13 @@ function makeInScreen(f, params) {
         left: 0,
         top: 0,
         right: WIDTH,
-        bottom: HEIGHT
+        bottom: cY(1280),
     };
     let swipe_bounds = {
-        left: WIDTH * 0.1,
-        top: HEIGHT * 0.3,
-        right: WIDTH * 0.9,
-        bottom: HEIGHT * 0.7
+        left: cX(0.1),
+        top: cY(0.3),
+        right: cX(0.9),
+        bottom: cY(0.7),
     };
 
     if (screen_area) adjustBounds(screen_area, screen_bounds);
