@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Apr 30, 2019
- * @version 1.6.0
+ * @last_modified May 3, 2019
+ * @version 1.6.3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1153,13 +1153,20 @@ function antForest() {
                         debugInfo("点击成熟能量球: " + ripe_balls.length + "个");
                         take_clicked_flag = 1;
 
+                        if (isNaN(ori_collected_amount)) return messageAction("初始收取数据无效", 3, 0, 1);
+
                         debugInfo("等待收取数据稳定");
-                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 3500)) break;
+                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 3000)) return debugInfo("等待收取数据稳定超时");
                         collected_amount = tmp_collected_amount;
-                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 300)) {
+                        let max_rescue_times = 8;
+                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 300) && max_rescue_times) {
+                            if (isNaN(tmp_collected_amount)) {
+                                max_rescue_times -= 1;
+                                continue;
+                            }
                             collected_amount = tmp_collected_amount;
                         }
-                        debugInfo("收取数据已稳定: " + collected_amount);
+                        max_rescue_times ? debugInfo("收取数据已稳定: " + collected_amount) : debugInfo("收取数据全部无效");
                     }
 
                     if (ripe_flag && (config.console_log_details || config.debug_info_switch)) {
@@ -1201,13 +1208,20 @@ function antForest() {
                     });
                     debugInfo("点击帮收能量球: " + coords_arr.length + "个");
 
+                    if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
+
                     debugInfo("等待好友能量数据稳定");
-                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 5000)) return;
+                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 3500)) return debugInfo("等待好友能量数据稳定超时");
                     helped_amount = tmp_helped_amount;
-                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 300)) {
+                    let max_rescue_times = 8;
+                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 300) && max_rescue_times) {
+                        if (isNaN(tmp_helped_amount)) {
+                            max_rescue_times -= 1;
+                            continue;
+                        }
                         helped_amount = tmp_helped_amount;
                     }
-                    debugInfo("好友能量数据已稳定: " + helped_amount);
+                    max_rescue_times ? debugInfo("好友能量数据已稳定: " + helped_amount) : debugInfo("好友能量数据全部无效");
 
                     if (config.console_log_details || config.debug_info_switch) {
                         messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
@@ -1319,40 +1333,26 @@ function antForest() {
                 // tool function(s) //
 
                 function getHelpData() {
-                    let max_try_times = 4;
-                    while (max_try_times--) {
+                    try {
+                        return idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1).desc().match(/\d+/)[0] - 0;
+                    } catch (e) {
                         try {
-                            return idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1).desc().match(/\d+/)[0] - 0;
+                            return descMatches(/\d+g/).filter(function (w) {
+                                return w.bounds().right > cX(0.95);
+                            }).findOnce().desc().match(/\d+/)[0] - 0;
                         } catch (e) {
-                            try {
-                                return descMatches(/\d+g/).filter(function (w) {
-                                    return w.bounds().right > cX(0.95);
-                                }).findOnce().desc().match(/\d+/)[0] - 0;
-                            } catch (e) {
-                                debugInfo("获取\"帮收\"数据出错");
-                                debugInfo(e);
-                            }
+                            return 0 / 0;
                         }
                     }
-                    debugInfo("获取\"帮收\"数据失败");
-                    return NaN;
                 }
 
                 function getCollectData() {
-                    let kw_collected = desc("你收取TA"),
-                        idx_collected_node = null,
-                        max_try_times = 4;
-                    while (max_try_times--) {
-                        try {
-                            idx_collected_node = idx_collected_node || getCollectedNodeIdx();
-                            return kw_collected.findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
-                        } catch (e) {
-                            debugInfo("获取\"收取\"数据出错");
-                            debugInfo(e);
-                        }
-                    }
-                    if (max_try_times < 0) {
-                        debugInfo("获取\"收取\"数据失败");
+                    let kw_collected = desc("你收取TA");
+                    let idx_collected_node = null;
+                    try {
+                        idx_collected_node = idx_collected_node || getCollectedNodeIdx();
+                        return kw_collected.findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
+                    } catch (e) {
                         return 0 / 0;
                     }
 
