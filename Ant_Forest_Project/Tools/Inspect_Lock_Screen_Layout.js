@@ -7,6 +7,9 @@ tryRequestScreenCapture();
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
+let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
+let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
+let cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
 let path_base = files.getSdcardPath() + "/!Debug_Info/";
 files.removeDir(path_base);
@@ -32,12 +35,16 @@ let diag = dialogs.build({
 });
 diag.on("positive", () => {
     threads.start(function () {
+        let max_try_times_key_power = 2;
         keycode(26);
-        waitForAction(() => !device.isScreenOn(), 8000);
+        while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26, "no_shell");
+        if (max_try_times_key_power < 0) messageAction("关闭屏幕失败", 8, 1);
 
         sleep(500);
         device.wakeUp();
-        waitForAction(() => device.isScreenOn(), 8000);
+        let max_try_times_wake_up = 5;
+        while (!waitForAction(() => device.isScreenOn(), 2000) && max_try_times_wake_up--) device.wakeUp();
+        if (max_try_times_wake_up < 0) messageAction("唤起设备失败", 8, 1);
         sleep(1000);
 
         device.keepScreenOn();
@@ -126,19 +133,17 @@ function dismissLayer() {
         return;
     }
 
-    let half_width = ~~(WIDTH / 2),
-        height_a = ~~(HEIGHT * 0.95),
-        height_b = ~~(HEIGHT * 0.9),
-        height_c = ~~(HEIGHT * 0.82),
-        height_d = ~~(HEIGHT * 0.67),
-        height_e = ~~(HEIGHT * 0.46),
-        height_f = ~~(HEIGHT * 0.05);
+    let vertical_pts = [0.95, 0.9, 0.82, 0.67, 0.46, 0.05];
 
     let max_try_times_dismiss_layer = 20;
-    let gesture_time = 80;
+    let gesture_time = 120;
+
+    let half_width = cX(0.5);
+    let gesture_params = [];
+    vertical_pts.forEach(raw_y => gesture_params.push([half_width, cY(raw_y)]));
 
     while (max_try_times_dismiss_layer--) {
-        gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
+        gesture.apply(null, [gesture_time].concat(gesture_params));
         if (waitForAction(() => !kw_preview_container.exists(), 1200)) break;
         gesture_time += 80;
     }
@@ -150,42 +155,39 @@ function dismissLayer() {
 // global function(s) //
 
 function tryRequestScreenCapture() {
+
     let thread_prompt = threads.start(function () {
         let kw_no_longer_prompt = id("com.android.systemui:id/remember");
         if (!waitForAction(kw_no_longer_prompt, 5000)) return;
-        kw_no_longer_prompt.click();
+        clickObject(kw_no_longer_prompt) || clickBounds(kw_no_longer_prompt);
 
         let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
         if (!waitForAction(kw_start_now_btn, 2000)) return;
-        kw_start_now_btn.click();
+        clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
     });
 
     let thread_req;
-    let max_try_times = 6;
-    while (max_try_times--) {
+    let max_try_times = 3;
+    let try_count = 0;
+    while (++try_count && max_try_times--) {
+        let req_result = false;
         thread_req = threads.start(function () {
             try {
-                return requestScreenCapture();
+                req_result = requestScreenCapture();
+
+                if (req_result) thread_req.interrupt();
             } catch (e) {
-                if (!max_try_times) throw Error(e);
             }
         });
-        thread_req.join(1500);
-        if (!thread_req.isAlive()) break;
+        thread_req.join(1000);
+        if (!thread_req.isAlive() && req_result) {
+            thread_prompt.interrupt();
+            break;
+        }
         thread_req.interrupt();
     }
 
     if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
-
-    threads.start(function () {
-        let max_try_times = 50;
-        while (thread_req.isAlive() && max_try_times--) sleep(200);
-        if (max_try_times < 0) {
-            thread_req.interrupt();
-            thread_prompt.interrupt();
-            messageAction("截图权限申请超时", 8, 1);
-        }
-    }); // thread_req_timeout
 }
 
 function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
@@ -308,8 +310,8 @@ function showSplitLine(extra_str, style) {
     return true;
 }
 
-function keycode(keycode_name) {
-    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+function keycode(keycode_name, no_shell_flag) {
+    let keyEvent = keycode_name => !no_shell_flag && !shell("input keyevent " + keycode_name, true).code || KeyCode(keycode_name);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -343,5 +345,121 @@ function keycode(keycode_name) {
             return ~splitScreen();
         default:
             return keyEvent(keycode_name);
+    }
+}
+
+function clickObject(obj_keyword, buffering_time) {
+    let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
+    let max_try_times = 3;
+    while (max_try_times--) {
+        if (!obj_kw) return;
+        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return;
+
+        let thread_click = threads.start(function () {
+            obj_kw.click();
+        });
+        thread_click.join(1000);
+        if (!thread_click.isAlive()) break;
+        thread_click.interrupt();
+    }
+    if (max_try_times < 0) return messageAction("click()方法超时", 3);
+    return true;
+}
+
+function clickBounds(f, if_continuous, max_check_times, check_interval, padding) {
+
+    let classof = param => Object.prototype.toString.call(param).slice(8, -1);
+
+    if (!f) return messageAction("clickBounds的f参数无效", 0, 0, 0) && 0;
+
+    let func = f,
+        additionFunc;
+    if (classof(f) === "Array") {
+        func = f[0];
+        if (!func) return messageAction("clickBounds的f[0]参数无效", 0, 0, 0) && 0;
+        additionFunc = f[1];
+    }
+
+    if (func.toString().match(/^Rect\(/) && if_continuous) messageAction("连续点击时 f参数不能是bounds():\n" + func.toString(), 8, 1);
+    if (!!additionFunc && additionFunc !== "try" && typeof additionFunc !== "function") messageAction("additionFunc参数类型不是\"function\":\n" + additionFunc.toString(), 8, 1);
+
+    if (typeof additionFunc !== "undefined") {
+        if (additionFunc === "try" && (!func || !func.exists())) return false;
+        if (typeof additionFunc === "function" && !additionFunc()) return false;
+    }
+
+    max_check_times = max_check_times || (if_continuous ? 3 : 1);
+    check_interval = check_interval || (if_continuous ? 1000 : 0);
+    if_continuous = if_continuous || [];
+    if (if_continuous === 1) if_continuous = [1];
+    else if (typeof if_continuous === "object" && Object.prototype.toString.call(if_continuous).slice(8, -1) !== "Array") {
+        let tmp_arr = [];
+        tmp_arr.push(if_continuous);
+        if_continuous = tmp_arr;
+    }
+
+    let parsed_padding = padding ? parsePadding(padding) : null;
+    let posb;
+
+    let max_try_times_posb = 3,
+        getPosb = () => func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
+    while (max_try_times_posb--) {
+        try {
+            posb = getPosb();
+        } catch (e) {
+            sleep(500);
+            if (!func.exists()) break; // may be a better idea to use BoundsInside()
+        }
+    }
+    if (max_try_times_posb < 0) posb = getPosb(); // let console show specific error messages
+
+    if (if_continuous.length) {
+        while (max_check_times--) {
+            if (!checkArray()) break;
+            try {
+                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+            } catch (e) {
+                // nothing to do here
+            }
+            sleep(check_interval);
+        }
+    } else {
+        if ((func.toString().match(/^Rect\(/) || func.exists())) {
+            try {
+                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+            } catch (e) {
+                max_check_times = -1;
+            }
+        }
+    }
+
+    return max_check_times >= 0;
+
+    // tool function(s) //
+
+    function parsePadding(padding) {
+        let obj = {"x": 0, "y": 0};
+        if (Object.prototype.toString.call(padding).slice(8, -1) === "Array") {
+            if ((padding[0] !== "x" && padding[0] !== "y") || typeof padding[1] !== "number") messageAction("输入的padding参数不合法", 9, 1);
+            obj[padding[0]] = padding[1];
+        } else if (typeof padding === "number") {
+            obj["y"] += padding;
+        } else {
+            messageAction("输入的padding类型不合法", 9, 1);
+        }
+        return obj;
+    }
+
+    function checkArray() {
+        for (let i = 0, len = if_continuous.length; i < len; i += 1) {
+            if (if_continuous[i] === 1) {
+                if (!func.exists()) return;
+            } else {
+                if (!if_continuous[i].exists()) return;
+            }
+        }
+        return true;
     }
 }

@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 3, 2019
- * @version 1.6.3
+ * @last_modified May 5, 2019
+ * @version 1.6.4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -71,8 +71,8 @@ if (typeof device === "undefined") {
 let WIDTH = typeof device !== "undefined" && device.width || 0,
     HEIGHT = typeof device !== "undefined" && device.height || 0,
     cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1)),
-    cY = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)), // forcibly scaled by 16:9
-    cYact = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)), // scaled by actual ratio
+    cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)), // scaled by actual ratio
+    cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)), // forcibly scaled by 16:9
     current_app = {};
 
 let special_exec_command = "";
@@ -300,8 +300,9 @@ function antForest() {
                 function firstTimeRunCondition() {
                     let kw_af_title = idMatches(/.*h5_tv_title/).textMatches(/蚂蚁森林|Ant Forest/);
                     let kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
+                    let kw_more_friends = desc("查看更多好友");
                     try {
-                        return kw_af_title.exists() && desc("合种").exists() || kw_login_or_switch.exists();
+                        return kw_af_title.exists() && (desc("合种").exists() || kw_more_friends.exists()) || kw_login_or_switch.exists();
                     } catch (e) {
                         return !~sleep(200);
                     }
@@ -379,7 +380,7 @@ function antForest() {
             if (current_logged_in_user_ident === specific_user_ident) return true;
 
             let kw_specific_user_ident = text(specific_user.username_ident),
-                kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, cY(1280)),
+                kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, HEIGHT),
                 kw_switch_account = idMatches(/.*switchAccount.*/),
                 kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
             if (clickBounds([kw_specific_user_ident, "try"])) {
@@ -637,7 +638,7 @@ function antForest() {
                     debugInfo(">移除并回收最旧样本: " + images.getName(last_capt));
                     last_capt.recycle();
                 }
-                let new_capt = images.clip(capture, cX(298), cY(218), cX(120), cY(22));
+                let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
                 blacklist_ident_capts.unshift(new_capt);
                 debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
             };
@@ -669,7 +670,6 @@ function antForest() {
                     let message_switch_on = config.console_log_details || config.debug_info_switch;
                     if (message_switch_on) messageAction(current_app.current_friend.name, "title"); // name title
                     if (inBlackList()) continue;
-                    // click(cX(0.5), pop_item.y + cY(60));
                     press(cX(0.5), pop_item.y, 1);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                     forestPageGetReady() && collectBalls();
@@ -721,7 +721,7 @@ function antForest() {
                 };
                 let kw_try_again = desc("再试一次");
                 while (!waitForAction(condition_rank_list_ready, 500) && max_try_times--) {
-                    clickObject(kw_try_again); // for desc("服务器打瞌睡了").exists()
+                    clickBounds([kw_try_again, "try"]); // for desc("服务器打瞌睡了").exists()
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
                 debugInfo("排行榜状态准备完毕");
@@ -737,11 +737,16 @@ function antForest() {
 
                 function expandHeroListThread() {
                     let kw_list_more = idMatches(/.*J_rank_list_more/);
+                    let click_count = 0;
                     while (!desc("没有更多了").exists()) {
-                        clickObject(kw_list_more);
+                        clickObject(kw_list_more, {
+                            no_info_flag: true,
+                        });
+                        click_count++;
                         sleep(200);
                     }
                     debugInfo("排行榜展开完毕");
+                    debugInfo(">点击\"查看更多\": " + click_count + "次");
                 }
 
                 function collectFriendsListData() {
@@ -854,7 +859,7 @@ function antForest() {
                 function getScreenSamples() {
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let samples = boundsInside(cX(0.7), 1, WIDTH, cY(1280) - 1)
+                        let samples = boundsInside(cX(0.7), 1, WIDTH, HEIGHT - 1)
                             .descMatches(regexp_energy_amount).filter(function (w) {
                                 let bounds = w.bounds();
                                 let b_bottom = bounds.bottom;
@@ -1062,11 +1067,16 @@ function antForest() {
                         if (!waitForAction(kw_list_more, 2000)) return;
 
                         let safe_max_try_times = 50; // 10 sec at most
+                        let click_count = 0;
                         while (!desc("没有更多").exists() && safe_max_try_times--) {
-                            clickObject(kw_list_more);
+                            clickObject(kw_list_more, {
+                                no_info_flag: true,
+                            });
+                            click_count++;
                             sleep(200);
                         }
                         debugInfo("动态列表展开完毕");
+                        debugInfo(">点击\"点击加载更多\": " + click_count + "次");
                     }
 
                     function listMonitorThread() {
@@ -1316,7 +1326,7 @@ function antForest() {
                 let kw_end_ident = descMatches(/没有更多了|邀请/);
                 while (1) {
                     try {
-                        while (!(kw_end_ident.exists() && kw_end_ident.findOnce().bounds().top < cY(1280))) sleep(200);
+                        while (!(kw_end_ident.exists() && kw_end_ident.findOnce().bounds().top < HEIGHT)) sleep(200);
                         debugInfo("列表底部已到达");
                         return list_end_signal = 1;
                     } catch (e) {
@@ -1466,34 +1476,30 @@ function antForest() {
 
             let timeout_prefix = "(",
                 timeout_suffix = ")",
-                base_height = cY(2 / 3),
-                message_height = cY(80),
+                base_height = cY(0.66),
+                message_height = cY16h9w(80),
                 hint_height = message_height * 0.7,
                 timeout_height = hint_height,
                 color_stripe_height = message_height * 0.2;
 
             let message_layout =
                 <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="24" padding="10 2" color="#ccffffff" gravity="center">
-                    </text>
+                    <text id="text" bg="#cc000000" size="24" padding="10 2" color="#ccffffff" gravity="center"/>
                 </frame>;
 
             let timeout_layout =
                 <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center">
-                    </text>
+                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center" text="0"/>
                 </frame>;
 
             let color_stripe_layout =
                 <frame gravity="center">
-                    <text id="text" bg="#ffffffff" size="24" padding="10 2" color="{{colors.toString(-1)}}" gravity="center">
-                    </text>
+                    <text id="text" bg="#ffffffff" size="24" padding="10 2" color="{{colors.toString(-1)}}" gravity="center"/>
                 </frame>;
 
             let hint_layout =
                 <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center">
-                    </text>
+                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center"/>
                 </frame>;
 
             let message_raw_win = floaty.rawWindow(message_layout);
@@ -1558,26 +1564,35 @@ function antForest() {
             ui.run(() => {
                 let tt = timeout / 1000;
                 let tt_text = () => timeout_prefix + tt-- + timeout_suffix;
-                timeout_raw_win.text.setText(tt_text());
-                setInterval(() => {
+                let setTimeoutText = text => {
+                    try {
+                        return timeout_raw_win.text.setText(text);
+                    } catch (e) {
+                        debugInfo("Floaty超时文本设置单次失败");
+                        debugInfo(e);
+                    }
+                };
+                setTimeoutText(tt_text());
+                let interval_timeout = setInterval(() => {
                     if (tt < 0) return;
                     if (tt < 1) {
                         floaty.closeAll();
+                        debugInfo("关闭所有Floaty窗口");
                         current_app.floaty_msg_signal = 0;
                         debugInfo("发送Floaty消息结束等待信号");
                         return tt--;
                     }
-                    let max_try_times = 3;
-                    while (max_try_times--) {
-                        try {
-                            timeout_raw_win.text.setText(tt_text());
-                            break;
-                        } catch (e) {
-                            debugInfo("Floaty超时文本设置单次失败");
-                            debugInfo(e);
-                        }
-                    }
+                    setTimeoutText(tt_text());
                 }, 1000);
+                setTimeout(() => {
+                    clearInterval(interval_timeout);
+                    if (!current_app.floaty_msg_signal) return;
+                    debugInfo("Floaty消息绘制已大最大超时");
+                    floaty.closeAll();
+                    debugInfo("强制关闭所有Floaty窗口");
+                    current_app.floaty_msg_signal = 0;
+                    debugInfo("强制发送Floaty消息结束等待信号");
+                }, timeout + 2000);
             });
         }
 
@@ -1946,7 +1961,9 @@ function launchThisApp(intent, no_msg_flag) {
             let cond_succ_flag = waitForAction(() => {
                 let condition_a = () => currentPackage() === current_app.package_name;
                 let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$/);
-                return condition_a() || condition_b();
+                let condition_c = () => desc("查看更多好友").exists() || className("Button").descMatches(/合种|背包|通知|攻略|任务/).exists();
+
+                return condition_a() || condition_b() || condition_c();
             }, 5000);
             debugInfo("应用启动" + (cond_succ_flag ? "成功" : "超时"));
             if (cond_succ_flag) break;
@@ -1977,7 +1994,7 @@ function launchThisApp(intent, no_msg_flag) {
                 debugInfo(">" + currentPackage());
             } else debugInfo("单次启动条件检测超时");
 
-            debugInfo(">重新启动intent");
+            debugInfo("重新启动intent");
             app.startActivity(intent);
         }
         if (max_launch_times >= 0 && max_wait_times >= 0) {
@@ -1998,9 +2015,8 @@ function launchThisApp(intent, no_msg_flag) {
  */
 function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFunc) {
     let pkg = package_name || current_app.package_name;
-    let shell_error = shell("am force-stop " + pkg, true).error;
-    if (!!shell_error) {
-        // messageAction(shell_error.split(/\n/)[0], 4, 1);
+    let shell_code = shell("am force-stop " + pkg, true).code;
+    if (shell_code) {
         debugInfo("强制关闭失败");
         debugInfo((keycode_back_unacceptable_flag ? "不" : "") + "接受模拟返回");
         return keycode_back_unacceptable_flag ? false : tryMinimizeApp();
@@ -2572,7 +2588,20 @@ function debugConfigInfo() {
     if (!cfg.message_showing_switch || !cfg.debug_info_switch) return true;
 }
 
-function clickObject(obj_keyword, buffering_time) {
+/**
+ *
+ * @param obj_keyword
+ * @param {Object} params
+ * @param {number} [params.buffering_time=0]
+ * @param {string} [params.object_name=""]
+ * @param {boolean} [params.no_info_flag=false]
+ * @return {boolean}
+ */
+function clickObject(obj_keyword, params) {
+    params = params || {};
+    let buffering_time = params.buffering_time || 0;
+    let object_name = params.object_name || "";
+    let no_info_flag = params.no_info_flag || false;
     let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
     let max_try_times = 3;
     let max_try_times_backup = max_try_times;
@@ -2586,10 +2615,13 @@ function clickObject(obj_keyword, buffering_time) {
         thread_click.join(1000);
         if (!thread_click.isAlive()) break;
         let current_run_count = max_try_times_backup - max_try_times;
-        debugInfo("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+        if (!no_info_flag) {
+            debugInfo("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+            object_name && debugInfo(">Object Name: " + object_name);
+        }
         thread_click.interrupt();
     }
-    if (max_try_times < 0) return messageAction("click()方法超时", 3);
+    if (max_try_times < 0) return no_info_flag ? false : messageAction("click()方法超时", 3);
     return true;
 }
 
@@ -2601,7 +2633,7 @@ function clickObject(obj_keyword, buffering_time) {
  *     - string - "butterfly.jpg/png" - picture you wanna find<br>
  *     - array - [num(s), obj(s)] - a multi-condition array (all shown in screen at the same time)
  *
- * @param {Object} params - restrict for smaller finding area
+ * @param {Object} params - addition params
  * @param {number|number[]} [params.screen_area] - restrict for smaller finding area
  * <br>
  *     - null - default is fullscreen<br>
@@ -2659,7 +2691,7 @@ function makeInScreen(f, params) {
         left: 0,
         top: 0,
         right: WIDTH,
-        bottom: cY(1280),
+        bottom: HEIGHT,
     };
     let swipe_bounds = {
         left: cX(0.1),

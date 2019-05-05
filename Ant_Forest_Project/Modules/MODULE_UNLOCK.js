@@ -3,9 +3,13 @@
  * @author SuperMonster003
  */
 
-let WIDTH = device.width,
-    HEIGHT = device.height,
-    PWMAP = require("./MODULE_PWMAP.js"),
+let WIDTH = device.width;
+let HEIGHT = device.height;
+let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
+let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
+let cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
+
+let PWMAP = require("./MODULE_PWMAP.js"),
     storage_unlock = require("./MODULE_STORAGE.js").create("unlock"),
     DEFAULT_UNLOCK = require("./MODULE_DEFAULT_CONFIG").unlock,
     decrypt = new PWMAP().pwmapDecrypt,
@@ -107,13 +111,7 @@ function unlock(password, max_try_times, pattern_size) {
 
     function dismissLayer() {
 
-        let half_width = ~~(WIDTH / 2),
-            height_a = ~~(HEIGHT * 0.95),
-            height_b = ~~(HEIGHT * 0.9),
-            height_c = ~~(HEIGHT * 0.82),
-            height_d = ~~(HEIGHT * 0.67),
-            height_e = ~~(HEIGHT * 0.46),
-            height_f = ~~(HEIGHT * 0.05);
+        let vertical_pts = [0.95, 0.9, 0.82, 0.67, 0.46, 0.05];
 
         let max_try_times_dismiss_layer = 20;
         let data_from_storage_flag = false;
@@ -123,8 +121,12 @@ function unlock(password, max_try_times, pattern_size) {
         if (gesture_time) data_from_storage_flag = true;
         else gesture_time = DEFAULT_UNLOCK.dismiss_layer_gesture_time;
 
+        let half_width = cX(0.5);
+        let gesture_params = [];
+        vertical_pts.forEach(raw_y => gesture_params.push([half_width, cY(raw_y)]));
+
         while (max_try_times_dismiss_layer--) {
-            gesture(gesture_time, [half_width, height_a], [half_width, height_b], [half_width, height_c], [half_width, height_d], [half_width, height_e], [half_width, height_f]);
+            gesture.apply(null, [gesture_time].concat(gesture_params));
             if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
             if (cond_all_unlock_ways()) break;
             if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
@@ -151,10 +153,12 @@ function unlock(password, max_try_times, pattern_size) {
 
         function unlockPattern() {
             let bounds = kw_lock_pattern_view.findOnce().bounds();
-            let w = ~~(bounds.width() / 3),
-                h = ~~(bounds.height() / 3),
-                x1 = bounds.left + ~~(w / 2),
-                y1 = bounds.top + ~~(h / 2);
+            // let w = ~~(bounds.width() / 3);
+            let w = ~~((bounds.right - bounds.left) / 3);
+            // let h = ~~(bounds.height() / 3);
+            let h = ~~((bounds.bottom - bounds.top) / 3);
+            let x1 = bounds.left + ~~(w / 2);
+            let y1 = bounds.top + ~~(h / 2);
             let points = ["Handsome Points"];
             for (let j = 1; j <= pattern_size; j += 1) {
                 for (let i = 1; i <= pattern_size; i += 1) {
@@ -191,13 +195,11 @@ function unlock(password, max_try_times, pattern_size) {
 
             while (max_try_times--) {
                 kw_password_view.setText(pw);
-                let shell_code = 0;
-                if (kw_confirm_btn.exists()) kw_confirm_btn.click();
-                else shell_code = shell("input keyevent 66", true).code;
+                clickObject(kw_confirm_btn);
                 if (checkUnlockResult()) break;
-                if (shell_code) errorMsg(["密码解锁方案失败", "输入密码后无法模拟回车键"]);
+                shell("input keyevent 66", true);
             }
-            if (max_try_times < 0) errorMsg(["密码解锁方案失败", "可能是密码错误"]);
+            if (max_try_times < 0) errorMsg(["密码解锁方案失败", "可能是密码错误", "或无法点击密码确认按钮"]);
         }
 
         function unlockPin() {
@@ -215,7 +217,7 @@ function unlock(password, max_try_times, pattern_size) {
                 else errorMsg("无可用的PIN解锁参考控件");
 
                 let kw_enter_key = id("com.android.systemui:id/key_enter");
-                kw_enter_key.exists() && kw_enter_key.click();
+                clickObject(kw_enter_key);
 
                 if (checkUnlockResult()) break;
             }
@@ -224,12 +226,12 @@ function unlock(password, max_try_times, pattern_size) {
             // tool function(s) //
 
             function clickNumsByInputView() {
-                pw.forEach(num => getNumericInputView(num).click());
+                pw.forEach(num => clickObject(getNumericInputView(num)));
             }
 
             function clickNumsByKeypad() {
                 testNumSelectors(getNumericKeypad);
-                pw.forEach(num => getNumericKeypad(num).click());
+                pw.forEach(num => clickObject(getNumericKeypad(num)));
             }
 
             function clickNumsByContainer() {
@@ -258,7 +260,7 @@ function unlock(password, max_try_times, pattern_size) {
 
             function clickNumsBySingleDesc() {
                 testNumSelectors(getNumsBySingleDesc);
-                pw.forEach(num => getNumsBySingleDesc(num).click());
+                pw.forEach(num => clickObject(getNumsBySingleDesc(num)));
             }
 
             function testNumSelectors(func) {
@@ -272,10 +274,10 @@ function unlock(password, max_try_times, pattern_size) {
 
         function handleSpecials() {
             let pw = password.split(/\D+/).join("").split("");
-            let l = ~~(special_view_bounds[0] * WIDTH),
-                t = ~~(special_view_bounds[1] * HEIGHT),
-                r = ~~(special_view_bounds[2] * WIDTH),
-                b = ~~(special_view_bounds[3] * HEIGHT);
+            let l = cX(special_view_bounds[0]),
+                t = cY(special_view_bounds[1]),
+                r = cX(special_view_bounds[2]),
+                b = cY(special_view_bounds[3]);
             let w = ~~((r - l) / 3),
                 h = ~~((b - t) / 4),
                 x1 = l + ~~(w / 2),
@@ -309,7 +311,7 @@ function checkUnlockResult() {
     let cond_ok_btn = () => kw_ok_btn.exists();
     let cond_state_ok = () => isUnlocked() || cond_incorrect_pw() || cond_try_again() || cond_ok_btn();
     if (!waitForAction(cond_state_ok, 1500)) return false;
-    cond_ok_btn() && ~kw_ok_btn.click() && sleep(500);
+    clickObject(kw_ok_btn) && sleep(500);
     if (cond_try_again()) waitForAction(() => !cond_try_again(), 65000);
     return waitForAction(() => isUnlocked(), 500);
 }
@@ -481,6 +483,27 @@ function keycode(keycode_name) {
         default:
             return keyEvent(keycode_name);
     }
+}
+
+function clickObject(obj_keyword, buffering_time) {
+    let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
+    let max_try_times = 3;
+    let max_try_times_backup = max_try_times;
+    while (max_try_times--) {
+        if (!obj_kw) return;
+        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return;
+
+        let thread_click = threads.start(function () {
+            obj_kw.click();
+        });
+        thread_click.join(1000);
+        if (!thread_click.isAlive()) break;
+        let current_run_count = max_try_times_backup - max_try_times;
+        debugInfo("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+        thread_click.interrupt();
+    }
+    if (max_try_times < 0) return messageAction("click()方法超时", 3);
+    return true;
 }
 
 // export module //

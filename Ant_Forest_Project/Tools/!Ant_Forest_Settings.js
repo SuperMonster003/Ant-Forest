@@ -404,6 +404,62 @@ homepage
             });
             diag.show();
         },
+    }))
+    .add("sub_head", new Layout("关于"))
+    .add("button", new Layout("关于脚本及开发者", {
+        hint: "正在读取中...",
+        new_window: function () {
+            let local_version = this.view._hint.getText();
+            let diag = dialogs.build({
+                title: "关于",
+                content: "当前本地版本: " + local_version + "\n" +
+                    "服务器端版本: ",
+                items: ["开发者: " + "SuperMonster003"],
+                neutral: "检查更新",
+                positive: "返回",
+                canceledOnTouchOutside: false,
+                autoDismiss: false,
+            });
+            let checking_update_flag = false;
+            diag.on("positive", () => diag.dismiss());
+            diag.on("neutral", () => {
+                if (checking_update_flag) return;
+                checkUpdate();
+                alertTitle(diag, "检查更新中 请稍候...");
+            });
+            diag.on("item_select", (idx, item, dialog) => app.openUrl("https://github.com/SuperMonster003"));
+            diag.show();
+            checkUpdate();
+
+            // tool function(s) //
+
+            function checkUpdate() {
+                checking_update_flag = true;
+                let url_readme = "https://raw.githubusercontent.com/SuperMonster003/Ant_Forest/master/README.md";
+                let newest_server_version_name = "检查中...";
+                let ori_content = diag.getContentView().getText().toString().replace(/([^]+服务器端版本: ).*/, "$1");
+                diag.setContent(ori_content + newest_server_version_name);
+                threads.start(function() {
+                    try {
+                        newest_server_version_name = "v" + http.get(url_readme).body.string().match(/版本历史[^]+?v(\d+\.?)+/)[0].split("v")[1];
+                    } catch (e) {
+                        newest_server_version_name = "检查超时";
+                    } finally {
+                        diag.setContent(ori_content + newest_server_version_name);
+                        checking_update_flag = false;
+                    }
+                });
+            }
+        },
+        updateOpr: function (view) {
+            let current_local_version_name = "";
+            try {
+                current_local_version_name = "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+/)[0].slice(8);
+            } catch (e) {
+                current_local_version_name = "读取失败";
+            }
+            view._hint.text(current_local_version_name);
+        },
     }));
 
 self_collect_page
@@ -1630,6 +1686,7 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             item_params.view = new_view;
             new_view._item_area.on("click", () => item_params.next_page && pageJump("next", item_params.next_page));
         } else if (type === "button") {
+            item_params.view = new_view;
             new_view._item_area.on("click", () => item_params.showWindow());
         }
 
@@ -1998,7 +2055,7 @@ function alertTitle(dialog, message, duration) {
         alert_info[dialog].ori_bg_color = ori_bg_color;
     }
 
-    setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffcdd2"));
+    setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
 
     setTimeout(() => {
         alert_info["message_showing"]--;
