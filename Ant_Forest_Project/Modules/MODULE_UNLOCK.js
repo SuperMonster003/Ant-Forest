@@ -116,10 +116,10 @@ function unlock(password, max_try_times, pattern_size) {
         let max_try_times_dismiss_layer = 20;
         let data_from_storage_flag = false;
         let chances_for_storage_data = 3;
-        let gesture_time = storage_unlock_config.dismiss_layer_gesture_time;
+        let gesture_time = storage_unlock_config.dismiss_layer_swipe_time;
 
         if (gesture_time) data_from_storage_flag = true;
-        else gesture_time = DEFAULT_UNLOCK.dismiss_layer_gesture_time;
+        else gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
 
         let half_width = cX(0.5);
         let gesture_params = [];
@@ -127,13 +127,14 @@ function unlock(password, max_try_times, pattern_size) {
 
         while (max_try_times_dismiss_layer--) {
             gesture.apply(null, [gesture_time].concat(gesture_params));
+
             if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
             if (cond_all_unlock_ways()) break;
             if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
-            else gesture_time += 80;
+            else gesture_time += (gesture_time <= 130 ? 10 : 80);
         }
         if (max_try_times_dismiss_layer < 0) errorMsg("消除解锁页面提示层失败");
-        storage_unlock_config.dismiss_layer_gesture_time = gesture_time;
+        storage_unlock_config.dismiss_layer_swipe_time = gesture_time;
         storage_unlock.put("config", storage_unlock_config);
     }
 
@@ -172,20 +173,29 @@ function unlock(password, max_try_times, pattern_size) {
             if (typeof password === "string") gesture_pts_params = password.match(/\D+/) ? password.split(/\D+/) : password.split("");
             gesture_pts_params = gesture_pts_params.map(value => [points[value].x, points[value].y]);
 
-            let gesture_unlock_swipe_time = storage_unlock_config.gesture_unlock_swipe_time;
+            let pattern_unlock_swipe_time = storage_unlock_config.pattern_unlock_swipe_time;
             let data_from_storage_flag = false;
             let chances_for_storage_data = 3;
 
-            if (gesture_unlock_swipe_time) data_from_storage_flag = true;
-            else gesture_unlock_swipe_time = DEFAULT_UNLOCK.gesture_unlock_swipe_time;
+            if (pattern_unlock_swipe_time) data_from_storage_flag = true;
+            else pattern_unlock_swipe_time = DEFAULT_UNLOCK.pattern_unlock_swipe_time;
 
-            while (gesture_unlock_swipe_time <= 5000 && max_try_times-- > 0) {
-                gesture(gesture_unlock_swipe_time, gesture_pts_params);
+            while (pattern_unlock_swipe_time <= 3000 && max_try_times-- > 0) {
+                // gesture(pattern_unlock_swipe_time, gesture_pts_params);
+
+                let gestures_pts_params = [];
+                for (let i = 0; i < gesture_pts_params.length - 1; i += 1) {
+                    let pt1 = gesture_pts_params[i];
+                    let pt2 = gesture_pts_params[i + 1];
+                    gestures_pts_params.push([(pattern_unlock_swipe_time - 50) * i, pattern_unlock_swipe_time, [pt1["0"], pt1["1"]], [pt2["0"], pt2["1"]]]);
+                }
+                gestures.apply(null, gestures_pts_params);
+
                 if (checkUnlockResult()) break;
-                if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) gesture_unlock_swipe_time += 80;
+                if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) pattern_unlock_swipe_time += 80;
             }
-            if (gesture_unlock_swipe_time > 5000) errorMsg("图案解锁方案失败");
-            storage_unlock_config.gesture_unlock_swipe_time = gesture_unlock_swipe_time;
+            if (pattern_unlock_swipe_time > 3000) errorMsg("图案解锁方案失败");
+            storage_unlock_config.pattern_unlock_swipe_time = pattern_unlock_swipe_time;
             storage_unlock.put("config", storage_unlock_config);
         }
 
@@ -448,7 +458,7 @@ function showSplitLine(extra_str, style) {
 }
 
 function keycode(keycode_name) {
-    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -482,6 +492,26 @@ function keycode(keycode_name) {
             return ~splitScreen();
         default:
             return keyEvent(keycode_name);
+    }
+
+    // tool function(s) //
+
+    function shellWay(keycode_name) {
+        let shell_result = false;
+        try {
+            shell_result = !shell("input keyevent " + keycode_name, true).code;
+        } catch (e) {
+        }
+        return shell_result;
+    }
+
+    function autojsKeyCodeWay(keycode_name) {
+        let thread_keycode = threads.start(function () {
+            KeyCode(keycode_name);
+        });
+        thread_keycode.join(1000);
+        if (!thread_keycode.isAlive()) return true;
+        thread_keycode.interrupt();
     }
 }
 

@@ -19,7 +19,7 @@ module.exports = {
 		unlock_code: null,
 		unlock_pattern_size: 3,
 		unlock_max_try_times: 20,
-		dismiss_layer_gesture_time: 120,
-		gesture_unlock_swipe_time: 320,
+		dismiss_layer_swipe_time: 110,
+		pattern_unlock_swipe_time: 120,
 	}
 };

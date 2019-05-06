@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 5, 2019
- * @version 1.6.4
+ * @last_modified May 6, 2019
+ * @version 1.6.5
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -24,50 +24,13 @@ let config = {
 };
 
 let unlock_module = null;
-
-try {
-    let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
-    Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
-    unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
-    debugInfo("成功接入\"af_cfg\"本地存储", 0, 0, 0, "up");
-    debugInfo("整合代码配置与本地配置");
-    debugInfo("成功导入解锁模块");
-} catch (e) {
-    messageAction("模块导入功能异常", 3, 0, 0, "up");
-    messageAction("开发者测试模式已自动开启", 3);
-    config.message_showing_switch = true;
-    config.debug_info_switch = true;
-}
-
-debugConfigInfo();
-
-let queue_flag = false;
-let queue_start_timestamp = new Date().getTime();
 let engines_support_flag = true;
-try {
-    engines.myEngine().setTag("exclusive_task", "af");
-    if (typeof engines.myEngine().execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
-    let checkExclusiveTasks = () => engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length;
-    let init_ex_tasks_check = checkExclusiveTasks();
-    if (init_ex_tasks_check) {
-        debugInfo("排他性任务排队中: " + init_ex_tasks_check + "项");
-        while (checkExclusiveTasks()) {
-            queue_flag = true;
-            sleep(500);
-        }
-    }
-} catch (e) {
-    let error_msg = "此版本Engines模块功能异常";
-    messageAction(error_msg, 3);
-    debugInfo(e);
-    engines_support_flag = false;
-    debugInfo("Engines支持性标记: false")
-}
-queue_flag && debugInfo("任务排队用时: " + (new Date().getTime() - queue_start_timestamp) / 1000 + "秒", 0, 0, 0, "up");
+checkModules();
+debugConfigInfo();
+checkTasksQueue();
 
-if (typeof device === "undefined") {
-    messageAction("此版本Device模块功能无效", 3);
-}
+typeof device === "undefined" && messageAction("此版本Device模块功能无效", 3);
+
 let WIDTH = typeof device !== "undefined" && device.width || 0,
     HEIGHT = typeof device !== "undefined" && device.height || 0,
     cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1)),
@@ -137,7 +100,7 @@ function antForest() {
         // tool function(s) //
 
         function setVolKeysListener() {
-            debugInfo("设置音量加键监听器");
+            debugInfo("设置音量键监听器");
             threads.start(function () {
                 events.observeKey();
                 events.onKeyDown("volume_up", function (event) {
@@ -145,11 +108,6 @@ function antForest() {
                     messageAction("用户按下'音量加/VOL+'键", 4, 0, 1, 1);
                     engines.stopAllAndToast();
                 });
-            });
-
-            debugInfo("设置音量减键监听器");
-            threads.start(function () {
-                events.observeKey();
                 events.onKeyDown("volume_down", function (event) {
                     messageAction("强制停止当前脚本", 3, 0, 0, "up");
                     messageAction("用户按下'音量减/VOL-'键", 3, 0, 1, 1);
@@ -620,7 +578,6 @@ function antForest() {
 
         function checkFriendsEnergy() {
             debugInfo("开始检查好友能量");
-            let kw_rank_list_self = idMatches(/.*J_rank_list_self/);
 
             if (!rankListReady()) return;
 
@@ -702,26 +659,28 @@ function antForest() {
                 if (max_try_times_more_friends_btn < 0) return messageAction("未能定位到\"查看更多好友\"按钮", 3, 1);
                 debugInfo("定位到\"查看更多好友\"按钮");
 
-                if (!clickObject(kw_more_friends)) {
-                    debugInfo("备份方案点击\"查看更多好友\"");
-                    makeInScreen(kw_more_friends, {
-                        swipe_time: 200,
-                        check_interval: 100,
-                        if_click: "click",
-                    });
-                }
-
                 let max_try_times = 180;
-                let condition_rank_list_ready = () => {
-                    try {
-                        return kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
-                    } catch (e) {
-                        // nothing to do here
-                    }
-                };
                 let kw_try_again = desc("再试一次");
-                while (!waitForAction(condition_rank_list_ready, 500) && max_try_times--) {
-                    clickBounds([kw_try_again, "try"]); // for desc("服务器打瞌睡了").exists()
+                while (max_try_times--) {
+                    if (kw_more_friends.exists()) {
+                        if (!clickObject(kw_more_friends) || !waitForAction(() => !kw_more_friends.exists(), 800)) {
+                            debugInfo("备份方案点击\"查看更多好友\"");
+                            makeInScreen(kw_more_friends, {
+                                swipe_time: 200,
+                                check_interval: 100,
+                                if_click: "click",
+                            });
+                        }
+                    }
+                    clickBounds([kw_try_again, "try"]); // as "服务器打瞌睡了" may exist
+                    if (waitForAction(() => {
+                        let kw_rank_list = idMatches(/.*J_rank_list/);
+                        try {
+                            return kw_rank_list.exists() && kw_rank_list.findOnce().childCount();
+                        } catch (e) {
+                            // nothing to do here
+                        }
+                    }, 500)) break;
                 }
                 if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
                 debugInfo("排行榜状态准备完毕");
@@ -729,7 +688,7 @@ function antForest() {
                 debugInfo("已开启排行榜自动展开线程");
                 let thread_expand_hero_list = threads.start(expandHeroListThread);
 
-                if (special_exec_command !== "collect_friends_list") return ~sleep(500); // a small interval for page ready
+                if (special_exec_command !== "collect_friends_list") return ~sleep(800); // a small interval for page ready
 
                 return collectFriendsListData();
 
@@ -808,7 +767,8 @@ function antForest() {
 
                 current_app.request_screen_capture_flag || tryRequestScreenCapture();
 
-                waitForAction(kw_rank_list_self, 8000); // make page ready
+                // this is useless, i guess - May 06, 2019
+                // waitForAction(kw_rank_list_self, 8000); // make page ready
 
                 let targets_green = [],
                     targets_orange = [];
@@ -849,7 +809,7 @@ function antForest() {
 
                 if (rank_list_capt_img) {
                     rank_list_capt_img.recycle();
-                    debugInfo("已回收排行榜屏幕截图: " + images.getName(rank_list_capt_img));
+                    debugInfo("已回收排行榜截图: " + images.getName(rank_list_capt_img));
                 }
 
                 return [targets_green, targets_orange];
@@ -909,17 +869,26 @@ function antForest() {
             function forestPageGetReady() {
 
                 let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
-                waitForAction(kw_wait_for_awhile, 5000);
+                // waitForAction(kw_wait_for_awhile, 5000);
 
-                let max_safe_wait_times = 30000;
-                let max_safe_wait_times_backup = max_safe_wait_times;
-                while (kw_wait_for_awhile.exists() && max_safe_wait_times--) sleep(100); // keep waiting for at most 5 min
-                let wait_times_sec = (max_safe_wait_times_backup - max_safe_wait_times) / 1000;
-                if (wait_times_sec >= 6) debugInfo("进入好友森林时间较长: " + wait_times_sec.toFixed(2) + "秒");
-
+                let kw_reload_page = desc("重新加载");
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
 
-                if (!waitForAction(kw_forest_page, 8000)) {
+                let max_safe_wait_time = 120000; // keep waiting for at most 2 min
+                let max_safe_wait_time_backup = max_safe_wait_time;
+                let sleep_interval = 200;
+
+                while (!kw_forest_page.exists() && max_safe_wait_time > 0) {
+                    clickBounds([kw_reload_page, "try"]);
+                    sleep(sleep_interval);
+                    max_safe_wait_time -= sleep_interval * (kw_wait_for_awhile.exists() ? 1 : 10);
+                }
+
+                let wait_times_sec = (max_safe_wait_time_backup - max_safe_wait_time) / 1000;
+                if (wait_times_sec >= 6) debugInfo("进入好友森林时间较长: " + wait_times_sec.toFixed(2) + "秒");
+
+
+                if (max_safe_wait_time <= 0) {
                     messageAction("进入好友森林超时", 3, 1);
                     saveCurrentScreenCapture("Friend_Forest_Page");
                     return false;
@@ -1258,6 +1227,7 @@ function antForest() {
                 debugInfo("尝试重启支付宝到排行榜页面");
                 restartAlipayToHeroList();
 
+                let kw_rank_list_self = idMatches(/.*J_rank_list_self/);
                 let condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
                 if (!waitForAction(condition_rank_list_ready, 2000)) restartAlipayToHeroList(); // just in case
 
@@ -1562,11 +1532,13 @@ function antForest() {
             debugInfo("Floaty绘制完毕");
 
             ui.run(() => {
+                let floaty_failed_flag = true;
                 let tt = timeout / 1000;
                 let tt_text = () => timeout_prefix + tt-- + timeout_suffix;
                 let setTimeoutText = text => {
                     try {
-                        return timeout_raw_win.text.setText(text);
+                        timeout_raw_win.text.setText(text);
+                        floaty_failed_flag = false;
                     } catch (e) {
                         debugInfo("Floaty超时文本设置单次失败");
                         debugInfo(e);
@@ -1587,6 +1559,10 @@ function antForest() {
                 setTimeout(() => {
                     clearInterval(interval_timeout);
                     if (!current_app.floaty_msg_signal) return;
+                    if (floaty_failed_flag) {
+                        messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                        messageAction("建议改用Toast方式显示收取结果", 3);
+                    }
                     debugInfo("Floaty消息绘制已大最大超时");
                     floaty.closeAll();
                     debugInfo("强制关闭所有Floaty窗口");
@@ -1619,7 +1595,7 @@ function antForest() {
         debugInfo("关闭所有线程");
         threads.shutDownAll(); // kill all threads started by threads.start()
         if (current_app.is_screen_on) debugInfo("无需关闭屏幕");
-        else ~debugInfo("关闭屏幕") && keycode(26);
+        else ~debugInfo("关闭屏幕") && keycode(26) || debugInfo("关闭屏幕失败");
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
@@ -1640,7 +1616,7 @@ function antForest() {
         }
 
         function endAlipay(minimizeFunc) {
-            debugInfo("强制关闭支付宝");
+            debugInfo("关闭支付宝");
             let old_pgk = current_app.ori_app_package;
             killCurrentApp(current_app.package_name, null, minimizeFunc);
 
@@ -1687,6 +1663,49 @@ function antForest() {
 }
 
 // tool function(s) //
+
+function checkModules() {
+    try {
+        let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
+        Object.assign(config, storage_cfg.get("config", require("../Modules/MODULE_DEFAULT_CONFIG").af));
+        unlock_module = new (require("../Modules/MODULE_UNLOCK.js"));
+        debugInfo("成功接入\"af_cfg\"本地存储", 0, 0, 0, "up");
+        debugInfo("整合代码配置与本地配置");
+        debugInfo("成功导入解锁模块");
+    } catch (e) {
+        messageAction("模块导入功能异常", 3, 0, 0, "up");
+        messageAction("开发者测试模式已自动开启", 3);
+        config.message_showing_switch = true;
+        config.debug_info_switch = true;
+    }
+}
+
+function checkTasksQueue() {
+    let queue_flag = false;
+    let queue_start_timestamp = new Date().getTime();
+    let checkExclusiveTasks = () => engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length;
+    try {
+        engines.myEngine().setTag("exclusive_task", "af");
+        if (typeof engines.myEngine().execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
+        checkExclusiveTasks();
+        let init_ex_tasks_check = checkExclusiveTasks();
+        if (init_ex_tasks_check) {
+            debugInfo("排他性任务排队中: " + init_ex_tasks_check + "项");
+            while (checkExclusiveTasks()) {
+                queue_flag = true;
+                sleep(500);
+            }
+        }
+    } catch (e) {
+        if (queue_flag) return;
+        let error_msg = "此版本Engines模块功能异常";
+        messageAction(error_msg, 3);
+        debugInfo(e);
+        engines_support_flag = false;
+        debugInfo("Engines支持性标记: false")
+    }
+    queue_flag && debugInfo("任务排队用时: " + (new Date().getTime() - queue_start_timestamp) / 1000 + "秒", 0, 0, 0, "up");
+}
 
 function checkBugVersions() {
     let threads_functional_flag = typeof threads !== "undefined";
@@ -2015,13 +2034,14 @@ function launchThisApp(intent, no_msg_flag) {
  */
 function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFunc) {
     let pkg = package_name || current_app.package_name;
-    let shell_code = shell("am force-stop " + pkg, true).code;
-    if (shell_code) {
-        debugInfo("强制关闭失败");
-        debugInfo((keycode_back_unacceptable_flag ? "不" : "") + "接受模拟返回");
-        return keycode_back_unacceptable_flag ? false : tryMinimizeApp();
+    let shell_result = false;
+    try {
+        shell_result = !shell("am force-stop " + pkg, true).code;
+    } catch (e) {
+        debugInfo("Shell方法强制关闭应用失败");
     }
-    debugInfo("强制关闭成功");
+    if (!shell_result) return keycode_back_unacceptable_flag ? debugInfo("不接受模拟返回") : tryMinimizeApp();
+    debugInfo("Shell方法强制关闭应用成功");
     waitForAction(() => currentPackage() !== pkg, 15000, "关闭" + pkg + "失败", 9, 1);
 
     current_app.first_time_run = 0;
@@ -2521,7 +2541,7 @@ function saveCurrentScreenCapture(key_name, no_msg_flag) {
 }
 
 function keycode(keycode_name) {
-    let keyEvent = keycode_name => shell("input keyevent " + keycode_name, true).code && KeyCode(keycode_name);
+    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -2556,6 +2576,30 @@ function keycode(keycode_name) {
         default:
             return keyEvent(keycode_name);
     }
+
+    // tool function(s) //
+
+    function shellWay(keycode_name) {
+        let shell_result = false;
+        try {
+            shell_result = !shell("input keyevent " + keycode_name, true).code;
+        } catch (e) {
+            debugInfo("Shell方法模拟按键失败");
+            debugInfo(">键值: " + keycode_name);
+        }
+        return shell_result;
+    }
+
+    function autojsKeyCodeWay(keycode_name) {
+        let thread_keycode = threads.start(function () {
+            KeyCode(keycode_name);
+        });
+        thread_keycode.join(1000);
+        if (!thread_keycode.isAlive()) return true;
+        thread_keycode.interrupt();
+        debugInfo("KeyCode方式模拟按键失败");
+        debugInfo(">键值: " + keycode_name);
+    }
 }
 
 function runJsFile(js_path, autojs_pkg_name) {
@@ -2583,9 +2627,13 @@ function debugInfo() {
 }
 
 function debugConfigInfo() {
-    ////SUSPENDED////
     let cfg = config || {};
     if (!cfg.message_showing_switch || !cfg.debug_info_switch) return true;
+    config.help_collect_switch || debugInfo("帮收功能已关闭");
+    (config.self_collect_switch || debugInfo("自收功能已关闭")) &&
+    (config.non_break_check_switch || debugInfo("自己能量监测功能已关闭"));
+    config.auto_unlock_switch || debugInfo("自动解锁功能已关闭");
+    config.result_showing_switch || debugInfo("结果显示功能已关闭");
 }
 
 /**
@@ -2606,8 +2654,8 @@ function clickObject(obj_keyword, params) {
     let max_try_times = 3;
     let max_try_times_backup = max_try_times;
     while (max_try_times--) {
-        if (!obj_kw) return;
-        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return;
+        if (!obj_kw) return false;
+        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return false;
 
         let thread_click = threads.start(function () {
             obj_kw.click();

@@ -37,7 +37,7 @@ diag.on("positive", () => {
     threads.start(function () {
         let max_try_times_key_power = 2;
         keycode(26);
-        while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26, "no_shell");
+        while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26);
         if (max_try_times_key_power < 0) messageAction("关闭屏幕失败", 8, 1);
 
         sleep(500);
@@ -310,8 +310,8 @@ function showSplitLine(extra_str, style) {
     return true;
 }
 
-function keycode(keycode_name, no_shell_flag) {
-    let keyEvent = keycode_name => !no_shell_flag && !shell("input keyevent " + keycode_name, true).code || KeyCode(keycode_name);
+function keycode(keycode_name) {
+    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -345,6 +345,26 @@ function keycode(keycode_name, no_shell_flag) {
             return ~splitScreen();
         default:
             return keyEvent(keycode_name);
+    }
+
+    // tool function(s) //
+
+    function shellWay(keycode_name) {
+        let shell_result = false;
+        try {
+            shell_result = !shell("input keyevent " + keycode_name, true).code;
+        } catch (e) {
+        }
+        return shell_result;
+    }
+
+    function autojsKeyCodeWay(keycode_name) {
+        let thread_keycode = threads.start(function () {
+            KeyCode(keycode_name);
+        });
+        thread_keycode.join(1000);
+        if (!thread_keycode.isAlive()) return true;
+        thread_keycode.interrupt();
     }
 }
 

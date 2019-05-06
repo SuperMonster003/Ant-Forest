@@ -425,7 +425,7 @@ homepage
             diag.on("neutral", () => {
                 if (checking_update_flag) return;
                 checkUpdate();
-                alertTitle(diag, "检查更新中 请稍候...");
+                alertTitle(diag, "检查更新中 请稍候...", 1500);
             });
             diag.on("item_select", (idx, item, dialog) => app.openUrl("https://github.com/SuperMonster003"));
             diag.show();
@@ -919,13 +919,13 @@ auto_unlock_page
     }))
     .add("sub_head", new Layout("高级设置"))
     .add("button", new Layout("锁屏页面上滑时长", {
-        config_conj: "dismiss_layer_gesture_time",
+        config_conj: "dismiss_layer_swipe_time",
         hint: "hint",
         new_window: function () {
             let diag = dialogs.build({
                 title: "设置锁屏页面上滑时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
-                inputHint: "{x|120<=x<=1600,x∈N*}",
+                inputHint: "{x|110<=x<=1000,x∈N*}",
                 neutral: "使用默认值",
                 negative: "返回",
                 positive: "确认",
@@ -939,7 +939,7 @@ auto_unlock_page
                 if (input === "") return dialog.dismiss();
                 let value = input - 0;
                 if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 1600 || value < 120) return alertTitle(dialog, "输入值范围不合法");
+                if (value > 1000 || value < 110) return alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, value);
                 diag.dismiss();
             });
@@ -950,13 +950,13 @@ auto_unlock_page
         },
     }))
     .add("button", new Layout("图案解锁滑动时长", {
-        config_conj: "gesture_unlock_swipe_time",
+        config_conj: "pattern_unlock_swipe_time",
         hint: "hint",
         new_window: function () {
             let diag = dialogs.build({
                 title: "设置图案解锁滑动时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
-                inputHint: "{x|320<=x<=5000,x∈N*}",
+                inputHint: "{x|120<=x<=3000,x∈N*}",
                 neutral: "使用默认值",
                 negative: "返回",
                 positive: "确认",
@@ -970,7 +970,7 @@ auto_unlock_page
                 if (input === "") return dialog.dismiss();
                 let value = input - 0;
                 if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 5000 || value < 320) return alertTitle(dialog, "输入值范围不合法");
+                if (value > 3000 || value < 120) return alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, value);
                 diag.dismiss();
             });
