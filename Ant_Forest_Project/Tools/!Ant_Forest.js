@@ -25,9 +25,11 @@ let config = {
 
 let unlock_module = null;
 let engines_support_flag = true;
+let current_app = {};
 checkModules();
 debugConfigInfo();
 checkTasksQueue();
+tryRequestScreenCapture();
 
 typeof device === "undefined" && messageAction("此版本Device模块功能无效", 3);
 
@@ -35,8 +37,7 @@ let WIDTH = typeof device !== "undefined" && device.width || 0,
     HEIGHT = typeof device !== "undefined" && device.height || 0,
     cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1)),
     cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)), // scaled by actual ratio
-    cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)), // forcibly scaled by 16:9
-    current_app = {};
+    cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
 let special_exec_command = "";
 if (!engines_support_flag) {
@@ -764,8 +765,6 @@ function antForest() {
             }
 
             function getCurrentScreenTargets() {
-
-                current_app.request_screen_capture_flag || tryRequestScreenCapture();
 
                 // this is useless, i guess - May 06, 2019
                 // waitForAction(kw_rank_list_self, 8000); // make page ready
@@ -1589,13 +1588,12 @@ function antForest() {
     function endProcess() {
         debugInfo("存储本次会话黑名单数据");
         current_app.saveState("blacklist", current_app.blacklist);
-        current_app.kill_when_done ? endAlipay(closeAfWindows) : closeAfWindows();
+        current_app.kill_when_done ? endAlipay() : closeAfWindows();
         debugInfo("等待Floaty消息结束等待信号");
         waitForAction(() => !current_app.floaty_msg_signal, 8000) || debugInfo("等待信号超时 放弃等待");
         debugInfo("关闭所有线程");
         threads.shutDownAll(); // kill all threads started by threads.start()
-        if (current_app.is_screen_on) debugInfo("无需关闭屏幕");
-        else ~debugInfo("关闭屏幕") && keycode(26) || debugInfo("关闭屏幕失败");
+        screenOff();
         messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
         exit();
 
@@ -1615,12 +1613,30 @@ function antForest() {
             debugInfo("保留当前支付宝页面");
         }
 
-        function endAlipay(minimizeFunc) {
+        function endAlipay() {
             debugInfo("关闭支付宝");
-            let old_pgk = current_app.ori_app_package;
-            killCurrentApp(current_app.package_name, null, minimizeFunc);
+            let alipay_pkg_name = current_app.package_name;
+            killCurrentApp(alipay_pkg_name);
+            waitForAction(() => currentPackage() !== alipay_pkg_name, 5000) ? debugInfo("支付宝关闭完毕") : debugInfo("支付宝关闭超时");
+        }
 
-            waitForAction(() => currentPackage() === old_pgk, 5000) ? debugInfo("支付宝关闭完毕") : debugInfo("支付宝关闭超时");
+        function screenOff() {
+            if (current_app.is_screen_on) debugInfo("无需关闭屏幕");
+            else {
+                let device_brand = device.brand;
+                let keycode_power_bug_versions = [/[Mm]eizu/];
+                let keycode_power_bug = !!function () {
+                    for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
+                        if (device_brand.match(keycode_power_bug_versions[i])) return true;
+                    }
+                }();
+                if (!keycode_power_bug) ~debugInfo("关闭屏幕") && keycode(26) || debugInfo("关闭屏幕失败");
+                else {
+                    messageAction("关闭屏幕失败", 3);
+                    messageAction("设备型号不支持自动关屏", 3, 0, 1);
+                    messageAction("型号: " + device_brand, 3, 0, 1);
+                }
+            }
         }
     }
 
@@ -2020,7 +2036,7 @@ function launchThisApp(intent, no_msg_flag) {
             debugInfo("启动完成条件监测完毕");
             break;
         }
-        debugInfo("强制结束支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");
+        debugInfo("尝试关闭支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");
         killCurrentApp(current_app.package_name);
     }
     if (max_retry_times < 0) messageAction(current_app.quote_name + "首页状态准备失败", 8, 1, 0, 1);
@@ -2032,7 +2048,7 @@ function launchThisApp(intent, no_msg_flag) {
  * Close current app, and wait for at most 15s
  * Property "first_time_run" will be 0
  */
-function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFunc) {
+function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     let pkg = package_name || current_app.package_name;
     let shell_result = false;
     try {
@@ -2051,16 +2067,31 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag, minimizeFu
 
     function tryMinimizeApp() {
         debugInfo("尝试最小化当前应用");
-        minimizeFunc && minimizeFunc();
         let max_try_times = 20;
         let max_try_times_backup = max_try_times;
+        let kw_avail_btn = idMatches(/.*nav.back|.*back.button|关闭|返回/);
+        let condition_success = () => currentPackage() !== pkg;
+
+        refreshObjects();
+
         while (max_try_times--) {
+            if (kw_avail_btn.exists()) {
+                clickObject(kw_avail_btn) || clickBounds(kw_avail_btn);
+                sleep(300);
+                continue;
+            }
             keycode(4);
-            if (waitForAction(() => currentPackage() !== pkg, 2000)) break;
+            if (waitForAction(condition_success, 2000)) break;
         }
         if (max_try_times < 0) {
             debugInfo("最小化应用尝试已达: " + max_try_times_backup + "次");
-            return messageAction("最小化当前应用失败", 4, 1);
+            debugInfo("重新模拟返回键尝试最小化");
+            max_try_times = 8;
+            while (max_try_times--) {
+                keycode(4);
+                if (waitForAction(condition_success, 2000)) break;
+            }
+            if (max_try_times < 0) return messageAction("最小化当前应用失败", 4, 1);
         }
         debugInfo("最小化应用成功");
         return true;
@@ -2597,7 +2628,7 @@ function keycode(keycode_name) {
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && ~log(222) && !key_check[key]()) {
+                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
                     debugInfo("KeyCode方式模拟按键失败");
                     debugInfo(">键值: " + keycode_name);
                 }
@@ -2921,5 +2952,29 @@ function makeInScreen(f, params) {
                 messageAction("\"makeInScreen\"direction参数不合法", 9, 1);
         }
         gesture(swipe_time, coordinate_a, coordinate_b);
+    }
+}
+
+function refreshObjects(custom_text) {
+    let alert_text = custom_text || "Alert for refreshing objects";
+    let kw_alert_text = text(alert_text);
+    let refreshing_obj_thread = threads.start(function () {
+        kw_alert_text.findOne(1000);
+        let kw_ok_btn = textMatches(/OK|确./); // may 确认 or something else
+        kw_ok_btn.findOne(2000).click();
+    });
+    let shutdownThread = () => {
+        refreshing_obj_thread.isAlive() && refreshing_obj_thread.interrupt();
+        if (kw_alert_text.exists()) keycode(4);
+    };
+    let thread_alert = threads.start(function () {
+        alert(alert_text);
+        shutdownThread();
+        sleep(200);
+    });
+    thread_alert.join(1000);
+    if (thread_alert.isAlive()) {
+        shutdownThread();
+        thread_alert.interrupt();
     }
 }

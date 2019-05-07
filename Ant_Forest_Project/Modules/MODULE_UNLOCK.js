@@ -513,7 +513,7 @@ function keycode(keycode_name) {
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && ~log(222) && !key_check[key]()) {
+                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
                     debugInfo("KeyCode方式模拟按键失败");
                     debugInfo(">键值: " + keycode_name);
                 }

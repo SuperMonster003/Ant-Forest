@@ -21,6 +21,9 @@ files.createWithDirs(path_device_info);
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
 let info = device.brand + " " + device.product + " " + device.release + "\n\n";
+let device_brand = device.brand;
+let keycode_power_bug_versions = [/[Mm]eizu/];
+let keycode_power_bug = checkKeyCodePowerBug();
 
 let diag = dialogs.build({
     title: "解锁布局抓取",
@@ -33,12 +36,18 @@ let diag = dialogs.build({
     positive: "开始",
     negative: "放弃",
 });
+if (keycode_power_bug) {
+    let ori_content = diag.getContentView().getText().toString().replace(/屏幕 \[自动关闭]/, "[手动关闭屏幕]").replace(/ \[自动亮起]/, "等待 [自动亮起]");
+    diag.setContent(ori_content + "\n\n* * * * * *\n此设备不支持自动关屏\n需点击\"开始\"按钮后30秒内手动关屏\n* * * * * *");
+}
 diag.on("positive", () => {
     threads.start(function () {
-        let max_try_times_key_power = 2;
-        keycode(26);
-        while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26);
-        if (max_try_times_key_power < 0) messageAction("关闭屏幕失败", 8, 1);
+        if (!keycode_power_bug) {
+            let max_try_times_key_power = 2;
+            keycode(26);
+            while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26);
+            if (max_try_times_key_power < 0) messageAction("关闭屏幕失败", 8, 1);
+        } else if (!waitForAction(() => !device.isScreenOn(), 30000)) messageAction("等待手动关闭屏幕超时", 8, 1);
 
         sleep(500);
         device.wakeUp();
@@ -90,6 +99,12 @@ diag.on("positive", () => {
 diag.show();
 
 // tool function(s) //
+
+function checkKeyCodePowerBug() {
+    for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
+        if (device_brand.match(keycode_power_bug_versions[i])) return true;
+    }
+}
 
 function captSelectorInfo(title) {
     let split_line = "-----------------------";
@@ -368,7 +383,7 @@ function keycode(keycode_name) {
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && ~log(222) && !key_check[key]()) {
+                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
                     debugInfo("KeyCode方式模拟按键失败");
                     debugInfo(">键值: " + keycode_name);
                 }
