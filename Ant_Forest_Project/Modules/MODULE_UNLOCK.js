@@ -101,11 +101,12 @@ function unlock(password, max_try_times, pattern_size) {
 
     let max_try_times_unlock_check = 3;
     while (max_try_times_unlock_check--) {
-        if (!waitForAction(() => isUnlocked() || cond_preview_container() || cond_all_unlock_ways(), 3000)) errorMsg("无法判断当前解锁条件");
+        if (!waitForAction(() => isUnlocked() || cond_preview_container() || cond_all_unlock_ways(), 2000)) continue;
         if (isUnlocked()) return true;
         if (cond_all_unlock_ways()) advancedUnlock();
         if (cond_preview_container()) dismissLayer();
     }
+    if (max_try_times_unlock_check < 0) errorMsg("无法判断当前解锁条件");
 
     // tool function(s) //
 
@@ -329,7 +330,7 @@ function errorMsg(msg) {
     messageAction("解锁失败", 4, 1);
     msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
     messageAction(device.brand + " " + device.product + " " + device.release, 4, 0, 2, 1);
-    keycode(26);
+    is_screen_on && keycode(26);
     exit();
 }
 
@@ -499,8 +500,8 @@ function keycode(keycode_name) {
         try {
             shell_result = !shell("input keyevent " + keycode_name, true).code;
         } catch (e) {
-            debugInfo("Shell方法模拟按键失败");
-            debugInfo(">键值: " + keycode_name);
+            messageAction("Shell方法模拟按键失败", 0);
+            messageAction("键值: " + keycode_name, 0, 0, 1);
         }
         return shell_result;
     }
@@ -514,8 +515,8 @@ function keycode(keycode_name) {
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
                 if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
-                    debugInfo("KeyCode方式模拟按键失败");
-                    debugInfo(">键值: " + keycode_name);
+                    messageAction("KeyCode方式模拟按键失败", 0);
+                    messageAction("键值: " + keycode_name, 0, 0, 1);
                 }
             }
         }
@@ -546,7 +547,7 @@ function clickObject(obj_keyword, buffering_time) {
         thread_click.join(1000);
         if (!thread_click.isAlive()) break;
         let current_run_count = max_try_times_backup - max_try_times;
-        debugInfo("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+        log("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
         thread_click.interrupt();
     }
     if (max_try_times < 0) return messageAction("click()方法超时", 3);

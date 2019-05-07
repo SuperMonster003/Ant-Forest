@@ -369,8 +369,8 @@ function keycode(keycode_name) {
         try {
             shell_result = !shell("input keyevent " + keycode_name, true).code;
         } catch (e) {
-            debugInfo("Shell方法模拟按键失败");
-            debugInfo(">键值: " + keycode_name);
+            messageAction("Shell方法模拟按键失败", 0);
+            messageAction("键值: " + keycode_name, 0, 0, 1);
         }
         return shell_result;
     }
@@ -384,8 +384,8 @@ function keycode(keycode_name) {
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
                 if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
-                    debugInfo("KeyCode方式模拟按键失败");
-                    debugInfo(">键值: " + keycode_name);
+                    messageAction("KeyCode方式模拟按键失败", 0);
+                    messageAction("键值: " + keycode_name, 0, 0, 1);
                 }
             }
         }

@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 7, 2019
- * @version 1.6.6
+ * @version 1.6.7
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -33,12 +33,6 @@ tryRequestScreenCapture();
 
 typeof device === "undefined" && messageAction("此版本Device模块功能无效", 3);
 
-let WIDTH = typeof device !== "undefined" && device.width || 0,
-    HEIGHT = typeof device !== "undefined" && device.height || 0,
-    cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1)),
-    cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)), // scaled by actual ratio
-    cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
-
 let special_exec_command = "";
 if (!engines_support_flag) {
     messageAction("跳过\"执行特殊指令\"检查", 3);
@@ -68,6 +62,12 @@ checkBugVersions();
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 debugInfo("成功接入\"af\"本地存储");
 if (!storage_af.get("config_prompted")) promptConfig();
+
+let WIDTH = device.width,
+    HEIGHT = device.height,
+    cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
+    cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)), // scaled by actual ratio
+    cY16h9w = num => ~~(+num * (WIDTH * 16 / 9) / (+num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
 antForest();
 
@@ -2072,7 +2072,15 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
         let kw_avail_btn = idMatches(/.*nav.back|.*back.button|关闭|返回/);
         let condition_success = () => currentPackage() !== pkg;
 
-        refreshObjects();
+        let tmp_current_pkg = currentPackage();
+        if (tmp_current_pkg !== current_app.package_name) {
+            debugInfo("当前前置应用包名:");
+            debugInfo(">" + tmp_current_pkg);
+            debugInfo("借用alert()方法刷新前置应用");
+            refreshObjects();
+            debugInfo("当前前置应用包名:");
+            debugInfo(">" + currentPackage());
+        }
 
         while (max_try_times--) {
             if (kw_avail_btn.exists()) {

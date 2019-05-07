@@ -2010,7 +2010,6 @@ function saveNow() {
     function writeBlacklist() {
         let blacklist = {};
         let blacklist_by_user = session_config_mixed.blacklist_by_user;
-        log(blacklist_by_user)
         blacklist_by_user.forEach(o => {
             blacklist[o.name] = {
                 reason: "by_user",
