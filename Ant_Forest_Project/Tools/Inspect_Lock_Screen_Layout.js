@@ -354,17 +354,36 @@ function keycode(keycode_name) {
         try {
             shell_result = !shell("input keyevent " + keycode_name, true).code;
         } catch (e) {
+            debugInfo("Shell方法模拟按键失败");
+            debugInfo(">键值: " + keycode_name);
         }
         return shell_result;
     }
 
     function autojsKeyCodeWay(keycode_name) {
-        let thread_keycode = threads.start(function () {
-            KeyCode(keycode_name);
-        });
-        thread_keycode.join(1000);
-        if (!thread_keycode.isAlive()) return true;
-        thread_keycode.interrupt();
+        let current_screen_state = device.isScreenOn();
+        current_screen_state ? KeyCode(keycode_name) : device.wakeUp();
+        let key_check = {
+            "26, KEYCODE_POWER, POWER": checkPower,
+        };
+        for (let key in key_check) {
+            if (key_check.hasOwnProperty(key)) {
+                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && ~log(222) && !key_check[key]()) {
+                    debugInfo("KeyCode方式模拟按键失败");
+                    debugInfo(">键值: " + keycode_name);
+                }
+            }
+        }
+        return true;
+
+        // tool function (s) //
+
+        function checkPower() {
+            if (current_screen_state) return waitForAction(() => !device.isScreenOn(), 2400);
+            let max_try_times_wake_up = 10;
+            while (!waitForAction(() => device.isScreenOn(), 500) && max_try_times_wake_up--) device.wakeUp();
+            return max_try_times_wake_up >= 0;
+        }
     }
 }
 

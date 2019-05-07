@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 6, 2019
- * @version 1.6.5
+ * @last_modified May 7, 2019
+ * @version 1.6.6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -2219,7 +2219,7 @@ function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toa
                 sleep(check_interval);
                 timeout -= check_interval;
                 if (bad_situation_pending >= 1000) {
-                    if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
+                    if (typeof current_app !== "undefined" && current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
                     if (special_bad_situation) checkBadSituation(special_bad_situation);
                     bad_situation_pending %= 1000;
                 }
@@ -2467,14 +2467,12 @@ function tryRequestScreenCapture() {
         thread_req = threads.start(function () {
             let count = try_count;
             try {
-                req_result = requestScreenCapture();
-
+                req_result = images.requestScreenCapture();
                 debugInfo("截图权限申请结果: " + req_result + " (" + count + "\/" + max_try_times_backup + ")");
-                if (req_result) thread_req.interrupt();
+                if (req_result) return true;
             } catch (e) {
                 debugInfo("截图权限申请结果: 单次异常" + " (" + count + "\/" + max_try_times_backup + ")");
-                if (max_try_times) debugInfo(e);
-                else throw Error(e);
+                max_try_times || debugInfo(e);
             }
         });
         thread_req.join(1000);
@@ -2483,6 +2481,7 @@ function tryRequestScreenCapture() {
             break;
         }
         thread_req.interrupt();
+        sleep(500);
     }
 
     if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
@@ -2591,14 +2590,29 @@ function keycode(keycode_name) {
     }
 
     function autojsKeyCodeWay(keycode_name) {
-        let thread_keycode = threads.start(function () {
-            KeyCode(keycode_name);
-        });
-        thread_keycode.join(1000);
-        if (!thread_keycode.isAlive()) return true;
-        thread_keycode.interrupt();
-        debugInfo("KeyCode方式模拟按键失败");
-        debugInfo(">键值: " + keycode_name);
+        let current_screen_state = device.isScreenOn();
+        current_screen_state ? KeyCode(keycode_name) : device.wakeUp();
+        let key_check = {
+            "26, KEYCODE_POWER, POWER": checkPower,
+        };
+        for (let key in key_check) {
+            if (key_check.hasOwnProperty(key)) {
+                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && ~log(222) && !key_check[key]()) {
+                    debugInfo("KeyCode方式模拟按键失败");
+                    debugInfo(">键值: " + keycode_name);
+                }
+            }
+        }
+        return true;
+
+        // tool function (s) //
+
+        function checkPower() {
+            if (current_screen_state) return waitForAction(() => !device.isScreenOn(), 2400);
+            let max_try_times_wake_up = 10;
+            while (!waitForAction(() => device.isScreenOn(), 500) && max_try_times_wake_up--) device.wakeUp();
+            return max_try_times_wake_up >= 0;
+        }
     }
 }
 
