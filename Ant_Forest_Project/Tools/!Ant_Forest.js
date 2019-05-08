@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 8, 2019
- * @version 1.6.9
+ * @version 1.6.10
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -29,7 +29,6 @@ let current_app = {};
 checkModules();
 debugConfigInfo();
 checkTasksQueue();
-tryRequestScreenCapture();
 
 typeof device === "undefined" && messageAction("此版本Device模块功能无效", 3);
 
@@ -579,6 +578,7 @@ function antForest() {
 
         function checkFriendsEnergy() {
             debugInfo("开始检查好友能量");
+            tryRequestScreenCapture();
 
             if (!rankListReady()) return;
 
@@ -2511,33 +2511,20 @@ function tryRequestScreenCapture() {
         clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
     });
 
-    let thread_req;
-    let max_try_times = 6;
-    let max_try_times_backup = max_try_times;
-    let try_count = 0;
-    while (++try_count && max_try_times--) {
-        let req_result = false;
-        thread_req = threads.start(function () {
-            let count = try_count;
-            try {
-                req_result = images.requestScreenCapture();
-                debugInfo("截图权限申请结果: " + req_result + " (" + count + "\/" + max_try_times_backup + ")");
-                if (req_result) return true;
-            } catch (e) {
-                debugInfo("截图权限申请结果: 单次异常" + " (" + count + "\/" + max_try_times_backup + ")");
-                max_try_times || debugInfo(e);
-            }
-        });
-        thread_req.join(1000);
-        if (!thread_req.isAlive() && req_result) {
+    let req_result;
+    let thread_monitor = threads.start(function () {
+        if (waitForAction(() => typeof req_result !== "undefined", 2000)) {
             thread_prompt.interrupt();
-            break;
+            debugInfo("截图权限申请结果: " + req_result);
+            return true;
         }
-        thread_req.interrupt();
-        sleep(500);
-    }
-
-    if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
+        debugInfo("截图权限申请结果: 失败");
+        restartCurrentTaskInEngine("!Ant_Forest");
+    });
+    req_result = images.requestScreenCapture();
+    thread_monitor.join(2400);
+    thread_monitor.isAlive() && thread_monitor.interrupt();
+    if (req_result) return true;
 }
 
 function getVerName(package_name) {
@@ -3012,4 +2999,15 @@ function refreshObjects(custom_text) {
         shutdownThread();
         thread_alert.interrupt();
     }
+}
+
+function restartCurrentTaskInEngine(task_name) {
+    debugInfo("重启当前任务");
+    let my_engine = engines.myEngine();
+    let task_path = my_engine.cwd() + "\/" + (task_name || my_engine.source);
+    if (!task_path.match(/\.js$/)) task_path += ".js";
+    debugInfo("运行新任务:\n" + task_path);
+    engines.execScriptFile(task_path);
+    debugInfo("强制停止旧任务");
+    my_engine.forceStop();
 }
