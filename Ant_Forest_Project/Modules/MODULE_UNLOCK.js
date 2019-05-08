@@ -131,8 +131,12 @@ function unlock(password, max_try_times, pattern_size) {
 
             if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
             if (cond_all_unlock_ways()) break;
-            if (data_from_storage_flag && chances_for_storage_data-- > 0) max_try_times_dismiss_layer += 1;
-            else gesture_time += (gesture_time <= 130 ? 10 : 80);
+            if (data_from_storage_flag) {
+                if (--chances_for_storage_data < 0) {
+                    data_from_storage_flag = false;
+                    gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
+                } else max_try_times_dismiss_layer += 1;
+            } else gesture_time += (gesture_time <= 130 ? 10 : 80);
         }
         if (max_try_times_dismiss_layer < 0) errorMsg("消除解锁页面提示层失败");
         storage_unlock_config.dismiss_layer_swipe_time = gesture_time;
@@ -154,23 +158,6 @@ function unlock(password, max_try_times, pattern_size) {
         // tool function(s) //
 
         function unlockPattern() {
-            let bounds = kw_lock_pattern_view.findOnce().bounds();
-            let w = ~~(bounds.width() / 3);
-            let h = ~~(bounds.height() / 3);
-            let x1 = bounds.left + ~~(w / 2);
-            let y1 = bounds.top + ~~(h / 2);
-            let points = ["Handsome Points"];
-            for (let j = 1; j <= pattern_size; j += 1) {
-                for (let i = 1; i <= pattern_size; i += 1) {
-                    points[(j - 1) * pattern_size + i] = {
-                        x: x1 + (i - 1) * w,
-                        y: y1 + (j - 1) * h,
-                    };
-                }
-            }
-            let gesture_pts_params = password;
-            if (typeof password === "string") gesture_pts_params = password.match(/[^1-9]+/) ? password.split(/[^1-9]+/).join("").split("") : password.split("");
-            gesture_pts_params = gesture_pts_params.map(value => [points[value].x, points[value].y]);
 
             let pattern_unlock_swipe_time = storage_unlock_config.pattern_unlock_swipe_time;
             let data_from_storage_flag = false;
@@ -180,8 +167,8 @@ function unlock(password, max_try_times, pattern_size) {
             else pattern_unlock_swipe_time = DEFAULT_UNLOCK.pattern_unlock_swipe_time;
 
             while (pattern_unlock_swipe_time <= 3000 && max_try_times-- > 0) {
-                // gesture(pattern_unlock_swipe_time, gesture_pts_params);
 
+                let gesture_pts_params = getGesturePtsParams() || errorMsg("图案解锁方案失败", "无法获取点阵布局");
                 let gestures_pts_params = [];
                 for (let i = 0; i < gesture_pts_params.length - 1; i += 1) {
                     let pt1 = gesture_pts_params[i];
@@ -191,11 +178,50 @@ function unlock(password, max_try_times, pattern_size) {
                 gestures.apply(null, gestures_pts_params);
 
                 if (checkUnlockResult()) break;
-                if (!(data_from_storage_flag && chances_for_storage_data-- > 0)) pattern_unlock_swipe_time += 80;
+                if (data_from_storage_flag) {
+                    if (--chances_for_storage_data < 0) {
+                        data_from_storage_flag = false;
+                        pattern_unlock_swipe_time = DEFAULT_UNLOCK.pattern_unlock_swipe_time;
+                    }
+                } else pattern_unlock_swipe_time += 80;
             }
-            if (pattern_unlock_swipe_time > 3000) errorMsg("图案解锁方案失败");
+            if (pattern_unlock_swipe_time > 3000 || max_try_times < 0) errorMsg("图案解锁方案失败");
             storage_unlock_config.pattern_unlock_swipe_time = pattern_unlock_swipe_time;
             storage_unlock.put("config", storage_unlock_config);
+
+            // tool function(s) //
+
+            function getGesturePtsParams() {
+                let bounds = null;
+
+                let max_try_times_get_bounds = 5;
+                while (max_try_times_get_bounds--) {
+                    try {
+                        bounds = kw_lock_pattern_view.findOnce().bounds();
+                        break;
+                    } catch (e) {
+                        sleep(100);
+                    }
+                }
+                if (!bounds) return;
+
+                let w = ~~(bounds.width() / 3);
+                let h = ~~(bounds.height() / 3);
+                let x1 = bounds.left + ~~(w / 2);
+                let y1 = bounds.top + ~~(h / 2);
+                let points = [];
+                for (let j = 1; j <= pattern_size; j += 1) {
+                    for (let i = 1; i <= pattern_size; i += 1) {
+                        points[(j - 1) * pattern_size + i] = {
+                            x: x1 + (i - 1) * w,
+                            y: y1 + (j - 1) * h,
+                        };
+                    }
+                }
+                let gesture_pts_params = password;
+                if (typeof password === "string") gesture_pts_params = password.match(/[^1-9]+/) ? password.split(/[^1-9]+/).join("").split("") : password.split("");
+                return gesture_pts_params.filter(value => +value && points[value]).map(value => [points[value].x, points[value].y]);
+            }
         }
 
         function unlockPassword() {
@@ -253,7 +279,7 @@ function unlock(password, max_try_times, pattern_size) {
                     h = ~~((bottom - top) / 4),
                     x1 = b.left + ~~(w / 2),
                     y1 = top + ~~(h / 2);
-                let keypads = ["Handsome Keypads"];
+                let keypads = [];
                 for (let j = 1; j <= 4; j += 1) {
                     for (let i = 1; i <= 3; i += 1) {
                         keypads[(j - 1) * 3 + i] = {
@@ -291,7 +317,7 @@ function unlock(password, max_try_times, pattern_size) {
                 h = ~~((b - t) / 4),
                 x1 = l + ~~(w / 2),
                 y1 = t + ~~(h / 2);
-            let keypads = ["Trembling Keypads"];
+            let keypads = [];
             for (let j = 1; j <= 4; j += 1) {
                 for (let i = 1; i <= 3; i += 1) {
                     keypads[(j - 1) * 3 + i] = {

@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 7, 2019
- * @version 1.6.7
+ * @last_modified May 8, 2019
+ * @version 1.6.8
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -257,11 +257,11 @@ function antForest() {
                 // function function(s) //
 
                 function firstTimeRunCondition() {
-                    let kw_af_title = idMatches(/.*h5_tv_title/).textMatches(/蚂蚁森林|Ant Forest/);
+                    let kw_af_title = textMatches(/蚂蚁森林|Ant Forest/);
                     let kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
                     let kw_more_friends = desc("查看更多好友");
                     try {
-                        return kw_af_title.exists() && (desc("合种").exists() || kw_more_friends.exists()) || kw_login_or_switch.exists();
+                        return kw_af_title.exists() && (className("Button").descMatches(/合种|背包|通知|攻略|任务/).exists() || kw_more_friends.exists()) || kw_login_or_switch.exists();
                     } catch (e) {
                         return !~sleep(200);
                     }
@@ -2019,14 +2019,25 @@ function launchThisApp(intent, no_msg_flag) {
 
             let wait_times_count = max_wait_times_backup - max_wait_times;
             debugInfo("启动条件检测未通过: (" + wait_times_count + "\/" + max_wait_times_backup + ")");
-            let timeout_package_name = !(wait_times_count % 2) && currentPackage() !== current_app.package_name;
+            let tmp_current_pkg = currentPackage();
+            let timeout_package_name = !(wait_times_count % 2) && tmp_current_pkg !== current_app.package_name;
             let timeout_single_time_check = !(wait_times_count % 3);
 
             if (!timeout_package_name && !timeout_single_time_check) continue;
 
             if (timeout_package_name) {
-                debugInfo("前置App包名不符合条件");
-                debugInfo(">" + currentPackage());
+                debugInfo("前置应用包名不符合条件");
+                debugInfo(">" + tmp_current_pkg);
+                debugInfo("借用alert()方法刷新前置应用");
+                refreshObjects();
+                let tmp_current_pkg_refreshed = currentPackage();
+                debugInfo("当前前置应用包名:");
+                debugInfo(">" + tmp_current_pkg_refreshed);
+                if (tmp_current_pkg_refreshed === current_app.package_name) {
+                    debugInfo("刷新生效");
+                    debugInfo("重新检测启动条件");
+                    continue;
+                } else debugInfo("刷新无效果");
             } else debugInfo("单次启动条件检测超时");
 
             debugInfo("重新启动intent");
@@ -2054,10 +2065,10 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
     try {
         shell_result = !shell("am force-stop " + pkg, true).code;
     } catch (e) {
-        debugInfo("Shell方法强制关闭应用失败");
+        debugInfo("shell()方法强制关闭应用失败");
     }
     if (!shell_result) return keycode_back_unacceptable_flag ? debugInfo("不接受模拟返回") : tryMinimizeApp();
-    debugInfo("Shell方法强制关闭应用成功");
+    debugInfo("shell()方法强制关闭应用成功");
     waitForAction(() => currentPackage() !== pkg, 15000, "关闭" + pkg + "失败", 9, 1);
 
     current_app.first_time_run = 0;
@@ -2498,7 +2509,7 @@ function tryRequestScreenCapture() {
     });
 
     let thread_req;
-    let max_try_times = 3;
+    let max_try_times = 6;
     let max_try_times_backup = max_try_times;
     let try_count = 0;
     while (++try_count && max_try_times--) {
@@ -2622,7 +2633,7 @@ function keycode(keycode_name) {
         try {
             shell_result = !shell("input keyevent " + keycode_name, true).code;
         } catch (e) {
-            debugInfo("Shell方法模拟按键失败");
+            debugInfo("shell()方法模拟按键失败");
             debugInfo(">键值: " + keycode_name);
         }
         return shell_result;

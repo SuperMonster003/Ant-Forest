@@ -893,7 +893,7 @@ auto_unlock_page
                 diag_demo.on("neutral", () => {
                     let diag_simplified_pattern = dialogs.build({
                         title: "图案解锁密码简化",
-                        content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6\n\n*此功能暂未实现\nsince Mar 25, 2019",
+                        content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6",
                         positive: "关闭",
                         autoDismiss: false,
                         canceledOnTouchOutside: false,
