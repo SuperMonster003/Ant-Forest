@@ -20,11 +20,10 @@
 ******
 ### 使用说明
 ******
-1. 下载项目 ([点此下载最新项目包](https://codeload.github.com/SuperMonster003/Ant_Forest/zip/master) 或 点击页面右侧绿色 `Clone or download` 按钮)  
-2. 将"Ant_Forest_Project"目录中的全部文件 (或目录本身) 放置于手机存储  
-3. 使用"Auto.js"运行"Ant_Forest_Launcher.js"文件  
+1. 下载项目 ([点此下载最新项目包](https://codeload.github.com/SuperMonster003/Ant_Forest/zip/master) 或 点击页面右侧绿色 `Clone or download` 按钮 手机浏览器需在项目主页拉到底部点击 `Desktop version`)  
+2. 将 `Ant_Forest_Project` 目录中的全部文件 (或目录本身) 放置于手机存储 (推荐 `Auto.js` 默认可识别目录 如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )  
+3. 使用 `Auto.js` 运行 `Ant_Forest_Launcher.js` 文件  
 4. 欢迎使用并反馈  
-> 手机存储目录推荐"Auto.js"默认可识别目录 (如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )
   
 > 安卓系统最低版本: `7.0` / `Android Nougat` / `Android N`  
 > Root: `无需Root`
@@ -84,6 +83,11 @@
 ******
 ### 版本历史
 ******
+# v1.6.9
+###### 2019/05/08
+* `优化` 提升锁屏布局工具使用稳定性 增加更多用户操作提示  
+* `优化` 使用shell()方法完全替代可能导致任务卡死的KeyCode()方法
+  
 # v1.6.8
 ###### 2019/05/08
 * `优化` 增加启动条件检测样本  

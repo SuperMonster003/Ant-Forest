@@ -11,6 +11,9 @@ let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
 let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
 let cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
+let storage_unlock = require("../Modules/MODULE_STORAGE.js").create("unlock");
+let storage_unlock_config = storage_unlock.get("config", {});
+let DEFAULT_UNLOCK = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
 let path_base = files.getSdcardPath() + "/!Debug_Info/";
 files.removeDir(path_base);
 let path_container_page = path_base + "Container_Page.png";
@@ -20,39 +23,71 @@ let path_device_info = path_base + "Device_Info.txt";
 files.createWithDirs(path_device_info);
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
+let isScreenOn = () => device.isScreenOn();
+let isScreenOff = () => !isScreenOn();
 let info = device.brand + " " + device.product + " " + device.release + "\n\n";
 let device_brand = device.brand;
 let keycode_power_bug_versions = [/[Mm]eizu/];
 let keycode_power_bug = checkKeyCodePowerBug();
+let operation_title = "解锁布局抓取";
+let operation_hint = "请按照以下步骤抓取解锁布局\n\n" +
+    "1. 屏幕 [自动关闭] 后 [自动亮起]\n" +
+    "2. [自动滑动屏幕] 进入图案解锁页面\n" +
+    "注: 若手机 [震动两下] 或 [自动滑动失败] 请 [手动滑动]\n" +
+    "3. 等待手机 [长震] 后再 [手动解锁]\n" +
+    "4. 出现布局后 [按提示操作]";
+let operation_hint_manual = operation_hint.replace(/屏幕 \[自动关闭]/, "[手动关闭屏幕]").replace(/ \[自动亮起]/, "等待 [自动亮起]");
 
 let diag = dialogs.build({
-    title: "解锁布局抓取",
-    content: "请按照以下步骤抓取解锁布局\n\n" +
-        "1. 屏幕 [自动关闭] 后 [自动亮起]\n" +
-        "2. [自动滑动屏幕] 进入图案解锁页面\n" +
-        "注: 若手机 [震动两下] 或 [自动滑动失败] 请 [手动滑动]\n" +
-        "3. 等待手机 [长震] 后再 [手动解锁]\n" +
-        "4. 出现布局后 [按提示操作]",
+    title: operation_title,
+    content: keycode_power_bug ? operation_hint_manual + "\n\n* * * * * *\n此设备不支持自动关屏\n需点击\"开始\"按钮后30秒内手动关屏\n* * * * * *" : operation_hint,
     positive: "开始",
     negative: "放弃",
+    autoDismiss: false,
+    canceledOnTouchOutside: false,
 });
-if (keycode_power_bug) {
-    let ori_content = diag.getContentView().getText().toString().replace(/屏幕 \[自动关闭]/, "[手动关闭屏幕]").replace(/ \[自动亮起]/, "等待 [自动亮起]");
-    diag.setContent(ori_content + "\n\n* * * * * *\n此设备不支持自动关屏\n需点击\"开始\"按钮后30秒内手动关屏\n* * * * * *");
-}
 diag.on("positive", () => {
+    diag.dismiss();
     threads.start(function () {
         if (!keycode_power_bug) {
-            let max_try_times_key_power = 2;
-            keycode(26);
-            while (!waitForAction(() => !device.isScreenOn(), 3000) && max_try_times_key_power--) keycode(26);
-            if (max_try_times_key_power < 0) messageAction("关闭屏幕失败", 8, 1);
-        } else if (!waitForAction(() => !device.isScreenOn(), 30000)) messageAction("等待手动关闭屏幕超时", 8, 1);
+            if (!keycode(26) || !waitForAction(isScreenOff, 2400)) {
+                let diag_scr_off_failed = dialogs.build({
+                    title: "自动关闭屏幕失败",
+                    content: "请点击 [继续] 按钮后 [手动关屏]\n然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作",
+                    neutral: "查看前述提示",
+                    neutralColor: "#26a69a",
+                    negative: "放弃",
+                    positive: "继续",
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                });
+                diag_scr_off_failed.on("neutral", () => {
+                    let diag_former_hint = dialogs.build({
+                        title: operation_title,
+                        content: operation_hint_manual,
+                        positive: "返回",
+                        autoDismiss: false,
+                        canceledOnTouchOutside: false,
+                    });
+                    diag_former_hint.on("positive", () => diag_former_hint.dismiss());
+                    diag_former_hint.show();
+                });
+                diag_scr_off_failed.on("negative", () => {
+                    diag_scr_off_failed.dismiss();
+                    diag.dismiss();
+                    exit();
+                });
+                diag_scr_off_failed.on("positive", () => diag_scr_off_failed.dismiss());
+                diag_scr_off_failed.show();
+            }
+        }
+
+        if (!waitForAction(isScreenOff, 30000)) messageAction("等待屏幕关闭超时", 8, 1);
 
         sleep(500);
         device.wakeUp();
         let max_try_times_wake_up = 5;
-        while (!waitForAction(() => device.isScreenOn(), 2000) && max_try_times_wake_up--) device.wakeUp();
+        while (!waitForAction(isScreenOn, 2000) && max_try_times_wake_up--) device.wakeUp();
         if (max_try_times_wake_up < 0) messageAction("唤起设备失败", 8, 1);
         sleep(1000);
 
@@ -96,6 +131,7 @@ diag.on("positive", () => {
         diag_ok.show();
     });
 });
+diag.on("negative", () => diag.dismiss());
 diag.show();
 
 // tool function(s) //
@@ -141,7 +177,7 @@ function dismissLayer() {
             null;
     };
 
-    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 1500)) {
+    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 2500)) {
         device.vibrate(200);
         sleep(500);
         device.vibrate(200);
@@ -151,7 +187,12 @@ function dismissLayer() {
     let vertical_pts = [0.95, 0.9, 0.82, 0.67, 0.46, 0.05];
 
     let max_try_times_dismiss_layer = 20;
-    let gesture_time = 120;
+    let data_from_storage_flag = false;
+    let chances_for_storage_data = 3;
+    let gesture_time = storage_unlock_config.dismiss_layer_swipe_time;
+
+    if (gesture_time) data_from_storage_flag = true;
+    else gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
 
     let half_width = cX(0.5);
     let gesture_params = [];
@@ -159,18 +200,65 @@ function dismissLayer() {
 
     while (max_try_times_dismiss_layer--) {
         gesture.apply(null, [gesture_time].concat(gesture_params));
-        if (waitForAction(() => !kw_preview_container.exists(), 1200)) break;
-        gesture_time += 80;
+
+        if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
+        if (cond_all_unlock_ways()) break;
+        if (data_from_storage_flag) {
+            if (--chances_for_storage_data < 0) {
+                data_from_storage_flag = false;
+                gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
+            } else max_try_times_dismiss_layer += 1;
+        } else gesture_time += (gesture_time <= 130 ? 10 : 80);
     }
 
     if (max_try_times_dismiss_layer < 0 && !waitForAction(() => !kw_preview_container.exists(), 25000)) ~alert("消除解锁页面提示层失败") && exit();
     return true;
+
+    // tool function(s) //
+
+    function cond_all_unlock_ways() {
+        let kw_lock_pattern_view_common = id("com.android.systemui:id/lockPatternView");
+        let kw_lock_pattern_view_miui = idMatches(/com\.android\.keyguard:id\/lockPattern(View)?/); // borrowed from e1399579 and modified
+        let cond_lock_pattern_view = () =>
+            kw_lock_pattern_view_common.exists() && kw_lock_pattern_view_common ||
+            kw_lock_pattern_view_miui.exists() && kw_lock_pattern_view_miui ||
+            null;
+
+        let kw_password_view_common = idMatches(/.*passwordEntry/);
+        let kw_password_view_miui = idMatches(/com\.android\.keyguard:id\/miui_mixed_password_input_field/); // borrowed from e1399579 and modified
+        let cond_password_view = () =>
+            kw_password_view_common.exists() && kw_password_view_common ||
+            kw_password_view_miui.exists() && kw_password_view_miui ||
+            null;
+
+        let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
+        let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
+        let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?码区域/);
+        let cond_pin_view = () =>
+            kw_pin_view_common.exists() && kw_pin_view_common ||
+            kw_pin_view_miui.exists() && kw_pin_view_miui ||
+            kw_pin_view_emui.exists() && kw_pin_view_emui ||
+            null;
+
+        let special_views = {
+            "gxzw": [idMatches(/.*[Gg][Xx][Zz][Ww].*/), [0.0875, 0.47, 0.9125, 0.788]],
+        };
+        let cond_special_view = () => {
+            let special_view_keys = Object.keys(special_views);
+            for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
+                let value = special_views[special_view_keys[i]];
+                if (value[0].exists()) return value[1];
+            }
+            return null;
+        };
+
+        return cond_lock_pattern_view() || cond_password_view() || cond_pin_view() || cond_special_view();
+    }
 }
 
 // global function(s) //
 
 function tryRequestScreenCapture() {
-
     let thread_prompt = threads.start(function () {
         let kw_no_longer_prompt = id("com.android.systemui:id/remember");
         if (!waitForAction(kw_no_longer_prompt, 5000)) return;
@@ -182,16 +270,20 @@ function tryRequestScreenCapture() {
     });
 
     let thread_req;
-    let max_try_times = 3;
+    let max_try_times = 6;
+    let max_try_times_backup = max_try_times;
     let try_count = 0;
     while (++try_count && max_try_times--) {
         let req_result = false;
         thread_req = threads.start(function () {
+            let count = try_count;
             try {
-                req_result = requestScreenCapture();
-
-                if (req_result) thread_req.interrupt();
+                req_result = images.requestScreenCapture();
+                log("截图权限申请结果: " + req_result + " (" + count + "\/" + max_try_times_backup + ")");
+                if (req_result) return true;
             } catch (e) {
+                log("截图权限申请结果: 单次异常" + " (" + count + "\/" + max_try_times_backup + ")");
+                max_try_times || log(e);
             }
         });
         thread_req.join(1000);
@@ -200,6 +292,7 @@ function tryRequestScreenCapture() {
             break;
         }
         thread_req.interrupt();
+        sleep(500);
     }
 
     if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
@@ -326,7 +419,6 @@ function showSplitLine(extra_str, style) {
 }
 
 function keycode(keycode_name) {
-    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -364,59 +456,83 @@ function keycode(keycode_name) {
 
     // tool function(s) //
 
-    function shellWay(keycode_name) {
-        let shell_result = false;
-        try {
-            shell_result = !shell("input keyevent " + keycode_name, true).code;
-        } catch (e) {
-            messageAction("Shell方法模拟按键失败", 0);
-            messageAction("键值: " + keycode_name, 0, 0, 1);
-        }
-        return shell_result;
-    }
+    function keyEvent(keycode_name, failed_msg_level) {
+        failed_msg_level = +failed_msg_level;
+        failed_msg_level = isNaN(failed_msg_level) ? NaN : failed_msg_level;
 
-    function autojsKeyCodeWay(keycode_name) {
-        let current_screen_state = device.isScreenOn();
-        current_screen_state ? KeyCode(keycode_name) : device.wakeUp();
         let key_check = {
             "26, KEYCODE_POWER, POWER": checkPower,
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
-                    messageAction("KeyCode方式模拟按键失败", 0);
-                    messageAction("键值: " + keycode_name, 0, 0, 1);
-                }
+                if (~key.split(/ *, */).indexOf(keycode_name.toString())) return key_check[key]();
             }
         }
-        return true;
 
-        // tool function (s) //
+        return shellInputKeyEvent(keycode_name);
+
+        // tool function(s) //
+
+        function keyEventFailedMsg(msg_level) {
+            if (!isNaN(msg_level)) {
+                messageAction("按键模拟失败", msg_level);
+                messageAction("键值: " + keycode_name, msg_level, 0, 1);
+            } else {
+                if (typeof debugInfo !== "function") return;
+                debugInfo("按键模拟失败");
+                debugInfo(">键值: " + keycode_name);
+            }
+        }
+
+        function shellInputKeyEvent(keycode_name) {
+            let shell_result = false;
+            try {
+                shell_result = !shell("input keyevent " + keycode_name, true).code;
+            } catch (e) {
+                // nothing to do here
+            }
+            return shell_result ? true : keyEventFailedMsg(failed_msg_level);
+        }
 
         function checkPower() {
-            if (current_screen_state) return waitForAction(() => !device.isScreenOn(), 2400);
-            let max_try_times_wake_up = 10;
-            while (!waitForAction(() => device.isScreenOn(), 500) && max_try_times_wake_up--) device.wakeUp();
-            return max_try_times_wake_up >= 0;
+            let isScreenOn = () => device.isScreenOn();
+            let isScreenOff = () => !isScreenOn();
+            if (isScreenOff()) {
+                device.wakeUp();
+                let max_try_times_wake_up = 10;
+                while (!waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
+                return max_try_times_wake_up >= 0;
+            }
+            return shellInputKeyEvent(keycode_name) ? waitForAction(isScreenOff, 2400) : false;
         }
     }
 }
 
-function clickObject(obj_keyword, buffering_time) {
+function clickObject(obj_keyword, params) {
+    params = params || {};
+    let buffering_time = params.buffering_time || 0;
+    let object_name = params.object_name || "";
+    let no_info_flag = params.no_info_flag || false;
     let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
     let max_try_times = 3;
+    let max_try_times_backup = max_try_times;
     while (max_try_times--) {
-        if (!obj_kw) return;
-        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return;
+        if (!obj_kw) return false;
+        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return false;
 
         let thread_click = threads.start(function () {
             obj_kw.click();
         });
         thread_click.join(1000);
         if (!thread_click.isAlive()) break;
+        let current_run_count = max_try_times_backup - max_try_times;
+        if (!no_info_flag) {
+            log("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
+            object_name && log("-> Object Name: " + object_name);
+        }
         thread_click.interrupt();
     }
-    if (max_try_times < 0) return messageAction("click()方法超时", 3);
+    if (max_try_times < 0) return no_info_flag ? false : messageAction("click()方法超时", 3);
     return true;
 }
 

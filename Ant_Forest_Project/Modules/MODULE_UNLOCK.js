@@ -356,7 +356,7 @@ function errorMsg(msg) {
     messageAction("解锁失败", 4, 1);
     msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
     messageAction(device.brand + " " + device.product + " " + device.release, 4, 0, 2, 1);
-    is_screen_on && keycode(26);
+    is_screen_on && messageAction("自动关闭屏幕" + (keycode(26) ? "" : "失败"), 1, 0, 0, 1);
     exit();
 }
 
@@ -483,7 +483,6 @@ function showSplitLine(extra_str, style) {
 }
 
 function keycode(keycode_name) {
-    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -521,40 +520,54 @@ function keycode(keycode_name) {
 
     // tool function(s) //
 
-    function shellWay(keycode_name) {
-        let shell_result = false;
-        try {
-            shell_result = !shell("input keyevent " + keycode_name, true).code;
-        } catch (e) {
-            messageAction("Shell方法模拟按键失败", 0);
-            messageAction("键值: " + keycode_name, 0, 0, 1);
-        }
-        return shell_result;
-    }
+    function keyEvent(keycode_name, failed_msg_level) {
+        failed_msg_level = +failed_msg_level;
+        failed_msg_level = isNaN(failed_msg_level) ? NaN : failed_msg_level;
 
-    function autojsKeyCodeWay(keycode_name) {
-        let current_screen_state = device.isScreenOn();
-        current_screen_state ? KeyCode(keycode_name) : device.wakeUp();
         let key_check = {
             "26, KEYCODE_POWER, POWER": checkPower,
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
-                    messageAction("KeyCode方式模拟按键失败", 0);
-                    messageAction("键值: " + keycode_name, 0, 0, 1);
-                }
+                if (~key.split(/ *, */).indexOf(keycode_name.toString())) return key_check[key]();
             }
         }
-        return true;
 
-        // tool function (s) //
+        return shellInputKeyEvent(keycode_name);
+
+        // tool function(s) //
+
+        function keyEventFailedMsg(msg_level) {
+            if (!isNaN(msg_level)) {
+                messageAction("按键模拟失败", msg_level);
+                messageAction("键值: " + keycode_name, msg_level, 0, 1);
+            } else {
+                if (typeof debugInfo !== "function") return;
+                debugInfo("按键模拟失败");
+                debugInfo(">键值: " + keycode_name);
+            }
+        }
+
+        function shellInputKeyEvent(keycode_name) {
+            let shell_result = false;
+            try {
+                shell_result = !shell("input keyevent " + keycode_name, true).code;
+            } catch (e) {
+                // nothing to do here
+            }
+            return shell_result ? true : keyEventFailedMsg(failed_msg_level);
+        }
 
         function checkPower() {
-            if (current_screen_state) return waitForAction(() => !device.isScreenOn(), 2400);
-            let max_try_times_wake_up = 10;
-            while (!waitForAction(() => device.isScreenOn(), 500) && max_try_times_wake_up--) device.wakeUp();
-            return max_try_times_wake_up >= 0;
+            let isScreenOn = () => device.isScreenOn();
+            let isScreenOff = () => !isScreenOn();
+            if (isScreenOff()) {
+                device.wakeUp();
+                let max_try_times_wake_up = 10;
+                while (!waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
+                return max_try_times_wake_up >= 0;
+            }
+            return shellInputKeyEvent(keycode_name) ? waitForAction(isScreenOff, 2400) : false;
         }
     }
 }

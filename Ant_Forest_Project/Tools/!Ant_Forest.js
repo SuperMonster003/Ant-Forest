@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 8, 2019
- * @version 1.6.8
+ * @version 1.6.9
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -2145,7 +2145,10 @@ function killCurrentApp(package_name, keycode_back_unacceptable_flag) {
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
 function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
-    let cfg = config || {};
+    let cfg = typeof config !== "undefined" && config || {
+        message_showing_switch: true,
+        console_log_switch: true,
+    };
     let message_showing_switch = cfg.message_showing_switch;
     let console_log_switch = cfg.console_log_switch;
 
@@ -2590,7 +2593,6 @@ function saveCurrentScreenCapture(key_name, no_msg_flag) {
 }
 
 function keycode(keycode_name) {
-    let keyEvent = keycode_name => shellWay(keycode_name) || autojsKeyCodeWay(keycode_name) || messageAction("按键模拟失败", 3) || messageAction("键值: " + keycode_name, 3, 0, 1);
     switch (keycode_name.toString()) {
         case "KEYCODE_HOME":
         case "3":
@@ -2628,40 +2630,54 @@ function keycode(keycode_name) {
 
     // tool function(s) //
 
-    function shellWay(keycode_name) {
-        let shell_result = false;
-        try {
-            shell_result = !shell("input keyevent " + keycode_name, true).code;
-        } catch (e) {
-            debugInfo("shell()方法模拟按键失败");
-            debugInfo(">键值: " + keycode_name);
-        }
-        return shell_result;
-    }
+    function keyEvent(keycode_name, failed_msg_level) {
+        failed_msg_level = +failed_msg_level;
+        failed_msg_level = isNaN(failed_msg_level) ? NaN : failed_msg_level;
 
-    function autojsKeyCodeWay(keycode_name) {
-        let current_screen_state = device.isScreenOn();
-        current_screen_state ? KeyCode(keycode_name) : device.wakeUp();
         let key_check = {
             "26, KEYCODE_POWER, POWER": checkPower,
         };
         for (let key in key_check) {
             if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString()) && !key_check[key]()) {
-                    debugInfo("KeyCode方式模拟按键失败");
-                    debugInfo(">键值: " + keycode_name);
-                }
+                if (~key.split(/ *, */).indexOf(keycode_name.toString())) return key_check[key]();
             }
         }
-        return true;
 
-        // tool function (s) //
+        return shellInputKeyEvent(keycode_name);
+
+        // tool function(s) //
+
+        function keyEventFailedMsg(msg_level) {
+            if (!isNaN(msg_level)) {
+                messageAction("按键模拟失败", msg_level);
+                messageAction("键值: " + keycode_name, msg_level, 0, 1);
+            } else {
+                if (typeof debugInfo !== "function") return;
+                debugInfo("按键模拟失败");
+                debugInfo(">键值: " + keycode_name);
+            }
+        }
+
+        function shellInputKeyEvent(keycode_name) {
+            let shell_result = false;
+            try {
+                shell_result = !shell("input keyevent " + keycode_name, true).code;
+            } catch (e) {
+                // nothing to do here
+            }
+            return shell_result ? true : keyEventFailedMsg(failed_msg_level);
+        }
 
         function checkPower() {
-            if (current_screen_state) return waitForAction(() => !device.isScreenOn(), 2400);
-            let max_try_times_wake_up = 10;
-            while (!waitForAction(() => device.isScreenOn(), 500) && max_try_times_wake_up--) device.wakeUp();
-            return max_try_times_wake_up >= 0;
+            let isScreenOn = () => device.isScreenOn();
+            let isScreenOff = () => !isScreenOn();
+            if (isScreenOff()) {
+                device.wakeUp();
+                let max_try_times_wake_up = 10;
+                while (!waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
+                return max_try_times_wake_up >= 0;
+            }
+            return shellInputKeyEvent(keycode_name) ? waitForAction(isScreenOff, 2400) : false;
         }
     }
 }
