@@ -198,6 +198,16 @@ function unlock(password, max_try_times, pattern_size) {
                 while (max_try_times_get_bounds--) {
                     try {
                         bounds = kw_lock_pattern_view.findOnce().bounds();
+
+                        // i don't know if this is necessary or useful... [Concerned]
+                        // enhanced area //
+                        let {left, top, right, bottom} = bounds;
+                        let [width, height] = [bounds.width(), bounds.height()];
+                        if (left < 0 || left >= cX(0.5) || right > WIDTH || right <= cX(0.5) ||
+                            top <= 0 || top >= HEIGHT || bottom <= 0 || bottom >= HEIGHT ||
+                            width <= 0 || width >= WIDTH || height <= 0 || height >= HEIGHT) throw Error();
+                        // end area //
+
                         break;
                     } catch (e) {
                         sleep(100);

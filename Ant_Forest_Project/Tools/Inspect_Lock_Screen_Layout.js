@@ -536,7 +536,7 @@ function clickObject(obj_keyword, params) {
     return true;
 }
 
-function clickBounds(f, if_continuous, max_check_times, check_interval, padding) {
+function clickBounds(f, if_continuous, max_check_times, check_interval, padding, special_bad_situation) {
 
     let classof = param => Object.prototype.toString.call(param).slice(8, -1);
 
@@ -569,36 +569,51 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding)
     }
 
     let parsed_padding = padding ? parsePadding(padding) : null;
-    let posb;
+    let node_bounds;
+    let bad_situation_pending = 1000;
 
-    let max_try_times_posb = 3,
-        getPosb = () => func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
-    while (max_try_times_posb--) {
+    let max_try_times_node_bounds = 3;
+    let getBounds = () => {
+        if (func.toString().match(/^Rect\(/)) return func;
+        let key_node = func.findOnce();
+        return key_node && key_node.bounds() || null;
+    };
+    while (max_try_times_node_bounds--) {
         try {
-            posb = getPosb();
+            node_bounds = getBounds();
+            if (node_bounds) break;
+            return false;
         } catch (e) {
-            sleep(500);
+            sleep(300);
             if (!func.exists()) break; // may be a better idea to use BoundsInside()
         }
     }
-    if (max_try_times_posb < 0) posb = getPosb(); // let console show specific error messages
+    if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
 
     if (if_continuous.length) {
         while (max_check_times--) {
             if (!checkArray()) break;
+            if (bad_situation_pending >= 1000) {
+                if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
+                if (special_bad_situation) checkBadSituation(special_bad_situation);
+                bad_situation_pending %= 1000;
+            }
             try {
-                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
             } catch (e) {
                 // nothing to do here
             }
             sleep(check_interval);
+            bad_situation_pending += check_interval;
         }
     } else {
         if ((func.toString().match(/^Rect\(/) || func.exists())) {
+            if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
+            if (special_bad_situation) checkBadSituation(special_bad_situation);
             try {
-                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
             } catch (e) {
                 max_check_times = -1;
             }

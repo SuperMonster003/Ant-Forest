@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 8, 2019
- * @version 1.6.10
+ * @version 1.6.11
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1806,9 +1806,9 @@ function checkBugVersions() {
                         debugInfo("用户按下音量加键");
                         let kw_ok_btn = textMatches(/OK|确定/);
                         if (kw_ok_btn.exists()) {
-                            let posb = kw_ok_btn.findOnce().bounds();
+                            let node_bounds = kw_ok_btn.findOnce().bounds();
                             debugInfo("尝试点击确定按钮");
-                            click(posb.centerX(), posb.centerY());
+                            click(node_bounds.centerX(), node_bounds.centerY());
                         }
                         messageAction("脚本已停止", 4, 1);
                         messageAction("用户终止运行", 4, 0, 1);
@@ -2342,20 +2342,26 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     }
 
     let parsed_padding = padding ? parsePadding(padding) : null;
-    let posb;
+    let node_bounds;
     let bad_situation_pending = 1000;
 
-    let max_try_times_posb = 3,
-        getPosb = () => func.toString().match(/^Rect\(/) ? func : func.findOnce().bounds();
-    while (max_try_times_posb--) {
+    let max_try_times_node_bounds = 3;
+    let getBounds = () => {
+       if (func.toString().match(/^Rect\(/)) return func;
+       let key_node = func.findOnce();
+       return key_node && key_node.bounds() || null;
+    };
+    while (max_try_times_node_bounds--) {
         try {
-            posb = getPosb();
+            node_bounds = getBounds();
+            if (node_bounds) break;
+            return false;
         } catch (e) {
-            sleep(500);
+            sleep(300);
             if (!func.exists()) break; // may be a better idea to use BoundsInside()
         }
     }
-    if (max_try_times_posb < 0) posb = getPosb(); // let console show specific error messages
+    if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
 
     if (if_continuous.length) {
         while (max_check_times--) {
@@ -2366,8 +2372,8 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
                 bad_situation_pending %= 1000;
             }
             try {
-                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
             } catch (e) {
                 // nothing to do here
             }
@@ -2379,8 +2385,8 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
             if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
             if (special_bad_situation) checkBadSituation(special_bad_situation);
             try {
-                // click(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(posb.centerX() + (parsed_padding ? parsed_padding.x : 0), posb.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
             } catch (e) {
                 max_check_times = -1;
             }
@@ -2483,8 +2489,8 @@ function checkBadSituation(bad_situations) {
             let classof = Object.prototype.toString.call(arguments[i]).slice(8, -1);
             if (classof === "Array") arguments[i].forEach(value => checkBadSituation(value));
             if (classof === "JavaObject" && arguments[i].exists()) {
-                let posb = arguments[i].findOnce().bounds();
-                click(posb.centerX(), posb.centerY());
+                let node_bounds = arguments[i].findOnce().bounds();
+                click(node_bounds.centerX(), node_bounds.centerY());
                 sleep(1500);
             }
         }
