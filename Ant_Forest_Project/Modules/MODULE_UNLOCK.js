@@ -95,8 +95,8 @@ function unlock(password, max_try_times, pattern_size) {
 
     let cond_all_unlock_ways = () => {
         return (kw_lock_pattern_view = cond_lock_pattern_view()) ||
-            (kw_password_view = cond_password_view()) ||
             (kw_pin_view = cond_pin_view()) ||
+            (kw_password_view = cond_password_view()) ||
             (special_view_bounds = cond_special_view()) ||
             null;
     };
