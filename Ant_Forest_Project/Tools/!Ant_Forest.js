@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 8, 2019
- * @version 1.6.11
+ * @last_modified May 9, 2019
+ * @version 1.6.12
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -55,8 +55,15 @@ try {
     messageAction("Context对象无效", 3, 0, 1);
 }
 let current_autojs_version = getVerName(current_autojs_package) || 0;
-debugInfo("当前Auto.js版本: " + (current_autojs_version || "未知版本"));
+debugInfo("Auto.js版本: " + (current_autojs_version || "未知版本"));
 checkBugVersions();
+debugInfo("项目版本: " + (() => {
+    try {
+        return "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+/)[0].slice(8);
+    } catch (e) {
+        return "未知版本";
+    }
+})());
 
 let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 debugInfo("成功接入\"af\"本地存储");
@@ -256,13 +263,16 @@ function antForest() {
                 // function function(s) //
 
                 function firstTimeRunCondition() {
-                    let kw_af_title = textMatches(/蚂蚁森林|Ant Forest/);
-                    let kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
-                    let kw_more_friends = desc("查看更多好友");
-                    try {
-                        return kw_af_title.exists() && (className("Button").descMatches(/合种|背包|通知|攻略|任务/).exists() || kw_more_friends.exists()) || kw_login_or_switch.exists();
-                    } catch (e) {
-                        return !~sleep(200);
+                    let conditions = {
+                        kw_af_title: textMatches(/蚂蚁森林|Ant Forest/),
+                        kw_desc_buttons: className("Button").descMatches(/合种|背包|通知|攻略|任务|我的大树养成记录/),
+                        kw_more_friends: desc("查看更多好友"),
+                        kw_login_or_switch: idMatches(/.*switchAccount|.*loginButton/),
+                    };
+                    let keys = Object.keys(conditions);
+                    for (let i = 0, len = keys.length; i < len; i += 1) {
+                        let key = keys[i];
+                        if (conditions[key].exists()) return ~debugInfo("检测到条件样本: " + key);
                     }
                 }
 
@@ -409,11 +419,16 @@ function antForest() {
      */
     function checkLanguage() {
         let kw_h5_title = id("com.alipay.mobile.nebula:id/h5_tv_title");
-        if (!waitForAction(kw_h5_title, 10000)) {
+        let title_node = null;
+        if (!waitForAction(() => title_node = kw_h5_title.findOnce(), 10000)) {
             messageAction("语言检测已跳过", 3);
             return messageAction("语言控件信息查找超时", 3, 0, 1, 1);
         }
-        if (kw_h5_title.findOnce().text().match(/蚂蚁森林/)) {
+        if (!title_node){
+            messageAction("语言检测已跳过", 3);
+            return messageAction("语言控件信息无效", 3, 0, 1, 1);
+        }
+        if (title_node.text().match(/蚂蚁森林/)) {
             debugInfo("当前支付宝语言: 简体中文");
         } else {
             debugInfo("当前支付宝语言: 英语");
@@ -1995,7 +2010,7 @@ function launchThisApp(intent, no_msg_flag) {
             app.startActivity(intent);
             let cond_succ_flag = waitForAction(() => {
                 let condition_a = () => currentPackage() === current_app.package_name;
-                let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$/);
+                let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$|.+AlipayGphone$/);
                 let condition_c = () => desc("查看更多好友").exists() || className("Button").descMatches(/合种|背包|通知|攻略|任务/).exists();
 
                 return condition_a() || condition_b() || condition_c();
@@ -2018,7 +2033,7 @@ function launchThisApp(intent, no_msg_flag) {
             clickBounds([desc("重新加载"), "try"]);
 
             let wait_times_count = max_wait_times_backup - max_wait_times;
-            debugInfo("启动条件检测未通过: (" + wait_times_count + "\/" + max_wait_times_backup + ")");
+            debugInfo("启动完成条件检测未通过: (" + wait_times_count + "\/" + max_wait_times_backup + ")");
             let tmp_current_pkg = currentPackage();
             let timeout_package_name = !(wait_times_count % 2) && tmp_current_pkg !== current_app.package_name;
             let timeout_single_time_check = !(wait_times_count % 3);
@@ -2035,12 +2050,12 @@ function launchThisApp(intent, no_msg_flag) {
                 debugInfo(">" + tmp_current_pkg_refreshed);
                 if (tmp_current_pkg_refreshed === current_app.package_name) {
                     debugInfo("刷新生效");
-                    debugInfo("重新检测启动条件");
+                    debugInfo("重新检测启动完成条件");
                     continue;
                 } else debugInfo("刷新无效果");
-            } else debugInfo("单次启动条件检测超时");
+            } else debugInfo("启动完成条件检测单次超时");
 
-            debugInfo("重新启动intent");
+            debugInfo("重新启动Activity");
             app.startActivity(intent);
         }
         if (max_launch_times >= 0 && max_wait_times >= 0) {
@@ -2347,9 +2362,9 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
 
     let max_try_times_node_bounds = 3;
     let getBounds = () => {
-       if (func.toString().match(/^Rect\(/)) return func;
-       let key_node = func.findOnce();
-       return key_node && key_node.bounds() || null;
+        if (func.toString().match(/^Rect\(/)) return func;
+        let key_node = func.findOnce();
+        return key_node && key_node.bounds() || null;
     };
     while (max_try_times_node_bounds--) {
         try {

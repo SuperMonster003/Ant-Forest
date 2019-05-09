@@ -197,17 +197,7 @@ function unlock(password, max_try_times, pattern_size) {
                 let max_try_times_get_bounds = 5;
                 while (max_try_times_get_bounds--) {
                     try {
-                        bounds = kw_lock_pattern_view.findOnce().bounds();
-
-                        // i don't know if this is necessary or useful... [Concerned]
-                        // enhanced area //
-                        let {left, top, right, bottom} = bounds;
-                        let [width, height] = [bounds.width(), bounds.height()];
-                        if (left < 0 || left >= cX(0.5) || right > WIDTH || right <= cX(0.5) ||
-                            top <= 0 || top >= HEIGHT || bottom <= 0 || bottom >= HEIGHT ||
-                            width <= 0 || width >= WIDTH || height <= 0 || height >= HEIGHT) throw Error();
-                        // end area //
-
+                        bounds = waitForBoundsStable(kw_lock_pattern_view);
                         break;
                     } catch (e) {
                         sleep(100);
@@ -231,6 +221,35 @@ function unlock(password, max_try_times, pattern_size) {
                 let gesture_pts_params = password;
                 if (typeof password === "string") gesture_pts_params = password.match(/[^1-9]+/) ? password.split(/[^1-9]+/).join("").split("") : password.split("");
                 return gesture_pts_params.filter(value => +value && points[value]).map(value => [points[value].x, points[value].y]);
+
+                // tool function(s) //
+
+                function waitForBoundsStable(view) {
+                    let bounds = null;
+                    let thread_bounds_stable = threads.start(function () {
+                        let [l, t, r, b] = Array(4).join("1").split("1").map(value => null);
+                        waitForAction(() => {
+                            let key_node = view.findOnce();
+                            if (!key_node) return;
+                            bounds = key_node.bounds();
+                            let {left, top, right, bottom} = bounds;
+                            if (l === null || t === null || r === null || b === null) {
+                                [l, t, r, b] = [left, top, right, bottom];
+                                return;
+                            }
+                            if (l === left && t === top && r === right && b === bottom) return true;
+                            else {
+                                l = left;
+                                t = top;
+                                r = right;
+                                b = bottom;
+                            }
+                        }, [1400, 80]);
+                    });
+                    thread_bounds_stable.join(1500);
+                    thread_bounds_stable.isAlive() && ~thread_bounds_stable.interrupt();
+                    return bounds;
+                }
             }
         }
 
