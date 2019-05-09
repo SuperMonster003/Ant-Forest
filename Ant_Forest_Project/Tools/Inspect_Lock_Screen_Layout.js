@@ -25,7 +25,8 @@ let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
 let isScreenOn = () => device.isScreenOn();
 let isScreenOff = () => !isScreenOn();
-let info = device.brand + " " + device.product + " " + device.release + "\n\n";
+let info = device.brand + " " + device.product + " " + device.release + "\n" +
+    "Display resolution: " + device.width + " × " + device.height + "\n\n";
 let device_brand = device.brand;
 let keycode_power_bug_versions = [/[Mm]eizu/];
 let keycode_power_bug = checkKeyCodePowerBug();

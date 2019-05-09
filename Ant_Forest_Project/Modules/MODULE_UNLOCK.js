@@ -69,11 +69,13 @@ function unlock(password, max_try_times, pattern_size) {
     let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
     let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
     let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?码区域/);
+    let kw_pin_view_meizu = id("com.android.systemui:id/lockPattern");
     let kw_pin_view = null;
     let cond_pin_view = () =>
         kw_pin_view_common.exists() && kw_pin_view_common ||
         kw_pin_view_miui.exists() && kw_pin_view_miui ||
         kw_pin_view_emui.exists() && kw_pin_view_emui ||
+        kw_pin_view_meizu.exists() && kw_pin_view_meizu ||
         null;
 
     let special_view_bounds = null;
@@ -205,8 +207,8 @@ function unlock(password, max_try_times, pattern_size) {
                 }
                 if (!bounds) return;
 
-                let w = ~~(bounds.width() / 3);
-                let h = ~~(bounds.height() / 3);
+                let w = ~~(bounds.width() / pattern_size);
+                let h = ~~(bounds.height() / pattern_size);
                 let x1 = bounds.left + ~~(w / 2);
                 let y1 = bounds.top + ~~(h / 2);
                 let points = [];
@@ -272,12 +274,21 @@ function unlock(password, max_try_times, pattern_size) {
             let kw_nums_container = id("com.android.systemui:id/container");
             let getNumericInputView = num => id("com.android.keyguard:id/numeric_inputview").text(num + ""); // miui; borrowed from e1399579 and modified
             let getNumsBySingleDesc = num => desc(num);
+            let boundsWayIDs = ["com.android.systemui:id/lockPattern"];
+            let kw_bounds_way_id = null;
 
             while (max_try_times--) {
                 if (getNumericKeypad(9).exists()) clickNumsByKeypad();
                 else if (kw_nums_container.exists()) clickNumsByContainer();
                 else if (getNumericInputView(9).exists()) clickNumsByInputView();
                 else if (getNumsBySingleDesc(9).exists()) clickNumsBySingleDesc();
+                else if (!!function() {
+                    for (let i = 0, len = boundsWayIDs.length; i < len; i += 1) {
+                        let name = boundsWayIDs[i];
+                        if (typeof name === "string" && id(name).exists()) return kw_bounds_way_id = id(name);
+                        if (typeof name === "object" && idMatches(name).exists()) return kw_bounds_way_id = idMatches(name);
+                    }
+                }()) clickNumsByBounds(kw_bounds_way_id);
                 else errorMsg("无可用的PIN解锁参考控件");
 
                 let kw_enter_key = id("com.android.systemui:id/key_enter");
@@ -308,6 +319,27 @@ function unlock(password, max_try_times, pattern_size) {
                     h = ~~((bottom - top) / 4),
                     x1 = b.left + ~~(w / 2),
                     y1 = top + ~~(h / 2);
+                let keypads = [];
+                for (let j = 1; j <= 4; j += 1) {
+                    for (let i = 1; i <= 3; i += 1) {
+                        keypads[(j - 1) * 3 + i] = {
+                            x: x1 + w * (i - 1),
+                            y: y1 + h * (j - 1),
+                        };
+                    }
+                }
+
+                let click_keypad = num => click(keypads[num || 11].x, keypads[num || 11].y);
+                pw.forEach(num => click_keypad(+num));
+            }
+
+            function clickNumsByBounds(kw) {
+                if (!kw || !kw.exists()) return;
+                let b = kw.findOnce().bounds();
+                let w = ~~(b.width() / 3),
+                    h = ~~(b.height() / 4),
+                    x1 = b.left + ~~(w / 2),
+                    y1 = b.top + ~~(h / 2);
                 let keypads = [];
                 for (let j = 1; j <= 4; j += 1) {
                     for (let i = 1; i <= 3; i += 1) {

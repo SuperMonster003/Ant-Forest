@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 9, 2019
- * @version 1.6.12
+ * @version 1.6.13
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -179,6 +179,7 @@ function antForest() {
 
             images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
             current_app = Object.assign(current_app, new App("蚂蚁森林"));
+            current_app.kw_af_home = className("Button").descMatches(/合种|背包|通知|攻略|任务|我的大树养成记录/);
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
             debugInfo("会话参数赋值完毕");
@@ -265,7 +266,7 @@ function antForest() {
                 function firstTimeRunCondition() {
                     let conditions = {
                         kw_af_title: textMatches(/蚂蚁森林|Ant Forest/),
-                        kw_desc_buttons: className("Button").descMatches(/合种|背包|通知|攻略|任务|我的大树养成记录/),
+                        kw_desc_buttons: current_app.kw_af_home,
                         kw_more_friends: desc("查看更多好友"),
                         kw_login_or_switch: idMatches(/.*switchAccount|.*loginButton/),
                     };
@@ -424,7 +425,7 @@ function antForest() {
             messageAction("语言检测已跳过", 3);
             return messageAction("语言控件信息查找超时", 3, 0, 1, 1);
         }
-        if (!title_node){
+        if (!title_node) {
             messageAction("语言检测已跳过", 3);
             return messageAction("语言控件信息无效", 3, 0, 1, 1);
         }
@@ -504,9 +505,7 @@ function antForest() {
 
     function checkEnergy() {
 
-        let kw_more_friends = desc("查看更多好友"),
-            kw_cooperation_btn = desc("合种");
-
+        let kw_more_friends = desc("查看更多好友");
         let kw_energy_balls = className("Button").descMatches(/\xa0|收集能量\d+克/),
             kw_energy_balls_normal = className("Button").desc("\xa0"),
             kw_energy_balls_ripe = className("Button").descMatches(/收集能量\d+克/);
@@ -519,7 +518,7 @@ function antForest() {
 
         function checkOwnEnergy() {
 
-            current_app.total_energy_init = getCurrentEnergyAmount();
+            current_app.total_energy_init = getCurrentEnergyAmount("buffer");
             debugInfo("初始能量: " + current_app.total_energy_init + "g");
 
             if (!config.self_collect_switch) return debugInfo("收取自己能量功能开关未开启");
@@ -528,7 +527,7 @@ function antForest() {
 
             let check = () => checkOnce() && (current_app.total_energy_collect_own += getEnergyDiff());
 
-            if (!waitForAction(() => kw_more_friends.exists() || kw_cooperation_btn.exists(), 12000)) debugInfo("蚂蚁森林主页准备超时");
+            if (!waitForAction(() => kw_more_friends.exists() || current_app.kw_af_home.exists(), 12000)) debugInfo("蚂蚁森林主页准备超时");
             waitForAction(kw_energy_balls, 1000); // make energy balls ready
 
             let remain_checked_flag = false;
@@ -582,7 +581,7 @@ function antForest() {
             function getEnergyDiff() {
                 let energy_rec = current_app.total_energy_init,
                     tmp_energy_rec = undefined;
-                if (!waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 5000)) return 0;
+                if (!waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 3000)) return 0;
                 energy_rec = tmp_energy_rec;
                 while (waitForAction(() => energy_rec !== (tmp_energy_rec = getCurrentEnergyAmount()), 1000)) {
                     energy_rec = tmp_energy_rec;
@@ -593,7 +592,6 @@ function antForest() {
 
         function checkFriendsEnergy() {
             debugInfo("开始检查好友能量");
-            tryRequestScreenCapture();
 
             if (!rankListReady()) return;
 
@@ -668,11 +666,17 @@ function antForest() {
             // key function(s) //
 
             function rankListReady() {
-                let max_try_times_more_friends_btn = 2;
-                while (!waitForAction(kw_more_friends, 5000) && max_try_times_more_friends_btn--) {
-                    launchThisApp(current_app.intent, "no_msg");
+                if (!waitForAction(kw_more_friends, 5000)) {
+                    debugInfo("定位\"查看更多好友\"超时");
+                    debugInfo("尝试刷新控件");
+                    refreshObjects();
+                    if (!waitForAction(kw_more_friends, 1000)) {
+                        debugInfo("刷新无效");
+                        debugInfo("尝试重启Activity到蚂蚁森林主页");
+                        launchThisApp(current_app.intent, "no_msg");
+                        if (!waitForAction(kw_more_friends, 2000)) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
+                    } else debugInfo("刷新成功");
                 }
-                if (max_try_times_more_friends_btn < 0) return messageAction("未能定位到\"查看更多好友\"按钮", 3, 1);
                 debugInfo("定位到\"查看更多好友\"按钮");
 
                 let max_try_times = 180;
@@ -704,7 +708,7 @@ function antForest() {
                 debugInfo("已开启排行榜自动展开线程");
                 let thread_expand_hero_list = threads.start(expandHeroListThread);
 
-                if (special_exec_command !== "collect_friends_list") return ~sleep(800); // a small interval for page ready
+                if (special_exec_command !== "collect_friends_list") return ~sleep(500); // a small interval for page ready
 
                 return collectFriendsListData();
 
@@ -780,6 +784,8 @@ function antForest() {
             }
 
             function getCurrentScreenTargets() {
+
+                current_app.request_screen_capture_flag || tryRequestScreenCapture();
 
                 // this is useless, i guess - May 06, 2019
                 // waitForAction(kw_rank_list_self, 8000); // make page ready
@@ -1396,18 +1402,23 @@ function antForest() {
         }
 
         function goBackToAfHome() {
-            let kw_ident_af_home = desc("合种");
             let max_try_times = 5;
             while (max_try_times--) {
+                if (currentPackage() !== current_app.package_name) {
+                    debugInfo("返回蚂蚁森林主页时包名异常");
+                    debugInfo(">" + currentPackage());
+                    break;
+                }
                 jumpBackOnce();
-                if (waitForAction(kw_ident_af_home, 3000)) {
+                if (waitForAction(current_app.kw_af_home, 1000)) {
                     debugInfo("返回蚂蚁森林主页成功");
                     return true;
                 }
             }
-            debugInfo("返回蚂蚁森林主页超时");
+            debugInfo("返回蚂蚁森林主页失败");
             debugInfo("尝试重启支付宝到蚂蚁森林主页");
-            if (max_try_times < 0) ~killCurrentApp() && launchThisApp(current_app.intent, "no_msg");
+            killCurrentApp(current_app.package_name);
+            launchThisApp(current_app.intent, "no_msg");
         }
     }
 
@@ -1422,7 +1433,7 @@ function antForest() {
         let friends = (getCurrentEnergyAmount() - init - own) || 0;
         debugInfo("好友能量收取值: " + friends);
 
-        if (!~init) return msgNotice("数据统计失败");
+        if (init < 0 || own < 0 || friends < 0) return msgNotice("数据统计失败");
 
         return ~msgNotice(energyStr(friends, own) || "A fruitless attempt") && debugInfo("统计结果展示完毕");
 
@@ -1657,17 +1668,28 @@ function antForest() {
 
     // tool function(s) //
 
-    function getCurrentEnergyAmount() {
-        if (!waitForAction(() => descMatches(/\d+g/).exists() && desc("合种").exists(), 8000)) return -1; // just in case
-        let max_try_times = 10;
+    function getCurrentEnergyAmount(buffer_flag) {
+        if (buffer_flag) {
+            let condition = () => descMatches(/\d+g/).exists() && current_app.kw_af_home.exists();
+            if (!waitForAction(condition, 3000)) {
+                debugInfo("尝试刷新总能量值参考控件");
+                refreshObjects();
+                if (!condition()) {
+                    debugInfo("刷新无效");
+                    return -1;
+                }
+                debugInfo("刷新成功");
+            }
+        }
+        let max_try_times = buffer_flag ? 10 : 1;
         while (max_try_times--) {
             try {
                 return descMatches(/\d+g/).findOnce().desc().match(/\d+/)[0] - 0;
             } catch (e) {
-                sleep(200);
+                max_try_times && sleep(200);
             }
         }
-        if (max_try_times < 0) messageAction("获取总能量值失败", 8, 1, 1, 1);
+        if (max_try_times < 0) return -1;
     }
 
     function checkBlackTimestamp(timestamp) {
@@ -1987,7 +2009,7 @@ function jumpBackOnce(specific_kw) {
         clickObject(kw_back_btn_common_desc) ||
         clickObject(kw_back_btn_atnui_id) ||
         clickObject(kw_back_btn_h5_id);
-    click_result || keycode(4) && ~messageAction("使用模拟按键返回方式", 3) && sleep(2500);
+    click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1500);
 }
 
 // global tool function(s) //
@@ -1998,6 +2020,7 @@ function jumpBackOnce(specific_kw) {
  */
 function launchThisApp(intent, no_msg_flag) {
     intent = intent || null;
+    let ready_condition = current_app.firstTimeRunConditionFun;
     if (typeof intent !== "object") messageAction("\"launchThisApp\"的intent参数类型不正确", 8, 1, 0, 1);
     intent && debugInfo("启动参数intent类型: " + typeof intent);
     let max_retry_times = 7;
@@ -2011,7 +2034,7 @@ function launchThisApp(intent, no_msg_flag) {
             let cond_succ_flag = waitForAction(() => {
                 let condition_a = () => currentPackage() === current_app.package_name;
                 let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$|.+AlipayGphone$/);
-                let condition_c = () => desc("查看更多好友").exists() || className("Button").descMatches(/合种|背包|通知|攻略|任务/).exists();
+                let condition_c = () => desc("查看更多好友").exists() || current_app.kw_af_home.exists();
 
                 return condition_a() || condition_b() || condition_c();
             }, 5000);
@@ -2021,15 +2044,14 @@ function launchThisApp(intent, no_msg_flag) {
         }
         if (max_launch_times < 0) messageAction("打开\"支付宝\"失败", 8, 1, 0, 1);
         current_app.first_time_run = 0;
-        if (current_app.firstTimeRunConditionFun === null || current_app.firstTimeRunConditionFun === undefined) {
+        if (ready_condition === null || ready_condition === undefined) {
             debugInfo("未设置启动完成条件参数");
             break;
         }
         let max_wait_times = 5;
         let max_wait_times_backup = max_wait_times;
         debugInfo("开始监测启动完成条件");
-        let check_duration = () => max_wait_times_backup === max_wait_times ? 8000 : 2000;
-        while (!waitForAction(current_app.firstTimeRunConditionFun, check_duration()) && max_wait_times--) {
+        while (!waitForAction(ready_condition, max_wait_times_backup - max_wait_times ? 2000 : 8000) && max_wait_times--) {
             clickBounds([desc("重新加载"), "try"]);
 
             let wait_times_count = max_wait_times_backup - max_wait_times;
@@ -2543,6 +2565,7 @@ function tryRequestScreenCapture() {
         restartCurrentTaskInEngine("!Ant_Forest");
     });
     req_result = images.requestScreenCapture();
+    sleep(180);
     thread_monitor.join(2400);
     thread_monitor.isAlive() && thread_monitor.interrupt();
     if (req_result) return true;
