@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 9, 2019
- * @version 1.6.14
+ * @last_modified May 10, 2019
+ * @version 1.6.15
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1195,14 +1195,14 @@ function antForest() {
                 let max_try_times_swipe = 3;
                 let max_try_times_swipe_backup = max_try_times_swipe;
                 while (max_try_times_swipe--) {
-                    if (swipe(half_width, bottom_height, half_width, top_height, config.list_swipe_time)) break;
+                    if (bottom_height - top_height > 0 && swipe(half_width, bottom_height, half_width, top_height, config.list_swipe_time)) break;
                     let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                     debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
                     sleep(200);
                 }
                 if (max_try_times_swipe < 0) {
                     messageAction("脚本无法继续", 4);
-                    messageAction("SimpleActionAutomator模块异常", 8, 1, 1, 1);
+                    messageAction(bottom_height - top_height > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
                 }
 
                 let debug_start_timestamp = new Date().getTime();
@@ -2076,6 +2076,15 @@ function launchThisApp(intent, no_msg_flag) {
                 let relaunch_count = max_relaunch_activity_times_backup - max_relaunch_activity_times;
                 debugInfo("重新启动Activity: (" + relaunch_count + "\/" + max_relaunch_activity_times_backup + ")");
                 app.startActivity(intent);
+            }
+            let current_package = currentPackage();
+            if (try_count % 4 === 3 && current_package !== current_app.package_name) {
+                debugInfo("当前前置应用包名:");
+                debugInfo(">" + current_package);
+                debugInfo("借用alert()方法刷新屏幕控件");
+                refreshObjects();
+                debugInfo("当前前置应用包名:");
+                debugInfo(">" + currentPackage());
             }
         }
 
@@ -3051,13 +3060,14 @@ function refreshObjects(custom_text) {
     let thread_alert = threads.start(function () {
         alert(alert_text);
         shutdownThread();
-        sleep(200);
+        sleep(300);
     });
     thread_alert.join(1000);
     if (thread_alert.isAlive()) {
         shutdownThread();
         thread_alert.interrupt();
     }
+    sleep(300);
 }
 
 function restartCurrentTaskInEngine(task_name) {

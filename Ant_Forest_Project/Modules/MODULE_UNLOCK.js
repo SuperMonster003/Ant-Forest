@@ -8,6 +8,7 @@ let HEIGHT = device.height;
 let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
 let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
 let cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
+let device_intro = device.brand + " " + device.product + " " + device.release;
 
 let PWMAP = require("./MODULE_PWMAP.js"),
     storage_unlock = require("./MODULE_STORAGE.js").create("unlock"),
@@ -261,11 +262,55 @@ function unlock(password, max_try_times, pattern_size) {
 
             while (max_try_times--) {
                 kw_password_view.setText(pw);
+                if (!handleSpecialPwSituations()) return;
                 clickObject(kw_confirm_btn);
                 if (checkUnlockResult()) break;
                 shell("input keyevent 66", true);
             }
             if (max_try_times < 0) errorMsg(["密码解锁方案失败", "可能是密码错误", "或无法点击密码确认按钮"]);
+
+            // tool function(s) //
+
+            function handleSpecialPwSituations() {
+                return keypadAssist() && misjudge();
+
+                // tool function(s) //
+
+                function keypadAssist() {
+                    let samples = {
+                        "HUAWEI VOG-AL00 9": {
+                            keys_coords: [[864, 1706], [1008, 1706]],
+                            last_pw_character: null,
+                        },
+                    };
+                    if (!(device_intro in samples)) return true;
+
+                    let {keys_coords, last_pw_character} = samples[device_intro];
+                    keys_coords.forEach(coords => ~click(coords[0], coords[1] && sleep(300)));
+                    if (!last_pw_character) return true;
+                    let classof = Object.prototype.toString.call(last_pw_character).slice(8, -1);
+                    if (classof === "JavaObject") clickObject(last_pw_character);
+                    else if (classof === "Array") click(last_pw_character[0], last_pw_character[1]);
+                    else if (typeof last_pw_character === "number" || typeof last_pw_character === "string") {
+                        clickBounds([idMatches("(key.?)?" + last_pw_character), "try"]) ||
+                            clickBounds([descMatches("(key.?)?" + last_pw_character), "try"]) ||
+                            clickBounds([textMatches("(key.?)?" + last_pw_character), "try"]);
+                    } else errorMsg("解锁失败", "无法判断末位字符类型");
+
+                    return true;
+                }
+
+                function misjudge() {
+                    let disturbance = [
+                        id("com.android.systemui:id/keyguard_pin_view"),
+                        // id("com.android.systemui:id/lockPattern"),
+                    ];
+                    for (let i = 0, len = disturbance.length; i < len; i += 1) {
+                        if (disturbance[i].exists()) return;
+                    }
+                    return true;
+                }
+            }
         }
 
         function unlockPin() {
@@ -282,7 +327,7 @@ function unlock(password, max_try_times, pattern_size) {
                 else if (kw_nums_container.exists()) clickNumsByContainer();
                 else if (getNumericInputView(9).exists()) clickNumsByInputView();
                 else if (getNumsBySingleDesc(9).exists()) clickNumsBySingleDesc();
-                else if (!!function() {
+                else if (!!function () {
                     for (let i = 0, len = boundsWayIDs.length; i < len; i += 1) {
                         let name = boundsWayIDs[i];
                         if (typeof name === "string" && id(name).exists()) return kw_bounds_way_id = id(name);
@@ -416,7 +461,7 @@ function errorMsg(msg) {
     if (typeof msg === "string") msg = [msg];
     messageAction("解锁失败", 4, 1);
     msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
-    messageAction(device.brand + " " + device.product + " " + device.release, 4, 0, 2, 1);
+    messageAction(device_intro, 4, 0, 2, 1);
     is_screen_on && messageAction("自动关闭屏幕" + (keycode(26) ? "" : "失败"), 1, 0, 0, 1);
     exit();
 }
@@ -652,6 +697,108 @@ function clickObject(obj_keyword, buffering_time) {
     }
     if (max_try_times < 0) return messageAction("click()方法超时", 3);
     return true;
+}
+
+function clickBounds(f, if_continuous, max_check_times, check_interval, padding) {
+
+    let classof = param => Object.prototype.toString.call(param).slice(8, -1);
+
+    if (!f) return messageAction("clickBounds的f参数无效", 0, 0, 0) && 0;
+
+    let func = f,
+        additionFunc;
+    if (classof(f) === "Array") {
+        func = f[0];
+        if (!func) return messageAction("clickBounds的f[0]参数无效", 0, 0, 0) && 0;
+        additionFunc = f[1];
+    }
+
+    if (func.toString().match(/^Rect\(/) && if_continuous) messageAction("连续点击时 f参数不能是bounds():\n" + func.toString(), 8, 1);
+    if (!!additionFunc && additionFunc !== "try" && typeof additionFunc !== "function") messageAction("additionFunc参数类型不是\"function\":\n" + additionFunc.toString(), 8, 1);
+
+    if (typeof additionFunc !== "undefined") {
+        if (additionFunc === "try" && (!func || !func.exists())) return false;
+        if (typeof additionFunc === "function" && !additionFunc()) return false;
+    }
+
+    max_check_times = max_check_times || (if_continuous ? 3 : 1);
+    check_interval = check_interval || (if_continuous ? 1000 : 0);
+    if_continuous = if_continuous || [];
+    if (if_continuous === 1) if_continuous = [1];
+    else if (typeof if_continuous === "object" && Object.prototype.toString.call(if_continuous).slice(8, -1) !== "Array") {
+        let tmp_arr = [];
+        tmp_arr.push(if_continuous);
+        if_continuous = tmp_arr;
+    }
+
+    let parsed_padding = padding ? parsePadding(padding) : null;
+    let node_bounds;
+
+    let max_try_times_node_bounds = 3;
+    let getBounds = () => {
+        if (func.toString().match(/^Rect\(/)) return func;
+        let key_node = func.findOnce();
+        return key_node && key_node.bounds() || null;
+    };
+    while (max_try_times_node_bounds--) {
+        try {
+            node_bounds = getBounds();
+            if (node_bounds) break;
+            return false;
+        } catch (e) {
+            sleep(300);
+            if (!func.exists()) break; // may be a better idea to use BoundsInside()
+        }
+    }
+    if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
+
+    if (if_continuous.length) {
+        while (max_check_times--) {
+            if (!checkArray()) break;
+            try {
+                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+            } catch (e) {
+                // nothing to do here
+            }
+            sleep(check_interval);
+        }
+    } else {
+        if ((func.toString().match(/^Rect\(/) || func.exists())) {
+            try {
+                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+            } catch (e) {
+                max_check_times = -1;
+            }
+        }
+    }
+
+    return max_check_times >= 0;
+
+    // tool function(s) //
+
+    function parsePadding(padding) {
+        let obj = {"x": 0, "y": 0};
+        if (Object.prototype.toString.call(padding).slice(8, -1) === "Array") {
+            if ((padding[0] !== "x" && padding[0] !== "y") || typeof padding[1] !== "number") messageAction("输入的padding参数不合法", 9, 1);
+            obj[padding[0]] = padding[1];
+        } else if (typeof padding === "number") {
+            obj["y"] += padding;
+        } else {
+            messageAction("输入的padding类型不合法", 9, 1);
+        }
+        return obj;
+    }
+
+    function checkArray() {
+        for (let i = 0, len = if_continuous.length; i < len; i += 1) {
+            if (if_continuous[i] === 1) {
+                if (!func.exists()) return;
+            } else {
+                if (!if_continuous[i].exists()) return;
+            }
+        }
+        return true;
+    }
 }
 
 // export module //
