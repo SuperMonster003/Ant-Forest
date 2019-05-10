@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 10, 2019
- * @version 1.6.16
+ * @version 1.6.17
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -548,7 +548,7 @@ function antForest() {
             let thread_list_end = threads.start(endOfListThread);
 
             let max_safe_swipe_times = 125; // just for avoiding infinite loop
-            while (max_safe_swipe_times--) {
+            while (max_safe_swipe_times-- >= 0) {
                 let targets = getCurrentScreenTargets(); // [[targets_green], [targets_orange]]
                 let pop_item_0;
                 let pop_item_1;
@@ -758,7 +758,7 @@ function antForest() {
                 // tool function(s) //
 
                 function getScreenSamples() {
-                    let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom();
+                    let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom() || 0;
                     let max_try_times = 5;
                     while (max_try_times--) {
                         let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find();
@@ -786,9 +786,14 @@ function antForest() {
                             data in tmp_data_pool ? tmp_data_pool[data]++ : (tmp_data_pool[data] = 1);
                         }
                         Object.keys(tmp_data_pool).forEach(bottom => data_arr.push([bottom, tmp_data_pool[bottom]]));
-                        let title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || textMatches(/好友排行榜|Green heroes/).findOnce().parent().parent().bounds().bottom;
-                        debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
-                        return current_app.title_bounds_bottom = title_bounds_bottom;
+                        let title_bounds_bottom = 0;
+                        try {
+                            title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || textMatches(/好友排行榜|Green heroes/).findOnce().parent().parent().bounds().bottom;
+                            debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
+                            return current_app.title_bounds_bottom = title_bounds_bottom;
+                        } catch (e) {
+                            debugInfo("获取标题控件bottom数据: 失败");
+                        }
                     }
                 }
 
@@ -833,15 +838,18 @@ function antForest() {
                 let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
                 // waitForAction(kw_wait_for_awhile, 5000);
 
-                let kw_reload_page = desc("重新加载");
                 let kw_forest_page = descMatches(/你收取TA|发消息/);
 
                 let max_safe_wait_time = 120000; // keep waiting for at most 2 min
                 let max_safe_wait_time_backup = max_safe_wait_time;
                 let sleep_interval = 200;
 
+                debugInfo("开启\"重新加载\"按钮监测线程");
+                let thread_monitor_retry_btn = threads.start(function () {
+                    while (1) sleep(clickBounds([desc("重新加载"), "try"]) ? 3000 : 1000);
+                });
+
                 while (!kw_forest_page.exists() && max_safe_wait_time > 0) {
-                    clickBounds([kw_reload_page, "try"]);
                     sleep(sleep_interval);
                     max_safe_wait_time -= sleep_interval * (kw_wait_for_awhile.exists() ? 1 : 6);
                 }
@@ -849,6 +857,8 @@ function antForest() {
                 let wait_times_sec = (max_safe_wait_time_backup - max_safe_wait_time) / 1000;
                 if (wait_times_sec >= 6) debugInfo("进入好友森林时间较长: " + wait_times_sec.toFixed(2) + "秒");
 
+                debugInfo("结束\"重新加载\"按钮监测线程");
+                thread_monitor_retry_btn.interrupt();
 
                 if (max_safe_wait_time <= 0) {
                     messageAction("进入好友森林超时", 3, 1);
@@ -1203,6 +1213,7 @@ function antForest() {
 
             function swipeUp() {
                 if (list_end_signal) return debugInfo("检测到排行榜底部监测线程信号");
+                let invalid_rank_list_ref_data = 0;
 
                 let bottom_data = undefined,
                     tmp_bottom_data = getRankListSelfBottom();
@@ -1233,7 +1244,14 @@ function antForest() {
                     bottom_data = tmp_bottom_data;
                     sleep(50);
                     tmp_bottom_data = getRankListSelfBottom();
-                    debugInfo("参照值: " + tmp_bottom_data);
+                    if (isNaN(tmp_bottom_data)) {
+                        debugInfo("参照值: NaN");
+                        invalid_rank_list_ref_data++;
+                        if (invalid_rank_list_ref_data > 10) {
+                            messageAction("脚本无法继续", 4);
+                            messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
+                        }
+                    } else debugInfo("参照值: " + tmp_bottom_data);
                 } // wait for data stable
                 debugInfo("排行榜列表已稳定: " + (new Date().getTime() - debug_start_timestamp) + "ms");
 
@@ -1248,7 +1266,7 @@ function antForest() {
                             // nothing to do here
                         }
                     }
-                    return new Date().getTime() * Math.random();
+                    return 0 / 0;
                 }
             }
 
@@ -2123,6 +2141,13 @@ function launchThisApp(intent, no_msg_flag) {
                 }
             }
             debugInfo("启动完成条件监测完毕");
+            try {
+                let title_bounds_bottom = current_app.kw_af_title.findOnce().parent().parent().bounds().bottom;
+                debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
+                current_app.title_bounds_bottom = title_bounds_bottom;
+            } catch (e) {
+                debugInfo("获取标题控件bottom数据: 失败");
+            }
             break;
         }
         debugInfo("尝试关闭支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");

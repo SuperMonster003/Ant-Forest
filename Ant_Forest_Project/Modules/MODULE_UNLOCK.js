@@ -281,22 +281,28 @@ function unlock(password, max_try_times, pattern_size) {
                 function keypadAssist() {
                     let samples = {
                         "HUAWEI VOG-AL00 9": {
-                            keys_coords: [[864, 1706], [1008, 1706]],
-                            last_pw_character: null,
+                            // keys_coords: [[864, 1706], [1008, 1706]],
+                            first_char_refill: 1, // character to press or input before special treatment if needed
+                            keys_coords: [[1008, 1706]], // DEL KEY coordination(s)
+                            last_char_refill: null, // last password character to press or input if needed in the end
                         },
                     };
                     if (!(device_intro in samples)) return true;
 
-                    let {keys_coords, last_pw_character} = samples[device_intro];
+                    let {first_char_refill, keys_coords, last_char_refill} = samples[device_intro];
+                    if (typeof first_char_refill !== "undefined" && first_char_refill !== null) {
+                        kw_password_view.setText(pw + first_char_refill.toString());
+                    }
+                    sleep(300);
                     keys_coords.forEach(coords => ~click(coords[0], coords[1]) && sleep(300));
-                    if (!last_pw_character) return true;
-                    let classof = Object.prototype.toString.call(last_pw_character).slice(8, -1);
-                    if (classof === "JavaObject") clickObject(last_pw_character);
-                    else if (classof === "Array") click(last_pw_character[0], last_pw_character[1]);
-                    else if (typeof last_pw_character === "number" || typeof last_pw_character === "string") {
-                        clickBounds([idMatches("(key.?)?" + last_pw_character), "try"]) ||
-                        clickBounds([descMatches("(key.?)?" + last_pw_character), "try"]) ||
-                        clickBounds([textMatches("(key.?)?" + last_pw_character), "try"]);
+                    if (!last_char_refill) return true;
+                    let classof = Object.prototype.toString.call(last_char_refill).slice(8, -1);
+                    if (classof === "JavaObject") clickObject(last_char_refill);
+                    else if (classof === "Array") click(last_char_refill[0], last_char_refill[1]);
+                    else if (typeof last_char_refill === "number" || typeof last_char_refill === "string") {
+                        clickBounds([idMatches("(key.?)?" + last_char_refill), "try"]) ||
+                        clickBounds([descMatches("(key.?)?" + last_char_refill), "try"]) ||
+                        clickBounds([textMatches("(key.?)?" + last_char_refill), "try"]);
                     } else errorMsg("解锁失败", "无法判断末位字符类型");
 
                     return true;
