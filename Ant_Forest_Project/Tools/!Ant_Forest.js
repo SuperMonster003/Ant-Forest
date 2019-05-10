@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 9, 2019
- * @version 1.6.13
+ * @version 1.6.14
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -179,7 +179,9 @@ function antForest() {
 
             images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
             current_app = Object.assign(current_app, new App("蚂蚁森林"));
+            current_app.kw_af_title = textMatches(/蚂蚁森林|Ant Forest/);
             current_app.kw_af_home = className("Button").descMatches(/合种|背包|通知|攻略|任务|我的大树养成记录/);
+            current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
             debugInfo("会话参数赋值完毕");
@@ -264,16 +266,29 @@ function antForest() {
                 // function function(s) //
 
                 function firstTimeRunCondition() {
-                    let conditions = {
-                        kw_af_title: textMatches(/蚂蚁森林|Ant Forest/),
+                    let conditions_necessary = {
+                        af_title_or_login: () => current_app.kw_af_title.exists() || current_app.kw_login_or_switch.exists(),
+                    };
+                    let conditions_optional = {
                         kw_desc_buttons: current_app.kw_af_home,
                         kw_more_friends: desc("查看更多好友"),
-                        kw_login_or_switch: idMatches(/.*switchAccount|.*loginButton/),
+                        kw_login_or_switch: current_app.kw_login_or_switch,
                     };
-                    let keys = Object.keys(conditions);
-                    for (let i = 0, len = keys.length; i < len; i += 1) {
-                        let key = keys[i];
-                        if (conditions[key].exists()) return ~debugInfo("检测到条件样本: " + key);
+                    let keys_nec = Object.keys(conditions_necessary);
+                    for (let i = 0, len = keys_nec.length; i < len; i += 1) {
+                        let key_nec = keys_nec[i];
+                        let condition = conditions_necessary[key_nec];
+                        if (typeof condition === "function" && !condition() ||
+                            typeof condition === "object" && !condition.exists()) return false;
+                    }
+                    let keys_opt = Object.keys(conditions_optional);
+                    for (let i = 0, len = keys_opt.length; i < len; i += 1) {
+                        let key_opt = keys_opt[i];
+                        if (conditions_optional[key_opt].exists()) {
+                            debugInfo("检测到可选条件样本");
+                            debugInfo(">" + key_opt);
+                            return true;
+                        }
                     }
                 }
 
@@ -320,108 +335,14 @@ function antForest() {
                 debugInfo("单次运行最大超时设置完毕");
             }
         }
-
-        function loginSpecificUser() {
-
-            if (!current_app.specific_user) return debugInfo("主账户未设置");
-
-            let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/);
-            let intent_alipay_acc_manager = {
-                action: "VIEW",
-                packageName: "com.eg.android.AlipayGphone",
-                className: "com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_",
-            };
-
-            app.startActivity(intent_alipay_acc_manager);
-
-            let max_wait_times = 8;
-            let try_times = 0;
-            while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
-                jumpBackOnce();
-                app.startActivity(intent_alipay_acc_manager);
-            }
-            if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
-
-            let specific_user = current_app.specific_user;
-            let kw_list_arrow = id("com.alipay.mobile.antui:id/list_arrow"),
-                current_logged_in_user_ident = kw_list_arrow.exists() && kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text(),
-                specific_user_ident = specific_user.username_ident;
-            if (current_logged_in_user_ident === specific_user_ident) return true;
-
-            let kw_specific_user_ident = text(specific_user.username_ident),
-                kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, HEIGHT),
-                kw_switch_account = idMatches(/.*switchAccount.*/),
-                kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
-            if (clickBounds([kw_specific_user_ident, "try"])) {
-                let condition_click_acc = () => kw_me.exists() || kw_switch_account.exists() || kw_user_acc_input.exists();
-                if (!waitForAction(condition_click_acc, 30000)) messageAction("切换账号点击已有账户时出现未知情况", 8, 1);
-                if (kw_me.exists()) return true;
-                clickBounds([kw_switch_account, "try"]);
-            } else clickBounds(kw_login_with_new_user);
-
-            let max_try_times_user_acc_input = 3;
-            while (!waitForAction(kw_user_acc_input, 10000) && max_try_times_user_acc_input--) {
-                clickBounds([kw_login_with_new_user, "try"]) || clickBounds([kw_switch_account, "try"]);
-            }
-            if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 8, 1);
-
-            kw_user_acc_input.findOnce().children().forEach(w => {
-                if (w.className() === "android.widget.EditText") w.setText(specific_user.login_username);
-            });
-            let kw_pw_input = idMatches(/.*userPasswordInput.*/),
-                kw_next_step = idMatches(/.*nextButton/);
-            if (!kw_pw_input.exists()) {
-                waitForActionAndClickBounds(kw_next_step, 8000, "输入用户名后未找到下一步按钮", 8, 1);
-            }
-            let max_wait_times_pw_input = 60;
-            while (!waitForAction(idMatches(/.*(switchLoginMethodCenter|userPasswordInput).*/), 1000) && max_wait_times_pw_input--) {
-                clickBounds([id("com.ali.user.mobile.security.ui:id/comfirmSetting"), "try"]); // "确定" button
-                clickBounds([kw_next_step, "try"]);
-            }
-            if (max_wait_times_pw_input < 0) return messageAction("输入用户名后下一步操作超时", 8, 1);
-            let kw_switch_login_method = idMatches(/.*switchLoginMethodCenter.*/);
-            if (clickBounds([kw_switch_login_method, "try"])) {
-                let kw_login_by_pw = textMatches(/.*(密码登录|with passw).*/);
-                if (!waitForAction(kw_login_by_pw, 8000)) return messageAction("等待切换登录方式页面超时", 8, 1);
-                clickBounds(kw_login_by_pw);
-            }
-            waitForAction(kw_pw_input, 5000, "等待密码输入框超时", 8, 1);
-            kw_pw_input.findOnce().children().forEach(w => {
-                if (w.className() === "android.widget.EditText") w.setText(specific_user.login_pw);
-            });
-            clickBounds(idMatches(/.*loginButton/), 1);
-            sleep(1000);
-
-            let case_a = textMatches(/Me|我的/),
-                case_b = textMatches(/重新输入|Try again/), // wrong password
-                case_c = descMatches(/.*(验证码|Verification Code).*/), // sms code is needed
-                case_d = textMatches(/.{3,}验证码.{3,}|.{6,}Verification Code.{6,}/), // just a prompt, can be ignored
-                case_e = descMatches(/.*(回答|questions|换个方式登录|[Aa]nother).*/), // need answering some questions // 英文的desc没有具体确定
-                case_f = kw_list_arrow;
-            waitForAction(() => case_a.exists() || case_b.exists() || case_c.exists() || case_d.exists() || case_e.exists() || case_f.exists(), [20000, 1000], "登录后检测登录状态失败", 8, 1, 0, idMatches(/.*btn_confirm/));
-
-            if (case_a.exists()) return true;
-            if (case_b.exists()) return messageAction("登录密码错误", 3, 1);
-            if (case_c.exists()) return messageAction("需要验证码", 3, 1);
-            if (case_d.exists()) {
-                clickBounds(textMatches(/进入支付宝|.*[En]ter.*/)); // 英文的text没有具体确定
-                return waitForAction(textMatches(/Me|我的/), 10000, "登录账户超时", 8, 1);
-            }
-            if (case_e.exists()) return messageAction("需要回答问题", 3, 1);
-            if (case_f.exists()) {
-                let current_logged_in_user_ident = kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text();
-                if (current_logged_in_user_ident === specific_user.username_ident) return true;
-            }
-        }
     }
 
     /**
      * will be set to configured language or Chinese by default
      */
     function checkLanguage() {
-        let kw_h5_title = id("com.alipay.mobile.nebula:id/h5_tv_title");
         let title_node = null;
-        if (!waitForAction(() => title_node = kw_h5_title.findOnce(), 10000)) {
+        if (!waitForAction(() => title_node = current_app.kw_af_title.findOnce(), 10000)) {
             messageAction("语言检测已跳过", 3);
             return messageAction("语言控件信息查找超时", 3, 0, 1, 1);
         }
@@ -641,7 +562,7 @@ function antForest() {
                     let message_switch_on = config.console_log_details || config.debug_info_switch;
                     if (message_switch_on) messageAction(current_app.current_friend.name, "title"); // name title
                     if (inBlackList()) continue;
-                    press(cX(0.5), pop_item.y, 1);
+                    click(cX(0.5), pop_item.y);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                     forestPageGetReady() && collectBalls();
                     backToHeroList();
@@ -901,7 +822,7 @@ function antForest() {
                 while (!kw_forest_page.exists() && max_safe_wait_time > 0) {
                     clickBounds([kw_reload_page, "try"]);
                     sleep(sleep_interval);
-                    max_safe_wait_time -= sleep_interval * (kw_wait_for_awhile.exists() ? 1 : 10);
+                    max_safe_wait_time -= sleep_interval * (kw_wait_for_awhile.exists() ? 1 : 6);
                 }
 
                 let wait_times_sec = (max_safe_wait_time_backup - max_safe_wait_time) / 1000;
@@ -1628,13 +1549,9 @@ function antForest() {
         function closeAfWindows() {
             debugInfo("关闭全部蚂蚁森林相关页面");
             let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/),
-                kw_af_title = text("蚂蚁森林"),
                 kw_close = desc("关闭");
-            while (!~"condition listed as below" ||
-            kw_af_title.exists() && clickBounds([kw_close, "try"]) ||
-            kw_login_with_new_user.exists() && jumpBackOnce()) {
-                sleep(600);
-            }
+            while (current_app.kw_af_title.exists() && clickBounds([kw_close, "try"]) ||
+            kw_login_with_new_user.exists() && jumpBackOnce()) sleep(500);
             debugInfo("相关页面关闭完毕");
             debugInfo("保留当前支付宝页面");
         }
@@ -2012,6 +1929,99 @@ function jumpBackOnce(specific_kw) {
     click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1500);
 }
 
+function loginSpecificUser() {
+
+    if (!current_app.specific_user) return debugInfo("主账户未设置");
+
+    let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/);
+    let intent_alipay_acc_manager = {
+        action: "VIEW",
+        packageName: "com.eg.android.AlipayGphone",
+        className: "com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_",
+    };
+
+    app.startActivity(intent_alipay_acc_manager);
+
+    let max_wait_times = 8;
+    let try_times = 0;
+    while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
+        jumpBackOnce();
+        app.startActivity(intent_alipay_acc_manager);
+    }
+    if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
+
+    let specific_user = current_app.specific_user;
+    let kw_list_arrow = id("com.alipay.mobile.antui:id/list_arrow"),
+        current_logged_in_user_ident = kw_list_arrow.exists() && kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text(),
+        specific_user_ident = specific_user.username_ident;
+    if (current_logged_in_user_ident === specific_user_ident) return true;
+
+    let kw_specific_user_ident = text(specific_user.username_ident),
+        kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, HEIGHT),
+        kw_switch_account = idMatches(/.*switchAccount.*/),
+        kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
+    if (clickBounds([kw_specific_user_ident, "try"])) {
+        let condition_click_acc = () => kw_me.exists() || kw_switch_account.exists() || kw_user_acc_input.exists();
+        if (!waitForAction(condition_click_acc, 30000)) messageAction("切换账号点击已有账户时出现未知情况", 8, 1);
+        if (kw_me.exists()) return true;
+        clickBounds([kw_switch_account, "try"]);
+    } else clickBounds(kw_login_with_new_user);
+
+    let max_try_times_user_acc_input = 3;
+    while (!waitForAction(kw_user_acc_input, 10000) && max_try_times_user_acc_input--) {
+        clickBounds([kw_login_with_new_user, "try"]) || clickBounds([kw_switch_account, "try"]);
+    }
+    if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 8, 1);
+
+    kw_user_acc_input.findOnce().children().forEach(w => {
+        if (w.className() === "android.widget.EditText") w.setText(specific_user.login_username);
+    });
+    let kw_pw_input = idMatches(/.*userPasswordInput.*/),
+        kw_next_step = idMatches(/.*nextButton/);
+    if (!kw_pw_input.exists()) {
+        waitForActionAndClickBounds(kw_next_step, 8000, "输入用户名后未找到下一步按钮", 8, 1);
+    }
+    let max_wait_times_pw_input = 60;
+    while (!waitForAction(idMatches(/.*(switchLoginMethodCenter|userPasswordInput).*/), 1000) && max_wait_times_pw_input--) {
+        clickBounds([id("com.ali.user.mobile.security.ui:id/comfirmSetting"), "try"]); // "确定" button
+        clickBounds([kw_next_step, "try"]);
+    }
+    if (max_wait_times_pw_input < 0) return messageAction("输入用户名后下一步操作超时", 8, 1);
+    let kw_switch_login_method = idMatches(/.*switchLoginMethodCenter.*/);
+    if (clickBounds([kw_switch_login_method, "try"])) {
+        let kw_login_by_pw = textMatches(/.*(密码登录|with passw).*/);
+        if (!waitForAction(kw_login_by_pw, 8000)) return messageAction("等待切换登录方式页面超时", 8, 1);
+        clickBounds(kw_login_by_pw);
+    }
+    waitForAction(kw_pw_input, 5000, "等待密码输入框超时", 8, 1);
+    kw_pw_input.findOnce().children().forEach(w => {
+        if (w.className() === "android.widget.EditText") w.setText(specific_user.login_pw);
+    });
+    clickBounds(idMatches(/.*loginButton/), 1);
+    sleep(1000);
+
+    let case_a = textMatches(/Me|我的/),
+        case_b = textMatches(/重新输入|Try again/), // wrong password
+        case_c = descMatches(/.*(验证码|Verification Code).*/), // sms code is needed
+        case_d = textMatches(/.{3,}验证码.{3,}|.{6,}Verification Code.{6,}/), // just a prompt, can be ignored
+        case_e = descMatches(/.*(回答|questions|换个方式登录|[Aa]nother).*/), // need answering some questions // 英文的desc没有具体确定
+        case_f = kw_list_arrow;
+    waitForAction(() => case_a.exists() || case_b.exists() || case_c.exists() || case_d.exists() || case_e.exists() || case_f.exists(), [20000, 1000], "登录后检测登录状态失败", 8, 1, 0, idMatches(/.*btn_confirm/));
+
+    if (case_a.exists()) return true;
+    if (case_b.exists()) return messageAction("登录密码错误", 3, 1);
+    if (case_c.exists()) return messageAction("需要验证码", 3, 1);
+    if (case_d.exists()) {
+        clickBounds(textMatches(/进入支付宝|.*[En]ter.*/)); // 英文的text没有具体确定
+        return waitForAction(textMatches(/Me|我的/), 10000, "登录账户超时", 8, 1);
+    }
+    if (case_e.exists()) return messageAction("需要回答问题", 3, 1);
+    if (case_f.exists()) {
+        let current_logged_in_user_ident = kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text();
+        if (current_logged_in_user_ident === specific_user.username_ident) return true;
+    }
+}
+
 // global tool function(s) //
 
 // modified for this app optimization //
@@ -2023,9 +2033,10 @@ function launchThisApp(intent, no_msg_flag) {
     let ready_condition = current_app.firstTimeRunConditionFun;
     if (typeof intent !== "object") messageAction("\"launchThisApp\"的intent参数类型不正确", 8, 1, 0, 1);
     intent && debugInfo("启动参数intent类型: " + typeof intent);
-    let max_retry_times = 7;
+    let max_retry_times = 3;
     let max_retry_times_backup = max_retry_times;
     while (max_retry_times--) {
+        let kw_wait_for_awhile = descMatches(/.*稍等片刻.*/);
         let max_launch_times = 3;
         if (!no_msg_flag && !current_app.first_time_run) messageAction("重新开始" + current_app.quote_name + "任务", null, 1);
         while (max_launch_times--) {
@@ -2034,10 +2045,10 @@ function launchThisApp(intent, no_msg_flag) {
             let cond_succ_flag = waitForAction(() => {
                 let condition_a = () => currentPackage() === current_app.package_name;
                 let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$|.+AlipayGphone$/);
-                let condition_c = () => desc("查看更多好友").exists() || current_app.kw_af_home.exists();
+                let condition_c = () => desc("查看更多好友").exists() || current_app.kw_af_home.exists() || kw_wait_for_awhile.exists();
 
                 return condition_a() || condition_b() || condition_c();
-            }, 5000);
+            }, [5000, 800]);
             debugInfo("应用启动" + (cond_succ_flag ? "成功" : "超时"));
             if (cond_succ_flag) break;
             else debugInfo(">" + currentPackage());
@@ -2048,39 +2059,40 @@ function launchThisApp(intent, no_msg_flag) {
             debugInfo("未设置启动完成条件参数");
             break;
         }
-        let max_wait_times = 5;
-        let max_wait_times_backup = max_wait_times;
+
         debugInfo("开始监测启动完成条件");
-        while (!waitForAction(ready_condition, max_wait_times_backup - max_wait_times ? 2000 : 8000) && max_wait_times--) {
-            clickBounds([desc("重新加载"), "try"]);
+        debugInfo("开启\"重新加载\"按钮监测线程");
+        let thread_monitor_retry_btn = threads.start(function () {
+            while (1) sleep(clickBounds([desc("重新加载"), "try"]) ? 3000 : 1000);
+        });
 
-            let wait_times_count = max_wait_times_backup - max_wait_times;
-            debugInfo("启动完成条件检测未通过: (" + wait_times_count + "\/" + max_wait_times_backup + ")");
-            let tmp_current_pkg = currentPackage();
-            let timeout_package_name = !(wait_times_count % 2) && tmp_current_pkg !== current_app.package_name;
-            let timeout_single_time_check = !(wait_times_count % 3);
+        let try_count = 0;
+        let max_relaunch_activity_times = 3;
+        let max_relaunch_activity_times_backup = max_relaunch_activity_times;
+        while (!waitForAction(ready_condition, 2000) && ++try_count && max_relaunch_activity_times >= 0) {
+            while (kw_wait_for_awhile.exists()) sleep(300);
 
-            if (!timeout_package_name && !timeout_single_time_check) continue;
-
-            if (timeout_package_name) {
-                debugInfo("前置应用包名不符合条件");
-                debugInfo(">" + tmp_current_pkg);
-                debugInfo("借用alert()方法刷新前置应用");
-                refreshObjects();
-                let tmp_current_pkg_refreshed = currentPackage();
-                debugInfo("当前前置应用包名:");
-                debugInfo(">" + tmp_current_pkg_refreshed);
-                if (tmp_current_pkg_refreshed === current_app.package_name) {
-                    debugInfo("刷新生效");
-                    debugInfo("重新检测启动完成条件");
-                    continue;
-                } else debugInfo("刷新无效果");
-            } else debugInfo("启动完成条件检测单次超时");
-
-            debugInfo("重新启动Activity");
-            app.startActivity(intent);
+            if (!(try_count % 4) && max_relaunch_activity_times--) {
+                let relaunch_count = max_relaunch_activity_times_backup - max_relaunch_activity_times;
+                debugInfo("重新启动Activity: (" + relaunch_count + "\/" + max_relaunch_activity_times_backup + ")");
+                app.startActivity(intent);
+            }
         }
-        if (max_launch_times >= 0 && max_wait_times >= 0) {
+
+        debugInfo("结束\"重新加载\"按钮监测线程");
+        thread_monitor_retry_btn.interrupt();
+
+        if (max_relaunch_activity_times >= 0) {
+            if (current_app.kw_login_or_switch.exists()) {
+                if (!loginSpecificUser()) {
+                    messageAction("脚本无法继续", 4);
+                    messageAction("账户未登录或登录失败", 8, 1, 1);
+                } else {
+                    debugInfo("登录成功");
+                    debugInfo("尝试重新启动Activity");
+                    return launchThisApp(current_app.intent, "no_msg");
+                }
+            }
             debugInfo("启动完成条件监测完毕");
             break;
         }
@@ -2409,8 +2421,7 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
                 bad_situation_pending %= 1000;
             }
             try {
-                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
             } catch (e) {
                 // nothing to do here
             }
@@ -2422,8 +2433,7 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
             if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
             if (special_bad_situation) checkBadSituation(special_bad_situation);
             try {
-                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
+                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
             } catch (e) {
                 max_check_times = -1;
             }
@@ -2726,6 +2736,7 @@ function runJsFile(js_path, autojs_pkg_name) {
 }
 
 function debugInfo() {
+    let return_result = true;
     let cfg = config || {};
     if (!cfg.message_showing_switch || !cfg.debug_info_switch) return true;
     let args = [];
@@ -2733,8 +2744,12 @@ function debugInfo() {
         args[i] = arguments[i];
         if (i === 0) args[i] = args[i][0] === ">" ? ">>> " + args[i].slice(1) : ">> " + args[i];
     }
-    args[1] = args[1] || 0;
-    return messageAction.apply(null, args);
+    if (typeof args[1] === "undefined") {
+        args[1] = 0;
+        return_result = false;
+    }
+    let message_result = messageAction.apply(null, args);
+    return return_result && message_result;
 }
 
 function debugConfigInfo() {
