@@ -149,6 +149,8 @@ function unlock(password, max_try_times, pattern_size) {
     function advancedUnlock() {
         if (!password) errorMsg("密码为空");
 
+        let pin_unlock_identifies = ["com.android.systemui:id/lockPattern"];
+
         device.keepScreenOn(300000); // 5 min at most
 
         if (kw_lock_pattern_view && kw_lock_pattern_view.exists()) unlockPattern();
@@ -286,27 +288,26 @@ function unlock(password, max_try_times, pattern_size) {
                     if (!(device_intro in samples)) return true;
 
                     let {keys_coords, last_pw_character} = samples[device_intro];
-                    keys_coords.forEach(coords => ~click(coords[0], coords[1] && sleep(300)));
+                    keys_coords.forEach(coords => ~click(coords[0], coords[1]) && sleep(300));
                     if (!last_pw_character) return true;
                     let classof = Object.prototype.toString.call(last_pw_character).slice(8, -1);
                     if (classof === "JavaObject") clickObject(last_pw_character);
                     else if (classof === "Array") click(last_pw_character[0], last_pw_character[1]);
                     else if (typeof last_pw_character === "number" || typeof last_pw_character === "string") {
                         clickBounds([idMatches("(key.?)?" + last_pw_character), "try"]) ||
-                            clickBounds([descMatches("(key.?)?" + last_pw_character), "try"]) ||
-                            clickBounds([textMatches("(key.?)?" + last_pw_character), "try"]);
+                        clickBounds([descMatches("(key.?)?" + last_pw_character), "try"]) ||
+                        clickBounds([textMatches("(key.?)?" + last_pw_character), "try"]);
                     } else errorMsg("解锁失败", "无法判断末位字符类型");
 
                     return true;
                 }
 
                 function misjudge() {
-                    let disturbance = [
-                        id("com.android.systemui:id/keyguard_pin_view"),
-                        // id("com.android.systemui:id/lockPattern"),
-                    ];
-                    for (let i = 0, len = disturbance.length; i < len; i += 1) {
-                        if (disturbance[i].exists()) return;
+                    let disturbances = pin_unlock_identifies;
+                    for (let i = 0, len = disturbances.length; i < len; i += 1) {
+                        let name = disturbances[i];
+                        if (typeof name === "string" && id(name).exists() ||
+                            typeof name === "object" && idMatches(name).exists()) return unlockPin();
                     }
                     return true;
                 }
@@ -319,7 +320,7 @@ function unlock(password, max_try_times, pattern_size) {
             let kw_nums_container = id("com.android.systemui:id/container");
             let getNumericInputView = num => id("com.android.keyguard:id/numeric_inputview").text(num + ""); // miui; borrowed from e1399579 and modified
             let getNumsBySingleDesc = num => desc(num);
-            let boundsWayIDs = ["com.android.systemui:id/lockPattern"];
+            let boundsWayIDs = pin_unlock_identifies;
             let kw_bounds_way_id = null;
 
             while (max_try_times--) {

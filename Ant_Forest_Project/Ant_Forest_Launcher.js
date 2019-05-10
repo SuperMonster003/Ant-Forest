@@ -34,7 +34,7 @@ function exec() {
 
     files.exists(path_prefix + tool_name) ||
     files.exists(path_prefix + tool_name.slice(1)) ||
-    ~alert("启动器无法继续运行\n-> 无法定位文件:\n ->\"" + path_prefix + tool_name + "\"") && exit();
+    ~alert("启动器无法继续运行\n-> 无法定位文件:\n-> \"" + path_prefix + tool_name + "\"") && exit();
 
     try {
         engines.execScriptFile(path_prefix + tool_name, {

@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 10, 2019
- * @version 1.6.15
+ * @version 1.6.16
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -182,6 +182,7 @@ function antForest() {
             current_app.kw_af_title = textMatches(/蚂蚁森林|Ant Forest/);
             current_app.kw_af_home = className("Button").descMatches(/合种|背包|通知|攻略|任务|我的大树养成记录/);
             current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
+            current_app.kw_close_btn = descMatches(/关闭|Close/);
             current_app.ori_app_package = currentPackage();
             current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
             debugInfo("会话参数赋值完毕");
@@ -366,10 +367,9 @@ function antForest() {
             getReady() && ~handleTxtPipeline() && showSplitLine();
 
             function getReady() {
-                let kw_close_btn = desc("Close");
                 let max_try_times_close_btn = 10;
                 while (max_try_times_close_btn--) {
-                    if (clickBounds([kw_close_btn, "try"])) break;
+                    if (clickBounds([current_app.kw_close_btn, "try"])) break;
                     sleep(500);
                 }
                 let kw_homepage = className("android.widget.TextView").idContains("tab_description");
@@ -758,17 +758,38 @@ function antForest() {
                 // tool function(s) //
 
                 function getScreenSamples() {
+                    let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom();
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let samples = boundsInside(cX(0.7), 1, WIDTH, HEIGHT - 1)
-                            .descMatches(regexp_energy_amount).filter(function (w) {
-                                let bounds = w.bounds();
-                                let b_bottom = bounds.bottom;
-                                return b_bottom > bounds.top && b_bottom < cY(0.95);
-                            }).find();
-                        if (samples.size()) return samples;
+                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find();
+                        let screen_samples_size = screen_samples.size();
+                        debugInfo("当前屏幕好友数量: " + screen_samples_size);
+                        if (screen_samples_size) return screen_samples;
                     }
                     return !~debugInfo("刷新样本区域失败");
+
+                    // tool function(s) //
+
+                    function getTitleBoundsBottom() {
+                        if (current_app.title_bounds_bottom) return;
+                        let refs = [
+                            idMatches(/.*h5.title.bar.layout/),
+                            idMatches(/.*h5.[rl]l.title(.stub)?/),
+                            idMatches(/.*h5.nav.options/),
+                        ];
+                        let tmp_data_pool = {};
+                        let data_arr = [];
+                        for (let i = 0, len = refs.length; i < len; i += 1) {
+                            let key_node = refs[i].findOnce();
+                            let data = key_node && key_node.bounds().bottom;
+                            if (!data) continue;
+                            data in tmp_data_pool ? tmp_data_pool[data]++ : (tmp_data_pool[data] = 1);
+                        }
+                        Object.keys(tmp_data_pool).forEach(bottom => data_arr.push([bottom, tmp_data_pool[bottom]]));
+                        let title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || textMatches(/好友排行榜|Green heroes/).findOnce().parent().parent().bounds().bottom;
+                        debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
+                        return current_app.title_bounds_bottom = title_bounds_bottom;
+                    }
                 }
 
                 /**
@@ -1548,9 +1569,8 @@ function antForest() {
 
         function closeAfWindows() {
             debugInfo("关闭全部蚂蚁森林相关页面");
-            let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/),
-                kw_close = desc("关闭");
-            while (current_app.kw_af_title.exists() && clickBounds([kw_close, "try"]) ||
+            let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/);
+            while (current_app.kw_af_title.exists() && clickBounds([current_app.kw_close_btn, "try"]) ||
             kw_login_with_new_user.exists() && jumpBackOnce()) sleep(500);
             debugInfo("相关页面关闭完毕");
             debugInfo("保留当前支付宝页面");
