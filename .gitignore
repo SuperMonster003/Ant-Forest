@@ -1,7 +1,9 @@
-/.idea
-/build
-/release
-/captures
-/Github_Materials
 *.apk
 *.exe
+/.idea
+/.local
+/build
+/captures
+/Github_Materials
+/Log
+/release
