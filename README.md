@@ -20,8 +20,8 @@
 ******
 ### 使用说明
 ******
-1. 下载项目 ([点此下载最新项目包](https://codeload.github.com/SuperMonster003/Ant_Forest/zip/master) 或 点击页面右侧绿色 `Clone or download` 按钮 手机浏览器需在项目主页拉到底部点击 `Desktop version`)  
-2. 将 `Ant_Forest_Project` 目录中的全部文件 (或目录本身) 放置于手机存储 (推荐 `Auto.js` 默认可识别目录 如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )  
+1. 下载项目 ([点此下载最新项目包](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip) 或 点击页面右侧绿色 `Clone or download` 按钮 手机浏览器需在项目主页拉到底部点击 `Desktop version`)  
+2. 将项目中的全部文件放置于手机存储 (推荐 `Auto.js` 默认可识别目录 如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )  
 3. 使用 `Auto.js` 运行 `Ant_Forest_Launcher.js` 文件  
 4. 欢迎使用并反馈  
   
