@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 10, 2019
- * @version 1.6.17
+ * @last_modified May 13, 2019
+ * @version 1.6.18
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -762,7 +762,10 @@ function antForest() {
                     let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom() || 0;
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find();
+                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).filter(function (w) {
+                            let bounds = w.bounds();
+                            return bounds.bottom > bounds.top;
+                        }).find();
                         let screen_samples_size = screen_samples.size();
                         debugInfo("当前屏幕好友数量: " + screen_samples_size);
                         if (screen_samples_size) return screen_samples;
@@ -1741,6 +1744,7 @@ function checkBugVersions() {
             "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
             "crash_ui_settings": "图形配置页面崩溃",
             "dislocation_floaty": "Floaty模块绘制存在错位现象",
+            "dysfunctional_usage_access": "缺少\"查看使用统计权限\"功能\n--> currentPackage()结果可能不准确",
             "forcibly_update": "强制更新",
             "na_login": "无法登陆Auto.js账户",
             "un_cwd": "不支持cwd()方法及相对路径",
@@ -1885,9 +1889,14 @@ function checkBugVersions() {
                 return ["crash_autojs"];
             }
 
-            // version >= 4.0.4 Alpha5 || version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
+            // version >= 4.0.4 Alpha5
+            if (ver_name.match(/^4\.0\.4 Alpha([5-9]|1[01])/)) {
+                return ["dysfunctional_usage_access"];
+            }
+
+            // version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
             // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            if (ver_name.match(/^(4\.0\.4 Alpha([5-9]|1[01])|(4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
+            if (ver_name.match(/^(4\.1\.0 Alpha[25]?)|(4\.1\.1.+)$/) ||
                 ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/)) {
                 return 0; // known normal
             }
