@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 10, 2019
- * @version 1.6.17
+ * @last_modified May 13, 2019
+ * @version 1.6.18
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -10,7 +10,6 @@
 
 try {
     auto.waitFor();
-    auto.setFlags("findOnUiThread", "useUsageStats");
 } catch (e) {
     messageAction("auto.waitFor()不可用", 0, 0, 0, "up");
     auto();
@@ -762,7 +761,10 @@ function antForest() {
                     let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom() || 0;
                     let max_try_times = 5;
                     while (max_try_times--) {
-                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).find();
+                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).descMatches(regexp_energy_amount).filter(function (w) {
+                            let bounds = w.bounds();
+                            return bounds.bottom > bounds.top;
+                        }).find();
                         let screen_samples_size = screen_samples.size();
                         debugInfo("当前屏幕好友数量: " + screen_samples_size);
                         if (screen_samples_size) return screen_samples;
@@ -1851,7 +1853,7 @@ function checkBugVersions() {
             }
 
             // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (ver_name.match(/^((3\.1\.0 Alpha[6-9])|(3\.1\.1 Alpha[1-2]?))$/)) {
+            if (ver_name.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
                 return ["un_inflate", "un_engines"];
             }
 
