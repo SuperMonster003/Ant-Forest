@@ -435,11 +435,11 @@ homepage
 
             function checkUpdate() {
                 checking_update_flag = true;
-                let url_readme = "https://raw.githubusercontent.com/SuperMonster003/Ant_Forest/master/README.md";
+                let url_readme = "https://raw.githubusercontent.com/SuperMonster003/Auto.js_Projects/Ant_Forest/README.md";
                 let newest_server_version_name = "检查中...";
                 let ori_content = diag.getContentView().getText().toString().replace(/([^]+服务器端版本: ).*/, "$1");
                 diag.setContent(ori_content + newest_server_version_name);
-                threads.start(function() {
+                threads.start(function () {
                     try {
                         newest_server_version_name = "v" + http.get(url_readme).body.string().match(/版本历史[^]+?v(\d+\.?)+/)[0].split("v")[1];
                     } catch (e) {
@@ -1576,9 +1576,11 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
     let new_view = ui.inflate(<vertical></vertical>);
     new_view.addView(ui.inflate(
         <linear id="_title_bg">
-            <vertical id="_back_btn_area" margin="8 6 -10 -10">
-                <img src="@drawable/ic_chevron_left_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff"/>
-                <text id="back_btn_text" text=" " gravity="center" textSize="10" textStyle="bold" marginTop="-45" h="45" gravity="bottom|center"/>
+            <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
+                <linear>
+                    <img src="@drawable/ic_chevron_left_black_48dp" height="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
+                    <text id="back_btn_text" text=" " gravity="center" textSize="10" textStyle="bold" h="45" gravity="bottom|center"/>
+                </linear>
             </vertical>
             <text id="_title_text" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
         </linear>
@@ -1679,7 +1681,7 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
         } else if (type === "options") {
             let opt_view = ui.inflate(
                 <vertical>
-                    <img margin="19 0" src="@drawable/ic_chevron_right_black_48dp" width="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
+                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" height="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
                 </vertical>
             );
             new_view._item_area.addView(opt_view);
@@ -1734,10 +1736,12 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             session_params.info_color = info_color;
 
             let new_view = ui.inflate(
-                <linear padding="0 0 0 -16">
-                    <img src="@drawable/ic_info_outline_black_48dp" width="17" margin="16 1 -12 0" tint="{{session_params.info_color}}"></img>
-                    <text id="_info_text" textSize="13" margin="16 16 0 0"/>
-                </linear>
+                <horizontal>
+                    <linear padding="0 10 0 0">
+                        <img src="@drawable/ic_info_outline_black_48dp" height="17" margin="0 1 -12 0" tint="{{session_params.info_color}}"></img>
+                        <text id="_info_text" textSize="13"/>
+                    </linear>
+                </horizontal>
             );
             new_view._info_text.text(title);
             let title_color = typeof info_color === "string" ? colors.parseColor(info_color) : sub_head_color;
@@ -1869,8 +1873,8 @@ function setButtons(parent_view, button_params_arr) {
         function buttonView() {
             return ui.inflate(
                 <vertical margin="13 0">
-                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" width="31" bg="?selectableItemBackgroundBorderless" margin="0 -1 0 0"/>
-                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-35" h="40" gravity="bottom|center"/>
+                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" height="31" bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
+                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
                 </vertical>
             );
         }
