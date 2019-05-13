@@ -10,7 +10,6 @@
 
 try {
     auto.waitFor();
-    auto.setFlags("findOnUiThread", "useUsageStats");
 } catch (e) {
     messageAction("auto.waitFor()不可用", 0, 0, 0, "up");
     auto();
@@ -1744,7 +1743,6 @@ function checkBugVersions() {
             "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
             "crash_ui_settings": "图形配置页面崩溃",
             "dislocation_floaty": "Floaty模块绘制存在错位现象",
-            "dysfunctional_usage_access": "缺少\"查看使用统计权限\"功能\n--> currentPackage()结果可能不准确",
             "forcibly_update": "强制更新",
             "na_login": "无法登陆Auto.js账户",
             "un_cwd": "不支持cwd()方法及相对路径",
@@ -1855,7 +1853,7 @@ function checkBugVersions() {
             }
 
             // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (ver_name.match(/^((3\.1\.0 Alpha[6-9])|(3\.1\.1 Alpha[1-2]?))$/)) {
+            if (ver_name.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
                 return ["un_inflate", "un_engines"];
             }
 
@@ -1889,14 +1887,9 @@ function checkBugVersions() {
                 return ["crash_autojs"];
             }
 
-            // version >= 4.0.4 Alpha5
-            if (ver_name.match(/^4\.0\.4 Alpha([5-9]|1[01])/)) {
-                return ["dysfunctional_usage_access"];
-            }
-
-            // version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
+            // version >= 4.0.4 Alpha5 || version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
             // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            if (ver_name.match(/^(4\.1\.0 Alpha[25]?)|(4\.1\.1.+)$/) ||
+            if (ver_name.match(/^(4\.0\.4 Alpha([5-9]|1[01])|(4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
                 ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/)) {
                 return 0; // known normal
             }

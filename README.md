@@ -29,6 +29,13 @@
 > Root: `无需Root`
   
 > "Auto.js"已测试版本:   
+>> [`4.0.4 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha5%5D(2caea4b4).apk?raw=true)  
+>> [`4.0.4 Alpha6`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha6%5D(3bd7f41f).apk?raw=true)  
+>> [`4.0.4 Alpha7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha7%5D(9ca9e0fd).apk?raw=true)  
+>> [`4.0.4 Alpha8`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha8%5D(bc2d6359).apk?raw=true)  
+>> [`4.0.4 Alpha9`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha9%5D(1aef8167).apk?raw=true)  
+>> [`4.0.4 Alpha10`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha10%5D(805e19a6).apk?raw=true)  
+>> [`4.0.4 Alpha11`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha11%5D(d3adc9b3).apk?raw=true)  
 >> [`4.1.0 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha%5D(7312bb3f).apk?raw=true)  
 >> [`4.1.0 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha2%5D(3a990e03).apk?raw=true)  
 >> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true) `(推荐)`  
@@ -36,7 +43,7 @@
 >> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true) `(推荐)`  
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
->> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true) `(推荐)`  
+>> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true) `(推荐)`    
 
 >"Auto.js"不适用版本:
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
@@ -77,10 +84,14 @@
 ### 版本历史
 ******
 ******
+# v1.6.19
+###### 2019/05/13
+* `修复` 弃用导致控件抓取缓慢的"useUsageStats"参数 `添加于 v1.6.18`  
+
 # v1.6.18
 ###### 2019/05/13
 * `修复` 排行榜误触虚拟按键的问题  
-* `优化` 使用"使用统计权限"提升currentPackage()准确性  
+* `优化` ~~使用"使用统计权限"提升currentPackage()准确性~~ `去除于 v1.6.19`  
 
 # v1.6.17
 ###### 2019/05/10
