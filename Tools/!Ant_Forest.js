@@ -793,7 +793,9 @@ function antForest() {
                         let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).filter(function (w) {
                             let bounds = w.bounds();
                             if (bounds.bottom <= bounds.top) return false;
-                            return !!(w.desc().match(regexp_energy_amount) || w.text().match(regexp_energy_amount));
+                            let _desc_w = w.desc();
+                            let _text_w = w.text();
+                            return !!(_desc_w && _desc_w.match(regexp_energy_amount) || _text_w && _text_w.match(regexp_energy_amount));
                         }).find();
                         let screen_samples_size = screen_samples.size();
                         debugInfo("当前屏幕好友数量: " + screen_samples_size);
