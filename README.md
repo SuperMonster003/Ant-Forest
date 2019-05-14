@@ -7,15 +7,17 @@
 ******
 ### 小私房话
 ******
-:smile:  
-最近代码改动频繁 且变动较大  
-如遇到任何问题  
-尤其是新版本导致的问题  
-可同时尝试最近2-3个版本  
-欢迎使用并反馈  
+:face_with_head_bandage:  
+最近频繁收到无法进入蚂蚁森林的反馈  
+手上两台设备怎么折腾都不出现上述问题  
+也不知道从何入手  
+只能估计是text/desc转移的问题  
+看到那么多反馈却无能为力的感觉  
+还真是挺心酸的  
+希望不久后能找到突破口吧    
 
 :writing_hand:  
-定时任务等Pro版本开放相应API之后再做    
+定时任务等Pro版本相应API完善之后再做    
 
 ******
 ### 使用说明
@@ -43,7 +45,8 @@
 >> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true) `(推荐)`  
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
->> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true) `(推荐)`    
+>> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)      
+>> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true) `(推荐)`    
 
 >"Auto.js"不适用版本:
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
@@ -84,6 +87,11 @@
 ### 版本历史
 ******
 ******
+# v1.6.20
+###### 2019/05/14
+* `优化` 使用自定义pickup方法获取部分控件  
+* `优化` 提升黑名单检测准确率  
+
 # v1.6.19
 ###### 2019/05/13
 * `修复` 弃用导致控件抓取缓慢的"useUsageStats"参数 `添加于 v1.6.18`  
