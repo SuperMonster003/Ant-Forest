@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha3
+ * @version 1.6.22 Alpha4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -526,7 +526,7 @@ function antForest() {
                 let selector_buttons = kw_energy_balls_ripe().find(),
                     buttons_size = selector_buttons.size();
                 if (!buttons_size) return;
-                selector_buttons.forEach(w => clickBounds(w.bounds()));
+                selector_buttons.forEach(w => clickBounds([w.bounds(), "press"]));
                 if (buttons_size === 6) {
                     current_app.total_energy_collect_own += getEnergyDiff(); // wait for energy balls being stable
                     return checkOnce(); // recursion has not been tested yet since Mar 26, 2019
@@ -864,7 +864,15 @@ function antForest() {
                         Object.keys(tmp_data_pool).forEach(bottom => data_arr.push([bottom, tmp_data_pool[bottom]]));
                         let title_bounds_bottom = 0;
                         try {
-                            title_bounds_bottom = +data_arr.sort((a, b) => [a][1] > b[1])[0][0] || current_app.kw_rank_list_title().findOnce().parent().parent().bounds().bottom;
+                            let refs_data = data_arr.sort((a, b) => [a][1] > b[1])[0];
+                            if (refs_data) {
+                                title_bounds_bottom = +refs_data[0];
+                            } else {
+                                let key_node = current_app.kw_rank_list_title().findOnce();
+                                if (key_node) title_bounds_bottom = key_node.parent().parent().bounds().bottom;
+                                else title_bounds_bottom = desc("关闭").findOnce().parent().parent().parent().parent().bounds().bottom;
+                            }
+
                             if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2) || title_bounds_bottom < cY16h9w(0.05)) {
                                 return debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
                             }
@@ -1056,7 +1064,7 @@ function antForest() {
                     if (blacklist_ident_capts_len) {
                         debugInfo("使用能量球监测线程采集数据");
                         debugInfo("黑名单采集样本数量: " + blacklist_ident_capts_len);
-                        if (blacklist_ident_capts_len < 2) {
+                        if (blacklist_ident_capts_len < 3) {
                             debugInfo("黑名单样本数量不足");
                             let max_wait_times_enough_idents = 1;
                             while (max_wait_times_enough_idents--) {
@@ -1070,7 +1078,7 @@ function antForest() {
                                     debugInfo("现场采集新黑名单样本数据");
                                     captNewBlackListIdent();
                                     break;
-                                } else if (blacklist_ident_capts.length === 2) {
+                                } else if (blacklist_ident_capts.length === 3) {
                                     debugInfo("黑名单样本数据充足");
                                     break;
                                 } else {
@@ -1216,7 +1224,7 @@ function antForest() {
                         current_app.current_friend.console_logged = 1;
 
                         ripe_flag = 1;
-                        ripe_balls.forEach(w => clickBounds(w.bounds()));
+                        ripe_balls.forEach(w => clickBounds([w.bounds(), "press"]));
                         debugInfo("点击成熟能量球: " + ripe_balls.length + "个");
                         take_clicked_flag = 1;
 
@@ -1391,7 +1399,8 @@ function antForest() {
             // tool function(s) //
 
             function endOfListThread() {
-                let regexp_end_ident = /邀请|没有更多了/;
+                // let regexp_end_ident = /邀请|没有更多了/;
+                let regexp_end_ident = /没有更多了/;
                 let kw_end_ident_desc = descMatches(regexp_end_ident);
                 let kw_end_ident_text = textMatches(regexp_end_ident);
                 while (1) {
@@ -1400,11 +1409,12 @@ function antForest() {
                             let kn_end_ident_desc = kw_end_ident_desc && kw_end_ident_desc.findOnce();
                             if (kn_end_ident_desc) {
                                 kw_end_ident_text = null;
-                                let top = kn_end_ident_desc.bounds().top;
+                                let bounds = kn_end_ident_desc.bounds();
+                                let top = bounds.top;
                                 let desc = kn_end_ident_desc.desc();
                                 if (top < HEIGHT) {
                                     debugInfo("列表底部条件满足");
-                                    debugInfo(">top: " + top + "\/" + HEIGHT);
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bounds.bottom + "]");
                                     debugInfo(">desc: " + desc);
                                     break;
                                 }
@@ -1412,11 +1422,12 @@ function antForest() {
                             let kn_end_ident_text = kw_end_ident_text && kw_end_ident_text.findOnce();
                             if (kn_end_ident_text) {
                                 kw_end_ident_desc = null;
-                                let top = kn_end_ident_text.bounds().top;
+                                let bounds = kn_end_ident_text.bounds();
+                                let top = bounds.top;
                                 let text = kn_end_ident_text.text();
                                 if (top < HEIGHT) {
                                     debugInfo("列表底部条件满足");
-                                    debugInfo(">top: " + top + "\/" + HEIGHT);
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bounds.bottom + "]");
                                     debugInfo(">text: " + text);
                                     break;
                                 }
@@ -1455,7 +1466,8 @@ function antForest() {
                                 return textMatches(/\d+g/).filter(function (w) {
                                     return w.bounds().right > cX(0.95);
                                 }).findOnce().text().match(/\d+/)[0] - 0;
-                            } catch (e) {}
+                            } catch (e) {
+                            }
                         }
                     }
                 }
@@ -1472,7 +1484,8 @@ function antForest() {
                         let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
                             key_node_text && key_node_text.match(/\d+/) || null;
                         return data_matched && (data_matched[0] - 0) || undefined;
-                    } catch (e) {}
+                    } catch (e) {
+                    }
 
                     // tool function(s) //
 
@@ -2628,6 +2641,8 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     }
     if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
 
+    let press_flag = typeof additionFunc !== "undefined" && additionFunc[1] === "press";
+
     if (if_continuous.length) {
         while (max_check_times--) {
             if (!checkArray()) break;
@@ -2637,7 +2652,9 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
                 bad_situation_pending %= 1000;
             }
             try {
-                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                let x = node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0);
+                let y = node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0);
+                press_flag ? press(x, y, 1) : click(x, y);
             } catch (e) {
                 // nothing to do here
             }
@@ -2649,7 +2666,9 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
             if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
             if (special_bad_situation) checkBadSituation(special_bad_situation);
             try {
-                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                let x = node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0);
+                let y = node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0);
+                press_flag ? press(x, y, 1) : click(x, y);
             } catch (e) {
                 max_check_times = -1;
             }
