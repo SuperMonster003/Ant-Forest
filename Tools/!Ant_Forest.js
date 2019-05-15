@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha9
+ * @version 1.6.22 Alpha10
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1551,11 +1551,11 @@ function antForest() {
         function goBackToAfHome() {
             let max_try_times = 5;
             while (max_try_times--) {
-                if (currentPackage() !== current_app.package_name) {
-                    debugInfo("返回蚂蚁森林主页时包名异常");
-                    debugInfo(">" + currentPackage());
-                    break;
-                }
+                // if (currentPackage() !== current_app.package_name) {
+                //     debugInfo("返回蚂蚁森林主页时包名异常");
+                //     debugInfo(">" + currentPackage());
+                //     break;
+                // }
                 jumpBackOnce();
                 if (waitForAction(() => current_app.kw_af_home().exists(), 1000)) {
                     debugInfo("返回蚂蚁森林主页成功");
@@ -1577,7 +1577,7 @@ function antForest() {
         debugInfo("初始值: " + init);
         let own = current_app.total_energy_collect_own || 0;
         debugInfo("自己能量收取值: " + own);
-        let friends = (getCurrentEnergyAmount() - init - own) || 0;
+        let friends = (getCurrentEnergyAmount("buffer") - init - own) || 0;
         debugInfo("好友能量收取值: " + friends);
 
         if (init < 0 || own < 0 || friends < 0) return msgNotice("数据统计失败");
