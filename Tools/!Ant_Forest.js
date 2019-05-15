@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha5
+ * @version 1.6.22 Alpha6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1403,8 +1403,7 @@ function antForest() {
             // tool function(s) //
 
             function endOfListThread() {
-                // let regexp_end_ident = /邀请|没有更多了/;
-                let regexp_end_ident = /没有更多了/;
+                let regexp_end_ident = /邀请|没有更多了/;
                 let kw_end_ident_desc = descMatches(regexp_end_ident);
                 let kw_end_ident_text = textMatches(regexp_end_ident);
                 while (1) {
@@ -1415,10 +1414,11 @@ function antForest() {
                                 kw_end_ident_text = null;
                                 let bounds = kn_end_ident_desc.bounds();
                                 let top = bounds.top;
+                                let bottom = bounds.bottom;
                                 let desc = kn_end_ident_desc.desc();
-                                if (top < HEIGHT) {
+                                if (top < HEIGHT && bottom - top > cX(0.025)) {
                                     debugInfo("列表底部条件满足");
-                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bounds.bottom + "]");
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bottom + "]");
                                     debugInfo(">desc: " + desc);
                                     break;
                                 }
@@ -1428,10 +1428,11 @@ function antForest() {
                                 kw_end_ident_desc = null;
                                 let bounds = kn_end_ident_text.bounds();
                                 let top = bounds.top;
+                                let bottom = bounds.bottom;
                                 let text = kn_end_ident_text.text();
-                                if (top < HEIGHT) {
+                                if (top < HEIGHT && bottom - top > cX(0.025)) {
                                     debugInfo("列表底部条件满足");
-                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bounds.bottom + "]");
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bottom + "]");
                                     debugInfo(">text: " + text);
                                     break;
                                 }
@@ -2320,13 +2321,13 @@ function launchThisApp(intent, no_msg_flag) {
                 }
             }
             debugInfo("启动完成条件监测完毕");
-            try {
-                let title_bounds_bottom = current_app.kw_af_title().findOnce().parent().parent().bounds().bottom;
-                debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
-                current_app.title_bounds_bottom = title_bounds_bottom;
-            } catch (e) {
-                debugInfo("获取标题控件bottom数据: 失败");
-            }
+            // try {
+            //     let title_bounds_bottom = current_app.kw_af_title().findOnce().parent().parent().bounds().bottom;
+            //     debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
+            //     current_app.title_bounds_bottom = title_bounds_bottom;
+            // } catch (e) {
+            //     debugInfo("获取标题控件bottom数据: 失败");
+            // }
             break;
         }
         debugInfo("尝试关闭支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");
@@ -2606,11 +2607,15 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     }
 
     if (func.toString().match(/^Rect\(/) && if_continuous) messageAction("连续点击时 f参数不能是bounds():\n" + func.toString(), 8, 1);
-    if (!!additionFunc && additionFunc !== "try" && typeof additionFunc !== "function") messageAction("additionFunc参数类型不是\"function\":\n" + additionFunc.toString(), 8, 1);
 
-    if (typeof additionFunc !== "undefined") {
-        if (additionFunc === "try" && (!func || !func.exists())) return false;
-        if (typeof additionFunc === "function" && !additionFunc()) return false;
+    let press_flag;
+    if (additionFunc){
+        if (typeof additionFunc === "string") {
+            if (!additionFunc.match(/try|press/)) messageAction("additionFunc参数无法识别:\n" + additionFunc.toString(), 8, 1);
+            if (additionFunc.match(/try/) && (!func || !func.exists())) return false;
+            if (additionFunc.match(/press/)) press_flag = true;
+        } else if (typeof additionFunc === "function" && !additionFunc()) return false;
+        else messageAction("无法识别的additionFunc参数类型: " + typeof additionFunc, 8, 1);
     }
 
     max_check_times = max_check_times || (if_continuous ? 3 : 1);
@@ -2644,8 +2649,6 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
         }
     }
     if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
-
-    let press_flag = typeof additionFunc !== "undefined" && additionFunc[1] === "press";
 
     if (if_continuous.length) {
         while (max_check_times--) {
