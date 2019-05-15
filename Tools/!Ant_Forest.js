@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 14, 2019
- * @version 1.6.21
+ * @last_modified May 15, 2019
+ * @version 1.6.22 Alpha
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -60,7 +60,7 @@ debugInfo("Auto.js版本: " + (current_autojs_version || "未知版本"));
 checkBugVersions();
 debugInfo("项目版本: " + (() => {
     try {
-        return "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+/)[0].slice(8);
+        return "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
     } catch (e) {
         return "未知版本";
     }
@@ -824,6 +824,9 @@ function antForest() {
                         let title_bounds_bottom = 0;
                         try {
                             title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || current_app.kw_rank_list_title().findOnce().parent().parent().bounds().bottom;
+                            if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2)) {
+                                return debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
+                            }
                             debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
                             return current_app.title_bounds_bottom = title_bounds_bottom;
                         } catch (e) {
@@ -1272,6 +1275,7 @@ function antForest() {
             }
 
             function swipeUp() {
+                if (list_end_signal) return debugInfo("检测到排行榜底部监测线程信号");
                 let invalid_rank_list_ref_data = 0;
 
                 let bottom_data = undefined,
@@ -1313,7 +1317,6 @@ function antForest() {
                     } else debugInfo("参照值: " + tmp_bottom_data);
                 } // wait for data stable
                 debugInfo("排行榜列表已稳定: " + (new Date().getTime() - debug_start_timestamp) + "ms");
-                if (list_end_signal) return debugInfo("检测到排行榜底部监测线程信号");
 
                 // tool function(s) //
 
@@ -1333,11 +1336,38 @@ function antForest() {
             // tool function(s) //
 
             function endOfListThread() {
-                let key_node_end_ident = null;
-                let kw_end_ident = () => key_node_end_ident = sel.pickup(/没有更多了|邀请/).findOnce();
+                let regexp_end_ident = /邀请|没有更多了/;
+                let kw_end_ident_desc = descMatches(regexp_end_ident);
+                let kw_end_ident_text = textMatches(regexp_end_ident);
                 while (1) {
                     try {
-                        while (!(kw_end_ident() && key_node_end_ident.bounds().top < HEIGHT)) sleep(200);
+                        while (1) {
+                            let kn_end_ident_desc = kw_end_ident_desc && kw_end_ident_desc.findOnce();
+                            if (kn_end_ident_desc) {
+                                kw_end_ident_text = null;
+                                let top = kn_end_ident_desc.bounds().top;
+                                let desc = kn_end_ident_desc.desc();
+                                if (top < HEIGHT) {
+                                    debugInfo("列表底部条件满足");
+                                    debugInfo(">top: " + top + "\/" + HEIGHT);
+                                    debugInfo(">desc: " + desc);
+                                    break;
+                                }
+                            }
+                            let kn_end_ident_text = kw_end_ident_text && kw_end_ident_text.findOnce();
+                            if (kn_end_ident_text) {
+                                kw_end_ident_desc = null;
+                                let top = kn_end_ident_text.bounds().top;
+                                let text = kn_end_ident_text.text();
+                                if (top < HEIGHT) {
+                                    debugInfo("列表底部条件满足");
+                                    debugInfo(">top: " + top + "\/" + HEIGHT);
+                                    debugInfo(">text: " + text);
+                                    break;
+                                }
+                            }
+                            sleep(200);
+                        }
                         debugInfo("列表底部已到达");
                         return list_end_signal = 1;
                     } catch (e) {
@@ -1391,7 +1421,7 @@ function antForest() {
                             if (!current_node_desc) continue;
                             if (current_node_desc.match(/\d+g/)) return i;
                         }
-                        debugInfo("收取数据布局索引使用备用方案");
+                        debugInfo("收取数据控件索引使用备用方案");
                         return 2; // just a backup plan
                     }
                 }

@@ -441,7 +441,7 @@ homepage
                 diag.setContent(ori_content + newest_server_version_name);
                 threads.start(function () {
                     try {
-                        newest_server_version_name = "v" + http.get(url_readme).body.string().match(/版本历史[^]+?v(\d+\.?)+/)[0].split("v")[1];
+                        newest_server_version_name = "v" + http.get(url_readme).body.string().match(/版本历史[^]+?v(\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].split("v")[1];
                     } catch (e) {
                         newest_server_version_name = "检查超时";
                     } finally {
@@ -454,7 +454,7 @@ homepage
         updateOpr: function (view) {
             let current_local_version_name = "";
             try {
-                current_local_version_name = "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+/)[0].slice(8);
+                current_local_version_name = "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
             } catch (e) {
                 current_local_version_name = "读取失败";
             }
