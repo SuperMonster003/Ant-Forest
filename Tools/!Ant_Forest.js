@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha8
+ * @version 1.6.22 Alpha9
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1469,7 +1469,7 @@ function antForest() {
                         let key_node_text = key_node.text();
                         let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
                             key_node_text && key_node_text.match(/\d+/) || null;
-                        return data_matched && (data_matched[0] - 0) || undefined;
+                        return data_matched && (data_matched[0] - 0) || NaN;
                     } catch (e) {
                         try {
                             return descMatches(/\d+g/).filter(function (w) {
@@ -1481,6 +1481,7 @@ function antForest() {
                                     return w.bounds().right > cX(0.95);
                                 }).findOnce().text().match(/\d+/)[0] - 0;
                             } catch (e) {
+                                return NaN;
                             }
                         }
                     }
