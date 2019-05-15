@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 14, 2019
- * @version 1.6.21
+ * @last_modified May 15, 2019
+ * @version 1.6.22 Alpha7
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -60,7 +60,7 @@ debugInfo("Auto.js版本: " + (current_autojs_version || "未知版本"));
 checkBugVersions();
 debugInfo("项目版本: " + (() => {
     try {
-        return "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+/)[0].slice(8);
+        return "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
     } catch (e) {
         return "未知版本";
     }
@@ -70,9 +70,17 @@ let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 debugInfo("成功接入\"af\"本地存储");
 if (!storage_af.get("config_prompted")) promptConfig();
 
-let WIDTH = device.width,
-    HEIGHT = device.height,
-    cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
+let WIDTH = device.width;
+if (!WIDTH) messageAction("屏幕宽度像素数据异常", 8, 1, 0, 1);
+let HEIGHT = device.height;
+if (!HEIGHT) messageAction("屏高宽度像素数据异常", 8, 1, 0, 1);
+if (HEIGHT < WIDTH) {
+    debugInfo("当前设备屏幕可能为横屏");
+    debugInfo("交换宽高数据");
+    [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
+}
+
+let cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
     cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)), // scaled by actual ratio
     cY16h9w = num => ~~(+num * (WIDTH * 16 / 9) / (+num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
@@ -518,7 +526,7 @@ function antForest() {
                 let selector_buttons = kw_energy_balls_ripe().find(),
                     buttons_size = selector_buttons.size();
                 if (!buttons_size) return;
-                selector_buttons.forEach(w => clickBounds(w.bounds()));
+                selector_buttons.forEach(w => clickBounds([w.bounds(), "press"]));
                 if (buttons_size === 6) {
                     current_app.total_energy_collect_own += getEnergyDiff(); // wait for energy balls being stable
                     return checkOnce(); // recursion has not been tested yet since Mar 26, 2019
@@ -706,8 +714,8 @@ function antForest() {
                         let rank_list = [];
                         kw_rank_list.findOnce().children().forEach((child, idx) => {
                             try {
-                                let rank_num = idx < 3 ? idx + 1 : child.child(0) && child.child(0).desc() || child.child(1) && child.child(1).desc();
-                                let nickname = child.child(1) && child.child(1).desc() || child.child(2) && child.child(2).desc();
+                                let rank_num = getRankNum(child, idx);
+                                let nickname = getNickname(child, idx);
                                 if (+rank_num) {
                                     rank_list.push({
                                         rank_num: +rank_num,
@@ -729,6 +737,39 @@ function antForest() {
                             list_data: rank_list,
                             list_length: rank_list.length,
                         };
+
+                        // tool function(s) //
+
+                        function getRankNum(child, idx) {
+                            if (idx < 3) return idx + 1;
+                            return checkChild(0) || checkChild(1);
+
+                            // tool function(s) //
+
+                            function checkChild(num) {
+                                let key_node = child.child(num);
+                                if (!key_node) return;
+                                let desc = child.child(num).desc();
+                                if (desc && desc.match(/\d+/)) return desc;
+                                let text = child.child(num).text();
+                                if (text && text.match(/\d+/)) return text;
+                            }
+                        }
+
+                        function getNickname(child, idx) {
+                            return checkChild(1) || checkChild(2);
+
+                            // tool function(s) //
+
+                            function checkChild(num) {
+                                let key_node = child.child(num);
+                                if (!key_node) return;
+                                let desc = child.child(num).desc();
+                                if (desc) return desc;
+                                let text = child.child(num).text();
+                                if (text) return text;
+                            }
+                        }
                     }
                 }
             }
@@ -758,8 +799,12 @@ function antForest() {
                     let find_color_options = getFindColorOptions(w);
 
                     // special treatment for first 3 ones
-                    let name_node = parent_node.child(1).desc() && parent_node.child(1) || parent_node.child(2);
-                    let name = name_node.desc();
+                    let name_node = parent_node.child(1);
+                    let name = name_node.desc() || name_node.text();
+                    if (!name) {
+                        name_node = parent_node.child(2);
+                        name = name_node.desc() || name_node.text();
+                    }
                     let name_node_cy = name_node.bounds().centerY();
 
                     try {
@@ -823,11 +868,32 @@ function antForest() {
                         Object.keys(tmp_data_pool).forEach(bottom => data_arr.push([bottom, tmp_data_pool[bottom]]));
                         let title_bounds_bottom = 0;
                         try {
-                            title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || current_app.kw_rank_list_title().findOnce().parent().parent().bounds().bottom;
+                            let refs_data = data_arr.sort((a, b) => [a][1] > b[1])[0];
+                            if (refs_data) {
+                                title_bounds_bottom = +refs_data[0];
+                            } else {
+                                let key_node = current_app.kw_rank_list_title().findOnce();
+                                if (key_node) title_bounds_bottom = key_node.parent().parent().bounds().bottom;
+                                else title_bounds_bottom = desc("关闭").findOnce().parent().parent().parent().parent().bounds().bottom;
+                            }
+
+                            if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2) || title_bounds_bottom < cY16h9w(0.05)) {
+                                return debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
+                            }
                             debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
                             return current_app.title_bounds_bottom = title_bounds_bottom;
                         } catch (e) {
-                            debugInfo("获取标题控件bottom数据: 失败");
+                            debugInfo(e);
+                            current_app.title_bounds_bottom_count = current_app.title_bounds_bottom_count || 0;
+                            let count = ++current_app.title_bounds_bottom_count;
+                            if (count < 4) {
+                                debugInfo("获取标题控件bottom数据: 失败 (" + (count + "\/" + 3) + ")");
+                            } else {
+                                debugInfo("使用控件标题bottom备用方案");
+                                let backup_bottom = cY16h9w(150);
+                                current_app.title_bounds_bottom = backup_bottom;
+                                debugInfo("当前标题控件bottom数据: " + backup_bottom);
+                            }
                         }
                     }
                 }
@@ -1002,7 +1068,7 @@ function antForest() {
                     if (blacklist_ident_capts_len) {
                         debugInfo("使用能量球监测线程采集数据");
                         debugInfo("黑名单采集样本数量: " + blacklist_ident_capts_len);
-                        if (blacklist_ident_capts_len < 2) {
+                        if (blacklist_ident_capts_len < 3) {
                             debugInfo("黑名单样本数量不足");
                             let max_wait_times_enough_idents = 1;
                             while (max_wait_times_enough_idents--) {
@@ -1016,7 +1082,7 @@ function antForest() {
                                     debugInfo("现场采集新黑名单样本数据");
                                     captNewBlackListIdent();
                                     break;
-                                } else if (blacklist_ident_capts.length === 2) {
+                                } else if (blacklist_ident_capts.length === 3) {
                                     debugInfo("黑名单样本数据充足");
                                     break;
                                 } else {
@@ -1159,8 +1225,10 @@ function antForest() {
                     let ripe_flag = false;
 
                     if (ripe_balls.size()) {
+                        current_app.current_friend.console_logged = 1;
+
                         ripe_flag = 1;
-                        ripe_balls.forEach(w => clickBounds(w.bounds()));
+                        ripe_balls.forEach(w => clickBounds([w.bounds(), "press"]));
                         debugInfo("点击成熟能量球: " + ripe_balls.length + "个");
                         take_clicked_flag = 1;
 
@@ -1272,6 +1340,7 @@ function antForest() {
             }
 
             function swipeUp() {
+                if (list_end_signal) return debugInfo("检测到排行榜底部监测线程信号");
                 let invalid_rank_list_ref_data = 0;
 
                 let bottom_data = undefined,
@@ -1289,6 +1358,8 @@ function antForest() {
                     if (bottom_height - top_height > 0 && swipe(half_width, bottom_height, half_width, top_height, config.list_swipe_time)) break;
                     let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                     debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
+                    bottom_height = cY(0.9);
+                    top_height = cY(0.1);
                     sleep(200);
                 }
                 if (max_try_times_swipe < 0) {
@@ -1313,7 +1384,6 @@ function antForest() {
                     } else debugInfo("参照值: " + tmp_bottom_data);
                 } // wait for data stable
                 debugInfo("排行榜列表已稳定: " + (new Date().getTime() - debug_start_timestamp) + "ms");
-                if (list_end_signal) return debugInfo("检测到排行榜底部监测线程信号");
 
                 // tool function(s) //
 
@@ -1333,11 +1403,42 @@ function antForest() {
             // tool function(s) //
 
             function endOfListThread() {
-                let key_node_end_ident = null;
-                let kw_end_ident = () => key_node_end_ident = sel.pickup(/没有更多了|邀请/).findOnce();
+                let regexp_end_ident = /邀请|没有更多了/;
+                let kw_end_ident_desc = descMatches(regexp_end_ident);
+                let kw_end_ident_text = textMatches(regexp_end_ident);
                 while (1) {
                     try {
-                        while (!(kw_end_ident() && key_node_end_ident.bounds().top < HEIGHT)) sleep(200);
+                        while (1) {
+                            let kn_end_ident_desc = kw_end_ident_desc && kw_end_ident_desc.findOnce();
+                            if (kn_end_ident_desc) {
+                                kw_end_ident_text = null;
+                                let bounds = kn_end_ident_desc.bounds();
+                                let top = bounds.top;
+                                let bottom = bounds.bottom;
+                                let desc = kn_end_ident_desc.desc();
+                                if (top < HEIGHT && bottom - top > cX(0.025)) {
+                                    debugInfo("列表底部条件满足");
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bottom + "]");
+                                    debugInfo(">desc: " + desc);
+                                    break;
+                                }
+                            }
+                            let kn_end_ident_text = kw_end_ident_text && kw_end_ident_text.findOnce();
+                            if (kn_end_ident_text) {
+                                kw_end_ident_desc = null;
+                                let bounds = kn_end_ident_text.bounds();
+                                let top = bounds.top;
+                                let bottom = bounds.bottom;
+                                let text = kn_end_ident_text.text();
+                                if (top < HEIGHT && bottom - top > cX(0.025)) {
+                                    debugInfo("列表底部条件满足");
+                                    debugInfo(">bounds: [" + bounds.left + ", " + top + ", " + bounds.right + ", " + bottom + "]");
+                                    debugInfo(">text: " + text);
+                                    break;
+                                }
+                            }
+                            sleep(200);
+                        }
                         debugInfo("列表底部已到达");
                         return list_end_signal = 1;
                     } catch (e) {
@@ -1349,13 +1450,17 @@ function antForest() {
             function getOperateData(ident) {
                 if (ident === "help") return getHelpData();
                 if (ident === "collect") return getCollectData();
-                return NaN;
 
                 // tool function(s) //
 
                 function getHelpData() {
                     try {
-                        return idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1).desc().match(/\d+/)[0] - 0;
+                        let key_node = idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1);
+                        let key_node_desc = key_node.desc();
+                        let key_node_text = key_node.text();
+                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
+                            key_node_text && key_node_text.match(/\d+/) || null;
+                        return data_matched && (data_matched[0] - 0) || undefined;
                     } catch (e) {
                         try {
                             return descMatches(/\d+g/).filter(function (w) {
@@ -1367,31 +1472,37 @@ function antForest() {
                                     return w.bounds().right > cX(0.95);
                                 }).findOnce().text().match(/\d+/)[0] - 0;
                             } catch (e) {
-                                return 0 / 0;
                             }
                         }
                     }
                 }
 
                 function getCollectData() {
-                    let kw_collected = () => sel.pickup("你收取TA");
+                    let _kw_collected = null;
+                    let kw_collected = () => _kw_collected || (_kw_collected = sel.pickup("你收取TA"));
                     let idx_collected_node = null;
                     try {
                         idx_collected_node = idx_collected_node || getCollectedNodeIdx();
-                        return kw_collected().findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
+                        let key_node = kw_collected().findOnce().parent().child(idx_collected_node);
+                        let key_node_desc = key_node.desc();
+                        let key_node_text = key_node.text();
+                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
+                            key_node_text && key_node_text.match(/\d+/) || null;
+                        return data_matched && (data_matched[0] - 0) || undefined;
                     } catch (e) {
-                        return 0 / 0;
                     }
 
                     // tool function(s) //
 
                     function getCollectedNodeIdx() {
                         for (let i = 0, len = kw_collected().findOnce().parent().children().size(); i < len; i += 1) {
-                            let current_node_desc = kw_collected().findOnce().parent().child(i).desc();
-                            if (!current_node_desc) continue;
-                            if (current_node_desc.match(/\d+g/)) return i;
+                            let key_node = kw_collected().findOnce().parent().child(i);
+                            let current_node_desc = key_node.desc();
+                            if (current_node_desc && current_node_desc.match(/\d+g/)) return i;
+                            let current_node_text = key_node.text();
+                            if (current_node_text && current_node_text.match(/\d+g/)) return i;
                         }
-                        debugInfo("收取数据布局索引使用备用方案");
+                        debugInfo("收取数据控件索引使用备用方案");
                         return 2; // just a backup plan
                     }
                 }
@@ -2210,13 +2321,13 @@ function launchThisApp(intent, no_msg_flag) {
                 }
             }
             debugInfo("启动完成条件监测完毕");
-            try {
-                let title_bounds_bottom = current_app.kw_af_title().findOnce().parent().parent().bounds().bottom;
-                debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
-                current_app.title_bounds_bottom = title_bounds_bottom;
-            } catch (e) {
-                debugInfo("获取标题控件bottom数据: 失败");
-            }
+            // try {
+            //     let title_bounds_bottom = current_app.kw_af_title().findOnce().parent().parent().bounds().bottom;
+            //     debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
+            //     current_app.title_bounds_bottom = title_bounds_bottom;
+            // } catch (e) {
+            //     debugInfo("获取标题控件bottom数据: 失败");
+            // }
             break;
         }
         debugInfo("尝试关闭支付宝应用: (" + (max_retry_times_backup - max_retry_times) + "\/" + max_retry_times_backup + ")");
@@ -2496,11 +2607,15 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
     }
 
     if (func.toString().match(/^Rect\(/) && if_continuous) messageAction("连续点击时 f参数不能是bounds():\n" + func.toString(), 8, 1);
-    if (!!additionFunc && additionFunc !== "try" && typeof additionFunc !== "function") messageAction("additionFunc参数类型不是\"function\":\n" + additionFunc.toString(), 8, 1);
 
-    if (typeof additionFunc !== "undefined") {
-        if (additionFunc === "try" && (!func || !func.exists())) return false;
-        if (typeof additionFunc === "function" && !additionFunc()) return false;
+    let press_flag;
+    if (additionFunc){
+        if (typeof additionFunc === "string") {
+            if (!additionFunc.match(/try|press/)) messageAction("additionFunc参数无法识别:\n" + additionFunc.toString(), 8, 1);
+            if (additionFunc.match(/try/) && (!func || !func.exists())) return false;
+            if (additionFunc.match(/press/)) press_flag = true;
+        } else if (typeof additionFunc === "function" && !additionFunc()) return false;
+        else messageAction("无法识别的additionFunc参数类型: " + typeof additionFunc, 8, 1);
     }
 
     max_check_times = max_check_times || (if_continuous ? 3 : 1);
@@ -2544,7 +2659,9 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
                 bad_situation_pending %= 1000;
             }
             try {
-                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                let x = node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0);
+                let y = node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0);
+                press_flag ? press(x, y, 1) : click(x, y);
             } catch (e) {
                 // nothing to do here
             }
@@ -2556,7 +2673,9 @@ function clickBounds(f, if_continuous, max_check_times, check_interval, padding,
             if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
             if (special_bad_situation) checkBadSituation(special_bad_situation);
             try {
-                click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
+                let x = node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0);
+                let y = node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0);
+                press_flag ? press(x, y, 1) : click(x, y);
             } catch (e) {
                 max_check_times = -1;
             }
@@ -2670,6 +2789,8 @@ function checkBadSituation(bad_situations) {
 function tryRequestScreenCapture() {
     if (current_app.request_screen_capture_flag) return debugInfo("无需重复申请截图权限");
     debugInfo("开始申请截图权限");
+    let req_result = images.requestScreenCapture();
+    sleep(300);
 
     current_app.request_screen_capture_flag = 1;
     debugInfo("已存储截图权限申请标记");
@@ -2687,18 +2808,15 @@ function tryRequestScreenCapture() {
         clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
     });
 
-    let req_result;
     let thread_monitor = threads.start(function () {
-        if (waitForAction(() => typeof req_result !== "undefined", 2000)) {
+        if (waitForAction(() => !!req_result, [2000, 500])) {
             thread_prompt.interrupt();
-            debugInfo("截图权限申请结果: " + req_result);
-            return true;
+            return debugInfo("截图权限申请结果: " + req_result);
         }
         debugInfo("截图权限申请结果: 失败");
         restartCurrentTaskInEngine("!Ant_Forest");
     });
-    req_result = images.requestScreenCapture();
-    sleep(180);
+
     thread_monitor.join(2400);
     thread_monitor.isAlive() && thread_monitor.interrupt();
     if (req_result) return true;
