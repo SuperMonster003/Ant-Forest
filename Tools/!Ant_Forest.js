@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha2
+ * @version 1.6.22 Alpha3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -864,14 +864,24 @@ function antForest() {
                         Object.keys(tmp_data_pool).forEach(bottom => data_arr.push([bottom, tmp_data_pool[bottom]]));
                         let title_bounds_bottom = 0;
                         try {
-                            title_bounds_bottom = +data_arr.sort((a, b) => [a][1] < b[1])[0][0] || current_app.kw_rank_list_title().findOnce().parent().parent().bounds().bottom;
-                            if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2)) {
+                            title_bounds_bottom = +data_arr.sort((a, b) => [a][1] > b[1])[0][0] || current_app.kw_rank_list_title().findOnce().parent().parent().bounds().bottom;
+                            if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2) || title_bounds_bottom < cY16h9w(0.05)) {
                                 return debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
                             }
                             debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
                             return current_app.title_bounds_bottom = title_bounds_bottom;
                         } catch (e) {
-                            debugInfo("获取标题控件bottom数据: 失败");
+                            debugInfo(e);
+                            current_app.title_bounds_bottom_count = current_app.title_bounds_bottom_count || 0;
+                            let count = ++current_app.title_bounds_bottom_count;
+                            if (count < 4) {
+                                debugInfo("获取标题控件bottom数据: 失败 (" + (count + "\/" + 3) + ")");
+                            } else {
+                                debugInfo("使用控件标题bottom备用方案");
+                                let backup_bottom = cY16h9w(150);
+                                current_app.title_bounds_bottom = backup_bottom;
+                                debugInfo("当前标题控件bottom数据: " + backup_bottom);
+                            }
                         }
                     }
                 }
@@ -1203,6 +1213,8 @@ function antForest() {
                     let ripe_flag = false;
 
                     if (ripe_balls.size()) {
+                        current_app.current_friend.console_logged = 1;
+
                         ripe_flag = 1;
                         ripe_balls.forEach(w => clickBounds(w.bounds()));
                         debugInfo("点击成熟能量球: " + ripe_balls.length + "个");
@@ -1422,13 +1434,17 @@ function antForest() {
             function getOperateData(ident) {
                 if (ident === "help") return getHelpData();
                 if (ident === "collect") return getCollectData();
-                return NaN;
 
                 // tool function(s) //
 
                 function getHelpData() {
                     try {
-                        return idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1).desc().match(/\d+/)[0] - 0;
+                        let key_node = idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1);
+                        let key_node_desc = key_node.desc();
+                        let key_node_text = key_node.text();
+                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
+                            key_node_text && key_node_text.match(/\d+/) || null;
+                        return data_matched && (data_matched[0] - 0) || undefined;
                     } catch (e) {
                         try {
                             return descMatches(/\d+g/).filter(function (w) {
@@ -1439,30 +1455,34 @@ function antForest() {
                                 return textMatches(/\d+g/).filter(function (w) {
                                     return w.bounds().right > cX(0.95);
                                 }).findOnce().text().match(/\d+/)[0] - 0;
-                            } catch (e) {
-                                return 0 / 0;
-                            }
+                            } catch (e) {}
                         }
                     }
                 }
 
                 function getCollectData() {
-                    let kw_collected = () => sel.pickup("你收取TA");
+                    let _kw_collected = null;
+                    let kw_collected = () => _kw_collected || (_kw_collected = sel.pickup("你收取TA"));
                     let idx_collected_node = null;
                     try {
                         idx_collected_node = idx_collected_node || getCollectedNodeIdx();
-                        return kw_collected().findOnce().parent().child(idx_collected_node).desc().match(/\d+/)[0] - 0;
-                    } catch (e) {
-                        return 0 / 0;
-                    }
+                        let key_node = kw_collected().findOnce().parent().child(idx_collected_node);
+                        let key_node_desc = key_node.desc();
+                        let key_node_text = key_node.text();
+                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
+                            key_node_text && key_node_text.match(/\d+/) || null;
+                        return data_matched && (data_matched[0] - 0) || undefined;
+                    } catch (e) {}
 
                     // tool function(s) //
 
                     function getCollectedNodeIdx() {
                         for (let i = 0, len = kw_collected().findOnce().parent().children().size(); i < len; i += 1) {
-                            let current_node_desc = kw_collected().findOnce().parent().child(i).desc();
-                            if (!current_node_desc) continue;
-                            if (current_node_desc.match(/\d+g/)) return i;
+                            let key_node = kw_collected().findOnce().parent().child(i);
+                            let current_node_desc = key_node.desc();
+                            if (current_node_desc && current_node_desc.match(/\d+g/)) return i;
+                            let current_node_text = key_node.text();
+                            if (current_node_text && current_node_text.match(/\d+g/)) return i;
                         }
                         debugInfo("收取数据控件索引使用备用方案");
                         return 2; // just a backup plan
@@ -2743,6 +2763,8 @@ function checkBadSituation(bad_situations) {
 function tryRequestScreenCapture() {
     if (current_app.request_screen_capture_flag) return debugInfo("无需重复申请截图权限");
     debugInfo("开始申请截图权限");
+    let req_result = images.requestScreenCapture();
+    sleep(300);
 
     current_app.request_screen_capture_flag = 1;
     debugInfo("已存储截图权限申请标记");
@@ -2760,18 +2782,15 @@ function tryRequestScreenCapture() {
         clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
     });
 
-    let req_result;
     let thread_monitor = threads.start(function () {
-        if (waitForAction(() => typeof req_result !== "undefined", 2000)) {
+        if (waitForAction(() => !!req_result, [2000, 500])) {
             thread_prompt.interrupt();
-            debugInfo("截图权限申请结果: " + req_result);
-            return true;
+            return debugInfo("截图权限申请结果: " + req_result);
         }
         debugInfo("截图权限申请结果: 失败");
         restartCurrentTaskInEngine("!Ant_Forest");
     });
-    req_result = images.requestScreenCapture();
-    sleep(180);
+
     thread_monitor.join(2400);
     thread_monitor.isAlive() && thread_monitor.interrupt();
     if (req_result) return true;
