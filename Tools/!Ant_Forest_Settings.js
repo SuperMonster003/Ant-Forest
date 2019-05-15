@@ -1575,7 +1575,7 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
     title_bg_color = title_bg_color || defs["title_bg_color"];
     let new_view = ui.inflate(<vertical></vertical>);
     new_view.addView(ui.inflate(
-        <linear id="_title_bg">
+        <linear id="_title_bg" clickable="true">
             <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
                 <linear>
                     <img src="@drawable/ic_chevron_left_black_48dp" height="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
@@ -1585,7 +1585,7 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             <text id="_title_text" textColor="#ffffff" textSize="19" textStyle="bold" margin="16"/>
         </linear>
     ));
-    new_view.back_btn_text.on("click", () => checkSpecialPagesBeforeJumpBack() && pageJump("back"));
+    new_view._back_btn_area.on("click", () => checkSpecialPagesBeforeJumpBack() && pageJump("back"));
     new_view._title_text.text(title);
     let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
     new_view._title_bg.setBackgroundColor(title_bg);
