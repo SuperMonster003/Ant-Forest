@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha4
+ * @version 1.6.22 Alpha5
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -799,8 +799,12 @@ function antForest() {
                     let find_color_options = getFindColorOptions(w);
 
                     // special treatment for first 3 ones
-                    let name_node = parent_node.child(1).desc() && parent_node.child(1) || parent_node.child(2);
-                    let name = name_node.desc();
+                    let name_node = parent_node.child(1);
+                    let name = name_node.desc() || name_node.text();
+                    if (!name) {
+                        name_node = parent_node.child(2);
+                        name = name_node.desc() || name_node.text();
+                    }
                     let name_node_cy = name_node.bounds().centerY();
 
                     try {
