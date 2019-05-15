@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 15, 2019
- * @version 1.6.22 Alpha
+ * @version 1.6.22 Alpha2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -70,9 +70,17 @@ let storage_af = require("../Modules/MODULE_STORAGE").create("af");
 debugInfo("成功接入\"af\"本地存储");
 if (!storage_af.get("config_prompted")) promptConfig();
 
-let WIDTH = device.width,
-    HEIGHT = device.height,
-    cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
+let WIDTH = device.width;
+if (!WIDTH) messageAction("屏幕宽度像素数据异常", 8, 1, 0, 1);
+let HEIGHT = device.height;
+if (!HEIGHT) messageAction("屏高宽度像素数据异常", 8, 1, 0, 1);
+if (HEIGHT < WIDTH) {
+    debugInfo("当前设备屏幕可能为横屏");
+    debugInfo("交换宽高数据");
+    [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
+}
+
+let cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
     cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)), // scaled by actual ratio
     cY16h9w = num => ~~(+num * (WIDTH * 16 / 9) / (+num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
@@ -706,8 +714,8 @@ function antForest() {
                         let rank_list = [];
                         kw_rank_list.findOnce().children().forEach((child, idx) => {
                             try {
-                                let rank_num = idx < 3 ? idx + 1 : child.child(0) && child.child(0).desc() || child.child(1) && child.child(1).desc();
-                                let nickname = child.child(1) && child.child(1).desc() || child.child(2) && child.child(2).desc();
+                                let rank_num = getRankNum(child, idx);
+                                let nickname = getNickname(child, idx);
                                 if (+rank_num) {
                                     rank_list.push({
                                         rank_num: +rank_num,
@@ -729,6 +737,39 @@ function antForest() {
                             list_data: rank_list,
                             list_length: rank_list.length,
                         };
+
+                        // tool function(s) //
+
+                        function getRankNum(child, idx) {
+                            if (idx < 3) return idx + 1;
+                            return checkChild(0) || checkChild(1);
+
+                            // tool function(s) //
+
+                            function checkChild(num) {
+                                let key_node = child.child(num);
+                                if (!key_node) return;
+                                let desc = child.child(num).desc();
+                                if (desc && desc.match(/\d+/)) return desc;
+                                let text = child.child(num).text();
+                                if (text && text.match(/\d+/)) return text;
+                            }
+                        }
+
+                        function getNickname(child, idx) {
+                            return checkChild(1) || checkChild(2);
+
+                            // tool function(s) //
+
+                            function checkChild(num) {
+                                let key_node = child.child(num);
+                                if (!key_node) return;
+                                let desc = child.child(num).desc();
+                                if (desc) return desc;
+                                let text = child.child(num).text();
+                                if (text) return text;
+                            }
+                        }
                     }
                 }
             }
@@ -1293,6 +1334,8 @@ function antForest() {
                     if (bottom_height - top_height > 0 && swipe(half_width, bottom_height, half_width, top_height, config.list_swipe_time)) break;
                     let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                     debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
+                    bottom_height = cY(0.9);
+                    top_height = cY(0.1);
                     sleep(200);
                 }
                 if (max_try_times_swipe < 0) {
