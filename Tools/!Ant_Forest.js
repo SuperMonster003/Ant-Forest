@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 15, 2019
- * @version 1.6.22 Alpha10
+ * @last_modified May 16, 2019
+ * @version 1.6.23 Alpha
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -208,7 +208,7 @@ function antForest() {
 
             images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
             current_app = Object.assign(current_app, new App("蚂蚁森林"));
-            current_app.kw_af_title = () => memorize(sel.pickup(/蚂蚁森林|Ant Forest/), "kw_af_title");
+            current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/);
             current_app.kw_af_home = () => memorize(sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/), "kw_af_home");
             current_app.kw_list_more_friends = () => memorize(sel.pickup("查看更多好友"), "kw_list_more_friends");
             current_app.kw_rank_list_title = () => memorize(sel.pickup(/好友排行榜|Green heroes/), "kw_rank_list_title");
@@ -303,8 +303,8 @@ function antForest() {
                         af_title_or_login: () => current_app.kw_af_title().exists() || current_app.kw_login_or_switch.exists(),
                     };
                     let conditions_optional = {
-                        kw_desc_buttons: () => current_app.kw_af_home(),
-                        kw_more_friends: () => current_app.kw_list_more_friends(),
+                        kw_function_buttons: () => current_app.kw_af_home(),
+                        kw_list_more_friends_btn: () => current_app.kw_list_more_friends(),
                         kw_login_or_switch: current_app.kw_login_or_switch,
                     };
                     let keys_nec = Object.keys(conditions_necessary);
@@ -318,6 +318,8 @@ function antForest() {
                         }
                     }
                     debugInfo("已满足全部启动必要条件");
+                    current_app.kw_af_title = () => memorize(sel.pickup(/蚂蚁森林|Ant Forest/), "kw_af_title");
+
                     let keys_opt = Object.keys(conditions_optional);
                     for (let i = 0, len = keys_opt.length; i < len; i += 1) {
                         let key_opt = keys_opt[i];
@@ -386,7 +388,7 @@ function antForest() {
             let title_desc = title_node && title_node.desc();
             let title_text = title_node && title_node.text();
             return title_desc && !title_desc.match(/蚂蚁森林/) || title_text && !title_text.match(/蚂蚁森林/);
-        }, 1000)) {
+        }, 500)) {
             debugInfo("当前支付宝语言: 简体中文");
         } else {
             debugInfo("当前支付宝语言: 英语");
@@ -578,7 +580,8 @@ function antForest() {
                     debugInfo(">移除并回收最旧样本: " + images.getName(last_capt));
                     last_capt.recycle();
                 }
-                let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
+                // let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
+                let new_capt = images.clip(capture, cX(288), cY16h9w(210), cX(142), cY16h9w(44)); // more flexible condition(s)
                 blacklist_ident_capts.unshift(new_capt);
                 debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
             };
@@ -1107,12 +1110,20 @@ function antForest() {
                         captNewBlackListIdent();
                     }
 
-                    let protect_color_match = images.findColor(blacklist_ident_capts[0], -4262312, {
-                        threshold: 4,
-                    });
-
                     current_app.blacklist_need_capture_flag = false;
                     debugInfo("发送黑名单停止采集信号");
+
+                    let protect_color_match = false;
+                    for (let i = 0, len = blacklist_ident_capts.length; i < len; i += 1) {
+                        if (images.findColor(blacklist_ident_capts[i], -4262312, {
+                            // threshold: 4,
+                            threshold: 5, // more flexible condition(s)
+                        })) {
+                            protect_color_match = true;
+                            break;
+                        }
+                    }
+
                     blacklist_ident_capts.clear();
 
                     if (protect_color_match) blacklist_passed_flag = false;
@@ -1136,7 +1147,7 @@ function antForest() {
 
                     function listMoreThread() {
                         let kw_list_more = () => memorize(sel.pickup("点击加载更多"), "kw_list_more_for_rank_list_page");
-                        if (!waitForAction(() => kw_list_more.exists(), 2000)) return;
+                        if (!waitForAction(() => kw_list_more().exists(), 2000)) return;
 
                         let safe_max_try_times = 50; // 10 sec at most
                         let click_count = 0;
@@ -1246,17 +1257,23 @@ function antForest() {
                         if (isNaN(ori_collected_amount)) return messageAction("初始收取数据无效", 3, 0, 1);
 
                         debugInfo("等待收取数据稳定");
-                        if (!waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 3000)) return debugInfo("等待收取数据稳定超时");
-                        collected_amount = tmp_collected_amount;
-                        let max_rescue_times = 8;
-                        while (waitForAction(() => collected_amount !== (tmp_collected_amount = getOperateData("collect")), 300) && max_rescue_times) {
-                            if (isNaN(tmp_collected_amount)) {
-                                max_rescue_times -= 1;
-                                continue;
+
+                        if (!waitForAction(() => {
+                            tmp_collected_amount = getOperateData("collect");
+                            if (!isNaN(tmp_collected_amount) && collected_amount !== tmp_collected_amount) {
+                                collected_amount = tmp_collected_amount;
+                                return true;
                             }
-                            collected_amount = tmp_collected_amount;
-                        }
-                        max_rescue_times ? debugInfo("收取数据已稳定: " + collected_amount) : debugInfo("收取数据全部无效");
+                        }, [3500, 80])) return debugInfo("等待收取数据稳定超时");
+
+                        while (waitForAction(() => {
+                            tmp_collected_amount = getOperateData("collect");
+                            if (!isNaN(tmp_collected_amount) && collected_amount !== tmp_collected_amount) {
+                                collected_amount = tmp_collected_amount;
+                                return true;
+                            }
+                        }, [300, 80])) ; // empty loop body
+                        debugInfo("收取数据已稳定: " + collected_amount);
                     }
 
                     if (ripe_flag && (config.console_log_details || config.debug_info_switch)) {
@@ -1283,7 +1300,7 @@ function antForest() {
                     let ori_helped_amount = getOperateData("help");
                     debugInfo("初始好友能量数据: " + ori_helped_amount);
                     let helped_amount = ori_helped_amount;
-                    let tmp_helped_amount = undefined;
+                    let tmp_helped_amount = ori_helped_amount;
 
                     let coords_arr = Object.keys(help_balls_coords);
                     if (!coords_arr.length) return debugInfo("没有可帮收的能量球");
@@ -1301,17 +1318,21 @@ function antForest() {
                     if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
 
                     debugInfo("等待好友能量数据稳定");
-                    if (!waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 3500)) return debugInfo("等待好友能量数据稳定超时");
-                    helped_amount = tmp_helped_amount;
-                    let max_rescue_times = 8;
-                    while (waitForAction(() => helped_amount !== (tmp_helped_amount = getOperateData("help")), 300) && max_rescue_times) {
-                        if (isNaN(tmp_helped_amount)) {
-                            max_rescue_times -= 1;
-                            continue;
+                    if (!waitForAction(() => {
+                        tmp_helped_amount = getOperateData("help");
+                        if (!isNaN(tmp_helped_amount) && helped_amount !== tmp_helped_amount) {
+                            helped_amount = tmp_helped_amount;
+                            return true;
                         }
-                        helped_amount = tmp_helped_amount;
-                    }
-                    max_rescue_times ? debugInfo("好友能量数据已稳定: " + helped_amount) : debugInfo("好友能量数据全部无效");
+                    }, [3500, 80])) return debugInfo("等待好友能量数据稳定超时");
+                    while (waitForAction(() => {
+                        tmp_helped_amount = getOperateData("help");
+                        if (!isNaN(tmp_helped_amount) && helped_amount !== tmp_helped_amount) {
+                            helped_amount = tmp_helped_amount;
+                            return true;
+                        }
+                    }, [300, 80])) ; // empty loop body
+                    debugInfo("好友能量数据已稳定: " + helped_amount);
 
                     if (config.console_log_details || config.debug_info_switch) {
                         messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
@@ -1458,13 +1479,14 @@ function antForest() {
 
             function getOperateData(ident) {
                 if (ident === "help") return getHelpData();
-                if (ident === "collect") return getCollectData();
+                if (ident === "collect") return getCollectedData();
 
                 // tool function(s) //
 
                 function getHelpData() {
                     try {
-                        let key_node = idMatches(/.*J_home_panel/).findOnce().child(0).child(0).child(1);
+                        let kw_home_panel = idMatches(/.*J_home_panel/);
+                        let key_node = kw_home_panel.findOnce().child(0).child(0).child(1);
                         let key_node_desc = key_node.desc();
                         let key_node_text = key_node.text();
                         let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
@@ -1487,25 +1509,26 @@ function antForest() {
                     }
                 }
 
-                function getCollectData() {
-                    let kw_collected = () => memorize(sel.pickup("你收取TA"), "kw_collected_data");
-                    let idx_collected_node = null;
+                function getCollectedData() {
+                    let kw_collected_ident = () => memorize(sel.pickup("你收取TA"), "kw_collected_ident");
                     try {
-                        idx_collected_node = idx_collected_node || getCollectedNodeIdx();
-                        let key_node = kw_collected().findOnce().parent().child(idx_collected_node);
+                        this.idx_collected_data_node = this.idx_collected_data_node || getCollectedNodeIdx();
+                        let key_node = kw_collected_ident().findOnce().parent().child(this.idx_collected_data_node);
                         let key_node_desc = key_node.desc();
                         let key_node_text = key_node.text();
                         let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
                             key_node_text && key_node_text.match(/\d+/) || null;
-                        return data_matched && (data_matched[0] - 0) || undefined;
+                        return data_matched && (data_matched[0] - 0) || NaN;
                     } catch (e) {
+                        return NaN;
                     }
 
                     // tool function(s) //
 
                     function getCollectedNodeIdx() {
-                        for (let i = 0, len = kw_collected().findOnce().parent().children().size(); i < len; i += 1) {
-                            let key_node = kw_collected().findOnce().parent().child(i);
+                        let getKeyParentNode = () => kw_collected_ident().findOnce().parent();
+                        for (let i = 0, len = getKeyParentNode().children().size(); i < len; i += 1) {
+                            let key_node = getKeyParentNode().child(i);
                             let current_node_desc = key_node.desc();
                             if (current_node_desc && current_node_desc.match(/\d+g/)) return i;
                             let current_node_text = key_node.text();
@@ -1865,7 +1888,12 @@ function antForest() {
 function memorize(kn, kw_name) {
     let memory_kn = this[kw_name];
     if (memory_kn) return memory_kn;
-    if (kn.exists()) this[kw_name] = kn;
+    if (kn.exists()) {
+        debugInfo("选择器已记录");
+        debugInfo(">" + kw_name);
+        debugInfo(">" + kn);
+        this[kw_name] = kn;
+    }
     return kn;
 }
 
@@ -1888,17 +1916,32 @@ function checkModules() {
 function checkTasksQueue() {
     let queue_flag = false;
     let queue_start_timestamp = new Date().getTime();
-    let checkExclusiveTasks = () => engines.all().filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id).length;
+    let checkExclusiveTasks = () => {
+        let filtered_tasks = engines.all()
+            .filter(e => e.getTag("exclusive_task") && e.id < engines.myEngine().id)
+            .sort((a, b) => a.id > b.id);
+        if (filtered_tasks.length) return filtered_tasks;
+    };
     try {
         engines.myEngine().setTag("exclusive_task", "af");
         if (typeof engines.myEngine().execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
-        checkExclusiveTasks();
         let init_ex_tasks_check = checkExclusiveTasks();
         if (init_ex_tasks_check) {
-            debugInfo("排他性任务排队中: " + init_ex_tasks_check + "项");
-            while (checkExclusiveTasks()) {
+            let queue_length = init_ex_tasks_check.length;
+            debugInfo("排他性任务排队中: " + queue_length + "项");
+            let max_queue_time = (config.max_running_time + 1) * queue_length;
+            let queue_force_stop_timestamp = new Date().getTime() + max_queue_time * 60000;
+            debugInfo("已设置最大排队时间: " + max_queue_time + "分钟");
+            while (1) {
+                let filtered_tasks = checkExclusiveTasks();
+                if (!filtered_tasks) break;
                 queue_flag = true;
-                sleep(500);
+                sleep(1000);
+                if (queue_force_stop_timestamp <= new Date().getTime()) {
+                    filtered_tasks[0].forceStop();
+                    debugInfo("强制停止最早一项任务");
+                    debugInfo(">" + "已达最大排队等待时间");
+                }
             }
         }
     } catch (e) {
