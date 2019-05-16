@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 16, 2019
- * @version 1.6.23 Alpha2
+ * @version 1.6.23 Alpha3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -872,7 +872,6 @@ function antForest() {
                     // tool function(s) //
 
                     function getTitleBoundsBottom() {
-                        if (current_app.title_bounds_bottom) return;
                         let refs = [
                             idMatches(/.*h5.title.bar.layout/),
                             idMatches(/.*h5.[rl]l.title(.stub)?/),
@@ -899,7 +898,8 @@ function antForest() {
                             }
 
                             if (!title_bounds_bottom || title_bounds_bottom > cY16h9w(0.2) || title_bounds_bottom < cY16h9w(0.05)) {
-                                return debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
+                                debugInfo("舍弃标题控件bottom数据: " + title_bounds_bottom);
+                                throw Error("手动抛出异常");
                             }
                             debugInfo("获取标题控件bottom数据: " + title_bounds_bottom);
                             return current_app.title_bounds_bottom = title_bounds_bottom;
@@ -907,13 +907,16 @@ function antForest() {
                             debugInfo(e);
                             current_app.title_bounds_bottom_count = current_app.title_bounds_bottom_count || 0;
                             let count = ++current_app.title_bounds_bottom_count;
-                            if (count < 4) {
+                            let backup_bottom = cY16h9w(150);
+                            if (count < 3) {
                                 debugInfo("获取标题控件bottom数据: 失败 (" + (count + "\/" + 3) + ")");
+                                debugInfo("临时使用备用值: " + backup_bottom);
+                                return backup_bottom;
                             } else {
-                                debugInfo("使用控件标题bottom备用方案");
-                                let backup_bottom = cY16h9w(150);
-                                current_app.title_bounds_bottom = backup_bottom;
+                                debugInfo("获取标题控件bottom数据: 失败 (" + (count + "\/" + 3) + ")");
+                                debugInfo("不再尝试获取");
                                 debugInfo("当前标题控件bottom数据: " + backup_bottom);
+                                return current_app.title_bounds_bottom = backup_bottom;
                             }
                         }
                     }
