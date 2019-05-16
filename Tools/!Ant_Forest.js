@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 16, 2019
- * @version 1.6.23 Alpha
+ * @version 1.6.23 Alpha2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -846,10 +846,11 @@ function antForest() {
                 // tool function(s) //
 
                 function getScreenSamples() {
-                    let title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom() || 0;
-                    let max_try_times = 5;
+                    current_app.title_bounds_bottom = current_app.title_bounds_bottom || getTitleBoundsBottom();
+                    current_app.title_bounds_bottom_backup = current_app.title_bounds_bottom_backup || current_app.title_bounds_bottom;
+                    let max_try_times = 10;
                     while (max_try_times--) {
-                        let screen_samples = boundsInside(cX(0.7), title_bounds_bottom + 1, WIDTH, HEIGHT - 1).filter(function (w) {
+                        let screen_samples = boundsInside(cX(0.7), current_app.title_bounds_bottom + 1, WIDTH, HEIGHT - 1).filter(function (w) {
                             let bounds = w.bounds();
                             if (bounds.bottom <= bounds.top) return false;
                             let _desc_w = w.desc();
@@ -858,8 +859,14 @@ function antForest() {
                         }).find();
                         let screen_samples_size = screen_samples.size();
                         debugInfo("当前屏幕好友数量: " + screen_samples_size);
-                        if (screen_samples_size) return screen_samples;
+                        if (!screen_samples_size) continue;
+                        if (screen_samples_size <= 20) return screen_samples;
+                        debugInfo(">数量异常");
+                        debugInfo(">尝试缩减范围: 2像素");
+                        current_app.title_bounds_bottom += 2;
                     }
+                    debugInfo("恢复原始范围");
+                    current_app.title_bounds_bottom = current_app.title_bounds_bottom_backup;
                     return !~debugInfo("刷新样本区域失败");
 
                     // tool function(s) //
@@ -937,13 +944,11 @@ function antForest() {
                 }
 
                 function checkRegion(arr) {
-                    for (let i = 0, len = arr.length; i < len; i += 1) {
-                        if (arr[i] < 0) {
-                            let region_map = ["left", "top", "right", "bottom"];
-                            debugInfo("采集区域" + region_map[i] + "参数异常: " + arr[i]);
-                            return false;
-                        }
-                    }
+                    let [left, top, right, bottom] = [arr[0], arr[1], arr[0] + arr[2], arr[1] + arr[3]];
+                    if (left < WIDTH / 2) return debugInfo("采集区域left参数异常: " + left);
+                    if (top < 10 || top >= HEIGHT) return debugInfo("采集区域top参数异常: " + top);
+                    if (bottom <= 0 || bottom > HEIGHT) return debugInfo("采集区域bottom参数异常: " + bottom);
+                    if (right <= left || right > WIDTH + 3) return debugInfo("采集区域right参数异常: " + right);
                     return true;
                 }
             }
