@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 16, 2019
- * @version 1.6.23 Alpha3
+ * @last_modified May 17, 2019
+ * @version 1.6.23 Alpha4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1191,11 +1191,13 @@ function antForest() {
                                     max_i = dates_arr.length;
                                 for (let i = 0; i < max_i; i += 1) {
                                     // let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
-                                    let over_two_days = dates_arr[i].desc().length === 5; // like: "03-22"
+                                    let _desc = dates_arr[i].desc();
+                                    let _text = dates_arr[i].text();
+                                    let over_two_days = _desc && _desc.length === 5 || _text && _text.length === 5; // like: "03-22"
                                     if (kw_protect_cover().exists() || over_two_days) {
                                         thread_list_more.interrupt();
                                         debugInfo("动态列表展开已停止");
-                                        debugInfo("能量罩信息定位在: " + dates_arr[i].desc());
+                                        debugInfo("能量罩信息定位在: " + _desc || _text);
                                         return max_i < 3 ? renewDatesArr() : dates_arr; // 样本数达到3个则无需重新获取
                                     }
                                 }
