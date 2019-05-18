@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 17, 2019
- * @version 1.6.23 Alpha5
+ * @version 1.6.23 Alpha6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -3370,6 +3370,8 @@ function makeInScreen(f, params) {
 }
 
 function refreshObjects(custom_text) {
+    descMatches(/.*/).exists(); // for refreshing all ui objects in screen
+
     let alert_text = custom_text || "Alert for refreshing objects";
     let kw_alert_text = text(alert_text);
     let refreshing_obj_thread = threads.start(function () {

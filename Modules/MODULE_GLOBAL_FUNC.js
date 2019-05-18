@@ -1,11 +1,14 @@
 module.exports = {
     parseAppName: parseAppName,
-    killThisApp: killThisApp,
+    getVerName: getVerName,
     launchThisApp: launchThisApp,
+    killThisApp: killThisApp,
+    restartThisEngine: restartThisEngine,
     messageAction: messageAction,
     showSplitLine: showSplitLine,
     waitForAction: waitForAction,
     clickAction: clickAction,
+    refreshObjects: refreshObjects,
 };
 
 // global function(s) //
@@ -30,172 +33,58 @@ function parseAppName(name) {
 }
 
 /**
- * Close or minimize some app, and wait for at most 15 sec
- * @param [name=current_app.package_name||current_app.app_name] {string}
+ * Returns a version name string of an app with either app name or app package name input
+ * @param name {string} - app name, app package name or some shortcuts
  * <br>
- *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
- *     -- package_name - like "com.eg.android.AlipayGphone"
- * @param [params] {object}
- * @param [params.shell_acceptable=true] {boolean}
- * @param [params.keycode_back_acceptable=true] {boolean}
- * @param [params.keycode_back_twice=false] {boolean}
- * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
- * @param [params.debug_info_flag] {string}
- * * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ *     -- app name - "Alipay" <br>
+ *     -- app package name - "com.eg.android.AlipayGphone" <br>
+ *     -- /^[Aa]uto\.?js/ - "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "") <br>
+ *     -- /^[Cc]urrent.*[Aa]uto.*js/ - context.packageName <br>
+ *     -- "self" - currentPackage()
  * @example
- * killThisApp("Alipay"); <br>
- * killThisApp("com.eg.android.AlipayGphone", {
- *    shell_acceptable: false,
- *    debug_info_flag: "forcible",
- * });
- *
- * @return {boolean}
+ * parseAppName("Alipay"); -- app name <br>
+ * parseAppName("self"); -- shortcut <br>
+ * parseAppName("autojs"); -- shortcut <br>
+ * parseAppName("autojs pro"); -- shortcut <br>
+ * parseAppName("Auto.js"); -- app name <br>
+ * parseAppName("org.autojs.autojs"); -- app package name <br>
+ * parseAppName("current autojs"); -- shortcut
+ * @param name
+ * @return {null|string}
  */
-function killThisApp(name, params) {
-
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+function getVerName(name) {
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _refreshObjects = typeof refreshObjects === "undefined" ? refreshObjectsRaw : refreshObjects;
-    params = Object.assign({}, _current_app, params || {});
+    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
 
-    name = name || params.package_name || params.app_name;
-    if (!name) _messageAction("未能确定应用名称或包名", 8, 1, 0, 1);
-    let _parsed_app_name = _parseAppName(name);
-    let _app_name = _parsed_app_name.app_name;
-    let _package_name = _parsed_app_name.package_name;
-    if (!(_app_name && _package_name)) _messageAction("解析应用名称及包名失败", 8, 1, 0, 1);
+    name = _handleName(name);
+    let _package_name = _parseAppName(name).package_name;
+    if (!_package_name) return null;
 
-    let _shell_acceptable = typeof params.shell_acceptable === "undefined" && true || params.shell_acceptable;
-    let _keycode_back_acceptable = typeof params.keycode_back_acceptable === "undefined" && true || params.keycode_back_acceptable;
-    let _keycode_back_twice = params.keycode_back_twice || false;
-    let _condition_success = params.condition_success || function () {
-        return currentPackage() !== _package_name;
-    };
-
-    let _shell_result = false;
-    let _shell_start_timestamp = new Date().getTime();
-    if (_shell_acceptable) {
-        try {
-            _shell_result = !shell("am force-stop " + _package_name, true).code;
-        } catch (e) {
-            _debugInfo("shell()方法强制关闭\"" + _app_name + "\"失败");
+    try {
+        let _installed_packages = context.getPackageManager().getInstalledPackages(0).toArray();
+        for (let i in _installed_packages) {
+            if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
+                return _installed_packages[i].versionName;
+            }
         }
-    } else _debugInfo("参数不接受shell()方法");
-
-    if (!_shell_result) {
-        if (_keycode_back_acceptable) {
-            return _tryMinimizeApp();
-        } else {
-            _debugInfo("参数不接受模拟返回方法");
-            _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
-            return _messageAction("无可用的应用关闭方式", 4, 0, 1);
-        }
+    } catch (e) {
+        _debugInfo(e);
     }
-
-    if (_waitForAction(_condition_success, 15000)) {
-        _debugInfo("shell()方法强制关闭\"" + _app_name + "\"成功");
-        return !!~_debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
-    } else {
-        _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
-        _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
-        return _messageAction("关闭时间已达最大超时", 4, 0, 1);
-    }
+    return null;
 
     // tool function(s) //
 
-    function _tryMinimizeApp() {
-        _debugInfo("尝试最小化当前应用");
-
-        let _kw_avail_btns = [
-            idMatches(/.*nav.back|.*back.button/),
-            descMatches(/关闭|返回/),
-        ];
-
-        let _max_try_times_minimize = 20;
-        let _max_try_times_minimize_backup = _max_try_times_minimize;
-
-        let _tmp_current_pkg = currentPackage();
-        if (_tmp_current_pkg !== _package_name) {
-            _debugInfo("当前前置应用包名:");
-            _debugInfo(">" + _tmp_current_pkg);
-            _debugInfo("借用alert()方法刷新前置应用");
-            _refreshObjects();
-            _debugInfo("当前前置应用包名:");
-            _debugInfo(">" + currentPackage());
-            if (_condition_success()) {
-                _debugInfo("退出完成条件已满足");
-                _debugInfo("最小化应用成功");
-                return true;
-            }
-        }
-
-        while (_max_try_times_minimize--) {
-            let _kw_clicked_flag = false;
-            for (let i = 0, len = _kw_avail_btns.length; i < len; i += 1) {
-                let _kw_avail_btn = _kw_avail_btns[i];
-                if (_kw_avail_btn.exists()) {
-                    _kw_clicked_flag = true;
-                    _clickAction(_kw_avail_btns);
-                    sleep(300);
-                    break;
-                }
-            }
-            if (_kw_clicked_flag) continue;
-            back();
-            _keycode_back_twice && ~sleep(200) && back();
-            if (_waitForAction(_condition_success, 2000)) break;
-        }
-        if (_max_try_times_minimize < 0) {
-            _debugInfo("最小化应用尝试已达: " + _max_try_times_minimize_backup + "次");
-            _debugInfo("重新仅模拟返回键尝试最小化");
-            _max_try_times_minimize = 8;
-            while (_max_try_times_minimize--) {
-                back();
-                _keycode_back_twice && ~sleep(200) && back();
-                if (_waitForAction(_condition_success, 2000)) break;
-            }
-            if (_max_try_times_minimize < 0) return _messageAction("最小化当前应用失败", 4, 1);
-        }
-        _debugInfo("最小化应用成功");
-        return true;
+    function _handleName(name) {
+        if (name.match(/^[Aa]uto\.?js/)) return "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "");
+        if (name === "self") return currentPackage();
+        if (name.match(/^[Cc]urrent.*[Aa]uto.*js/)) return context.packageName;
+        return name;
     }
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
-    }
-
     function debugInfoRaw(msg) {
         if (params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
-    }
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function clickActionRaw(kw) {
-        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
-        let _key_node = _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
     }
 
     function parseAppNameRaw(name) {
@@ -207,18 +96,6 @@ function killThisApp(name, params) {
             app_name: _app_name,
             package_name: _package_name,
         };
-    }
-
-    function refreshObjectsRaw(custom_text) {
-        let _alert_text = custom_text || "Alert for refreshing objects";
-        let _kw_alert_text = text(_alert_text);
-        threads.start(function () {
-            _kw_alert_text.findOne(1000);
-            let _kw_ok_btn = textMatches(/OK|确./);
-            _kw_ok_btn.findOne(2000) && _kw_ok_btn.click();
-        });
-        alert(_alert_text);
-        sleep(300);
     }
 }
 
@@ -294,7 +171,7 @@ function launchThisApp(intent_or_name, params) {
     _debugInfo("启动目标参数类型: " + typeof intent_or_name);
 
     let _condition_ready = _params.condition_ready;
-    let _condition_launch = _params.condition_launch;
+    let _condition_launch = _params.condition_launch || (() => currentPackage() === _package_name);
     let _disturbance = _params.disturbance;
     let _max_retry_times = _params.global_retry_times || 3;
     let _first_time_run_message_flag = typeof _params.first_time_run_message_flag === "undefined" ? true : _params.first_time_run_message_flag;
@@ -317,8 +194,7 @@ function launchThisApp(intent_or_name, params) {
                 app.launchPackage(_package_name);
             }
 
-            let _cond_succ = () => currentPackage() === _package_name || _condition_launch && _condition_launch();
-            let _cond_succ_flag = _waitForAction(_cond_succ, [5000, 800]);
+            let _cond_succ_flag = _waitForAction(_condition_launch, [5000, 800]);
             _debugInfo("应用启动" + (_cond_succ_flag ? "成功" : "超时 (" + (_max_launch_times_backup - _max_launch_times) + "\/" + _max_launch_times_backup + ")"));
             if (_cond_succ_flag) break;
             else _debugInfo(">" + currentPackage());
@@ -403,13 +279,284 @@ function launchThisApp(intent_or_name, params) {
     }
 
     function killThisAppRaw(package_name) {
-        if (!shell("am force-stop " + package_name, true).code) return _waitForAction(() => currentPackage() !== package_name, 15000);
+        if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
+        if (!shell("am force-stop " + package_name, true).code) return _success(15000);
         let _max_try_times = 10;
         while (_max_try_times--) {
             back();
-            if (_waitForAction(() => currentPackage() !== package_name, 2500)) break;
+            if (_success(2500)) break;
         }
         return _max_try_times >= 0;
+
+        function _success(max_wait_time) {
+            while (currentPackage() === package_name && max_wait_time > 0) ~sleep(200) && (max_wait_time -= 200);
+            return max_wait_time > 0;
+        }
+    }
+}
+
+/**
+ * Close or minimize a certain app
+ * @param [name=current_app.package_name||current_app.app_name] {string}
+ * <br>
+ *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
+ *     -- package_name - like "com.eg.android.AlipayGphone"
+ * @param [params] {object}
+ * @param [params.shell_acceptable=true] {boolean}
+ * @param [params.shell_max_wait_time=10000] {number}
+ * @param [params.keycode_back_acceptable=true] {boolean}
+ * @param [params.keycode_back_twice=false] {boolean}
+ * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
+ * @param [params.debug_info_flag] {string}
+ * * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ * @example
+ * killThisApp("Alipay"); <br>
+ * killThisApp("com.eg.android.AlipayGphone", {
+ *    shell_acceptable: false,
+ *    debug_info_flag: "forcible",
+ * });
+ *
+ * @return {boolean}
+ */
+function killThisApp(name, params) {
+
+    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+    let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
+    let _refreshObjects = typeof refreshObjects === "undefined" ? refreshObjectsRaw : refreshObjects;
+    let _params = Object.assign({}, _current_app, params || {});
+
+    name = name || _params.package_name || _params.app_name;
+    if (!name) _messageAction("未能确定应用名称或包名", 8, 1, 0, 1);
+    let _parsed_app_name = _parseAppName(name);
+    let _app_name = _parsed_app_name.app_name;
+    let _package_name = _parsed_app_name.package_name;
+    if (!(_app_name && _package_name)) _messageAction("解析应用名称及包名失败", 8, 1, 0, 1);
+
+    let _shell_acceptable = typeof _params.shell_acceptable === "undefined" && true || _params.shell_acceptable;
+    let _keycode_back_acceptable = typeof _params.keycode_back_acceptable === "undefined" && true || _params.keycode_back_acceptable;
+    let _keycode_back_twice = _params.keycode_back_twice || false;
+    let _condition_success = _params.condition_success || (() => currentPackage() !== _package_name);
+
+    let _shell_result = false;
+    let _shell_start_timestamp = new Date().getTime();
+    let _shell_max_wait_time = _params.shell_max_wait_time || 10000;
+    if (_shell_acceptable) {
+        try {
+            _shell_result = !shell("am force-stop " + _package_name, true).code;
+        } catch (e) {
+            _debugInfo("shell()方法强制关闭\"" + _app_name + "\"失败");
+        }
+    } else _debugInfo("参数不接受shell()方法");
+
+    if (!_shell_result) {
+        if (_keycode_back_acceptable) {
+            return _tryMinimizeApp();
+        } else {
+            _debugInfo("参数不接受模拟返回方法");
+            _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
+            return _messageAction("无可用的应用关闭方式", 4, 0, 1);
+        }
+    }
+
+    if (_waitForAction(_condition_success, _shell_max_wait_time)) {
+        _debugInfo("shell()方法强制关闭\"" + _app_name + "\"成功");
+        return !!~_debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
+    } else {
+        _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
+        _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
+        return _messageAction("关闭时间已达最大超时", 4, 0, 1);
+    }
+
+    // tool function(s) //
+
+    function _tryMinimizeApp() {
+        _debugInfo("尝试最小化当前应用");
+
+        let _kw_avail_btns = [
+            idMatches(/.*nav.back|.*back.button/),
+            descMatches(/关闭|返回/),
+        ];
+
+        let _max_try_times_minimize = 20;
+        let _max_try_times_minimize_backup = _max_try_times_minimize;
+
+        let _tmp_current_pkg = currentPackage();
+        if (_tmp_current_pkg !== _package_name) {
+            _debugInfo("当前前置应用包名:");
+            _debugInfo(">" + _tmp_current_pkg);
+            _debugInfo("刷新前置应用");
+            _refreshObjects("page", {
+                debug_info_flag: _params.debug_info_flag,
+            });
+            _debugInfo("当前前置应用包名:");
+            _debugInfo(">" + currentPackage());
+            if (_condition_success()) {
+                _debugInfo("退出完成条件已满足");
+                _debugInfo("最小化应用成功");
+                return true;
+            }
+        }
+
+        while (_max_try_times_minimize--) {
+            let _kw_clicked_flag = false;
+            for (let i = 0, len = _kw_avail_btns.length; i < len; i += 1) {
+                let _kw_avail_btn = _kw_avail_btns[i];
+                if (_kw_avail_btn.exists()) {
+                    _kw_clicked_flag = true;
+                    _clickAction(_kw_avail_btns);
+                    sleep(300);
+                    break;
+                }
+            }
+            if (_kw_clicked_flag) continue;
+            back();
+            _keycode_back_twice && ~sleep(200) && back();
+            if (_waitForAction(_condition_success, 2000)) break;
+        }
+        if (_max_try_times_minimize < 0) {
+            _debugInfo("最小化应用尝试已达: " + _max_try_times_minimize_backup + "次");
+            _debugInfo("重新仅模拟返回键尝试最小化");
+            _max_try_times_minimize = 8;
+            while (_max_try_times_minimize--) {
+                back();
+                _keycode_back_twice && ~sleep(200) && back();
+                if (_waitForAction(_condition_success, 2000)) break;
+            }
+            if (_max_try_times_minimize < 0) return _messageAction("最小化当前应用失败", 4, 1);
+        }
+        _debugInfo("最小化应用成功");
+        return true;
+    }
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        toast_flag && toast(msg);
+        msg_level && log(msg);
+        msg_level >= 8 && exit();
+    }
+
+    function debugInfoRaw(msg) {
+        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    }
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+
+    function clickActionRaw(kw) {
+        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
+        let _key_node = _kw.findOnce();
+        if (!_key_node) return;
+        let _bounds = _key_node.bounds();
+        click(_bounds.centerX(), _bounds.centerY());
+        return true;
+    }
+
+    function parseAppNameRaw(name) {
+        let _app_name = !name.match(/.+\..+\./) && app.getPackageName(name) && name;
+        let _package_name = app.getAppName(name) && name;
+        _app_name = _app_name || _package_name && app.getAppName(_package_name);
+        _package_name = _package_name || _app_name && app.getPackageName(_app_name);
+        return {
+            app_name: _app_name,
+            package_name: _package_name,
+        };
+    }
+
+    function refreshObjectsRaw() {
+        recents();
+        sleep(1000);
+        back();
+        sleep(1000);
+    }
+}
+
+/**
+ * Run a new task in engine and forcibly stop the old one (restart)
+ * @param [params] {object}
+ * @param [params.new_file] {string} - new engine task name with or without path or file extension name
+ * <br>
+ *     - *DEFAULT* - old engine task <br>
+ *     - new file - like "hello.js", "../hello.js" or "hello"
+ * @param [params.debug_info_flag] {string}
+ * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ * @param [params.max_restart_engine_times=1] {number} - max restart times for avoiding infinite recursion
+ * @example
+ * restartThisEngine({
+ *    debug_info_flag: "forcible",
+ *    max_restart_engine_times: 3,
+ * });
+ * @return {boolean}
+ */
+function restartThisEngine(params) {
+
+    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _params = Object.assign({}, _current_app, params || {});
+
+    let _my_engine = engines.myEngine();
+
+    let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+    let _max_restart_engine_times_params = _params.max_restart_engine_times;
+    let _max_restart_engine_times;
+    if (typeof _max_restart_engine_times_argv === "undefined") {
+        if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+        else _max_restart_engine_times = _max_restart_engine_times_params;
+    } else _max_restart_engine_times = _max_restart_engine_times_argv;
+
+    _max_restart_engine_times = +_max_restart_engine_times;
+    let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
+
+    if (!_max_restart_engine_times) {
+        _messageAction("引擎重启已拒绝", 3);
+        return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
+    }
+
+    _debugInfo("重启当前引擎任务");
+    _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
+    _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
+    let _file_name = _params.new_file || _my_engine.source.toString();
+    if (_file_name.match(/^\[remote]/)) return !~_messageAction("远程任务不支持重启引擎", 4, 1);
+
+    let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+    _debugInfo("运行新引擎任务:\n" + _file_path);
+    engines.execScriptFile(_file_path, {
+        arguments: {
+            max_restart_engine_times: _max_restart_engine_times - 1,
+            max_restart_engine_times_backup: _max_restart_engine_times_backup,
+        },
+    });
+    _debugInfo("强制停止旧引擎任务");
+    _my_engine.forceStop();
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        toast_flag && toast(msg);
+        msg_level && log(msg);
+        msg_level >= 8 && exit();
+    }
+
+    function debugInfoRaw(msg) {
+        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
     }
 }
 
@@ -443,7 +590,7 @@ function launchThisApp(intent_or_name, params) {
  *     -- /up/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
- * @param params {object} reserved
+ * @param [params] {object} reserved
  * @example
  * messageAction("hello"); // nothing will be printed in console <br>
  * messageAction("hello", 1); <br>
@@ -583,7 +730,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
  * <br>
  *     -- *DEFAULT* - "--------" - 32 bytes <br>
  *     -- "dash" - "- - - - - " - 32 bytes
- * @param params - reserved
+ * @param [params] {object} - reserved
  * @example
  * showSplitLine(); <br>
  * showSplitLine("\n"); <br>
@@ -889,5 +1036,77 @@ function clickAction(f, strategy, params) {
     }
 }
 
+/**
+ * Refresh screen objects or current package by a certain strategy
+ * @param strategy {string}
+ * <br>
+ *     - "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
+ *     - "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
+ * @param [params] {object}
+ * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
+ * @param [params.debug_info_flag] {string}
+ * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ */
+function refreshObjects(strategy, params) {
 
-// raw function(s) //
+    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _params = Object.assign({}, _current_app, params || {});
+    let _strategy = strategy || "";
+
+    if (_strategy.match(/objects?|alert/)) {
+        descMatches(/.*/).exists(); // useful or useless ?
+
+        let alert_text = _params.custom_alert_text || "Alert for refreshing objects";
+        let kw_alert_text = text(alert_text);
+        let refreshing_obj_thread = threads.start(function () {
+            kw_alert_text.findOne(1000);
+            let kw_ok_btn = textMatches(/OK|确./); // may 确认 or something else
+            kw_ok_btn.findOne(2000).click();
+        });
+        let shutdownThread = () => {
+            refreshing_obj_thread.isAlive() && refreshing_obj_thread.interrupt();
+            if (kw_alert_text.exists()) back();
+        };
+        let thread_alert = threads.start(function () {
+            alert(alert_text);
+            shutdownThread();
+        });
+        thread_alert.join(1000);
+        if (thread_alert.isAlive()) {
+            shutdownThread();
+            thread_alert.interrupt();
+        }
+        sleep(300);
+    } else {
+        let init_package = currentPackage();
+        _debugInfo(init_package);
+        recents();
+        _waitForAction(() => currentPackage() !== init_package, 2000, 80);
+        init_package = currentPackage();
+        _debugInfo(currentPackage());
+        back();
+        _waitForAction(() => currentPackage() !== init_package, 2000, 80);
+        _debugInfo(currentPackage());
+    }
+
+    // raw function(s) //
+
+    function debugInfoRaw(msg) {
+        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    }
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+}
