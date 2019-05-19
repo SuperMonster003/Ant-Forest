@@ -3,12 +3,15 @@ module.exports = {
     getVerName: getVerName,
     launchThisApp: launchThisApp,
     killThisApp: killThisApp,
+    restartThisApp: restartThisApp,
     restartThisEngine: restartThisEngine,
     messageAction: messageAction,
     showSplitLine: showSplitLine,
     waitForAction: waitForAction,
     clickAction: clickAction,
+    waitForAndClickAction: waitForAndClickAction,
     refreshObjects: refreshObjects,
+    tryRequestScreenCapture: tryRequestScreenCapture,
 };
 
 // global function(s) //
@@ -269,9 +272,13 @@ function launchThisApp(intent_or_name, params) {
     }
 
     function waitForActionRaw(cond_func, time_params) {
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!cond_func() && _check_time >= 0) {
+        while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
             _check_time -= _check_interval;
         }
@@ -279,6 +286,7 @@ function launchThisApp(intent_or_name, params) {
     }
 
     function killThisAppRaw(package_name) {
+        package_name = package_name || curerntPackage();
         if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
         if (!shell("am force-stop " + package_name, true).code) return _success(15000);
         let _max_try_times = 10;
@@ -448,9 +456,13 @@ function killThisApp(name, params) {
     }
 
     function waitForActionRaw(cond_func, time_params) {
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!cond_func() && _check_time >= 0) {
+        while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
             _check_time -= _check_interval;
         }
@@ -486,12 +498,87 @@ function killThisApp(name, params) {
 }
 
 /**
+ * Kill or minimize a certain app and launch it with or without conditions (restart)
+ * -- This is a combination function which means independent usage is not recommended
+ * @param [intent_or_name=current_app.package_name||current_app.app_name] {object|string}
+ * * <br>
+ *     -- intent - activity object like {
+ *         action: "VIEW",
+ *         packageName: "com.eg.android.AlipayGphone",
+ *         className: "...",
+ *     } <br>
+ *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
+ *     -- package_name - like "com.eg.android.AlipayGphone"
+ * @param [params] {object}
+ * @param [params.shell_acceptable=true] {boolean} - for killing
+ * @param [params.shell_max_wait_time=10000] {number} - for killing
+ * @param [params.keycode_back_acceptable=true] {boolean} - for killing
+ * @param [params.keycode_back_twice=false] {boolean} - for killing
+ * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function} - for killing
+ * @param [params.package_name] {string} - for launching
+ * @param [params.app_name] {string} - for launching
+ * @param [params.task_name] {string} - for launching
+ * @param [params.condition_launch] {function} - for launching
+ * @param [params.condition_ready] {function} - for launching
+ * @param [params.disturbance] {function} - for launching
+ * @param [params.debug_info_flag] {string}
+ * * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ * @param [params.first_time_run_message_flag=true] {boolean} - for launching
+ * @param [params.no_message_flag] {boolean} - for launching
+ * @param [params.global_retry_times=3] {number} - for launching
+ * @param [params.launch_retry_times=3] {number} - for launching
+ * @param [params.ready_retry_times=5] {number} - for launching
+ * @example
+ *
+ * @return {boolean}
+ */
+function restartThisApp(intent_or_name, params) {
+
+    intent_or_name = intent_or_name || currentPackage();
+
+    let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
+    let _launchThisApp = typeof launchThisApp === "undefined" ? launchThisAppRaw : launchThisApp;
+
+    let _result = true;
+    if (!_killThisApp(intent_or_name, params)) _result = false;
+    if (!_launchThisApp(intent_or_name, params)) _result = false;
+    return _result;
+
+    // raw function(s) //
+
+    function killThisAppRaw(package_name) {
+        package_name = package_name || curerntPackage();
+        if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
+        if (!shell("am force-stop " + package_name, true).code) return _success(15000);
+        let _max_try_times = 10;
+        while (_max_try_times--) {
+            back();
+            if (_success(2500)) break;
+        }
+        return _max_try_times >= 0;
+
+        function _success(max_wait_time) {
+            while (currentPackage() === package_name && max_wait_time > 0) ~sleep(200) && (max_wait_time -= 200);
+            return max_wait_time > 0;
+        }
+    }
+
+    function launchThisAppRaw(intent_or_name) {
+        typeof intent_or_name === "object" ? app.startActivity(intent_or_name) : launch(intent_or_name) || launchApp(intent_or_name);
+        return true;
+    }
+}
+
+/**
  * Run a new task in engine and forcibly stop the old one (restart)
  * @param [params] {object}
  * @param [params.new_file] {string} - new engine task name with or without path or file extension name
  * <br>
- *     - *DEFAULT* - old engine task <br>
- *     - new file - like "hello.js", "../hello.js" or "hello"
+ *     -- *DEFAULT* - old engine task <br>
+ *     -- new file - like "hello.js", "../hello.js" or "hello"
  * @param [params.debug_info_flag] {string}
  * <br>
  *     -- *DEFAULT* - decided by debugInfo() itself <br>
@@ -758,7 +845,7 @@ function showSplitLine(extra_str, style, params) {
 
 /**
  * Wait some period of time for "f" being TRUE
- * @param {object|object[]|function|function[]} f - if f is not true then waiting
+ * @param f {object|object[]|function|function[]} - if condition of f is not true then waiting
  * <br>
  *     -- function - () => text("abc").exists() - if (!f()) waiting <br>
  *     -- JavaObject - text("abc") - equals to "() => text("abc").exists()" <br>
@@ -766,11 +853,11 @@ function showSplitLine(extra_str, style, params) {
  *         -- logic_flag <br>
  *         --- "and"|"all"|*DEFAULT* - meet all conditions <br>
  *         --- "or"|"one" - meet any one condition
- * @param {number} [timeout_or_times=10000]
+ * @param [timeout_or_times=10000] {number}
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- less than 100 - take as times
- * @param {number} [interval=300]
+ * @param [interval=300] {number}
  * @example
  * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80); <br>
  * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2000, 50); <br>
@@ -779,11 +866,11 @@ function showSplitLine(extra_str, style, params) {
  * // waitForAction(kw_settings, 1000);
  * // waitForAction(condition, 1000);
  * waitForAction(() => condition()), 1000);
- * @return {boolean} - if timed out
+ * @return {boolean} - if not timed out
  */
 function waitForAction(f, timeout_or_times, interval) {
     let _timeout = timeout_or_times || 10000;
-    let _interval = interval || 300;
+    let _interval = interval || 200;
     let _times = _timeout < 100 ? _timeout : ~~(_timeout / _interval) + 1;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
@@ -833,7 +920,7 @@ function waitForAction(f, timeout_or_times, interval) {
  *     -- "press" - press(coord_A, coord_B, 1); <br>
  *     -- "widget" - text("abc").click(); - only available for examples 1 and 2 mentioned above
  * @param [params] {object|string}
- * @param [params.condition_success=() => true] {string|function}
+ * @param [params.condition_success=()=>true] {string|function}
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
@@ -1026,9 +1113,13 @@ function clickAction(f, strategy, params) {
     }
 
     function waitForActionRaw(cond_func, time_params) {
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!cond_func() && _check_time >= 0) {
+        while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
             _check_time -= _check_interval;
         }
@@ -1037,11 +1128,88 @@ function clickAction(f, strategy, params) {
 }
 
 /**
+ * Wait for an UiObject showing up and click it
+ * -- This is a combination function which means independent usage is not recommended
+ * @param f {object} - only JavaObject is supported
+ * @param [timeout_or_times=10000] {number}
+ * <br>
+ *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
+ *     -- less than 100 - take as times
+ * @param [interval=300] {number}
+ * @param [click_params] {object}
+ * @param [click_params.intermission=300] {number}
+ * @param [click_params.click_strategy] {string}
+ * @param [click_params.condition_success=()=>true] {string|function}
+ * <br>
+ *     -- *DEFAULT* - () => true <br>
+ *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
+ *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
+ *     -- func - (f) => func(f);
+ * @param [click_params.check_time_once=500] {number}
+ * @param [click_params.max_check_times=0] {number}
+ * <br>
+ *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
+ *     --- example: (this is not usage) <br>
+ *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
+ *     -- return max_check_times >= 0;
+ * @param [click_params.padding] {number|array}
+ * <br>
+ *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
+ *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
+ * @return {boolean} - waitForAction(...) && clickAction(...)
+ */
+function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
+
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+
+    if (Object.prototype.toString.call(f).slice(8, -1) !== "JavaObject") {
+        _messageAction("waitForAndClickAction不支持非JavaObject参数", 8, 1);
+    }
+    click_params = click_params || {};
+    let _intermission = click_params.intermission || 200;
+    let _strategy = click_params.click_strategy;
+    return _waitForAction(f, timeout_or_times, interval) && ~sleep(_intermission) && _clickAction(f, _strategy, click_params);
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        toast_flag && toast(msg);
+        msg_level && log(msg);
+        msg_level >= 8 && exit();
+    }
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+
+    function clickActionRaw(kw) {
+        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
+        let _key_node = _kw.findOnce();
+        if (!_key_node) return;
+        let _bounds = _key_node.bounds();
+        click(_bounds.centerX(), _bounds.centerY());
+        return true;
+    }
+}
+
+/**
  * Refresh screen objects or current package by a certain strategy
  * @param strategy {string}
  * <br>
- *     - "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
- *     - "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
+ *     -- "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
+ *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
  * @param [params] {object}
  * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
  * @param [params.debug_info_flag] {string}
@@ -1101,12 +1269,145 @@ function refreshObjects(strategy, params) {
     }
 
     function waitForActionRaw(cond_func, time_params) {
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 1000;
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!cond_func() && _check_time >= 0) {
+        while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
             _check_time -= _check_interval;
         }
         return _check_time >= 0;
+    }
+}
+
+/**
+ * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
+ * @param [params] {object}
+ * @param [params.debug_info_flag] {string}
+ * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ * @param [params.restart_this_engine_flag=false] {boolean}
+ * @param [params.restart_this_engine_params] {object}
+ * @param [params.restart_this_engine_params.new_file] {string} - new engine task name with or without path or file extension name
+ * <br>
+ *     -- *DEFAULT* - old engine task <br>
+ *     -- new file - like "hello.js", "../hello.js" or "hello"
+ * @param [params.restart_this_engine_params.debug_info_flag] {string}
+ * <br>
+ *     -- *DEFAULT* - decided by debugInfo() itself <br>
+ *     -- "forcible" - forcibly use debugInfo() <br>
+ *     -- "none" - forcibly not use debugInfo()
+ * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number} - max restart times for avoiding infinite recursion
+ * @return {boolean}
+ */
+function tryRequestScreenCapture(params) {
+    sleep(200); // why are you always a naughty boy... how can i get along well with you...
+
+    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+    let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
+
+    let _params = params || {};
+    _params.restart_this_engine_flag = !!_params.restart_this_engine_flag;
+    _params.restart_this_engine_params = _params.restart_this_engine_params || {};
+    _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
+
+    if (this.request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
+    _debugInfo("开始申请截图权限");
+
+    this.request_screen_capture_flag = 1;
+    _debugInfo("已存储截图权限申请标记");
+
+    _debugInfo("已开启弹窗监测线程");
+    let _thread_prompt = threads.start(function () {
+
+        // maybe not common enough
+        let _kw_no_longer_prompt = id("com.android.systemui:id/remember");
+        let _kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
+
+        if (!_waitForAction(_kw_no_longer_prompt, 5000)) return;
+        _debugInfo("勾选\"不再提示\"复选框");
+        _clickAction(_kw_no_longer_prompt);
+
+        if (!_waitForAction(_kw_start_now_btn, 2000)) return;
+        _debugInfo("点击\"立即开始\"按钮");
+        _clickAction(_kw_start_now_btn);
+    });
+
+    let _thread_monitor = threads.start(function () {
+        if (_waitForAction(() => !!_req_result, [2000, 500])) {
+            _thread_prompt.interrupt();
+            return _debugInfo("截图权限申请结果: " + _req_result);
+        }
+        _debugInfo("截图权限申请结果: 失败");
+        _params.restart_this_engine_flag && _restartThisEngine(_params.restart_this_engine_params);
+    });
+
+    let _req_result = images.requestScreenCapture();
+    sleep(200);
+
+    _thread_monitor.join(2400);
+    _thread_monitor.isAlive() && _thread_monitor.interrupt();
+    return _req_result;
+
+    // raw function(s) //
+
+    function debugInfoRaw(msg) {
+        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    }
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+
+    function clickActionRaw(kw) {
+        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
+        let _key_node = _kw.findOnce();
+        if (!_key_node) return;
+        let _bounds = _key_node.bounds();
+        click(_bounds.centerX(), _bounds.centerY());
+        return true;
+    }
+
+    function restartThisEngineRaw(params) {
+
+        let _params = params || {};
+        let _my_engine = engines.myEngine();
+
+        let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+        let _max_restart_engine_times_params = _params.max_restart_engine_times;
+        let _max_restart_engine_times;
+        if (typeof _max_restart_engine_times_argv === "undefined") {
+            if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+            else _max_restart_engine_times = +_max_restart_engine_times_params;
+        } else _max_restart_engine_times = +_max_restart_engine_times_argv;
+
+        if (!_max_restart_engine_times) return;
+
+        let _file_name = _params.new_file || _my_engine.source.toString();
+        if (_file_name.match(/^\[remote]/)) return !~console.warn("远程任务不支持重启引擎");
+        let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+        engines.execScriptFile(_file_path, {
+            arguments: {
+                max_restart_engine_times: _max_restart_engine_times - 1,
+            },
+        });
+        _my_engine.forceStop();
     }
 }

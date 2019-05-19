@@ -83,6 +83,13 @@
 ******
 ### 版本历史
 ******
+# v1.6.23 Alpha7
+###### 2019/05/19
+* `新增` 工具函数模块新增工具 (3项)  
+-- restartThisApp()  
+-- tryRequestScreenCapture()  
+-- waitForAndClickAction()  
+
 # v1.6.23 Alpha6
 ###### 2019/05/18
 * `新增` 工具函数模块新增工具 (3项)  
