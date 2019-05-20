@@ -83,6 +83,17 @@
 ******
 ### 版本历史
 ******
+# v1.6.23 Alpha8
+###### 2019/05/20
+* `新增` 工具函数模块新增工具 (5项)  
+-- swipeInArea()    
+-- swipeInAreaAndClickAction()  
+-- keycode()  
+-- debugInfo()  
+-- runJsFile()  
+* `优化` 去除全部current_app参数关联  
+* `优化` 简化工具内部debugInfo()参数传递方式  
+
 # v1.6.23 Alpha7
 ###### 2019/05/19
 * `新增` 工具函数模块新增工具 (3项)  

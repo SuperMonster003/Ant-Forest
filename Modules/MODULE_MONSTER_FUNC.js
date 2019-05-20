@@ -5,13 +5,18 @@ module.exports = {
     killThisApp: killThisApp,
     restartThisApp: restartThisApp,
     restartThisEngine: restartThisEngine,
+    runJsFile: runJsFile,
+    clickAction: clickAction,
+    waitForAction: waitForAction,
+    waitForAndClickAction: waitForAndClickAction,
+    swipeInArea: swipeInArea,
+    swipeInAreaAndClickAction: swipeInAreaAndClickAction,
     messageAction: messageAction,
     showSplitLine: showSplitLine,
-    waitForAction: waitForAction,
-    clickAction: clickAction,
-    waitForAndClickAction: waitForAndClickAction,
     refreshObjects: refreshObjects,
     tryRequestScreenCapture: tryRequestScreenCapture,
+    keycode: keycode,
+    debugInfo: debugInfo,
 };
 
 // global function(s) //
@@ -44,6 +49,8 @@ function parseAppName(name) {
  *     -- /^[Aa]uto\.?js/ - "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "") <br>
  *     -- /^[Cc]urrent.*[Aa]uto.*js/ - context.packageName <br>
  *     -- "self" - currentPackage()
+ * @param [params] {object}
+ * @param [params.debug_info_flag=false] {boolean}
  * @example
  * parseAppName("Alipay"); -- app name <br>
  * parseAppName("self"); -- shortcut <br>
@@ -55,9 +62,12 @@ function parseAppName(name) {
  * @param name
  * @return {null|string}
  */
-function getVerName(name) {
+function getVerName(name, params) {
+
+    let _params = params;
+
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
 
     name = _handleName(name);
     let _package_name = _parseAppName(name).package_name;
@@ -86,8 +96,8 @@ function getVerName(name) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg) {
-        if (params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function parseAppNameRaw(name) {
@@ -121,11 +131,7 @@ function getVerName(name) {
  * @param [params.condition_launch] {function}
  * @param [params.condition_ready] {function}
  * @param [params.disturbance] {function}
- * @param [params.debug_info_flag] {string}
- * * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  * @param [params.first_time_run_message_flag=true] {boolean}
  * @param [params.no_message_flag] {boolean}
  * @param [params.global_retry_times=3] {number}
@@ -156,12 +162,12 @@ function launchThisApp(intent_or_name, params) {
 
     if (typeof this.first_time_run === "undefined") this.first_time_run = 1;
 
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _params = params || {};
+
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
-    let _params = Object.assign({}, _current_app, params || {});
 
     if (!intent_or_name || typeof intent_or_name !== "object" && typeof intent_or_name !== "string") _messageAction("应用启动目标参数无效", 8, 1, 0, 1);
 
@@ -262,13 +268,17 @@ function launchThisApp(intent_or_name, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
-    function debugInfoRaw(msg) {
-        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -305,7 +315,7 @@ function launchThisApp(intent_or_name, params) {
 
 /**
  * Close or minimize a certain app
- * @param [name=current_app.package_name||current_app.app_name] {string}
+ * @param name=currentPackage() {string}
  * <br>
  *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
  *     -- package_name - like "com.eg.android.AlipayGphone"
@@ -315,11 +325,7 @@ function launchThisApp(intent_or_name, params) {
  * @param [params.keycode_back_acceptable=true] {boolean}
  * @param [params.keycode_back_twice=false] {boolean}
  * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
- * @param [params.debug_info_flag] {string}
- * * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  * @example
  * killThisApp("Alipay"); <br>
  * killThisApp("com.eg.android.AlipayGphone", {
@@ -331,18 +337,23 @@ function launchThisApp(intent_or_name, params) {
  */
 function killThisApp(name, params) {
 
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _params = params || {};
+
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
     let _refreshObjects = typeof refreshObjects === "undefined" ? refreshObjectsRaw : refreshObjects;
-    let _params = Object.assign({}, _current_app, params || {});
 
-    name = name || _params.package_name || _params.app_name;
-    if (!name) _messageAction("未能确定应用名称或包名", 8, 1, 0, 1);
-    let _parsed_app_name = _parseAppName(name);
+    let _name = name || "";
+    if (!_name) {
+        _name = currentPackage();
+        _messageAction("自动使用currentPackage()返回值", 3);
+        _messageAction("killThisApp()未指定name参数", 3, 0, 1);
+        _messageAction("注意: 此返回值可能不准确", 3, 0, 1);
+    }
+    let _parsed_app_name = _parseAppName(_name);
     let _app_name = _parsed_app_name.app_name;
     let _package_name = _parsed_app_name.package_name;
     if (!(_app_name && _package_name)) _messageAction("解析应用名称及包名失败", 8, 1, 0, 1);
@@ -446,13 +457,17 @@ function killThisApp(name, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
-    function debugInfoRaw(msg) {
-        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -500,7 +515,7 @@ function killThisApp(name, params) {
 /**
  * Kill or minimize a certain app and launch it with or without conditions (restart)
  * -- This is a combination function which means independent usage is not recommended
- * @param [intent_or_name=current_app.package_name||current_app.app_name] {object|string}
+ * @param intent_or_name {object|string}
  * * <br>
  *     -- intent - activity object like {
  *         action: "VIEW",
@@ -521,11 +536,7 @@ function killThisApp(name, params) {
  * @param [params.condition_launch] {function} - for launching
  * @param [params.condition_ready] {function} - for launching
  * @param [params.disturbance] {function} - for launching
- * @param [params.debug_info_flag] {string}
- * * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  * @param [params.first_time_run_message_flag=true] {boolean} - for launching
  * @param [params.no_message_flag] {boolean} - for launching
  * @param [params.global_retry_times=3] {number} - for launching
@@ -579,11 +590,7 @@ function restartThisApp(intent_or_name, params) {
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.debug_info_flag] {string}
- * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  * @param [params.max_restart_engine_times=1] {number} - max restart times for avoiding infinite recursion
  * @example
  * restartThisEngine({
@@ -594,10 +601,10 @@ function restartThisApp(intent_or_name, params) {
  */
 function restartThisEngine(params) {
 
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+    let _params = params || {};
+
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
-    let _params = Object.assign({}, _current_app, params || {});
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
 
     let _my_engine = engines.myEngine();
 
@@ -637,19 +644,38 @@ function restartThisEngine(params) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
-    function debugInfoRaw(msg) {
-        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }
 
 /**
+ * Run a javascript file via activity by current running Auto.js
+ * @param file_name {string} - file name with or without path or file extension name
+ * @example
+ * runJsFile("file"); <br>
+ * runJsFile("../folder/time.js");
+ */
+function runJsFile(file_name) {
+    app.startActivity({
+        action: "VIEW",
+        packageName: context.packageName,
+        className: "org.autojs.autojs.external.open.RunIntentActivity",
+        data: "file://" + files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js")),
+    });
+}
+
+/**
  * Handle message - toast, console and actions
- * Record message level in storage - the max "msg_level" value (only when "current_app" exists)
  * @param {string} msg - message
  * @param {number|string|object} [msg_level] - message level
  * <br>
@@ -696,21 +722,16 @@ function restartThisEngine(params) {
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
 
-    let _msg = msg || " ";
+    let _msg = msg || "";
+
     let _msg_level = typeof msg_level === "number" ? msg_level : -1;
     let _if_toast = if_toast || false;
     let _if_arrow = if_arrow || false;
     let _if_split_line = if_split_line || false;
 
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _params = Object.assign({}, _current_app, params || {});
 
-    let _message_showing_switch = _params.message_showing_switch;
-    let _console_log_switch = _params.console_log_switch;
-
-    if (_if_toast && _message_showing_switch !== false) toast(_msg);
-    if (_message_showing_switch === false || _console_log_switch === false) return _msg_level >= 8 ? exit() : true;
+    if (_if_toast) toast(_msg);
 
     let _split_line_style = "";
     if (typeof _if_split_line === "string") {
@@ -730,8 +751,8 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             _showSplitLine();
             exit();
         }
-        msg = "> " + msg;
-        for (let i = 0; i < _if_arrow; i += 1) msg = "-" + msg;
+        _msg = "> " + _msg;
+        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
     }
 
     let _exit_flag = false;
@@ -786,9 +807,6 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             break;
     }
     if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
-    if (typeof current_app !== "undefined") {
-        current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, _msg_level) : _msg_level;
-    }
     _exit_flag && exit();
     return !(_msg_level in {3: 1, 4: 1});
 
@@ -825,12 +843,6 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
  * @return {boolean} - always true
  */
 function showSplitLine(extra_str, style, params) {
-
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
-    let _params = Object.assign({}, _current_app, params || {});
-
-    if (_params.message_showing_switch === false && _params.console_log_switch === false) return true;
-
     let _extra_str = extra_str || "";
     let _split_line = "";
     if (style === "dash") {
@@ -839,8 +851,7 @@ function showSplitLine(extra_str, style, params) {
     } else {
         for (let i = 0; i < 32; i += 1) _split_line += "-";
     }
-    log(_split_line + _extra_str);
-    return true;
+    return !!~log(_split_line + _extra_str);
 }
 
 /**
@@ -901,9 +912,13 @@ function waitForAction(f, timeout_or_times, interval) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 }
 
@@ -914,11 +929,11 @@ function waitForAction(f, timeout_or_times, interval) {
  *     -- text("abc").desc("def").findOnce()[.parent()] <br>
  *     -- text("abc").desc("def").findOnce()[.parent()].bounds() <br>
  *     -- [106, 39]
- * @param [strategy] - decide the way of clicking
+ * @param [strategy] - decide the way of click
  * <br>
  *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- "press" - press(coord_A, coord_B, 1); <br>
- *     -- "widget" - text("abc").click(); - only available for examples 1 and 2 mentioned above
+ *     -- "widget" - text("abc").click(); - not available for Bounds or CoordsArray
  * @param [params] {object|string}
  * @param [params.condition_success=()=>true] {string|function}
  * <br>
@@ -1107,9 +1122,13 @@ function clickAction(f, strategy, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1138,7 +1157,11 @@ function clickAction(f, strategy, params) {
  * @param [interval=300] {number}
  * @param [click_params] {object}
  * @param [click_params.intermission=300] {number}
- * @param [click_params.click_strategy] {string}
+ * @param [click_params.click_strategy] {string} - decide the way of click
+ * <br>
+ *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
+ *     -- "press" - press(coord_A, coord_B, 1); <br>
+ *     -- "widget" - text("abc").click();
  * @param [click_params.condition_success=()=>true] {string|function}
  * <br>
  *     -- *DEFAULT* - () => true <br>
@@ -1175,9 +1198,13 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
     // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
-        toast_flag && toast(msg);
-        msg_level && log(msg);
-        msg_level >= 8 && exit();
+        let _msg = msg || " ";
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1212,18 +1239,14 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
  * @param [params] {object}
  * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
- * @param [params.debug_info_flag] {string}
- * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  */
 function refreshObjects(strategy, params) {
 
-    let _current_app = typeof current_app === "undefined" ? {} : current_app;
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _params = params || {};
+
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _params = Object.assign({}, _current_app, params || {});
     let _strategy = strategy || "";
 
     if (_strategy.match(/objects?|alert/)) {
@@ -1264,8 +1287,8 @@ function refreshObjects(strategy, params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg) {
-        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1286,34 +1309,27 @@ function refreshObjects(strategy, params) {
 /**
  * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
  * @param [params] {object}
- * @param [params.debug_info_flag] {string}
- * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.debug_info_flag=false] {boolean}
  * @param [params.restart_this_engine_flag=false] {boolean}
  * @param [params.restart_this_engine_params] {object}
  * @param [params.restart_this_engine_params.new_file] {string} - new engine task name with or without path or file extension name
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.restart_this_engine_params.debug_info_flag] {string}
- * <br>
- *     -- *DEFAULT* - decided by debugInfo() itself <br>
- *     -- "forcible" - forcibly use debugInfo() <br>
- *     -- "none" - forcibly not use debugInfo()
+ * @param [params.restart_this_engine_params.debug_info_flag=false] {boolean}
  * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number} - max restart times for avoiding infinite recursion
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
     sleep(200); // why are you always a naughty boy... how can i get along well with you...
 
-    let _debugInfo = typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo;
+    let _params = params || {};
+
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
 
-    let _params = params || {};
     _params.restart_this_engine_flag = !!_params.restart_this_engine_flag;
     _params.restart_this_engine_params = _params.restart_this_engine_params || {};
     _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
@@ -1358,8 +1374,8 @@ function tryRequestScreenCapture(params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg) {
-        if (_params.debug_info_flag === "forcible") return msg[0] === ">" ? log(">>> " + msg.slice(1)) : log(">> " + msg);
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1410,4 +1426,359 @@ function tryRequestScreenCapture(params) {
         });
         _my_engine.forceStop();
     }
+}
+
+/**
+ * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of "f"
+ * @param f {object} - JavaObject
+ * @param [params] {object}
+ * @param [params.max_swipe_times=12] {number}
+ * @param [params.swipe_direction="auto"] {number|string}
+ * <br>
+ *     -- 0|"l"|"left", 1|"u"|"up", 2|"r"|"right", 3|"d"|"down" - direction to swipe each time <br>
+ *     -- "auto" - if "f" exists but not in aim area, direction will be auto-set decided by position of "f", or direction will be "up"
+ * @param [params.swipe_time=150] {number} - the time spent for each swiping - set bigger as needed
+ * @param [params.swipe_interval=100] {number} - the time spent between every swiping - set bigger as needed
+ * @param [params.swipe_area=[0.1, 0.1, 0.9, 0.9]] {number[]} - swipe from a center-point to another
+ * @param [params.aim_area=[0, 0, -1, -1]] {number[]} - restrict for smaller aim area
+ * <br>
+ *     -- area params - x|0<=x<1: x * (height|width), -1: full-height or full-width, -2: set with default value <br>
+ *     -- [%left%, %top%, %right%, %bottom%] <br>
+ *     -- [1, 50, 700, 1180] - [1, 50, 700, 1180] <br>
+ *     -- [1, 50, 700, -1] - [1, 50, 700, device.height] <br>
+ *     -- [0.1, 0.2, -1, -1] - [0.1 * device.width, 0.2 * device.height, device.width, device.height]
+ * @param [params.condition_meet_sides=1] {number=1|2}
+ * <br>
+ *     -- example A: condition_meet_side = 1 <br>
+ *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
+ *     -- swipe once - bounds: [0, 1100, 720, 1350] - top is not less than 1004 - continue swiping <br>
+ *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004 - swipe will stop <br>
+ *     -- example B: condition_meet_side = 2 <br>
+ *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
+ *     -- swipe once - bounds: [0, 1100, 720, 1350] - neither top nor bottom < 1004 - continue swiping <br>
+ *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004, but not bottom - swipe will not stop <br>
+ *     -- swipe once - bounds: [0, 700, 720, 950] - top < 1004, and so is bottom - swipe will stop
+ * @returns {boolean} - if timed out or max swipe times reached
+ */
+function swipeInArea(f, params) {
+
+    let _params = params || {};
+    let _swipe_interval = _params.swipe_interval || 100;
+    let _max_swipe_times = _params.max_swipe_times || 12;
+    let _swipe_time = _params.swipe_time || 150;
+    let _condition_meet_sides = parseInt(_params.condition_meet_sides);
+    if (_condition_meet_sides !== 1 || _condition_meet_sides !== 2) _condition_meet_sides = 1;
+
+    let _swipe_area = _setAreaParams(_params.swipe_area, [0.1, 0.1, 0.9, 0.9]);
+    let _aim_area = _setAreaParams(_params.aim_area, [0, 0, -1, -1]);
+    let _swipe_direction = _setSwipeDirection();
+
+    if (!_swipe_direction || _success()) return true;
+    while (_max_swipe_times--) {
+        if (_swipeAndCheck()) break;
+    }
+    return _max_swipe_times >= 0;
+
+    function _setSwipeDirection() {
+        let _swipe_direction = _params.swipe_direction;
+        if (typeof _swipe_direction === "string" && _swipe_direction !== "auto") {
+            if (_swipe_direction.match(/$[Lf](eft)?^/)) return "left";
+            if (_swipe_direction.match(/$[Uu](p)?^/)) return "up";
+            if (_swipe_direction.match(/$[Rr](ight)?^/)) return "right";
+            if (_swipe_direction.match(/$[Dd](own)?^/)) return "down";
+        }
+        let _node = f.findOnce();
+        if (!_node) return "up";
+        // auto mode
+        let _bounds = _node.bounds();
+        let [_bl, _bt, _br, _bb] = [_bounds.left, _bounds.top, _bounds.right, _bounds.bottom];
+        if (_bb >= _aim_area.b || _bt >= _aim_area.b) return "up";
+        if (_bt <= _aim_area.t || _bb <= _aim_area.t) return "down";
+        if (_br >= _aim_area.r || _bl >= _aim_area.r) return "left";
+        if (_bl <= _aim_area.l || _br <= _aim_area.l) return "right";
+    }
+
+    function _setAreaParams(specified, backup_plan) {
+        let _area = _checkArea(specified) || backup_plan;
+        _area = _area.map((_num, _idx) => _num !== -2 ? _num : backup_plan[_idx]);
+        _area = _area.map((_num, _idx) => _num >= 1 ? _num : ((!~_num ? 1 : _num) * (_idx % 2 ? device.height : device.width)));
+        let [_l, _t, _r, _b] = _area;
+        if (_r < _l) [_r, _l] = [_l, _r];
+        if (_b < _t) [_b, _t] = [_t, _b];
+        let [_h, _w] = [_b - _t, _r - _l];
+        let [_cl, _ct, _cr, _cb] = [
+            {x: _l, y: _t + _h / 2},
+            {x: _l + _w / 2, y: _t},
+            {x: _r, y: _t + _h / 2},
+            {x: _l + _w / 2, y: _b},
+        ];
+        return {
+            l: _l, t: _t, r: _r, b: _b,
+            cl: _cl, ct: _ct, cr: _cr, cb: _cb,
+        };
+
+        // tool function(s) //
+
+        function _checkArea(area) {
+            if (Object.prototype.toString.call(area).slice(8, -1) !== "Array") return;
+            let _len = area.length;
+            if (_len !== 4) return;
+            for (let _i = 0; _i < _len; _i += 1) {
+                let _num = +area[_i];
+                if (isNaN(_num) || (_num < 0 && (_num !== -1 && _num !== -2))) return;
+                if (_i % 2 && _num > device.height) return;
+                if (!(_i % 2) && _num > device.width) return;
+            }
+            return area;
+        }
+    }
+
+    function _swipeAndCheck() {
+        _swipe();
+        sleep(_swipe_interval);
+        if (_success()) return true;
+
+        // tool function(s) //
+
+        function _swipe() {
+            let {cl, cr, ct, cb} = _swipe_area;
+            let [_cl, _cr, _ct, _cb] = [cl, cr, ct, cb];
+            if (_swipe_direction === "down") return swipe(_ct.x, _ct.y, _cb.x, _cb.y, _swipe_time);
+            if (_swipe_direction === "left") return swipe(_cr.x, _cr.y, _cl.x, _cl.y, _swipe_time);
+            if (_swipe_direction === "right") return swipe(_cl.x, _cl.y, _cr.x, _cr.y, _swipe_time);
+            return swipe(_cb.x, _cb.y, _ct.x, _ct.y, _swipe_time);
+        }
+    }
+
+    function _success() {
+        let max_try_find_times = 5;
+        let _node;
+        while (max_try_find_times--) {
+            if ((_node = f.findOnce())) break;
+        }
+        if (!_node) return false;
+        let _bounds = _node.bounds();
+        if (_bounds.height() <= 0 || _bounds.width() <= 0) return false;
+        let [_left, _top, _right, _bottom] = [_bounds.left, _bounds.top, _bounds.right, _bounds.bottom];
+        if (_condition_meet_sides < 2) {
+            if (_swipe_direction === "up") return _top < _aim_area.b;
+            if (_swipe_direction === "down") return _bottom > _aim_area.t;
+            if (_swipe_direction === "left") return _left < _aim_area.r;
+            if (_swipe_direction === "right") return _right < _aim_area.l;
+        } else {
+            if (_swipe_direction === "up") return _bottom < _aim_area.b;
+            if (_swipe_direction === "down") return _top > _aim_area.t;
+            if (_swipe_direction === "left") return _right < _aim_area.r;
+            if (_swipe_direction === "right") return _left < _aim_area.l;
+        }
+    }
+}
+
+/**
+ * Swipe to make a certain specified area, then click it
+ * -- This is a combination function which means independent usage is not recommended
+ * @param f {object} - JavaObject
+ * @param [swipe_params] {object}
+ * @param [swipe_params.max_swipe_times=12] {number}
+ * @param [swipe_params.swipe_direction="auto"] {number|string}
+ * <br>
+ *     -- 0|"l"|"left", 1|"u"|"up", 2|"r"|"right", 3|"d"|"down" - direction to swipe each time <br>
+ *     -- "auto" - if "f" exists but not in aim area, direction will be auto-set decided by position of "f", or direction will be "up"
+ * @param [swipe_params.swipe_time=150] {number} - the time spent for each swiping - set bigger as needed
+ * @param [swipe_params.swipe_interval=100] {number} - the time spent between every swiping - set bigger as needed
+ * @param [swipe_params.swipe_area=[0.1, 0.1, 0.9, 0.9]] {number[]} - swipe from a center-point to another
+ * @param [swipe_params.aim_area=[0, 0, -1, -1]] {number[]} - restrict for smaller aim area
+ * <br>
+ *     -- area params - x|0<=x<1: x * (height|width), -1: full-height or full-width, -2: set with default value <br>
+ *     -- [%left%, %top%, %right%, %bottom%] <br>
+ *     -- [1, 50, 700, 1180] - [1, 50, 700, 1180] <br>
+ *     -- [1, 50, 700, -1] - [1, 50, 700, device.height] <br>
+ *     -- [0.1, 0.2, -1, -1] - [0.1 * device.width, 0.2 * device.height, device.width, device.height]
+ * @param [swipe_params.condition_meet_sides=1] {number=1|2}
+ * <br>
+ *     -- example A: condition_meet_side = 1 <br>
+ *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
+ *     -- swipe once - bounds: [0, 1100, 720, 1350] - top is not less than 1004 - continue swiping <br>
+ *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004 - swipe will stop <br>
+ *     -- example B: condition_meet_side = 2 <br>
+ *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
+ *     -- swipe once - bounds: [0, 1100, 720, 1350] - neither top nor bottom < 1004 - continue swiping <br>
+ *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004, but not bottom - swipe will not stop <br>
+ *     -- swipe once - bounds: [0, 700, 720, 950] - top < 1004, and so is bottom - swipe will stop
+ * @param [click_params] {object}
+ * @param [click_params.intermission=300] {number}
+ * @param [click_params.click_strategy] {string} - decide the way of click
+ * <br>
+ *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
+ *     -- "press" - press(coord_A, coord_B, 1); <br>
+ *     -- "widget" - text("abc").click();
+ * @param [click_params.condition_success=()=>true] {string|function}
+ * <br>
+ *     -- *DEFAULT* - () => true <br>
+ *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
+ *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
+ *     -- func - (f) => func(f);
+ * @param [click_params.check_time_once=500] {number}
+ * @param [click_params.max_check_times=0] {number}
+ * <br>
+ *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
+ *     --- example: (this is not usage) <br>
+ *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
+ *     -- return max_check_times >= 0;
+ * @param [click_params.padding] {number|array}
+ * <br>
+ *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
+ *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
+ */
+function swipeInAreaAndClickAction(f, swipe_params, click_params) {
+
+    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+    let _swipeInArea = typeof swipeInArea === "undefined" ? swipeInAreaRaw : swipeInArea;
+
+    if (_swipeInArea(f, swipe_params)) return _clickAction(f, click_params && click_params.click_strategy, click_params);
+
+    // raw function(s) //
+
+    function clickActionRaw(kw) {
+        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
+        let _key_node = _kw.findOnce();
+        if (!_key_node) return;
+        let _bounds = _key_node.bounds();
+        click(_bounds.centerX(), _bounds.centerY());
+        return true;
+    }
+
+    function swipeInAreaRaw(kw, params) {
+        let _max_try_times = 10;
+        while (_max_try_times--) {
+            let _node = kw.findOnce();
+            if (_node && _node.bounds().top > 0 && _node.bounds().bottom < device.height) return true;
+            let _dev_h = device.height;
+            let _dev_w = device.width;
+            swipe(_dev_w * 0.5, _dev_h * 0.8, _dev_w * 0.5, _dev_h * 0.2, params.swipe_time || 200);
+            sleep(params.swipe_interval || 200);
+        }
+        return _max_try_times >= 0;
+    }
+}
+
+/**
+ * Simulates touch, keyboard or key press events (by shell or functions based on accessibility service)
+ * @param keycode_name {string|number} - {@link https://developer.android.com/reference/android/view/KeyEvent}
+ * @param [params_str] {string}
+ * <br>
+ *     - /force_shell/ - don't use accessibility functions like back(), home() or recents() <br>
+ *     - /no_err(or)?_(message|msg)/ - don't print error message or not when keycode() failed
+ * @example
+ * keycode(3); // keycode("home"); // keycode("KEYCODE_HOME"); <br>
+ * keycode(4, "force_shell|no_err_msg"); // keycode("back", "force_shell|no_err_msg"); <br>
+ * keycode("KEYCODE_POWER", "no_error_message"); // keycode(26, "no_err_msg"); <br>
+ * keycode("recent"); // keycode("recent_apps"); // keycode("KEYCODE_APP_SWITCH");
+ * @return {boolean}
+ */
+function keycode(keycode_name, params_str) {
+    params_str = params_str || "";
+
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+
+    if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
+    let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
+    switch (_tidy_keycode_name) {
+        case "3":
+        case "home":
+            return ~home();
+        case "4":
+        case "back":
+            return ~back();
+        case "appSwitch":
+        case "187":
+        case "recent":
+        case "recentApp":
+            return ~recents();
+        case "powerDialog":
+        case "powerMenu":
+            return ~powerDialog();
+        case "notification":
+            return ~notifications();
+        case "quickSetting":
+            return ~quickSettings();
+        case "splitScreen":
+            return ~splitScreen();
+        default:
+            return keyEvent(keycode_name);
+    }
+
+    // tool function(s) //
+
+    function keyEvent(keycode_name) {
+        let _key_check = {
+            "26, power": checkPower,
+        };
+        for (let _key in _key_check) {
+            if (_key_check.hasOwnProperty(_key)) {
+                if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) return _key_check[_key]();
+            }
+        }
+        return shellInputKeyEvent(keycode_name);
+
+        // tool function(s) //
+
+        function shellInputKeyEvent(keycode_name) {
+            let shell_result = false;
+            try {
+                shell_result = !shell("input keyevent " + keycode_name, true).code;
+            } catch (e) {
+                // nothing to do here
+            }
+            return shell_result ? true : (!params_str.match(/no.*err(or)?.*(message|msg)/) && !!keyEventFailedMsg());
+
+            // tool function(s) //
+
+            function keyEventFailedMsg() {
+                messageAction("按键模拟失败", 0);
+                messageAction("键值: " + keycode_name, 0, 0, 1);
+            }
+        }
+
+        function checkPower() {
+            let isScreenOn = () => device.isScreenOn();
+            let isScreenOff = () => !isScreenOn();
+            if (isScreenOff()) {
+                device.wakeUp();
+                let max_try_times_wake_up = 10;
+                while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
+                return max_try_times_wake_up >= 0;
+            }
+            return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2400) : false;
+        }
+    }
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+}
+
+/**
+ * Print a message in console with verbose mode for debugging
+ * @param msg {string} - message will be formatted with prefix ">> "
+ * <br>
+ *     - "sum is much smaller" - ">> sum is much smaller" <br>
+ *     - ">sum is much smaller" - ">>> sum is much smaller"
+ * @param [info_flag] {boolean}
+ * @param [params] {object} - reserved
+ */
+function debugInfo(msg, info_flag, params) {
+    if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
 }
