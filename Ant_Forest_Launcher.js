@@ -87,15 +87,8 @@ let storage_af = require("./Modules/MODULE_STORAGE").create("af");
 debugInfo("成功接入\"af\"本地存储");
 if (!storage_af.get("config_prompted")) promptConfig();
 
-let WIDTH = device.width;
-if (!WIDTH) messageAction("屏幕宽度像素数据异常", 8, 1, 0, 1);
-let HEIGHT = device.height;
-if (!HEIGHT) messageAction("屏高宽度像素数据异常", 8, 1, 0, 1);
-if (HEIGHT < WIDTH) {
-    debugInfo("当前设备屏幕可能为横屏");
-    debugInfo("交换宽高数据");
-    [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
-}
+let WIDTH = 0, HEIGHT = 0;
+setScreenPixelData();
 
 let cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1)),
     cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)), // scaled by actual ratio
@@ -587,7 +580,7 @@ function antForest() {
                         min_time = Date.parse(today_date + " " + check_time[0]),
                         max_time = Date.parse(today_date + " " + check_time[1]),
                         in_check_remain_range = min_time < now && now < max_time;
-                    if (in_check_remain_range) checkRemain(max_time);
+                    if (in_check_remain_range) checkRemain(min_time, max_time);
                 }
                 if (!remain_checked_flag) debugInfo("当前时间不在监测时间范围内");
             }
@@ -598,15 +591,25 @@ function antForest() {
 
             // tool function(s) //
 
-            function checkRemain(max_time) {
+            function checkRemain(min_time, max_time) {
                 remain_checked_flag = true;
                 let start_timestamp = new Date().getTime();
                 messageAction("Non-stop checking time", null, 1);
                 debugInfo("开始监测自己能量");
-                while (new Date() < max_time) ~sleep(180) && check();
+                let time_keep_screen_on = max_time - min_time + 5000;
+                device.keepScreenOn(time_keep_screen_on);
+                debugInfo("已设置屏幕常亮");
+                debugInfo(">最大超时时间: " + time_keep_screen_on + "ms");
+                try {
+                    while (new Date() < max_time) ~sleep(180) && check();
+                } catch (e) {
+                    // nothing to do here
+                }
                 messageAction("Checking completed", null, 1);
                 debugInfo("自己能量监测完毕");
                 debugInfo(">用时: " + (new Date().getTime() - start_timestamp) / 1000 + "秒");
+                device.cancelKeepingAwake();
+                debugInfo("屏幕常亮已取消");
             }
 
             function checkOnce() {
@@ -1907,6 +1910,16 @@ function antForest() {
 }
 
 // tool function(s) //
+
+function setScreenPixelData() {
+    if (!waitForAction(() => (WIDTH = device.width) && (HEIGHT = device.height), 3000)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+    if (HEIGHT < WIDTH) {
+        debugInfo("当前设备屏幕可能为横屏");
+        debugInfo("交换宽高数据");
+        [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
+    }
+    debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+}
 
 function checkModules() {
     try {
