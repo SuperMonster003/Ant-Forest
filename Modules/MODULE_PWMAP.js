@@ -1,21 +1,16 @@
-/**
- * @description Module for generating "PWMAP" file, and encrypting/decrypting password via "PWMAP" file
- * @functions generatePWMAP|pwmapEncrypt|pwmapDecrypt
- */
-function ModulePWMAP() {
-    let path_pwmap = "../.local/PWMAP.txt";
-    let path_pwmap_tool = "../Tools/Generate_PWMAP.js";
+module.exports = function () {
+    let pwmap_path = files.getSdcardPath() + "/.local/PWMAP.txt";
     let pwmap_map = {};
     let config = {
-        "code_length": 8, // 密文长度 - eg, 8 - "SCPrMtaB": "A"
-        "code_amount": 10, // 密文数量 - eg, 3 - "...": "A", "...": "A", "...": "A"
+        "code_length": 8, // 密文字串长度 - eg, 8 - "SCPrMtaB": "A"
+        "code_amount": 10, // 密文映射数量 - eg, 3 - "......": "A", "......": "A", "......": "A"
         "separator": "_.|._",
         "encrypt_power": 2,
     };
 
-    this.generatePWMAP = generatePWMAP;
     this.pwmapEncrypt = pwmapEncrypt;
     this.pwmapDecrypt = pwmapDecrypt;
+    this.pwmapGenerate = pwmapGenerate;
 
     // main function(s) //
 
@@ -52,7 +47,9 @@ function ModulePWMAP() {
         function pickARandResult(str) {
             let tempArr = [];
             for (let name in pwmap_map) {
-                pwmap_map.hasOwnProperty(name) && pwmap_map[name] === str && tempArr.push(name)
+                if (pwmap_map.hasOwnProperty(name)) {
+                    pwmap_map[name] === str && tempArr.push(name);
+                }
             }
             return tempArr[~~(Math.random() * config.code_amount)];
         }
@@ -109,14 +106,10 @@ function ModulePWMAP() {
         }
     }
 
-    /**
-     @description 此工具用于生成或重新生成随机密文文件"PWMAP.txt"
-     * 注意: 重新生成将覆盖已生成的密文文件且无法恢复 重新生成后 涉及密文的相关代码均需要重新设置
-     */
-    function generatePWMAP() {
-        if (files.exists(path_pwmap)) if (!confirm("密文文件已存在\n继续操作将覆盖已有文件\n新的密文文件生成后\n涉及密文的全部相关代码\n均需重新设置才能解密\n确定要继续吗?")) exit();
-        files.createWithDirs(path_pwmap);
-        files.open(path_pwmap);
+    function pwmapGenerate() {
+        if (files.exists(pwmap_path)) if (!confirm("密文文件已存在\n继续操作将覆盖已有文件\n新的密文文件生成后\n涉及密文的全部相关代码\n均需重新设置才能解密\n确定要继续吗?")) exit();
+        files.createWithDirs(pwmap_path);
+        files.open(pwmap_path);
 
         let str_map = "~!@#$%^&*`'-_+=,./\\ 0123456789:;?AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz()[]<>{}|\"";
         let az_map = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz";
@@ -136,25 +129,18 @@ function ModulePWMAP() {
             }
         }
 
-        files.write(path_pwmap, JSON.stringify(result));
+        files.write(pwmap_path, JSON.stringify(result));
         toast("密文文件生成完毕");
     }
 
     // tool function(s) //
 
     function checkPWMAPFile() {
-        let result = files.exists(path_pwmap);
-
-        if (!result) {
-            if (!files.exists(path_pwmap_tool)) {
-                alert("密文文件及密文生成文件均不存在 请检查文件目录");
-                exit();
-            }
-            toast("密文文件不存在\n已生成新的密文文件");
-            generatePWMAP();
+        if (!files.exists(pwmap_path)) {
+            toastLog("已生成新的密文文件");
+            pwmapGenerate();
         }
-        pwmap_map = JSON.parse(files.read(path_pwmap));
-        return result;
+        pwmap_map = JSON.parse(files.read(pwmap_path));
     }
 
     function userInput(msg) {
@@ -176,7 +162,7 @@ function ModulePWMAP() {
     }
 
     function monitorRunningTime(msg) {
-        let thread = threads.start(function () {
+        return threads.start(function () {
             msg = msg || "运行中 请稍候...";
             sleep(1200);
             toast(msg);
@@ -186,8 +172,22 @@ function ModulePWMAP() {
                 toast(msg);
             }
         });
-        return thread;
     }
-}
+};
 
-module.exports = ModulePWMAP;
+/**
+ * @description Module for encrypting/decrypting string via "PWMAP" file generated automatically
+ * @example
+ * let PWMAP = require("./Modules/MODULE_PWMAP");
+ * let pwmap = new PWMAP();
+ * let encrypt = pwmap.pwmapEncrypt;
+ * let decrypt = pwmap.pwmapDecrypt;
+ * encrypt(); // input manually
+ * encrypt("12345");
+ * decrypt(); // decrypt manually
+ * decrypt("['xxx', 'yyy']"); // array string
+ * decrypt(['xxx', 'yyy']); // string array
+ * pwmap.pwmapGenerate(); // generate or regenerate "PWMAP" file - use with caution
+ * @functions pwmapGenerate|pwmapEncrypt|pwmapDecrypt
+ * @author {@link https://github.com/SuperMonster003}
+ */

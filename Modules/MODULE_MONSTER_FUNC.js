@@ -19,6 +19,12 @@ module.exports = {
     debugInfo: debugInfo,
 };
 
+/**
+ * @description tool functions (available for independent use)
+ * @type {{keycode: keycode, restartThisEngine: restartThisEngine, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, refreshObjects: refreshObjects, debugInfo: debugInfo, launchThisApp: (function((Object|string), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), killThisApp: killThisApp, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: (function((Object|Object[]|Function|Function[]), *=, *=): boolean), swipeInAreaAndClickAction: swipeInAreaAndClickAction, messageAction: (function(string, (number|string|Object)=, number=, number=, (number|string)=, *=): boolean), runJsFile: runJsFile, clickAction: clickAction}}
+ * @author {@link https://github.com/SuperMonster003}
+ */
+
 // global function(s) //
 
 /**
@@ -160,7 +166,7 @@ function getVerName(name, params) {
  */
 function launchThisApp(intent_or_name, params) {
 
-    if (typeof this.first_time_run === "undefined") this.first_time_run = 1;
+    if (typeof this._monster_$_first_time_run === "undefined") this._monster_$_first_time_run = 1;
 
     let _params = params || {};
 
@@ -191,8 +197,8 @@ function launchThisApp(intent_or_name, params) {
         let _max_launch_times_backup = _max_launch_times;
         if (!_params.no_message_flag) {
             let _msg_launch = _task_name ? "重新开始\"" + _task_name + "\"任务" : "重新启动\"" + _app_name + "\"应用";
-            if (!this.first_time_run) _messageAction(_msg_launch, null, 1);
-            else _first_time_run_message_flag && _messageAction(_msg_launch.replace(/重新/g, ""), null, 1);
+            if (!this._monster_$_first_time_run) _messageAction(_msg_launch, null, 1);
+            else _first_time_run_message_flag && _messageAction(_msg_launch.replace(/重新/g, ""), 1, 1, 0, "both");
         }
         while (_max_launch_times--) {
             if (typeof intent_or_name === "object") {
@@ -203,21 +209,21 @@ function launchThisApp(intent_or_name, params) {
                 app.launchPackage(_package_name);
             }
 
-            let _cond_succ_flag = _waitForAction(_condition_launch, [5000, 800]);
+            let _cond_succ_flag = _waitForAction(_condition_launch, 5000, 800);
             _debugInfo("应用启动" + (_cond_succ_flag ? "成功" : "超时 (" + (_max_launch_times_backup - _max_launch_times) + "\/" + _max_launch_times_backup + ")"));
             if (_cond_succ_flag) break;
             else _debugInfo(">" + currentPackage());
         }
         if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 8, 1, 0, 1);
 
-        this.first_time_run = 0;
+        this._monster_$_first_time_run = 0;
         if (_condition_ready === null || _condition_ready === undefined) {
             _debugInfo("未设置启动完成条件参数");
             break;
         }
 
         _debugInfo("开始监测启动完成条件");
-        this.ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
+        this._monster_$_launch_ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
 
         _disturbance && _disturbance.bind(this)();
 
@@ -234,7 +240,7 @@ function launchThisApp(intent_or_name, params) {
             }
         }
 
-        this.ready_monitor_signal = true;
+        this._monster_$_launch_ready_monitor_signal = true;
 
         if (max_ready_try_times >= 0) {
             _debugInfo("启动完成条件监测完毕");
@@ -255,7 +261,8 @@ function launchThisApp(intent_or_name, params) {
             _package_name = app.getAppName(intent_or_name) && intent_or_name;
         } else {
             _app_name = _params.app_name;
-            _package_name = _params.package_name || intent_or_name.packageName;
+            _package_name = _params.package_name || intent_or_name.packageName ||
+                intent_or_name.data && intent_or_name.data.match(/^alipays/i) && "com.eg.android.AlipayGphone";
         }
         _app_name = _app_name || _package_name && app.getAppName(_package_name);
         _package_name = _package_name || _app_name && app.getPackageName(_app_name);
@@ -269,6 +276,9 @@ function launchThisApp(intent_or_name, params) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -458,6 +468,9 @@ function killThisApp(name, params) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -514,7 +527,7 @@ function killThisApp(name, params) {
 
 /**
  * Kill or minimize a certain app and launch it with or without conditions (restart)
- * -- This is a combination function which means independent usage is not recommended
+ * -- This is a combination function which means independent use is not recommended
  * @param intent_or_name {object|string}
  * * <br>
  *     -- intent - activity object like {
@@ -645,6 +658,9 @@ function restartThisEngine(params) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -723,6 +739,9 @@ function runJsFile(file_name) {
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
 
     let _msg = msg || "";
+    if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+    }
 
     let _msg_level = typeof msg_level === "number" ? msg_level : -1;
     let _if_toast = if_toast || false;
@@ -791,6 +810,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         case "x":
             _msg_level = 4;
             console.error(msg);
+            // throw Error(); // do not forget to disable this before pushing
             _exit_flag = true;
             break;
         case 9:
@@ -798,13 +818,8 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             _msg_level = 4;
             console.error(msg);
             home();
+            // throw Error(); // do not forget to disable this before pushing
             _exit_flag = true;
-            break; // useless, just for inspection
-        case "t":
-        case "title":
-            _msg_level = 1;
-            console.log("[ " + msg + " ]");
-            break;
     }
     if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
     _exit_flag && exit();
@@ -913,6 +928,9 @@ function waitForAction(f, timeout_or_times, interval) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -983,6 +1001,7 @@ function clickAction(f, strategy, params) {
      */
     let _type = _checkType(f);
     let _padding = _checkPadding(_params.padding);
+    if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
     let _strategy = strategy || "click";
     let _widget_id = 0;
     let _widget_parent_id = 0;
@@ -998,7 +1017,7 @@ function clickAction(f, strategy, params) {
     } else if (typeof _condition_success === "undefined") _condition_success = () => true;
 
     while (~_clickOnce() && _max_check_times--) {
-        if (_waitForAction(() => _condition_success(), [_check_time_once, 50])) return true;
+        if (_waitForAction(() => _condition_success(), _check_time_once, 50)) return true;
     }
     return _condition_success();
 
@@ -1055,7 +1074,6 @@ function clickAction(f, strategy, params) {
         _y += _padding.y;
 
         _strategy === "press" ? press(_x, _y, 1) : click(_x, _y);
-        return "???";
     }
 
     function _checkType(f) {
@@ -1123,6 +1141,9 @@ function clickAction(f, strategy, params) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -1148,7 +1169,7 @@ function clickAction(f, strategy, params) {
 
 /**
  * Wait for an UiObject showing up and click it
- * -- This is a combination function which means independent usage is not recommended
+ * -- This is a combination function which means independent use is not recommended
  * @param f {object} - only JavaObject is supported
  * @param [timeout_or_times=10000] {number}
  * <br>
@@ -1199,6 +1220,9 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
         let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
@@ -1233,7 +1257,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
 
 /**
  * Refresh screen objects or current package by a certain strategy
- * @param strategy {string}
+ * @param [strategy] {string}
  * <br>
  *     -- "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
  *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
@@ -1277,7 +1301,7 @@ function refreshObjects(strategy, params) {
         let init_package = currentPackage();
         _debugInfo(init_package);
         recents();
-        _waitForAction(() => currentPackage() !== init_package, 2000, 80);
+        _waitForAction(() => currentPackage() !== init_package, 2000, 80) && sleep(300);
         init_package = currentPackage();
         _debugInfo(currentPackage());
         back();
@@ -1327,6 +1351,7 @@ function tryRequestScreenCapture(params) {
 
     let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
 
@@ -1349,20 +1374,20 @@ function tryRequestScreenCapture(params) {
 
         if (!_waitForAction(_kw_no_longer_prompt, 5000)) return;
         _debugInfo("勾选\"不再提示\"复选框");
-        _clickAction(_kw_no_longer_prompt);
+        _clickAction(_kw_no_longer_prompt, "widget");
 
         if (!_waitForAction(_kw_start_now_btn, 2000)) return;
         _debugInfo("点击\"立即开始\"按钮");
-        _clickAction(_kw_start_now_btn);
+        _clickAction(_kw_start_now_btn, "widget");
     });
 
     let _thread_monitor = threads.start(function () {
-        if (_waitForAction(() => !!_req_result, [2000, 500])) {
+        if (_waitForAction(() => !!_req_result, 2000, 500)) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
-        _debugInfo("截图权限申请结果: 失败");
-        _params.restart_this_engine_flag && _restartThisEngine(_params.restart_this_engine_params);
+        _params.restart_this_engine_flag ? _debugInfo("截图权限申请结果: 失败") : _messageAction("截图权限申请结果: 失败", 8, 1, 0, 1);
+        _restartThisEngine(_params.restart_this_engine_params);
     });
 
     let _req_result = images.requestScreenCapture();
@@ -1399,6 +1424,19 @@ function tryRequestScreenCapture(params) {
         let _bounds = _key_node.bounds();
         click(_bounds.centerX(), _bounds.centerY());
         return true;
+    }
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
+        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
+        _msg_level >= 8 && exit();
+        return !(_msg_level in {3: 1, 4: 1});
     }
 
     function restartThisEngineRaw(params) {
@@ -1576,7 +1614,7 @@ function swipeInArea(f, params) {
 
 /**
  * Swipe to make a certain specified area, then click it
- * -- This is a combination function which means independent usage is not recommended
+ * -- This is a combination function which means independent use is not recommended
  * @param f {object} - JavaObject
  * @param [swipe_params] {object}
  * @param [swipe_params.max_swipe_times=12] {number}
@@ -1780,5 +1818,5 @@ function keycode(keycode_name, params_str) {
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
-    if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    if (info_flag || this._monster_$_debug_info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
 }

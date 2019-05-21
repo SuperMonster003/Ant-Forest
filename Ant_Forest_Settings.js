@@ -6,17 +6,17 @@ try {
 }
 
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
-let dialogs = require("../Modules/__dialogs__pro_v6.js")(runtime, {});
+let dialogs = require("./Modules/__dialogs__pro_v6.js")(runtime, {});
 
-let DEFAULT = require("../Modules/MODULE_DEFAULT_CONFIG").af,
-    DEFAULT_UNLOCK = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
+let DEFAULT = require("./Modules/MODULE_DEFAULT_CONFIG").af,
+    DEFAULT_UNLOCK = require("./Modules/MODULE_DEFAULT_CONFIG").unlock;
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
-let storage_cfg = require("../Modules/MODULE_STORAGE").create("af_cfg");
-let storage_af = require("../Modules/MODULE_STORAGE").create("af");
-let storage_unlock = require("../Modules/MODULE_STORAGE").create("unlock");
-let encrypt = new (require("../Modules/MODULE_PWMAP.js"))().pwmapEncrypt;
+let storage_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
+let storage_af = require("./Modules/MODULE_STORAGE").create("af");
+let storage_unlock = require("./Modules/MODULE_STORAGE").create("unlock");
+let encrypt = new (require("./Modules/MODULE_PWMAP.js"))().pwmapEncrypt;
 
 let session_params = {
     //~ no need to set values here
@@ -59,7 +59,7 @@ let alert_info = {};
 
 initUI();
 
-let homepage = setHomePage("Ant_Forest");
+let homepage = setHomePage("蚂蚁森林");
 let help_collect_page = setPage("帮收功能");
 let self_collect_page = setPage("自收功能");
 let non_break_check_page = setPage("监测自己能量");
@@ -174,7 +174,7 @@ let self_def_blacklist_page = setPage("自定义黑名单", def, parent_view => 
                 canceledOnTouchOutside: false,
             });
             diag_add_from_list.on("neutral", () => {
-                engines.execScriptFile("./!Ant_Forest.js", {
+                engines.execScriptFile("./Ant_Forest_Launcher.js", {
                     arguments: {
                         special_exec_command: "collect_friends_list",
                     },
@@ -454,7 +454,7 @@ homepage
         updateOpr: function (view) {
             let current_local_version_name = "";
             try {
-                current_local_version_name = "v" + files.read("./!Ant_Forest.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
+                current_local_version_name = "v" + files.read("./Ant_Forest_Launcher.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
             } catch (e) {
                 current_local_version_name = "读取失败";
             }
@@ -1457,7 +1457,7 @@ ui.emitter.on("back_pressed", e => {
     function quitNow() {
         if (storage_af.get("af_postponed")) {
             toast("配置结束\n即将运行蚂蚁森林");
-            engines.execScriptFile("./!Ant_Forest.js");
+            engines.execScriptFile("./Ant_Forest_Launcher.js");
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
         }
@@ -1833,7 +1833,7 @@ function setButtons(parent_view, button_params_arr) {
         buttons_view.btn.addView(getButtonLayout.apply(null, arg));
         buttons_count += 1;
     }
-    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (session_params.page_title !== "Ant_Forest" ? 52 : 5)) * WIDTH / 720));
+    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (session_params.page_title !== "蚂蚁森林" ? 52 : 5)) * WIDTH / 720));
     parent_view._title_bg.addView(buttons_view);
 
     // tool function(s) //
