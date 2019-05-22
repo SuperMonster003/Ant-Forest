@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 22, 2019
- * @version 1.6.24 Alpha3
+ * @version 1.6.24 Alpha4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1239,8 +1239,8 @@ function antForest() {
 
                     if (ripe_flag && (config.console_log_details || config.debug_info_switch)) {
                         let harvest = collected_amount - ori_collected_amount;
-                        if (isNaN(harvest)) messageAction("收取: 统计数据无效", 0, 0, 1);
-                        else messageAction("收取: " + harvest + "g", harvest ? 1 : 0, 0, 1);
+                        if (harvest >= 0) messageAction("收取: " + harvest + "g", harvest ? 1 : 0, 0, 1);
+                        else messageAction("收取: 统计数据无效", 0, 0, 1);
                         current_app.current_friend.console_logged = 1;
                     }
 
@@ -1260,8 +1260,6 @@ function antForest() {
                     // let kw_helped = desc("你给TA助力");
                     let ori_helped_amount = getDataFriendEnergy();
                     debugInfo("初始好友能量数据: " + ori_helped_amount);
-                    let helped_amount = ori_helped_amount;
-                    let tmp_helped_amount = ori_helped_amount;
 
                     let coords_arr = Object.keys(help_balls_coords);
                     if (!coords_arr.length) return debugInfo("没有可帮收的能量球");
@@ -1279,11 +1277,13 @@ function antForest() {
                     if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
 
                     debugInfo("等待好友能量数据稳定");
-                    helped_amount = stabilizer(getDataFriendEnergy);
-                    debugInfo("好友能量数据已稳定: " + helped_amount);
+                    let helped_amount = stabilizer(getDataFriendEnergy);
+                    !isNaN(helped_amount) && debugInfo("好友能量数据已稳定: " + helped_amount);
 
                     if (config.console_log_details || config.debug_info_switch) {
-                        messageAction("助力: " + (helped_amount - ori_helped_amount) + "g", 1, 0, 1);
+                        let helped_result = helped_amount - ori_helped_amount;
+                        if (helped_result >= 0) messageAction("助力: " + helped_result + "g", helped_result ? 1 : 0, 0, 1);
+                        else messageAction("助力: 统计数据无效", 0, 0, 1);
                         current_app.current_friend.console_logged = 1;
                     }
                 }
@@ -1449,13 +1449,14 @@ function antForest() {
                 condition_timeout = condition_timeout || 3000;
                 let init_data = NaN;
                 let _condition = () => {
-                    let result = condition();
-                    init_data = init_data || init_data === 0 ? init_data : result;
-                    return result || result === 0;
+                    let result = +condition();
+                    init_data = init_data || result;
+                    return result;
                 };
-                if (!waitForAction(() => _condition() && (init_data !== _condition()), condition_timeout)) return false;
+                if (!waitForAction(() => !isNaN(_condition()), condition_timeout)) return false;
+                if (!waitForAction(() => init_data !== _condition(), condition_timeout)) return false;
                 stable_timeout = stable_timeout || 300;
-                let old_data = NaN;
+                let old_data = init_data;
                 let tmp_data = NaN;
                 let check = () => tmp_data = condition();
                 while (waitForAction(() => old_data !== check(), stable_timeout)) old_data = tmp_data;
