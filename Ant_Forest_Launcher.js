@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 22, 2019
- * @version 1.6.24 Alpha2
+ * @version 1.6.24 Alpha3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1215,10 +1215,9 @@ function antForest() {
                     if (!waitForAction(() => kw_energy_balls().exists(), 1000)) return debugInfo("收取能量球准备超时");
                     if (!kw_energy_balls_ripe().exists()) return (take_clicked_flag = 1) && debugInfo("没有可收取的能量球");
 
-                    let ori_collected_amount = getOperateData("collect");
+                    let ori_collected_amount = getDataCollectedEnergy();
                     debugInfo("初始收取数据: " + ori_collected_amount);
                     let collected_amount = ori_collected_amount;
-                    let tmp_collected_amount = undefined;
 
                     let ripe_balls = kw_energy_balls_ripe().find();
                     let ripe_flag = false;
@@ -1234,23 +1233,8 @@ function antForest() {
                         if (isNaN(ori_collected_amount)) return messageAction("初始收取数据无效", 3, 0, 1);
 
                         debugInfo("等待收取数据稳定");
-
-                        if (!waitForAction(() => {
-                            tmp_collected_amount = getOperateData("collect");
-                            if (!isNaN(tmp_collected_amount) && collected_amount !== tmp_collected_amount) {
-                                collected_amount = tmp_collected_amount;
-                                return true;
-                            }
-                        }, [3500, 80])) return debugInfo("等待收取数据稳定超时");
-
-                        while (waitForAction(() => {
-                            tmp_collected_amount = getOperateData("collect");
-                            if (!isNaN(tmp_collected_amount) && collected_amount !== tmp_collected_amount) {
-                                collected_amount = tmp_collected_amount;
-                                return true;
-                            }
-                        }, [300, 80])) ; // empty loop body
-                        debugInfo("收取数据已稳定: " + collected_amount);
+                        collected_amount = stabilizer(getDataCollectedEnergy);
+                        !isNaN(collected_amount) && debugInfo("收取数据已稳定: " + collected_amount);
                     }
 
                     if (ripe_flag && (config.console_log_details || config.debug_info_switch)) {
@@ -1274,7 +1258,7 @@ function antForest() {
                     }
 
                     // let kw_helped = desc("你给TA助力");
-                    let ori_helped_amount = getOperateData("help");
+                    let ori_helped_amount = getDataFriendEnergy();
                     debugInfo("初始好友能量数据: " + ori_helped_amount);
                     let helped_amount = ori_helped_amount;
                     let tmp_helped_amount = ori_helped_amount;
@@ -1295,20 +1279,7 @@ function antForest() {
                     if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
 
                     debugInfo("等待好友能量数据稳定");
-                    if (!waitForAction(() => {
-                        tmp_helped_amount = getOperateData("help");
-                        if (!isNaN(tmp_helped_amount) && helped_amount !== tmp_helped_amount) {
-                            helped_amount = tmp_helped_amount;
-                            return true;
-                        }
-                    }, [3500, 80])) return debugInfo("等待好友能量数据稳定超时");
-                    while (waitForAction(() => {
-                        tmp_helped_amount = getOperateData("help");
-                        if (!isNaN(tmp_helped_amount) && helped_amount !== tmp_helped_amount) {
-                            helped_amount = tmp_helped_amount;
-                            return true;
-                        }
-                    }, [300, 80])) ; // empty loop body
+                    helped_amount = stabilizer(getDataFriendEnergy);
                     debugInfo("好友能量数据已稳定: " + helped_amount);
 
                     if (config.console_log_details || config.debug_info_switch) {
@@ -1454,67 +1425,41 @@ function antForest() {
                 }
             }
 
-            function getOperateData(ident) {
-                if (ident === "help") return getHelpData();
-                if (ident === "collect") return getCollectedData();
-
-                // tool function(s) //
-
-                function getHelpData() {
-                    try {
-                        let kw_home_panel = idMatches(/.*J_home_panel/);
-                        let key_node = kw_home_panel.findOnce().child(0).child(0).child(1);
-                        let key_node_desc = key_node.desc();
-                        let key_node_text = key_node.text();
-                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
-                            key_node_text && key_node_text.match(/\d+/) || null;
-                        return data_matched && (data_matched[0] - 0) || NaN;
-                    } catch (e) {
-                        try {
-                            return descMatches(/\d+g/).filter(function (w) {
-                                return w.bounds().right > cX(0.95);
-                            }).findOnce().desc().match(/\d+/)[0] - 0;
-                        } catch (e) {
-                            try {
-                                return textMatches(/\d+g/).filter(function (w) {
-                                    return w.bounds().right > cX(0.95);
-                                }).findOnce().text().match(/\d+/)[0] - 0;
-                            } catch (e) {
-                                return NaN;
-                            }
-                        }
-                    }
+            function getDataCollectedEnergy() {
+                try {
+                    let key_node = sel.pickup("你收取TA", "kw_collected_ident").findOnce().parent();
+                    key_node = key_node.child(key_node.childCount() - 1);
+                    return +(key_node.desc().match(/\d+/) || key_node.text().match(/\d+/))[0];
+                } catch (e) {
+                    return NaN;
                 }
+            }
 
-                function getCollectedData() {
-                    let kw_collected_ident = () => sel.pickup("你收取TA", "kw_collected_ident");
-                    try {
-                        this.idx_collected_data_node = this.idx_collected_data_node || getCollectedNodeIdx();
-                        let key_node = kw_collected_ident().findOnce().parent().child(this.idx_collected_data_node);
-                        let key_node_desc = key_node.desc();
-                        let key_node_text = key_node.text();
-                        let data_matched = key_node_desc && key_node_desc.match(/\d+/) ||
-                            key_node_text && key_node_text.match(/\d+/) || null;
-                        return data_matched && (data_matched[0] - 0) || NaN;
-                    } catch (e) {
-                        return NaN;
-                    }
-
-                    // tool function(s) //
-
-                    function getCollectedNodeIdx() {
-                        let getKeyParentNode = () => kw_collected_ident().findOnce().parent();
-                        for (let i = 0, len = getKeyParentNode().children().size(); i < len; i += 1) {
-                            let key_node = getKeyParentNode().child(i);
-                            let current_node_desc = key_node.desc();
-                            if (current_node_desc && current_node_desc.match(/\d+g/)) return i;
-                            let current_node_text = key_node.text();
-                            if (current_node_text && current_node_text.match(/\d+g/)) return i;
-                        }
-                        debugInfo("收取数据控件索引使用备用方案");
-                        return 2; // just a backup plan
-                    }
+            function getDataFriendEnergy() {
+                try {
+                    let kw_home_panel = idMatches(/.*J_home_panel/);
+                    let key_node = kw_home_panel.findOnce().child(0).child(0).child(1);
+                    return +(key_node.desc().match(/\d+/) || key_node.text().match(/\d+/))[0];
+                } catch (e) {
+                    return NaN;
                 }
+            }
+
+            function stabilizer(condition, condition_timeout, stable_timeout) {
+                condition_timeout = condition_timeout || 3000;
+                let init_data = NaN;
+                let _condition = () => {
+                    let result = condition();
+                    init_data = init_data || init_data === 0 ? init_data : result;
+                    return result || result === 0;
+                };
+                if (!waitForAction(() => _condition() && (init_data !== _condition()), condition_timeout)) return false;
+                stable_timeout = stable_timeout || 300;
+                let old_data = NaN;
+                let tmp_data = NaN;
+                let check = () => tmp_data = condition();
+                while (waitForAction(() => old_data !== check(), stable_timeout)) old_data = tmp_data;
+                return old_data;
             }
 
             function inBlackList() {
@@ -1878,8 +1823,8 @@ function launch(params) {
                 af_title_or_login: () => current_app.kw_af_title().exists() || current_app.kw_login_or_switch.exists(),
             };
             let conditions_optional = {
-                kw_function_buttons: () => current_app.kw_af_home(),
-                kw_list_more_friends_btn: () => current_app.kw_list_more_friends(),
+                kw_function_buttons: () => current_app.kw_af_home().exists(),
+                kw_list_more_friends_btn: () => current_app.kw_list_more_friends().exists(),
                 kw_login_or_switch: current_app.kw_login_or_switch,
             };
             let keys_nec = Object.keys(conditions_necessary);
@@ -1906,6 +1851,7 @@ function launch(params) {
                     return true;
                 }
             }
+            debugInfo("需至少满足一个启动可选条件");
         },
         disturbance: () => {
             while (!waitForAction(() => this._monster_$_launch_ready_monitor_signal, 2000)) clickAction(current_app.kw_reload_forest_page_btn());
