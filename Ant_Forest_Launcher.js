@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 21, 2019
- * @version 1.6.24 Alpha
+ * @last_modified May 22, 2019
+ * @version 1.6.24 Alpha2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -100,51 +100,7 @@ antForest();
 
 function antForest() {
     init();
-    launchThisApp(current_app.intent, {
-        task_name: "蚂蚁森林",
-        first_time_run_message_flag: true,
-        condition_launch: () => {
-            let condition_a = () => currentPackage() === current_app.package_name;
-            let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$|.+AlipayGphone$/);
-            let condition_c = () => current_app.kw_list_more_friends().exists() || current_app.kw_af_home().exists() || current_app.kw_wait_for_awhile().exists();
-
-            return condition_a() || condition_b() || condition_c();
-        },
-        condition_ready: () => {
-            let conditions_necessary = {
-                af_title_or_login: () => current_app.kw_af_title().exists() || current_app.kw_login_or_switch.exists(),
-            };
-            let conditions_optional = {
-                kw_function_buttons: () => current_app.kw_af_home(),
-                kw_list_more_friends_btn: () => current_app.kw_list_more_friends(),
-                kw_login_or_switch: current_app.kw_login_or_switch,
-            };
-            let keys_nec = Object.keys(conditions_necessary);
-            for (let i = 0, len = keys_nec.length; i < len; i += 1) {
-                let key_nec = keys_nec[i];
-                let condition = conditions_necessary[key_nec];
-                if (typeof condition === "function" && !condition() ||
-                    typeof condition === "object" && !condition.exists()) {
-                    debugInfo("启动必要条件不满足");
-                    return debugInfo(">" + key_nec);
-                }
-            }
-            debugInfo("已满足全部启动必要条件");
-            current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/, "kw_af_title");
-
-            let keys_opt = Object.keys(conditions_optional);
-            for (let i = 0, len = keys_opt.length; i < len; i += 1) {
-                let key_opt = keys_opt[i];
-                let condition = conditions_optional[key_opt];
-                if (typeof condition === "function" && condition() ||
-                    typeof condition === "object" && condition.exists()) {
-                    debugInfo("已满足启动可选条件");
-                    debugInfo(">" + key_opt);
-                    return true;
-                }
-            }
-        }
-    });
+    launch();
     checkLanguage();
     checkEnergy();
     showResult();
@@ -460,7 +416,7 @@ function antForest() {
         } else {
             debugInfo("当前支付宝语言: 英语");
             changeLangToChs();
-            launchThisApp(current_app.intent, {no_message_flag: true});
+            launch({no_message_flag: true});
         }
         debugInfo("语言检查完毕");
 
@@ -607,9 +563,9 @@ function antForest() {
                 }
                 messageAction("Checking completed", null, 1);
                 debugInfo("自己能量监测完毕");
-                debugInfo(">用时: " + (new Date().getTime() - start_timestamp) / 1000 + "秒");
                 device.cancelKeepingAwake();
                 debugInfo("屏幕常亮已取消");
+                debugInfo("监测用时: " + (new Date().getTime() - start_timestamp) / 1000 + "秒");
             }
 
             function checkOnce() {
@@ -722,7 +678,7 @@ function antForest() {
                     if (!waitForAction(kw_more_friends, 1000)) {
                         debugInfo("刷新无效");
                         debugInfo("尝试重启Activity到蚂蚁森林主页");
-                        launchThisApp(current_app.intent, {no_message_flag: true});
+                        launch({no_message_flag: true});
                         if (!waitForAction(kw_more_friends, 2000)) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
                     } else debugInfo("刷新成功");
                 }
@@ -865,7 +821,7 @@ function antForest() {
 
             function getCurrentScreenTargets() {
 
-                current_app.request_screen_capture_flag || tryRequestScreenCapture();
+                this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
 
                 // this is useless, i guess - May 06, 2019
                 // waitForAction(kw_rank_list_self, 8000); // make page ready
@@ -998,11 +954,7 @@ function antForest() {
                 debugInfo("结束\"重新加载\"按钮监测线程");
                 thread_monitor_retry_btn.interrupt();
 
-                if (max_safe_wait_time <= 0) {
-                    messageAction("进入好友森林超时", 3, 1);
-                    saveCurrentScreenCapture("Friend_Forest_Page");
-                    return false;
-                }
+                if (max_safe_wait_time <= 0) return messageAction("进入好友森林超时", 3, 1);
 
                 current_app.blacklist_need_capture_flag = true;
                 debugInfo("已开启能量球监测线程");
@@ -1018,7 +970,6 @@ function antForest() {
                 refreshObjects();
                 let retry_result = waitForAction(() => kw_energy_balls().exists(), 1000);
                 debugInfo(retry_result ? "刷新成功" : "刷新无效");
-                retry_result || saveCurrentScreenCapture("No_Energy_Balls", "no_msg");
                 return retry_result;
 
                 // tool function(s) //
@@ -1390,7 +1341,7 @@ function antForest() {
                 // tool function(s) //
 
                 function restartAlipayToHeroList() {
-                    launchThisApp(current_app.intent, "no_msg");
+                    launch({no_message_flag: true});
                     rankListReady();
                 }
             }
@@ -1614,7 +1565,7 @@ function antForest() {
             debugInfo("返回蚂蚁森林主页失败");
             debugInfo("尝试重启支付宝到蚂蚁森林主页");
             killThisApp(current_app.package_name);
-            launchThisApp(current_app.intent, "no_msg");
+            launch({no_message_flag: true});
         }
     }
 
@@ -1824,7 +1775,7 @@ function antForest() {
         function closeAfWindows() {
             debugInfo("关闭全部蚂蚁森林相关页面");
             let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
-            while ((current_app.kw_af_title().exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水")) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) sleep(500);
+            while ((current_app.kw_af_title().exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) sleep(500);
             debugInfo("相关页面关闭完毕");
             debugInfo("保留当前支付宝页面");
         }
@@ -1911,6 +1862,57 @@ function antForest() {
 
 // tool function(s) //
 
+function launch(params) {
+    return launchThisApp.bind(this)(current_app.intent, Object.assign({
+        task_name: "蚂蚁森林",
+        first_time_run_message_flag: true,
+        condition_launch: () => {
+            let condition_a = () => currentPackage() === current_app.package_name;
+            let condition_b = () => engines.myEngine().execArgv.special_exec_command === "collect_friends_list" && currentPackage().match(/^org\.autojs\.autojs(pro)?$|.+AlipayGphone$/);
+            let condition_c = () => current_app.kw_list_more_friends().exists() || current_app.kw_af_home().exists() || current_app.kw_wait_for_awhile().exists();
+
+            return condition_a() || condition_b() || condition_c();
+        },
+        condition_ready: () => {
+            let conditions_necessary = {
+                af_title_or_login: () => current_app.kw_af_title().exists() || current_app.kw_login_or_switch.exists(),
+            };
+            let conditions_optional = {
+                kw_function_buttons: () => current_app.kw_af_home(),
+                kw_list_more_friends_btn: () => current_app.kw_list_more_friends(),
+                kw_login_or_switch: current_app.kw_login_or_switch,
+            };
+            let keys_nec = Object.keys(conditions_necessary);
+            for (let i = 0, len = keys_nec.length; i < len; i += 1) {
+                let key_nec = keys_nec[i];
+                let condition = conditions_necessary[key_nec];
+                if (typeof condition === "function" && !condition() ||
+                    typeof condition === "object" && !condition.exists()) {
+                    debugInfo("启动必要条件不满足");
+                    return debugInfo(">" + key_nec);
+                }
+            }
+            debugInfo("已满足全部启动必要条件");
+            current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/, "kw_af_title");
+
+            let keys_opt = Object.keys(conditions_optional);
+            for (let i = 0, len = keys_opt.length; i < len; i += 1) {
+                let key_opt = keys_opt[i];
+                let condition = conditions_optional[key_opt];
+                if (typeof condition === "function" && condition() ||
+                    typeof condition === "object" && condition.exists()) {
+                    debugInfo("已满足启动可选条件");
+                    debugInfo(">" + key_opt);
+                    return true;
+                }
+            }
+        },
+        disturbance: () => {
+            while (!waitForAction(() => this._monster_$_launch_ready_monitor_signal, 2000)) clickAction(current_app.kw_reload_forest_page_btn());
+        },
+    }, params || {}));
+}
+
 function setScreenPixelData() {
     if (!waitForAction(() => (WIDTH = device.width) && (HEIGHT = device.height), 3000)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
     if (HEIGHT < WIDTH) {
@@ -1927,7 +1929,7 @@ function checkModules() {
         Object.assign(config, storage_cfg.get("config", require("./Modules/MODULE_DEFAULT_CONFIG").af));
         unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         this._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
-        showSplitLine();
+        this._monster_$_debug_info_flag && showSplitLine();
         debugInfo("成功接入\"af_cfg\"本地存储");
         debugInfo("整合代码配置与本地配置");
         debugInfo("成功导入解锁模块");

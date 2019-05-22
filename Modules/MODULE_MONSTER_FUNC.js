@@ -225,7 +225,13 @@ function launchThisApp(intent_or_name, params) {
         _debugInfo("开始监测启动完成条件");
         this._monster_$_launch_ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
 
-        _disturbance && _disturbance.bind(this)();
+        let _thread_disturbance = undefined;
+        if (_disturbance) {
+            _debugInfo("检测到干扰排除器");
+            _thread_disturbance = threads.start(function () {
+                return _disturbance.bind(this);
+            }); // maybe a signal is needed here
+        }
 
         let max_ready_try_times = _params.ready_retry_times || 3;
         let max_ready_try_times_backup = max_ready_try_times;
@@ -241,6 +247,12 @@ function launchThisApp(intent_or_name, params) {
         }
 
         this._monster_$_launch_ready_monitor_signal = true;
+        if (_thread_disturbance) {
+            if (!_waitForAction(() => !_thread_disturbance.isAlive(), 1000)) {
+                _debugInfo("强制解除干扰排除器");
+                _thread_disturbance.interrupt();
+            } else _debugInfo("干排除扰器已解除");
+        }
 
         if (max_ready_try_times >= 0) {
             _debugInfo("启动完成条件监测完毕");
@@ -439,7 +451,7 @@ function killThisApp(name, params) {
                 let _kw_avail_btn = _kw_avail_btns[i];
                 if (_kw_avail_btn.exists()) {
                     _kw_clicked_flag = true;
-                    _clickAction(_kw_avail_btns);
+                    _clickAction(_kw_avail_btn);
                     sleep(300);
                     break;
                 }
@@ -1359,10 +1371,10 @@ function tryRequestScreenCapture(params) {
     _params.restart_this_engine_params = _params.restart_this_engine_params || {};
     _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
 
-    if (this.request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
+    if (this._monster_$_request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
     _debugInfo("开始申请截图权限");
 
-    this.request_screen_capture_flag = 1;
+    this._monster_$_request_screen_capture_flag = true;
     _debugInfo("已存储截图权限申请标记");
 
     _debugInfo("已开启弹窗监测线程");
