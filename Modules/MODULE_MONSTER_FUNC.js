@@ -428,23 +428,6 @@ function killThisApp(name, params) {
         let _max_try_times_minimize = 20;
         let _max_try_times_minimize_backup = _max_try_times_minimize;
 
-        let _tmp_current_pkg = currentPackage();
-        if (_tmp_current_pkg !== _package_name) {
-            _debugInfo("当前前置应用包名:");
-            _debugInfo(">" + _tmp_current_pkg);
-            _debugInfo("刷新前置应用");
-            _refreshObjects("page", {
-                debug_info_flag: _params.debug_info_flag,
-            });
-            _debugInfo("当前前置应用包名:");
-            _debugInfo(">" + currentPackage());
-            if (_condition_success()) {
-                _debugInfo("退出完成条件已满足");
-                _debugInfo("最小化应用成功");
-                return true;
-            }
-        }
-
         while (_max_try_times_minimize--) {
             let _kw_clicked_flag = false;
             for (let i = 0, len = _kw_avail_btns.length; i < len; i += 1) {
@@ -1826,9 +1809,12 @@ function keycode(keycode_name, params_str) {
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
  *     - ">sum is much smaller" - ">>> sum is much smaller"
- * @param [info_flag] {boolean}
+ * @param [info_flag] {boolean|string}
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
-    if (info_flag || this._monster_$_debug_info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    if (info_flag || this._monster_$_debug_info_flag) {
+        info_flag === "up" && showSplitLine();
+        console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
 }

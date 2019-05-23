@@ -60,8 +60,9 @@ let alert_info = {};
 initUI();
 
 let homepage = setHomePage("蚂蚁森林");
-let help_collect_page = setPage("帮收功能");
 let self_collect_page = setPage("自收功能");
+let friend_collect_page = setPage("收取功能");
+let help_collect_page = setPage("帮收功能");
 let non_break_check_page = setPage("监测自己能量");
 let auto_unlock_page = setPage("自动解锁");
 let blacklist_page = setPage("黑名单管理");
@@ -306,6 +307,17 @@ homepage
             view._hint.text(this.hint[+!!session_config[this.config_conj]]);
         },
     }))
+    .add("options", new Layout("收取功能", {
+        "config_conj": "friend_collect_switch",
+        "hint": {
+            "0": "已关闭",
+            "1": "已开启",
+        },
+        "next_page": friend_collect_page,
+        "updateOpr": function (view) {
+            view._hint.text(this.hint[+!!session_config[this.config_conj]]);
+        },
+    }))
     .add("options", new Layout("帮收功能", {
         "config_conj": "help_collect_switch",
         "hint": {
@@ -345,7 +357,7 @@ homepage
     }))
     .add("sub_head", new Layout("重置"))
     .add("button", new Layout("还原设置", {
-        new_window: () => {
+        newWindow: () => {
             let diag = dialogs.build({
                 title: "还原初始设置",
                 content: "此操作无法撤销\n如需保留此次会话内容请先保存\n\n以下功能内部配置不会被还原:\n1. 自动解锁\n2. 黑名单管理",
@@ -392,7 +404,7 @@ homepage
                     // tool function(s) //
 
                     function reset() {
-                        let def_DEFAULT = Object.assign({}, DEFAULT, storage_unlock.get("config", {}), isolateBlacklistStorage());
+                        let def_DEFAULT = Object.assign({info_icons_sanctuary: []}, DEFAULT, storage_unlock.get("config", {}), isolateBlacklistStorage());
                         session_config = deepCloneObject(def_DEFAULT);
                         storage_config = deepCloneObject(def_DEFAULT);
                         storage_cfg.put("config", DEFAULT);
@@ -408,7 +420,7 @@ homepage
     .add("sub_head", new Layout("关于"))
     .add("button", new Layout("关于脚本及开发者", {
         hint: "正在读取中...",
-        new_window: function () {
+        newWindow: function () {
             let local_version = this.view._hint.getText();
             let diag = dialogs.build({
                 title: "关于",
@@ -460,8 +472,8 @@ homepage
             }
             view._hint.text(current_local_version_name);
         },
-    }));
-
+    }))
+;
 self_collect_page
     .add("switch", new Layout("总开关", {
         config_conj: "self_collect_switch",
@@ -482,7 +494,7 @@ self_collect_page
             view["_switch"].setChecked(session_conf);
         },
     }))
-    .add("sub_head", new Layout("高级功能"))
+    .add("sub_head", new Layout("高级设置"))
     .add("options", new Layout("监测自己能量", {
         "config_conj": "non_break_check_switch",
         "hint": {
@@ -494,8 +506,194 @@ self_collect_page
             view._hint.text(this.hint[+!!session_config[this.config_conj]]);
         },
     }))
-    .add("info", new Layout("关闭自收功能将不再收取自己能量"));
-
+    .add("info", new Layout("关闭自收功能将不再收取自己能量"))
+;
+friend_collect_page
+    .add("switch", new Layout("总开关", {
+        config_conj: "friend_collect_switch",
+        listeners: {
+            "_switch": {
+                "check": function (state) {
+                    saveSession(this.config_conj, !!state);
+                    let parent = this.view.getParent();
+                    let child_count = parent.getChildCount();
+                    while (child_count-- > 2) {
+                        parent.getChildAt(child_count).setVisibility(state ? 0 : 4);
+                    }
+                },
+            },
+        },
+        updateOpr: function (view) {
+            let session_conf = !!session_config[this.config_conj];
+            view["_switch"].setChecked(session_conf);
+        },
+    }))
+    .add("sub_head", new Layout("基本设置"))
+    .add("button", new Layout("排行榜样本采集策略", {
+        config_conj: "rank_list_samples_collect_strategy",
+        hint: "hint",
+        map: {
+            "layout": "布局分析",
+            "image": "图像处理",
+        },
+        newWindow: function () {
+            let map = this.map;
+            let map_keys = Object.keys(map);
+            let diag = dialogs.build({
+                title: "排行榜样本采集策略",
+                items: ["layout", "image"].map(value => map[value]),
+                itemsSelectMode: "single",
+                itemsSelectedIndex: map_keys.indexOf(session_config[this.config_conj]),
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.setSelectedIndex(map_keys.indexOf(DEFAULT[this.config_conj])));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                saveSession(this.config_conj, map_keys[diag.selectedIndex]);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        infoWindow: function () {
+            let diag = dialogs.build({
+                title: "关于采集策略",
+                content: "布局分析 (默认)\n\n" +
+                    "使用布局信息定位好友/获取昵称\n" +
+                    "可快速确认好友是否名列黑名单\n\n" +
+                    "优点:\n" +
+                    "1. 精准快速识别黑名单情况\n" +
+                    "2. 好友数量较少时滑动列表速度快\n" +
+                    "缺点:\n" +
+                    "1. 好友数量多于200时卡顿明显\n" +
+                    "2. 好友数量更多时卡顿愈发严重\n\n" +
+                    "图像处理\n\n" +
+                    "使用多点颜色匹配判断图标类型\n" +
+                    "使用本地以保存的图片匹配好友\n" +
+                    "进而获取黑名单情况\n" +
+                    "每页排行榜信息采集均无需控件信息\n\n" +
+                    "优点:\n" +
+                    "1. 采集信息时滑动速度不受控件影响\n" +
+                    "2. 摆脱控件依赖\n" +
+                    "缺点:\n" +
+                    "1. 首次确认黑名单情况时必须进入好友森林\n" +
+                    "2. 确认好友是否名列黑名单精确性低\n" +
+                    "3. 本地可能需要保存大量图像数据\n\n" +
+                    "建议:\n" +
+                    "好友数量大于200使用图像处理\n" +
+                    "排行榜滑动卡顿时使用图像处理\n" +
+                    "黑名单好友较多时使用图像处理\n" +
+                    "布局信息获取失效时用图像处理\n" +
+                    "其他情况使用布局分析\n",
+                positive: "返回",
+                positiveColor: "#4db6ac",
+                neutral: "隐藏此提示图标",
+                neutralColor: "#a1887f",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("positive", () => diag.dismiss());
+            diag.on("neutral", () => {
+                saveSession("info_icons_sanctuary", session_config.info_icons_sanctuary.concat([this.config_conj]));
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            view._hint.text(this.map[session_config[this.config_conj].toString()]);
+            view._info_icon.setVisibility(~session_config.info_icons_sanctuary.indexOf(this.config_conj) ? 8 : 0);
+        },
+    }))
+    .add("sub_head", new Layout("高级设置"))
+    .add("button", new Layout("收取图标颜色色值", {
+        config_conj: "friend_collect_icon_color",
+        hint: "hint",
+        newWindow: function () {
+            let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
+                _lim255 = regexp_num_0_to_255.source;
+            let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
+            let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
+            let current_color = undefined;
+            let diag = dialogs.build({
+                title: "收取图标颜色色值",
+                content: "排行榜识别绿色手形图标的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
+                inputHint: "rgb(RR,GG,BB) | #RRGGBB",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                if (diag.getInputEditText().getText().toString() !== "") {
+                    if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
+                    saveSession(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
+                }
+                diag.dismiss();
+            });
+            diag.on("input_change", (dialog, input) => {
+                let color = "";
+                try {
+                    if (input.match(regexp_hex_color)) {
+                        color = colors.parseColor("#" + input.slice(-6));
+                    } else if (input.match(regexp_rgb_color)) {
+                        let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                        color = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                    }
+                    dialog.getTitleView().setTextColor(color || -570425344);
+                    dialog.getContentView().setTextColor(color || -1979711488);
+                    dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
+                } catch (e) {
+                }
+                current_color = color;
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            let color_str = session_config[this.config_conj].toString();
+            view._hint.text(color_str);
+            view._hint_color_indicator.text(" \u25D1");
+            view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
+            view._hint_color_indicator.setVisibility(0);
+        },
+    }))
+    .add("button", new Layout("收取图标颜色阈值", {
+        config_conj: "friend_collect_icon_threshold",
+        hint: "hint",
+        newWindow: function () {
+            let diag = dialogs.build({
+                title: "收取图标颜色检测阈值",
+                content: "排行榜识别绿色手形图标的参照色值检测阈值",
+                inputHint: "{x|0<=x<=66,x∈N*}",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                let input = diag.getInputEditText().getText().toString();
+                if (input === "") return dialog.dismiss();
+                let value = input - 0;
+                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                if (value > 66 || value < 0) return alertTitle(dialog, "输入值范围不合法");
+                saveSession(this.config_conj, value);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            view._hint.text(session_config[this.config_conj].toString());
+        },
+    }))
+;
 help_collect_page
     .add("switch", new Layout("总开关", {
         config_conj: "help_collect_switch",
@@ -517,14 +715,68 @@ help_collect_page
         },
     }))
     .add("sub_head", new Layout("高级设置"))
-    .add("button", new Layout("检测密度", {
-        config_conj: "help_collect_intensity",
+    .add("button", new Layout("帮收图标颜色色值", {
+        config_conj: "help_collect_icon_color",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
+            let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
+                _lim255 = regexp_num_0_to_255.source;
+            let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
+            let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
+            let current_color = undefined;
             let diag = dialogs.build({
-                title: "帮收功能检测密度",
-                content: "好友森林橙色能量球图片样本采集密度",
-                inputHint: "{x|10<=x<=20,x∈N*}",
+                title: "帮收图标颜色色值",
+                content: "排行榜识别橙色爱心图标的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
+                inputHint: "rgb(RR,GG,BB) | #RRGGBB",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                if (diag.getInputEditText().getText().toString() !== "") {
+                    if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
+                    saveSession(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
+                }
+                diag.dismiss();
+            });
+            diag.on("input_change", (dialog, input) => {
+                let color = "";
+                try {
+                    if (input.match(regexp_hex_color)) {
+                        color = colors.parseColor("#" + input.slice(-6));
+                    } else if (input.match(regexp_rgb_color)) {
+                        let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                        color = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                    }
+                    dialog.getTitleView().setTextColor(color || -570425344);
+                    dialog.getContentView().setTextColor(color || -1979711488);
+                    dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
+                } catch (e) {
+                }
+                current_color = color;
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            let color_str = session_config[this.config_conj].toString();
+            view._hint.text(color_str);
+            view._hint_color_indicator.text(" \u25D1");
+            view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
+            view._hint_color_indicator.setVisibility(0);
+        },
+    }))
+    .add("button", new Layout("帮收图标颜色阈值", {
+        config_conj: "help_collect_icon_threshold",
+        hint: "hint",
+        newWindow: function () {
+            let diag = dialogs.build({
+                title: "帮收图标颜色检测阈值",
+                content: "排行榜识别橙色爱心图标的参照色值检测阈值",
+                inputHint: "{x|0<=x<=66,x∈N*}",
                 neutral: "使用默认值",
                 negative: "返回",
                 positive: "确认修改",
@@ -538,7 +790,7 @@ help_collect_page
                 if (input === "") return dialog.dismiss();
                 let value = input - 0;
                 if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
+                if (value > 66 || value < 0) return alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, value);
                 diag.dismiss();
             });
@@ -548,17 +800,17 @@ help_collect_page
             view._hint.text(session_config[this.config_conj].toString());
         },
     }))
-    .add("button", new Layout("颜色色值", {
-        config_conj: "help_collect_color",
+    .add("button", new Layout("帮收能量球颜色色值", {
+        config_conj: "help_collect_balls_color",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
                 _lim255 = regexp_num_0_to_255.source;
             let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
             let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
             let current_color = undefined;
             let diag = dialogs.build({
-                title: "帮收功能颜色色值",
+                title: "帮收能量球颜色色值",
                 content: "好友森林识别橙色能量球的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
                 inputHint: "rgb(RR,GG,BB) | #RRGGBB",
                 neutral: "使用默认值",
@@ -602,13 +854,13 @@ help_collect_page
             view._hint_color_indicator.setVisibility(0);
         },
     }))
-    .add("button", new Layout("颜色检测阈值", {
-        config_conj: "help_collect_color_threshold",
+    .add("button", new Layout("帮收能量球颜色阈值", {
+        config_conj: "help_collect_balls_threshold",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
-                title: "帮收功能颜色检测阈值",
-                content: "好友森林识别橙色能量球的参照色值阈值",
+                title: "帮收能量球颜色检测阈值",
+                content: "好友森林识别橙色能量球的参照色值检测阈值",
                 inputHint: "{x|28<=x<=83,x∈N*}",
                 neutral: "使用默认值",
                 negative: "返回",
@@ -632,8 +884,39 @@ help_collect_page
         updateOpr: function (view) {
             view._hint.text(session_config[this.config_conj].toString());
         },
-    }));
-
+    }))
+    .add("button", new Layout("帮收能量球样本采集密度", {
+        config_conj: "help_collect_balls_intensity",
+        hint: "hint",
+        newWindow: function () {
+            let diag = dialogs.build({
+                title: "帮收能量球样本采集密度",
+                content: "好友森林橙色能量球图片样本采集密度",
+                inputHint: "{x|10<=x<=20,x∈N*}",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                let input = diag.getInputEditText().getText().toString();
+                if (input === "") return dialog.dismiss();
+                let value = input - 0;
+                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                if (value > 20 || value < 10) return alertTitle(dialog, "输入值范围不合法");
+                saveSession(this.config_conj, value);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            view._hint.text(session_config[this.config_conj].toString());
+        },
+    }))
+;
 non_break_check_page
     .add("switch", new Layout("总开关", {
         config_conj: "non_break_check_switch",
@@ -658,7 +941,7 @@ non_break_check_page
     .add("button", new Layout("管理时间区间", {
         config_conj: "non_break_check_time_area",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let updateTimeAreaAmount = diag => {
                 let items = [];
                 diag.getItems().toArray().forEach((value, index) => items[index] = value);
@@ -842,8 +1125,8 @@ non_break_check_page
             let time_area_amount = time_areas ? time_areas.length : 0;
             view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: " + time_areas[0][0] + " - " + time_areas[0][1])) : "未设置");
         },
-    }));
-
+    }))
+;
 auto_unlock_page
     .add("switch", new Layout("总开关", {
         config_conj: "auto_unlock_switch",
@@ -868,7 +1151,7 @@ auto_unlock_page
     .add("button", new Layout("锁屏密码", {
         config_conj: "unlock_code",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "设置锁屏解锁密码",
                 neutral: "查看示例",
@@ -921,7 +1204,7 @@ auto_unlock_page
     .add("button", new Layout("锁屏页面上滑时长", {
         config_conj: "dismiss_layer_swipe_time",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "设置锁屏页面上滑时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
@@ -952,7 +1235,7 @@ auto_unlock_page
     .add("button", new Layout("图案解锁滑动时长", {
         config_conj: "pattern_unlock_swipe_time",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "设置图案解锁滑动时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
@@ -983,7 +1266,7 @@ auto_unlock_page
     .add("button", new Layout("图案解锁点阵边长", {
         config_conj: "unlock_pattern_size",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "设置图案解锁边长",
                 content: "图案解锁通常为N×N的点阵\n通常边长N为3\n\n若未使用图案解锁方式\n请保留默认值",
@@ -1014,7 +1297,7 @@ auto_unlock_page
     .add("button", new Layout("最大尝试次数", {
         config_conj: "unlock_max_try_times",
         hint: "hint",
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "设置解锁最大尝试次数",
                 inputHint: "{x|5<=x<=50,x∈N*}",
@@ -1040,8 +1323,8 @@ auto_unlock_page
         updateOpr: function (view) {
             view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
         },
-    }));
-
+    }))
+;
 blacklist_page
     .add("options", new Layout("能量罩黑名单", {
         hint: "hint",
@@ -1058,8 +1341,8 @@ blacklist_page
             let amount = session_config.blacklist_by_user.length;
             view._hint.text(amount ? "包含成员: " + amount + "人" : "空名单");
         },
-    }));
-
+    }))
+;
 cover_blacklist_page
     .add("list", new Layout("/*能量罩黑名单成员*/", {
         list_head: [{title: "支付宝好友昵称", width: 0.58}, {title: "黑名单自动解除"}],
@@ -1073,8 +1356,8 @@ cover_blacklist_page
             },
         }
     }))
-    .add("info", new Layout("能量罩黑名单由脚本自动管理"));
-
+    .add("info", new Layout("能量罩黑名单由脚本自动管理"))
+;
 self_def_blacklist_page
     .add("list", new Layout("/*自定义黑名单成员*/", {
         list_head: [{title: "支付宝好友昵称", width: 0.58}, {title: "黑名单自动解除"}],
@@ -1271,8 +1554,8 @@ self_def_blacklist_page
         },
     }))
     .add("info", new Layout("长按列表项可编辑项目"))
-    .add("info", new Layout("点击标题可排序"));
-
+    .add("info", new Layout("点击标题可排序"))
+;
 message_showing_page
     .add("switch", new Layout("总开关", {
         config_conj: "message_showing_switch",
@@ -1403,7 +1686,7 @@ message_showing_page
     }))
     .add("split_line")
     .add("button", new Layout("了解详情", {
-        new_window: function () {
+        newWindow: function () {
             let diag = dialogs.build({
                 title: "关于消息提示配置",
                 content: "控制台消息\n\n" +
@@ -1421,8 +1704,8 @@ message_showing_page
             diag.show();
         },
     }))
-    .add("split_line");
-
+    .add("split_line")
+;
 ui.emitter.on("back_pressed", e => {
     let len = pages.length,
         need_save = needSave();
@@ -1481,10 +1764,18 @@ function Layout(title, params) {
     this.list_head = params.list_head;
     this.list_checkbox = params.list_checkbox;
     this.hint = params.hint;
-    if (params.new_window) {
+    this.map = params.map;
+    if (params.newWindow) {
         Object.defineProperties(this, {
             showWindow: {
-                get: () => params.new_window.bind(this),
+                get: () => params.newWindow.bind(this),
+            }
+        });
+    }
+    if (params.infoWindow) {
+        Object.defineProperties(this, {
+            infoWindow: {
+                get: () => params.infoWindow.bind(this),
             }
         });
     }
@@ -1521,7 +1812,7 @@ function deepCloneObject(obj) {
 }
 
 function initStorageConfig() {
-    let storage_config = Object.assign({}, DEFAULT, storage_cfg.get("config", {}));
+    let storage_config = Object.assign({info_icons_sanctuary: []}, DEFAULT, storage_cfg.get("config", {}));
     storage_cfg.put("config", storage_config); // to refill storage data
     storage_config = Object.assign({}, storage_config, storage_unlock.get("config", {}), isolateBlacklistStorage());
     return storage_config;
@@ -1688,8 +1979,18 @@ function setPage(title, title_bg_color, additions, no_margin_bottom_flag) {
             item_params.view = new_view;
             new_view._item_area.on("click", () => item_params.next_page && pageJump("next", item_params.next_page));
         } else if (type === "button") {
+            let help_view = ui.inflate(
+                <vertical id="_info_icon" visibility="gone">
+                    <img src="@drawable/ic_info_outline_black_48dp" height="22" bg="?selectableItemBackgroundBorderless" tint="#888888"/>
+                </vertical>
+            );
+            new_view._item_area.addView(help_view);
             item_params.view = new_view;
             new_view._item_area.on("click", () => item_params.showWindow());
+            if (item_params.infoWindow) {
+                new_view._info_icon.setVisibility(0);
+                new_view._info_icon.on("click", () => item_params.infoWindow());
+            }
         }
 
         if (item_params.updateOpr) new_view.updateOpr = item_params.updateOpr.bind(new_view);
