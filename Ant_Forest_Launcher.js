@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 23, 2019
- * @version 1.6.25 Alpha
+ * @last_modified May 24, 2019
+ * @version 1.6.25 Alpha2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -38,7 +38,7 @@ let config = {
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
-let storage_af, storage_cfg, unlock_module;
+let storage_af, storage_af_cfg, unlock_module;
 let WIDTH, HEIGHT, cX, cY, cY16h9w;
 let engines_support_flag = true;
 let current_app = {};
@@ -201,11 +201,9 @@ function init() {
             this.package_name = getAlipayPkgName();
             this.intent = {
                 action: "VIEW",
-                data: "alipays://platformapi/startapp" +
-                    "?" + "saId=20000067" +
-                    "&" + "url=https://60000002.h5app.alipay.com/www/home.html" +
-                    "&" + "appClearTop=false" +
-                    "&" + "startMultApp=YES",
+                data: "alipays://platformapi/startapp?saId=20000067" +
+                    "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/home.html") +
+                    "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
             };
             this.first_time_run = 1;
             this.firstTimeRunConditionFun = firstTimeRunCondition;
@@ -588,17 +586,17 @@ function checkEnergy() {
             (strategy === "image" && "图像识别") || (strategy === "layout" && "布局分析")
         ));
 
-        let max_safe_swipe_times = 125; // just for avoiding infinite loop
-        while (max_safe_swipe_times-- >= 0) {
+        let max_safe_swipe_times = 1200; // just for avoiding infinite loop
+        while (max_safe_swipe_times--) {
+            current_app.current_friend = {};
             let targets = getCurrentScreenTargets(); // [[targets_green], [targets_orange]]
             let pop_item_0, pop_item_1, pop_item;
 
             while ((pop_item = (pop_item_0 = targets[0].pop()) || (pop_item_1 = targets[1].pop()))) {
-                current_app.current_friend = {
-                    name: pop_item.name,
-                    console_logged: 0,
-                };
-                let name_title = current_app.current_friend.name; // null
+                let pop_name = pop_item.name;
+                current_app.current_friend.name = pop_name;
+                current_app.current_friend.console_logged = 0;
+                let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
                 message_switch_on && name_title && messageAction(name_title, "title");
 
@@ -609,6 +607,7 @@ function checkEnergy() {
 
                 forestPageGetReady() && collectBalls();
                 backToHeroList();
+
                 if (message_switch_on) {
                     !current_app.current_friend.console_logged && messageAction("无能量球可操作", 1, 0, 1);
                     showSplitLine();
@@ -618,6 +617,7 @@ function checkEnergy() {
             if (!list_end_signal) swipeUp();
             else break;
         }
+        if (max_safe_swipe_times < 0) debugInfo("已达最大排行榜滑动次数限制");
 
         if (thread_list_end.isAlive()) {
             thread_list_end.interrupt();
@@ -804,8 +804,18 @@ function checkEnergy() {
 
             function getTargetsByImage() {
 
+                let rank_list_capt_img = images.copy(captureScreen());
+                debugInfo("生成排行榜截图: " + images.getName(rank_list_capt_img));
+
                 targets_green = friend_collect_switch && getTargets("green") || targets_green;
                 targets_orange = help_collect_switch && getTargets("orange") || targets_orange;
+
+                checkInvitationBtn();
+
+                if (rank_list_capt_img) {
+                    rank_list_capt_img.recycle();
+                    debugInfo("已回收排行榜截图: " + images.getName(rank_list_capt_img));
+                }
 
                 // tool function(s) //
 
@@ -814,22 +824,67 @@ function checkEnergy() {
                         || ident === "orange" && config.help_collect_icon_color || null;
                     if (!color) return;
 
-                    let capt = images.copy(images.captureScreen());
                     let multi_colors = [[cX(38), 0, color], [cX(38), cY16h9w(35), color]];
-                    if (ident === "green") multi_colors.push([cX(15), cY(22), -1], [cX(29), cY(30), -1], [cX(37), cY(25), -1]);
+                    if (ident === "green") {
+                        for (let i = 18; i <= 25; i += 1) multi_colors.push([cX(i), cY16h9w(i - 7), -1]);
+                    } // [cX(37), cY(25), -1] was abandoned
 
                     let icon_area_top = 0;
+                    let color_threshold = ident === "green" && config.friend_collect_icon_threshold ||
+                        ident === "orange" && config.help_collect_icon_threshold || 10;
+                    let region_icon_left = cX(0.9);
+                    let blacklist = current_app.blacklist;
                     while (icon_area_top < HEIGHT) {
-                        let matched = images.findMultiColors(capt, color, multi_colors, {
-                            region: [cX(0.9), icon_area_top, WIDTH - cX(0.9), HEIGHT - icon_area_top],
-                            threshold: ident === "green" && config.friend_collect_icon_threshold ||
-                                ident === "orange" && config.help_collect_icon_threshold || 10,
+                        let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
+                            region: [region_icon_left, icon_area_top, WIDTH - region_icon_left, HEIGHT - icon_area_top],
+                            threshold: color_threshold,
                         });
                         if (!matched) return;
-                        let y = matched.y + cY16h9w(16);
-                        ident === "green" && targets_green.unshift({name: null, y: y});
-                        ident === "orange" && targets_orange.unshift({name: null, y: y});
-                        icon_area_top = y + cY16h9w(60);
+                        let ranklist_y = matched.y;
+                        current_app.current_friend.ranklist_y = ranklist_y;
+                        let nickname = current_app.current_friend.name = checkBlacklistImages(ranklist_y);
+                        if (nickname && (nickname in blacklist)) blackListMsg("exist", "split_line");
+                        else {
+                            let y = ranklist_y + cY16h9w(16);
+                            ident === "green" && targets_green.unshift({name: nickname, y: y});
+                            ident === "orange" && targets_orange.unshift({name: nickname, y: y});
+                        }
+                        icon_area_top = ranklist_y + cY16h9w(76);
+                    }
+
+                    // tool function(s) //
+
+                    function checkBlacklistImages(y) {
+                        let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY16h9w(126)];
+                        let nickname_keys = Object.keys(blacklist);
+                        for (let i = 0, len = nickname_keys.length; i < len; i += 1) {
+                            let nickname = nickname_keys[i];
+                            let image_bytes = blacklist[nickname].img_bytes;
+                            if (!image_bytes) continue;
+                            let template = images.fromBytes(image_bytes);
+                            let matched = images.findImage(rank_list_capt_img, template, {
+                                threshold: 0.8,
+                                region: [_l, _t, _w, _h],
+                            });
+                            if (matched) return nickname;
+                        }
+                        return null;
+                    }
+                }
+
+                function checkInvitationBtn() {
+                    let color_invitation = "#30bf6c";
+                    let multi_colors = [
+                        [cX(122), 0, color_invitation],
+                        [cX(122), cY16h9w(48), color_invitation],
+                        [0, cY16h9w(48), color_invitation],
+                    ];
+                    let matched = images.findMultiColors(rank_list_capt_img, color_invitation, multi_colors, {
+                        threshold: 10,
+                    });
+                    if (matched) {
+                        debugInfo("检测到\"邀请\"按钮");
+                        list_end_signal = 1;
                     }
                 }
             }
@@ -1088,10 +1143,10 @@ function checkEnergy() {
                         let time_str_clip = cover.parent().parent().child(1).desc(); // like: "03:19"
                         let time_str = date_str + time_str_clip;
 
-                        current_app.blacklist[current_app.current_friend.name] = {
-                            timestamp: getTimestamp(time_str) + 86400000,
-                            reason: "protect_cover",
-                        };
+                        let current_name = current_app.current_friend.name;
+                        if (!(current_name in current_app.blacklist)) current_app.blacklist[current_name] = {};
+                        current_app.blacklist[current_name].timestamp = getTimestamp(time_str) + 86400000;
+                        current_app.blacklist[current_name].reason = "protect_cover";
                         blackListMsg("add");
 
                         // tool function(s) //
@@ -1204,6 +1259,7 @@ function checkEnergy() {
                 jumpBackOnce();
                 if (waitForAction(() => current_app.kw_rank_list_title().exists(), 3000)) {
                     debugInfo("返回排行榜成功");
+                    saveFriendNameImgBytesIfNeeded();
                     return true;
                 }
                 debugInfo("返回排行榜单次超时");
@@ -1221,6 +1277,14 @@ function checkEnergy() {
             function restartAlipayToHeroList() {
                 launch({no_message_flag: true});
                 rankListReady();
+            }
+
+            function saveFriendNameImgBytesIfNeeded() {
+                let current_friend = current_app.current_friend;
+                let current_friend_name = current_app.current_friend.name;
+                if (!(current_friend_name in current_app.blacklist)) return;
+                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.ranklist_y + cY16h9w(20), cX(400), cY16h9w(80)));
+                debugInfo("已存储好友排行榜样本图片");
             }
         }
 
@@ -1817,16 +1881,16 @@ function setScreenPixelData() {
 
 function checkModules() {
     try {
-        storage_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
-        Object.assign(config, storage_cfg.get("config", require("./Modules/MODULE_DEFAULT_CONFIG").af));
+        storage_af_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
+        Object.assign(config, storage_af_cfg.get("config", require("./Modules/MODULE_DEFAULT_CONFIG").af));
         unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         this._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
-        debugInfo("成功接入\"af_cfg\"本地存储", "up");
+        debugInfo("接入\"af_cfg\"存储", "up");
         debugInfo("整合代码配置与本地配置");
         debugInfo("成功导入解锁模块");
 
         storage_af = require("./Modules/MODULE_STORAGE").create("af");
-        debugInfo("成功接入\"af\"本地存储");
+        debugInfo("接入\"af\"存储");
         if (!storage_af.get("config_prompted")) promptConfig();
     } catch (e) {
         messageAction("模块导入功能异常", 3, 0, 0, "up");
@@ -2269,11 +2333,9 @@ function loginSpecificUser() {
 function speExecCollectFriendsList() {
     let intent = {
         action: "VIEW",
-        data: "alipays://platformapi/startapp" +
-            "?" + "saId=20000067" +
-            "&" + "url=https://60000002.h5app.alipay.com/www/listRank.html" +
-            "&" + "appClearTop=false" +
-            "&" + "startMultApp=YES",
+        data: "alipays://platformapi/startapp?saId=20000067" +
+            "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/listRank.html") +
+            "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
     };
 
     init();

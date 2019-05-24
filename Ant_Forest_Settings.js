@@ -2285,7 +2285,7 @@ function smoothScrollMenu(shifting, duration) {
                 parent.removeView(parent.getChildAt(--child_count));
             }
             clearInterval(scroll_interval);
-        }, duration + 200); // 200: a safe interval just in case
+        }, duration + 300); // 300: a safe interval just in case
     } catch (e) {
     }
 }
