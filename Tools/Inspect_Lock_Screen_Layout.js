@@ -3,17 +3,24 @@ try {
 } catch (e) {
     auto();
 }
+
+let {
+    tryRequestScreenCapture,
+    waitForAction,
+    messageAction,
+    keycode,
+} = require("../Modules/MODULE_MONSTER_FUNC");
+
 tryRequestScreenCapture();
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
 let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
 let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
-let cY16h9w = num => ~~(num * (WIDTH * 16 / 9) / (num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
 
 let storage_unlock = require("../Modules/MODULE_STORAGE.js").create("unlock");
-let storage_unlock_config = storage_unlock.get("config", {});
-let DEFAULT_UNLOCK = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
+let config_storage = storage_unlock.get("config", {});
+let config_default = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
 let path_base = files.getSdcardPath() + "/!Debug_Info/";
 files.removeDir(path_base);
 let path_container_page = path_base + "Container_Page.png";
@@ -190,10 +197,10 @@ function dismissLayer() {
     let max_try_times_dismiss_layer = 20;
     let data_from_storage_flag = false;
     let chances_for_storage_data = 3;
-    let gesture_time = storage_unlock_config.dismiss_layer_swipe_time;
+    let gesture_time = config_storage.dismiss_layer_swipe_time;
 
     if (gesture_time) data_from_storage_flag = true;
-    else gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
+    else gesture_time = config_default.dismiss_layer_swipe_time;
 
     let half_width = cX(0.5);
     let gesture_params = [];
@@ -207,7 +214,7 @@ function dismissLayer() {
         if (data_from_storage_flag) {
             if (--chances_for_storage_data < 0) {
                 data_from_storage_flag = false;
-                gesture_time = DEFAULT_UNLOCK.dismiss_layer_swipe_time;
+                gesture_time = config_default.dismiss_layer_swipe_time;
             } else max_try_times_dismiss_layer += 1;
         } else gesture_time += (gesture_time <= 130 ? 10 : 80);
     }
@@ -254,398 +261,5 @@ function dismissLayer() {
         };
 
         return cond_lock_pattern_view() || cond_password_view() || cond_pin_view() || cond_special_view();
-    }
-}
-
-// global function(s) //
-
-function tryRequestScreenCapture() {
-    let thread_prompt = threads.start(function () {
-        let kw_no_longer_prompt = id("com.android.systemui:id/remember");
-        if (!waitForAction(kw_no_longer_prompt, 5000)) return;
-        clickObject(kw_no_longer_prompt) || clickBounds(kw_no_longer_prompt);
-
-        let kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
-        if (!waitForAction(kw_start_now_btn, 2000)) return;
-        clickObject(kw_start_now_btn) || clickBounds(kw_start_now_btn);
-    });
-
-    let thread_req;
-    let max_try_times = 6;
-    let max_try_times_backup = max_try_times;
-    let try_count = 0;
-    while (++try_count && max_try_times--) {
-        let req_result = false;
-        thread_req = threads.start(function () {
-            let count = try_count;
-            try {
-                req_result = images.requestScreenCapture();
-                log("截图权限申请结果: " + req_result + " (" + count + "\/" + max_try_times_backup + ")");
-                if (req_result) return true;
-            } catch (e) {
-                log("截图权限申请结果: 单次异常" + " (" + count + "\/" + max_try_times_backup + ")");
-                max_try_times || log(e);
-            }
-        });
-        thread_req.join(1000);
-        if (!thread_req.isAlive() && req_result) {
-            thread_prompt.interrupt();
-            break;
-        }
-        thread_req.interrupt();
-        sleep(500);
-    }
-
-    if (max_try_times < 0) messageAction("截图权限申请失败", 8, 1);
-}
-
-function messageAction(msg, msg_level, if_needs_toast, if_needs_arrow, if_needs_split_line) {
-    if (if_needs_toast) toast(msg);
-    let split_line_style = "";
-    if (typeof if_needs_split_line === "string") {
-        if (if_needs_split_line.match(/dash/)) split_line_style = "dash";
-        if (if_needs_split_line.match(/^both(_n)?|up/)) {
-            showSplitLine("", split_line_style);
-            if (if_needs_split_line.match(/both_n/)) if_needs_split_line = "\n";
-            else if (if_needs_split_line.match(/both/)) if_needs_split_line = 1;
-            else if (if_needs_split_line.match(/up/)) if_needs_split_line = 0;
-        }
-    }
-    if (if_needs_arrow) {
-        if (if_needs_arrow > 10) messageAction("\"if_needs_arrow\"参数不可大于10", 8, 1, 0, 1);
-        msg = "> " + msg;
-        for (let i = 0; i < if_needs_arrow; i += 1) msg = "-" + msg;
-    }
-    let exit_flag = false;
-    switch (msg_level) {
-        case 0:
-        case "verbose":
-        case "v":
-            msg_level = 0;
-            console.verbose(msg);
-            break;
-        case 1:
-        case "log":
-        case "l":
-            msg_level = 1;
-            console.log(msg);
-            break;
-        case 2:
-        case "i":
-        case "info":
-            msg_level = 2;
-            console.info(msg);
-            break;
-        case 3:
-        case "warn":
-        case "w":
-            msg_level = 3;
-            console.warn(msg);
-            break;
-        case 4:
-        case "error":
-        case "e":
-            msg_level = 4;
-            console.error(msg);
-            break;
-        case 8:
-        case "x":
-            msg_level = 4;
-            console.error(msg);
-            exit_flag = true;
-            break;
-        case 9:
-        case "h":
-            msg_level = 4;
-            console.error(msg);
-            keycode(3);
-            exit_flag = true;
-            break; // useless, just for inspection
-        case "t":
-        case "title":
-            msg_level = 1;
-            console.log("[ " + msg + " ]");
-            break;
-    }
-    if (if_needs_split_line) showSplitLine(typeof if_needs_split_line === "string" ? (if_needs_split_line === "dash" ? "" : if_needs_split_line) : "", split_line_style);
-    exit_flag && exit();
-    if (typeof current_app !== "undefined") current_app.msg_level = current_app.msg_level ? Math.max(current_app.msg_level, msg_level) : msg_level;
-    return !(msg_level in {3: 1, 4: 1});
-}
-
-function waitForAction(f, timeout_or_with_interval, msg, msg_level, if_needs_toast, if_needs_arrow) {
-    timeout_or_with_interval = timeout_or_with_interval || [10000, 300];
-    if (typeof timeout_or_with_interval === "number") timeout_or_with_interval = [timeout_or_with_interval, 300];
-    let timeout = timeout_or_with_interval[0],
-        check_interval = timeout_or_with_interval[1];
-    msg_level = msg_level || (msg_level === 0 ? 0 : 1);
-
-    return checkFunc(f);
-
-    function checkFunc(f) {
-        if (typeof f === "object") {
-            let classof = Object.prototype.toString.call(f).slice(8, -1);
-            if (classof !== "Array") return check(() => f.exists());
-            for (let i = 0, len = f.length; i < len; i += 1) {
-                if (!(typeof f[i]).match(/function|object/)) messageAction("数组参数中含不合法元素", 9, 1);
-                if (!checkFunc(f[i])) return false;
-            }
-            return true;
-        } else if (typeof f === "function") return check(f);
-        else if (typeof f === "number") return sleep(f);
-        else messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 9, 1, 1);
-
-        function check(f) {
-            while (!f() && timeout > 0) {
-                sleep(check_interval);
-                timeout -= check_interval;
-            }
-            timeout <= 0 && msg ? messageAction(msg, msg_level, if_needs_toast, if_needs_arrow) : false;
-            return timeout > 0;
-        }
-    }
-}
-
-function showSplitLine(extra_str, style) {
-    extra_str = extra_str || "";
-    let split_line = "";
-    if (style === "dash") {
-        for (let i = 0; i < 16; i += 1) split_line += "- ";
-        split_line += "-";
-    } else {
-        for (let i = 0; i < 32; i += 1) split_line += "-";
-    }
-    log(split_line + extra_str);
-    return true;
-}
-
-function keycode(keycode_name) {
-    switch (keycode_name.toString()) {
-        case "KEYCODE_HOME":
-        case "3":
-        case "home":
-            return ~home();
-        case "KEYCODE_BACK":
-        case "4":
-        case "back":
-            return ~back();
-        case "KEYCODE_APP_SWITCH":
-        case "187":
-        case "recents":
-        case "recent":
-        case "recent_apps":
-            return ~recents();
-        case "powerDialog":
-        case "power_dialog":
-        case "powerMenu":
-        case "power_menu":
-            return ~powerDialog();
-        case "notifications":
-        case "notification":
-            return ~notifications();
-        case "quickSettings":
-        case "quickSetting":
-        case "quick_settings":
-        case "quick_setting":
-            return ~quickSettings();
-        case "splitScreen":
-        case "split_screen":
-            return ~splitScreen();
-        default:
-            return keyEvent(keycode_name);
-    }
-
-    // tool function(s) //
-
-    function keyEvent(keycode_name, failed_msg_level) {
-        failed_msg_level = +failed_msg_level;
-        failed_msg_level = isNaN(failed_msg_level) ? NaN : failed_msg_level;
-
-        let key_check = {
-            "26, KEYCODE_POWER, POWER": checkPower,
-        };
-        for (let key in key_check) {
-            if (key_check.hasOwnProperty(key)) {
-                if (~key.split(/ *, */).indexOf(keycode_name.toString())) return key_check[key]();
-            }
-        }
-
-        return shellInputKeyEvent(keycode_name);
-
-        // tool function(s) //
-
-        function keyEventFailedMsg(msg_level) {
-            if (!isNaN(msg_level)) {
-                messageAction("按键模拟失败", msg_level);
-                messageAction("键值: " + keycode_name, msg_level, 0, 1);
-            } else {
-                if (typeof debugInfo !== "function") return;
-                debugInfo("按键模拟失败");
-                debugInfo(">键值: " + keycode_name);
-            }
-        }
-
-        function shellInputKeyEvent(keycode_name) {
-            let shell_result = false;
-            try {
-                shell_result = !shell("input keyevent " + keycode_name, true).code;
-            } catch (e) {
-                // nothing to do here
-            }
-            return shell_result ? true : keyEventFailedMsg(failed_msg_level);
-        }
-
-        function checkPower() {
-            let isScreenOn = () => device.isScreenOn();
-            let isScreenOff = () => !isScreenOn();
-            if (isScreenOff()) {
-                device.wakeUp();
-                let max_try_times_wake_up = 10;
-                while (!waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
-                return max_try_times_wake_up >= 0;
-            }
-            return shellInputKeyEvent(keycode_name) ? waitForAction(isScreenOff, 2400) : false;
-        }
-    }
-}
-
-function clickObject(obj_keyword, params) {
-    params = params || {};
-    let buffering_time = params.buffering_time || 0;
-    let object_name = params.object_name || "";
-    let no_info_flag = params.no_info_flag || false;
-    let obj_kw = obj_keyword && obj_keyword.clickable(true) || null;
-    let max_try_times = 3;
-    let max_try_times_backup = max_try_times;
-    while (max_try_times--) {
-        if (!obj_kw) return false;
-        if (buffering_time && !waitForAction(obj_kw, buffering_time) || !obj_kw.exists()) return false;
-
-        let thread_click = threads.start(function () {
-            obj_kw.click();
-        });
-        thread_click.join(1000);
-        if (!thread_click.isAlive()) break;
-        let current_run_count = max_try_times_backup - max_try_times;
-        if (!no_info_flag) {
-            log("强制中断click()线程: (" + current_run_count + "\/" + max_try_times_backup + ")");
-            object_name && log("-> Object Name: " + object_name);
-        }
-        thread_click.interrupt();
-    }
-    if (max_try_times < 0) return no_info_flag ? false : messageAction("click()方法超时", 3);
-    return true;
-}
-
-function clickBounds(f, if_continuous, max_check_times, check_interval, padding, special_bad_situation) {
-
-    let classof = param => Object.prototype.toString.call(param).slice(8, -1);
-
-    if (!f) return messageAction("clickBounds的f参数无效", 0, 0, 0) && 0;
-
-    let func = f,
-        additionFunc;
-    if (classof(f) === "Array") {
-        func = f[0];
-        if (!func) return messageAction("clickBounds的f[0]参数无效", 0, 0, 0) && 0;
-        additionFunc = f[1];
-    }
-
-    if (func.toString().match(/^Rect\(/) && if_continuous) messageAction("连续点击时 f参数不能是bounds():\n" + func.toString(), 8, 1);
-    if (!!additionFunc && additionFunc !== "try" && typeof additionFunc !== "function") messageAction("additionFunc参数类型不是\"function\":\n" + additionFunc.toString(), 8, 1);
-
-    if (typeof additionFunc !== "undefined") {
-        if (additionFunc === "try" && (!func || !func.exists())) return false;
-        if (typeof additionFunc === "function" && !additionFunc()) return false;
-    }
-
-    max_check_times = max_check_times || (if_continuous ? 3 : 1);
-    check_interval = check_interval || (if_continuous ? 1000 : 0);
-    if_continuous = if_continuous || [];
-    if (if_continuous === 1) if_continuous = [1];
-    else if (typeof if_continuous === "object" && Object.prototype.toString.call(if_continuous).slice(8, -1) !== "Array") {
-        let tmp_arr = [];
-        tmp_arr.push(if_continuous);
-        if_continuous = tmp_arr;
-    }
-
-    let parsed_padding = padding ? parsePadding(padding) : null;
-    let node_bounds;
-    let bad_situation_pending = 1000;
-
-    let max_try_times_node_bounds = 3;
-    let getBounds = () => {
-        if (func.toString().match(/^Rect\(/)) return func;
-        let key_node = func.findOnce();
-        return key_node && key_node.bounds() || null;
-    };
-    while (max_try_times_node_bounds--) {
-        try {
-            node_bounds = getBounds();
-            if (node_bounds) break;
-            return false;
-        } catch (e) {
-            sleep(300);
-            if (!func.exists()) break; // may be a better idea to use BoundsInside()
-        }
-    }
-    if (max_try_times_node_bounds < 0) node_bounds = getBounds(); // let console show specific error messages
-
-    if (if_continuous.length) {
-        while (max_check_times--) {
-            if (!checkArray()) break;
-            if (bad_situation_pending >= 1000) {
-                if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
-                if (special_bad_situation) checkBadSituation(special_bad_situation);
-                bad_situation_pending %= 1000;
-            }
-            try {
-                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
-            } catch (e) {
-                // nothing to do here
-            }
-            sleep(check_interval);
-            bad_situation_pending += check_interval;
-        }
-    } else {
-        if ((func.toString().match(/^Rect\(/) || func.exists())) {
-            if (current_app.global_bad_situation) checkBadSituation(current_app.global_bad_situation);
-            if (special_bad_situation) checkBadSituation(special_bad_situation);
-            try {
-                // click(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0));
-                press(node_bounds.centerX() + (parsed_padding ? parsed_padding.x : 0), node_bounds.centerY() + (parsed_padding ? parsed_padding.y : 0), 1);
-            } catch (e) {
-                max_check_times = -1;
-            }
-        }
-    }
-
-    return max_check_times >= 0;
-
-    // tool function(s) //
-
-    function parsePadding(padding) {
-        let obj = {"x": 0, "y": 0};
-        if (Object.prototype.toString.call(padding).slice(8, -1) === "Array") {
-            if ((padding[0] !== "x" && padding[0] !== "y") || typeof padding[1] !== "number") messageAction("输入的padding参数不合法", 9, 1);
-            obj[padding[0]] = padding[1];
-        } else if (typeof padding === "number") {
-            obj["y"] += padding;
-        } else {
-            messageAction("输入的padding类型不合法", 9, 1);
-        }
-        return obj;
-    }
-
-    function checkArray() {
-        for (let i = 0, len = if_continuous.length; i < len; i += 1) {
-            if (if_continuous[i] === 1) {
-                if (!func.exists()) return;
-            } else {
-                if (!if_continuous[i].exists()) return;
-            }
-        }
-        return true;
     }
 }

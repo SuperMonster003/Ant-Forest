@@ -1,7 +1,6 @@
 *.apk
 *.exe
 /.idea
-/.local
 /build
 /captures
 /Github_Materials
