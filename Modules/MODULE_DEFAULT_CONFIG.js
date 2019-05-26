@@ -22,6 +22,9 @@ module.exports = {
 		result_showing_switch: true, // information will show in floaty way with true or toast way with false
 		floaty_result_switch: true, // result will show in floaty way with "true value" or toast way with "false value"
 		rank_list_samples_collect_strategy: "layout", // "image" for image recolonization or "layout" for layout inspection
+		rank_list_swipe_distance: 0.8, // [0.4, 0.8] for percentage, or integer for pixel distance (like 1260)
+		rank_list_swipe_time: 100, // duration for swiping up each time; 50 <= x <= 500 is recommended
+		rank_list_swipe_interval: 300, // interval between swipes; 100 <= x <= 1000 is recommended
 	},
 	"unlock": {
 		unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...

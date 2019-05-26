@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 26, 2019
- * @version 1.6.25 Alpha3
+ * @version 1.6.25 Alpha4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -34,7 +34,6 @@ try {
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    list_swipe_time: 100, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
@@ -596,11 +595,14 @@ function checkEnergy() {
             while ((pop_item = (pop_item_0 = targets[0].pop()) || (pop_item_1 = targets[1].pop()))) {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
-                current_app.current_friend.ranklist_y = current_app.current_friend.ranklist_y || pop_item.y;
+                current_app.current_friend.rank_list_y = current_app.current_friend.rank_list_y || pop_item.y;
                 current_app.current_friend.console_logged = 0;
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
-                message_switch_on && name_title && messageAction(name_title, "title");
+                if (message_switch_on && name_title && !current_app.current_friend.name_logged) {
+                    messageAction(name_title, "title");
+                    current_app.current_friend.name_logged = 1;
+                }
 
                 if (inBlackList(() => {
                     clickAction([cX(0.5), pop_item.y]);
@@ -645,6 +647,8 @@ function checkEnergy() {
             }
             debugInfo("定位到\"查看更多好友\"按钮");
 
+            this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
+
             let max_try_times = 180;
             let kw_try_again = () => sel.pickup("再试一次", "kw_rank_list_try_again");
             while (max_try_times--) {
@@ -660,9 +664,10 @@ function checkEnergy() {
                 }
                 clickAction(kw_try_again()); // as "服务器打瞌睡了" may exist
                 if (waitForAction(() => {
+                    current_app.rank_list_title_area_capt = current_app.rank_list_title_area_capt || getRankListTitleAreaCapt();
                     let kw_rank_list = idMatches(/.*J_rank_list/);
                     try {
-                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount();
+                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount() && current_app.rank_list_title_area_capt;
                     } catch (e) {
                         // nothing to do here
                     }
@@ -689,11 +694,16 @@ function checkEnergy() {
                 debugInfo("排行榜展开完毕");
                 debugInfo(">点击\"查看更多\": " + click_count + "次");
             }
+
+            function getRankListTitleAreaCapt() {
+                if (!current_app.kw_rank_list_title().exists()) return;
+                let bounds = current_app.kw_rank_list_title().findOnce().bounds();
+                debugInfo("采集并存储排行榜标题区域样本");
+                return images.copy(images.clip(images.captureScreen(), 0, bounds.top, WIDTH, bounds.height()));
+            }
         }
 
         function getCurrentScreenTargets() {
-
-            this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
 
             let [targets_green, targets_orange] = [[], []];
 
@@ -842,16 +852,21 @@ function checkEnergy() {
                             threshold: color_threshold,
                         });
                         if (!matched) return;
-                        let ranklist_y = matched.y;
-                        current_app.current_friend.ranklist_y = ranklist_y;
-                        let nickname = current_app.current_friend.name = checkBlacklistImages(ranklist_y);
-                        if (nickname && (nickname in blacklist)) blackListMsg("exist", "split_line");
+                        let rank_list_y = matched.y;
+                        current_app.current_friend.rank_list_y = rank_list_y;
+                        let nickname = checkBlacklistImages(rank_list_y);
+                        if (nickname) {
+                            current_app.current_friend.name = nickname;
+                            messageAction(nickname, "title");
+                            current_app.current_friend.name_logged = 1;
+                        }
+                        if (nickname in blacklist) blackListMsg("exist", "split_line");
                         else {
-                            let y = ranklist_y + cY16h9w(16);
+                            let y = rank_list_y + cY16h9w(16);
                             ident === "green" && targets_green.unshift({name: nickname, y: y});
                             ident === "orange" && targets_orange.unshift({name: nickname, y: y});
                         }
-                        icon_area_top = ranklist_y + cY16h9w(76);
+                        icon_area_top = rank_list_y + cY16h9w(76);
                     }
 
                     // tool function(s) //
@@ -926,13 +941,13 @@ function checkEnergy() {
             // return waitForAction(kw_energy_balls, 5000);
 
             if (waitForAction(() => kw_energy_balls().exists(), 2000)) return true;
+            return debugInfo("等待能量球超时");
 
-            debugInfo("等待能量球超时");
-            debugInfo("尝试刷新控件");
-            refreshObjects();
-            let retry_result = waitForAction(() => kw_energy_balls().exists(), 1000);
-            debugInfo(retry_result ? "刷新成功" : "刷新无效");
-            return retry_result;
+            // debugInfo("尝试刷新控件");
+            // refreshObjects();
+            // let retry_result = waitForAction(() => kw_energy_balls().exists(), 1000);
+            // debugInfo(retry_result ? "刷新成功" : "刷新无效");
+            // return retry_result;
 
             // tool function(s) //
 
@@ -1254,14 +1269,14 @@ function checkEnergy() {
         }
 
         function backToHeroList() {
-            if (strategy === "image") return jumpBackOnce();
+            let condition = () => strategy === "image" ? images.findImage(captureScreen(), current_app.rank_list_title_area_capt) : current_app.kw_rank_list_title().exists();
 
-            if (current_app.kw_rank_list_title().exists()) return;
+            if (condition()) return;
 
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(() => current_app.kw_rank_list_title().exists(), 3000)) {
+                if (waitForAction(condition, 3000, 700)) {
                     debugInfo("返回排行榜成功");
                     saveFriendNameImgBytesIfNeeded();
                     return true;
@@ -1287,7 +1302,7 @@ function checkEnergy() {
                 let current_friend = current_app.current_friend;
                 let current_friend_name = current_app.current_friend.name;
                 if (!(current_friend_name in current_app.blacklist)) return;
-                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.ranklist_y + cY16h9w(20), cX(400), cY16h9w(80)));
+                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.rank_list_y + cY16h9w(20), cX(400), cY16h9w(80)));
                 debugInfo("已存储好友排行榜样本图片");
             }
         }
@@ -1297,26 +1312,29 @@ function checkEnergy() {
             let invalid_rank_list_ref_data = 0;
 
             let half_width = cX(0.5);
-            let bottom_height = cY(0.9);
-            let top_height = cY(0.1);
-            let swipe_time = config.list_swipe_time;
-            debugInfo("上滑屏幕: " + (bottom_height - top_height) + "px");
+            let swipe_time = config.rank_list_swipe_time;
+            let swipe_distance_raw = config.rank_list_swipe_distance;
+            let swipe_distance = swipe_distance_raw < 1 ? ~~(swipe_distance_raw * HEIGHT) : swipe_distance_raw;
+            let swipe_top = ~~((HEIGHT - swipe_distance) / 2);
+            let swipe_bottom = HEIGHT - swipe_top;
 
-            if (strategy === "image") return ~swipe(half_width, bottom_height, half_width, top_height, swipe_time) && sleep(300);
+            debugInfo("上滑屏幕: " + (swipe_bottom - swipe_top) + "px");
+
+            if (strategy === "image") return ~swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time) && sleep(config.rank_list_swipe_interval);
 
             let max_try_times_swipe = 3;
             let max_try_times_swipe_backup = max_try_times_swipe;
             while (max_try_times_swipe--) {
-                if (bottom_height - top_height > 0 && swipe(half_width, bottom_height, half_width, top_height, swipe_time)) break;
+                if (swipe_bottom - swipe_top > 0 && swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) break;
                 let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                 debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
-                bottom_height = cY(0.9);
-                top_height = cY(0.1);
+                swipe_bottom = cY(0.9);
+                swipe_top = cY(0.1);
                 sleep(200);
             }
             if (max_try_times_swipe < 0) {
                 messageAction("脚本无法继续", 4);
-                messageAction(bottom_height - top_height > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
+                messageAction(swipe_bottom - swipe_top > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
             }
 
             let debug_start_timestamp = new Date().getTime();
@@ -1465,7 +1483,10 @@ function checkEnergy() {
                 let friend_nickname = (getNameStr(key_node.text()) || getNameStr(key_node.desc()) || [])[0];
                 if (!friend_nickname) return messageAction("好友昵称无效", 3);
                 current_app.current_friend.name = friend_nickname;
-                if (config.console_log_details || config.debug_info_switch) messageAction(friend_nickname, "title");
+                if ((config.console_log_details || config.debug_info_switch) && !current_app.current_friend.name_logged) {
+                    messageAction(friend_nickname, "title");
+                    current_app.current_friend.name_logged = 1;
+                }
                 return friend_nickname in current_app.blacklist;
             }
         }
@@ -1769,7 +1790,7 @@ function endProcess() {
 function getCurrentEnergyAmount(buffer_flag) {
     if (buffer_flag) {
         let condition = () => sel.pickup(/\d+g/, "kw_energy_amount_single_user").exists() && current_app.kw_af_home().exists();
-        if (!waitForAction(condition, 4000)) {
+        if (!waitForAction(condition, 8000)) {
             debugInfo("尝试刷新总能量值参考控件");
             refreshObjects();
             if (!condition()) {
@@ -1870,7 +1891,9 @@ function launch(params) {
 }
 
 function setScreenPixelData() {
-    if (!waitForAction(() => (WIDTH = device.width) && (HEIGHT = device.height), 3000)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+    if (!waitForAction(() => device.width && device.height, 3000, 500)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+    WIDTH = device.width;
+    HEIGHT = device.height;
     if (HEIGHT < WIDTH) {
         debugInfo("当前设备屏幕可能为横屏");
         debugInfo("交换宽高数据");

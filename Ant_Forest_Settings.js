@@ -64,6 +64,7 @@ let self_collect_page = setPage("自收功能");
 let friend_collect_page = setPage("收取功能");
 let help_collect_page = setPage("帮收功能");
 let non_break_check_page = setPage("监测自己能量");
+let rank_list_samples_collect_page = setPage("排行榜样本采集");
 let auto_unlock_page = setPage("自动解锁");
 let blacklist_page = setPage("黑名单管理");
 let cover_blacklist_page = setPage("能量罩黑名单", def, def, "no_margin_bottom");
@@ -529,83 +530,8 @@ friend_collect_page
         },
     }))
     .add("sub_head", new Layout("基本设置"))
-    .add("button", new Layout("排行榜样本采集策略", {
-        config_conj: "rank_list_samples_collect_strategy",
-        hint: "hint",
-        map: {
-            "layout": "布局分析",
-            "image": "图像处理",
-        },
-        newWindow: function () {
-            let map = this.map;
-            let map_keys = Object.keys(map);
-            let diag = dialogs.build({
-                title: "排行榜样本采集策略",
-                items: ["layout", "image"].map(value => map[value]),
-                itemsSelectMode: "single",
-                itemsSelectedIndex: map_keys.indexOf(session_config[this.config_conj]),
-                neutral: "使用默认值",
-                negative: "返回",
-                positive: "确认修改",
-                autoDismiss: false,
-                canceledOnTouchOutside: false,
-            });
-            diag.on("neutral", () => diag.setSelectedIndex(map_keys.indexOf(DEFAULT[this.config_conj])));
-            diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
-                saveSession(this.config_conj, map_keys[diag.selectedIndex]);
-                diag.dismiss();
-            });
-            diag.show();
-        },
-        infoWindow: function () {
-            let diag = dialogs.build({
-                title: "关于采集策略",
-                content: "布局分析 (默认)\n\n" +
-                    "使用布局信息定位好友/获取昵称\n" +
-                    "可快速确认好友是否名列黑名单\n\n" +
-                    "优点:\n" +
-                    "1. 精准快速识别黑名单情况\n" +
-                    "2. 好友数量较少时滑动列表速度快\n" +
-                    "缺点:\n" +
-                    "1. 好友数量多于200时卡顿明显\n" +
-                    "2. 好友数量更多时卡顿愈发严重\n\n" +
-                    "图像处理\n\n" +
-                    "使用多点颜色匹配判断图标类型\n" +
-                    "使用本地以保存的图片匹配好友\n" +
-                    "进而获取黑名单情况\n" +
-                    "每页排行榜信息采集均无需控件信息\n\n" +
-                    "优点:\n" +
-                    "1. 采集信息时滑动速度不受控件影响\n" +
-                    "2. 摆脱控件依赖\n" +
-                    "缺点:\n" +
-                    "1. 首次确认黑名单情况时必须进入好友森林\n" +
-                    "2. 确认好友是否名列黑名单精确性低\n" +
-                    "3. 本地可能需要保存大量图像数据\n\n" +
-                    "建议:\n" +
-                    "好友数量大于200使用图像处理\n" +
-                    "排行榜滑动卡顿时使用图像处理\n" +
-                    "黑名单好友较多时使用图像处理\n" +
-                    "布局信息获取失效时用图像处理\n" +
-                    "其他情况使用布局分析\n",
-                positive: "返回",
-                positiveColor: "#4db6ac",
-                neutral: "隐藏此提示图标",
-                neutralColor: "#a1887f",
-                autoDismiss: false,
-                canceledOnTouchOutside: false,
-            });
-            diag.on("positive", () => diag.dismiss());
-            diag.on("neutral", () => {
-                saveSession("info_icons_sanctuary", session_config.info_icons_sanctuary.concat([this.config_conj]));
-                diag.dismiss();
-            });
-            diag.show();
-        },
-        updateOpr: function (view) {
-            view._hint.text(this.map[session_config[this.config_conj].toString()]);
-            view._info_icon.setVisibility(~session_config.info_icons_sanctuary.indexOf(this.config_conj) ? 8 : 0);
-        },
+    .add("options", new Layout("排行榜样本采集", {
+        "next_page": rank_list_samples_collect_page,
     }))
     .add("sub_head", new Layout("高级设置"))
     .add("button", new Layout("收取图标颜色色值", {
@@ -713,6 +639,10 @@ help_collect_page
             let session_conf = !!session_config[this.config_conj];
             view["_switch"].setChecked(session_conf);
         },
+    }))
+    .add("sub_head", new Layout("基本设置"))
+    .add("options", new Layout("排行榜样本采集", {
+        "next_page": rank_list_samples_collect_page,
     }))
     .add("sub_head", new Layout("高级设置"))
     .add("button", new Layout("帮收图标颜色色值", {
@@ -1124,6 +1054,201 @@ non_break_check_page
             let time_areas = session_config[this.config_conj];
             let time_area_amount = time_areas ? time_areas.length : 0;
             view._hint.text(time_area_amount ? (time_area_amount > 1 ? ("已配置时间区间数量: " + time_area_amount) : ("当前时间区间: " + time_areas[0][0] + " - " + time_areas[0][1])) : "未设置");
+        },
+    }))
+;
+rank_list_samples_collect_page
+    .add("sub_head", new Layout("基本设置"))
+    .add("button", new Layout("滑动距离", {
+        config_conj: "rank_list_swipe_distance",
+        hint: "hint",
+        newWindow: function () {
+            let avail_top = Math.ceil(HEIGHT * 0.4);
+            let avail_bottom = Math.floor(HEIGHT * 0.8);
+            let diag = dialogs.build({
+                title: "设置排行榜页面滑动距离",
+                content: "距离参数可设置具体像素数量\n" +
+                    "如1260表示每次滑动1260像素\n" +
+                    "也可设置0-1之间的小数\n如0.6表示每次滑动60%屏幕的距离\n\n" +
+                    "示例: 0.6 | 1260  60%\n\n" +
+                    "当前屏幕高度像素值: " + HEIGHT + "\n" +
+                    "可设置的像素值范围: " + avail_top + " - " + avail_bottom,
+                inputHint: "{x|0.4(*HEIGHT)<=x<=0.8(*HEIGHT),x∈R}",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                let input = diag.getInputEditText().getText().toString();
+                if (input === "") return dialog.dismiss();
+                if (input.match(/^\d+%$/)) input = input.replace("%", "") / 100;
+                let value = input - 0;
+                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                if (value > 0 && value < 1) value *= HEIGHT;
+                if (value > avail_bottom || value < avail_top) return alertTitle(dialog, "输入值范围不合法");
+                saveSession(this.config_conj, ~~value);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            let value = session_config[this.config_conj] || DEFAULT[this.config_conj];
+            if (value < 1) value = ~~(value * HEIGHT);
+            view._hint.text(value.toString() + " (" + Math.round(value / HEIGHT * 100) + "%)");
+        },
+    }))
+    .add("button", new Layout("滑动时长", {
+        config_conj: "rank_list_swipe_time",
+        hint: "hint",
+        newWindow: function () {
+            let diag = dialogs.build({
+                title: "设置排行榜页面滑动时长",
+                content: "通常无需自行设置\n若出现无法滑动的现象\n可尝试适当增大此设置值",
+                inputHint: "{x|50<=x<=500,x∈N*}",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                let input = diag.getInputEditText().getText().toString();
+                if (input === "") return dialog.dismiss();
+                let value = input - 0;
+                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                if (value > 500 || value < 50) return alertTitle(dialog, "输入值范围不合法");
+                saveSession(this.config_conj, value);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            view._hint.text((session_config[this.config_conj] || DEFAULT[this.config_conj]).toString());
+        },
+    }))
+    .add("button", new Layout("滑动间隔", {
+        config_conj: "rank_list_swipe_interval",
+        hint: "hint",
+        newWindow: function () {
+            let diag_strategy_image = dialogs.build({
+                title: "设置排行榜页面滑动间隔",
+                content: "若出现遗漏目标的情况\n可尝试适当增大此设置值",
+                inputHint: "{x|100<=x<=1000,x∈N*}",
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_strategy_image.on("neutral", () => diag_strategy_image.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag_strategy_image.on("negative", () => diag_strategy_image.dismiss());
+            diag_strategy_image.on("positive", dialog => {
+                let input = diag_strategy_image.getInputEditText().getText().toString();
+                if (input === "") return dialog.dismiss();
+                let value = input - 0;
+                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                if (value > 1000 || value < 100) return alertTitle(dialog, "输入值范围不合法");
+                saveSession(this.config_conj, value);
+                diag_strategy_image.dismiss();
+            });
+            let diag_strategy_layout = dialogs.build({
+                title: "设置排行榜页面滑动间隔",
+                content: "采用\"布局分析\"策略时\n滑动间隔将由脚本自动获取动态最优值",
+                positive: "返回",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_strategy_layout.on("positive", () => diag_strategy_layout.dismiss());
+            session_config.rank_list_samples_collect_strategy === "image" && diag_strategy_image.show() || diag_strategy_layout.show();
+        },
+        updateOpr: function (view) {
+            if (session_config.rank_list_samples_collect_strategy === "image") view._hint.text((session_config[this.config_conj] || DEFAULT[this.config_conj]).toString());
+            else view._hint.text("自动设置");
+        },
+    }))
+    .add("sub_head", new Layout("高级设置"))
+    .add("button", new Layout("采集策略", {
+        config_conj: "rank_list_samples_collect_strategy",
+        hint: "hint",
+        map: {
+            "layout": "布局分析",
+            "image": "图像处理",
+        },
+        newWindow: function () {
+            let map = this.map;
+            let map_keys = Object.keys(map);
+            let diag = dialogs.build({
+                title: "排行榜样本采集策略",
+                items: ["layout", "image"].map(value => map[value]),
+                itemsSelectMode: "single",
+                itemsSelectedIndex: map_keys.indexOf(session_config[this.config_conj]),
+                neutral: "使用默认值",
+                negative: "返回",
+                positive: "确认修改",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("neutral", () => diag.setSelectedIndex(map_keys.indexOf(DEFAULT[this.config_conj])));
+            diag.on("negative", () => diag.dismiss());
+            diag.on("positive", dialog => {
+                saveSession(this.config_conj, map_keys[diag.selectedIndex]);
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        infoWindow: function () {
+            let diag = dialogs.build({
+                title: "关于采集策略",
+                content: "布局分析 (默认)\n\n" +
+                    "使用布局信息定位好友/获取昵称\n" +
+                    "可快速确认好友是否名列黑名单\n\n" +
+                    "优点:\n" +
+                    "1. 精准快速识别黑名单情况\n" +
+                    "2. 好友数量较少时滑动列表速度快\n" +
+                    "缺点:\n" +
+                    "1. 好友数量多于200时卡顿明显\n" +
+                    "2. 好友数量更多时卡顿愈发严重\n\n" +
+                    "图像处理\n\n" +
+                    "使用多点颜色匹配判断图标类型\n" +
+                    "使用本地以保存的图片匹配好友\n" +
+                    "进而获取黑名单情况\n" +
+                    "每页排行榜信息采集均无需控件信息\n\n" +
+                    "优点:\n" +
+                    "1. 采集信息时滑动速度不受控件影响\n" +
+                    "2. 摆脱控件依赖\n" +
+                    "缺点:\n" +
+                    "1. 首次确认黑名单情况时必须进入好友森林\n" +
+                    "2. 确认好友是否名列黑名单精确性低\n" +
+                    "3. 本地可能需要保存大量图像数据\n\n" +
+                    "建议:\n" +
+                    "好友数量大于200使用图像处理\n" +
+                    "排行榜滑动卡顿时使用图像处理\n" +
+                    "黑名单好友较多时使用图像处理\n" +
+                    "布局信息获取失效时用图像处理\n" +
+                    "其他情况使用布局分析\n",
+                positive: "返回",
+                positiveColor: "#4db6ac",
+                neutral: "隐藏此提示图标",
+                neutralColor: "#a1887f",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag.on("positive", () => diag.dismiss());
+            diag.on("neutral", () => {
+                saveSession("info_icons_sanctuary", session_config.info_icons_sanctuary.concat([this.config_conj]));
+                diag.dismiss();
+            });
+            diag.show();
+        },
+        updateOpr: function (view) {
+            view._hint.text(this.map[session_config[this.config_conj].toString()]);
+            view._info_icon.setVisibility(~session_config.info_icons_sanctuary.indexOf(this.config_conj) ? 8 : 0);
         },
     }))
 ;

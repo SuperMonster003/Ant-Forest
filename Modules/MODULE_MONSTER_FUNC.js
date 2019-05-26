@@ -1259,6 +1259,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
  * @param [params] {object}
  * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
+ * @param [params.current_package=currentPackage()] {string}
  * @param [params.debug_info_flag=false] {boolean}
  */
 function refreshObjects(strategy, params) {
@@ -1294,14 +1295,17 @@ function refreshObjects(strategy, params) {
         }
         sleep(300);
     } else {
-        let init_package = currentPackage();
-        _debugInfo(init_package);
+        let _param_package = _params.current_package;
+        let _current_package = _param_package || currentPackage();
+        _debugInfo(_current_package);
         recents();
-        _waitForAction(() => currentPackage() !== init_package, 2000, 80) && sleep(300);
-        init_package = currentPackage();
+        _waitForAction(() => currentPackage() !== _current_package, 2000, 500) && sleep(500);
         _debugInfo(currentPackage());
         back();
-        _waitForAction(() => currentPackage() !== init_package, 2000, 80);
+        if (!_waitForAction(() => currentPackage() === _current_package, 2000, 80)) {
+            app.launchPackage(_current_package);
+            _waitForAction(() => currentPackage() === _current_package, 2000, 80);
+        }
         _debugInfo(currentPackage());
     }
 

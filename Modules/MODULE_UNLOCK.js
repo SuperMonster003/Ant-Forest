@@ -111,6 +111,7 @@ module.exports = function () {
         // tool function(s) //
 
         function setScreenPixelData() {
+            if (!waitForAction(() => device.width && device.height, 3000, 500)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
             WIDTH = device.width;
             HEIGHT = device.height;
             cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
