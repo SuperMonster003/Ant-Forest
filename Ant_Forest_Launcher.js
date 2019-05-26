@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 26, 2019
- * @version 1.6.25 Alpha4
+ * @version 1.6.25 Alpha5
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -23,6 +23,7 @@ let {
     refreshObjects,
     tryRequestScreenCapture,
     keycode,
+    getDisplayParams,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 try {
@@ -38,7 +39,7 @@ let config = {
 };
 
 let storage_af, storage_af_cfg, unlock_module;
-let WIDTH, HEIGHT, cX, cY, cY16h9w;
+let WIDTH, HEIGHT, cX, cY;
 let engines_support_flag = true;
 let current_app = {};
 let sel = selector();
@@ -564,7 +565,7 @@ function checkEnergy() {
                 last_capt.recycle();
             }
             // let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
-            let new_capt = images.clip(capture, cX(288), cY16h9w(210), cX(142), cY16h9w(44)); // more flexible condition(s)
+            let new_capt = images.clip(capture, cX(288), cY(210, 16 / 9), cX(142), cY(44, 16 / 9)); // more flexible condition(s)
             blacklist_ident_capts.unshift(new_capt);
             debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
         };
@@ -663,15 +664,15 @@ function checkEnergy() {
                     }
                 }
                 clickAction(kw_try_again()); // as "服务器打瞌睡了" may exist
+                getRankListTitleAreaCapt();
                 if (waitForAction(() => {
-                    current_app.rank_list_title_area_capt = current_app.rank_list_title_area_capt || getRankListTitleAreaCapt();
                     let kw_rank_list = idMatches(/.*J_rank_list/);
                     try {
                         return kw_rank_list.exists() && kw_rank_list.findOnce().childCount() && current_app.rank_list_title_area_capt;
                     } catch (e) {
                         // nothing to do here
                     }
-                }, 500)) break;
+                }, 1500)) break;
             }
             if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
             debugInfo("排行榜状态准备完毕");
@@ -696,10 +697,13 @@ function checkEnergy() {
             }
 
             function getRankListTitleAreaCapt() {
-                if (!current_app.kw_rank_list_title().exists()) return;
+                if (current_app.rank_list_title_area_capt) return;
+                waitForAction(current_app.kw_rank_list_title(), 3000);
                 let bounds = current_app.kw_rank_list_title().findOnce().bounds();
                 debugInfo("采集并存储排行榜标题区域样本");
-                return images.copy(images.clip(images.captureScreen(), 0, bounds.top, WIDTH, bounds.height()));
+                let [l, t, w, h] = [3, bounds.top, WIDTH - 6, bounds.height()];
+                debugInfo("(" + l + ", " + t + ", " + (l + w) + ", " + (t + h) + ")");
+                current_app.rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h));
             }
         }
 
@@ -836,9 +840,9 @@ function checkEnergy() {
                         || ident === "orange" && config.help_collect_icon_color || null;
                     if (!color) return;
 
-                    let multi_colors = [[cX(38), 0, color], [cX(38), cY16h9w(35), color]];
+                    let multi_colors = [[cX(38), 0, color], [cX(38), cY(35, 16 / 9), color]];
                     if (ident === "green") {
-                        for (let i = 18; i <= 25; i += 1) multi_colors.push([cX(i), cY16h9w(i - 7), -1]);
+                        for (let i = 19; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
                     } // [cX(37), cY(25), -1] was abandoned
 
                     let icon_area_top = 0;
@@ -862,17 +866,17 @@ function checkEnergy() {
                         }
                         if (nickname in blacklist) blackListMsg("exist", "split_line");
                         else {
-                            let y = rank_list_y + cY16h9w(16);
+                            let y = rank_list_y + cY(16, 16 / 9);
                             ident === "green" && targets_green.unshift({name: nickname, y: y});
                             ident === "orange" && targets_orange.unshift({name: nickname, y: y});
                         }
-                        icon_area_top = rank_list_y + cY16h9w(76);
+                        icon_area_top = rank_list_y + cY(76, 16 / 9);
                     }
 
                     // tool function(s) //
 
                     function checkBlacklistImages(y) {
-                        let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY16h9w(126)];
+                        let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY(126, 16 / 9)];
                         let nickname_keys = Object.keys(blacklist);
                         for (let i = 0, len = nickname_keys.length; i < len; i += 1) {
                             let nickname = nickname_keys[i];
@@ -893,8 +897,8 @@ function checkEnergy() {
                     let color_invitation = "#30bf6c";
                     let multi_colors = [
                         [cX(122), 0, color_invitation],
-                        [cX(122), cY16h9w(48), color_invitation],
-                        [0, cY16h9w(48), color_invitation],
+                        [cX(122), cY(48, 16 / 9), color_invitation],
+                        [0, cY(48, 16 / 9), color_invitation],
                     ];
                     let matched = images.findMultiColors(rank_list_capt_img, color_invitation, multi_colors, {
                         threshold: 10,
@@ -1269,7 +1273,11 @@ function checkEnergy() {
         }
 
         function backToHeroList() {
-            let condition = () => strategy === "image" ? images.findImage(captureScreen(), current_app.rank_list_title_area_capt) : current_app.kw_rank_list_title().exists();
+            let condition = () => {
+                let title_area_match = () => images.findImage(captureScreen(), current_app.rank_list_title_area_capt);
+                if (strategy === "image") return title_area_match();
+                return title_area_match() || current_app.kw_rank_list_title().exists();
+            };
 
             if (condition()) return;
 
@@ -1302,7 +1310,7 @@ function checkEnergy() {
                 let current_friend = current_app.current_friend;
                 let current_friend_name = current_app.current_friend.name;
                 if (!(current_friend_name in current_app.blacklist)) return;
-                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.rank_list_y + cY16h9w(20), cX(400), cY16h9w(80)));
+                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.rank_list_y + cY(20, 16 / 9), cX(400), cY(80, 16 / 9)));
                 debugInfo("已存储好友排行榜样本图片");
             }
         }
@@ -1589,7 +1597,7 @@ function showResult() {
         let timeout_prefix = "(",
             timeout_suffix = ")",
             base_height = cY(0.66),
-            message_height = cY16h9w(80),
+            message_height = cY(80, 16 / 9),
             hint_height = message_height * 0.7,
             timeout_height = hint_height,
             color_stripe_height = message_height * 0.2;
@@ -1891,25 +1899,18 @@ function launch(params) {
 }
 
 function setScreenPixelData() {
-    if (!waitForAction(() => device.width && device.height, 3000, 500)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
-    WIDTH = device.width;
-    HEIGHT = device.height;
-    if (HEIGHT < WIDTH) {
-        debugInfo("当前设备屏幕可能为横屏");
-        debugInfo("交换宽高数据");
-        [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
-    }
-    debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
-
-    cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1));
-    cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)); // scaled by actual ratio
-    cY16h9w = num => ~~(+num * (WIDTH * 16 / 9) / (+num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
+    [WIDTH, HEIGHT, cX, cY] = (function () {
+        let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
+        if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+        debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+        return [WIDTH, HEIGHT, cX, cY];
+    }());
 }
 
 function checkModules() {
     try {
         storage_af_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
-        Object.assign(config, storage_af_cfg.get("config", require("./Modules/MODULE_DEFAULT_CONFIG").af));
+        Object.assign(config, require("./Modules/MODULE_DEFAULT_CONFIG").af || {}, storage_af_cfg.get("config", {}));
         unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         this._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
         debugInfo("接入\"af_cfg\"存储", "up");
@@ -1920,6 +1921,7 @@ function checkModules() {
         debugInfo("接入\"af\"存储");
         if (!storage_af.get("config_prompted")) promptConfig();
     } catch (e) {
+        debugInfo(e);
         messageAction("模块导入功能异常", 3, 0, 0, "up");
         messageAction("开发者测试模式已自动开启", 3);
         config.message_showing_switch = true;

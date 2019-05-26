@@ -17,6 +17,7 @@ module.exports = {
     tryRequestScreenCapture: tryRequestScreenCapture,
     keycode: keycode,
     debugInfo: debugInfo,
+    getDisplayParams: getDisplayParams,
 };
 
 /**
@@ -1824,5 +1825,57 @@ function debugInfo(msg, info_flag, params) {
     if (info_flag === true || this._monster_$_debug_info_flag) {
         info_flag === "up" && showSplitLine();
         console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Returns display screen width and height data, and converter functions with different aspect ratios
+ * -- scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
+ * @example
+ * let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
+ * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16/9);
+ * @return {*}
+ */
+function getDisplayParams() {
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
+    let [_WIDTH, _HEIGHT] = [0, 0];
+    return _waitForAction(() => [_WIDTH, _HEIGHT] = checkData(), 3000, 500) ? {
+        WIDTH: Math.min(_WIDTH, _HEIGHT),
+        HEIGHT: Math.max(_WIDTH, _HEIGHT),
+        cX: _num => ~~(+_num * _WIDTH / (+_num >= 1 ? 720 : 1)),
+        cY: (_num, _aspect_ratio) => ~~(+_num * (_WIDTH * ((_aspect_ratio > 1 ? _aspect_ratio : (1 / _aspect_ratio)) || (_HEIGHT / _WIDTH))) / (+_num >= 1 ? 1280 : 1)),
+    } : {};
+
+    // tool function(s) //
+
+    function checkData() {
+        try {
+            [_WIDTH, _HEIGHT] = [_window_service_display.getWidth(), _window_service_display.getHeight()];
+            if (_WIDTH * _HEIGHT === 0) throw Error();
+        } catch (e) {
+            try {
+                [_WIDTH, _HEIGHT] = [device.width, device.height];
+            } catch (e) {
+
+            }
+        }
+        return (_WIDTH * _HEIGHT) ? [_WIDTH, _HEIGHT] : [0, 0];
+    }
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
     }
 }
