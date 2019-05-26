@@ -664,11 +664,10 @@ function checkEnergy() {
                     }
                 }
                 clickAction(kw_try_again()); // as "服务器打瞌睡了" may exist
-                getRankListTitleAreaCapt();
                 if (waitForAction(() => {
                     let kw_rank_list = idMatches(/.*J_rank_list/);
                     try {
-                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount() && current_app.rank_list_title_area_capt;
+                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount() && getRankListTitleAreaCapt();
                     } catch (e) {
                         // nothing to do here
                     }
@@ -697,13 +696,14 @@ function checkEnergy() {
             }
 
             function getRankListTitleAreaCapt() {
-                if (current_app.rank_list_title_area_capt) return;
-                waitForAction(current_app.kw_rank_list_title(), 3000);
-                let bounds = current_app.kw_rank_list_title().findOnce().bounds();
+                if (current_app.rank_list_title_area_capt) return true;
+                let key_node = current_app.kw_rank_list_title().findOnce();
+                if (!key_node) return;
+                let bounds = key_node.bounds();
                 debugInfo("采集并存储排行榜标题区域样本");
                 let [l, t, w, h] = [3, bounds.top, WIDTH - 6, bounds.height()];
                 debugInfo("(" + l + ", " + t + ", " + (l + w) + ", " + (t + h) + ")");
-                current_app.rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h));
+                return (current_app.rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h)));
             }
         }
 
@@ -842,7 +842,7 @@ function checkEnergy() {
 
                     let multi_colors = [[cX(38), 0, color], [cX(38), cY(35, 16 / 9), color]];
                     if (ident === "green") {
-                        for (let i = 19; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
+                        for (let i = 18; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
                     } // [cX(37), cY(25), -1] was abandoned
 
                     let icon_area_top = 0;
@@ -1274,7 +1274,7 @@ function checkEnergy() {
 
         function backToHeroList() {
             let condition = () => {
-                let title_area_match = () => images.findImage(captureScreen(), current_app.rank_list_title_area_capt);
+                let title_area_match = () => images.findImage(images.copy(captureScreen()), current_app.rank_list_title_area_capt); // for the same image formats
                 if (strategy === "image") return title_area_match();
                 return title_area_match() || current_app.kw_rank_list_title().exists();
             };
@@ -1761,9 +1761,18 @@ function endProcess() {
     function closeAfWindows() {
         debugInfo("关闭全部蚂蚁森林相关页面");
         let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
-        while ((current_app.kw_af_title().exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) sleep(500);
-        debugInfo("相关页面关闭完毕");
-        debugInfo("保留当前支付宝页面");
+        let max_close_time = 10000;
+        while ((current_app.kw_af_title().boundsInside(0, 0, cX(0.8), cY(0.2, 16 / 9)).exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) {
+            ~sleep(400);
+            max_close_time -= 400;
+            if (max_close_time <= 0) break;
+        }
+        if (max_close_time <= 0) {
+            debugInfo("页面关闭可能没有成功");
+        } else {
+            debugInfo("相关页面关闭完毕");
+            debugInfo("保留当前支付宝页面");
+        }
     }
 
     function endAlipay() {
