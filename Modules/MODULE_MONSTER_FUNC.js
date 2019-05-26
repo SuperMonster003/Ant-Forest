@@ -636,7 +636,7 @@ function restartThisEngine(params) {
     _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
     _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
     let _file_name = _params.new_file || _my_engine.source.toString();
-    if (_file_name.match(/^\[remote]/)) return !~_messageAction("远程任务不支持重启引擎", 4, 1);
+    if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
 
     let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
     _debugInfo("运行新引擎任务:\n" + _file_path);
@@ -648,6 +648,7 @@ function restartThisEngine(params) {
     });
     _debugInfo("强制停止旧引擎任务");
     _my_engine.forceStop();
+    return true;
 
     // raw function(s) //
 
@@ -1381,8 +1382,11 @@ function tryRequestScreenCapture(params) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
-        _params.restart_this_engine_flag ? _debugInfo("截图权限申请结果: 失败") : _messageAction("截图权限申请结果: 失败", 8, 1, 0, 1);
-        _restartThisEngine(_params.restart_this_engine_params);
+        if (_params.restart_this_engine_flag) {
+            _debugInfo("截图权限申请结果: 失败");
+            if (_restartThisEngine(_params.restart_this_engine_params)) return;
+        }
+        _messageAction("截图权限申请失败", 8, 1, 0, 1);
     });
 
     let _req_result = images.requestScreenCapture();
@@ -1450,7 +1454,7 @@ function tryRequestScreenCapture(params) {
         if (!_max_restart_engine_times) return;
 
         let _file_name = _params.new_file || _my_engine.source.toString();
-        if (_file_name.match(/^\[remote]/)) return !~console.warn("远程任务不支持重启引擎");
+        if (_file_name.match(/^\[remote]/)) return ~console.error("远程任务不支持重启引擎") && exit();
         let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
         engines.execScriptFile(_file_path, {
             arguments: {
@@ -1813,7 +1817,7 @@ function keycode(keycode_name, params_str) {
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
-    if (info_flag || this._monster_$_debug_info_flag) {
+    if (info_flag === true || this._monster_$_debug_info_flag) {
         info_flag === "up" && showSplitLine();
         console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }

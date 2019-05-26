@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 24, 2019
- * @version 1.6.25 Alpha2
+ * @last_modified May 26, 2019
+ * @version 1.6.25 Alpha3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -47,7 +47,6 @@ checkModules.bind(this)();
 checkTasksQueue();
 checkVersion();
 checkEngines();
-setScreenPixelData();
 
 antForest();
 
@@ -71,6 +70,7 @@ function init() {
     setVolKeysListener();
     checkSdk();
     unlock();
+    setScreenPixelData();
     setSelectorProto();
     setAutoJsLogPath();
     setParams();
@@ -201,9 +201,10 @@ function init() {
             this.package_name = getAlipayPkgName();
             this.intent = {
                 action: "VIEW",
-                data: "alipays://platformapi/startapp?saId=20000067" +
-                    "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/home.html") +
-                    "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
+                // data: "alipays://platformapi/startapp?saId=20000067" +
+                //     "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/home.html") +
+                //     "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
+                data: "alipays://platformapi/startapp?appId=60000002&appClearTop=false&startMultApp=YES",
             };
             this.first_time_run = 1;
             this.firstTimeRunConditionFun = firstTimeRunCondition;
@@ -595,6 +596,7 @@ function checkEnergy() {
             while ((pop_item = (pop_item_0 = targets[0].pop()) || (pop_item_1 = targets[1].pop()))) {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
+                current_app.current_friend.ranklist_y = current_app.current_friend.ranklist_y || pop_item.y;
                 current_app.current_friend.console_logged = 0;
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
@@ -1252,6 +1254,8 @@ function checkEnergy() {
         }
 
         function backToHeroList() {
+            if (strategy === "image") return jumpBackOnce();
+
             if (current_app.kw_rank_list_title().exists()) return;
 
             let max_try_times = 3;
@@ -1298,7 +1302,7 @@ function checkEnergy() {
             let swipe_time = config.list_swipe_time;
             debugInfo("上滑屏幕: " + (bottom_height - top_height) + "px");
 
-            if (strategy === "image") return ~swipe(half_width, bottom_height, half_width, top_height, swipe_time) && sleep(100);
+            if (strategy === "image") return ~swipe(half_width, bottom_height, half_width, top_height, swipe_time) && sleep(300);
 
             let max_try_times_swipe = 3;
             let max_try_times_swipe_backup = max_try_times_swipe;
@@ -2229,7 +2233,7 @@ function jumpBackOnce(specific_kw) {
         clickAction(kw_back_btn_common(), "widget") ||
         clickAction(kw_back_btn_atnui_id, "widget") ||
         clickAction(kw_back_btn_h5_id, "widget");
-    click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1500);
+    click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1000);
 }
 
 function loginSpecificUser() {
