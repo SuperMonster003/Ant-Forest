@@ -1851,11 +1851,11 @@ function getDisplayParams() {
 
     function checkData() {
         try {
-            [_WIDTH, _HEIGHT] = [+_window_service_display.getWidth(), +_window_service_display.getHeight()];
-            if (_WIDTH * _HEIGHT === 0) throw Error();
+            [_WIDTH, _HEIGHT] = [+device.width, +device.height];
+            if (!(_WIDTH * _HEIGHT)) throw Error();
         } catch (e) {
             try {
-                [_WIDTH, _HEIGHT] = [+device.width, +device.height];
+                [_WIDTH, _HEIGHT] = [+_window_service_display.getWidth(), +_window_service_display.getHeight()];
             } catch (e) {
 
             }

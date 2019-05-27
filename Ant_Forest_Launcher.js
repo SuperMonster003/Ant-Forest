@@ -188,6 +188,9 @@ function init() {
         current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
         current_app.ori_app_package = currentPackage();
         current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
+        current_app.logged_blacklist_names = [];
+        current_app.rank_list_icon_collect = storage_af.get("af_rank_list_icon_collect");
+        current_app.rank_list_icon_help = storage_af.get("af_rank_list_icon_help");
         debugInfo("会话参数赋值完毕");
 
         checkAlipayVer();
@@ -596,8 +599,9 @@ function checkEnergy() {
             while ((pop_item = (pop_item_0 = targets[0].pop()) || (pop_item_1 = targets[1].pop()))) {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
-                current_app.current_friend.rank_list_y = current_app.current_friend.rank_list_y || pop_item.y;
                 current_app.current_friend.console_logged = 0;
+                current_app.current_friend.rank_list_type = pop_item_0 && "collect" || pop_item_1 && "help" || null;
+                current_app.current_friend.operation_type = [];
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
                 if (message_switch_on && name_title && !current_app.current_friend.name_logged) {
@@ -606,7 +610,7 @@ function checkEnergy() {
                 }
 
                 if (inBlackList(() => {
-                    clickAction([cX(0.5), pop_item.y]);
+                    clickAction([cX(0.5), pop_item.list_item_click_y]);
                     debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
                 })) continue;
 
@@ -745,12 +749,12 @@ function checkEnergy() {
 
                         if (friend_collect_switch) {
                             let pt_green = images.findColor(rank_list_capt_img, config.friend_collect_icon_color, Object.assign({}, find_color_options, {threshold: config.friend_collect_icon_threshold}));
-                            if (pt_green) return targets_green.unshift({name: name, y: name_node_cy});
+                            if (pt_green) return targets_green.unshift({name: name, list_item_click_y: name_node_cy});
                         }
 
                         if (help_collect_switch) {
                             let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_icon_color, Object.assign({}, find_color_options, {threshold: config.help_collect_icon_threshold}));
-                            if (pt_orange) return targets_orange.unshift({name: name, y: name_node_cy});
+                            if (pt_orange) return targets_orange.unshift({name: name, list_item_click_y: name_node_cy});
                         }
                     } catch (e) {
                         throw Error(e);
@@ -845,20 +849,17 @@ function checkEnergy() {
                         for (let i = 18; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
                     } // [cX(37), cY(25), -1] was abandoned
 
-                    let icon_area_top = 0;
+                    let icon_check_area_top = 0;
                     let color_threshold = ident === "green" && config.friend_collect_icon_threshold ||
                         ident === "orange" && config.help_collect_icon_threshold || 10;
-                    let region_icon_left = cX(0.9);
+                    let icon_check_area_left = cX(0.9);
                     let blacklist = current_app.blacklist;
-                    while (icon_area_top < HEIGHT) {
-                        let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
-                            region: [region_icon_left, icon_area_top, WIDTH - region_icon_left, HEIGHT - icon_area_top],
-                            threshold: color_threshold,
-                        });
-                        if (!matched) return;
-                        let rank_list_y = matched.y;
-                        current_app.current_friend.rank_list_y = rank_list_y;
-                        let nickname = checkBlacklistImages(rank_list_y);
+                    while (icon_check_area_top < HEIGHT) {
+                        let icon_matched_y = checkAreaByIconImg() || checkAreaByMultiColors();
+                        if (!icon_matched_y) return;
+                        current_app.current_friend.icon_matched_y = icon_matched_y;
+
+                        let nickname = checkBlacklistImages(icon_matched_y);
                         if (nickname !== "__%skip%__") {
                             if (nickname) {
                                 current_app.current_friend.name = nickname;
@@ -867,12 +868,12 @@ function checkEnergy() {
                             }
                             if (nickname in blacklist) blackListMsg("exist", "split_line");
                             else {
-                                let y = rank_list_y + cY(16, 16 / 9);
-                                ident === "green" && targets_green.unshift({name: nickname, y: y});
-                                ident === "orange" && targets_orange.unshift({name: nickname, y: y});
+                                let list_item_click_y = icon_matched_y + cY(16, 16 / 9);
+                                ident === "green" && targets_green.unshift({name: nickname, list_item_click_y: list_item_click_y});
+                                ident === "orange" && targets_orange.unshift({name: nickname, list_item_click_y: list_item_click_y});
                             }
                         }
-                        icon_area_top = rank_list_y + cY(76, 16 / 9);
+                        icon_check_area_top = icon_matched_y + cY(76, 16 / 9);
                     }
 
                     // tool function(s) //
@@ -893,6 +894,43 @@ function checkEnergy() {
                             if (matched) return nickname;
                         }
                         return null;
+                    }
+
+                    function checkAreaByIconImg() {
+                        let sto_img_bytes;
+                        if (ident === "green") sto_img_bytes = current_app.rank_list_icon_collect;
+                        else if (ident === "orange") sto_img_bytes = current_app.rank_list_icon_help;
+                        if (!sto_img_bytes) return;
+
+                        let template = images.fromBytes(sto_img_bytes);
+                        let matched = images.findImage(rank_list_capt_img, template, {
+                            region: [
+                                icon_check_area_left,
+                                icon_check_area_top,
+                                WIDTH - icon_check_area_left,
+                                HEIGHT - icon_check_area_top,
+                            ],
+                        });
+                        if (matched) return matched.y;
+                    }
+
+                    function checkAreaByMultiColors() {
+                        let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
+                            region: [
+                                icon_check_area_left,
+                                icon_check_area_top,
+                                WIDTH - icon_check_area_left,
+                                HEIGHT - icon_check_area_top,
+                            ],
+                            threshold: color_threshold,
+                        });
+                        if (!matched) return;
+                        let icon_matched_x = matched.x;
+                        let icon_matched_y = matched.y;
+                        let side = WIDTH - icon_matched_x;
+                        current_app.current_friend.icon_img_bytes = images.toBytes(images.clip(rank_list_capt_img, icon_matched_x, icon_matched_y, side, side));
+
+                        return icon_matched_y;
                     }
                 }
 
@@ -1121,7 +1159,7 @@ function checkEnergy() {
                 }
 
                 function listMonitorThread() {
-                    let kw_protect_cover = () => sel.pickup("使用了保护罩", "kw_protect_cover_used");
+                    let kw_protect_cover = () => sel.pickup(/.*使用了保护罩.*/, "kw_protect_cover_used");
                     let dates_arr = getDatesArr();
                     if (dates_arr && kw_protect_cover().exists()) addBlacklist();
 
@@ -1135,23 +1173,23 @@ function checkEnergy() {
                             // 3 arrays at most which can enhance efficiency a little bit
                             return kw_list.findOnce().children().filter(w => !w.childCount()).slice(0, 3);
                         };
-                        let safe_max_try_times = 18;
+                        let safe_max_try_times = 8;
                         while (safe_max_try_times--) {
                             let dates_arr = renewDatesArr(),
                                 max_i = dates_arr.length;
                             for (let i = 0; i < max_i; i += 1) {
-                                // let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
                                 let _desc = dates_arr[i].desc();
                                 let _text = dates_arr[i].text();
-                                let over_two_days = _desc && _desc.length === 5 || _text && _text.length === 5; // like: "03-22"
-                                if (kw_protect_cover().exists() || over_two_days) {
-                                    thread_list_more.interrupt();
+                                let regexp_over_two_days = /\d{2}.\d{2}/;
+                                let over_two_days = _desc && _desc.match(regexp_over_two_days) ||
+                                    _text && _text.match(regexp_over_two_days); // like: "03-22"
+                                if (waitForAction(() => kw_protect_cover().exists(), 1000) || over_two_days) {
+                                    thread_list_more.isAlive() && thread_list_more.interrupt();
                                     debugInfo("动态列表展开已停止");
                                     debugInfo("能量罩信息定位在: " + _desc || _text);
-                                    return max_i < 3 ? renewDatesArr() : dates_arr; // 样本数达到3个则无需重新获取
+                                    return max_i < 3 ? renewDatesArr() : dates_arr; // 3 samples at most
                                 }
                             }
-                            sleep(100); // necessary or not ?
                         }
                     }
 
@@ -1210,6 +1248,7 @@ function checkEnergy() {
 
                 if (ripe_balls.size()) {
                     current_app.current_friend.console_logged = 1;
+                    current_app.current_friend.operation_type.push("collect");
 
                     ripe_flag = 1;
                     ripe_balls.forEach(w => clickAction(w.bounds(), "press"));
@@ -1258,6 +1297,7 @@ function checkEnergy() {
                     // click(pt.x, pt.y);
                     press(pt.x, pt.y, 1);
                 });
+                current_app.current_friend.operation_type.push("help");
                 debugInfo("点击帮收能量球: " + coords_arr.length + "个");
 
                 if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
@@ -1287,9 +1327,9 @@ function checkEnergy() {
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(condition, 3000, 700)) {
+                if (waitForAction(condition, 3, 80)) {
                     debugInfo("返回排行榜成功");
-                    saveFriendNameImgBytesIfNeeded();
+                    saveImgClipsBytesIfNeeded();
                     return true;
                 }
                 debugInfo("返回排行榜单次超时");
@@ -1309,12 +1349,47 @@ function checkEnergy() {
                 rankListReady();
             }
 
-            function saveFriendNameImgBytesIfNeeded() {
-                let current_friend = current_app.current_friend;
-                let current_friend_name = current_app.current_friend.name;
-                if (!(current_friend_name in current_app.blacklist)) return;
-                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.rank_list_y + cY(20, 16 / 9), cX(400), cY(80, 16 / 9)));
-                debugInfo("已存储好友排行榜样本图片");
+            function saveImgClipsBytesIfNeeded() {
+
+                saveNicknameClipBytes();
+                saveIconBytes();
+
+                // tool function (s) //
+
+                function saveNicknameClipBytes() {
+                    let current_friend = current_app.current_friend;
+                    let current_friend_name = current_app.current_friend.name;
+                    if (!(current_friend_name in current_app.blacklist)) return;
+                    current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(captureScreen(), cX(0.1), current_friend.icon_matched_y + cY(20, 16 / 9), cX(400), cY(80, 16 / 9)));
+                    debugInfo("已存储好友排行榜样本图片");
+                }
+
+                function saveIconBytes() {
+
+                    if (current_app.rank_list_icon_collect && current_app.rank_list_icon_help) return;
+
+                    let current_friend = current_app.current_friend;
+                    let operation_type = current_friend.operation_type;
+                    let rank_list_type = current_friend.rank_list_type;
+                    let op_collect = ~operation_type.indexOf("collect");
+                    let op_help = ~operation_type.indexOf("help");
+                    let rk_collect = rank_list_type === "collect";
+                    let rk_help = rank_list_type === "help";
+                    if (op_collect && rk_collect) return saveIconBytesToTmp("collect");
+                    if (op_help && rk_help) return saveIconBytesToTmp("help");
+
+                    // tool function(s) //
+
+                    function saveIconBytesToTmp(type) {
+                        let type_str = "rank_list_icon_" + type;
+                        if (!type || current_app[type_str]) return;
+                        if (storage_af.get("af_" + type_str)) return;
+                        let img_bytes = current_friend.icon_img_bytes;
+                        storage_af.put("af_" + type_str, img_bytes);
+                        current_app[type_str] = img_bytes;
+                        debugInfo("已存储" + (type === "collect" && "绿色手形" || type === "help" && "橙色爱心" || "UNKNOWN") + "样本图片");
+                    }
+                }
             }
         }
 
@@ -1504,7 +1579,8 @@ function checkEnergy() {
 
         function blackListMsg(msg_str, split_line_flag) {
 
-            if (!config.console_log_details && !config.debug_info_switch) return true;
+            let name = current_app.current_friend.name;
+            if (!config.console_log_details && !config.debug_info_switch || ~current_app.logged_blacklist_names.indexOf(name)) return true;
 
             let messages = {
                 "add": "已加入黑名单",
@@ -1518,13 +1594,13 @@ function checkEnergy() {
             messageAction(messages[msg_str], 1, 0, 1);
             msg_str === "exist" && messageAction("已跳过收取", 1, 0, 2);
 
-            let name = current_app.current_friend.name;
             let current_black_friend = current_app.blacklist[name];
             let reason_str = current_black_friend.reason;
             messageAction(reasons[reason_str], 1, 0, 2);
             let check_result = checkBlackTimestamp(current_black_friend.timestamp);
             if (typeof check_result === "string") messageAction(check_result, 1, 0, 2);
             split_line_flag && showSplitLine();
+            current_app.logged_blacklist_names.push(name);
             return current_app.current_friend.console_logged = 1;
         }
     }

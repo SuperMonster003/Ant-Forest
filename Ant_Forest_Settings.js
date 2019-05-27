@@ -8,8 +8,8 @@ try {
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
 let dialogs = require("./Modules/__dialogs__pro_v6.js")(runtime, {});
 
-let DEFAULT = require("./Modules/MODULE_DEFAULT_CONFIG").af,
-    DEFAULT_UNLOCK = require("./Modules/MODULE_DEFAULT_CONFIG").unlock;
+let DEFAULT_AF = require("./Modules/MODULE_DEFAULT_CONFIG").af;
+let DEFAULT_UNLOCK = require("./Modules/MODULE_DEFAULT_CONFIG").unlock;
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
@@ -405,10 +405,10 @@ homepage
                     // tool function(s) //
 
                     function reset() {
-                        let def_DEFAULT = Object.assign({info_icons_sanctuary: []}, DEFAULT, storage_unlock.get("config", {}), isolateBlacklistStorage());
+                        let def_DEFAULT = Object.assign({info_icons_sanctuary: []}, DEFAULT_AF, storage_unlock.get("config", {}), isolateBlacklistStorage());
                         session_config = deepCloneObject(def_DEFAULT);
                         storage_config = deepCloneObject(def_DEFAULT);
-                        storage_cfg.put("config", DEFAULT);
+                        storage_cfg.put("config", DEFAULT_AF);
                         updateAllValues();
                     }
                 });
@@ -553,7 +553,7 @@ friend_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 if (diag.getInputEditText().getText().toString() !== "") {
@@ -602,7 +602,7 @@ friend_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -664,7 +664,7 @@ help_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 if (diag.getInputEditText().getText().toString() !== "") {
@@ -713,7 +713,7 @@ help_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -749,7 +749,7 @@ help_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 if (diag.getInputEditText().getText().toString() !== "") {
@@ -798,7 +798,7 @@ help_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -829,7 +829,7 @@ help_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -1080,7 +1080,7 @@ rank_list_samples_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -1096,7 +1096,7 @@ rank_list_samples_collect_page
             diag.show();
         },
         updateOpr: function (view) {
-            let value = session_config[this.config_conj] || DEFAULT[this.config_conj];
+            let value = session_config[this.config_conj] || DEFAULT_AF[this.config_conj];
             if (value < 1) value = ~~(value * HEIGHT);
             view._hint.text(value.toString() + " (" + Math.round(value / HEIGHT * 100) + "%)");
         },
@@ -1115,7 +1115,7 @@ rank_list_samples_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 let input = diag.getInputEditText().getText().toString();
@@ -1129,7 +1129,7 @@ rank_list_samples_collect_page
             diag.show();
         },
         updateOpr: function (view) {
-            view._hint.text((session_config[this.config_conj] || DEFAULT[this.config_conj]).toString());
+            view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
         },
     }))
     .add("button", new Layout("滑动间隔", {
@@ -1146,7 +1146,7 @@ rank_list_samples_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag_strategy_image.on("neutral", () => diag_strategy_image.getInputEditText().setText(DEFAULT[this.config_conj].toString()));
+            diag_strategy_image.on("neutral", () => diag_strategy_image.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
             diag_strategy_image.on("negative", () => diag_strategy_image.dismiss());
             diag_strategy_image.on("positive", dialog => {
                 let input = diag_strategy_image.getInputEditText().getText().toString();
@@ -1168,7 +1168,7 @@ rank_list_samples_collect_page
             session_config.rank_list_samples_collect_strategy === "image" && diag_strategy_image.show() || diag_strategy_layout.show();
         },
         updateOpr: function (view) {
-            if (session_config.rank_list_samples_collect_strategy === "image") view._hint.text((session_config[this.config_conj] || DEFAULT[this.config_conj]).toString());
+            if (session_config.rank_list_samples_collect_strategy === "image") view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
             else view._hint.text("自动设置");
         },
     }))
@@ -1194,7 +1194,7 @@ rank_list_samples_collect_page
                 autoDismiss: false,
                 canceledOnTouchOutside: false,
             });
-            diag.on("neutral", () => diag.setSelectedIndex(map_keys.indexOf(DEFAULT[this.config_conj])));
+            diag.on("neutral", () => diag.setSelectedIndex(map_keys.indexOf(DEFAULT_AF[this.config_conj])));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", dialog => {
                 saveSession(this.config_conj, map_keys[diag.selectedIndex]);
@@ -1937,7 +1937,7 @@ function deepCloneObject(obj) {
 }
 
 function initStorageConfig() {
-    let storage_config = Object.assign({info_icons_sanctuary: []}, DEFAULT, storage_cfg.get("config", {}));
+    let storage_config = Object.assign({info_icons_sanctuary: []}, DEFAULT_AF, storage_cfg.get("config", {}));
     storage_cfg.put("config", storage_config); // to refill storage data
     storage_config = Object.assign({}, storage_config, storage_unlock.get("config", {}), isolateBlacklistStorage());
     return storage_config;
