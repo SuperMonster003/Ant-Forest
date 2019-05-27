@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 27, 2019
- * @version 1.6.25 Alpha6
+ * @version 1.6.25 Alpha8
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -856,7 +856,7 @@ function checkEnergy() {
                     let blacklist = current_app.blacklist;
                     while (icon_check_area_top < HEIGHT) {
                         let icon_matched_y = checkAreaByIconImg() || checkAreaByMultiColors();
-                        if (!icon_matched_y) return;
+                        if (!icon_matched_y || icon_matched_y === "__%skip%__") return;
                         current_app.current_friend.icon_matched_y = icon_matched_y;
 
                         let nickname = checkBlacklistImages(icon_matched_y);
@@ -903,13 +903,19 @@ function checkEnergy() {
                         if (!sto_img_bytes) return;
 
                         let template = images.fromBytes(sto_img_bytes);
+
+                        let region_w = WIDTH - icon_check_area_left;
+                        let region_h = HEIGHT - icon_check_area_top;
+                        if (template.width > region_w || template.height > region_h) return "__%skip%__";
+
                         let matched = images.findImage(rank_list_capt_img, template, {
                             region: [
                                 icon_check_area_left,
                                 icon_check_area_top,
-                                WIDTH - icon_check_area_left,
-                                HEIGHT - icon_check_area_top,
+                                region_w,
+                                region_h,
                             ],
+                            threshold: 0.7,
                         });
                         if (matched) return matched.y;
                     }
