@@ -1840,7 +1840,7 @@ function getDisplayParams() {
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
     let [_WIDTH, _HEIGHT] = [0, 0];
-    return _waitForAction(() => [_WIDTH, _HEIGHT] = checkData(), 3000, 500) ? {
+    return _waitForAction(checkData, 3000, 500) ? {
         WIDTH: Math.min(_WIDTH, _HEIGHT),
         HEIGHT: Math.max(_WIDTH, _HEIGHT),
         cX: _num => ~~(+_num * _WIDTH / (+_num >= 1 ? 720 : 1)),
@@ -1851,16 +1851,16 @@ function getDisplayParams() {
 
     function checkData() {
         try {
-            [_WIDTH, _HEIGHT] = [_window_service_display.getWidth(), _window_service_display.getHeight()];
+            [_WIDTH, _HEIGHT] = [+_window_service_display.getWidth(), +_window_service_display.getHeight()];
             if (_WIDTH * _HEIGHT === 0) throw Error();
         } catch (e) {
             try {
-                [_WIDTH, _HEIGHT] = [device.width, device.height];
+                [_WIDTH, _HEIGHT] = [+device.width, +device.height];
             } catch (e) {
 
             }
         }
-        return (_WIDTH * _HEIGHT) ? [_WIDTH, _HEIGHT] : [0, 0];
+        return _WIDTH * _HEIGHT;
     }
 
     // raw function(s) //

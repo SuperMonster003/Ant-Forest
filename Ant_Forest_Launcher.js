@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 26, 2019
- * @version 1.6.25 Alpha5
+ * @last_modified May 27, 2019
+ * @version 1.6.25 Alpha6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -859,16 +859,18 @@ function checkEnergy() {
                         let rank_list_y = matched.y;
                         current_app.current_friend.rank_list_y = rank_list_y;
                         let nickname = checkBlacklistImages(rank_list_y);
-                        if (nickname) {
-                            current_app.current_friend.name = nickname;
-                            messageAction(nickname, "title");
-                            current_app.current_friend.name_logged = 1;
-                        }
-                        if (nickname in blacklist) blackListMsg("exist", "split_line");
-                        else {
-                            let y = rank_list_y + cY(16, 16 / 9);
-                            ident === "green" && targets_green.unshift({name: nickname, y: y});
-                            ident === "orange" && targets_orange.unshift({name: nickname, y: y});
+                        if (nickname !== "__%skip%__") {
+                            if (nickname) {
+                                current_app.current_friend.name = nickname;
+                                messageAction(nickname, "title");
+                                current_app.current_friend.name_logged = 1;
+                            }
+                            if (nickname in blacklist) blackListMsg("exist", "split_line");
+                            else {
+                                let y = rank_list_y + cY(16, 16 / 9);
+                                ident === "green" && targets_green.unshift({name: nickname, y: y});
+                                ident === "orange" && targets_orange.unshift({name: nickname, y: y});
+                            }
                         }
                         icon_area_top = rank_list_y + cY(76, 16 / 9);
                     }
@@ -877,6 +879,7 @@ function checkEnergy() {
 
                     function checkBlacklistImages(y) {
                         let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY(126, 16 / 9)];
+                        if (_t + _h >= HEIGHT) return "__%skip%__";
                         let nickname_keys = Object.keys(blacklist);
                         for (let i = 0, len = nickname_keys.length; i < len; i += 1) {
                             let nickname = nickname_keys[i];
