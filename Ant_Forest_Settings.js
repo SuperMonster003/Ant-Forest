@@ -2366,14 +2366,14 @@ function smoothScrollMenu(shifting, duration) {
 
     let parent = ui.main.getParent();
 
-    duration = duration || 120;
+    duration = duration || 180;
 
     try {
 
         if (shifting === "full_left") {
             shifting = [WIDTH, 0];
-            parent.addView(sub_view);
             sub_view && sub_view.scrollBy(-WIDTH, 0);
+            parent.addView(sub_view);
         } else if (shifting === "full_right") {
             shifting = [-WIDTH, 0];
         }
@@ -2393,8 +2393,17 @@ function smoothScrollMenu(shifting, duration) {
         let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0,
             pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
 
+        let scroll_finished_flag = false;
+
         let scroll_interval = setInterval(function () {
-            if (!dx && !dy) return;
+            if (!dx && !dy) {
+                if ((shifting[0] === -WIDTH && sub_view) && !scroll_finished_flag) {
+                    sub_view.scrollBy(WIDTH, 0);
+                    let child_count = parent.getChildCount();
+                    parent.removeView(parent.getChildAt(--child_count));
+                }
+                return scroll_finished_flag = true;
+            }
             let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
                 move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
             let scroll_x = neg_x && -move_x || move_x,
@@ -2405,13 +2414,8 @@ function smoothScrollMenu(shifting, duration) {
             dy -= pty;
         }, each_move_time);
         setTimeout(() => {
-            if (shifting[0] === -WIDTH && sub_view) {
-                sub_view.scrollBy(WIDTH, 0);
-                let child_count = parent.getChildCount();
-                parent.removeView(parent.getChildAt(--child_count));
-            }
             clearInterval(scroll_interval);
-        }, duration + 300); // 300: a safe interval just in case
+        }, duration + 2000); // 2000: a safe interval just in case
     } catch (e) {
     }
 }
