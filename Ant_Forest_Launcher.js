@@ -1079,7 +1079,6 @@ function checkEnergy() {
                 debugInfo("已开启能量罩信息采集线程");
                 let thread_list_monitor = threads.start(listMonitorThread);
 
-                thread_list_more.join();
                 thread_list_monitor.join();
                 debugInfo("能量罩信息采集完毕");
 
@@ -1095,6 +1094,7 @@ function checkEnergy() {
                         clickAction(kw_list_more(), "widget");
                         click_count++;
                         sleep(200);
+                        if (!waitForAction(() => kw_list_more().exists(), 2000)) return;
                     }
                     debugInfo("动态列表展开完毕");
                     debugInfo(">点击\"点击加载更多\": " + click_count + "次");

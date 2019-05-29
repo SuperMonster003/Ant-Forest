@@ -367,7 +367,6 @@ function killThisApp(name, params) {
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _refreshObjects = typeof refreshObjects === "undefined" ? refreshObjectsRaw : refreshObjects;
 
     let _name = name || "";
     if (!_name) {
@@ -511,13 +510,6 @@ function killThisApp(name, params) {
             app_name: _app_name,
             package_name: _package_name,
         };
-    }
-
-    function refreshObjectsRaw() {
-        recents();
-        sleep(1000);
-        back();
-        sleep(1000);
     }
 }
 
