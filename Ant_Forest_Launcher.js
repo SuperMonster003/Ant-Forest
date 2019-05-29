@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 27, 2019
- * @version 1.6.25 Alpha8
+ * @last_modified May 29, 2019
+ * @version 1.6.25 Alpha9
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -600,8 +600,6 @@ function checkEnergy() {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
                 current_app.current_friend.console_logged = 0;
-                current_app.current_friend.rank_list_type = pop_item_0 && "collect" || pop_item_1 && "help" || null;
-                current_app.current_friend.operation_type = [];
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
                 if (message_switch_on && name_title && !current_app.current_friend.name_logged) {
@@ -853,72 +851,16 @@ function checkEnergy() {
                     let color_threshold = ident === "green" && config.friend_collect_icon_threshold ||
                         ident === "orange" && config.help_collect_icon_threshold || 10;
                     let icon_check_area_left = cX(0.9);
-                    let blacklist = current_app.blacklist;
                     while (icon_check_area_top < HEIGHT) {
-                        let icon_matched_y = checkAreaByIconImg() || checkAreaByMultiColors();
-                        if (!icon_matched_y || icon_matched_y === "__%skip%__") return;
-                        current_app.current_friend.icon_matched_y = icon_matched_y;
-
-                        let nickname = checkBlacklistImages(icon_matched_y);
-                        if (nickname !== "__%skip%__") {
-                            if (nickname) {
-                                current_app.current_friend.name = nickname;
-                                messageAction(nickname, "title");
-                                current_app.current_friend.name_logged = 1;
-                            }
-                            if (nickname in blacklist) blackListMsg("exist", "split_line");
-                            else {
-                                let list_item_click_y = icon_matched_y + cY(16, 16 / 9);
-                                ident === "green" && targets_green.unshift({name: nickname, list_item_click_y: list_item_click_y});
-                                ident === "orange" && targets_orange.unshift({name: nickname, list_item_click_y: list_item_click_y});
-                            }
-                        }
+                        let icon_matched_y = checkAreaByMultiColors();
+                        if (!icon_matched_y) return;
+                        let list_item_click_y = icon_matched_y + cY(16, 16 / 9);
+                        ident === "green" && targets_green.unshift({list_item_click_y: list_item_click_y});
+                        ident === "orange" && targets_orange.unshift({list_item_click_y: list_item_click_y});
                         icon_check_area_top = icon_matched_y + cY(76, 16 / 9);
                     }
 
                     // tool function(s) //
-
-                    function checkBlacklistImages(y) {
-                        let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY(126, 16 / 9)];
-                        if (_t + _h >= HEIGHT) return "__%skip%__";
-                        let nickname_keys = Object.keys(blacklist);
-                        for (let i = 0, len = nickname_keys.length; i < len; i += 1) {
-                            let nickname = nickname_keys[i];
-                            let image_bytes = blacklist[nickname].img_bytes;
-                            if (!image_bytes) continue;
-                            let template = images.fromBytes(image_bytes);
-                            let matched = images.findImage(rank_list_capt_img, template, {
-                                threshold: 0.8,
-                                region: [_l, _t, _w, _h],
-                            });
-                            if (matched) return nickname;
-                        }
-                        return null;
-                    }
-
-                    function checkAreaByIconImg() {
-                        let sto_img_bytes;
-                        if (ident === "green") sto_img_bytes = current_app.rank_list_icon_collect;
-                        else if (ident === "orange") sto_img_bytes = current_app.rank_list_icon_help;
-                        if (!sto_img_bytes) return;
-
-                        let template = images.fromBytes(sto_img_bytes);
-
-                        let region_w = WIDTH - icon_check_area_left;
-                        let region_h = HEIGHT - icon_check_area_top;
-                        if (template.width > region_w || template.height > region_h) return "__%skip%__";
-
-                        let matched = images.findImage(rank_list_capt_img, template, {
-                            region: [
-                                icon_check_area_left,
-                                icon_check_area_top,
-                                region_w,
-                                region_h,
-                            ],
-                            threshold: 0.7,
-                        });
-                        if (matched) return matched.y;
-                    }
 
                     function checkAreaByMultiColors() {
                         let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
@@ -930,13 +872,7 @@ function checkEnergy() {
                             ],
                             threshold: color_threshold,
                         });
-                        if (!matched) return;
-                        let icon_matched_x = matched.x;
-                        let icon_matched_y = matched.y;
-                        let side = WIDTH - icon_matched_x;
-                        current_app.current_friend.icon_img_bytes = images.toBytes(images.clip(rank_list_capt_img, icon_matched_x, icon_matched_y, side, side));
-
-                        return icon_matched_y;
+                        if (matched) return matched.y;
                     }
                 }
 
@@ -1254,7 +1190,6 @@ function checkEnergy() {
 
                 if (ripe_balls.size()) {
                     current_app.current_friend.console_logged = 1;
-                    current_app.current_friend.operation_type.push("collect");
 
                     ripe_flag = 1;
                     ripe_balls.forEach(w => clickAction(w.bounds(), "press"));
@@ -1303,7 +1238,6 @@ function checkEnergy() {
                     // click(pt.x, pt.y);
                     press(pt.x, pt.y, 1);
                 });
-                current_app.current_friend.operation_type.push("help");
                 debugInfo("点击帮收能量球: " + coords_arr.length + "个");
 
                 if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
@@ -1333,9 +1267,8 @@ function checkEnergy() {
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(condition, 3, 80)) {
+                if (waitForAction(condition, 5, 80)) {
                     debugInfo("返回排行榜成功");
-                    saveImgClipsBytesIfNeeded();
                     return true;
                 }
                 debugInfo("返回排行榜单次超时");
@@ -1353,49 +1286,6 @@ function checkEnergy() {
             function restartAlipayToHeroList() {
                 launch({no_message_flag: true});
                 rankListReady();
-            }
-
-            function saveImgClipsBytesIfNeeded() {
-
-                saveNicknameClipBytes();
-                saveIconBytes();
-
-                // tool function (s) //
-
-                function saveNicknameClipBytes() {
-                    let current_friend = current_app.current_friend;
-                    let current_friend_name = current_app.current_friend.name;
-                    if (!(current_friend_name in current_app.blacklist)) return;
-                    current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(captureScreen(), cX(0.1), current_friend.icon_matched_y + cY(20, 16 / 9), cX(400), cY(80, 16 / 9)));
-                    debugInfo("已存储好友排行榜样本图片");
-                }
-
-                function saveIconBytes() {
-
-                    if (current_app.rank_list_icon_collect && current_app.rank_list_icon_help) return;
-
-                    let current_friend = current_app.current_friend;
-                    let operation_type = current_friend.operation_type;
-                    let rank_list_type = current_friend.rank_list_type;
-                    let op_collect = ~operation_type.indexOf("collect");
-                    let op_help = ~operation_type.indexOf("help");
-                    let rk_collect = rank_list_type === "collect";
-                    let rk_help = rank_list_type === "help";
-                    if (op_collect && rk_collect) return saveIconBytesToTmp("collect");
-                    if (op_help && rk_help) return saveIconBytesToTmp("help");
-
-                    // tool function(s) //
-
-                    function saveIconBytesToTmp(type) {
-                        let type_str = "rank_list_icon_" + type;
-                        if (!type || current_app[type_str]) return;
-                        if (storage_af.get("af_" + type_str)) return;
-                        let img_bytes = current_friend.icon_img_bytes;
-                        storage_af.put("af_" + type_str, img_bytes);
-                        current_app[type_str] = img_bytes;
-                        debugInfo("已存储" + (type === "collect" && "绿色手形" || type === "help" && "橙色爱心" || "UNKNOWN") + "样本图片");
-                    }
-                }
             }
         }
 

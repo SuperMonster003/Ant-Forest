@@ -1070,7 +1070,7 @@ rank_list_samples_collect_page
                 content: "距离参数可设置具体像素数量\n" +
                     "如1260表示每次滑动1260像素\n" +
                     "也可设置0-1之间的小数\n如0.6表示每次滑动60%屏幕的距离\n\n" +
-                    "示例: 0.6 | 1260  60%\n\n" +
+                    "示例: 0.6 | 60% | 1260\n\n" +
                     "当前屏幕高度像素值: " + HEIGHT + "\n" +
                     "可设置的像素值范围: " + avail_top + " - " + avail_bottom,
                 inputHint: "{x|0.4(*HEIGHT)<=x<=0.8(*HEIGHT),x∈R}",
