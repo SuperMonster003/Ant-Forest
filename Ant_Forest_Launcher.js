@@ -176,7 +176,10 @@ function init() {
 
     function setParams() {
 
-        images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
+        images.getName = img => {
+            let img_str = img.toString().split("@")[1];
+            return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
+        };
         current_app = Object.assign(current_app, new App("蚂蚁森林"));
         current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/);
         current_app.kw_af_home = () => sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/, "kw_af_home");
@@ -600,6 +603,7 @@ function checkEnergy() {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
                 current_app.current_friend.console_logged = 0;
+                current_app.current_friend.name_logged = 0;
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
                 if (message_switch_on && name_title && !current_app.current_friend.name_logged) {
@@ -607,10 +611,34 @@ function checkEnergy() {
                     current_app.current_friend.name_logged = 1;
                 }
 
-                if (inBlackList(() => {
-                    clickAction([cX(0.5), pop_item.list_item_click_y]);
-                    debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
-                })) continue;
+                let clickRankListItemFunc = () => {
+                    if (strategy === "image") {
+                        let clip_side = WIDTH - pop_item.icon_matched_x;
+                        let [clip_l, clip_t] = [pop_item.icon_matched_x, pop_item.icon_matched_y];
+                        debugInfo("采集并存储排行榜图标样本");
+                        debugInfo("(" + clip_l + ", " + clip_t + ", " + clip_side + ", " + clip_side + ")");
+                        let clip = images.copy(images.clip(captureScreen(), clip_l, clip_t, clip_side, clip_side));
+                        let clickPt = () => clickAction([cX(0.5), pop_item.list_item_click_y]);
+                        debugInfo("尝试点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                        clickPt();
+                        let max_retry_times = 1;
+                        let new_clip = null;
+                        let getNewClip = () => images.clip(captureScreen(), clip_l, clip_t, clip_side, clip_side);
+                        while (!waitForAction(() => !images.findImage(new_clip = getNewClip(), clip), 2000) && max_retry_times--) {
+                            debugInfo("再次尝试点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                            clickPt();
+                            new_clip && new_clip.recycle();
+                        }
+                        clip.recycle();
+                        new_clip && new_clip.recycle();
+                        return max_retry_times >= 0 ? ~debugInfo("图标点击成功") : debugInfo("图标点击失败");
+                    } else {
+                        clickAction([cX(0.5), pop_item.list_item_click_y]);
+                        debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                    }
+                };
+
+                if (inBlackList(clickRankListItemFunc)) continue;
 
                 forestPageGetReady() && collectBalls();
                 backToHeroList();
@@ -689,14 +717,26 @@ function checkEnergy() {
             }
 
             function getRankListTitleAreaCapt() {
-                if (current_app.rank_list_title_area_capt) return true;
+                try {
+                    let rank_list_title_area_capt = current_app.rank_list_title_area_capt;
+                    if (rank_list_title_area_capt && rank_list_title_area_capt.getHeight()) return true;
+                } catch (e) {
+
+                }
                 let key_node = current_app.kw_rank_list_title().findOnce();
                 if (!key_node) return;
                 let bounds = key_node.bounds();
                 debugInfo("采集并存储排行榜标题区域样本");
                 let [l, t, w, h] = [3, bounds.top, WIDTH - 6, bounds.height()];
                 debugInfo("(" + l + ", " + t + ", " + (l + w) + ", " + (t + h) + ")");
-                return (current_app.rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h)));
+                try {
+                    let rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h));
+                    if (rank_list_title_area_capt && rank_list_title_area_capt.getHeight()) {
+                        return current_app.rank_list_title_area_capt = rank_list_title_area_capt;
+                    }
+                } catch (e) {
+
+                }
             }
         }
 
@@ -843,11 +883,17 @@ function checkEnergy() {
                         ident === "orange" && config.help_collect_icon_threshold || 10;
                     let icon_check_area_left = cX(0.9);
                     while (icon_check_area_top < HEIGHT) {
-                        let icon_matched_y = checkAreaByMultiColors();
-                        if (!icon_matched_y) return;
+                        let icon_matched = checkAreaByMultiColors();
+                        if (!icon_matched) return;
+                        let [icon_matched_x, icon_matched_y] = [icon_matched.x, icon_matched.y];
                         let list_item_click_y = icon_matched_y + cY(16, 16 / 9);
-                        ident === "green" && targets_green.unshift({list_item_click_y: list_item_click_y});
-                        ident === "orange" && targets_orange.unshift({list_item_click_y: list_item_click_y});
+                        let target_info = {
+                            icon_matched_x: icon_matched_x,
+                            icon_matched_y: icon_matched_y,
+                            list_item_click_y: list_item_click_y,
+                        };
+                        ident === "green" && targets_green.unshift(target_info);
+                        ident === "orange" && targets_orange.unshift(target_info);
                         icon_check_area_top = icon_matched_y + cY(76, 16 / 9);
                     }
 
@@ -863,7 +909,10 @@ function checkEnergy() {
                             ],
                             threshold: color_threshold,
                         });
-                        if (matched) return matched.y;
+                        if (matched) return {
+                            x: matched.x,
+                            y: matched.y,
+                        };
                     }
                 }
 
@@ -1250,9 +1299,11 @@ function checkEnergy() {
             let condition = () => {
                 let title_area_match = () => {
                     try {
-                        images.findImage(images.copy(captureScreen()), current_app.rank_list_title_area_capt);
+                        let template = current_app.rank_list_title_area_capt;
+                        let current_capt = images.copy(captureScreen());
+                        return images.findImage(current_capt, template);
                     } catch (e) {
-
+                        console.warn(e);
                     }
                 }; // for the same image formats
                 if (strategy === "image") return title_area_match();
@@ -1264,7 +1315,8 @@ function checkEnergy() {
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(condition, 8, 150)) {
+                sleep(180);
+                if (waitForAction(condition, 1800, 180)) {
                     debugInfo("返回排行榜成功");
                     return true;
                 }
@@ -1297,9 +1349,13 @@ function checkEnergy() {
             let swipe_top = ~~((HEIGHT - swipe_distance) / 2);
             let swipe_bottom = HEIGHT - swipe_top;
 
-            debugInfo("上滑屏幕: " + (swipe_bottom - swipe_top) + "px");
+            let sample_before_swipe = null;
+            if (strategy === "image") {
+                debugInfo("采集并存储滑动前图像样本");
+                sample_before_swipe = images.copy(images.clip(captureScreen(), 0, swipe_top, WIDTH, swipe_distance));
+            }
 
-            if (strategy === "image") return ~swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time) && sleep(config.rank_list_swipe_interval);
+            debugInfo("上滑屏幕: " + (swipe_bottom - swipe_top) + "px");
 
             let max_try_times_swipe = 3;
             let max_try_times_swipe_backup = max_try_times_swipe;
@@ -1320,22 +1376,38 @@ function checkEnergy() {
 
             debugInfo("等待排行榜列表稳定");
 
-            let bottom_data = undefined;
-            let tmp_bottom_data = getRankListSelfBottom();
-            debugInfo("参照值: " + tmp_bottom_data);
-            while (bottom_data !== tmp_bottom_data) {
-                bottom_data = tmp_bottom_data;
-                sleep(50);
-                tmp_bottom_data = getRankListSelfBottom();
-                if (isNaN(tmp_bottom_data)) {
-                    debugInfo("参照值: NaN");
-                    invalid_rank_list_ref_data++;
-                    if (invalid_rank_list_ref_data > 10) {
-                        messageAction("脚本无法继续", 4);
-                        messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
-                    }
-                } else debugInfo("参照值: " + tmp_bottom_data);
-            } // wait for data stable
+            if (strategy === "image") {
+                let getNewClip = () => images.copy(images.clip(captureScreen(), 0, swipe_top, WIDTH, swipe_distance));
+                let new_clip = images.copy(sample_before_swipe);
+                let max_try_times = 18;
+                while (images.findImage(new_clip, sample_before_swipe) && max_try_times--) {
+                    if (list_end_signal) return;
+                    new_clip.recycle();
+                    new_clip = getNewClip();
+                    sleep(90);
+                }
+                if (max_try_times < 0) return;
+                debugInfo("检测到模拟滑动");
+                new_clip.recycle();
+                sleep(config.rank_list_swipe_time);
+            } else {
+                let bottom_data = undefined;
+                let tmp_bottom_data = getRankListSelfBottom();
+                debugInfo("参照值: " + tmp_bottom_data);
+                while (bottom_data !== tmp_bottom_data) {
+                    bottom_data = tmp_bottom_data;
+                    sleep(50);
+                    tmp_bottom_data = getRankListSelfBottom();
+                    if (isNaN(tmp_bottom_data)) {
+                        debugInfo("参照值: NaN");
+                        invalid_rank_list_ref_data++;
+                        if (invalid_rank_list_ref_data > 10) {
+                            messageAction("脚本无法继续", 4);
+                            messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
+                        }
+                    } else debugInfo("参照值: " + tmp_bottom_data);
+                } // wait for data stable
+            }
             debugInfo("排行榜列表已稳定: " + (new Date().getTime() - debug_start_timestamp) + "ms");
 
             // tool function(s) //
@@ -1442,7 +1514,7 @@ function checkEnergy() {
             let strategy = config.rank_list_samples_collect_strategy;
 
             if (strategy === "image") {
-                clickRankListItemFunc();
+                if (!clickRankListItemFunc()) return true; // skip
                 if (checkForestTitle()) {
                     blackListMsg("exist", "split_line");
                     backToHeroList();
@@ -1457,7 +1529,7 @@ function checkEnergy() {
 
             function checkForestTitle() {
                 let key_node = null;
-                if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 5000)) return messageAction("标题采集好友昵称超时", 3);
+                if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 20000)) return messageAction("标题采集好友昵称超时", 3);
                 let getNameStr = string => string.match(/.+(?=的蚂蚁森林$)/);
                 let friend_nickname = (getNameStr(key_node.text()) || getNameStr(key_node.desc()) || [])[0];
                 if (!friend_nickname) return messageAction("好友昵称无效", 3);

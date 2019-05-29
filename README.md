@@ -48,6 +48,7 @@
 >> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true) `(推荐)`    
 
 >"Auto.js"不适用版本:
+>> `Pro 7.0.3-1` `存在Dialogs模块dismiss方法无效的问题`    
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
 ******
@@ -85,6 +86,13 @@
 ******
 ### 版本历史
 ******
+# v1.6.25 Alpha12
+###### 2019/05/29
+* `修复` `Pro v7.0.3-1` 获取图像示例标识字符可能为空的问题  
+* `修复` "图像识别"策略排行榜图标可能点击无效的问题  
+* `修复` "图像识别"策略返回排行榜后匹配样本异常的问题  
+* `优化` "图像识别"策略增加滑动检测  
+
 # v1.6.25 Alpha11
 ###### 2019/05/29
 * `修复` 好友数量小于10时脚本无法继续运行的问题  
