@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified May 29, 2019
- * @version 1.6.25 Alpha9
+ * @version 1.6.25 Alpha11
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -637,17 +637,8 @@ function checkEnergy() {
         // key function(s) //
 
         function rankListReady() {
-            if (!waitForAction(kw_more_friends, 5000)) {
-                debugInfo("定位\"查看更多好友\"超时");
-                debugInfo("尝试刷新控件");
-                refreshObjects();
-                if (!waitForAction(kw_more_friends, 1000)) {
-                    debugInfo("刷新无效");
-                    debugInfo("尝试重启Activity到蚂蚁森林主页");
-                    launch({no_message_flag: true});
-                    if (!waitForAction(kw_more_friends, 2000)) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
-                } else debugInfo("刷新成功");
-            }
+            if (!waitForAction(() => kw_more_friends().exists(), 5000)) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
+
             debugInfo("定位到\"查看更多好友\"按钮");
 
             this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
@@ -1257,7 +1248,13 @@ function checkEnergy() {
 
         function backToHeroList() {
             let condition = () => {
-                let title_area_match = () => images.findImage(images.copy(captureScreen()), current_app.rank_list_title_area_capt); // for the same image formats
+                let title_area_match = () => {
+                    try {
+                        images.findImage(images.copy(captureScreen()), current_app.rank_list_title_area_capt);
+                    } catch (e) {
+
+                    }
+                }; // for the same image formats
                 if (strategy === "image") return title_area_match();
                 return title_area_match() || current_app.kw_rank_list_title().exists();
             };
@@ -1267,7 +1264,7 @@ function checkEnergy() {
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(condition, 5, 80)) {
+                if (waitForAction(condition, 8, 150)) {
                     debugInfo("返回排行榜成功");
                     return true;
                 }
