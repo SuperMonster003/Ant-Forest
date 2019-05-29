@@ -17,6 +17,7 @@ module.exports = {
     tryRequestScreenCapture: tryRequestScreenCapture,
     keycode: keycode,
     debugInfo: debugInfo,
+    getDisplayParams: getDisplayParams,
 };
 
 /**
@@ -366,7 +367,6 @@ function killThisApp(name, params) {
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _refreshObjects = typeof refreshObjects === "undefined" ? refreshObjectsRaw : refreshObjects;
 
     let _name = name || "";
     if (!_name) {
@@ -511,13 +511,6 @@ function killThisApp(name, params) {
             package_name: _package_name,
         };
     }
-
-    function refreshObjectsRaw() {
-        recents();
-        sleep(1000);
-        back();
-        sleep(1000);
-    }
 }
 
 /**
@@ -636,7 +629,7 @@ function restartThisEngine(params) {
     _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
     _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
     let _file_name = _params.new_file || _my_engine.source.toString();
-    if (_file_name.match(/^\[remote]/)) return !~_messageAction("远程任务不支持重启引擎", 4, 1);
+    if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
 
     let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
     _debugInfo("运行新引擎任务:\n" + _file_path);
@@ -648,6 +641,7 @@ function restartThisEngine(params) {
     });
     _debugInfo("强制停止旧引擎任务");
     _my_engine.forceStop();
+    return true;
 
     // raw function(s) //
 
@@ -1258,6 +1252,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
  * @param [params] {object}
  * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
+ * @param [params.current_package=currentPackage()] {string}
  * @param [params.debug_info_flag=false] {boolean}
  */
 function refreshObjects(strategy, params) {
@@ -1293,14 +1288,17 @@ function refreshObjects(strategy, params) {
         }
         sleep(300);
     } else {
-        let init_package = currentPackage();
-        _debugInfo(init_package);
+        let _param_package = _params.current_package;
+        let _current_package = _param_package || currentPackage();
+        _debugInfo(_current_package);
         recents();
-        _waitForAction(() => currentPackage() !== init_package, 2000, 80) && sleep(300);
-        init_package = currentPackage();
+        _waitForAction(() => currentPackage() !== _current_package, 2000, 500) && sleep(500);
         _debugInfo(currentPackage());
         back();
-        _waitForAction(() => currentPackage() !== init_package, 2000, 80);
+        if (!_waitForAction(() => currentPackage() === _current_package, 2000, 80)) {
+            app.launchPackage(_current_package);
+            _waitForAction(() => currentPackage() === _current_package, 2000, 80);
+        }
         _debugInfo(currentPackage());
     }
 
@@ -1381,8 +1379,11 @@ function tryRequestScreenCapture(params) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
-        _params.restart_this_engine_flag ? _debugInfo("截图权限申请结果: 失败") : _messageAction("截图权限申请结果: 失败", 8, 1, 0, 1);
-        _restartThisEngine(_params.restart_this_engine_params);
+        if (_params.restart_this_engine_flag) {
+            _debugInfo("截图权限申请结果: 失败");
+            if (_restartThisEngine(_params.restart_this_engine_params)) return;
+        }
+        _messageAction("截图权限申请失败", 8, 1, 0, 1);
     });
 
     let _req_result = images.requestScreenCapture();
@@ -1450,7 +1451,7 @@ function tryRequestScreenCapture(params) {
         if (!_max_restart_engine_times) return;
 
         let _file_name = _params.new_file || _my_engine.source.toString();
-        if (_file_name.match(/^\[remote]/)) return !~console.warn("远程任务不支持重启引擎");
+        if (_file_name.match(/^\[remote]/)) return ~console.error("远程任务不支持重启引擎") && exit();
         let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
         engines.execScriptFile(_file_path, {
             arguments: {
@@ -1813,8 +1814,60 @@ function keycode(keycode_name, params_str) {
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
-    if (info_flag || this._monster_$_debug_info_flag) {
+    if (info_flag === true || this._monster_$_debug_info_flag) {
         info_flag === "up" && showSplitLine();
         console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Returns display screen width and height data, and converter functions with different aspect ratios
+ * -- scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
+ * @example
+ * let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
+ * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16/9);
+ * @return {*}
+ */
+function getDisplayParams() {
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
+    let [_WIDTH, _HEIGHT] = [0, 0];
+    return _waitForAction(checkData, 3000, 500) ? {
+        WIDTH: Math.min(_WIDTH, _HEIGHT),
+        HEIGHT: Math.max(_WIDTH, _HEIGHT),
+        cX: _num => ~~(+_num * _WIDTH / (+_num >= 1 ? 720 : 1)),
+        cY: (_num, _aspect_ratio) => ~~(+_num * (_WIDTH * ((_aspect_ratio > 1 ? _aspect_ratio : (1 / _aspect_ratio)) || (_HEIGHT / _WIDTH))) / (+_num >= 1 ? 1280 : 1)),
+    } : {};
+
+    // tool function(s) //
+
+    function checkData() {
+        try {
+            [_WIDTH, _HEIGHT] = [+device.width, +device.height];
+            if (!(_WIDTH * _HEIGHT)) throw Error();
+        } catch (e) {
+            try {
+                [_WIDTH, _HEIGHT] = [+_window_service_display.getWidth(), +_window_service_display.getHeight()];
+            } catch (e) {
+
+            }
+        }
+        return _WIDTH * _HEIGHT;
+    }
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
     }
 }

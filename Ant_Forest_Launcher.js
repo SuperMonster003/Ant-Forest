@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 24, 2019
- * @version 1.6.25 Alpha2
+ * @last_modified May 29, 2019
+ * @version 1.6.25 Alpha13
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -23,6 +23,7 @@ let {
     refreshObjects,
     tryRequestScreenCapture,
     keycode,
+    getDisplayParams,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 try {
@@ -34,12 +35,11 @@ try {
 
 let config = {
     main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
-    list_swipe_time: 100, // unit: millisecond; set this value bigger if errors like "CvException" occurred
     max_running_time: 5, // 1 <= x <= 30; running timeout each time; unit: minute; leave "false value" if you dislike limitation
 };
 
 let storage_af, storage_af_cfg, unlock_module;
-let WIDTH, HEIGHT, cX, cY, cY16h9w;
+let WIDTH, HEIGHT, cX, cY;
 let engines_support_flag = true;
 let current_app = {};
 let sel = selector();
@@ -47,7 +47,6 @@ checkModules.bind(this)();
 checkTasksQueue();
 checkVersion();
 checkEngines();
-setScreenPixelData();
 
 antForest();
 
@@ -71,6 +70,7 @@ function init() {
     setVolKeysListener();
     checkSdk();
     unlock();
+    setScreenPixelData();
     setSelectorProto();
     setAutoJsLogPath();
     setParams();
@@ -176,7 +176,10 @@ function init() {
 
     function setParams() {
 
-        images.getName = img => ("@" + img.toString().split("@")[1]) || "NULL";
+        images.getName = img => {
+            let img_str = img.toString().split("@")[1];
+            return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
+        };
         current_app = Object.assign(current_app, new App("蚂蚁森林"));
         current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/);
         current_app.kw_af_home = () => sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/, "kw_af_home");
@@ -188,6 +191,9 @@ function init() {
         current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
         current_app.ori_app_package = currentPackage();
         current_app.kill_when_done = current_app.ori_app_package !== current_app.package_name;
+        current_app.logged_blacklist_names = [];
+        current_app.rank_list_icon_collect = storage_af.get("af_rank_list_icon_collect");
+        current_app.rank_list_icon_help = storage_af.get("af_rank_list_icon_help");
         debugInfo("会话参数赋值完毕");
 
         checkAlipayVer();
@@ -201,9 +207,10 @@ function init() {
             this.package_name = getAlipayPkgName();
             this.intent = {
                 action: "VIEW",
-                data: "alipays://platformapi/startapp?saId=20000067" +
-                    "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/home.html") +
-                    "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
+                // data: "alipays://platformapi/startapp?saId=20000067" +
+                //     "&url=" + encodeURIComponent("https://60000002.h5app.alipay.com/www/home.html") +
+                //     "&__webview_options__=" + encodeURIComponent('showOptionMenu=YES&startMultApp=YES'),
+                data: "alipays://platformapi/startapp?appId=60000002&appClearTop=false&startMultApp=YES",
             };
             this.first_time_run = 1;
             this.firstTimeRunConditionFun = firstTimeRunCondition;
@@ -564,7 +571,7 @@ function checkEnergy() {
                 last_capt.recycle();
             }
             // let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
-            let new_capt = images.clip(capture, cX(288), cY16h9w(210), cX(142), cY16h9w(44)); // more flexible condition(s)
+            let new_capt = images.clip(capture, cX(288), cY(210, 16 / 9), cX(142), cY(44, 16 / 9)); // more flexible condition(s)
             blacklist_ident_capts.unshift(new_capt);
             debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
         };
@@ -596,14 +603,42 @@ function checkEnergy() {
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
                 current_app.current_friend.console_logged = 0;
+                current_app.current_friend.name_logged = 0;
                 let name_title = pop_name; // maybe undefined
                 let message_switch_on = config.console_log_details || config.debug_info_switch;
-                message_switch_on && name_title && messageAction(name_title, "title");
+                if (message_switch_on && name_title && !current_app.current_friend.name_logged) {
+                    messageAction(name_title, "title");
+                    current_app.current_friend.name_logged = 1;
+                }
 
-                if (inBlackList(() => {
-                    clickAction([cX(0.5), pop_item.y]);
-                    debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
-                })) continue;
+                let clickRankListItemFunc = () => {
+                    if (strategy === "image") {
+                        let clip_side = WIDTH - pop_item.icon_matched_x;
+                        let [clip_l, clip_t] = [pop_item.icon_matched_x, pop_item.icon_matched_y];
+                        debugInfo("采集并存储排行榜图标样本");
+                        debugInfo("(" + clip_l + ", " + clip_t + ", " + clip_side + ", " + clip_side + ")");
+                        let clip = images.copy(images.clip(captureScreen(), clip_l, clip_t, clip_side, clip_side));
+                        let clickPt = () => clickAction([cX(0.5), pop_item.list_item_click_y]);
+                        debugInfo("尝试点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                        clickPt();
+                        let max_retry_times = 1;
+                        let new_clip = null;
+                        let getNewClip = () => images.clip(captureScreen(), clip_l, clip_t, clip_side, clip_side);
+                        while (!waitForAction(() => !images.findImage(new_clip = getNewClip(), clip), 2000) && max_retry_times--) {
+                            debugInfo("再次尝试点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                            clickPt();
+                            new_clip && new_clip.recycle();
+                        }
+                        clip.recycle();
+                        new_clip && new_clip.recycle();
+                        return max_retry_times >= 0 ? ~debugInfo("图标点击成功") : debugInfo("图标点击失败");
+                    } else {
+                        clickAction([cX(0.5), pop_item.list_item_click_y]);
+                        debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                    }
+                };
+
+                if (inBlackList(clickRankListItemFunc)) continue;
 
                 forestPageGetReady() && collectBalls();
                 backToHeroList();
@@ -630,18 +665,11 @@ function checkEnergy() {
         // key function(s) //
 
         function rankListReady() {
-            if (!waitForAction(kw_more_friends, 5000)) {
-                debugInfo("定位\"查看更多好友\"超时");
-                debugInfo("尝试刷新控件");
-                refreshObjects();
-                if (!waitForAction(kw_more_friends, 1000)) {
-                    debugInfo("刷新无效");
-                    debugInfo("尝试重启Activity到蚂蚁森林主页");
-                    launch({no_message_flag: true});
-                    if (!waitForAction(kw_more_friends, 2000)) return messageAction("定位\"查看更多好友\"按钮失败", 3, 1);
-                } else debugInfo("刷新成功");
-            }
+            if (!waitForAction(() => kw_more_friends().exists(), 5000)) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
+
             debugInfo("定位到\"查看更多好友\"按钮");
+
+            this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
 
             let max_try_times = 180;
             let kw_try_again = () => sel.pickup("再试一次", "kw_rank_list_try_again");
@@ -660,11 +688,11 @@ function checkEnergy() {
                 if (waitForAction(() => {
                     let kw_rank_list = idMatches(/.*J_rank_list/);
                     try {
-                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount();
+                        return kw_rank_list.exists() && kw_rank_list.findOnce().childCount() && getRankListTitleAreaCapt();
                     } catch (e) {
                         // nothing to do here
                     }
-                }, 500)) break;
+                }, 1500)) break;
             }
             if (max_try_times < 0) return messageAction("进入好友排行榜超时", 3, 1);
             debugInfo("排行榜状态准备完毕");
@@ -687,11 +715,32 @@ function checkEnergy() {
                 debugInfo("排行榜展开完毕");
                 debugInfo(">点击\"查看更多\": " + click_count + "次");
             }
+
+            function getRankListTitleAreaCapt() {
+                try {
+                    let rank_list_title_area_capt = current_app.rank_list_title_area_capt;
+                    if (rank_list_title_area_capt && rank_list_title_area_capt.getHeight()) return true;
+                } catch (e) {
+
+                }
+                let key_node = current_app.kw_rank_list_title().findOnce();
+                if (!key_node) return;
+                let bounds = key_node.bounds();
+                debugInfo("采集并存储排行榜标题区域样本");
+                let [l, t, w, h] = [3, bounds.top, WIDTH - 6, bounds.height()];
+                debugInfo("(" + l + ", " + t + ", " + (l + w) + ", " + (t + h) + ")");
+                try {
+                    let rank_list_title_area_capt = images.copy(images.clip(captureScreen(), l, t, w, h));
+                    if (rank_list_title_area_capt && rank_list_title_area_capt.getHeight()) {
+                        return current_app.rank_list_title_area_capt = rank_list_title_area_capt;
+                    }
+                } catch (e) {
+
+                }
+            }
         }
 
         function getCurrentScreenTargets() {
-
-            this._monster_$_request_screen_capture_flag || tryRequestScreenCapture({restart_this_engine_flag: true});
 
             let [targets_green, targets_orange] = [[], []];
 
@@ -729,12 +778,12 @@ function checkEnergy() {
 
                         if (friend_collect_switch) {
                             let pt_green = images.findColor(rank_list_capt_img, config.friend_collect_icon_color, Object.assign({}, find_color_options, {threshold: config.friend_collect_icon_threshold}));
-                            if (pt_green) return targets_green.unshift({name: name, y: name_node_cy});
+                            if (pt_green) return targets_green.unshift({name: name, list_item_click_y: name_node_cy});
                         }
 
                         if (help_collect_switch) {
                             let pt_orange = images.findColor(rank_list_capt_img, config.help_collect_icon_color, Object.assign({}, find_color_options, {threshold: config.help_collect_icon_threshold}));
-                            if (pt_orange) return targets_orange.unshift({name: name, y: name_node_cy});
+                            if (pt_orange) return targets_orange.unshift({name: name, list_item_click_y: name_node_cy});
                         }
                     } catch (e) {
                         throw Error(e);
@@ -824,51 +873,46 @@ function checkEnergy() {
                         || ident === "orange" && config.help_collect_icon_color || null;
                     if (!color) return;
 
-                    let multi_colors = [[cX(38), 0, color], [cX(38), cY16h9w(35), color]];
+                    let multi_colors = [[cX(38), 0, color], [cX(38), cY(35, 16 / 9), color]];
                     if (ident === "green") {
-                        for (let i = 18; i <= 25; i += 1) multi_colors.push([cX(i), cY16h9w(i - 7), -1]);
+                        for (let i = 18; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
                     } // [cX(37), cY(25), -1] was abandoned
 
-                    let icon_area_top = 0;
+                    let icon_check_area_top = 0;
                     let color_threshold = ident === "green" && config.friend_collect_icon_threshold ||
                         ident === "orange" && config.help_collect_icon_threshold || 10;
-                    let region_icon_left = cX(0.9);
-                    let blacklist = current_app.blacklist;
-                    while (icon_area_top < HEIGHT) {
-                        let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
-                            region: [region_icon_left, icon_area_top, WIDTH - region_icon_left, HEIGHT - icon_area_top],
-                            threshold: color_threshold,
-                        });
-                        if (!matched) return;
-                        let ranklist_y = matched.y;
-                        current_app.current_friend.ranklist_y = ranklist_y;
-                        let nickname = current_app.current_friend.name = checkBlacklistImages(ranklist_y);
-                        if (nickname && (nickname in blacklist)) blackListMsg("exist", "split_line");
-                        else {
-                            let y = ranklist_y + cY16h9w(16);
-                            ident === "green" && targets_green.unshift({name: nickname, y: y});
-                            ident === "orange" && targets_orange.unshift({name: nickname, y: y});
-                        }
-                        icon_area_top = ranklist_y + cY16h9w(76);
+                    let icon_check_area_left = cX(0.9);
+                    while (icon_check_area_top < HEIGHT) {
+                        let icon_matched = checkAreaByMultiColors();
+                        if (!icon_matched) return;
+                        let [icon_matched_x, icon_matched_y] = [icon_matched.x, icon_matched.y];
+                        let list_item_click_y = icon_matched_y + cY(16, 16 / 9);
+                        let target_info = {
+                            icon_matched_x: icon_matched_x,
+                            icon_matched_y: icon_matched_y,
+                            list_item_click_y: list_item_click_y,
+                        };
+                        ident === "green" && targets_green.unshift(target_info);
+                        ident === "orange" && targets_orange.unshift(target_info);
+                        icon_check_area_top = icon_matched_y + cY(76, 16 / 9);
                     }
 
                     // tool function(s) //
 
-                    function checkBlacklistImages(y) {
-                        let [_l, _t, _w, _h] = [cX(0.08), y, cX(0.75), cY16h9w(126)];
-                        let nickname_keys = Object.keys(blacklist);
-                        for (let i = 0, len = nickname_keys.length; i < len; i += 1) {
-                            let nickname = nickname_keys[i];
-                            let image_bytes = blacklist[nickname].img_bytes;
-                            if (!image_bytes) continue;
-                            let template = images.fromBytes(image_bytes);
-                            let matched = images.findImage(rank_list_capt_img, template, {
-                                threshold: 0.8,
-                                region: [_l, _t, _w, _h],
-                            });
-                            if (matched) return nickname;
-                        }
-                        return null;
+                    function checkAreaByMultiColors() {
+                        let matched = images.findMultiColors(rank_list_capt_img, color, multi_colors, {
+                            region: [
+                                icon_check_area_left,
+                                icon_check_area_top,
+                                WIDTH - icon_check_area_left,
+                                HEIGHT - icon_check_area_top,
+                            ],
+                            threshold: color_threshold,
+                        });
+                        if (matched) return {
+                            x: matched.x,
+                            y: matched.y,
+                        };
                     }
                 }
 
@@ -876,8 +920,8 @@ function checkEnergy() {
                     let color_invitation = "#30bf6c";
                     let multi_colors = [
                         [cX(122), 0, color_invitation],
-                        [cX(122), cY16h9w(48), color_invitation],
-                        [0, cY16h9w(48), color_invitation],
+                        [cX(122), cY(48, 16 / 9), color_invitation],
+                        [0, cY(48, 16 / 9), color_invitation],
                     ];
                     let matched = images.findMultiColors(rank_list_capt_img, color_invitation, multi_colors, {
                         threshold: 10,
@@ -924,13 +968,13 @@ function checkEnergy() {
             // return waitForAction(kw_energy_balls, 5000);
 
             if (waitForAction(() => kw_energy_balls().exists(), 2000)) return true;
+            return debugInfo("等待能量球超时");
 
-            debugInfo("等待能量球超时");
-            debugInfo("尝试刷新控件");
-            refreshObjects();
-            let retry_result = waitForAction(() => kw_energy_balls().exists(), 1000);
-            debugInfo(retry_result ? "刷新成功" : "刷新无效");
-            return retry_result;
+            // debugInfo("尝试刷新控件");
+            // refreshObjects();
+            // let retry_result = waitForAction(() => kw_energy_balls().exists(), 1000);
+            // debugInfo(retry_result ? "刷新成功" : "刷新无效");
+            // return retry_result;
 
             // tool function(s) //
 
@@ -1075,7 +1119,6 @@ function checkEnergy() {
                 debugInfo("已开启能量罩信息采集线程");
                 let thread_list_monitor = threads.start(listMonitorThread);
 
-                thread_list_more.join();
                 thread_list_monitor.join();
                 debugInfo("能量罩信息采集完毕");
 
@@ -1091,13 +1134,14 @@ function checkEnergy() {
                         clickAction(kw_list_more(), "widget");
                         click_count++;
                         sleep(200);
+                        if (!waitForAction(() => kw_list_more().exists(), 2000)) return;
                     }
                     debugInfo("动态列表展开完毕");
                     debugInfo(">点击\"点击加载更多\": " + click_count + "次");
                 }
 
                 function listMonitorThread() {
-                    let kw_protect_cover = () => sel.pickup("使用了保护罩", "kw_protect_cover_used");
+                    let kw_protect_cover = () => sel.pickup(/.*使用了保护罩.*/, "kw_protect_cover_used");
                     let dates_arr = getDatesArr();
                     if (dates_arr && kw_protect_cover().exists()) addBlacklist();
 
@@ -1111,23 +1155,23 @@ function checkEnergy() {
                             // 3 arrays at most which can enhance efficiency a little bit
                             return kw_list.findOnce().children().filter(w => !w.childCount()).slice(0, 3);
                         };
-                        let safe_max_try_times = 18;
+                        let safe_max_try_times = 8;
                         while (safe_max_try_times--) {
                             let dates_arr = renewDatesArr(),
                                 max_i = dates_arr.length;
                             for (let i = 0; i < max_i; i += 1) {
-                                // let over_two_days = dates_arr[i].desc().match(/\d{2}.\d{2}/); // like: "03-22"
                                 let _desc = dates_arr[i].desc();
                                 let _text = dates_arr[i].text();
-                                let over_two_days = _desc && _desc.length === 5 || _text && _text.length === 5; // like: "03-22"
-                                if (kw_protect_cover().exists() || over_two_days) {
-                                    thread_list_more.interrupt();
+                                let regexp_over_two_days = /\d{2}.\d{2}/;
+                                let over_two_days = _desc && _desc.match(regexp_over_two_days) ||
+                                    _text && _text.match(regexp_over_two_days); // like: "03-22"
+                                if (waitForAction(() => kw_protect_cover().exists(), 1000) || over_two_days) {
+                                    thread_list_more.isAlive() && thread_list_more.interrupt();
                                     debugInfo("动态列表展开已停止");
                                     debugInfo("能量罩信息定位在: " + _desc || _text);
-                                    return max_i < 3 ? renewDatesArr() : dates_arr; // 样本数达到3个则无需重新获取
+                                    return max_i < 3 ? renewDatesArr() : dates_arr; // 3 samples at most
                                 }
                             }
-                            sleep(100); // necessary or not ?
                         }
                     }
 
@@ -1252,14 +1296,28 @@ function checkEnergy() {
         }
 
         function backToHeroList() {
-            if (current_app.kw_rank_list_title().exists()) return;
+            let condition = () => {
+                let title_area_match = () => {
+                    try {
+                        let template = current_app.rank_list_title_area_capt;
+                        let current_capt = images.copy(captureScreen());
+                        return images.findImage(current_capt, template);
+                    } catch (e) {
+                        console.warn(e);
+                    }
+                }; // for the same image formats
+                if (strategy === "image") return title_area_match();
+                return title_area_match() || current_app.kw_rank_list_title().exists();
+            };
+
+            if (condition()) return;
 
             let max_try_times = 3;
             while (max_try_times--) {
                 jumpBackOnce();
-                if (waitForAction(() => current_app.kw_rank_list_title().exists(), 3000)) {
+                sleep(180);
+                if (waitForAction(condition, 1800, 180)) {
                     debugInfo("返回排行榜成功");
-                    saveFriendNameImgBytesIfNeeded();
                     return true;
                 }
                 debugInfo("返回排行榜单次超时");
@@ -1278,14 +1336,6 @@ function checkEnergy() {
                 launch({no_message_flag: true});
                 rankListReady();
             }
-
-            function saveFriendNameImgBytesIfNeeded() {
-                let current_friend = current_app.current_friend;
-                let current_friend_name = current_app.current_friend.name;
-                if (!(current_friend_name in current_app.blacklist)) return;
-                current_app.blacklist[current_friend_name].img_bytes = images.toBytes(images.clip(images.captureScreen(), cX(0.1), current_friend.ranklist_y + cY16h9w(20), cX(400), cY16h9w(80)));
-                debugInfo("已存储好友排行榜样本图片");
-            }
         }
 
         function swipeUp() {
@@ -1293,48 +1343,71 @@ function checkEnergy() {
             let invalid_rank_list_ref_data = 0;
 
             let half_width = cX(0.5);
-            let bottom_height = cY(0.9);
-            let top_height = cY(0.1);
-            let swipe_time = config.list_swipe_time;
-            debugInfo("上滑屏幕: " + (bottom_height - top_height) + "px");
+            let swipe_time = config.rank_list_swipe_time;
+            let swipe_distance_raw = config.rank_list_swipe_distance;
+            let swipe_distance = swipe_distance_raw < 1 ? ~~(swipe_distance_raw * HEIGHT) : swipe_distance_raw;
+            let swipe_top = ~~((HEIGHT - swipe_distance) / 2);
+            let swipe_bottom = HEIGHT - swipe_top;
 
-            if (strategy === "image") return ~swipe(half_width, bottom_height, half_width, top_height, swipe_time) && sleep(100);
+            let sample_before_swipe = null;
+            if (strategy === "image") {
+                debugInfo("采集并存储滑动前图像样本");
+                sample_before_swipe = images.copy(images.clip(captureScreen(), 0, swipe_top, WIDTH, swipe_distance));
+            }
+
+            debugInfo("上滑屏幕: " + (swipe_bottom - swipe_top) + "px");
 
             let max_try_times_swipe = 3;
             let max_try_times_swipe_backup = max_try_times_swipe;
             while (max_try_times_swipe--) {
-                if (bottom_height - top_height > 0 && swipe(half_width, bottom_height, half_width, top_height, swipe_time)) break;
+                if (swipe_bottom - swipe_top > 0 && swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) break;
                 let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                 debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
-                bottom_height = cY(0.9);
-                top_height = cY(0.1);
+                swipe_bottom = cY(0.9);
+                swipe_top = cY(0.1);
                 sleep(200);
             }
             if (max_try_times_swipe < 0) {
                 messageAction("脚本无法继续", 4);
-                messageAction(bottom_height - top_height > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
+                messageAction(swipe_bottom - swipe_top > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
             }
 
             let debug_start_timestamp = new Date().getTime();
 
             debugInfo("等待排行榜列表稳定");
 
-            let bottom_data = undefined;
-            let tmp_bottom_data = getRankListSelfBottom();
-            debugInfo("参照值: " + tmp_bottom_data);
-            while (bottom_data !== tmp_bottom_data) {
-                bottom_data = tmp_bottom_data;
-                sleep(50);
-                tmp_bottom_data = getRankListSelfBottom();
-                if (isNaN(tmp_bottom_data)) {
-                    debugInfo("参照值: NaN");
-                    invalid_rank_list_ref_data++;
-                    if (invalid_rank_list_ref_data > 10) {
-                        messageAction("脚本无法继续", 4);
-                        messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
-                    }
-                } else debugInfo("参照值: " + tmp_bottom_data);
-            } // wait for data stable
+            if (strategy === "image") {
+                let getNewClip = () => images.copy(images.clip(captureScreen(), 0, swipe_top, WIDTH, swipe_distance));
+                let new_clip = images.copy(sample_before_swipe);
+                let max_try_times = 18;
+                while (images.findImage(new_clip, sample_before_swipe) && max_try_times--) {
+                    if (list_end_signal) return;
+                    new_clip.recycle();
+                    new_clip = getNewClip();
+                    sleep(90);
+                }
+                if (max_try_times < 0) return;
+                debugInfo("检测到模拟滑动");
+                new_clip.recycle();
+                sleep(config.rank_list_swipe_time);
+            } else {
+                let bottom_data = undefined;
+                let tmp_bottom_data = getRankListSelfBottom();
+                debugInfo("参照值: " + tmp_bottom_data);
+                while (bottom_data !== tmp_bottom_data) {
+                    bottom_data = tmp_bottom_data;
+                    sleep(50);
+                    tmp_bottom_data = getRankListSelfBottom();
+                    if (isNaN(tmp_bottom_data)) {
+                        debugInfo("参照值: NaN");
+                        invalid_rank_list_ref_data++;
+                        if (invalid_rank_list_ref_data > 10) {
+                            messageAction("脚本无法继续", 4);
+                            messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
+                        }
+                    } else debugInfo("参照值: " + tmp_bottom_data);
+                } // wait for data stable
+            }
             debugInfo("排行榜列表已稳定: " + (new Date().getTime() - debug_start_timestamp) + "ms");
 
             // tool function(s) //
@@ -1441,7 +1514,7 @@ function checkEnergy() {
             let strategy = config.rank_list_samples_collect_strategy;
 
             if (strategy === "image") {
-                clickRankListItemFunc();
+                if (!clickRankListItemFunc()) return true; // skip
                 if (checkForestTitle()) {
                     blackListMsg("exist", "split_line");
                     backToHeroList();
@@ -1456,19 +1529,23 @@ function checkEnergy() {
 
             function checkForestTitle() {
                 let key_node = null;
-                if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 5000)) return messageAction("标题采集好友昵称超时", 3);
+                if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 20000)) return messageAction("标题采集好友昵称超时", 3);
                 let getNameStr = string => string.match(/.+(?=的蚂蚁森林$)/);
                 let friend_nickname = (getNameStr(key_node.text()) || getNameStr(key_node.desc()) || [])[0];
                 if (!friend_nickname) return messageAction("好友昵称无效", 3);
                 current_app.current_friend.name = friend_nickname;
-                if (config.console_log_details || config.debug_info_switch) messageAction(friend_nickname, "title");
+                if ((config.console_log_details || config.debug_info_switch) && !current_app.current_friend.name_logged) {
+                    messageAction(friend_nickname, "title");
+                    current_app.current_friend.name_logged = 1;
+                }
                 return friend_nickname in current_app.blacklist;
             }
         }
 
         function blackListMsg(msg_str, split_line_flag) {
 
-            if (!config.console_log_details && !config.debug_info_switch) return true;
+            let name = current_app.current_friend.name;
+            if (!config.console_log_details && !config.debug_info_switch || ~current_app.logged_blacklist_names.indexOf(name)) return true;
 
             let messages = {
                 "add": "已加入黑名单",
@@ -1482,13 +1559,13 @@ function checkEnergy() {
             messageAction(messages[msg_str], 1, 0, 1);
             msg_str === "exist" && messageAction("已跳过收取", 1, 0, 2);
 
-            let name = current_app.current_friend.name;
             let current_black_friend = current_app.blacklist[name];
             let reason_str = current_black_friend.reason;
             messageAction(reasons[reason_str], 1, 0, 2);
             let check_result = checkBlackTimestamp(current_black_friend.timestamp);
             if (typeof check_result === "string") messageAction(check_result, 1, 0, 2);
             split_line_flag && showSplitLine();
+            current_app.logged_blacklist_names.push(name);
             return current_app.current_friend.console_logged = 1;
         }
     }
@@ -1564,7 +1641,7 @@ function showResult() {
         let timeout_prefix = "(",
             timeout_suffix = ")",
             base_height = cY(0.66),
-            message_height = cY16h9w(80),
+            message_height = cY(80, 16 / 9),
             hint_height = message_height * 0.7,
             timeout_height = hint_height,
             color_stripe_height = message_height * 0.2;
@@ -1728,9 +1805,18 @@ function endProcess() {
     function closeAfWindows() {
         debugInfo("关闭全部蚂蚁森林相关页面");
         let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
-        while ((current_app.kw_af_title().exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) sleep(500);
-        debugInfo("相关页面关闭完毕");
-        debugInfo("保留当前支付宝页面");
+        let max_close_time = 10000;
+        while ((current_app.kw_af_title().boundsInside(0, 0, cX(0.8), cY(0.2, 16 / 9)).exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) {
+            ~sleep(400);
+            max_close_time -= 400;
+            if (max_close_time <= 0) break;
+        }
+        if (max_close_time <= 0) {
+            debugInfo("页面关闭可能没有成功");
+        } else {
+            debugInfo("相关页面关闭完毕");
+            debugInfo("保留当前支付宝页面");
+        }
     }
 
     function endAlipay() {
@@ -1765,7 +1851,7 @@ function endProcess() {
 function getCurrentEnergyAmount(buffer_flag) {
     if (buffer_flag) {
         let condition = () => sel.pickup(/\d+g/, "kw_energy_amount_single_user").exists() && current_app.kw_af_home().exists();
-        if (!waitForAction(condition, 4000)) {
+        if (!waitForAction(condition, 8000)) {
             debugInfo("尝试刷新总能量值参考控件");
             refreshObjects();
             if (!condition()) {
@@ -1866,23 +1952,18 @@ function launch(params) {
 }
 
 function setScreenPixelData() {
-    if (!waitForAction(() => (WIDTH = device.width) && (HEIGHT = device.height), 3000)) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
-    if (HEIGHT < WIDTH) {
-        debugInfo("当前设备屏幕可能为横屏");
-        debugInfo("交换宽高数据");
-        [HEIGHT, WIDTH] = [WIDTH, HEIGHT];
-    }
-    debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
-
-    cX = num => ~~(+num * WIDTH / (+num >= 1 ? 720 : 1));
-    cY = num => ~~(+num * HEIGHT / (+num >= 1 ? 1280 : 1)); // scaled by actual ratio
-    cY16h9w = num => ~~(+num * (WIDTH * 16 / 9) / (+num >= 1 ? 1280 : 1)); // forcibly scaled by 16:9
+    [WIDTH, HEIGHT, cX, cY] = (function () {
+        let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
+        if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+        debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+        return [WIDTH, HEIGHT, cX, cY];
+    }());
 }
 
 function checkModules() {
     try {
         storage_af_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
-        Object.assign(config, storage_af_cfg.get("config", require("./Modules/MODULE_DEFAULT_CONFIG").af));
+        Object.assign(config, require("./Modules/MODULE_DEFAULT_CONFIG").af || {}, storage_af_cfg.get("config", {}));
         unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         this._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
         debugInfo("接入\"af_cfg\"存储", "up");
@@ -1893,6 +1974,7 @@ function checkModules() {
         debugInfo("接入\"af\"存储");
         if (!storage_af.get("config_prompted")) promptConfig();
     } catch (e) {
+        debugInfo(e);
         messageAction("模块导入功能异常", 3, 0, 0, "up");
         messageAction("开发者测试模式已自动开启", 3);
         config.message_showing_switch = true;
@@ -2229,7 +2311,7 @@ function jumpBackOnce(specific_kw) {
         clickAction(kw_back_btn_common(), "widget") ||
         clickAction(kw_back_btn_atnui_id, "widget") ||
         clickAction(kw_back_btn_h5_id, "widget");
-    click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1500);
+    click_result || keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1000);
 }
 
 function loginSpecificUser() {
