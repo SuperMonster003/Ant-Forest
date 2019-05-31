@@ -45,10 +45,10 @@
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
 >> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)      
->> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true) `(推荐)`    
+>> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true)      
+>> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true) `(推荐)`    
 
 >"Auto.js"不适用版本:
->> `Pro 7.0.3-1` `存在Dialogs模块dismiss方法无效的问题`    
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
 ******
@@ -86,6 +86,10 @@
 ******
 ### 版本历史
 ******
+# v1.6.25 Alpha15
+###### 2019/05/31
+* `优化` 更新Bug版本检测列表  
+
 # v1.6.25 Alpha14
 ###### 2019/05/30
 * `修复` 工具函数模块使用服务获取屏幕高度像素时方法错误的问题

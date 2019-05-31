@@ -1386,7 +1386,7 @@ function tryRequestScreenCapture(params) {
         _messageAction("截图权限申请失败", 8, 1, 0, 1);
     });
 
-    let _req_result = images.requestScreenCapture();
+    let _req_result = images.requestScreenCapture(false);
     sleep(200);
 
     _thread_monitor.join(2400);

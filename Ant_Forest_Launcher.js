@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 30, 2019
- * @version 1.6.25 Alpha14
+ * @last_modified May 31, 2019
+ * @version 1.6.25 Alpha15
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -2066,6 +2066,7 @@ function checkVersion() {
             "crash_ui_call_ui": "ui脚本调用ui脚本会崩溃",
             "crash_ui_settings": "图形配置页面崩溃",
             "dislocation_floaty": "Floaty模块绘制存在错位现象",
+            "dialogs_event": "Dialogs模块事件失效",
             "forcibly_update": "强制更新",
             "na_login": "无法登陆Auto.js账户",
             "un_cwd": "不支持cwd()方法及相对路径",
@@ -2086,6 +2087,9 @@ function checkVersion() {
             "\n\n异常详情:" + bugs_check_result.join();
 
         try {
+            let known_dialogs_bug_versions = ["Pro 7.0.3-1"];
+            if (~known_dialogs_bug_versions.indexOf(current_autojs_version)) throw Error();
+
             let diag_bug = dialogs.build({
                 title: "Auto.js版本异常提示",
                 content: bug_content,
@@ -2234,6 +2238,8 @@ function checkVersion() {
                     return ["crash_ui_call_ui"];
                 case "Pro 7.0.0-5":
                     return ["forcibly_update"];
+                case "Pro 7.0.3-1":
+                    return ["dialogs_event"];
                 default:
                     return ""; // unrecorded version
             }
