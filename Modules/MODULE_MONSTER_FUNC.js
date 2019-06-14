@@ -18,6 +18,11 @@ module.exports = {
     keycode: keycode,
     debugInfo: debugInfo,
     getDisplayParams: getDisplayParams,
+    deepCloneObject: deepCloneObject,
+    equalObjects: equalObjects,
+    smoothScrollView: smoothScrollView,
+    alertTitle: alertTitle,
+    alertContent: alertContent,
 };
 
 /**
@@ -252,7 +257,7 @@ function launchThisApp(intent_or_name, params) {
             if (!_waitForAction(() => !_thread_disturbance.isAlive(), 1000)) {
                 _debugInfo("强制解除干扰排除器");
                 _thread_disturbance.interrupt();
-            } else _debugInfo("干排除扰器已解除");
+            } else _debugInfo("干扰排除器已解除");
         }
 
         if (max_ready_try_times >= 0) {
@@ -1843,11 +1848,11 @@ function getDisplayParams() {
 
     function checkData() {
         try {
-            [_WIDTH, _HEIGHT] = [+_window_service_display.width, +_window_service_display.maximumSizeDimension];
+            [_WIDTH, _HEIGHT] = [+device.width, +device.height];
             if (!(_WIDTH * _HEIGHT)) throw Error();
         } catch (e) {
             try {
-                [_WIDTH, _HEIGHT] = [+device.width, +device.height];
+                [_WIDTH, _HEIGHT] = [+_window_service_display.width, +_window_service_display.maximumSizeDimension];
             } catch (e) {
 
             }
@@ -1870,4 +1875,214 @@ function getDisplayParams() {
         }
         return _check_time >= 0;
     }
+}
+
+/**
+ * Returns equivalency of two objects
+ * @param obj_a
+ * @param obj_b
+ * @return {boolean}
+ */
+function equalObjects(obj_a, obj_b) {
+    let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+    let class_of_a = classOf(obj_a),
+        class_of_b = classOf(obj_b),
+        type_of_a = typeof obj_a,
+        type_of_b = typeof obj_b;
+    let matchFeature = (a, b, feature) => a === feature && b === feature;
+    if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
+    if (matchFeature(class_of_a, class_of_b, "Null")) return true;
+
+    if (class_of_a === "Array") {
+        if (class_of_b !== "Array") return false;
+        let len_a = obj_a.length,
+            len_b = obj_b.length;
+        if (len_a !== len_b) return false;
+        obj_a.sort();
+        obj_b.sort();
+        for (let i = 0, len = obj_a.length; i < len; i += 1) {
+            if (!equalObjects(obj_a[i], obj_b[i])) return false;
+        }
+        return true;
+    }
+
+    if (class_of_a === "Object") {
+        if (class_of_b !== "Object") return false;
+        let keys_a = Object.keys(obj_a),
+            keys_b = Object.keys(obj_b),
+            len_a = keys_a.length,
+            len_b = keys_b.length;
+        if (len_a !== len_b) return false;
+        if (!equalObjects(keys_a, keys_b)) return false;
+        for (let i in obj_a) {
+            if (obj_a.hasOwnProperty(i)) {
+                if (!equalObjects(obj_a[i], obj_b[i])) return false;
+            }
+        }
+        return true;
+    }
+}
+
+/**
+ * Deep clone a certain object
+ * @param obj
+ * @return {Array|*}
+ */
+function deepCloneObject(obj) {
+    let classOfObj = Object.prototype.toString.call(obj).slice(8, -1);
+    if (classOfObj === "Null" || classOfObj !== "Object" && classOfObj !== "Array") return obj;
+    let new_obj = classOfObj === "Array" ? [] : {};
+    for (let i in obj) {
+        if (obj.hasOwnProperty(i)) {
+            new_obj[i] = classOfObj === "Array" ? obj[i] : deepCloneObject(obj[i]);
+        }
+    }
+    return new_obj;
+}
+
+/**
+ * Scroll a page smoothly from pages pool
+ * @param shifting - page shifting - positive for shifting left and negative for right
+ * <br>
+ *     - "full_left" - "[WIDTH, 0]" <br>
+ *     - "full_right" - "[-WIDTH, 0]" <br>
+ *     - [-90, 0] - 90 px right shifting
+ * @param [duration=180] - scroll duration
+ * @param pages_pool - pool for storing pages (parent views)
+ * @param [base_view=ui.main] - specified view for attaching parent views
+ */
+function smoothScrollView(shifting, duration, pages_pool, base_view) {
+
+    if (pages_pool.length < 2) return;
+
+    duration = duration || 180;
+    base_view = base_view || ui.main;
+
+    let len = pages_pool.length;
+    let [main_view, sub_view] = [pages_pool[len - 2], pages_pool[len - 1]];
+    let parent = base_view.getParent();
+    let WIDTH = device.width;
+
+    try {
+        if (shifting === "full_left") {
+            shifting = [WIDTH, 0];
+            sub_view && sub_view.scrollBy(-WIDTH, 0);
+            parent.addView(sub_view);
+        } else if (shifting === "full_right") {
+            shifting = [-WIDTH, 0];
+        }
+
+        let [dx, dy] = [shifting[0], shifting[1]];
+        let each_move_time = 10;
+        let [neg_x, neg_y] = [dx < 0, dy < 0];
+
+        let abs = num => num < 0 && -num || num;
+        dx = abs(dx);
+        dy = abs(dy);
+
+        let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0;
+        let pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
+
+        let scroll_finished_flag = false;
+
+        let scroll_interval = setInterval(function () {
+            if (!dx && !dy) {
+                if ((shifting[0] === -WIDTH && sub_view) && !scroll_finished_flag) {
+                    sub_view.scrollBy(WIDTH, 0);
+                    let child_count = parent.getChildCount();
+                    parent.removeView(parent.getChildAt(--child_count));
+                }
+                return scroll_finished_flag = true;
+            }
+            let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
+                move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
+            let scroll_x = neg_x && -move_x || move_x,
+                scroll_y = neg_y && -move_y || move_y;
+            sub_view && sub_view.scrollBy(scroll_x, scroll_y);
+            main_view.scrollBy(scroll_x, scroll_y);
+            dx -= ptx;
+            dy -= pty;
+        }, each_move_time);
+
+        setTimeout(() => {
+            clearInterval(scroll_interval);
+        }, duration + 2000); // 2000: a safe interval just in case
+    } catch (e) {
+        // nothing to do here
+    }
+}
+
+/**
+ * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
+ * @param dialog - wrapped "dialogs" object
+ * @param message - message shown in title view
+ * @param [duration=3000] - time duration before message dismissed (0 for non-auto dismiss)
+ */
+function alertTitle(dialog, message, duration) {
+    this._monster_$_alert_title_info = this._monster_$_alert_title_info || {};
+    let alert_title_info = this._monster_$_alert_title_info;
+    alert_title_info[dialog] = alert_title_info[dialog] || {};
+    alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
+
+    let ori_text = alert_title_info[dialog].ori_text || "",
+        ori_text_color = alert_title_info[dialog].ori_text_color || "",
+        ori_bg_color = alert_title_info[dialog].ori_bg_color || "";
+
+    let ori_title_view = dialog.getTitleView();
+    if (!ori_text) {
+        ori_text = ori_title_view.getText();
+        alert_title_info[dialog].ori_text = ori_text;
+    }
+    if (!ori_text_color) {
+        ori_text_color = ori_title_view.getTextColors().colors[0];
+        alert_title_info[dialog].ori_text_color = ori_text_color;
+    }
+
+    if (!ori_bg_color) {
+        let bg_color_obj = ori_title_view.getBackground();
+        ori_bg_color = bg_color_obj && bg_color_obj.getColor() || -1;
+        alert_title_info[dialog].ori_bg_color = ori_bg_color;
+    }
+
+    setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
+
+    if (duration === 0) return;
+
+    setTimeout(() => {
+        alert_title_info["message_showing"]--;
+        if (alert_title_info["message_showing"]) return;
+        setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
+    }, duration || 3000);
+
+    // tool function(s) //
+
+    function setTitleInfo(dialog, text, color, bg) {
+        let title_view = dialog.getTitleView();
+        title_view.setText(text);
+        title_view.setTextColor(color);
+        title_view.setBackgroundColor(bg);
+    }
+}
+
+/**
+ * Replace or append a message in dialogs content view
+ * @param dialog - wrapped "dialogs" object
+ * @param message - message shown in content view
+ * @param [mode="replace"]
+ * <br>
+ *     -- "replace" - original content will be replaced <br>
+ *     -- "append" - original content will be reserved
+ */
+function alertContent(dialog, message, mode) {
+    let ori_content_view = dialog.getContentView();
+    let ori_text = ori_content_view.getText().toString();
+    mode = mode || "replace";
+
+    let text = (mode === "append" ? ori_text + "\n\n" : "") + message;
+
+    ui.post(() => {
+        ori_content_view.setText(text);
+        ori_content_view.setTextColor(colors.parseColor("#283593"));
+        ori_content_view.setBackgroundColor(colors.parseColor("#e1f5fe"));
+    });
 }

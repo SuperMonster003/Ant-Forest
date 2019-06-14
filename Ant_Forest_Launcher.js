@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified May 31, 2019
- * @version 1.6.25 Alpha15
+ * @last_modified Jun 14, 2019
+ * @version 1.7.0
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -633,8 +633,9 @@ function checkEnergy() {
                         new_clip && new_clip.recycle();
                         return max_retry_times >= 0 ? ~debugInfo("图标点击成功") : debugInfo("图标点击失败");
                     } else {
-                        clickAction([cX(0.5), pop_item.list_item_click_y]);
-                        debugInfo("点击" + (pop_item_0 && "收取图标" || pop_item_1 && "帮收图标"));
+                        // clickAction([cX(0.5), pop_item.list_item_click_y]);
+                        clickAction(sel.pickup(pop_name), "click", {padding: -10});
+                        debugInfo("点击" + (pop_item_0 && "收取目标" || pop_item_1 && "帮收目标"));
                     }
                 };
 
@@ -1221,7 +1222,7 @@ function checkEnergy() {
                 if (!waitForAction(() => kw_energy_balls().exists(), 1000)) return debugInfo("收取能量球准备超时");
                 if (!kw_energy_balls_ripe().exists()) return (take_clicked_flag = 1) && debugInfo("没有可收取的能量球");
 
-                let ori_collected_amount = getDataCollectedEnergy();
+                let ori_collected_amount = getDataEnergy("你收取TA", "kw_collected_data_ident", 10);
                 debugInfo("初始收取数据: " + ori_collected_amount);
                 let collected_amount = ori_collected_amount;
 
@@ -1239,7 +1240,7 @@ function checkEnergy() {
                     if (isNaN(ori_collected_amount)) return messageAction("初始收取数据无效", 3, 0, 1);
 
                     debugInfo("等待收取数据稳定");
-                    collected_amount = stabilizer(getDataCollectedEnergy);
+                    collected_amount = stabilizer(() => getDataEnergy("你收取TA", "kw_collected_data_ident"));
                     !isNaN(collected_amount) && debugInfo("收取数据已稳定: " + collected_amount);
                 }
 
@@ -1264,7 +1265,7 @@ function checkEnergy() {
                 }
 
                 // let kw_helped = desc("你给TA助力");
-                let ori_helped_amount = getDataFriendEnergy();
+                let ori_helped_amount = getDataEnergy("你给TA助力", "kw_helped_data_ident", 10);
                 debugInfo("初始好友能量数据: " + ori_helped_amount);
 
                 let coords_arr = Object.keys(help_balls_coords);
@@ -1283,7 +1284,7 @@ function checkEnergy() {
                 if (isNaN(ori_helped_amount)) return messageAction("获取初始好友能量数据超时", 3, 0, 1);
 
                 debugInfo("等待好友能量数据稳定");
-                let helped_amount = stabilizer(getDataFriendEnergy);
+                let helped_amount = stabilizer(() => getDataEnergy("你给TA助力", "kw_helped_data_ident"));
                 !isNaN(helped_amount) && debugInfo("好友能量数据已稳定: " + helped_amount);
 
                 if (config.console_log_details || config.debug_info_switch) {
@@ -1472,24 +1473,18 @@ function checkEnergy() {
             }
         }
 
-        function getDataCollectedEnergy() {
-            try {
-                let key_node = sel.pickup("你收取TA", "kw_collected_ident").findOnce().parent();
-                key_node = key_node.child(key_node.childCount() - 1);
-                return +(key_node.desc().match(/\d+/) || key_node.text().match(/\d+/))[0];
-            } catch (e) {
-                return NaN;
+        function getDataEnergy(selector_text, memory_keyword, max_try_times) {
+            max_try_times = max_try_times || 1;
+            while (max_try_times--) {
+                try {
+                    let key_node = sel.pickup(selector_text, memory_keyword).findOnce().parent();
+                    key_node = key_node.child(key_node.childCount() - 1);
+                    return +(key_node.desc().match(/\d+/) || key_node.text().match(/\d+/))[0];
+                } catch (e) {
+                }
+                if (max_try_times >= 0) sleep(200);
             }
-        }
-
-        function getDataFriendEnergy() {
-            try {
-                let kw_home_panel = idMatches(/.*J_home_panel/);
-                let key_node = kw_home_panel.findOnce().child(0).child(0).child(1);
-                return +(key_node.desc().match(/\d+/) || key_node.text().match(/\d+/))[0];
-            } catch (e) {
-                return NaN;
-            }
+            return NaN;
         }
 
         function stabilizer(condition, condition_timeout, stable_timeout) {

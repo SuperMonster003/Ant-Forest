@@ -55,37 +55,66 @@
 ### 功能简介
 ******
 * 收取好友能量
-* 帮收好友能量 (可开关)  
+* 帮收好友能量  
 * 收取自己能量  
-** 指定时间范围内不间断监测自己的能量  
-** ~~脚本辅助优化时间间隔~~  
-* 能量收取结果统计/展示 (floaty/toast方式)
+·  指定时间范围内不间断监测自己的能量  
+·  ~~脚本辅助优化时间间隔~~  
+* 能量收取结果统计/展示 (floaty/toast方式)  
+* 控制台消息提示  
+·  详细/简略  
+·  开发者测试模式 (默认关闭)  
 * 自动解锁屏幕  
-** 可通过配置向导页面实现解锁密码录入  
+·  可通过配置向导页面实现解锁密码录入  
 * 定时执行任务  
-** ~~使用配置向导设置Auto.js定时任务~~    
-** 也可结合 `Xposed Edge Pro` 或 `Tasker` 实现定时任务  
+·  ~~使用配置向导设置Auto.js定时任务~~    
+·  也可结合 `Xposed Edge Pro` 或 `Tasker` 实现定时任务  
 * 多任务~~智能~~排队  
 * 多语言支持 (简体中文 ~~繁体中文~~ ~~英语~~)  
-** ~~根据系统语言自动切换语言 (可开关)~~
+·  ~~根据系统语言自动切换语言 (可开关)~~
 * 黑名单机制  
-** 能量保护罩好友自动加入黑名单/自动解除    
-** 黑名单详细信息提示 (控制台)  
-** 用户自行增删黑名单好友 (手动输入/列表选取)  
+·  能量保护罩好友自动加入黑名单/自动解除    
+·  黑名单详细信息提示 (控制台)  
+·  用户自行增删黑名单好友 (手动输入/列表选取)  
+* 样本采集策略  
+·  布局分析 (默认)  
+·  图像识别
+* 项目管理  
+·  在线更新项目  
+·  本地备份项目  
+·  本地或服务器 `(GitHub Release)` 还原项目   
 * 信息加密存储  
-** 自动生成"密文映射"字典文件  
-** 使用密文存储账户信息/解锁密码等敏感信息  
+·  自动生成"密文映射"字典文件  
+·  使用密文存储账户信息/解锁密码等敏感信息  
 * ~~账户智能切换~~  
-** ~~防止其他账户 (如支付宝小号) 意外收取 (需录入主账户信息)~~      
-** ~~主账户收取完毕可自动切换回之前登录的账户 (如果有此账户信息)~~  
+·  ~~防止其他账户 (如支付宝小号) 意外收取 (需录入主账户信息)~~      
+·  ~~主账户收取完毕可自动切换回之前登录的账户 (如果有此账户信息)~~  
 * 适应恶劣条件  
-** 脚本在恶劣条件下仍可正常运行或识别异常 (网络条件较差/~~意外来电~~/~~支付宝异常退出~~/支付宝更新弹窗/~~广告弹窗~~等)  
+·  脚本在网络条件较差时仍可正常运行或识别异常  
 * 图形配置页面  
+·  操作便捷内容丰富的项目参数配置  
 * ###### 其他功能详见[使用说明书](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md)
 
 ******
 ### 版本历史
 ******
+# v1.7.0
+###### 2019/06/14
+* `新增` 项目更新功能  
+* `新增` 项目备份还原功能 (本地/服务器)  
+* `修复` "布局分析"策略可能出现的点击错位的问题 (试修)  
+* `修复` 部分机型获取屏幕宽高数据异常的问题 (试修)  
+* `修复` 获取好友列表数据时Toast消息或提示框遮挡问题  
+* `修复` equalObjects()错序判断失误的问题  
+* `修复` 自定义黑名单列表排序后勾选项关联错误的问题  
+* `优化` 部分工具函数模块化  
+·  equalObjects()  
+·  deepCloneObject()  
+·  smoothScrollView()  
+·  alertTitle()  
+·  alertContent()  
+* `优化` 获取好友数据自动点击"打开"按钮而后自动展示列表  
+* `优化` 帮收数据统计采用与收取数据统计方案统一化  
+
 # v1.6.25 Alpha15
 ###### 2019/05/31
 * `优化` 更新Bug版本检测列表  
@@ -192,27 +221,27 @@
 # v1.6.23 Alpha8
 ###### 2019/05/20
 * `新增` 工具函数模块新增工具 (5项)  
--- swipeInArea()    
--- swipeInAreaAndClickAction()  
--- keycode()  
--- debugInfo()  
--- runJsFile()  
+·  swipeInArea()    
+·  swipeInAreaAndClickAction()  
+·  keycode()  
+·  debugInfo()  
+·  runJsFile()  
 * `优化` 去除全部current_app参数关联  
 * `优化` 简化工具内部debugInfo()参数传递方式  
 
 # v1.6.23 Alpha7
 ###### 2019/05/19
 * `新增` 工具函数模块新增工具 (3项)  
--- restartThisApp()  
--- tryRequestScreenCapture()  
--- waitForAndClickAction()  
+·  restartThisApp()  
+·  tryRequestScreenCapture()  
+·  waitForAndClickAction()  
 
 # v1.6.23 Alpha6
 ###### 2019/05/18
 * `新增` 工具函数模块新增工具 (3项)  
--- getVerName()  
--- restartThisEngine()  
--- refreshObjects()  
+·  getVerName()  
+·  restartThisEngine()  
+·  refreshObjects()  
 * `修复` 工具函数killThisAppRaw()的依赖性  
 
 # v1.6.23 Alpha5
@@ -227,12 +256,12 @@
 # v1.6.23 Alpha4
 ###### 2019/05/17
 * `新增` 工具函数模块新增工具 (6项)  
--- parseAppName()  
--- launchThisApp()  
--- killThisApp()  
--- messageAction()  
--- showSplitLine()  
--- waitForAction()  
+·  parseAppName()  
+·  launchThisApp()  
+·  killThisApp()  
+·  messageAction()  
+·  showSplitLine()  
+·  waitForAction()  
 * `修复` 能量罩使用信息采集异常
 
 # v1.6.23 Alpha3

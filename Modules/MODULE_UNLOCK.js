@@ -6,9 +6,17 @@
  * @author {@link https://github.com/SuperMonster003}
  */
 
-let {messageAction, waitForAction, keycode, clickAction, getDisplayParams} = require("./MODULE_MONSTER_FUNC");
+let {
+    messageAction,
+    waitForAction,
+    keycode,
+    clickAction,
+    getDisplayParams,
+} = require("./MODULE_MONSTER_FUNC");
 
-let WIDTH, HEIGHT, cX, cY, device_intro;
+let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
+let device_intro = device.brand + " " + device.product + " " + device.release;
+
 let PWMAP = require("./MODULE_PWMAP.js");
 let decrypt = new PWMAP().pwmapDecrypt;
 
@@ -32,8 +40,6 @@ module.exports = function () {
         let safe_max_wakeup_times = 60; // 30 sec
         while (!device.isScreenOn() && safe_max_wakeup_times--) ~device.wakeUp() && sleep(500);
         if (safe_max_wakeup_times < 0) errorMsg("屏幕亮起失败");
-
-        [WIDTH, HEIGHT, cX, cY] = setScreenPixelData();
 
         let kw_preview_container_common = id("com.android.systemui:id/preview_container");
         let kw_preview_container_miui = idMatches(/com\.android\.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/); // borrowed from e1399579 and modified
@@ -109,13 +115,6 @@ module.exports = function () {
         if (max_try_times_unlock_check < 0) errorMsg("无法判断当前解锁条件");
 
         // tool function(s) //
-
-        function setScreenPixelData() {
-            let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
-            if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
-            device_intro = device.brand + " " + device.product + " " + device.release;
-            return [WIDTH, HEIGHT, cX, cY];
-        }
 
         function dismissLayer() {
 
