@@ -117,7 +117,10 @@ function init() {
             messageAction("脚本无法继续", 4);
             messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
         }
-        if (!context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked()) return debugInfo("无需解锁");
+        if (!context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked()) {
+            this._monster_$_no_need_unlock_flag = true;
+            return debugInfo("无需解锁");
+        }
         debugInfo("尝试自动解锁");
         unlock_module.unlock();
         debugInfo("自动解锁完毕");
@@ -874,9 +877,11 @@ function checkEnergy() {
                         || ident === "orange" && config.help_collect_icon_color || null;
                     if (!color) return;
 
-                    let multi_colors = [[cX(38), 0, color], [cX(38), cY(35, 16 / 9), color]];
+                    let multi_colors = [[cX(38), cY(35, 16 / 9), color]]; // [cX(38), 0, color] was abandoned
                     if (ident === "green") {
-                        for (let i = 18; i <= 24; i += 1) multi_colors.push([cX(i), cY(i - 7, 16 / 9), -1]); // 18-25
+                        multi_colors.push([cX(23), 26, -1]);
+                        for (let i = 16; i <= 24; i += (4 / 3)) multi_colors.push([cX(i), cY(i - 6, 16 / 9), -1]); // from E6683
+                        for (let i = 16; i <= 24; i += (8 / 3)) multi_colors.push([cX(i), cY(i / 2 + 16, 16 / 9), -1]); // from E6683
                     } // [cX(37), cY(25), -1] was abandoned
 
                     let icon_check_area_top = 0;
@@ -893,8 +898,8 @@ function checkEnergy() {
                             icon_matched_y: icon_matched_y,
                             list_item_click_y: list_item_click_y,
                         };
-                        ident === "green" && targets_green.unshift(target_info);
-                        ident === "orange" && targets_orange.unshift(target_info);
+                        if (ident === "green" && Math.abs(images.pixel(rank_list_capt_img, cX(0.993), icon_matched_y + cY(11, 16 / 9)) - colors.parseColor(color)) < 100000) targets_green.unshift(target_info);
+                        if (ident === "orange") targets_orange.unshift(target_info);
                         icon_check_area_top = icon_matched_y + cY(76, 16 / 9);
                     }
 
@@ -1356,21 +1361,25 @@ function checkEnergy() {
                 sample_before_swipe = images.copy(images.clip(captureScreen(), 0, swipe_top, WIDTH, swipe_distance));
             }
 
-            debugInfo("上滑屏幕: " + (swipe_bottom - swipe_top) + "px");
+            let calcSwipeDistance = () => swipe_bottom - swipe_top;
+            debugInfo("上滑屏幕: " + calcSwipeDistance() + "px");
 
             let max_try_times_swipe = 3;
             let max_try_times_swipe_backup = max_try_times_swipe;
             while (max_try_times_swipe--) {
-                if (swipe_bottom - swipe_top > 0 && swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) break;
+                if (calcSwipeDistance() > 0 && swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) break;
                 let swipe_count = max_try_times_swipe_backup - max_try_times_swipe;
                 debugInfo("滑动功能失效: (" + swipe_count + "\/" + max_try_times_swipe_backup + ")");
-                swipe_bottom = cY(0.9);
-                swipe_top = cY(0.1);
+                debugInfo("滑动距离参数: " + calcSwipeDistance());
+                debugInfo("滑动时长参数: " + swipe_time);
+                [swipe_bottom, swipe_top, swipe_time] = [cY(0.8), cY(0.2), 500]; // safe values
+                debugInfo("尝试使用安全值:");
+                debugInfo("[" + swipe_bottom + ", " + swipe_top + ", " + swipe_time + "]");
                 sleep(200);
             }
             if (max_try_times_swipe < 0) {
                 messageAction("脚本无法继续", 4);
-                messageAction(swipe_bottom - swipe_top > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
+                messageAction(calcSwipeDistance() > 0 ? "SimpleActionAutomator模块异常" : "滑动距离数据无效", 8, 1, 1, 1);
             }
 
             let debug_start_timestamp = new Date().getTime();
@@ -1950,7 +1959,7 @@ function setScreenPixelData() {
     [WIDTH, HEIGHT, cX, cY] = (function () {
         let {WIDTH, HEIGHT, cX, cY} = getDisplayParams();
         if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
-        debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+        this._monster_$_no_need_unlock_flag && debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
         return [WIDTH, HEIGHT, cX, cY];
     }());
 }
@@ -1959,8 +1968,8 @@ function checkModules() {
     try {
         storage_af_cfg = require("./Modules/MODULE_STORAGE").create("af_cfg");
         Object.assign(config, require("./Modules/MODULE_DEFAULT_CONFIG").af || {}, storage_af_cfg.get("config", {}));
-        unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         this._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
+        unlock_module = new (require("./Modules/MODULE_UNLOCK.js"));
         debugInfo("接入\"af_cfg\"存储", "up");
         debugInfo("整合代码配置与本地配置");
         debugInfo("成功导入解锁模块");
