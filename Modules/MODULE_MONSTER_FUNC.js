@@ -1840,8 +1840,8 @@ function getDisplayParams() {
     return _waitForAction(checkData, 3000, 500) ? {
         WIDTH: Math.min(_WIDTH, _HEIGHT),
         HEIGHT: Math.max(_WIDTH, _HEIGHT),
-        cX: _num => ~~(+_num * _WIDTH / (+_num >= 1 ? 720 : 1)),
-        cY: (_num, _aspect_ratio) => ~~(+_num * (_WIDTH * ((_aspect_ratio > 1 ? _aspect_ratio : (1 / _aspect_ratio)) || (_HEIGHT / _WIDTH))) / (+_num >= 1 ? 1280 : 1)),
+        cX: _num => Math.min(Math.round(+_num * _WIDTH / (+_num >= 1 ? 720 : 1)), _WIDTH),
+        cY: (_num, _aspect_ratio) => Math.min(Math.round(+_num * (_WIDTH * ((_aspect_ratio > 1 ? _aspect_ratio : (1 / _aspect_ratio)) || (_HEIGHT / _WIDTH))) / (+_num >= 1 ? 1280 : 1)), _HEIGHT),
     } : {};
 
     // tool function(s) //

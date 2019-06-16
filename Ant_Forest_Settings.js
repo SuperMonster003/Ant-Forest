@@ -6,7 +6,14 @@ try {
 }
 
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
-let dialogs = require("./Modules/__dialogs__pro_v6.js")(runtime, {});
+let dialogs = require("./Modules/__dialogs__pro_v6.js")(runtime, this);
+let dialogs_pool = [];
+dialogs.builds = (o) => {
+    let diag = dialogs.build(o);
+    dialogs_pool.push(diag);
+    return diag;
+};
+
 let DEFAULT_CONFIG = require("./Modules/MODULE_DEFAULT_CONFIG");
 let STORAGE = require("./Modules/MODULE_STORAGE");
 let PWMAP = require("./Modules/MODULE_PWMAP.js");
@@ -81,7 +88,6 @@ let list_heads = {
 };
 
 initUI();
-
 let homepage = setHomePage("蚂蚁森林");
 let self_collect_page = setPage("自收功能");
 let friend_collect_page = setPage("收取功能");
@@ -161,7 +167,7 @@ homepage
     .add("sub_head", new Layout("备份与还原"))
     .add("button", new Layout("还原初始设置", {
         newWindow: () => {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "还原初始设置",
                 content: "此操作无法撤销\n如需保留此次会话内容请先保存\n\n以下功能内部配置不会被还原:\n1. 自动解锁\n2. 黑名单管理",
                 neutral: "了解内部配置",
@@ -171,7 +177,7 @@ homepage
                 autoDismiss: false,
             });
             diag.on("neutral", () => {
-                let diag_keep_internals = dialogs.build({
+                let diag_keep_internals = dialogs.builds({
                     title: "保留内部配置",
                     content: "包含内部配置的功能\n只还原此功能的开闭状态\n而不会清空内部保存的数据\n-> 如解锁密码/黑名单列表等",
                     positive: "关闭",
@@ -183,7 +189,7 @@ homepage
             });
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", () => {
-                let diag_sub = dialogs.build({
+                let diag_sub = dialogs.builds({
                     title: "全部还原",
                     content: "确定要还原全部设置吗",
                     negative: "放弃",
@@ -193,7 +199,7 @@ homepage
                 });
                 diag_sub.on("positive", () => {
                     reset();
-                    let diag_sub_sub = dialogs.build({
+                    let diag_sub_sub = dialogs.builds({
                         title: "还原完毕",
                         positive: "确定",
                     });
@@ -231,7 +237,7 @@ homepage
             let local_version = this.view._hint.getText();
             let newest_server_version_name = "";
             let server_md_file_content = "";
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "关于",
                 content: "当前本地版本: " + local_version + "\n" +
                     "服务器端版本: ",
@@ -364,7 +370,7 @@ friend_collect_page
             let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
             let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
             let current_color = undefined;
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "收取图标颜色色值",
                 content: "排行榜识别绿色手形图标的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
                 inputHint: "rgb(RR,GG,BB) | #RRGGBB",
@@ -413,7 +419,7 @@ friend_collect_page
         config_conj: "friend_collect_icon_threshold",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "收取图标颜色检测阈值",
                 content: "排行榜识别绿色手形图标的参照色值检测阈值",
                 inputHint: "{x|0<=x<=66,x∈N*}",
@@ -475,7 +481,7 @@ help_collect_page
             let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
             let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
             let current_color = undefined;
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "帮收图标颜色色值",
                 content: "排行榜识别橙色爱心图标的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
                 inputHint: "rgb(RR,GG,BB) | #RRGGBB",
@@ -524,7 +530,7 @@ help_collect_page
         config_conj: "help_collect_icon_threshold",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "帮收图标颜色检测阈值",
                 content: "排行榜识别橙色爱心图标的参照色值检测阈值",
                 inputHint: "{x|0<=x<=66,x∈N*}",
@@ -560,7 +566,7 @@ help_collect_page
             let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
             let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
             let current_color = undefined;
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "帮收能量球颜色色值",
                 content: "好友森林识别橙色能量球的参照色值\n\n示例:\nrgb(67,160,71)\n#43a047",
                 inputHint: "rgb(RR,GG,BB) | #RRGGBB",
@@ -609,7 +615,7 @@ help_collect_page
         config_conj: "help_collect_balls_threshold",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "帮收能量球颜色检测阈值",
                 content: "好友森林识别橙色能量球的参照色值检测阈值",
                 inputHint: "{x|28<=x<=83,x∈N*}",
@@ -640,7 +646,7 @@ help_collect_page
         config_conj: "help_collect_balls_intensity",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "帮收能量球样本采集密度",
                 content: "好友森林橙色能量球图片样本采集密度",
                 inputHint: "{x|10<=x<=20,x∈N*}",
@@ -701,7 +707,7 @@ non_break_check_page
                 if (items_len === 1 && items[0] === defs.empty_non_break_check_time_area_hint) area_amount = 0;
                 updateContentData(/(当前区间总数: )\d*/, "$1" + area_amount);
             };
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "能量监测时间区间",
                 content: "指定时间区间内不断监测自己可收取的能量球\n\n当前区间总数: ",
                 items: function () {
@@ -718,7 +724,7 @@ non_break_check_page
             updateTimeAreaAmount(diag);
             diag.on("item_select", (index, content) => {
                 if (content === defs.empty_non_break_check_time_area_hint) return;
-                let diag_one_item = dialogs.build({
+                let diag_one_item = dialogs.builds({
                     title: "编辑时间区间",
                     content: "示例:\n07:20:00 - 07:22:28\n7:20:00-7:22:28\n7 20 0 7 22 28",
                     contentColor: defs.content_dark_color,
@@ -732,7 +738,7 @@ non_break_check_page
                 });
                 diag_one_item.on("neutral", () => {
                     if (session_params.non_break_check_time_area_diag_confirm_delete) return deleteCurrentItem();
-                    let diag_confirm_delete = dialogs.build({
+                    let diag_confirm_delete = dialogs.builds({
                         title: "确认删除吗",
                         checkBoxPrompt: "本次会话不再提示",
                         negative: "返回",
@@ -766,7 +772,7 @@ non_break_check_page
                 diag_one_item.show();
             });
             diag.on("neutral", diag => {
-                let diag_add_area = dialogs.build({
+                let diag_add_area = dialogs.builds({
                     title: "添加时间区间",
                     content: "示例:\n07:20:00 - 07:22:28\n7:20:00-7:22:28\n7 20 0 7 22 28",
                     inputHint: "hh1:mm1:ss1 - hh2:mm2:ss2",
@@ -781,7 +787,7 @@ non_break_check_page
                     // // // //
                 });
                 diag_add_area.on("neutral", () => {
-                    let diag_about_timed_task = dialogs.build({
+                    let diag_about_timed_task = dialogs.builds({
                         title: "Auto.js定时任务",
                         content: "对于已设置的时间区间 需满足:\n1. 脚本在运行中\n2. 当前支付宝页面为蚂蚁森林主页\n3. 当前时间在时间区间内\n才能循环监测自己的能量球\n\n定时任务可实现第1步的自动运行 从而保证后续步骤的预期执行\n\n添加Auto.js定时任务可选方式\n- 添加时间区间时勾选\"添加到Auto.js定时任务\"\n- Auto.js脚本面板中设置某个脚本定时执行\n- 使用本设置工具的\"管理定时任务\"功能添加定时任务 (仅限蚂蚁森林相关任务)\n\n管理Auto.js定时任务可选方式\n- Auto.js管理面板查看并管理全部定时任务\n- 使用本设置工具的\"管理定时任务\"功能 (仅限蚂蚁森林相关任务)\n\n除了Auto.js自带的定时任务功能 还可以配合Tasker及Xposed Edge Pro等工具实现定时任务功能",
                         positive: "返回",
@@ -843,7 +849,7 @@ non_break_check_page
                 let item_str = time_str_a + " - " + time_str_b;
                 if (time_diff < 300000) return successFunc(item_str);
 
-                let diag_big_area = dialogs.build({
+                let diag_big_area = dialogs.builds({
                     title: "提示",
                     content: "时间区间大于5分钟\n确定要保存这个区间吗\n\n通常情况下\n检测区间只需1-3分钟即可保证自己能量球的收取",
                     negative: "返回",
@@ -886,7 +892,7 @@ rank_list_samples_collect_page
         newWindow: function () {
             let avail_top = Math.ceil(HEIGHT * 0.4);
             let avail_bottom = Math.floor(HEIGHT * 0.8);
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置排行榜页面滑动距离",
                 content: "距离参数可设置具体像素数量\n" +
                     "如1260表示每次滑动1260像素\n" +
@@ -926,7 +932,7 @@ rank_list_samples_collect_page
         config_conj: "rank_list_swipe_time",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置排行榜页面滑动时长",
                 content: "通常无需自行设置\n若出现无法滑动的现象\n可尝试适当增大此设置值",
                 inputHint: "{x|50<=x<=500,x∈N*}",
@@ -957,7 +963,7 @@ rank_list_samples_collect_page
         config_conj: "rank_list_swipe_interval",
         hint: "hint",
         newWindow: function () {
-            let diag_strategy_image = dialogs.build({
+            let diag_strategy_image = dialogs.builds({
                 title: "设置排行榜页面滑动间隔",
                 content: "若出现遗漏目标的情况\n可尝试适当增大此设置值",
                 inputHint: "{x|100<=x<=1000,x∈N*}",
@@ -978,7 +984,7 @@ rank_list_samples_collect_page
                 saveSession(this.config_conj, value);
                 diag_strategy_image.dismiss();
             });
-            let diag_strategy_layout = dialogs.build({
+            let diag_strategy_layout = dialogs.builds({
                 title: "设置排行榜页面滑动间隔",
                 content: "采用\"布局分析\"策略时\n滑动间隔将由脚本自动获取动态最优值",
                 positive: "返回",
@@ -1004,7 +1010,7 @@ rank_list_samples_collect_page
         newWindow: function () {
             let map = this.map;
             let map_keys = Object.keys(map);
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "排行榜样本采集策略",
                 items: ["layout", "image"].map(value => map[value]),
                 itemsSelectMode: "single",
@@ -1024,7 +1030,7 @@ rank_list_samples_collect_page
             diag.show();
         },
         infoWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "关于采集策略",
                 content: "布局分析 (默认)\n\n" +
                     "使用布局信息定位好友/获取昵称\n" +
@@ -1099,7 +1105,7 @@ auto_unlock_page
         config_conj: "unlock_code",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置锁屏解锁密码",
                 neutral: "查看示例",
                 neutralColor: defs.hint_btn_bright_color,
@@ -1111,7 +1117,7 @@ auto_unlock_page
                 canceledOnTouchOutside: false,
             });
             diag.on("neutral", () => {
-                let diag_demo = dialogs.build({
+                let diag_demo = dialogs.builds({
                     title: "锁屏密码示例",
                     content: "滑动即可解锁: (留空)\n\nPIN解锁: 1001\n\n密码解锁: 10btv69\n\n图案解锁: (点阵序号从1开始)\n3×3点阵 - 1235789 或 1,2,3,5,7,8,9\n4×4点阵 - 1,2,3,4,8,12,16\n注: 点阵密码可简化",
                     positive: "关闭",
@@ -1121,7 +1127,7 @@ auto_unlock_page
                     canceledOnTouchOutside: false,
                 });
                 diag_demo.on("neutral", () => {
-                    let diag_simplified_pattern = dialogs.build({
+                    let diag_simplified_pattern = dialogs.builds({
                         title: "图案解锁密码简化",
                         content: "共线的连续线段组只需保留首末两点\n\n3×3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n4×4 - 1,2,3,4,8,12,16 -> 1,4,16\n5×5 - 1,2,3,4,5,6 -> 1,5,6",
                         positive: "关闭",
@@ -1152,7 +1158,7 @@ auto_unlock_page
         config_conj: "dismiss_layer_swipe_time",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置锁屏页面上滑时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
                 inputHint: "{x|110<=x<=1000,x∈N*}",
@@ -1183,7 +1189,7 @@ auto_unlock_page
         config_conj: "pattern_unlock_swipe_time",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置图案解锁滑动时长",
                 content: "通常无需自行设置\n脚本会自动尝试增量赋值获得最佳值",
                 inputHint: "{x|120<=x<=3000,x∈N*}",
@@ -1214,7 +1220,7 @@ auto_unlock_page
         config_conj: "unlock_pattern_size",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置图案解锁边长",
                 content: "图案解锁通常为N×N的点阵\n通常边长N为3\n\n若未使用图案解锁方式\n请保留默认值",
                 inputHint: "{x|3<=x<=6,x∈N*}",
@@ -1245,7 +1251,7 @@ auto_unlock_page
         config_conj: "unlock_max_try_times",
         hint: "hint",
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "设置解锁最大尝试次数",
                 inputHint: "{x|5<=x<=50,x∈N*}",
                 neutral: "使用默认值",
@@ -1316,7 +1322,7 @@ self_def_blacklist_page
                     item_view._checkbox.checked && item_view._checkbox.click();
                     e.consumed = true;
                     let data_source_key_name = this.data_source_key_name;
-                    let edit_item_diag = dialogs.build({
+                    let edit_item_diag = dialogs.builds({
                         title: "编辑列表项",
                         content: "点击需要编辑的项",
                         positive: "确认",
@@ -1646,7 +1652,7 @@ message_showing_page
     .add("split_line")
     .add("button", new Layout("了解详情", {
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "关于消息提示配置",
                 content: "控制台消息\n\n" +
                     "简略: 只显示最终收取能量总计数据\n" +
@@ -1669,7 +1675,7 @@ local_project_backup_restore_page
     .add("sub_head", new Layout("备份"))
     .add("button", new Layout("备份至本地", {
         newWindow: function () {
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "备份项目至本地",
                 content: "此功能将项目相关文件打包保存在本地\n可在还原页面恢复或删除已存在的备份",
                 positive: "开始备份",
@@ -1681,7 +1687,7 @@ local_project_backup_restore_page
             diag.on("negative", () => diag.dismiss());
             diag.on("neutral", () => {
                 diag.dismiss();
-                let diag_remark = dialogs.build({
+                let diag_remark = dialogs.builds({
                     title: "为备份添加备注",
                     inputHint: "",
                     positive: "确定",
@@ -1701,7 +1707,7 @@ local_project_backup_restore_page
             diag.on("positive", () => {
                 diag.dismiss();
                 let signal_interrupt_update = false;
-                let diag_backup = dialogs.build({
+                let diag_backup = dialogs.builds({
                     title: "正在备份",
                     content: "此过程可能需要一些时间",
                     positive: "终止",
@@ -1788,7 +1794,7 @@ local_project_backup_restore_page
                                                     value && release_details.push(label_name + ": " + value);
                                                 });
                                                 release_details = release_details.join("\n\n");
-                                                let diag = dialogs.build({
+                                                let diag = dialogs.builds({
                                                     title: "版本详情",
                                                     content: release_details,
                                                     positive: "还原此项目",
@@ -1803,7 +1809,7 @@ local_project_backup_restore_page
                                                 diag.on("neutral", () => app.openUrl(single_session_data.html_url));
                                                 diag.on("positive", () => {
                                                     diag.dismiss();
-                                                    let diag_confirm = dialogs.build({
+                                                    let diag_confirm = dialogs.builds({
                                                         title: "还原项目",
                                                         content: "确定还原此版本项目吗\n" +
                                                             "本地项目将被覆盖\n" +
@@ -1853,7 +1859,7 @@ restore_projects_from_local
             deleteItem: (parent_dialog, idx) => {
                 parent_dialog && parent_dialog.dismiss();
 
-                let diag_delete_confirm = dialogs.build({
+                let diag_delete_confirm = dialogs.builds({
                     title: "删除备份",
                     content: "确定删除此备份吗\n" +
                         "此操作无法撤销",
@@ -1900,7 +1906,7 @@ restore_projects_from_local
                         value && backup_details.push(label_name + ": " + value);
                     });
                     backup_details = backup_details.join("\n\n");
-                    let diag = dialogs.build({
+                    let diag = dialogs.builds({
                         title: "备份详情",
                         content: backup_details,
                         positive: "还原此备份",
@@ -1913,7 +1919,7 @@ restore_projects_from_local
                     });
                     diag.on("positive", () => {
                         diag.dismiss();
-                        let diag_confirm = dialogs.build({
+                        let diag_confirm = dialogs.builds({
                             title: "还原备份",
                             content: "确定还原此备份吗\n" +
                                 "本地项目将被覆盖\n" +
@@ -1966,7 +1972,7 @@ ui.emitter.on("back_pressed", e => {
     // tool function(s) //
 
     function showQuitConfirmDialog() {
-        let diag = dialogs.build({
+        let diag = dialogs.builds({
             "title": "设置未保存",
             "content": "确定要退出吗",
             //"items": ["1. 查看本次更改的设置", "2. 撤销本次更改的设置", "3. 还原部分或全部设置"],
@@ -1993,8 +1999,15 @@ ui.emitter.on("back_pressed", e => {
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
         }
-        ui.finish();
+        exit();
     }
+});
+events.on("exit", () => {
+    initUI();
+    threads.shutDownAll();
+    listener.removeAllListeners();
+    dialogs_pool.forEach(diag => diag = null);
+    ui.finish();
 });
 
 updateAllValues();
@@ -2046,7 +2059,7 @@ function setBlacklistPageButtons(parent_view) {
             let blacklist_backup = storage_config.blacklist_by_user;
             let data_source_key_name = "blacklist_by_user";
             if (equalObjects(session_config[data_source_key_name], blacklist_backup)) return;
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "恢复列表数据",
                 content: "要恢复本次会话开始前的列表数据吗\n\n此操作不可撤销",
                 neutral: "查看恢复列表",
@@ -2057,7 +2070,7 @@ function setBlacklistPageButtons(parent_view) {
                 canceledOnTouchOutside: false,
             });
             diag.on("neutral", () => {
-                let diag_restore_list = dialogs.build({
+                let diag_restore_list = dialogs.builds({
                     title: "查看恢复列表",
                     content: "共计" + blacklist_backup.length + "项",
                     positive: "返回",
@@ -2125,7 +2138,7 @@ function setBlacklistPageButtons(parent_view) {
 
             session_config[data_source_key_name].forEach(o => blacklist_selected_friends.push(o.name));
 
-            let diag = dialogs.build({
+            let diag = dialogs.builds({
                 title: "添加新数据",
                 content: "从好友列表中选择并添加好友\n或手动输入好友昵称",
                 items: [" "],
@@ -2138,7 +2151,7 @@ function setBlacklistPageButtons(parent_view) {
                 canceledOnTouchOutside: false,
             });
             diag.on("neutral", () => {
-                let diag_add_from_list = dialogs.build({
+                let diag_add_from_list = dialogs.builds({
                     title: "列表选择好友",
                     content: "",
                     neutral: "刷新列表",
@@ -2205,7 +2218,7 @@ function setBlacklistPageButtons(parent_view) {
             });
             diag.on("negative", () => {
                 let input_ok_flag = true;
-                let diag_add_manually = dialogs.build({
+                let diag_add_manually = dialogs.builds({
                     title: "手动添加好友",
                     content: "手动添加易出错\n且难以键入特殊字符\n建议使用列表导入功能",
                     inputHint: "输入好友备注昵称 (非账户名)",
@@ -2248,7 +2261,7 @@ function setBlacklistPageButtons(parent_view) {
             diag.on("item_select", (idx, item, dialog) => {
                 let diag_items = diag.getItems().toArray();
                 if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
-                let delete_confirm_diag = dialogs.build({
+                let delete_confirm_diag = dialogs.builds({
                     title: "确认移除此项吗",
                     positive: "确认",
                     negative: "返回",
@@ -2792,7 +2805,7 @@ function checkSpePagesBeforeJumpBack() {
         if (last_page._title_text.getText() !== "监测自己能量") return true;
         if (session_config.non_break_check_time_area[0] !== undefined) return true;
         if (last_page._switch.checked === false) return true;
-        let diag_alert = dialogs.build({
+        let diag_alert = dialogs.builds({
             title: "提示",
             content: "未设置任何时间区间\n\n继续返回将关闭\"监测自己能量\"功能",
             negative: "放弃返回",
@@ -2889,7 +2902,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name) {
         /\/README\.md/,
     ];
 
-    let diag_update_details = dialogs.build({
+    let diag_update_details = dialogs.builds({
         title: newest_version_name,
         content: "正在获取版本更新信息...",
         neutral: null,
@@ -2916,7 +2929,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name) {
 
         parent_dialog && parent_dialog.dismiss();
 
-        diag_download = dialogs.build({
+        diag_download = dialogs.builds({
             title: "正在部署项目最新版本",
             positive: "终止",
             progress: {
@@ -2979,7 +2992,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name) {
         let update_prompt_no_prompt_flag = storage_af.get("update_dialog_prompt_prompted", false);
         if (update_prompt_no_prompt_flag) return downloadArchive();
 
-        let diag_update_prompt = dialogs.build({
+        let diag_update_prompt = dialogs.builds({
             title: "更新提示",
             content: "1. 更新过程中 本地项目将会被备份 可用于更新撤回/用户自行恢复数据/自定义代码的复原等操作\n" +
                 "2. 整个更新过程将按照以下步骤执行: " + steps_str,
@@ -3030,7 +3043,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name) {
 
     function showUpdateHistories() {
 
-        let diag_update_histories = dialogs.build({
+        let diag_update_histories = dialogs.builds({
             title: "历史更新",
             content: getUpdateHistoriesStr(),
             positive: "返回",
@@ -3181,7 +3194,7 @@ function restoreProjectFiles(source) {
     let mode = "local";
     if (source.toString().match(/^http/)) mode = "server";
 
-    let diag_restoring = dialogs.build({
+    let diag_restoring = dialogs.builds({
         title: "恢复中",
         positive: "终止",
         progress: {
