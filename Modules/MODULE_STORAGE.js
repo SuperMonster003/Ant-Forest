@@ -14,7 +14,6 @@
     // constructor //
 
     function Storage(name) {
-
         let storage_dir = files.getSdcardPath() + "/.local/";
         let file = createFile(storage_dir);
         let opened = files.open(file);
@@ -41,18 +40,18 @@
         function put(key, value) {
             if (typeof value === "undefined") throw new TypeError("\"put\" value can't be undefined");
             let read = readFile();
-            let obj = read && JSON.parse(read) || {};
+            let obj = read && JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
             let new_obj = {};
             new_obj[key] = value;
             Object.assign(obj, new_obj);
-            files.write(file, JSON.stringify(obj));
+            files.write(file, JSON.stringify(obj, (key, value) => value === Infinity ? "Infinity" : value));
             opened.close();
         }
 
         function get(key, value) {
             let read = readFile();
             if (!read) return value;
-            let obj = JSON.parse(read);
+            let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
             return key in obj ? obj[key] : value;
         }
 
