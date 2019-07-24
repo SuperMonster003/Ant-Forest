@@ -30,13 +30,6 @@
 > Root: `无需Root`
   
 > "Auto.js"已测试版本:   
->> [`4.0.4 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha5%5D(2caea4b4).apk?raw=true)  
->> [`4.0.4 Alpha6`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha6%5D(3bd7f41f).apk?raw=true)  
->> [`4.0.4 Alpha7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha7%5D(9ca9e0fd).apk?raw=true)  
->> [`4.0.4 Alpha8`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha8%5D(bc2d6359).apk?raw=true)  
->> [`4.0.4 Alpha9`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha9%5D(1aef8167).apk?raw=true)  
->> [`4.0.4 Alpha10`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha10%5D(805e19a6).apk?raw=true)  
->> [`4.0.4 Alpha11`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.0.4_alpha11%5D(d3adc9b3).apk?raw=true)  
 >> [`4.1.0 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha%5D(7312bb3f).apk?raw=true)  
 >> [`4.1.0 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha2%5D(3a990e03).apk?raw=true)  
 >> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true) `(推荐)`  
@@ -46,7 +39,9 @@
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
 >> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)      
 >> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true)      
->> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true) `(推荐)`    
+>> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true)      
+>> [`Pro 7.0.3-7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-7%5D(CC30BF10).apk?raw=true)      
+>> [`Pro 7.0.4-1`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.4-1%5D(31B16C93).apk?raw=true) `(推荐)`    
 
 >"Auto.js"不适用版本:
 >> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
@@ -57,18 +52,22 @@
 * 收取好友能量
 * 帮收好友能量  
 * 收取自己能量  
-·  指定时间范围内不间断监测自己的能量  
-·  ~~脚本辅助优化时间间隔~~  
 * 能量收取结果统计/展示 (floaty/toast方式)  
 * 控制台消息提示  
 ·  详细/简略  
 ·  开发者测试模式 (默认关闭)  
 * 自动解锁屏幕  
 ·  可通过配置向导页面实现解锁密码录入  
-* 定时执行任务  
-·  ~~使用配置向导设置Auto.js定时任务~~    
-·  也可结合 `Xposed Edge Pro` 或 `Tasker` 实现定时任务  
-* 多任务~~智能~~排队  
+* 定时任务与循环监测
+·  好友排行榜样本复查  
+·  主页能量球循环监测  
+·  定时任务自动管理  
+* 脚本运行安全  
+·  运行失败自动重试  
+·  单次运行最大时间限制  
+·  排他性任务最大排队时间限制  
+·  脚本炸弹预防  
+* 多任务排队  
 * 多语言支持 (简体中文 ~~繁体中文~~ ~~英语~~)  
 ·  ~~根据系统语言自动切换语言 (可开关)~~
 * 黑名单机制  
@@ -97,6 +96,60 @@
 ******
 ### 版本历史
 ******
+# v1.8.0
+###### 2019/07/24
+* `新增` 定时循环功能  
+·  定时任务自动管理  
+·  好友排行榜样本复查  
+·  主页能量球循环监测  
+* `新增` 脚本运行安全  
+·  运行失败自动重试  
+·  单次运行最大时间限制  
+·  排他性任务最大排队时间限制  
+·  脚本炸弹预防  
+* `新增` 运行前提示对话框及相关图形页面配置  
+* `新增` 排行榜滑动距离超限时距离参数自动修正机制  
+* `新增` 根据需要自动适时返回森林首页监测自己能量的返检机制  
+* `新增` 好友数量多于200时"图像识别"策略滑动间隔自增机制  
+* `新增` 图形配置页面增加排行榜滑动距离安全值建议及安全值检测  
+* `新增` 进入森林主页/好友排行榜页面增加多计划方案  
+* `修复` 本地项目备份的还原功能失效问题  
+* `修复` 获取初始收取/帮收数据时迭代无效的问题  
+* `修复` 解锁后schema启动方式可能无效的问题 (试修)  
+* `修复` 部分debugInfo()信息关联错误的问题  
+* `修复` launchThisApp()干扰排除器未运作的问题  
+* `修复` messageAction()箭头参数失效的问题  
+* `修复` getDisplayParams()横屏状态的数据错误问题  
+* `修复` 采集黑名单数据时可能出现无法匹配日期/时间字串的问题  
+* `修复` 好友列表数据可能因选择器id属性变化导致获取失败的问题  
+* `修复` 排行榜列表容器控件id变更导致列表内容获取失败的问题  
+* `修复` 统计收取/帮收数据时控件文本转移导致正则匹配失效的问题  
+* `修复` 统计收取/帮收数据初始统计值单位精度较低时统计异常的问题  
+* `修复` 部分机型"图像识别"策略因坐标变换失效无法识别图标的问题  
+* `修复` 潜在的黑名单数组原型方法可能因覆盖而丢失的问题  
+* `修复` equalObjects()参数为错序对象的数组时结果错误的问题  
+* `修复` equalObjects()内部错误导致引用类型参数被破坏的问题  
+* `修复` swipeInArea()计算滑动区域时屏幕宽高数据分配错误的问题  
+* `修复` messageActionRaw()无法显示verbose日志的问题  
+* `修复` Storage模块put及get方法无法处理Infinity的问题  
+* `修复` 图形配置页面列表滚动时导致标题栏连带滚动的问题  
+* `修复` 图形配置页面部分总开关开启时可能出现的子开关闪烁问题  
+* `修复` 图形配置页面暴露的可能阻塞主线程的方法  
+* `修复` 脚本运行时屏幕方向为横屏可能导致的脚本运行异常问题
+* `优化` 更新Bug版本检测列表  
+* `优化` 去除初始能量数据无效时其他数据额外的耗时统计  
+* `优化` 增加动态列表备用方案以增强收取/帮收数据有效性  
+* `优化` 使用动态列表/数据面板协同统计的方式增加数据有效性  
+* `优化` 提升"图像识别"策略列表底部条件判断检测效率  
+* `优化` 去除"图像识别"策略列表滑动稳定条件判断以提升滑动效率  
+* `优化` 图形配置页面使用异步加载方式提升启动速度  
+* `优化` 图形配置页面使用防抖机制增强滑动稳定性  
+* `优化` 去除好友排行榜滚动条以避免图标遮挡  
+* `优化` 去除好友数量不足10人时的关键控件超时检测 (因计划而异)  
+* `优化` 统计结果摒弃始末差值使用中间值以提升统计效率  
+* `优化` swipe()方法异常时使用备用方案滑动排行榜列表  
+* `优化` 自动解锁失败时自动保存当前屏幕截图以供调试  
+
 # v1.7.1
 ###### 2019/06/16
 * `修复` 解锁模块成功解锁后可能出现的假死问题  

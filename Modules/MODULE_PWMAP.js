@@ -15,7 +15,6 @@ module.exports = function () {
     // main function(s) //
 
     function pwmapEncrypt(input) {
-
         checkPWMAPFile();
         let is_empty_input = !arguments.length;
         input = is_empty_input && userInput("请输入要加密的字符串") || input;
@@ -56,7 +55,6 @@ module.exports = function () {
     }
 
     function pwmapDecrypt(input) {
-
         checkPWMAPFile();
         let is_empty_input = !arguments.length;
         input = is_empty_input && userInput("请输入要解密的字符串数组") || input;
