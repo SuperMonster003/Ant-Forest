@@ -48,16 +48,16 @@ module.exports = {
         timers_uninterrupted_check_sections: [{section: ["06:30", "00:00"], interval: 60}], // 1 <= x <= 600; multi sections available
         timers_insurance_switch: true, // just in case, as you know; timed task will be set on running and removed when script finished
         timers_insurance_interval: 5, // 1 <= x <= 10; timed task will be extended every 10 sec to avoid interval's consumption
-        timers_insurance_max_continuous: 3, // 1 <= x <= 5; "ins" auto timed task will be dysfunctional with to many continuous attempts
+        timers_insurance_max_continuous_times: 3, // 1 <= x <= 5; "ins" auto timed task will be dysfunctional with to many continuous attempts
         max_retry_times_global: 2, // 0 <= x <= 5; max retry times when the script crushed; set 0 if you do not need to retry even once
         max_running_time_global: 45, // 5 <= x <= 90; max running time for a single script
         max_queue_time_global: 60, // 1 <= x <= 120; max queue time for every exclusive task if exclusive tasks ahead is running or queueing
         min_bomb_interval_global: 300, // 100 <= x <= 800; exclusive tasks with too small intervals will be taken as bomb tasks
-        countdown_before_running_switch: false, // set true value if you need a countdown dialog before running script
-        countdown_before_running_seconds: 5, // 3 <= x <= 30; countdown seconds before dialog dismissed automatically
-        countdown_before_running_postponed_minutes: [1, 2, 3, 5, 10, 15, 20, 30], // default choices for a postponed minute
-        countdown_before_running_postponed_minute: 0, // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute
-        countdown_before_running_postponed_minute_user: 3, // record user selected value of postponed settings dialog in countdown dialog
+        prompt_before_running_switch: true, // set false value if you do not need a countdown dialog before running script
+        prompt_before_running_countdown_seconds: 5, // 3 <= x <= 30; countdown seconds before dialog dismissed automatically
+        prompt_before_running_postponed_minutes_default_choices: [1, 2, 3, 5, 10, 15, 20, 30], // default choices for a postponed minute
+        prompt_before_running_postponed_minutes: 0, // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute
+        prompt_before_running_postponed_minutes_user: 3, // record user selected value of postponed settings dialog in countdown dialog
     },
     "unlock": {
         unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
@@ -233,7 +233,7 @@ module.exports = {
                 "* 保险任务在脚本运行时设置\n" +
                 "* 脚本运行中每10秒钟自动重置间隔\n" +
                 "* 脚本结束前自动移除所有保险任务",
-            timers_insurance_max_continuous: // 最大连续保险次数
+            timers_insurance_max_continuous_times: // 最大连续保险次数
                 "设置值用于当保险任务连续激活\n" +
                 "次数超过一定值时\n" +
                 "不再继续自动设置保险任务\n" +

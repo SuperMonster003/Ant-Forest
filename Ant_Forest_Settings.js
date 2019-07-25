@@ -1060,7 +1060,7 @@ addPage(() => {
         }))
         .add("split_line")
         .add("switch", new Layout("运行前提示", {
-            config_conj: "countdown_before_running_switch",
+            config_conj: "prompt_before_running_switch",
             listeners: {
                 "_switch": {
                     "check": function (state) {
@@ -1075,7 +1075,7 @@ addPage(() => {
             },
         }))
         .add("button", new Layout("对话框倒计时时长", {
-            config_conj: "countdown_before_running_seconds",
+            config_conj: "prompt_before_running_countdown_seconds",
             hint: "加载中...",
             newWindow: function () {
                 let diag = dialogs.builds([
@@ -1100,13 +1100,13 @@ addPage(() => {
             },
         }))
         .add("button", new Layout("推迟运行间隔时长", {
-            config_conj: "countdown_before_running_postponed_minute",
+            config_conj: "prompt_before_running_postponed_minutes",
             hint: "加载中...",
             map: Object.assign({
                 0: "每次都询问",
             }, (() => {
                 let o = {};
-                DEFAULT_AF["countdown_before_running_postponed_minutes"].forEach(num => o[num] = num + " min");
+                DEFAULT_AF["prompt_before_running_postponed_minutes_default_choices"].forEach(num => o[num] = num + " min");
                 return o;
             })()),
             newWindow: function () {
@@ -1520,7 +1520,7 @@ addPage(() => {
             },
         }))
         .add("button", new Layout("最大连续保险次数", {
-            config_conj: "timers_insurance_max_continuous",
+            config_conj: "timers_insurance_max_continuous_times",
             hint: "加载中...",
             newWindow: function () {
                 let diag = dialogs.builds([
