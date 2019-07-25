@@ -294,7 +294,6 @@ function prologue() {
                     }
                     if (!this[name]) this[name] = 1;
                     else this[name] += 1;
-                    console.warn(name + " +1: " + this[name]);
                 };
             },
             get decrease() {
@@ -302,7 +301,6 @@ function prologue() {
                     this[name] = this[name] || 0;
                     if (this[name] > 1) this[name] -= 1;
                     else this[name] = 0;
-                    console.warn(name + " -1: " + this[name]);
                 };
             },
         };
