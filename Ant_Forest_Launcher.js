@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Jul 24, 2019
- * @version 1.8.0
+ * @last_modified Jul 25, 2019
+ * @version 1.8.1
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -286,7 +286,7 @@ function prologue() {
         current_app.rank_list_friend_max_invalid_drop_by_times = 5;
         current_app.friend_drop_by_counter = {
             get increase() {
-                return function (name) {
+                return (name) => {
                     this[name] = this[name] || 0;
                     if (this[name] >= current_app.rank_list_friend_max_invalid_drop_by_times) {
                         debugInfo("发送停止排行榜样本停止复查信号");
@@ -294,14 +294,16 @@ function prologue() {
                     }
                     if (!this[name]) this[name] = 1;
                     else this[name] += 1;
-                }.bind(this);
+                    console.warn(name + " +1: " + this[name]);
+                };
             },
             get decrease() {
-                return function (name) {
+                return (name) => {
                     this[name] = this[name] || 0;
                     if (this[name] > 1) this[name] -= 1;
                     else this[name] = 0;
-                }.bind(this);
+                    console.warn(name + " -1: " + this[name]);
+                };
             },
         };
 
@@ -738,7 +740,6 @@ function checkEnergy() {
                     if (strategy === "image") clickAction([cX(0.5), pop_item.list_item_click_y], "press");
                     else clickAction(sel.pickup(pop_name), "click");
                     debugInfo("点击" + (pop_item_0 && "收取目标" || pop_item_1 && "帮收目标"));
-                    current_app.friend_drop_by_counter.increase(current_app.current_friend.name);
                 };
 
                 if (inBlackList(clickRankListItemFunc)) continue;
@@ -1096,7 +1097,7 @@ function checkEnergy() {
                 while (+new Date() - now < intensity_time) {
                     let screen_capture = images.captureCurrentScreen();
                     debugInfo("存储屏幕截图: " + images.getName(screen_capture));
-                    sleep(100);
+                    sleep(50);
                     if (current_app.blacklist_need_capture_flag) blacklist_ident_captures.add(screen_capture);
                     if (help_collect_switch) {
                         if (!waitForAction(() => kw_energy_balls("normal").exists(), 1500, 80)) {
@@ -1175,8 +1176,8 @@ function checkEnergy() {
                     debugInfo("黑名单采集样本数量: " + blacklist_ident_capts_len);
                     if (blacklist_ident_capts_len < 3) {
                         debugInfo("黑名单样本数量不足");
-                        let max_wait_times_enough_idents = 1;
-                        while (max_wait_times_enough_idents--) {
+                        let max_wait_times_enough_idents = 3;
+                        while (max_wait_times_enough_idents-- || true) {
                             if (!thread_energy_balls_monitor.isAlive()) {
                                 debugInfo("能量球监测线程已停止");
                                 debugInfo("现场采集新黑名单样本数据");
@@ -1187,7 +1188,7 @@ function checkEnergy() {
                                 debugInfo("现场采集新黑名单样本数据");
                                 captNewBlackListIdent();
                                 break;
-                            } else if (blacklist_ident_captures.length === 3) {
+                            } else if (blacklist_ident_captures.length >= 3) {
                                 debugInfo("黑名单样本数据充足");
                                 break;
                             } else {
@@ -1856,13 +1857,19 @@ function checkEnergy() {
             if (strategy === "image") {
                 clickRankListItemFunc();
                 sleep(500); // avoid touching widgets in rank list
+
                 if (checkForestTitle()) {
-                    blackListMsg("exist", "split_line");
+                    blackListMsg("exist", "split_line", "forcible_flag");
                     backToHeroList();
                     return true;
                 }
             } else {
-                if (current_app.current_friend.name in current_app.blacklist) return blackListMsg("exist", "split_line"); // true
+                let current_friend_name = current_app.current_friend.name;
+                current_app.friend_drop_by_counter.increase(current_friend_name);
+                if (current_friend_name in current_app.blacklist) {
+                    current_app.friend_drop_by_counter.decrease(current_friend_name);
+                    return blackListMsg("exist", "split_line"); // true
+                }
                 else clickRankListItemFunc();
             }
 
@@ -1873,20 +1880,21 @@ function checkEnergy() {
                 if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 20000)) return messageAction("标题采集好友昵称超时", 3);
                 let getNameStr = string => string.match(/.+(?=的蚂蚁森林$)/);
                 let friend_nickname = (getNameStr(key_node.text()) || getNameStr(key_node.desc()) || [])[0];
+                current_app.friend_drop_by_counter.increase(friend_nickname);
                 if (!friend_nickname) return messageAction("好友昵称无效", 3);
                 current_app.current_friend.name = friend_nickname;
                 if ((config.console_log_details || config.debug_info_switch) && !current_app.current_friend.name_logged) {
                     messageAction(friend_nickname, "title");
                     current_app.current_friend.name_logged = 1;
                 }
-                return friend_nickname in current_app.blacklist;
+
+                let is_in_blacklist = friend_nickname in current_app.blacklist;
+                if (is_in_blacklist) current_app.friend_drop_by_counter.decrease(friend_nickname);
+                return is_in_blacklist;
             }
         }
 
-        function blackListMsg(msg_str, split_line_flag) {
-            let name = current_app.current_friend.name;
-            if (!config.console_log_details && !config.debug_info_switch || ~current_app.logged_blacklist_names.indexOf(name)) return true;
-
+        function blackListMsg(msg_str, split_line_flag, forcible_flag) {
             let messages = {
                 "add": "已加入黑名单",
                 "exist": "黑名单好友",
@@ -1895,6 +1903,12 @@ function checkEnergy() {
                 "protect_cover": "好友使用能量保护罩",
                 "by_user": "用户自行设置",
             };
+
+            let name = current_app.current_friend.name;
+            if (!config.console_log_details && !config.debug_info_switch || ~current_app.logged_blacklist_names.indexOf(name)) {
+                forcible_flag && messageAction(messages[msg_str], 1, 0, 1, +!!split_line_flag);
+                return true;
+            }
 
             messageAction(messages[msg_str], 1, 0, 1);
             msg_str === "exist" && messageAction("已跳过收取", 1, 0, 2);
@@ -1964,7 +1978,7 @@ function checkEnergy() {
         if (next_launch[0] === Infinity) return debugInfo("无定时任务可设置");
 
         addOrUpdateAutoTask(next_launch);
-        removeInsuranceTasksIfNeeded();
+        clearInsuranceTasks();
 
         // tool function(s) //
 
@@ -2043,11 +2057,11 @@ function checkEnergy() {
             }
         }
 
-        function removeInsuranceTasksIfNeeded() {
+        function clearInsuranceTasks() {
             let auto_delay_thread = current_app.thread_auto_delay_insurance_task;
             if (auto_delay_thread && auto_delay_thread.isAlive()) auto_delay_thread.interrupt();
 
-            return cleanOldInsuranceTask();
+            cleanAllInsuranceTasks();
         }
     }
 
@@ -2356,12 +2370,12 @@ function setVolKeysListener() {
 
 function showRunningCountdownIfNeeded() {
     if (!current_app.is_screen_on) return;
-    if (!config.countdown_before_running_switch) return debugInfo("\"运行前提示\"未开启");
+    if (!config.prompt_before_running_switch) return debugInfo("\"运行前提示\"未开启");
 
     let dialog_signal = null;
     let thread_running_countdown = threads.start(function () {
-        // let count_down_second = config.countdown_before_running_seconds;
-        let count_down_second = config.countdown_before_running_seconds + 1; // maybe this is a better scenario than the one above ?
+        // let count_down_second = config.prompt_before_running_countdown_seconds;
+        let count_down_second = config.prompt_before_running_countdown_seconds + 1; // maybe this is a better scenario than the one above ?
 
         let thread_set_countdown = null;
 
@@ -2374,7 +2388,7 @@ function showRunningCountdownIfNeeded() {
         ]);
         diag.on("positive", () => {
             diag.dismiss();
-            debugInfo("点击\"" + diag.getActionButton("positive") + "\"按钮");
+            debugInfo("点击\"" + diag.getActionButton("positive").replace(/ *\[ *\d+ *] */, "") + "\"按钮");
             actionPositive();
         });
         diag.on("negative", () => {
@@ -2436,13 +2450,13 @@ function showRunningCountdownIfNeeded() {
         function actionNeutral() {
             thread_set_countdown && thread_set_countdown.interrupt();
 
-            if (config.countdown_before_running_postponed_minute !== 0) {
-                return setPostponedTaskNow(config.countdown_before_running_postponed_minute);
+            if (config.prompt_before_running_postponed_minutes !== 0) {
+                return setPostponedTaskNow(config.prompt_before_running_postponed_minutes);
             }
 
             let map = (() => {
                 let o = {};
-                config.countdown_before_running_postponed_minutes.forEach(num => o[num] = num + " min");
+                config.prompt_before_running_postponed_minutes_default_choices.forEach(num => o[num] = num + " min");
                 return o;
             })();
             let map_keys = Object.keys(map);
@@ -2457,7 +2471,7 @@ function showRunningCountdownIfNeeded() {
             ], {
                 items: map_keys.slice().map(value => map[value]),
                 itemsSelectMode: "single",
-                itemsSelectedIndex: map_keys.indexOf((config.countdown_before_running_postponed_minute_user).toString()),
+                itemsSelectedIndex: map_keys.indexOf((config.prompt_before_running_postponed_minutes_user).toString()),
             });
             diag_postponed.on("check", checked => checkbox_checked_flag = !!checked);
             diag_postponed.on("single_choice", (index, value, dialog) => {
@@ -2466,20 +2480,20 @@ function showRunningCountdownIfNeeded() {
                 storage_af_cfg.put("config", Object.assign(
                     {},
                     storage_af_cfg.get("config", {}),
-                    {countdown_before_running_postponed_minute_user: user_value}
+                    {prompt_before_running_postponed_minutes_user: user_value}
                 ));
-                config.countdown_before_running_postponed_minute_user = user_value;
+                config.prompt_before_running_postponed_minutes_user = user_value;
             });
             diag_postponed.on("negative", () => diag_postponed.dismiss());
             diag_postponed.on("positive", () => {
                 if (checkbox_checked_flag) {
-                    let put_value = config.countdown_before_running_postponed_minute_user;
+                    let put_value = config.prompt_before_running_postponed_minutes_user;
                     storage_af_cfg.put("config", Object.assign(
                         {},
                         storage_af_cfg.get("config", {}),
-                        {countdown_before_running_postponed_minute: put_value}
+                        {prompt_before_running_postponed_minutes: put_value}
                     ));
-                    config.countdown_before_running_postponed_minute = put_value;
+                    config.prompt_before_running_postponed_minutes = put_value;
                 }
 
                 setPostponedTaskNow(+map_keys[selected_index], diag_postponed);
@@ -2527,26 +2541,36 @@ function showRunningCountdownIfNeeded() {
 }
 
 function setInsuranceTaskIfNeeded() {
-    delete current_app.insurance_task_id;
+    if (!config.timers_switch) return debugInfo("定时循环功能未开启");
+    if (!config.timers_self_manage_switch) return debugInfo("定时任务自动管理未开启");
     if (!config.timers_insurance_switch) return debugInfo("意外保险未开启");
-    let getNextLaunchTime = () => +new Date() + config.timers_insurance_interval * 60000;
-    let next_launch_time = getNextLaunchTime();
-    let task = timers.addDisposableTask({
-        path: current_app.current_file_path || files.path("./Ant_Forest_Launcher.js"),
-        date: next_launch_time,
-    });
 
-    let old_insurance_tasks = storage_af.get("insurance_tasks", []);
-    if (old_insurance_tasks.length + 1 > config.timers_insurance_max_continuous) {
+    let storage_task_ids = storage_af.get("insurance_tasks", []).filter(id => timers.getTimedTask(id));
+    let continuous_times = +storage_af.get("insurance_tasks_continuous_times", 0) + 1;
+    storage_af.put("insurance_tasks_continuous_times", continuous_times);
+
+    let limit = config.timers_insurance_max_continuous_times;
+    if (continuous_times > limit) {
         debugInfo("本次会话不再设置保险定时任务");
-        debugInfo(">任务已达最大连续次数限制");
-        return cleanOldInsuranceTask();
+        debugInfo(">任务已达最大连续次数限制: " + limit);
+        return cleanAllInsuranceTasks();
     }
 
-    storage_af.put("insurance_tasks", old_insurance_tasks.concat([task.id]));
-    current_app.insurance_task_id = task.id;
-    debugInfo("已设置意外保险定时任务");
-    debugInfo(">任务ID: " + task.id);
+    let getNextLaunchTime = () => +new Date() + config.timers_insurance_interval * 60000;
+    let task = timers.addDisposableTask({
+        path: current_app.current_file_path || files.path("./Ant_Forest_Launcher.js"),
+        date: getNextLaunchTime(),
+    });
+
+    storage_af.put("insurance_tasks", storage_task_ids.concat([task.id]));
+    debugInfo("已设置意外保险定时任务:");
+    debugInfo("任务ID: " + task.id);
+
+    if (storage_task_ids.length) {
+        debugInfo("已移除旧意外保险定时任务:");
+        storage_task_ids.forEach(id => timers.removeTimedTask(id));
+        debugInfo("任务ID: " + (storage_task_ids.length > 1 ? "[ " + storage_task_ids.join(", ") + " ]" : storage_task_ids[0]));
+    }
 
     current_app.thread_auto_delay_insurance_task = threads.start(function () {
         setInterval(function () {
@@ -3161,14 +3185,17 @@ function getNextTimeStr(time) {
         + padZero(time_o.getSeconds());
 }
 
-function cleanOldInsuranceTask() {
+function cleanAllInsuranceTasks() {
     let old_id = storage_af.get("insurance_tasks", []);
-    old_id.forEach((id) => {
-        timers.removeTimedTask(id);
+
+    if (old_id.length) {
         debugInfo("已移除意外保险定时任务:");
-        debugInfo("任务ID: " + id);
-    });
+        old_id.forEach(id => timers.removeTimedTask(id));
+        debugInfo("任务ID: " + (old_id.length > 1 ? "[ " + old_id.join(", ") + " ]" : old_id[0]));
+    }
+
     storage_af.remove("insurance_tasks");
+    storage_af.put("insurance_tasks_continuous_times", 0);
 }
 
 function plans(operation_name, params) {
