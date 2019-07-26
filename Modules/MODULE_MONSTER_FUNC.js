@@ -242,7 +242,7 @@ function launchThisApp(trigger, params) {
             if (_cond_succ_flag) break;
             else _debugInfo(">" + currentPackage());
         }
-        if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 8, 1, 0, 1);
+        if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
 
         this._monster_$_first_time_run = 0;
         if (_condition_ready === null || _condition_ready === undefined) {
@@ -289,7 +289,7 @@ function launchThisApp(trigger, params) {
         _debugInfo("尝试关闭\"" + _app_name + "\"应用: (" + (_max_retry_times_backup - _max_retry_times) + "\/" + _max_retry_times_backup + ")");
         _killThisApp(_package_name);
     }
-    if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 8, 1, 0, 1);
+    if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 9, 1, 0, 1);
     _debugInfo(("\"" + _task_name || _app_name) + "\"初始状态准备完毕");
     return true;
 
@@ -728,8 +728,8 @@ function runJsFile(file_name) {
  *      -- 2/i/info - console.info(msg) <br>
  *      -- 3/w/warn - console.warn(msg) <br>
  *      -- 4/e/error - console.error(msg) <br>
- *      -- 8/x - console.error(msg) & exit <br>
- *      -- 9/h - console.error(msg) & exit to homepage <br>
+ *      -- 8/x - console.error(msg), exit <br>
+ *      -- 9/t - console.error(msg), throw Error(), exit <br>
  *      -- t/title - msg becomes a title like "[ title ]" <br>
  *      -- *OTHER|DEFAULT* - do not print msg in console
  *
@@ -837,16 +837,13 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         case "x":
             _msg_level = 4;
             console.error(_msg);
-            // throw Error(); // do not forget to disable this before pushing
             _exit_flag = true;
             break;
         case 9:
-        case "h":
+        case "t":
             _msg_level = 4;
             console.error(_msg);
-            home();
-            // throw Error(); // do not forget to disable this before pushing
-            _exit_flag = true;
+            throw Error("Error thrown on purpose");
     }
     if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
     _exit_flag && exit();
@@ -1432,7 +1429,7 @@ function tryRequestScreenCapture(params) {
             _debugInfo("截图权限申请结果: 失败");
             if (_restartThisEngine(_params.restart_this_engine_params)) return;
         }
-        _messageAction("截图权限申请失败", 8, 1, 0, 1);
+        _messageAction("截图权限申请失败", 9, 1, 0, 1);
     });
 
     let _req_result = images.requestScreenCapture(false);
@@ -1906,8 +1903,8 @@ function getDisplayParams() {
     let [WIDTH, HEIGHT] = [];
     let display_info = {};
     if (_waitForAction(checkData, 3000, 500)) {
-        display_info.cX = (num) => Math.min(Math.round(+num * WIDTH / (+num >= 1 ? 720 : 1)), WIDTH);
-        display_info.cY = (num, aspect_ratio) => Math.min(Math.round(+num * (WIDTH * ((aspect_ratio > 1 ? aspect_ratio : (1 / aspect_ratio)) || (HEIGHT / WIDTH))) / (+num >= 1 ? 1280 : 1)), HEIGHT);
+        display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
+        display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
         return display_info;
     }
 
