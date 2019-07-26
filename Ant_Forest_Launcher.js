@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Jul 25, 2019
- * @version 1.8.1
+ * @last_modified Jul 26, 2019
+ * @version 1.8.2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -78,7 +78,7 @@ function antForest() {
             return main();
         } catch (e) {
             if (e.message && e.message.match("ScriptInterruptedException")) return;
-            messageAction(e, 4, 1, 0, "both_dash");
+            messageAction(e.message, 4, 1, 0, "both_dash");
             killThisApp("com.eg.android.AlipayGphone");
             let current_retry_times = max_retry_times_global_backup - max_retry_times_global;
             messageAction("任务失败重试 (" + current_retry_times + "\/" + max_retry_times_global_backup + ")", 1, 0, 0, "both");
@@ -205,7 +205,7 @@ function prologue() {
                     sleep(200);
                 }
             }
-            messageAction("截取当前屏幕失败", 8, 1, 0, 1);
+            messageAction("截取当前屏幕失败", 9, 1, 0, 1);
         };
 
         current_app = Object.assign({}, current_app, new App("蚂蚁森林"));
@@ -391,7 +391,7 @@ function prologue() {
             if (!max || !+max) return;
 
             threads.start(function () {
-                setTimeout(() => messageAction("超时强制退出", 8, 1, 0, "both_n"), +max * 60000);
+                setTimeout(() => messageAction("超时强制退出", 8, 1, 0, "both_n"), +max * 60000 + 3000);
             });
             debugInfo("单次运行最大超时设置完毕");
         }
@@ -559,13 +559,26 @@ function checkEnergy() {
 
             function checkRipeBalls() {
                 while (1) {
-                    let ripe_balls_nodes = kw_energy_balls("ripe").find();
-                    let ripe_balls_size = ripe_balls_nodes.length;
-                    if (!ripe_balls_size) return;
                     let all_balls_size = kw_energy_balls().find().length;
-                    ripe_balls_nodes.forEach((w) => {
-                        clickAction(w.bounds(), "press", {press_time: config.energy_balls_click_interval});
-                    });
+
+                    let ripe_balls_nodes = null;
+                    let ripe_balls_size = 0;
+
+                    let getRipeBallsNodes = () => ripe_balls_nodes = kw_energy_balls("ripe").find();
+                    let getRipeBallsSize = () => ripe_balls_size = getRipeBallsNodes().length;
+
+                    if (!getRipeBallsSize()) return;
+
+                    let max_try_times = 5;
+                    while (ripe_balls_size && max_try_times--) {
+                        debugInfo("点击自己成熟能量球: " + ripe_balls_size + "个");
+                        ripe_balls_nodes.forEach((w) => {
+                            clickAction(w.bounds(), "press", {press_time: config.energy_balls_click_interval});
+                        });
+                        if (waitForAction(() => getRipeBallsSize() === 0, 2000, 100)) break;
+                    }
+                    if (max_try_times < 0) return;
+
                     current_app.total_energy_collect_own += stabilizer(getOwnEnergyAmount, total_init_data) - total_init_data;
                     total_init_data += current_app.total_energy_collect_own;
                     if (all_balls_size < 6) return true;
@@ -635,7 +648,7 @@ function checkEnergy() {
             }
 
             function checkRemain() {
-                let max_check_time = config.homepage_monitor_threshold * 60000; // ms
+                let max_check_time = config.homepage_monitor_threshold * 60000 + 3000; // ms
                 let old_collect_own = current_app.total_energy_collect_own;
                 let start_timestamp = +new Date();
                 messageAction("Non-stop checking time", null, 1);
@@ -1591,7 +1604,7 @@ function checkEnergy() {
                         invalid_rank_list_ref_data++;
                         if (invalid_rank_list_ref_data > 10) {
                             messageAction("脚本无法继续", 4);
-                            messageAction("排行榜列表参照值异常", 8, 1, 1, 1);
+                            messageAction("排行榜列表参照值异常", 9, 1, 1, 1);
                         }
                     } else debugInfo("参照值: " + tmp_bottom_data);
                 } // wait for data stable
@@ -1678,8 +1691,27 @@ function checkEnergy() {
 
             function checkInvitationBtnColor() {
                 let color = "#30bf6c";
-                if (findColor(current_app.rank_list_capt_img, color, {
-                    region: [cX(0.82), cY(0.12), cX(0.17), cY(0.87)],
+                let multi_colors = [
+                    [0, cY(-9, 16 / 9), -1],
+                    [0, cY(18, 16 / 9), color],
+                    [0, cY(27, 16 / 9), color],
+                    [0, cY(36, 16 / 9), color],
+                    [0, cY(54, 16 / 9), -1],
+                    [cX(45), -9, -1],
+                    [cX(45), 0, color],
+                    [cX(45), cY(18, 16 / 9), color],
+                    [cX(45), cY(27, 16 / 9), color],
+                    [cX(45), cY(36, 16 / 9), color],
+                    [cX(45), cY(54, 16 / 9), -1],
+                    [cX(90), -9, -1],
+                    [cX(90), 0, color],
+                    [cX(90), cY(18, 16 / 9), color],
+                    [cX(90), cY(27, 16 / 9), color],
+                    [cX(90), cY(36, 16 / 9), color],
+                    [cX(90), cY(54, 16 / 9), -1],
+                ];
+                if (images.findMultiColors(current_app.rank_list_capt_img, color, multi_colors, {
+                    region: [cX(0.82), cY(0.62), cX(0.17), cY(0.37)],
                     threshold: 5,
                 })) {
                     debugInfo("列表底部条件满足");
@@ -1867,8 +1899,7 @@ function checkEnergy() {
                 if (current_friend_name in current_app.blacklist) {
                     current_app.friend_drop_by_counter.decrease(current_friend_name);
                     return blackListMsg("exist", "split_line"); // true
-                }
-                else clickRankListItemFunc();
+                } else clickRankListItemFunc();
             }
 
             // tool function(s) //
@@ -1942,7 +1973,7 @@ function checkEnergy() {
             if (!minute) return;
             let countdown = current_app.min_countdown_own; // timestamp
             if (!countdown || countdown === Infinity) return;
-            if (current_app.min_countdown_own - +new Date() <= minute * 60000) {
+            if (current_app.min_countdown_own - +new Date() <= minute * 60000 + 3000) {
                 messageAction("返回蚂蚁森林主页监测自己能量", 1, 1, 0, 1);
                 launchHomepage();
                 checkOwnEnergy();
@@ -2010,7 +2041,7 @@ function checkEnergy() {
                 next_time_arr.push(next_time);
             }
 
-            let next_time = next_time_arr.sort((a, b) => a[0] > b[0] ? 1 : -1)[0];
+            let next_time = next_time_arr.sort((a, b) => a > b ? 1 : -1)[0];
             debugInfo("时间数据: " + getNextTimeStr(next_time));
 
             return next_time;
@@ -2370,12 +2401,13 @@ function showRunningCountdownIfNeeded() {
     if (!current_app.is_screen_on) return;
     if (!config.prompt_before_running_switch) return debugInfo("\"运行前提示\"未开启");
 
-    let dialog_signal = null;
+    let move_on_signal = false;
     let thread_running_countdown = threads.start(function () {
         // let count_down_second = config.prompt_before_running_countdown_seconds;
         let count_down_second = config.prompt_before_running_countdown_seconds + 1; // maybe this is a better scenario than the one above ?
 
         let thread_set_countdown = null;
+        let countdown_stop_signal = false;
 
         let diag = dialogs.builds([
             "运行提示", "\n即将在 " + count_down_second + " 秒内运行\"蚂蚁森林\"任务\n",
@@ -2384,6 +2416,14 @@ function showRunningCountdownIfNeeded() {
             ["立即开始  [ " + count_down_second + " ]", "attraction_btn_color"],
             1,
         ]);
+        diag.setOnKeyListener(
+            function onKey(diag, keyCode, event) {
+                countdown_stop_signal = true;
+                thread_set_countdown && thread_set_countdown.interrupt();
+                pauseCountdownDialog(100);
+                return keyCode === android.view.KeyEvent.KEYCODE_BACK;
+            }
+        ); // to prevent dialog from being dismissed by pressing "back" button (usually by accident)
         diag.on("positive", () => {
             diag.dismiss();
             debugInfo("点击\"" + diag.getActionButton("positive").replace(/ *\[ *\d+ *] */, "") + "\"按钮");
@@ -2401,6 +2441,7 @@ function showRunningCountdownIfNeeded() {
 
         thread_set_countdown = threads.start(function () {
             while (--count_down_second) {
+                if (countdown_stop_signal) return debugInfo("检测到倒计时停止信号");
                 let content_text = diag.getContentView().getText().toString();
                 diag.setContent(content_text.replace(/\d+/, count_down_second));
                 let button_text = diag.getActionButton("positive").replace(/ *\[ *\d+ *]$/, "");
@@ -2416,10 +2457,11 @@ function showRunningCountdownIfNeeded() {
         // tool function(s) //
 
         function actionPositive() {
-            return dialog_signal = true;
+            return move_on_signal = true;
         }
 
         function actionNegative() {
+            countdown_stop_signal = true;
             thread_set_countdown && thread_set_countdown.interrupt();
 
             let no_tasks_scheduled_flag = !timers.queryTimedTasks({
@@ -2446,6 +2488,7 @@ function showRunningCountdownIfNeeded() {
         }
 
         function actionNeutral() {
+            countdown_stop_signal = true;
             thread_set_countdown && thread_set_countdown.interrupt();
 
             if (config.prompt_before_running_postponed_minutes !== 0) {
@@ -2501,13 +2544,14 @@ function showRunningCountdownIfNeeded() {
             pauseCountdownDialog();
         }
 
-        function pauseCountdownDialog() {
+        function pauseCountdownDialog(interval) {
+            interval = typeof interval === "undefined" ? 800 : interval;
             setTimeout(function () {
                 let content_text = diag.getContentView().getText().toString();
                 diag.setContent(content_text.replace(/.*(".+".*任务).*/, "请选择$1运行选项"));
                 let button_text = diag.getActionButton("positive").replace(/ *\[ *\d+ *]$/, "");
                 diag.setActionButton("positive", button_text);
-            }, 800);
+            }, interval);
         }
 
         function setPostponedTaskNow(postponed_minute, diag_postponed) {
@@ -2531,7 +2575,7 @@ function showRunningCountdownIfNeeded() {
         }
     });
 
-    if (!waitForAction(() => dialog_signal, 5 * 60 * 3600)) {
+    if (!waitForAction(() => move_on_signal, 5 * 60 * 3600)) {
         thread_running_countdown.interrupt();
         messageAction("强制结束脚本", 4, 1);
         messageAction("等待运行前对话框操作超时", 8, 1, 0, 1);
@@ -2617,7 +2661,7 @@ function setScreenPixelData(refresh_flag) {
     [WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, screen_orientation] = (function () {
         let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, screen_orientation} = getDisplayParams();
         if (refresh_flag) debugInfo("重新获取屏幕宽高数据");
-        if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 8, 1, 0, 1);
+        if (!WIDTH || !HEIGHT) messageAction("获取屏幕宽高数据失败", 9, 1, 0, 1);
         if (this._monster_$_no_need_unlock_flag) {
             debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
             debugInfo("可用屏幕高度: " + USABLE_HEIGHT);
@@ -3054,7 +3098,7 @@ function loginSpecificUser() {
         jumpBackOnce();
         startActivity(intent_alipay_acc_manager);
     }
-    if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 8, 1);
+    if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 9, 1);
 
     let specific_user = current_app.specific_user;
     let kw_list_arrow = id("com.alipay.mobile.antui:id/list_arrow"),
@@ -3068,7 +3112,7 @@ function loginSpecificUser() {
         kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
     if (clickAction(kw_specific_user_ident)) {
         let condition_click_acc = () => kw_me.exists() || kw_switch_account.exists() || kw_user_acc_input.exists();
-        if (!waitForAction(condition_click_acc, 30000)) messageAction("切换账号点击已有账户时出现未知情况", 8, 1);
+        if (!waitForAction(condition_click_acc, 30000)) messageAction("切换账号点击已有账户时出现未知情况", 9, 1);
         if (kw_me.exists()) return true;
         clickAction(kw_switch_account);
     } else clickAction(kw_login_with_new_user);
@@ -3077,7 +3121,7 @@ function loginSpecificUser() {
     while (!waitForAction(kw_user_acc_input, 10000) && max_try_times_user_acc_input--) {
         clickAction(kw_login_with_new_user) || clickAction(kw_switch_account);
     }
-    if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 8, 1);
+    if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 9, 1);
 
     kw_user_acc_input.findOnce().children().forEach(w => {
         if (w.className() === "android.widget.EditText") w.setText(specific_user.login_username);
@@ -3085,21 +3129,21 @@ function loginSpecificUser() {
     let kw_pw_input = idMatches(/.*userPasswordInput.*/),
         kw_next_step = idMatches(/.*nextButton/);
     if (!kw_pw_input.exists()) {
-        if (!waitForAndClickAction(kw_next_step, 8000)) messageAction("输入用户名后未找到下一步按钮", 8, 1);
+        if (!waitForAndClickAction(kw_next_step, 8000)) messageAction("输入用户名后未找到下一步按钮", 9, 1);
     }
     let max_wait_times_pw_input = 60;
     while (!waitForAction(idMatches(/.*(switchLoginMethodCenter|userPasswordInput).*/), 1000) && max_wait_times_pw_input--) {
         clickAction(id("com.ali.user.mobile.security.ui:id/comfirmSetting")); // "确定" button
         clickAction(kw_next_step);
     }
-    if (max_wait_times_pw_input < 0) return messageAction("输入用户名后下一步操作超时", 8, 1);
+    if (max_wait_times_pw_input < 0) return messageAction("输入用户名后下一步操作超时", 9, 1);
     let kw_switch_login_method = idMatches(/.*switchLoginMethodCenter.*/);
     if (clickAction(kw_switch_login_method)) {
         let kw_login_by_pw = textMatches(/.*(密码登录|with passw).*/);
-        if (!waitForAction(kw_login_by_pw, 8000)) return messageAction("等待切换登录方式页面超时", 8, 1);
+        if (!waitForAction(kw_login_by_pw, 8000)) return messageAction("等待切换登录方式页面超时", 9, 1);
         clickAction(kw_login_by_pw);
     }
-    if (!waitForAction(kw_pw_input, 5000)) messageAction("等待密码输入框超时", 8, 1);
+    if (!waitForAction(kw_pw_input, 5000)) messageAction("等待密码输入框超时", 9, 1);
     kw_pw_input.findOnce().children().forEach(w => {
         if (w.className() === "android.widget.EditText") w.setText(specific_user.login_pw);
     });
@@ -3115,14 +3159,14 @@ function loginSpecificUser() {
     if (!waitForAction(() => {
         clickAction(idMatches(/.*btn_confirm/));
         return case_a.exists() || case_b.exists() || case_c.exists() || case_d.exists() || case_e.exists() || case_f.exists();
-    }, 20000, 1000)) messageAction("登录后检测登录状态失败", 8, 1);
+    }, 20000, 1000)) messageAction("登录后检测登录状态失败", 9, 1);
 
     if (case_a.exists()) return true;
     if (case_b.exists()) return messageAction("登录密码错误", 3, 1);
     if (case_c.exists()) return messageAction("需要验证码", 3, 1);
     if (case_d.exists()) {
         clickAction(textMatches(/进入支付宝|.*[En]ter.*/)); // 英文的text没有具体确定
-        return waitForAction(textMatches(/Me|我的/), 10000) || messageAction("登录账户超时", 8, 1);
+        return waitForAction(textMatches(/Me|我的/), 10000) || messageAction("登录账户超时", 9, 1);
     }
     if (case_e.exists()) return messageAction("需要回答问题", 3, 1);
     if (case_f.exists()) {
