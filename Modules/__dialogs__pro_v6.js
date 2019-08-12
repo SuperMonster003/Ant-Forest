@@ -146,7 +146,7 @@ module.exports = function (__runtime__, scope) {
             common_o.titleColor = title_param[1].match(/_color$/) ? defs[title_param[1]] : title_param[1];
         } else if (title_param) common_o.title = title_param;
         if (typeof content_param === "object") {
-            common_o.content = content_param[0];
+            common_o.content = defs.dialog_contents[content_param[0]] || content_param[0];
             common_o.contentColor = content_param[1].match(/_color$/) ? defs[content_param[1]] : content_param[1];
         } else if (content_param) common_o.content = defs.dialog_contents[content_param] || content_param;
         if (typeof neutral_param === "object") {

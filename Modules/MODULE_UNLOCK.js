@@ -1,7 +1,7 @@
 /**
  * @description module for unlocking your phone by widget capturing with Auto.js
  * @example
- * let module_unlock = new (require("./Modules/MODULE_UNLOCK.js"))();
+ * let module_unlock = new (require("./Modules/MODULE_UNLOCK"))();
  * module_unlock.unlock();
  * @author {@link https://github.com/SuperMonster003}
  */
@@ -19,17 +19,17 @@ let {
 let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = {};
 let device_intro = device.brand + " " + device.product + " " + device.release;
 
-let PWMAP = require("./MODULE_PWMAP.js");
+let PWMAP = require("./MODULE_PWMAP");
 let decrypt = new PWMAP().pwmapDecrypt;
 
-let storage_unlock = require("./MODULE_STORAGE.js").create("unlock");
+let storage_unlock = require("./MODULE_STORAGE").create("unlock");
 let config_storage = storage_unlock.get("config", {});
 let config_default = require("./MODULE_DEFAULT_CONFIG").unlock;
 
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
 let isScreenOn = () => device.isScreenOn();
-let wakeUpDevice = () => device.keepScreenOn(2000);
+let wakeUpDevice = () => device.keepScreenOn(120 * 1000); // 2 min
 
 let init_screen_state = isScreenOn();
 
@@ -41,6 +41,8 @@ let {unlock_max_try_times, unlock_pattern_size} = Object.assign({}, config_defau
 module.exports = function () {
     this.is_screen_on = init_screen_state;
     this.unlock = function () {
+        let dash_line = "__split_line_dash__";
+        debugInfo([dash_line, "尝试自动解锁", dash_line]);
 
         wakeupDeviceIfNeeded();
         setDisplayParams();
@@ -49,32 +51,40 @@ module.exports = function () {
         let checkLockViews = () => checkLockPatternView() || checkPasswordView() || checkPinView() || checkSpecialView();
 
         let max_try_times_unlock = 5;
-        let max_try_times_unlock_backup = max_try_times_unlock;
-        while (!isUnlocked() && max_try_times_unlock--) {
-            let current_try_unlock_time = max_try_times_unlock_backup - max_try_times_unlock;
-            debugInfo("尝试解锁 (" + current_try_unlock_time + "\/" + max_try_times_unlock_backup + ")");
+        let current_try_unlock = 0;
+        let maxTryTimesReached = () => current_try_unlock > max_try_times_unlock;
+
+        while (!isUnlocked() && !maxTryTimesReached()) {
+            let retry_info = " (" + current_try_unlock + "\/" + max_try_times_unlock + ")";
+            debugInfo(current_try_unlock++ ? "重试解锁" + retry_info : "尝试解锁");
             checkPreviewContainer() && dismissLayer();
             checkLockViews() && unlockLockView();
         }
-        if (max_try_times_unlock < 0) errorMsg("无法判断当前解锁条件");
+
+        if (maxTryTimesReached() < 0) return errorMsg("无法判断当前解锁条件");
+
+        debugInfo([dash_line, "自动解锁完毕", dash_line]);
+        return true;
 
         // key function(s) //
 
         function checkPreviewContainer() {
             let samples = {
                 kw_preview_container_common: id("com.android.systemui:id/preview_container"),
+                kw_preview_container_emui: idMatches(/com\.android\.systemui:id\/.*(keyguard|lock)_indication.*/),
+                kw_preview_container_smartisanos: idMatches(/com\.smartisanos\.keyguard:id\/keyguard_(content|.*view)/),
                 // borrowed from e1399579 and modified
                 kw_preview_container_miui: idMatches(/com\.android\.keyguard:id\/(.*unlock_screen.*|.*notification_.*(container|view).*)/),
                 // borrowed from e1399579 and modified
                 kw_preview_container_miui10: idMatches(/com\.android\.systemui:id\/(.*lock_screen_container|notification_(container.*|panel.*)|keyguard_.*)/),
-                kw_preview_container_emui: idMatches(/com\.android\.systemui:id\/.*(keyguard|lock)_indication.*/),
             };
 
             let {
                 kw_preview_container_common,
+                kw_preview_container_emui,
+                kw_preview_container_smartisanos,
                 kw_preview_container_miui,
                 kw_preview_container_miui10,
-                kw_preview_container_emui,
             } = samples;
 
             // will only be effective when no samples were matched
@@ -86,23 +96,28 @@ module.exports = function () {
             }, 1000);
 
             if (kw_preview_container_common.exists()) {
-                debugInfo("匹配到通用解锁页面提示层控件");
+                debugInfo("匹配到通用解锁提示层控件");
                 return (checkPreviewContainer = () => kw_preview_container_common.exists())();
             }
 
+            if (kw_preview_container_emui.exists()) {
+                debugInfo("匹配到EMUI解锁提示层控件");
+                return (checkPreviewContainer = () => kw_preview_container_emui.exists())();
+            }
+
+            if (kw_preview_container_smartisanos.exists()) {
+                debugInfo("匹配到\"锤子科技\"解锁提示层控件");
+                return (checkPreviewContainer = () => kw_preview_container_smartisanos.exists())();
+            }
+
             if (kw_preview_container_miui.exists()) {
-                debugInfo("匹配到MIUI解锁页面提示层控件");
+                debugInfo("匹配到MIUI解锁提示层控件");
                 return (checkPreviewContainer = () => kw_preview_container_miui.exists())();
             }
 
             if (kw_preview_container_miui10.exists()) {
-                debugInfo("匹配到MIUI10解锁页面提示层控件");
+                debugInfo("匹配到MIUI10解锁提示层控件");
                 return (checkPreviewContainer = () => kw_preview_container_miui10.exists())();
-            }
-
-            if (kw_preview_container_emui.exists()) {
-                debugInfo("匹配到EMUI解锁页面提示层控件");
-                return (checkPreviewContainer = () => kw_preview_container_emui.exists())();
             }
         }
 
@@ -181,59 +196,77 @@ module.exports = function () {
         }
 
         function dismissLayer() {
-            let vertical_pts = [0.95, 0.9, 0.82, 0.67, 0.46, 0.05];
+            let {
+                unlock_dismiss_layer_bottom,
+                unlock_dismiss_layer_top,
+                unlock_dismiss_layer_swipe_time,
+            } = Object.assign({}, config_default, config_storage);
 
-            let max_try_times_dismiss_layer = 20;
-            let max_try_times_dismiss_layer_backup = max_try_times_dismiss_layer;
+            let vertical_pts = [unlock_dismiss_layer_bottom, unlock_dismiss_layer_top];
+            let storage_swipe_time = unlock_dismiss_layer_swipe_time;
+            let default_swipe_time = config_default.unlock_dismiss_layer_swipe_time;
+
+            let max_retry_times_dismiss = 30;
+            let current_retry_dismiss = 0;
+            let maxTryTimesReached = () => current_retry_dismiss > max_retry_times_dismiss;
+
             let data_from_storage_flag = false;
             let chances_for_storage_data = 3;
-            let gesture_time = config_storage.dismiss_layer_swipe_time;
+            let gesture_time = storage_swipe_time;
 
             if (gesture_time) data_from_storage_flag = true;
-            else gesture_time = config_default.dismiss_layer_swipe_time;
+            else gesture_time = default_swipe_time;
 
             let half_width = cX(0.5);
             let gesture_params = [];
             vertical_pts.forEach(raw_y => gesture_params.push([half_width, cY(raw_y)]));
 
-            while (max_try_times_dismiss_layer--) {
-                let current_try_dismiss_layer_time = max_try_times_dismiss_layer_backup - max_try_times_dismiss_layer;
-                debugInfo("尝试消除解锁页面提示层 (" + current_try_dismiss_layer_time + "\/" + max_try_times_dismiss_layer_backup + ")");
+            device.keepScreenOn(180000); // 3 min at most
+
+            while (!maxTryTimesReached()) {
+                let retry_info = " (" + current_retry_dismiss + "\/" + max_retry_times_dismiss + ")";
+                debugInfo(current_retry_dismiss ? "重试消除解锁页面提示层" + retry_info : "尝试消除解锁页面提示层");
                 debugInfo("使用滑动时间参数: " + gesture_time);
                 debugInfo(">来源: " + (data_from_storage_flag ? "本地存储" : "自动计算"));
                 gesture.apply(null, [gesture_time].concat(gesture_params));
 
                 if (waitForAction(() => !checkPreviewContainer(), 1500) || checkLockViews()) break;
                 debugInfo("单次消除解锁页面提示层超时");
+                current_retry_dismiss += 1;
 
                 if (data_from_storage_flag) {
                     if (--chances_for_storage_data < 0) {
                         data_from_storage_flag = false;
-                        gesture_time = config_default.dismiss_layer_swipe_time;
+                        gesture_time = default_swipe_time;
                         debugInfo("放弃本地存储数据");
                         debugInfo("从默认值模块获取默认值: " + gesture_time);
                     } else {
                         debugInfo("继续使用本地存储数据");
-                        max_try_times_dismiss_layer += 1;
                     }
                 } else {
-                    let increment = gesture_time <= 130 ? 10 : 80;
+                    let increment = gesture_time < 120 ? 5 : 50; // 105, 110, 115, 120, 170, 220, 270, 320...
                     gesture_time += increment;
                     debugInfo("参数增量: " + increment);
                 }
             }
-            if (max_try_times_dismiss_layer < 0) errorMsg("消除解锁页面提示层失败");
+            if (maxTryTimesReached()) return errorMsg("消除解锁页面提示层失败");
+
+            device.cancelKeepingAwake();
 
             debugInfo("解锁页面提示层消除成功");
-            if (gesture_time !== config_storage.dismiss_layer_swipe_time) {
-                config_storage.dismiss_layer_swipe_time = gesture_time;
-                storage_unlock.put("config", config_storage);
+
+            if (gesture_time !== storage_swipe_time) {
+                storage_unlock.put("config", Object.assign(
+                    {},
+                    storage_unlock.get("config", {}),
+                    {unlock_dismiss_layer_swipe_time: gesture_time}
+                ));
                 debugInfo("存储滑动时长参数: " + gesture_time);
             }
         }
 
         function unlockLockView() {
-            if (!unlock_code) errorMsg("密码为空");
+            if (!unlock_code) return errorMsg("密码为空");
 
             let pin_unlock_identifies = ["com.android.systemui:id/lockPattern"];
 
@@ -249,26 +282,36 @@ module.exports = function () {
             // tool function(s) //
 
             function unlockPattern() {
-                let pattern_unlock_swipe_time = config_storage.pattern_unlock_swipe_time;
-                let unlock_max_try_times_backup = unlock_max_try_times;
+                let max_try_times_unlock_pattern = unlock_max_try_times;
+                let current_try_unlock_pattern = 0;
+                let maxTryTimesReached = () => current_try_unlock_pattern > max_try_times_unlock_pattern;
+
+                let max_swipe_time_limit = 3000;
+                let unlock_pattern_swipe_time = config_storage.unlock_pattern_swipe_time;
+                let swipeTimeOverLimit = () => unlock_pattern_swipe_time > max_swipe_time_limit;
+
                 let data_from_storage_flag = false;
                 let chances_for_storage_data = 3;
 
-                if (pattern_unlock_swipe_time) data_from_storage_flag = true;
-                else pattern_unlock_swipe_time = config_default.pattern_unlock_swipe_time;
+                if (unlock_pattern_swipe_time) data_from_storage_flag = true;
+                else unlock_pattern_swipe_time = config_default.unlock_pattern_swipe_time;
 
-                while (pattern_unlock_swipe_time <= 3000 && unlock_max_try_times-- > 0) {
-
-                    let current_try_unlock_time = unlock_max_try_times_backup - unlock_max_try_times;
-                    debugInfo("尝试图案密码解锁 (" + current_try_unlock_time + "\/" + unlock_max_try_times_backup + ")");
-                    debugInfo("滑动时长参数: " + pattern_unlock_swipe_time);
+                while (!maxTryTimesReached() && !swipeTimeOverLimit()) {
+                    let retry_info = " (" + current_try_unlock_pattern + "\/" + max_try_times_unlock_pattern + ")";
+                    debugInfo(current_try_unlock_pattern++ ? "重试图案密码解锁" + retry_info : "尝试图案密码解锁");
+                    debugInfo("滑动时长参数: " + unlock_pattern_swipe_time);
 
                     let gesture_pts_params = getGesturePtsParams() || errorMsg("图案解锁方案失败", "无法获取点阵布局");
                     let gestures_pts_params = [];
                     for (let i = 0; i < gesture_pts_params.length - 1; i += 1) {
                         let pt1 = gesture_pts_params[i];
                         let pt2 = gesture_pts_params[i + 1];
-                        gestures_pts_params.push([(pattern_unlock_swipe_time - 50) * i, pattern_unlock_swipe_time, [pt1["0"], pt1["1"]], [pt2["0"], pt2["1"]]]);
+                        gestures_pts_params.push([
+                            (unlock_pattern_swipe_time - 50) * i,
+                            unlock_pattern_swipe_time,
+                            [pt1["0"], pt1["1"]],
+                            [pt2["0"], pt2["1"]]
+                        ]);
                     }
                     gestures.apply(null, gestures_pts_params);
 
@@ -277,16 +320,18 @@ module.exports = function () {
                     if (data_from_storage_flag) {
                         if (--chances_for_storage_data < 0) {
                             data_from_storage_flag = false;
-                            pattern_unlock_swipe_time = config_default.pattern_unlock_swipe_time;
+                            unlock_pattern_swipe_time = config_default.unlock_pattern_swipe_time;
                         }
-                    } else pattern_unlock_swipe_time += 80;
+                    } else unlock_pattern_swipe_time += 80;
                 }
-                if (pattern_unlock_swipe_time > 3000 || unlock_max_try_times < 0) errorMsg("图案解锁方案失败");
+
+                if (maxTryTimesReached() || swipeTimeOverLimit()) return errorMsg("图案解锁方案失败");
+
                 debugInfo("图案解锁成功");
-                if (pattern_unlock_swipe_time !== config_storage.pattern_unlock_swipe_time) {
-                    config_storage.pattern_unlock_swipe_time = pattern_unlock_swipe_time;
+                if (unlock_pattern_swipe_time !== config_storage.unlock_pattern_swipe_time) {
+                    config_storage.unlock_pattern_swipe_time = unlock_pattern_swipe_time;
                     storage_unlock.put("config", config_storage);
-                    debugInfo("存储滑动时长参数: " + pattern_unlock_swipe_time);
+                    debugInfo("存储滑动时长参数: " + unlock_pattern_swipe_time);
                 }
                 return true;
 
@@ -320,15 +365,21 @@ module.exports = function () {
                         }
                     }
                     let gesture_pts_params = unlock_code;
-                    if (typeof unlock_code === "string") gesture_pts_params = unlock_code.match(/[^1-9]+/) ? unlock_code.split(/[^1-9]+/).join("").split("") : unlock_code.split("");
-                    return gesture_pts_params.filter(value => +value && points[value]).map(value => [points[value].x, points[value].y]);
+                    if (typeof unlock_code === "string") {
+                        gesture_pts_params = unlock_code.match(/[^1-9]+/)
+                            ? unlock_code.split(/[^1-9]+/).join("").split("")
+                            : unlock_code.split("");
+                    }
+                    return gesture_pts_params
+                        .filter(value => +value && points[value])
+                        .map(value => [points[value].x, points[value].y]);
 
                     // tool function(s) //
 
                     function waitForBoundsStable(view) {
                         let bounds = null;
                         let thread_bounds_stable = threads.start(function () {
-                            let [l, t, r, b] = Array(4).join("1").split("1").map(value => null);
+                            let [l, t, r, b] = Array(4).join("1").split("1").map(() => null);
                             waitForAction(() => {
                                 let key_node = view.findOnce();
                                 if (!key_node) return;
@@ -357,18 +408,23 @@ module.exports = function () {
             function unlockPassword() {
                 let pw = Object.prototype.toString.call(unlock_code).slice(8, -1) === "Array" ? unlock_code.join("") : unlock_code;
                 let kw_confirm_btn = textMatches(/确.|[Cc]onfirm|[Ee]nter/);
-                let unlock_max_try_times_backup = unlock_max_try_times;
 
-                while (unlock_max_try_times--) {
-                    let current_try_unlock_time = unlock_max_try_times_backup - unlock_max_try_times;
-                    debugInfo("尝试密码解锁 (" + current_try_unlock_time + "\/" + unlock_max_try_times_backup + ")");
+                let max_try_unlock_pw = unlock_max_try_times;
+                let current_try_pw = 0;
+                let maxTryTimesReached = () => current_try_pw > max_try_unlock_pw;
+
+                while (!maxTryTimesReached()) {
+                    let retry_info = " (" + current_try_pw + "\/" + max_try_unlock_pw + ")";
+                    debugInfo(current_try_pw++ ? "重试密码解锁" + retry_info : "尝试密码解锁");
                     kw_password_view.setText(pw);
                     if (!handleSpecialPwSituations()) return;
                     if (clickAction(kw_confirm_btn, "widget")) debugInfo("点击确认按钮");
                     if (checkUnlockResult()) break;
-                    if (!shell("input keyevent 66", true.code)) debugInfo("使用Root权限模拟回车键");
+                    if (!shell("input keyevent 66", true).code) debugInfo("使用Root权限模拟回车键");
                 }
-                if (unlock_max_try_times < 0) errorMsg(["密码解锁方案失败", "可能是密码错误", "或无法点击密码确认按钮"]);
+
+                if (maxTryTimesReached()) return errorMsg(["密码解锁方案失败", "可能是密码错误", "或无法点击密码确认按钮"]);
+
                 debugInfo("密码解锁成功");
                 return true;
 
@@ -418,7 +474,9 @@ module.exports = function () {
                             clickAction(idMatches("(key.?)?" + suf_char_refill)) ||
                             clickAction(descMatches("(key.?)?" + suf_char_refill)) ||
                             clickAction([textMatches("(key.?)?" + suf_char_refill)]);
-                        } else errorMsg("解锁失败", "无法判断末位字符类型");
+                        } else {
+                            return errorMsg("解锁失败", "无法判断末位字符类型");
+                        }
 
                         return true;
                     }
@@ -455,7 +513,9 @@ module.exports = function () {
                     if (clickAction(id("com.android.systemui:id/key_enter"), "widget")) debugInfo("点击key_enter控件");
                     if (checkUnlockResult()) break;
                 }
-                if (unlock_max_try_times < 0) errorMsg(["PIN解锁方案失败", "可能是密码错误"]);
+
+                if (unlock_max_try_times < 0) return errorMsg(["PIN解锁方案失败", "可能是密码错误"]);
+
                 debugInfo("PIN解锁成功");
                 return true;
 
@@ -488,7 +548,7 @@ module.exports = function () {
                         }
                         sleep(400);
                     }
-                    errorMsg("无可用的PIN解锁参考控件");
+                    return errorMsg("无可用的PIN解锁参考控件");
 
                     // tool function(s) //
 
@@ -570,8 +630,7 @@ module.exports = function () {
                         let test_nums = "1234567890";
                         let test_result = true;
                         test_nums.split("").forEach(num => test_result = test_result && func(num).exists());
-                        if (!test_result) errorMsg(["PIN解锁方案失败", "未能通过全部控件检测"]);
-                        return true;
+                        return test_result ? true : errorMsg(["PIN解锁方案失败", "未能通过全部控件检测"]);
                     }
                 }
             }
@@ -631,8 +690,9 @@ module.exports = function () {
         // tool function(s) //
 
         function errorMsg(msg) {
+            device.cancelKeepingAwake();
             if (typeof msg === "string") msg = [msg];
-            messageAction("解锁失败", 4, 1);
+            messageAction("解锁失败", 4, 1, 0, "up");
             msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
             messageAction(device_intro, 4, 0, 2, 1);
             captureErrScreen("unlock_failed", 1);
@@ -642,15 +702,19 @@ module.exports = function () {
 
         function wakeupDeviceIfNeeded() {
             if (isScreenOn()) return;
-            let safe_max_wakeup_times = 6; // 3 sec
-            let safe_max_wakeup_times_backup = safe_max_wakeup_times;
-            while (safe_max_wakeup_times--) {
-                let current_wakeup_time = safe_max_wakeup_times_backup - safe_max_wakeup_times;
-                debugInfo("尝试唤起设备 (" + current_wakeup_time + "\/" + safe_max_wakeup_times_backup + ")");
+
+            let max_try_times_wakeup = 6; // 3 sec
+            let current_try_wakeup = 0;
+            let maxTryTimesReached = () => current_try_wakeup > max_try_times_wakeup;
+
+            while (!maxTryTimesReached()) {
+                let retry_info = " (" + current_try_wakeup + "\/" + max_try_times_wakeup + ")";
+                debugInfo(current_try_wakeup++ ? "重试唤起设备" + retry_info : "尝试唤起设备");
                 wakeUpDevice();
                 if (waitForAction(isScreenOn, 500, 100)) break;
             }
-            safe_max_wakeup_times < 0 ? errorMsg("设备唤起失败") : debugInfo("设备唤起成功");
+
+            return maxTryTimesReached() ? errorMsg("设备唤起失败") : debugInfo("设备唤起成功");
         }
 
         function setDisplayParams() {
@@ -661,7 +725,7 @@ module.exports = function () {
             if (!WIDTH || !HEIGHT) errorMsg("获取屏幕宽高数据失败");
             debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
             debugInfo("可用屏幕高度: " + USABLE_HEIGHT);
-            if (typeof cX !== "function" || typeof cY !== "function") errorMsg("屏幕像素伸缩方法无效");
+            if (typeof cX !== "function" || typeof cY !== "function") return errorMsg("屏幕像素伸缩方法无效");
         }
     };
 };

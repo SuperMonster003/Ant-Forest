@@ -8,33 +8,40 @@
 ### 小私房话
 ******
 :lock:  
-裸辞已整整一年  
-需继续潜心修行 以求生计  
-预启动项目全部废弃  
-蚂蚁森林项目由每日更新改为不定期更新  
-账户功能/定时任务功能无限延期    
-望大家理解  
+裸辞已超一年  
+需 继续潜心修行 以求生计  
+故 预启动项目全部废弃  
   
 :heart:  
+蚂蚁森林项目仍保持不定期更新  
 感谢一路走来给予我支持和鼓励的朋友  
 
 ******
 ### 使用说明
 ******
-1. 下载项目 ([点此下载最新项目包](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip) 或 点击页面右侧绿色 `Clone or download` 按钮 手机浏览器需在项目主页拉到底部点击 `Desktop version`)  
-2. 将项目中的全部文件放置于手机存储 (推荐 `Auto.js` 默认可识别目录 如 `/sdcard/Scripts/` 或 `/sdcard/脚本/` )  
-3. 使用 `Auto.js` 运行 `Ant_Forest_Launcher.js` 文件  
+1. 下载项目  
+[点击可直接下载最新项目包](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip)  
+或点击页面右侧绿色 `Clone or download` 按钮  
+手机浏览器需在项目主页拉到底部点击 `Desktop version`  
+2. 将项目中的全部文件放置于手机存储  
+中文系统默认目录 `/sdcard/Scripts/`  
+英文系统默认目录 `/sdcard/脚本/`  
+3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
+运行 `Ant_Forest_Launcher.js` 文件可启动项目    
+运行 `Ant_Forest_Settings.js` 文件可进行项目配置  
 4. 欢迎使用并反馈  
   
 > 安卓系统最低版本: `7.0` / `Android Nougat` / `Android N`  
-> Root: `无需Root`
+> Root: `不必要` `(但无Root权限将影响部分功能 如关闭屏幕/强制停止应用等)`
   
-> "Auto.js"已测试版本:   
+> "Auto.js"已测试版本:  
+>> `-- 免费版本 --`  
 >> [`4.1.0 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha%5D(7312bb3f).apk?raw=true)  
 >> [`4.1.0 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha2%5D(3a990e03).apk?raw=true)  
->> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true) `(推荐)`  
+>> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true)    
 >> [`4.1.1 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.1_alpha%5D(accea680).apk?raw=true)  
 >> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true) `(推荐)`  
+>> `-- 付费版本 --`  
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
 >> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)      
@@ -42,9 +49,8 @@
 >> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true)      
 >> [`Pro 7.0.3-7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-7%5D(CC30BF10).apk?raw=true)      
 >> [`Pro 7.0.4-1`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.4-1%5D(31B16C93).apk?raw=true) `(推荐)`    
-
->"Auto.js"不适用版本:
->> [`查看其他版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
+>> `-- 不适用版本 --`  
+>> [`查看不适用版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
 ******
 ### 功能简介
@@ -91,11 +97,41 @@
 ·  脚本在网络条件较差时仍可正常运行或识别异常  
 * 图形配置页面  
 ·  操作便捷内容丰富的项目参数配置  
-* ###### 其他功能详见[使用说明书](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md)
+* ###### 其他功能详见[使用说明书](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md) (尚未完善)
 
 ******
 ### 版本历史
 ******
+# v1.8.3
+###### 2019/08/12
+* `新增` 帮收功能有效时段功能及配置
+* `新增` 排行榜截图样本池差异检测功能及阈值配置  
+* `新增` 全局事件监测机制 (屏幕关闭/通话状态)  
+* `新增` 通话状态监测配置  
+* `新增` Floaty悬浮窗结果展示时长配置  
+* `新增` 解锁提示层页面滑动起止点位置配置  
+* `新增` 支付宝应用保留配置  
+* `修复` 部分机型无法识别解锁提示层页面的问题  
+* `修复` 进入排行榜列表时可能出现的Activity加载失败问题  
+* `修复` 排行榜滑动时无法识别"服务器打瞌睡了"页面的问题  
+* `修复` 自己能量球数量等于6时可能无法退出监测的问题  
+* `修复` 排行榜"邀请"按钮识别条件过于苛刻导致识别异常的问题  
+* `修复` 连续快速点击推迟按钮可能出现多个定时任务的问题  
+* `优化` 部分工具函数模块化  
+·  getSelector()  
+·  selExists()  
+·  surroundWith()  
+·  phoneCallingState()  
+·  timeRecorder()
+* `优化` 通过点击屏幕外部坐标实现阻止屏幕超时关闭  
+* `优化` 自动更新排行榜列表底部控件图片模板避免无限滑动问题  
+* `优化` debugInfo()内部逻辑  
+* `优化` Floaty结果展示内部逻辑及稳定性  
+* `优化` setTimePickerView()模块化  
+* `优化` setTimePickerView()自动设置初始值并使用24小时制
+* `优化` 全局变量明确声明以避免this关键字指向对象被污染  
+* `优化` 解锁提示层页面上滑时长自动设置逻辑 (硬初始化)  
+
 # v1.8.2
 ###### 2019/07/26
 * `修复` 全屏View页面返回键双响应及页面点击穿透问题  

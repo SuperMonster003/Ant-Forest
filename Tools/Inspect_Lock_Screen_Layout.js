@@ -18,7 +18,7 @@ let HEIGHT = device.height;
 let cX = num => ~~(num * WIDTH / (num >= 1 ? 720 : 1));
 let cY = num => ~~(num * HEIGHT / (num >= 1 ? 1280 : 1)); // scaled by actual ratio
 
-let storage_unlock = require("../Modules/MODULE_STORAGE.js").create("unlock");
+let storage_unlock = require("../Modules/MODULE_STORAGE").create("unlock");
 let config_storage = storage_unlock.get("config", {});
 let config_default = require("../Modules/MODULE_DEFAULT_CONFIG").unlock;
 let path_base = files.getSdcardPath() + "/!Debug_Info/";
@@ -197,10 +197,10 @@ function dismissLayer() {
     let max_try_times_dismiss_layer = 20;
     let data_from_storage_flag = false;
     let chances_for_storage_data = 3;
-    let gesture_time = config_storage.dismiss_layer_swipe_time;
+    let gesture_time = config_storage.unlock_dismiss_layer_swipe_time;
 
     if (gesture_time) data_from_storage_flag = true;
-    else gesture_time = config_default.dismiss_layer_swipe_time;
+    else gesture_time = config_default.unlock_dismiss_layer_swipe_time;
 
     let half_width = cX(0.5);
     let gesture_params = [];
@@ -214,7 +214,7 @@ function dismissLayer() {
         if (data_from_storage_flag) {
             if (--chances_for_storage_data < 0) {
                 data_from_storage_flag = false;
-                gesture_time = config_default.dismiss_layer_swipe_time;
+                gesture_time = config_default.unlock_dismiss_layer_swipe_time;
             } else max_try_times_dismiss_layer += 1;
         } else gesture_time += (gesture_time <= 130 ? 10 : 80);
     }
