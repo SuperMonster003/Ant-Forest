@@ -1,13 +1,9 @@
 "ui";
-try {
-    auto.waitFor();
-} catch (e) {
-    auto();
-}
+auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
 
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
-// in another way, maybe sometimes dialogs.builds() could make things easier
-let dialogs = require("./Modules/__dialogs__pro_v6.js")(runtime, this);
+// in another way, dialogs.builds() could make things easier sometimes
+let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, this);
 
 threads.starts = (f, error_msg_consume_flag) => {
     try {
@@ -28,31 +24,20 @@ let {
     clickAction,
     waitForAction,
     waitForAndClickAction,
+    phoneCallingState,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
-let [
-    session_params,
-    view_pages,
-    dynamic_views,
-    rolling_pages,
-    sub_page_views,
-    def,
-] = [{}, {}, [], [], [], undefined];
+let session_params = {};
+let view_pages = {};
+let dynamic_views = [];
+let rolling_pages = [];
+let sub_page_views = [];
+let def = undefined;
 
-let {WIDTH, HEIGHT, USABLE_HEIGHT, status_bar_height, action_bar_default_height, navigation_bar_height, cX, cY} = getDisplayParams();
-
-let DEFAULT_CONFIG = require("./Modules/MODULE_DEFAULT_CONFIG");
-let STORAGE = require("./Modules/MODULE_STORAGE");
-let PWMAP = require("./Modules/MODULE_PWMAP.js");
-
-let DEFAULT_AF = DEFAULT_CONFIG.af;
-let DEFAULT_UNLOCK = DEFAULT_CONFIG.unlock;
-let DEFAULT_SETTINGS = DEFAULT_CONFIG.settings;
-
-let storage_cfg = STORAGE.create("af_cfg");
-let storage_af = STORAGE.create("af");
-let storage_unlock = STORAGE.create("unlock");
-let encrypt = new PWMAP().pwmapEncrypt;
+let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, status_bar_height, action_bar_default_height, navigation_bar_height} = getDisplayParams();
+let {DEFAULT_AF, DEFAULT_UNLOCK, DEFAULT_SETTINGS} = getDefaultConfigParams();
+let {storage_cfg, storage_af, storage_unlock} = getStorageParams();
+let encrypt = new (require("./Modules/MODULE_PWMAP"))().pwmapEncrypt;
 
 let storage_config = initStorageConfig();
 let session_config = deepCloneObject(storage_config);
@@ -95,20 +80,20 @@ let list_heads = {
         {version_name: "项目版本", width: 0.5},
         {
             timestamp: "项目备份时间", sort: -1, stringTransform: {
-                forward: data => getTimestamp(data, "time_str"),
+                forward: data => getTimeStrFromTimestamp(data, "time_str"),
                 backward: restoreFromTimestamp,
             }
         },
     ],
     server_releases_info: [
         {tag_name: "项目标签", width: 0.5},
-        {created_at: "创建时间 (UTC格式)", sort: -1},
+        {created_at: "创建时间 (UTC时间)", sort: -1},
     ],
     blacklist_by_user: [
         {name: "支付宝好友昵称", width: 0.58},
         {
             timestamp: "黑名单自动解除", sort: 1, stringTransform: {
-                forward: data => getTimestamp(data, "time_str_remove"),
+                forward: data => getTimeStrFromTimestamp(data, "time_str_remove"),
                 backward: restoreFromTimestamp,
             }
         },
@@ -117,7 +102,7 @@ let list_heads = {
         {name: "支付宝好友昵称", width: 0.58},
         {
             timestamp: "黑名单自动解除", sort: 1, stringTransform: {
-                forward: data => getTimestamp(data, "time_str_remove"),
+                forward: data => getTimeStrFromTimestamp(data, "time_str_remove"),
                 backward: restoreFromTimestamp,
             }
         },
@@ -125,8 +110,8 @@ let list_heads = {
     timers_uninterrupted_check_sections: [
         {
             section: "时间区间", width: 0.58, sort: 1, stringTransform: {
-                forward: data => data.join(" - ") + (data[1] <= data[0] ? " (+1)" : ""),
-                backward: str => str.replace(/ \(\+1\)/g, "").split(" - "),
+                forward: timeSectionToStr,
+                backward: timeStrToSection,
             }
         },
         {interval: "间隔 (分)"},
@@ -191,7 +176,7 @@ let homepage = setHomePage(defs.homepage_title)
     .add("options_lazy", new Layout("黑名单管理", {
         next_page: "blacklist_page",
     }))
-    .add("options_lazy", new Layout("脚本运行安全", {
+    .add("options_lazy", new Layout("运行与安全", {
         next_page: "script_security_page",
     }))
     .add("sub_head", new Layout("备份与还原"))
@@ -795,6 +780,45 @@ addPage(() => {
                 view._hint.text(session_config[this.config_conj].toString() + " ms");
             },
         }))
+        .add("button", new Layout("有效时段", {
+            config_conj: "help_collect_section",
+            hint: "加载中...",
+            newWindow: function () {
+                let init_value = session_config[this.config_conj];
+                setTimePickerView({
+                    picker_views: [
+                        {type: "time", text: "设置开始时间", init: init_value[0]},
+                        {type: "time", text: "设置结束时间", init: init_value[1]},
+                    ],
+                    time_str: {
+                        suffix: (getStrFunc) => {
+                            if (getStrFunc(2).default() < getStrFunc(1).default()) return "(+1)";
+                        },
+                        middle: (getStrFunc) => {
+                            if (getStrFunc(2).default() === getStrFunc(1).default()) return "全天";
+                        },
+                    },
+                    buttons: {
+                        reserved_btn: {
+                            text: "设置 '全天'",
+                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
+                                closeTimePickerPage("全天");
+                            },
+                        },
+                    },
+                    onFinish: (return_value) => {
+                        let section = return_value === "全天" ? [] : timeStrToSection(return_value);
+                        if (section[0] === section[1]) section = DEFAULT_AF[this.config_conj];
+                        saveSession(this.config_conj, section);
+                    },
+                });
+            },
+            updateOpr: function (view) {
+                let session_value = session_config[this.config_conj] || DEFAULT_AF[this.config_conj]; // Array
+                let hint_text = session_value[0] === session_value[1] ? "全天" : timeSectionToStr(session_value);
+                view._hint.text(hint_text);
+            },
+        }))
         .add("options", new Layout("排行榜样本采集", {
             next_page: "rank_list_samples_collect_page",
         }))
@@ -1024,12 +1048,39 @@ addPage(() => {
         }))
         .add("split_line")
         .add("sub_head", new Layout("高级设置"))
-        .add("button", new Layout("锁屏页面上滑时长", {
-            config_conj: "dismiss_layer_swipe_time",
+        .add("button", new Layout("最大尝试次数", {
+            config_conj: "unlock_max_try_times",
             hint: "加载中...",
             newWindow: function () {
                 let diag = dialogs.builds([
-                    "设置锁屏页面上滑时长", this.config_conj,
+                    "设置解锁最大尝试次数", "",
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|5<=x<=50,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 50 || value < 5) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("提示层页面设置", {sub_head_color: "#bf360c"}))
+        .add("button", new Layout("上滑时长", {
+            config_conj: "unlock_dismiss_layer_swipe_time",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "提示层页面上滑时长", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|110<=x<=1000,x∈N}"});
                 diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
@@ -1049,8 +1100,64 @@ addPage(() => {
                 view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
             },
         }))
-        .add("button", new Layout("图案解锁滑动时长", {
-            config_conj: "pattern_unlock_swipe_time",
+        .add("button", new Layout("起点位置", {
+            config_conj: "unlock_dismiss_layer_bottom",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "提示层页面起点位置", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|0.5<=x<=0.95,x∈R+}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    input = +input;
+                    if (isNaN(input)) return alertTitle(dialog, "输入值类型不合法");
+                    let value = +(input.toFixed(2));
+                    if (value > 0.95 || value < 0.5) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
+                view._hint.text(value.toString() + "% H");
+            },
+        }))
+        .add("button", new Layout("终点位置", {
+            config_conj: "unlock_dismiss_layer_top",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "提示层页面终点位置", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|0.05<=x<=0.3,x∈R+}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    input = +input;
+                    if (isNaN(input)) return alertTitle(dialog, "输入值类型不合法");
+                    let value = +(input.toFixed(2));
+                    if (value > 0.3 || value < 0.05) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
+                view._hint.text(value.toString() + "% H");
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("图案解锁设置", {sub_head_color: "#bf360c"}))
+        .add("button", new Layout("滑动时长", {
+            config_conj: "unlock_pattern_swipe_time",
             hint: "加载中...",
             newWindow: function () {
                 let diag = dialogs.builds([
@@ -1074,7 +1181,7 @@ addPage(() => {
                 view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
             },
         }))
-        .add("button", new Layout("图案解锁点阵边长", {
+        .add("button", new Layout("点阵边长", {
             config_conj: "unlock_pattern_size",
             hint: "加载中...",
             newWindow: function () {
@@ -1090,31 +1197,6 @@ addPage(() => {
                     let value = +input;
                     if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
                     if (value > 6 || value < 3) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
-            },
-        }))
-        .add("button", new Layout("最大尝试次数", {
-            config_conj: "unlock_max_try_times",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag = dialogs.builds([
-                    "设置解锁最大尝试次数", "",
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|5<=x<=50,x∈N}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 50 || value < 5) return alertTitle(dialog, "输入值范围不合法");
                     saveSession(this.config_conj, ~~value);
                     diag.dismiss();
                 });
@@ -1289,7 +1371,9 @@ addPage(() => {
             config_conj: "floaty_result_switch",
             listeners: {
                 "check": function (checked, view) {
-                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(view.text)]);
+                    let {text} = view;
+                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
+                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
                 },
             },
             updateOpr: function (view) {
@@ -1299,6 +1383,11 @@ addPage(() => {
                 let child_view = view._radiogroup.getChildAt(child_idx);
                 !child_view.checked && child_view.setChecked(true);
             },
+        }))
+        .add("seekbar", new Layout("时长", {
+            config_conj: "floaty_result_countdown",
+            nums: [2, 10],
+            unit: "s",
         }))
         .add("split_line")
         .add("sub_head", new Layout("帮助与支持"))
@@ -1712,7 +1801,7 @@ addPage(() => {
         .ready();
 }); // blacklist_page
 addPage(() => {
-    setPage(["脚本运行安全", "script_security_page"])
+    setPage(["运行与安全", "script_security_page"])
         .add("sub_head", new Layout("基本设置"))
         .add("button", new Layout("运行失败自动重试", {
             config_conj: "max_retry_times_global",
@@ -1820,6 +1909,22 @@ addPage(() => {
             },
             updateOpr: function (view) {
                 view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
+            },
+        }))
+        .add("options", new Layout("支付宝应用保留", {
+            config_conj: "kill_when_done_switch",
+            hint: "加载中...",
+            next_page: "kill_when_done_page",
+            updateOpr: function (view) {
+                view._hint.text(!session_config[this.config_conj] ? "已开启" : "已关闭");
+            },
+        }))
+        .add("options", new Layout("通话状态监测", {
+            config_conj: "phone_call_state_monitor_switch",
+            hint: "加载中...",
+            next_page: "phone_call_state_monitor_page",
+            updateOpr: function (view) {
+                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
             },
         }))
         .ready();
@@ -2160,7 +2265,7 @@ addPage(() => {
                     itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()),
                 });
                 diag.on("neutral", () => {
-                    let diag_about = dialogs.builds(["关于采集策略", "about_rank_list_samples_collect_strategy", 0, 0, "关闭", 1])
+                    let diag_about = dialogs.builds(["关于采集策略", "about_rank_list_samples_collect_strategy", 0, 0, "关闭", 1]);
                     diag_about.on("positive", () => diag_about.dismiss());
                     diag_about.show();
                 });
@@ -2173,6 +2278,31 @@ addPage(() => {
             },
             updateOpr: function (view) {
                 view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()]);
+            },
+        }))
+        .add("button", new Layout("截图样本池差异检测阈值", {
+            config_conj: "rank_list_capt_pool_diff_check_threshold",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "排行榜截图差异检测阈值", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|5<=x<=800,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 800 || value < 5) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
             },
         }))
         .ready();
@@ -2223,6 +2353,137 @@ addPage(() => {
         }))
         .ready();
 }); // rank_list_auto_expand_page
+addPage(() => {
+    setPage(["通话状态监测", "phone_call_state_monitor_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "phone_call_state_monitor_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("高级设置"))
+        .add("button", new Layout("空闲状态值", {
+            config_conj: "phone_call_state_idle_value",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "通话空闲状态值", this.config_conj,
+                    ["获取空闲值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|x∈N*}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(phoneCallingState().toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    value = ~~value;
+                    if (value !== phoneCallingState()) {
+                        let diag_confirm = dialogs.builds([
+                            ["小心", "#880e4f"], ["phone_call_state_idle_value_warn", "#ad1457"],
+                            0, "放弃", ["确定", "warn_btn_color"], 1,
+                        ]);
+                        diag_confirm.on("negative", () => diag_confirm.dismiss());
+                        diag_confirm.on("positive", () => {
+                            diag_confirm.dismiss();
+                            saveSession(this.config_conj, value);
+                            diag.dismiss();
+                        });
+                        diag_confirm.show();
+                    } else {
+                        saveSession(this.config_conj, value);
+                        diag.dismiss();
+                    }
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = DEFAULT_AF[this.config_conj];
+                let storage_value = session_config[this.config_conj];
+                if (typeof storage_value !== "undefined") value = storage_value;
+                view._hint.text(value === undefined ? "未配置" : value.toString());
+            },
+        }))
+        .ready();
+}); // phone_call_state_monitor_page
+addPage(() => {
+    setPage(["支付宝应用保留", "kill_when_done_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "kill_when_done_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("支付宝应用保留", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("radio", new Layout(["智能保留", "总是保留"], {
+            values: [true, false],
+            config_conj: "kill_when_done_intelligent",
+            listeners: {
+                "check": function (checked, view) {
+                    let {text} = view;
+                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
+                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = session_config[this.config_conj];
+                let child_idx = this.values.indexOf(session_conf);
+                if (!~child_idx) return;
+                let child_view = view._radiogroup.getChildAt(child_idx);
+                !child_view.checked && child_view.setChecked(true);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("蚂蚁森林页面保留", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("radio", new Layout(["智能剔除", "全部保留"], {
+            values: [false, true],
+            config_conj: "kill_when_done_keep_af_pages",
+            listeners: {
+                "check": function (checked, view) {
+                    let {text} = view;
+                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
+                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = session_config[this.config_conj];
+                let child_idx = this.values.indexOf(session_conf);
+                if (!~child_idx) return;
+                let child_view = view._radiogroup.getChildAt(child_idx);
+                !child_view.checked && child_view.setChecked(true);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("帮助与支持"))
+        .add("button", new Layout("了解更多", {
+            newWindow: function () {
+                let diag = dialogs.builds(["关于支付宝应用保留", "about_kill_when_done", 0, 0, "关闭", 1]);
+                diag.on("positive", () => diag.dismiss());
+                diag.show();
+            },
+        }))
+        .ready();
+}); // kill_when_done_page
 addPage(() => {
     setPage(["排行榜样本复查", "rank_list_review_page"], def, def, {
         check_page_state: (view) => {
@@ -2383,89 +2644,36 @@ addPage(() => {
 
                             if (list_item_prefix === "解除时间") {
                                 edit_item_diag.dismiss();
-                                ui.main.getParent().addView(setTimePickerView());
-                            }
-
-                            // tool function(s) //
-
-                            function setTimePickerView() {
-                                session_params.back_btn_consumed = true;
-                                let time_picker_view = ui.inflate(
-                                    <frame bg="#ffffff" clickable="true" focusable="true">
-                                        <scroll>
-                                            <vertical padding="16">
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" marginTop="15">
-                                                    <text text="设置日期" textColor="#01579b" textSize="16sp"/>
-                                                </frame>
-                                                <datepicker h="160" id="datepicker" datePickerMode="spinner" marginTop="-10"/>
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" marginTop="15">
-                                                    <text text="设置时间" textColor="#01579b" textSize="16sp"/>
-                                                </frame>
-                                                <timepicker h="160" id="timepicker" timePickerMode="spinner" marginTop="-10"/>
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
-                                                    <text id="time_str" text="" textColor="#bf360c" textSize="15sp"/>
-                                                </frame>
-                                                <horizontal w="auto" layout_gravity="center">
-                                                    <button id="back_btn" text="返回" margin="10 0" backgroundTint="#eeeeee"/>
-                                                    <button id="zero_btn" text="设置 '永不'" margin="10 0" backgroundTint="#fff9c4"/>
-                                                    <button id="confirm_btn" text="确认选择" margin="10 0" backgroundTint="#dcedc8"/>
-                                                    <button id="add_btn" text="增加" margin="10 0" visibility="gone"/>
-                                                </horizontal>
-                                            </vertical>
-                                        </scroll>
-                                    </frame>
-                                );
-
-                                setTimeStr();
-                                time_picker_view.setTag("time_picker");
-
-                                time_picker_view.datepicker.setOnDateChangedListener(setTimeStr);
-                                time_picker_view.timepicker.setOnTimeChangedListener(setTimeStr);
-                                time_picker_view.back_btn.on("click", () => closeTimePickerPage());
-                                time_picker_view.zero_btn.on("click", () => closeTimePickerPage(Infinity));
-                                time_picker_view.confirm_btn.on("click", () => {
-                                    let datepicker = time_picker_view.datepicker;
-                                    let timepicker = time_picker_view.timepicker;
-                                    let set_time = new Date(datepicker.getYear(), datepicker.getMonth(), datepicker.getDayOfMonth(), timepicker.getCurrentHour(), timepicker.getCurrentMinute()).getTime();
-                                    if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
-                                    closeTimePickerPage(set_time);
+                                let init_value = restoreFromTimestamp(list_item_content);
+                                if (!isFinite(init_value)) init_value = null;
+                                setTimePickerView({
+                                    picker_views: [
+                                        {type: "date", text: "设置日期", init: init_value},
+                                        {type: "time", text: "设置时间", init: init_value},
+                                    ],
+                                    time_str: {
+                                        prefix: "已选择",
+                                    },
+                                    buttons: {
+                                        reserved_btn: {
+                                            text: "设置 '永不'",
+                                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
+                                                closeTimePickerPage(Infinity);
+                                            },
+                                        },
+                                        confirm_btn: {
+                                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
+                                                let set_time = getTimeStrFromPicker(0).timestamp();
+                                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                                closeTimePickerPage(set_time);
+                                            },
+                                        },
+                                    },
+                                    onFinish: (return_value) => {
+                                        edit_item_diag.show();
+                                        refreshItems(list_item_prefix, getTimeStrFromTimestamp(return_value, "time_str_remove"));
+                                    },
                                 });
-
-                                session_params.back_btn_consumed_func = () => time_picker_view.back_btn.click();
-
-                                return time_picker_view;
-
-                                // tool function(s) //
-
-                                function setTimeStr() {
-                                    let datepicker = time_picker_view.datepicker;
-                                    let timepicker = time_picker_view.timepicker;
-                                    let fillZero = num => ("0" + num).slice(-2);
-                                    let time_str = "已选择:  " +
-                                        datepicker.getYear() + "年" +
-                                        fillZero(datepicker.getMonth() + 1) + "月" +
-                                        fillZero(datepicker.getDayOfMonth()) + "日 " +
-                                        fillZero(timepicker.getCurrentHour()) + ":" +
-                                        fillZero(timepicker.getCurrentMinute());
-                                    time_picker_view.time_str.setText(time_str);
-                                }
-
-                                function closeTimePickerPage(return_value) {
-                                    session_params.back_btn_consumed = false;
-                                    edit_item_diag.show();
-                                    let parent = ui.main.getParent();
-                                    let child_count = parent.getChildCount();
-                                    for (let i = 0; i < child_count; i += 1) {
-                                        let child_view = parent.getChildAt(i);
-                                        if (child_view.findViewWithTag("time_picker")) parent.removeView(child_view);
-                                    }
-                                    if (typeof return_value !== "undefined") {
-                                        refreshItems(list_item_prefix, getTimestamp(return_value, "time_str_remove"));
-                                    }
-                                }
                             }
                         });
                         edit_item_diag.show();
@@ -2596,7 +2804,21 @@ addPage(() => {
 
                             if (list_item_prefix === "区间") {
                                 edit_item_diag.dismiss();
-                                ui.main.getParent().addView(setTimePickerView());
+                                setTimePickerView({
+                                    picker_views: [
+                                        {type: "time", text: "设置开始时间", init: timeStrToSection(list_item_content)[0]},
+                                        {type: "time", text: "设置结束时间", init: timeStrToSection(list_item_content)[1]},
+                                    ],
+                                    time_str: {
+                                        suffix: (getStrFunc) => {
+                                            if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
+                                        },
+                                    },
+                                    onFinish: (return_value) => {
+                                        edit_item_diag.show();
+                                        return_value && refreshItems(list_item_prefix, return_value);
+                                    },
+                                });
                             }
 
                             if (list_item_prefix === "间隔") {
@@ -2615,79 +2837,6 @@ addPage(() => {
                                     diag.dismiss();
                                 });
                                 diag.show();
-                            }
-
-                            // tool function(s) //
-
-                            function setTimePickerView() {
-                                session_params.back_btn_consumed = true;
-                                let time_picker_view = ui.inflate(
-                                    <frame bg="#ffffff" clickable="true" focusable="true">
-                                        <scroll>
-                                            <vertical padding="16">
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" marginTop="15">
-                                                    <text text="设置开始时间" textColor="#01579b" textSize="16sp"/>
-                                                </frame>
-                                                <timepicker h="160" id="timepicker_start" timePickerMode="spinner" marginTop="-10"/>
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" marginTop="15">
-                                                    <text text="设置结束时间" textColor="#01579b" textSize="16sp"/>
-                                                </frame>
-                                                <timepicker h="160" id="timepicker_end" timePickerMode="spinner" marginTop="-10"/>
-                                                <frame h="1" bg="#acacac" w="*"/>
-                                                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
-                                                    <text id="time_str" text="" textColor="#bf360c" textSize="15sp" gravity="center"/>
-                                                </frame>
-                                                <horizontal w="auto" layout_gravity="center">
-                                                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
-                                                    <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
-                                                </horizontal>
-                                            </vertical>
-                                        </scroll>
-                                    </frame>
-                                );
-
-                                setTimeStr();
-                                time_picker_view.setTag("time_picker");
-
-                                time_picker_view.timepicker_start.setOnTimeChangedListener(setTimeStr);
-                                time_picker_view.timepicker_end.setOnTimeChangedListener(setTimeStr);
-                                time_picker_view.back_btn.on("click", () => closeTimePickerPage());
-                                time_picker_view.confirm_btn.on("click", () => closeTimePickerPage(time_picker_view.time_str.getText()));
-
-                                session_params.back_btn_consumed_func = () => time_picker_view.back_btn.click();
-
-                                return time_picker_view;
-
-                                // tool function(s) //
-
-                                function setTimeStr() {
-                                    let timepicker_start = time_picker_view.timepicker_start;
-                                    let timepicker_end = time_picker_view.timepicker_end;
-                                    let fillZero = num => ("0" + num).slice(-2);
-                                    let time_str_start = fillZero(timepicker_start.getCurrentHour()) +
-                                        ":" + fillZero(timepicker_start.getCurrentMinute());
-                                    let time_str_end = fillZero(timepicker_end.getCurrentHour()) +
-                                        ":" + fillZero(timepicker_end.getCurrentMinute());
-                                    let time_str = time_str_start + " - " + time_str_end;
-                                    if (time_str_end <= time_str_start) time_str += " (+1)";
-                                    time_picker_view.time_str.setText(time_str);
-                                }
-
-                                function closeTimePickerPage(return_value) {
-                                    session_params.back_btn_consumed = false;
-                                    edit_item_diag.show();
-                                    let parent = ui.main.getParent();
-                                    let child_count = parent.getChildCount();
-                                    for (let i = 0; i < child_count; i += 1) {
-                                        let child_view = parent.getChildAt(i);
-                                        if (child_view.findViewWithTag("time_picker")) parent.removeView(child_view);
-                                    }
-                                    if (typeof return_value !== "undefined") {
-                                        refreshItems(list_item_prefix, return_value);
-                                    }
-                                }
                             }
                         });
                         edit_item_diag.show();
@@ -2828,7 +2977,7 @@ addPage(() => {
                             if (!(key in single_session_data)) return;
                             let label_name = map[key];
                             let value = single_session_data[key];
-                            if (key === "timestamp") value = getTimestamp(value, "time_str");
+                            if (key === "timestamp") value = getTimeStrFromTimestamp(value, "time_str");
                             value && backup_details.push(label_name + ": " + value);
                         });
                         backup_details = backup_details.join("\n\n");
@@ -2949,7 +3098,7 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                         let split_line = "";
                         for (let i = 0; i < 18; i += 1) split_line += "- ";
                         let items = [split_line];
-                        blacklist_backup.forEach(o => items.push("好友昵称: " + o.name, "解除时间: " + getTimestamp(o.timestamp, "time_str_remove"), split_line));
+                        blacklist_backup.forEach(o => items.push("好友昵称: " + o.name, "解除时间: " + getTimeStrFromTimestamp(o.timestamp, "time_str_remove"), split_line));
                         return items.length > 1 ? items : ["列表为空"];
                     })(),
                 });
@@ -3072,7 +3221,7 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                     items = items_len ? items : ["列表为空"];
                     diag_add_from_list.setItems(items);
                     session_params.last_friend_list_refresh_timestamp = friends_list.timestamp === Infinity ? -1 : friends_list.timestamp;
-                    let content_info = (friends_list.timestamp !== Infinity ? ("上次刷新: " + getTimestamp(friends_list, "timestamp").time_str + "\n") : "") + "当前可添加的好友总数: " + items_len;
+                    let content_info = (friends_list.timestamp !== Infinity ? ("上次刷新: " + getTimeStrFromTimestamp(friends_list, "timestamp").time_str + "\n") : "") + "当前可添加的好友总数: " + items_len;
                     diag_add_from_list.setContent(content_info);
                 }
             });
@@ -3158,8 +3307,7 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
                         for (let i = 0; i < 18; i += 1) split_line += "- ";
                         let items = [split_line];
                         list_data_backup.forEach(o => {
-                            let section = o.section;
-                            items.push("区间: " + (section.join(" - ") + (section[1] <= section[0] ? " (+1)" : "")));
+                            items.push("区间: " + timeSectionToStr(o.section));
                             items.push("间隔: " + o.interval + "分钟");
                             items.push(split_line);
                         });
@@ -3233,7 +3381,6 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
                         if ("section" in o) return o.stringTransform;
                     }
                 };
-                log(sectionStringTransform()["backward"](diag_new_item.getItems().toArray()[0].split(": ")[1]))
                 updateDataSource(data_source_key_name, "update", {
                     section: sectionStringTransform()["backward"](diag_new_item.getItems().toArray()[0].split(": ")[1]),
                     interval: +diag_new_item.getItems().toArray()[1].split(": ")[1],
@@ -3251,7 +3398,21 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
 
                 if (list_item_prefix === "区间") {
                     diag_new_item.dismiss();
-                    ui.main.getParent().addView(setTimePickerView());
+                    setTimePickerView({
+                        picker_views: [
+                            {type: "time", text: "设置开始时间", init: timeStrToSection(list_item_content)[0]},
+                            {type: "time", text: "设置结束时间", init: timeStrToSection(list_item_content)[1]},
+                        ],
+                        time_str: {
+                            suffix: (getStrFunc) => {
+                                if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
+                            },
+                        },
+                        onFinish: (return_value) => {
+                            diag_new_item.show();
+                            return_value && refreshItems(list_item_prefix, return_value);
+                        },
+                    });
                 }
 
                 if (list_item_prefix === "间隔") {
@@ -3270,79 +3431,6 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
                         diag.dismiss();
                     });
                     diag.show();
-                }
-
-                // tool function(s) //
-
-                function setTimePickerView() {
-                    session_params.back_btn_consumed = true;
-                    let time_picker_view = ui.inflate(
-                        <frame bg="#ffffff" clickable="true" focusable="true">
-                            <scroll>
-                                <vertical padding="16">
-                                    <frame h="1" bg="#acacac" w="*"/>
-                                    <frame w="auto" layout_gravity="center" marginTop="15">
-                                        <text text="设置开始时间" textColor="#01579b" textSize="16sp"/>
-                                    </frame>
-                                    <timepicker h="160" id="timepicker_start" timePickerMode="spinner" marginTop="-10"/>
-                                    <frame h="1" bg="#acacac" w="*"/>
-                                    <frame w="auto" layout_gravity="center" marginTop="15">
-                                        <text text="设置结束时间" textColor="#01579b" textSize="16sp"/>
-                                    </frame>
-                                    <timepicker h="160" id="timepicker_end" timePickerMode="spinner" marginTop="-10"/>
-                                    <frame h="1" bg="#acacac" w="*"/>
-                                    <frame w="auto" layout_gravity="center" margin="0 30 0 25">
-                                        <text id="time_str" text="" textColor="#bf360c" textSize="15sp" gravity="center"/>
-                                    </frame>
-                                    <horizontal w="auto" layout_gravity="center">
-                                        <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
-                                        <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
-                                    </horizontal>
-                                </vertical>
-                            </scroll>
-                        </frame>
-                    );
-
-                    setTimeStr();
-                    time_picker_view.setTag("time_picker");
-
-                    time_picker_view.timepicker_start.setOnTimeChangedListener(setTimeStr);
-                    time_picker_view.timepicker_end.setOnTimeChangedListener(setTimeStr);
-                    time_picker_view.back_btn.on("click", () => closeTimePickerPage());
-                    time_picker_view.confirm_btn.on("click", () => closeTimePickerPage(time_picker_view.time_str.getText()));
-
-                    session_params.back_btn_consumed_func = () => time_picker_view.back_btn.click();
-
-                    return time_picker_view;
-
-                    // tool function(s) //
-
-                    function setTimeStr() {
-                        let timepicker_start = time_picker_view.timepicker_start;
-                        let timepicker_end = time_picker_view.timepicker_end;
-                        let fillZero = num => ("0" + num).slice(-2);
-                        let time_str_start = fillZero(timepicker_start.getCurrentHour()) +
-                            ":" + fillZero(timepicker_start.getCurrentMinute());
-                        let time_str_end = fillZero(timepicker_end.getCurrentHour()) +
-                            ":" + fillZero(timepicker_end.getCurrentMinute());
-                        let time_str = time_str_start + " - " + time_str_end;
-                        if (time_str_end <= time_str_start) time_str += " (+1)";
-                        time_picker_view.time_str.setText(time_str);
-                    }
-
-                    function closeTimePickerPage(return_value) {
-                        session_params.back_btn_consumed = false;
-                        diag_new_item.show();
-                        let parent = ui.main.getParent();
-                        let child_count = parent.getChildCount();
-                        for (let i = 0; i < child_count; i += 1) {
-                            let child_view = parent.getChildAt(i);
-                            if (child_view.findViewWithTag("time_picker")) parent.removeView(child_view);
-                        }
-                        if (typeof return_value !== "undefined") {
-                            refreshItems(list_item_prefix, return_value);
-                        }
-                    }
                 }
             });
             diag_new_item.show();
@@ -3415,6 +3503,24 @@ function Layout(title, params) {
 }
 
 // tool function(s) //
+
+function getDefaultConfigParams() {
+    let DEFAULT_CONFIG = require("./Modules/MODULE_DEFAULT_CONFIG");
+    return {
+        DEFAULT_AF: DEFAULT_CONFIG.af,
+        DEFAULT_UNLOCK: DEFAULT_CONFIG.unlock,
+        DEFAULT_SETTINGS: DEFAULT_CONFIG.settings,
+    };
+}
+
+function getStorageParams() {
+    let STORAGE = require("./Modules/MODULE_STORAGE");
+    return {
+        storage_cfg: STORAGE.create("af_cfg"),
+        storage_af: STORAGE.create("af"),
+        storage_unlock: STORAGE.create("unlock"),
+    };
+}
 
 function initStorageConfig() {
     let storage_config = Object.assign({info_icons_sanctuary: []}, DEFAULT_AF, storage_cfg.get("config", {}));
@@ -3807,7 +3913,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                     session_params[data_source_key_name].splice(0, session_params[data_source_key_name].length);
                     session_data.forEach(value => session_params[data_source_key_name].push(value));
                     session_params["list_sort_flag_" + data_key_name] *= -1;
-                    updateDataSource(data_source_key_name, "rewrite");
+                    // updateDataSource(data_source_key_name, "rewrite");
                 });
 
                 if (idx === 0) new_view["_check_all"].getParent().addView(list_title_view);
@@ -3995,7 +4101,7 @@ function checkPageState() {
     return rolling_pages[rolling_pages.length - 1].checkPageState();
 }
 
-function getTimestamp(time_param, format_str) {
+function getTimeStrFromTimestamp(time_param, format_str) {
     let timestamp = +time_param;
     let time_str = "";
     let time_str_remove = "";
@@ -4735,4 +4841,254 @@ function checkDependency(view, dependencies) {
         view._hint.setTextColor(colors.parseColor("#888888"));
         view.next_page_backup && view.setNextPage(view.next_page_backup);
     }
+}
+
+function setTimePickerView(params) {
+    let time_picker_view = null;
+
+    params = params || {};
+    if (typeof session_params !== "undefined") {
+        session_params.back_btn_consumed = true;
+        session_params.back_btn_consumed_func = (
+            typeof params.back_btn_comsumed === "function"
+                ? () => params.back_btn_comsumed()
+                : () => time_picker_view.back_btn.click()
+        );
+    }
+
+    initPickerView();
+    addPickers();
+    addTimeStr();
+    addButtons();
+
+    ui.main.getParent().addView(time_picker_view);
+
+    // tool function(s) //
+
+    function initPickerView() {
+        time_picker_view = ui.inflate(
+            <vertical bg="#ffffff" clickable="true" focusable="true">
+                <scroll>
+                    <vertical id="time_picker_view_main" padding="16"/>
+                </scroll>
+            </vertical>
+        );
+
+        time_picker_view.setTag("fullscreen_time_picker");
+    }
+
+    function addPickers() {
+        let picker_views = params.picker_views;
+        picker_views.forEach(addPickerView);
+
+        let len = picker_views.length;
+        let type1 = (picker_views[0] || {}).type;
+        let type2 = (picker_views[1] || {}).type;
+        time_picker_view.getPickerTimeStr[0] = len === 2 && type1 !== type2 ? {
+            timestamp: () => {
+                let f = num => time_picker_view.getPickerTimeStr[num];
+                if (type1 === "date") return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
+                if (type2 === "date") return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
+            },
+        } : {};
+
+        // tool function(s) //
+
+        function addPickerView(o, idx) {
+            let picker_view = ui.inflate(
+                <vertical id="picker_root">
+                    <frame h="1" bg="#acacac" w="*"/>
+                    <frame w="auto" layout_gravity="center" marginTop="15">
+                        <text id="picker_title" text="设置时间" textColor="#01579b" textSize="16sp"/>
+                    </frame>
+                </vertical>
+            );
+
+            let text_node = picker_view.picker_title;
+            let {text, text_color, type, init} = o;
+            text && text_node.setText(text);
+            text_color && text_node.setTextColor(colors.parseColor(text_color));
+
+            if (type === "time") {
+                picker_view.picker_root.addView(ui.inflate(
+                    <vertical>
+                        <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
+                    </vertical>
+                ));
+                picker_view.picker.setIs24HourView(true);
+                if (init) {
+                    if (typeof init === "string") init = init.split(/\D+/);
+                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
+                        let date = new Date(init);
+                        init = [date.getHours(), date.getMinutes()];
+                    }
+                    if (typeof init === "object") {
+                        typeof +init[0] === "number" && picker_view.picker.setHour(init[0]);
+                        typeof +init[1] === "number" && picker_view.picker.setMinute(init[1]);
+                    }
+                }
+            } else if (type === "date") {
+                picker_view.picker_root.addView(ui.inflate(
+                    <vertical>
+                        <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
+                    </vertical>
+                ));
+                if (init) {
+                    // init:
+                    // 1. 1564483851219 - timestamp
+                    // 2. [2018, 7, 8] - number[]
+                    let picker_node = picker_view.picker;
+                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
+                        let date = new Date(init);
+                        init = [date.getFullYear(), date.getMonth(), date.getDate()];
+                    }
+                    picker_node.updateDate.apply(picker_node, init);
+                }
+            }
+
+            time_picker_view.getPickerTimeStr = time_picker_view.getPickerTimeStr || {};
+            let picker_node = picker_view.picker;
+            picker_node["setOn" + (type.slice(0, 1).toUpperCase() + type.slice(1).toLowerCase()) + "ChangedListener"](setTimeStr);
+
+            let {yy, MM, dd, hh, mm} = {
+                yy: () => {
+                    try {
+                        return picker_node.getYear();
+                    } catch (e) {
+                        return new Date().getFullYear();
+                    }
+                },
+                MM: () => padZero((() => {
+                    try {
+                        return picker_node.getMonth();
+                    } catch (e) {
+                        return new Date().getMonth();
+                    }
+                })() + 1),
+                dd: () => padZero((() => {
+                    try {
+                        return picker_node.getDayOfMonth();
+                    } catch (e) {
+                        return new Date().getDate();
+                    }
+                })()),
+                hh: () => padZero(picker_node.getCurrentHour()),
+                mm: () => padZero(picker_node.getCurrentMinute()),
+            };
+            let padZero = num => ("0" + num).slice(-2);
+
+            time_picker_view.getPickerTimeStr[idx + 1] = {
+                yy: yy,
+                MM: MM,
+                dd: dd,
+                hh: hh,
+                mm: mm,
+                default: () => {
+                    if (type === "date") return yy() + "年" + MM() + "月" + dd() + "日";
+                    if (type === "time") return hh() + ":" + mm();
+                },
+                timestamp: () => +new Date(yy(), MM(), dd(), hh(), mm()),
+            };
+
+            time_picker_view.time_picker_view_main.addView(picker_view);
+        }
+    }
+
+    function addTimeStr() {
+        time_picker_view.time_picker_view_main.addView(ui.inflate(
+            <vertical>
+                <frame h="1" bg="#acacac" w="*"/>
+                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
+                    <text id="time_str" text="" textColor="#bf360c" textSize="15sp" gravity="center"/>
+                </frame>
+            </vertical>
+        ));
+
+        setTimeStr();
+    }
+
+    function setTimeStr() {
+        let {picker_views} = params || [];
+        let picker_amount = picker_views.length;
+        let {prefix, format, suffix, middle} = params.time_str || {};
+        let getTimeStrFromPicker = num => time_picker_view.getPickerTimeStr[num];
+
+        prefix = prefix && prefix.replace(/: ?/, "") + ": " || "";
+
+        if (typeof middle === "function") middle = middle(getTimeStrFromPicker);
+        middle = middle || formatTimeStr(picker_amount);
+
+        if (typeof suffix === "function") suffix = suffix(getTimeStrFromPicker);
+        suffix = suffix && suffix.replace(/^ */, " ") || "";
+
+        time_picker_view.time_str.setText(prefix + middle + suffix);
+
+        // tool function(s) //
+
+        function formatTimeStr(len) {
+            if (!format) {
+                let str = getTimeStrFromPicker(1).default();
+                if (len === 2) {
+                    str += (picker_views[0].type === picker_views[1].type ? " - " : " ") + getTimeStrFromPicker(2).default();
+                }
+                return str;
+            }
+            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeStrFromPicker($3)[$2]());
+        }
+    }
+
+    function addButtons() {
+        let getTimeStrFromPicker = num => time_picker_view.getPickerTimeStr[num];
+        let btn_view = ui.inflate(
+            <vertical>
+                <horizontal id="btn_group" w="auto" layout_gravity="center">
+                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
+                    <button id="reserved_btn" text="预留按钮" margin="-10 0 -10 0" backgroundTint="#fff9c4" visibility="gone"/>
+                    <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
+                </horizontal>
+            </vertical>
+        );
+        if ((params.buttons || {})["reserved_btn"]) {
+            let {text, onClickListener} = params.buttons.reserved_btn;
+            let reserved_btn_view = btn_view.reserved_btn;
+            reserved_btn_view.setVisibility(0);
+            text && reserved_btn_view.setText(text);
+            onClickListener && reserved_btn_view.on("click", () => onClickListener(getTimeStrFromPicker, closeTimePickerPage));
+        }
+        time_picker_view.time_picker_view_main.addView(btn_view);
+
+        time_picker_view.back_btn.on("click", () => closeTimePickerPage());
+        if ((params.buttons || {})["confirm_btn"]) {
+            let {text, onClickListener} = params.buttons.confirm_btn;
+            let confirm_btn_view = btn_view.confirm_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeStrFromPicker, closeTimePickerPage));
+        } else time_picker_view.confirm_btn.on("click", () => closeTimePickerPage("picker_view"));
+    }
+
+    function closeTimePickerPage(return_value) {
+        if (typeof session_params !== "undefined") {
+            delete session_params.back_btn_consumed;
+            delete session_params.back_btn_consumed_func;
+        }
+
+        let parent = ui.main.getParent();
+        let child_count = parent.getChildCount();
+        for (let i = 0; i < child_count; i += 1) {
+            let child_view = parent.getChildAt(i);
+            if (child_view.findViewWithTag("fullscreen_time_picker")) parent.removeView(child_view);
+        }
+
+        if (params.onFinish && typeof return_value !== "undefined") {
+            params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText() : return_value);
+        }
+    }
+}
+
+function timeSectionToStr(arr) {
+    return arr.join(" - ") + (arr[1] <= arr[0] ? " (+1)" : "");
+}
+
+function timeStrToSection(str) {
+    return str.replace(/ \(\+1\)/g, "").split(" - ");
 }

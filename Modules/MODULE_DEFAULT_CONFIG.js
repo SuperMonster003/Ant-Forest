@@ -12,6 +12,7 @@ module.exports = {
         friend_collect_icon_color: "#1da06d", // color for collect icon with a hand pattern
         friend_collect_icon_threshold: 10, // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         help_collect_switch: true, // set false if you do not wanna give a hand; leave it true if you like "surprise"
+        help_collect_section: ["00:00", "00:00"], // a valid time section of help collect function; default: the whole day
         help_collect_icon_color: "#f99137", // color for help icon with a heart pattern
         help_collect_icon_threshold: 10, // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         help_collect_balls_color: "#f99137", // color for fade-in-and-out help balls in a friend's forest
@@ -26,6 +27,7 @@ module.exports = {
         debug_info_switch: false, // show debug logs in console to debug this script or to give developer feedback
         result_showing_switch: true, // information will show in floaty way with true or toast way with false
         floaty_result_switch: true, // result will show in floaty way with "true value" or toast way with "false value"
+        floaty_result_countdown: 4, // 2 <= x <= 10; countdown seconds before floaty window going dismissed
         rank_list_samples_collect_strategy: "layout", // "image" for image recolonization or "layout" for layout inspection
         rank_list_auto_expand_switch: true, // rank list auto expanded by monitoring and clicking "list more" button
         rank_list_auto_expand_length: 200, // 100 <= x <= 500; auto expanded thread interrupted if list items amount reached this limit
@@ -37,6 +39,7 @@ module.exports = {
         rank_list_swipe_distance: 0.75, // [0.4, 0.9] for percentage, or integer for pixel distance (like 1260)
         rank_list_swipe_time: 150, // 50 <= x <= 500; duration for swiping up each time
         rank_list_swipe_interval: 300, // 100 <= x <= 800; interval between swipes
+        rank_list_capt_pool_diff_check_threshold: 20, // 5 <= x <= 800; to prevent infinity swipe up at rank list page
         timers_switch: false, // fantastic function which almost everybody wants it, however, i still need to switch it off initially
         timers_self_manage_switch: true, // set false value if you prefer a manual timer management
         timers_countdown_check_own_switch: true, // whether to auto-calc next running timestamp and set a timed task
@@ -48,11 +51,16 @@ module.exports = {
         timers_uninterrupted_check_sections: [{section: ["06:30", "00:00"], interval: 60}], // 1 <= x <= 600; multi sections available
         timers_insurance_switch: true, // just in case, as you know; timed task will be set on running and removed when script finished
         timers_insurance_interval: 5, // 1 <= x <= 10; timed task will be extended every 10 sec to avoid interval's consumption
-        timers_insurance_max_continuous_times: 3, // 1 <= x <= 5; "ins" auto timed task will be dysfunctional with to many continuous attempts
+        timers_insurance_max_continuous_times: 3, // 1 <= x <= 5; auto-insurance task will be dysfunctional with to many continuous attempts
         max_retry_times_global: 2, // 0 <= x <= 5; max retry times when the script crushed; set 0 if you do not need to retry even once
         max_running_time_global: 45, // 5 <= x <= 90; max running time for a single script
         max_queue_time_global: 60, // 1 <= x <= 120; max queue time for every exclusive task if exclusive tasks ahead is running or queueing
         min_bomb_interval_global: 300, // 100 <= x <= 800; exclusive tasks with too small intervals will be taken as bomb tasks
+        kill_when_done_switch: false, // decide whether to kill alipay app before script ended
+        kill_when_done_intelligent: true, // true value for an intelligent check before killing alipay
+        kill_when_done_keep_af_pages: false, // set true value if you prefer to keep ant forest pages before script ended
+        phone_call_state_monitor_switch: true, // when switched on, script will be paused if phone call state is not idle
+        phone_call_state_idle_value: undefined, // dynamic; will be initialized when script running (often among 0, 1 and 2)
         prompt_before_running_switch: true, // set false value if you do not need a countdown dialog before running script
         prompt_before_running_countdown_seconds: 5, // 3 <= x <= 30; countdown seconds before dialog dismissed automatically
         prompt_before_running_postponed_minutes_default_choices: [1, 2, 3, 5, 10, 15, 20, 30], // default choices for a postponed minute
@@ -61,10 +69,12 @@ module.exports = {
     },
     "unlock": {
         unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
-        unlock_pattern_size: 3, // side size of a speed-dial-like pattern for unlocking your phone, and 3 is the most common value
         unlock_max_try_times: 20, // max times for trying unlocking your phone
-        dismiss_layer_swipe_time: 110, // time for swiping up to dismiss the lock screen layer
-        pattern_unlock_swipe_time: 120, // gesture time for pattern unlock each time, and usually won't change with correct unlock code
+        unlock_pattern_size: 3, // side size of a speed-dial-like pattern for unlocking your phone, and 3 is the most common value
+        unlock_pattern_swipe_time: 120, // gesture time for pattern unlock each time, and usually won't change with correct unlock code
+        unlock_dismiss_layer_bottom: 0.8, // 0.5 <= x <= 0.95; great value (like 0.95) may cause unexpected object activation
+        unlock_dismiss_layer_top: 0.2, // 0.05 <= x <= 0.3; this value may be not that important
+        unlock_dismiss_layer_swipe_time: 105, // time for swiping up to dismiss the lock screen layer
     },
     "settings": {
         item_area_width: 0.78,
@@ -178,10 +188,20 @@ module.exports = {
                 "3 × 3 - 1,2,3,5,7,8,9 -> 1,3,7,9\n" +
                 "4 × 4 - 1,2,3,4,8,12,16 -> 1,4,16\n" +
                 "5 × 5 - 1,2,3,4,5,6 -> 1,5,6\n",
-            dismiss_layer_swipe_time: // 设置锁屏页面上滑时长
-                "通常无需自行设置\n" +
-                "脚本会自动尝试增量赋值获得最佳值",
-            pattern_unlock_swipe_time: // 设置图案解锁滑动时长
+            unlock_dismiss_layer_swipe_time: // 提示层页面上滑时长
+                "设置整百值可保证匀速滑动\n" +
+                "十位小于5可实现不同程度惯性滑动\n\n" +
+                "* 通常无需自行设置\n" +
+                "* 脚本会自动尝试增量赋值获得最佳值",
+            unlock_dismiss_layer_bottom: // 提示层页面起点位置
+                "设置滑动起点的屏高百分比\n\n" +
+                "* 通常无需自行设置\n" +
+                "* 设置过大值可能激活非预期控件",
+            unlock_dismiss_layer_top: // 提示层页面终点位置
+                "设置滑动终点的屏高百分比\n\n" +
+                "* 通常无需自行设置\n" +
+                "* 此配置值对滑动影响程度较小",
+            unlock_pattern_swipe_time: // 设置图案解锁滑动时长
                 "通常无需自行设置\n" +
                 "脚本会自动尝试增量赋值获得最佳值",
             unlock_pattern_size: // 设置图案解锁边长
@@ -337,6 +357,31 @@ module.exports = {
                 "则视当前脚本为炸弹脚本\n" +
                 "炸弹脚本将自动强制停止\n" +
                 "此安全设置通常针对因某些原因短时间内运行大量相同脚本的意外情况",
+            about_kill_when_done: // 关于支付宝应用保留
+                "此设置用于决定脚本结束时\n" +
+                "保留或关闭支付宝应用\n\n" +
+                "关闭总开关后将在脚本结束时\n" +
+                "无条件关闭支付宝应用\n\n" +
+                "支付宝应用保留:\n" +
+                "智能保留:\n" +
+                "脚本运行时检测当前前置应用\n" +
+                "根据前置应用是否是支付宝\n" +
+                "决定保留或关闭操作\n" +
+                "总是保留:\n" +
+                "无条件保留支付宝应用\n\n" +
+                "蚂蚁森林页面保留:\n" +
+                "智能剔除:\n" +
+                "脚本将自动关闭与蚂蚁森林项目相关的全部页面\n" +
+                "如蚂蚁森林主页/排行榜页面等\n" +
+                "最终回归到脚本启动前的支付宝页面\n" +
+                "全部保留:\n" +
+                "无条件保留项目运行中的所有页面\n" +
+                "除非支付宝应用被触发关闭\n\n" +
+                "* 关闭应用优先使用杀死应用方式\n" +
+                "-- 杀死应用需要 Root 权限\n" +
+                "-- 无 Root 权限将尝试最小化应用\n" +
+                "-- 最小化原理并非模拟 Home 键\n" +
+                "* \"智能保留\"的智能化程度十分有限",
             backup_to_local: // 备份项目至本地
                 "此功能将项目相关文件打包保存在本地\n" +
                 "可在还原页面恢复或删除已存在的备份",
@@ -390,6 +435,14 @@ module.exports = {
                 "黑名单好友较多时使用图像处理\n" +
                 "布局信息获取失效时用图像处理\n" +
                 "其他情况使用布局分析\n",
+            rank_list_capt_pool_diff_check_threshold: // 排行榜截图样本池差异检测阈值
+                "排行榜滑动前后截图样本相同时\n" +
+                "脚本认为滑动无效 并进行无效次数统计 " +
+                "当连续无效次数达到阈值时 将放弃滑动并结束好友能量检查\n\n" +
+                "达阈值时 脚本会判断\"服务器打瞌睡\"页面及\"正在加载\"按钮 " +
+                "根据实际情况点击\"再试一次\"或等待\"正在加载\"按钮消失 (最大等待2分钟)\n\n" +
+                "* 此设置主要避免因意外情况导致当前页面不在排行榜页面时的无限滑动\n" +
+                "* 截图样本相同指: 相似度极高",
             rank_list_auto_expand_length: // 设置列表自动展开最大值
                 "通过持续检测并点击\"查看更多\"按钮\n" +
                 "实现列表自动展开\n" +
@@ -436,6 +489,20 @@ module.exports = {
                 "手动添加易出错\n" +
                 "且难以键入特殊字符\n" +
                 "建议使用列表导入功能",
+            phone_call_state_idle_value: // 通话空闲状态值
+                "当设备当前通话状态值\n" +
+                "与空闲状态值不一致时\n" +
+                "将触发通话状态事件\n" +
+                "脚本将持续等待\n" +
+                "直到通话状态变为空闲\n\n" +
+                "* 事件解除后\n" +
+                "-- 脚本将执行一次支付宝前置操作\n" +
+                "* 不同设备的通话空闲状态值\n" +
+                "-- 可能存在差异",
+            phone_call_state_idle_value_warn: // 通话空闲状态值设置警告
+                "输入值与当前通话空闲值不一致\n" +
+                "此配置将导致脚本无法正常运行\n\n" +
+                "确定要使用当前输入值吗",
         },
     },
 };

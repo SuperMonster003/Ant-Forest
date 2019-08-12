@@ -25,13 +25,20 @@ module.exports = {
     alertContent: alertContent,
     observeToastMessage: observeToastMessage,
     captureErrScreen: captureErrScreen,
+    getSelector: getSelector,
+    selExists: selExists,
+    surroundWith: surroundWith,
+    phoneCallingState: phoneCallingState,
+    timeRecorder: timeRecorder,
 };
 
 /**
  * @description tool functions (available for independent use)
- * @type {{keycode: keycode, restartThisEngine: restartThisEngine, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, refreshObjects: refreshObjects, debugInfo: debugInfo, launchThisApp: (function((Object|string), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), killThisApp: killThisApp, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: (function((Object|Object[]|Function|Function[]), *=, *=): boolean), swipeInAreaAndClickAction: swipeInAreaAndClickAction, messageAction: (function(string, (number|string|Object)=, number=, number=, (number|string)=, *=): boolean), runJsFile: runJsFile, clickAction: clickAction}}
+ * @type {{debugInfo: debugInfo, alertContent: alertContent, alertTitle: alertTitle, equalObjects: equalObjects, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: (function((Object|Object[]|Function|Function[]), *=, *=): boolean), messageAction: messageAction, runJsFile: runJsFile, keycode: keycode, restartThisEngine: restartThisEngine, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, getDisplayParams: getDisplayParams, refreshObjects: refreshObjects, launchThisApp: (function((Object|string|Function), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?, screen_orientation?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), deepCloneObject: deepCloneObject, killThisApp: killThisApp, swipeInAreaAndClickAction: swipeInAreaAndClickAction, getSelector: (function(*=): *), captureErrScreen: captureErrScreen, smoothScrollView: smoothScrollView, observeToastMessage: observeToastMessage, clickAction: clickAction}}
  * @author {@link https://github.com/SuperMonster003}
  */
+
+__global__ = typeof __global__ === "undefined" ? this : __global__;
 
 // global function(s) //
 
@@ -175,7 +182,9 @@ function getVerName(name, params) {
  * @return {boolean}
  */
 function launchThisApp(trigger, params) {
-    if (typeof this._monster_$_first_time_run === "undefined") this._monster_$_first_time_run = 1;
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    if (typeof __global__._monster_$_first_time_run === "undefined") __global__._monster_$_first_time_run = 1;
 
     let _params = params || {};
 
@@ -205,7 +214,7 @@ function launchThisApp(trigger, params) {
         let _max_launch_times_backup = _max_launch_times;
         if (!_params.no_message_flag) {
             let _msg_launch = _task_name ? "重新开始\"" + _task_name + "\"任务" : "重新启动\"" + _app_name + "\"应用";
-            if (!this._monster_$_first_time_run) _messageAction(_msg_launch, null, 1);
+            if (!__global__._monster_$_first_time_run) _messageAction(_msg_launch, null, 1);
             else _first_time_run_message_flag && _messageAction(_msg_launch.replace(/重新/g, ""), 1, 1, 0, "both");
         }
         while (_max_launch_times--) {
@@ -244,20 +253,20 @@ function launchThisApp(trigger, params) {
         }
         if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
 
-        this._monster_$_first_time_run = 0;
+        __global__._monster_$_first_time_run = 0;
         if (_condition_ready === null || _condition_ready === undefined) {
             _debugInfo("未设置启动完成条件参数");
             break;
         }
 
         _debugInfo("开始监测启动完成条件");
-        this._monster_$_launch_ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
+        __global__._monster_$_launch_ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
 
         let _thread_disturbance = undefined;
         if (_disturbance) {
             _debugInfo("检测到干扰排除器");
             _thread_disturbance = threads.start(function () {
-                return _disturbance.bind(this)();
+                return _disturbance();
             }); // maybe a signal is needed here
         }
 
@@ -274,7 +283,7 @@ function launchThisApp(trigger, params) {
             }
         }
 
-        this._monster_$_launch_ready_monitor_signal = true;
+        __global__._monster_$_launch_ready_monitor_signal = true;
         if (_thread_disturbance) {
             if (!_waitForAction(() => !_thread_disturbance.isAlive(), 1000)) {
                 _debugInfo("强制解除干扰排除器");
@@ -802,6 +811,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     }
 
     let _exit_flag = false;
+    let _throw_error_flag = false;
     switch (_msg_level) {
         case 0:
         case "verbose":
@@ -843,10 +853,11 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         case "t":
             _msg_level = 4;
             console.error(_msg);
-            throw Error("Error thrown on purpose");
+            _throw_error_flag = true;
     }
     if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
-    _exit_flag && exit();
+    if (_throw_error_flag) throw Error("Error thrown on purpose");
+    else if (_exit_flag) exit();
     return !(_msg_level in {3: 1, 4: 1});
 
     // raw function(s) //
@@ -860,7 +871,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         } else {
             for (let i = 0; i < 32; i += 1) _split_line += "-";
         }
-        return ~log(_split_line + _extra_str);
+        return ~console.log(_split_line + _extra_str);
     }
 }
 
@@ -890,7 +901,7 @@ function showSplitLine(extra_str, style, params) {
     } else {
         for (let i = 0; i < 32; i += 1) _split_line += "-";
     }
-    return !!~log(_split_line + _extra_str);
+    return !!~console.log(_split_line + _extra_str);
 }
 
 /**
@@ -906,8 +917,9 @@ function showSplitLine(extra_str, style, params) {
  * @param [timeout_or_times=10000] {number}
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
+ *     -- 0|Infinity - always wait until f is true <br>
  *     -- less than 100 - take as times
- * @param [interval=300] {number}
+ * @param [interval=200] {number}
  * @example
  * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80); <br>
  * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2000, 50); <br>
@@ -921,7 +933,9 @@ function showSplitLine(extra_str, style, params) {
 function waitForAction(f, timeout_or_times, interval) {
     let _timeout = timeout_or_times || 10000;
     let _interval = interval || 200;
-    let _times = _timeout < 100 ? _timeout : ~~(_timeout / _interval) + 1;
+    let _times = timeout_or_times !== 0 && timeout_or_times !== Infinity
+        ? (_timeout >= 100 ? ~~(_timeout / _interval) + 1 : _timeout)
+        : Infinity;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
@@ -931,6 +945,8 @@ function waitForAction(f, timeout_or_times, interval) {
     // tool function(s) //
 
     function _checkF(f) {
+        while (__global__._monster_$_global_waiting_signal) sleep(200);
+
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (_classof(f) === "JavaObject") return _checkF(() => f.exists());
         if (_classof(f) === "Array") {
@@ -1384,6 +1400,8 @@ function refreshObjects(strategy, params) {
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
     sleep(200); // why are you always a naughty boy... how can i get along well with you...
 
     let _params = params || {};
@@ -1398,10 +1416,10 @@ function tryRequestScreenCapture(params) {
     _params.restart_this_engine_params = _params.restart_this_engine_params || {};
     _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
 
-    if (this._monster_$_request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
+    if (__global__._monster_$_request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
     _debugInfo("开始申请截图权限");
 
-    this._monster_$_request_screen_capture_flag = true;
+    __global__._monster_$_request_screen_capture_flag = true;
     _debugInfo("已存储截图权限申请标记");
 
     _debugInfo("已开启弹窗监测线程");
@@ -1425,8 +1443,12 @@ function tryRequestScreenCapture(params) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
+        if (!__global__._monster_$_debug_info_flag) {
+            __global__._monster_$_debug_info_flag = true;
+            _debugInfo("开发者测试模式已自动开启", 3);
+        }
         if (_params.restart_this_engine_flag) {
-            _debugInfo("截图权限申请结果: 失败");
+            _debugInfo("截图权限申请结果: 失败", 3);
             if (_restartThisEngine(_params.restart_this_engine_params)) return;
         }
         _messageAction("截图权限申请失败", 9, 1, 0, 1);
@@ -1878,14 +1900,62 @@ function keycode(keycode_name, params_str) {
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
  *     - ">sum is much smaller" - ">>> sum is much smaller"
- * @param [info_flag] {boolean|string}
+ * @param [info_flag] {boolean|string|number} - like: true; "up"; 3; "up_3"
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+
+    if (typeof msg === "string" && msg.match(/^__split_line__?/)) {
+        let _msg = "";
+        if (msg.match(/dash/)) {
+            for (let i = 0; i < 16; i += 1) _msg += "- ";
+            _msg += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _msg += "-";
+        }
+        msg = _msg;
+    }
     if (Object.prototype.toString.call(msg).slice(8, -1) === "Array") return !~msg.forEach(msg => debugInfo(msg, info_flag, params));
-    if (info_flag === true || this._monster_$_debug_info_flag) {
-        info_flag === "up" && showSplitLine();
-        console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    if (!!info_flag === true && !info_flag.toString().match(/up|\d/) || __global__._monster_$_debug_info_flag) {
+        let info_flag_str = (info_flag || "").toString();
+        info_flag_str.match(/up[^A-Za-z0-9]/) && _showSplitLine();
+        let msg_level = +info_flag_str.match(/\d/) || 0;
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), msg_level);
+    }
+
+    // raw function(s) //
+
+    function showSplitLineRaw(extra_str, style) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return ~console.log(_split_line + _extra_str);
+    }
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof + msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
     }
 }
 
@@ -2058,10 +2128,12 @@ function deepCloneObject(obj) {
  * @param [base_view=ui.main] {View} - specified view for attaching parent views
  */
 function smoothScrollView(shifting, duration, pages_pool, base_view) {
-    if (pages_pool.length < 2) return;
-    if (this._monster_$_page_scrolling_flag) return;
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
-    this._monster_$_page_scrolling_flag = true;
+    if (pages_pool.length < 2) return;
+    if (__global__._monster_$_page_scrolling_flag) return;
+
+    __global__._monster_$_page_scrolling_flag = true;
     let page_scrolling_flag = true;
 
     duration = duration || 180;
@@ -2105,7 +2177,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
                         parent.removeView(parent.getChildAt(--child_count));
                     }
                     page_scrolling_flag = false;
-                    return this._monster_$_page_scrolling_flag = false;
+                    return __global__._monster_$_page_scrolling_flag = false;
                 }
                 let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
                     move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
@@ -2127,7 +2199,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
     } catch (e) {
         scroll_interval && clearInterval(scroll_interval);
         page_scrolling_flag = false;
-        this._monster_$_page_scrolling_flag = false;
+        __global__._monster_$_page_scrolling_flag = false;
     }
 
     // raw function(s) //
@@ -2154,8 +2226,10 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
  * @param [duration=3000] {number} - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
-    this._monster_$_alert_title_info = this._monster_$_alert_title_info || {};
-    let alert_title_info = this._monster_$_alert_title_info;
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    __global__._monster_$_alert_title_info = __global__._monster_$_alert_title_info || {};
+    let alert_title_info = __global__._monster_$_alert_title_info;
     alert_title_info[dialog] = alert_title_info[dialog] || {};
     alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
 
@@ -2262,6 +2336,8 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
  * @see messageAction
  */
 function captureErrScreen(key_name, log_level) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
 
@@ -2303,9 +2379,192 @@ function captureErrScreen(key_name, log_level) {
     }
 
     function tryRequestScreenCaptureRaw() {
-        if (!this._monster_$_request_screen_capture_flag) {
+        if (!__global__._monster_$_request_screen_capture_flag) {
             images.requestScreenCapture();
             sleep(300);
         }
     }
+}
+
+/**
+ * Returns a selector() with additional functions bound to its __proto__
+ * @param [params]
+ * @param [params.debug_info_flag=false] {boolean} - to control the usability of debugInfo()
+ * @proto pickup {function}
+ * @returns {*}
+ */
+function getSelector(params) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    let _params = params || {};
+    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let sel = selector();
+    sel.__proto__ = {
+        /**
+         * Returns a selector node (JavaObject) with 4 selectors /(text|desc)(Matches)?/;
+         * If no JavaObjects were found, returns a selector node according to "prefer" param ("text(Matches)" or "desc(Matches)")
+         * If memory_keyword was found in this session memory, returns a memorized selector node directly
+         * @memberOf getSelector
+         * @param filter_condition {string|RegExp} - filter condition for this selector
+         * @param memory_keyword {string} - to mark this selector node; better use a keyword without conflict
+         * @param [prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
+         * @returns {JavaObject}
+         */
+        pickup: (filter_condition, memory_keyword, prefer) => {
+            let _mem_kw_prefix = "_MEM_KW_PREFIX_";
+            if (memory_keyword) {
+                let memory_kn = __global__[_mem_kw_prefix + memory_keyword];
+                if (memory_kn) return memory_kn;
+            }
+            let kn = getSelector();
+            if (memory_keyword && kn.exists()) {
+                _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + kn]);
+                __global__[_mem_kw_prefix + memory_keyword] = kn;
+            }
+            return kn;
+
+            // tool function(s)//
+
+            function getSelector() {
+                let classof = Object.prototype.toString.call(filter_condition).slice(8, -1);
+                if (typeof filter_condition === "string") {
+                    if (prefer === "text") return text(filter_condition).exists() ? text(filter_condition) : desc(filter_condition);
+                    return desc(filter_condition).exists() ? desc(filter_condition) : text(filter_condition);
+                }
+                if (classof === "RegExp") {
+                    if (prefer === "text") return textMatches(filter_condition).exists() ? textMatches(filter_condition) : descMatches(filter_condition);
+                    return descMatches(filter_condition).exists() ? descMatches(filter_condition) : textMatches(filter_condition);
+                }
+            }
+        },
+        /**
+         * Returns the name of this selector ("text" or "desc" without "Matches")
+         * If no JavaObjects were found, returns a selector name according to "prefer" param
+         * @memberOf getSelector
+         * @param filter_condition {string|RegExp} - filter condition for this selector
+         * @param memory_keyword {string} - to mark this selector node; better use a keyword without conflict
+         * @param [prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
+         * @returns {string} - "desc" or "text"
+         */
+        selStr: (filter_condition, memory_keyword, prefer) => {
+            if (classof(filter_condition) === "JavaObject") return filter_condition.toString().slice(0, 4);
+            return sel.pickup(filter_condition, memory_keyword, prefer).toString().slice(0, 4);
+        },
+    };
+    _debugInfo("选择器加入新方法");
+    Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
+    return sel;
+
+    // raw function(s) //
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Returns if all (or one) of selectors exist(s) (or functions return(s) a true value)
+ * @param conditions... {JavaObject|function|string}
+ * @example
+ * selExists(
+ *     textMatches(/.+abc.*$/), // RegExp selector
+ *     desc("123"), // unique selector
+ *     () => id("my_id").find().size() >= 3, // function with condition(s) (usually is(are) related to selector(s))
+ *     "or" // logic restriction string: "or" or "one"
+ * );
+ * selExists(
+ *     textMatches(/.+abc.*$/),
+ *     desc("123"),
+ *     () => id("my_id").find().size() >= 3,
+ *     "and" // logic restriction string: "and" or "all", and can be omitted as default
+ * );
+ * @returns {boolean}
+ */
+function selExists(conditions) {
+    let args = arguments;
+    let i = 0;
+    let len = args.length;
+    if (!len) return false;
+    let logic = "and";
+    let last_arg = args[len - 1];
+    if (typeof last_arg === "string") {
+        len -= 1;
+        if (!len) return false;
+        if (last_arg.match(/^(or|one)$/)) logic = "or";
+        else if (last_arg.match(/^(and|all)$/)) logic = "and";
+    }
+
+    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    for (; i < len; i += 1) {
+        let arg = args[i];
+        let cond = () => null;
+        if (classof(arg) === "JavaObject") cond = () => arg.exists();
+        else if (typeof arg === "function") cond = arg;
+        let result = cond();
+        if (logic === "or" && result) return true;
+        if (logic === "and" && !result) return false;
+    }
+    // return logic === "or" && false || logic === "and" && true;
+    return logic === "and";
+}
+
+/**
+ * Returns a new string with a certain mark surrounded
+ * @param target {*} - will be converted to String format
+ * @param [mark_left='"'] {*} - will be converted to String format
+ * @param [mark_right=mark_left] {*} - will be converted to String format
+ * @example
+ * surroundedBy("ABC") - "ABC"
+ * surroundedBy("ABC", "#") - #ABC#
+ * surroundedBy([1, 2].join("+"), "{", "}") - {1+2}
+ * @returns {string}
+ */
+function surroundWith(target, mark_left, mark_right) {
+    mark_left = (mark_left || '"').toString();
+    mark_right = (mark_right || mark_left).toString();
+    return mark_left + target.toString() + mark_right;
+}
+
+/**
+ * Returns a state number which indicated phone calling state
+ * @returns {number} - 0: IDLE; 1: RINGING; 2: OFF-HOOK // some device may behave abnormally - 2: IDLE; 1: OFF-HOOK
+ */
+function phoneCallingState() {
+    let phone_service = com.android.internal.telephony.ITelephony.Stub.asInterface(
+        android.os.ServiceManager.checkService("phone")
+    );
+    return +phone_service.getCallState();
+}
+
+/**
+ * Record a timestamp then get the time gap by a certain keyword
+ * @param keyword {string}
+ * @param [operation] {boolean|number|string}
+ * <br>
+ * put a timestamp: "put"; "save"; false value <br>
+ * load time gap: "load", "get", any other true value <br>
+ * @param [divisor=1] {number}
+ * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
+ * @param [suffix] {string}
+ * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
+ * @example
+ * timeRecorder("running", "put"); timeRecorder("running", "get") - eg: 1565080123796
+ * timeRecorder("collect", "save"); timeRecorder("collect", "load", 1000, 2, "s") - eg: "12.40s"
+ * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
+ * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
+ */
+function timeRecorder(keyword, operation, divisor, fixed, suffix) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    let records = __global__._monster_$_timestamp_records;
+    if (!__global__._monster_$_timestamp_records) records = __global__._monster_$_timestamp_records = {};
+    if (!operation || operation.toString().match(/save|put/)) return records[keyword] = +new Date();
+    let forcible_fixed_num_flag = false;
+    if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
+    let result = (+new Date() - records[keyword]) / (divisor || 1); // number
+    if (typeof fixed !== "undefined" && fixed !== null) result = result.toFixed(+fixed); // string
+    if (forcible_fixed_num_flag) result = +result;
+    if (suffix) result += suffix.toString();
+    return result;
 }
