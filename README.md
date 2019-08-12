@@ -24,8 +24,8 @@
 或点击页面右侧绿色 `Clone or download` 按钮  
 手机浏览器需在项目主页拉到底部点击 `Desktop version`  
 2. 将项目中的全部文件放置于手机存储  
-中文系统默认目录 `/sdcard/Scripts/`  
-英文系统默认目录 `/sdcard/脚本/`  
+中文系统默认目录 `/sdcard/脚本/`  
+英文系统默认目录 `/sdcard/Scripts/`  
 3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
 运行 `Ant_Forest_Launcher.js` 文件可启动项目    
 运行 `Ant_Forest_Settings.js` 文件可进行项目配置  
