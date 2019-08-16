@@ -285,10 +285,7 @@ module.exports = function () {
                 let max_try_times_unlock_pattern = unlock_max_try_times;
                 let current_try_unlock_pattern = 0;
                 let maxTryTimesReached = () => current_try_unlock_pattern > max_try_times_unlock_pattern;
-
-                let max_swipe_time_limit = 3000;
                 let unlock_pattern_swipe_time = config_storage.unlock_pattern_swipe_time;
-                let swipeTimeOverLimit = () => unlock_pattern_swipe_time > max_swipe_time_limit;
 
                 let data_from_storage_flag = false;
                 let chances_for_storage_data = 3;
@@ -296,7 +293,7 @@ module.exports = function () {
                 if (unlock_pattern_swipe_time) data_from_storage_flag = true;
                 else unlock_pattern_swipe_time = config_default.unlock_pattern_swipe_time;
 
-                while (!maxTryTimesReached() && !swipeTimeOverLimit()) {
+                while (!maxTryTimesReached()) {
                     let retry_info = " (" + current_try_unlock_pattern + "\/" + max_try_times_unlock_pattern + ")";
                     debugInfo(current_try_unlock_pattern++ ? "重试图案密码解锁" + retry_info : "尝试图案密码解锁");
                     debugInfo("滑动时长参数: " + unlock_pattern_swipe_time);
@@ -325,7 +322,7 @@ module.exports = function () {
                     } else unlock_pattern_swipe_time += 80;
                 }
 
-                if (maxTryTimesReached() || swipeTimeOverLimit()) return errorMsg("图案解锁方案失败");
+                if (maxTryTimesReached()) return errorMsg("图案解锁方案失败");
 
                 debugInfo("图案解锁成功");
                 if (unlock_pattern_swipe_time !== config_storage.unlock_pattern_swipe_time) {

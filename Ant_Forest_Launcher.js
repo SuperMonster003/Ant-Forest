@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Aug 12, 2019
- * @version 1.8.3
+ * @last_modified Aug 16, 2019
+ * @version 1.8.4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -51,7 +51,7 @@ try {
 
 let current_app = {};
 let config = {};
-let {storage_af, storage_af_cfg, unlock_module, sel} = {};
+let {storage_af, storage_af_cfg, unlock_module, sel, my_engine} = {};
 let {WIDTH, HEIGHT, USABLE_HEIGHT, screen_orientation, cX, cY} = {};
 
 checkModules();
@@ -86,9 +86,9 @@ function antForest() {
             let {message} = e;
             if (message) {
                 if (message.match("ScriptInterruptedException")) return;
-                if (message.match("RuntimeException")) throw (e);
+                if (message.match(/RuntimeException|IllegalArgument/)) throw (e);
+                messageAction(message, 4, 1, 0, "both_dash");
             }
-            messageAction(message, 4, 1, 0, "both_dash");
 
             let current_retry_times = max_retry_times_global_backup - max_retry_times_global;
             messageAction("任务失败重试 (" + current_retry_times + "\/" + max_retry_times_global_backup + ")", 1, 0, 0, "both");
@@ -198,37 +198,39 @@ function prologue() {
         current_app.kw_rank_list_more = idMatches(/.*J_rank_list_more/);
         current_app.kw_rank_list_self = idMatches(/.*J_rank_list_self/);
         current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
-        current_app.ori_app_package = currentPackage();
+        current_app.init_running_app_package = currentPackage();
         current_app.logged_blacklist_names = [];
-        current_app.homepage_intent_rich_uri = {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                appId: 60000002,
-                appClearTop: "NO",
-                startMultApp: "YES",
-                // enableScrollBar: "NO",
-                // backBehavior: "auto",
-                defaultTitle: "",
-            }),
-        };
-        current_app.homepage_intent_common_browser_rich_uri = {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                saId: 20000067,
-                url: "https://60000002.h5app.alipay.com/www/home.html",
-                __webview_options__: {
-                    showOptionMenu: "YES",
+        current_app.homepage_intent = {
+            app_id_rich: {
+                action: "VIEW",
+                data: encodeURIParams("alipays://platformapi/startapp", {
+                    appId: 60000002,
+                    appClearTop: "NO",
                     startMultApp: "YES",
-                    enableScrollBar: "NO",
-                },
-            }),
-        };
-        current_app.homepage_intent_plain_uri = {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                appId: 60000002,
-                defaultTitle: "",
-            }),
+                    // enableScrollBar: "NO",
+                    // backBehavior: "auto",
+                    defaultTitle: "",
+                }),
+            },
+            app_id_plain: {
+                action: "VIEW",
+                data: encodeURIParams("alipays://platformapi/startapp", {
+                    appId: 60000002,
+                    // defaultTitle: "",
+                }),
+            },
+            common_browser_rich: {
+                action: "VIEW",
+                data: encodeURIParams("alipays://platformapi/startapp", {
+                    saId: 20000067,
+                    url: "https://60000002.h5app.alipay.com/www/home.html",
+                    __webview_options__: {
+                        showOptionMenu: "YES",
+                        startMultApp: "YES",
+                        enableScrollBar: "NO",
+                    },
+                }),
+            },
         };
         current_app.rank_list_intent = {
             action: "VIEW",
@@ -247,16 +249,15 @@ function prologue() {
         };
         current_app.rank_list_icon_collect = storage_af.get("af_rank_list_icon_collect");
         current_app.rank_list_icon_help = storage_af.get("af_rank_list_icon_help");
-        current_app.rank_list_bottom_template_path = files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png";
+        current_app.rank_list_bottom_template_path = config.rank_list_bottom_template_path;
         current_app.rank_list_bottom_template = images.read(current_app.rank_list_bottom_template_path);
         current_app.current_file_path = files.path("./Ant_Forest_Launcher.js");
         current_app.total_energy_collect_own = 0;
         current_app.total_energy_collect_friends = 0;
         current_app.rank_list_friend_max_invalid_drop_by_times = 5;
         current_app.rank_list_capt_pool_diff_check_counter = 0;
-        current_app.kill_when_done_intelligent_kill = (
-            config.kill_when_done_intelligent && (current_app.ori_app_package !== current_app.package_name)
-        );
+        current_app.kill_when_done_intelligent_kill = config.kill_when_done_intelligent
+            && (current_app.init_running_app_package !== current_app.package_name);
         current_app.friend_drop_by_counter = {
             get increase() {
                 return (name) => {
@@ -277,8 +278,21 @@ function prologue() {
                 };
             },
         };
+        current_app.isAutojsLogPage = () => getAutojsTitleNode(/日志|Log/).exists();
+        current_app.isAutojsSettingsPage = () => getAutojsTitleNode(/设置|Settings?/).exists();
+        current_app.isAutojsHomepage = () => idMatches(/.*action_(log|search)/).exists();
+        current_app.isAutojsForeground = () => className("ImageButton").desc("Navigate up").exists()
+            || current_app.isAutojsHomepage() || current_app.isAutojsLogPage()
+            || current_app.isAutojsSettingsPage() || idMatches(/.*md_\w+/).exists();
+        current_app.init_autojs_state = {
+            init_foreground: current_app.isAutojsForeground(),
+            init_homepage: current_app.isAutojsHomepage(),
+            init_log_page: current_app.isAutojsLogPage(),
+            init_settings_page: current_app.isAutojsSettingsPage(),
+        };
 
         debugInfo("会话参数赋值完毕");
+        debugInfo(["初始前置应用包名:", current_app.init_running_app_package]);
 
         checkAlipayVer();
         setMaxRunTime();
@@ -368,6 +382,11 @@ function prologue() {
             });
             debugInfo("单次运行最大超时设置完毕");
         }
+
+        function getAutojsTitleNode(regexp) {
+            return className("TextView").textMatches(regexp)
+                .boundsInside(cX(0.12), cY(0.03, 16 / 9), cX(0.5), cY(0.12, 16 / 9));
+        }
     }
 }
 
@@ -377,6 +396,17 @@ function launchHomepage(params) {
         messageAction("开始" + current_app.quote_name + "任务", 1, 1, 0, "both");
         current_app.first_time_run = false;
         Object.assign(params, {screen_orientation: 0});
+    }
+    if (config.app_launch_springboard === "ON") {
+        debugInfo("使用启动跳板");
+        let {current_autojs_package, current_autojs_app_name} = current_app;
+        launchThisApp(current_autojs_package, {
+            app_name: current_autojs_app_name,
+            debug_info_flag: false,
+            no_message_flag: true,
+            first_time_run_message_flag: false,
+            condition_ready: current_app.isAutojsForeground,
+        }) ? debugInfo("跳板启动成功") : debugInfo(["跳板启动失败", ">打开" + current_autojs_app_name + "应用超时"], 3);
     }
     let launch_result = plans("launchHomepage", Object.assign({}, {exclude: "_test_"}, params));
     if (screen_orientation !== 0) setScreenPixelData("refresh");
@@ -421,8 +451,9 @@ function checkLanguage() {
             if (waitForAction(kw_homepage, 2000)) return true;
             let max_try_times = 5;
             while (max_try_times--) {
-                killThisApp(current_app.package_name);
-                app.launch(current_app.package_name);
+                let {package_name} = current_app;
+                killThisApp(package_name);
+                app.launch(package_name);
                 if (waitForAction(kw_homepage, 15000)) break;
             }
             if (max_try_times < 0) {
@@ -497,14 +528,23 @@ function checkEnergy() {
     function checkOwnEnergy() {
         if (!config.self_collect_switch) return debugInfo("自收功能未开启");
 
+        debugInfo("开始检查自己能量");
+
         current_app.total_energy_init = getOwnEnergyAmount("buffer");
         let total_init_data = current_app.total_energy_init;
         debugInfo("初始能量: " + total_init_data + "g");
 
-        debugInfo("开始检查自己能量");
+        waitForAction([kw_more_friends(), current_app.kw_af_home(), "or"], 12000)
+            ? debugInfo("蚂蚁森林主页准备完毕")
+            : debugInfo("蚂蚁森林主页准备超时", 3);
 
-        if (!waitForAction([kw_more_friends(), current_app.kw_af_home(), "or"], 12000)) debugInfo("蚂蚁森林主页准备超时");
-        if (waitForAction(() => kw_energy_balls().exists(), config.max_own_forest_balls_ready_time, 50)) checkEnergyBalls();
+        let {max_own_forest_balls_ready_time} = config;
+        debugInfo(["查找主页能量球控件", ">最大时间参数: " + max_own_forest_balls_ready_time + "ms"]);
+        let homepage_balls_len = 0;
+        if (waitForAction(() => homepage_balls_len = kw_energy_balls().find().length, max_own_forest_balls_ready_time, 50)) {
+            debugInfo("找到主页能量球: " + homepage_balls_len + "个");
+            checkEnergyBalls();
+        } else debugInfo("指定时间内未发现主页能量球");
 
         let total_collect_data = current_app.total_energy_collect_own;
         total_collect_data ? debugInfo("共计收取: " + total_collect_data + "g") : debugInfo("无能量球可收取");
@@ -1649,12 +1689,15 @@ function checkEnergy() {
 
                 let kw_end_list_ident_node = current_app.kw_end_list_ident().findOnce();
                 if (kw_end_list_ident_node) {
-                    list_end_signal = 1;
-                    debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
-                    let {left, top, right, bottom} = kw_end_list_ident_node.bounds();
-                    let btn_clip = images.clip(images.captureCurrentScreen(), left, top, right - left - 3, bottom - top - 3);
-                    images.save(current_app.rank_list_bottom_template = btn_clip, current_app.rank_list_bottom_template_path);
-                    return debugInfo("列表底部控件图片模板已更新");
+                    let {top, bottom} = kw_end_list_ident_node.bounds();
+                    if (bottom - top > cX(0.08)) {
+                        list_end_signal = 1;
+                        debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
+                        let {left, top, right, bottom} = kw_end_list_ident_node.bounds();
+                        let btn_clip = images.clip(images.captureCurrentScreen(), left, top, right - left - 3, bottom - top - 3);
+                        images.save(current_app.rank_list_bottom_template = btn_clip, current_app.rank_list_bottom_template_path);
+                        return debugInfo("列表底部控件图片模板已更新");
+                    }
                 }
 
                 if (waitForAction(() => sel.pickup(/.*打瞌睡.*/).exists(), 2, 1000)) {
@@ -1778,8 +1821,18 @@ function checkEnergy() {
             function checkRankListBottomTemplate() {
                 let bottom_template = current_app.rank_list_bottom_template;
                 if (bottom_template) {
-                    let matched = images.findImage(current_app.rank_list_capt_img, bottom_template, {level: 1});
-                    if (matched) return debugInfo(["列表底部条件满足", ">已匹配列表底部控件图片模板"]) || true;
+                    let template_height = bottom_template.height;
+                    if (template_height < cX(0.08) - 3 || template_height > cX(0.18)) {
+                        files.remove(current_app.rank_list_bottom_template_path);
+                        delete current_app.rank_list_bottom_template;
+                        debugInfo(["列表底部控件图片模板已清除", ">图片模板高度值异常: " + template_height], 3);
+                        if (!thread_list_end.isAlive()) {
+                            thread_list_end = threads.start(monitorEndOfListByUiObjThread);
+                        }
+                    } else {
+                        let matched = images.findImage(current_app.rank_list_capt_img, bottom_template, {level: 1});
+                        if (matched) return debugInfo(["列表底部条件满足", ">已匹配列表底部控件图片模板"]) || true;
+                    }
                 }
             }
 
@@ -1931,13 +1984,13 @@ function checkEnergy() {
 
                 sel_type = sel_type || kw_end_list_ident().toString().slice(0, 4);
                 let {left, top, right, bottom} = kw_end_list_ident_node.bounds();
-                if (top < HEIGHT && bottom - top > cX(0.025)) {
+                if (bottom - top > cX(0.08)) {
                     list_end_signal = 1;
                     debugInfo("列表底部条件满足");
                     debugInfo(">bounds: [" + left + ", " + top + ", " + right + ", " + bottom + "]");
                     debugInfo(">" + sel_type + ": " + kw_end_list_ident_node[sel_type]());
                     let btn_clip = images.clip(images.captureCurrentScreen(), left, top, right - left - 3, bottom - top - 3);
-                    images.save(btn_clip, current_app.rank_list_bottom_template_path);
+                    images.save(current_app.rank_list_bottom_template = btn_clip, current_app.rank_list_bottom_template_path);
                     debugInfo("已存储列表底部控件图片模板");
                     break;
                 }
@@ -2232,8 +2285,6 @@ function showResult() {
 
     showMessage(energyStr(friends, own) || "A fruitless attempt");
 
-    debugInfo("统计结果展示完毕");
-
     // tool function(s) //
 
     function energyStr(friends_num, self_num) {
@@ -2246,7 +2297,12 @@ function showResult() {
     function showMessage(msg) {
         msg.split("\n").forEach(msg => messageAction(msg, 1));
         if (msg.match(/失败|错误/)) own = -1;
-        config.floaty_result_switch ? showFloatyResult(own, friends, config.floaty_result_countdown) : messageAction(msg, null, 1);
+        if (config.floaty_result_switch) {
+            showFloatyResult(own, friends, config.floaty_result_countdown);
+        } else {
+            messageAction(msg, null, 1);
+            debugInfo("统计结果展示完毕");
+        }
 
         // tool function(s) //
 
@@ -2279,8 +2335,19 @@ function showResult() {
 
             debugInfo("开始绘制Floaty");
 
-            let timeout_prefix = "(";
-            let timeout_suffix = ")";
+            let window_cover = floaty.rawWindow(<frame id="cover" gravity="center" bg="#7f000000"/>);
+            window_cover.cover.on("click", () => {
+                current_app.floaty_msg_signal = 0;
+                floaty_failed_flag = false;
+                debugInfo(["触发遮罩层触摸事件", "提前结束Floaty结果展示", "发送Floaty消息结束等待信号"]);
+                window_cover.close();
+            });
+
+            ui.run(() => {
+                window_cover.setSize(-1, -1);
+                window_cover.setTouchable(true); // prevent touch event transferring to the view beneath
+            });
+
             let base_height = cY(0.66);
             let message_height = cY(80, 16 / 9);
             let hint_height = message_height * 0.7;
@@ -2308,20 +2375,29 @@ function showResult() {
                 </frame>;
 
             let message_raw_win = floaty.rawWindow(message_layout);
-            message_raw_win.text.setText(!~you && "Statistics Failed" || (you + friends).toString() || "0");
-            message_raw_win.setSize(-2, 0);
 
-            waitForAction(() => message_raw_win.getWidth() > 0, 5000);
+            ui.run(() => {
+                message_raw_win.text.setText(!~you && "Statistics Failed" || (you + friends).toString() || "0");
+                message_raw_win.setSize(-2, 0);
+                let max_wait_time = 5000;
+                let start_timestamp = timeRecorder("message_raw_win_width");
+                while (timeRecorder("message_raw_win_width", "load") - start_timestamp < max_wait_time) {
+                    if (message_raw_win.getWidth() > 0) break;
+                }
+            });
+
             let min_width = Math.max(message_raw_win.getWidth(), cX(0.54), cX(0.25) * hint_len);
-
             let left_pos = (WIDTH - min_width) / 2;
-            message_raw_win.setPosition(left_pos, base_height);
-            message_raw_win.setSize(min_width, message_height);
 
-            let hint_top_pos = base_height - color_stripe_height - hint_height,
-                color_stripe_up_top_pos = base_height - color_stripe_height,
-                color_stripe_down_top_pos = base_height + message_height,
-                timeout_top_pos = base_height + message_height + color_stripe_height;
+            ui.run(() => {
+                message_raw_win.setPosition(left_pos, base_height);
+                message_raw_win.setSize(min_width, message_height);
+            });
+
+            let hint_top_pos = base_height - color_stripe_height - hint_height;
+            let color_stripe_up_top_pos = base_height - color_stripe_height;
+            let color_stripe_down_top_pos = base_height + message_height;
+            let timeout_top_pos = base_height + message_height + color_stripe_height;
 
             let avg_width = ~~(min_width / hint_len);
 
@@ -2333,73 +2409,85 @@ function showResult() {
             };
 
             for (let i = 0; i < hint_len; i += 1) {
-                let current_hint = hints[i],
-                    current_hint_color = "#cc" + (stripe_color_map[current_hint.slice(0, 3)] || stripe_color_map["OTHER"]).slice(1);
+                let current_hint = hints[i];
+                let current_hint_color = "#cc" + (stripe_color_map[current_hint.slice(0, 3)] || stripe_color_map["OTHER"]).slice(1);
                 let color_stripe_bg = colors.parseColor(current_hint_color);
                 let current_left_pos = left_pos + avg_width * i;
                 let current_width = i === hint_len - 1 ? min_width - (hint_len - 1) * avg_width : avg_width;
 
                 let color_stripe_raw_win_down = floaty.rawWindow(color_stripe_layout);
-                color_stripe_raw_win_down.setSize(1, 0);
-                color_stripe_raw_win_down.text.setBackgroundColor(color_stripe_bg);
-                color_stripe_raw_win_down.setPosition(current_left_pos, color_stripe_down_top_pos);
+                ui.run(() => {
+                    color_stripe_raw_win_down.setSize(1, 0);
+                    color_stripe_raw_win_down.text.setBackgroundColor(color_stripe_bg);
+                    color_stripe_raw_win_down.setPosition(current_left_pos, color_stripe_down_top_pos);
+                });
 
                 let color_stripe_raw_win_up = floaty.rawWindow(color_stripe_layout);
-                color_stripe_raw_win_up.setSize(1, 0);
-                color_stripe_raw_win_up.text.setBackgroundColor(color_stripe_bg);
-                color_stripe_raw_win_up.setPosition(current_left_pos, color_stripe_up_top_pos);
+                ui.run(() => {
+                    color_stripe_raw_win_up.setSize(1, 0);
+                    color_stripe_raw_win_up.text.setBackgroundColor(color_stripe_bg);
+                    color_stripe_raw_win_up.setPosition(current_left_pos, color_stripe_up_top_pos);
+                });
 
                 let hint_raw_win = floaty.rawWindow(hint_layout);
-                hint_raw_win.setSize(1, 0);
-                hint_raw_win.text.setText(current_hint);
-                hint_raw_win.setPosition(current_left_pos, hint_top_pos);
+                ui.run(() => {
+                    hint_raw_win.setSize(1, 0);
+                    hint_raw_win.text.setText(current_hint);
+                    hint_raw_win.setPosition(current_left_pos, hint_top_pos);
+                });
 
-                color_stripe_raw_win_down.setSize(current_width, color_stripe_height);
-                color_stripe_raw_win_up.setSize(current_width, color_stripe_height);
-                hint_raw_win.setSize(current_width, hint_height);
+                ui.run(() => {
+                    color_stripe_raw_win_down.setSize(current_width, color_stripe_height);
+                    color_stripe_raw_win_up.setSize(current_width, color_stripe_height);
+                    hint_raw_win.setSize(current_width, hint_height);
+                });
             }
 
             let timeout_raw_win = floaty.rawWindow(timeout_layout);
-            timeout_raw_win.setSize(1, 0);
-            timeout_raw_win.setPosition(left_pos, timeout_top_pos);
-            timeout_raw_win.setSize(min_width, timeout_height);
+            ui.run(() => {
+                timeout_raw_win.setSize(1, 0);
+                timeout_raw_win.setPosition(left_pos, timeout_top_pos);
+                timeout_raw_win.setSize(min_width, timeout_height);
+                timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
+            });
 
             debugInfo("Floaty绘制完毕");
 
-            threads.start(function () {
-                let floaty_failed_flag = true;
+            let floaty_failed_flag = true;
 
-                let thread_show_countdown = threads.start(function () {
-                    debugInfo("已开启Floaty倒计时线程");
-                    while (--countdown) setTimeoutText();
-                    debugInfo("Floaty倒计时线程结束");
-                });
+            debugInfo("开始Floaty倒计时");
+            ui.run(() => {
+                let countdown_interval = setInterval(setCountdownText, 1000);
+                let countdown_timeout = setTimeout(() => {
+                    clearInterval(countdown_interval);
 
-                thread_show_countdown.join(timeout + 2000);
+                    if (floaty_failed_flag) {
+                        messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                        messageAction("建议改用Toast方式显示收取结果", 3);
+                    }
 
-                if (floaty_failed_flag) {
-                    thread_show_countdown.interrupt();
-                    debugInfo(["强制停止Floaty倒计时线程", "Floaty消息绘制已大最大超时"]);
-                    messageAction("此设备可能无法使用Floaty功能", 3, 1);
-                    messageAction("建议改用Toast方式显示收取结果", 3);
-                }
+                    let prefix = floaty_failed_flag ? "强制" : "";
+                    debugInfo(prefix + "关闭所有Floaty窗口");
+                    floaty.closeAll();
 
-                let prefix = floaty_failed_flag ? "强制" : "";
-                floaty.closeAll();
-                debugInfo(prefix + "关闭所有Floaty窗口");
-                current_app.floaty_msg_signal = 0;
-                debugInfo(prefix + "发送Floaty消息结束等待信号");
+                    if (current_app.floaty_msg_signal) {
+                        current_app.floaty_msg_signal = 0;
+                        debugInfo(prefix + "发送Floaty消息结束等待信号");
+                    }
+
+                    debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
+                }, timeout);
 
                 // tool function(s) //
 
-                function setTimeoutText() {
+                function setCountdownText() {
                     try {
-                        timeout_raw_win.text.setText(timeout_prefix + countdown + timeout_suffix);
+                        if (--countdown <= 0) return;
+                        if (!current_app.floaty_msg_signal) return clearTimeout(countdown_timeout);
+                        timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
                         floaty_failed_flag = false;
                     } catch (e) {
                         debugInfo(["Floaty超时文本设置单次失败", e.message]);
-                    } finally {
-                        countdown && sleep(1000);
                     }
                 }
             });
@@ -2414,11 +2502,13 @@ function epilogue() {
     }
 
     if (config.kill_when_done_switch) {
-        endAlipay(); // kill alipay immediately
+        endAlipay(); // kill (or minimize) alipay immediately
     } else {
         if (current_app.kill_when_done_intelligent_kill) endAlipay();
         else config.kill_when_done_keep_af_pages || closeAfWindows();
     }
+
+    removeSpringboardIfNeeded();
 
     current_app.may_exit_when_screen_off_flag = true;
 
@@ -2426,6 +2516,7 @@ function epilogue() {
         debugInfo("等待Floaty消息结束等待信号");
         waitForAction(() => !current_app.floaty_msg_signal, 8000) || debugInfo("等待信号超时 放弃等待");
     }
+
 
     debugInfo("关闭所有线程");
     threads.shutDownAll(); // kill all threads started by threads.start()
@@ -2441,25 +2532,79 @@ function epilogue() {
 
     function closeAfWindows() {
         debugInfo("关闭全部蚂蚁森林相关页面");
-        let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
+
         let max_close_time = 10000;
-        while ((current_app.kw_af_title().boundsInside(0, 0, cX(0.8), cY(0.2, 16 / 9)).exists() || current_app.kw_rank_list_title().exists() || sel.pickup("浇水").exists()) && clickAction(current_app.kw_close_btn()) || kw_login_with_new_user().exists() && ~jumpBackOnce()) {
+        while (closeBtnCondition() || loginPageCondition()) {
             sleep(400);
             max_close_time -= 400;
             if (max_close_time <= 0) break;
         }
         debugInfo(max_close_time > 0 ? ["相关页面关闭完毕", "保留当前支付宝页面"] : "页面关闭可能没有成功");
+
+        // tool function(s) //
+
+        function closeBtnCondition() {
+            let afTitle = () => current_app.kw_af_title().boundsInside(0, 0, cX(0.8), cY(0.2, 16 / 9)).exists();
+            let rankListTitle = () => current_app.kw_rank_list_title().exists();
+            let forestPage = () => sel.pickup("浇水").exists();
+            if (afTitle() || rankListTitle() || forestPage()) return clickAction(current_app.kw_close_btn(), "widget");
+        }
+
+        function loginPageCondition() {
+            let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
+            if (kw_login_with_new_user().exists()) return jumpBackOnce() || true;
+        }
     }
 
     function endAlipay() {
         debugInfo("关闭支付宝");
         let alipay_pkg_name = current_app.package_name;
-        killThisApp(alipay_pkg_name);
-        waitForAction(() => currentPackage() !== alipay_pkg_name, 5000) ? debugInfo("支付宝关闭完毕") : debugInfo("支付宝关闭超时");
+        if (!killThisApp(alipay_pkg_name, {shell_acceptable: true})) return debugInfo("支付宝关闭超时", 3);
+        debugInfo("支付宝关闭完毕");
+        current_app.alipay_closed_flag = true;
+    }
+
+    function removeSpringboardIfNeeded() {
+        if (config.app_launch_springboard === "ON") {
+            if (!current_app.alipay_closed_flag) return debugInfo(["跳过启动跳板移除操作", ">支付宝未关闭"]);
+
+            let {init_autojs_state, current_autojs_app_name, isAutojsForeground, isAutojsHomepage} = current_app;
+            let {init_foreground, init_homepage, init_log_page, init_settings_page} = init_autojs_state;
+            let doubleBack = () => ~back() && ~back() && sleep(400);
+            let restoreSpringboard = (symbol) => {
+                let message = "恢复跳板" + surroundWith(symbol[0].toUpperCase() + symbol.slice(1), " ") + "页面";
+                debugInfo(message);
+                messageAction(message, null, 1);
+                return app.startActivity(symbol);
+            };
+
+            if (!waitForAction(isAutojsForeground, 9000, 300)) {
+                return debugInfo("等待返回" + current_autojs_app_name + "应用页面超时");
+            }
+
+            if (!init_foreground) return removeSpringboard(isAutojsForeground, doubleBack);
+
+            if (!init_homepage) {
+                if (init_log_page) return restoreSpringboard("console");
+                if (init_settings_page) return restoreSpringboard("settings");
+                return removeSpringboard(isAutojsHomepage, doubleBack);
+            }
+
+            return debugInfo("无需移除启动跳板");
+        }
+
+        // tool function(s) //
+
+        function removeSpringboard(conditionFunc, removeFunc) {
+            debugInfo("移除启动跳板");
+            let max_times_back = 5;
+            while (conditionFunc() && max_times_back--) removeFunc();
+            return max_times_back >= 0 ? debugInfo("跳板移除成功") : debugInfo("跳板移除可能失败");
+        }
     }
 
     function screenOffIfNeeded() {
-        if (current_app.is_screen_on) return debugInfo("无需关闭屏幕");
+        if (current_app.is_init_screen_on) return debugInfo("无需关闭屏幕");
         let device_brand = device.brand;
         let keycode_power_bug_versions = [/[Mm]eizu/];
         let keycode_power_bug = !!function () {
@@ -2489,7 +2634,7 @@ function unlock() {
             messageAction("自动解锁功能无法使用", 3);
             return messageAction("解锁模块未导入", 3, 0, 1);
         }
-        if (!current_app.is_screen_on && !config.auto_unlock_switch) {
+        if (!current_app.is_init_screen_on && !config.auto_unlock_switch) {
             messageAction("脚本无法继续", 4);
             messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
         }
@@ -2517,7 +2662,7 @@ function setVolKeysListener() {
             messageAction("强制停止当前脚本", 3, 1, 0, "up");
             messageAction("用户按下'音量减/VOL-'键", 3, 0, 1, 1);
             threads.shutDownAll();
-            engines.myEngine().forceStop();
+            my_engine.forceStop();
         });
     });
 }
@@ -2659,8 +2804,9 @@ function setGlobalWaitingMonitors() {
 }
 
 function showRunningCountdownIfNeeded() {
-    if (!current_app.is_screen_on) return debugInfo(["跳过\"运行前提示\"", ">屏幕未亮起"]);
+    if (!current_app.is_init_screen_on) return debugInfo(["跳过\"运行前提示\"", ">屏幕未亮起"]);
     if (!config.prompt_before_running_switch) return debugInfo("\"运行前提示\"未开启");
+    if (my_engine.execArgv.instant_run_flag) return debugInfo(["跳过\"运行前提示\"", ">检测到\"立即运行\"引擎参数"]);
 
     let move_on_signal = false;
     let thread_running_countdown = threads.start(function () {
@@ -2947,7 +3093,7 @@ function checkModules() {
         );
         __global__._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
         unlock_module = new (require("./Modules/MODULE_UNLOCK"));
-        current_app.is_screen_on = unlock_module.is_screen_on;
+        current_app.is_init_screen_on = unlock_module.is_screen_on;
         debugInfo("接入\"af_cfg\"存储", "up");
         debugInfo("整合代码配置与本地配置");
         debugInfo("成功导入解锁模块");
@@ -2969,8 +3115,8 @@ function checkModules() {
 function checkTasksQueue() {
     let queue_flag = false;
     timeRecorder("queue_beginning", "save");
-    let my_engine = engines.myEngine();
-    let my_engine_id = my_engine && my_engine.id;
+    my_engine = (engines || {}).myEngine() || {};
+    let my_engine_id = my_engine.id;
     let bomb_flag = false;
     let checkExclusiveTasks = () => {
         let filtered_tasks = engines.all()
@@ -3023,13 +3169,14 @@ function checkTasksQueue() {
         __global__.engines_not_supported_flag = true;
         debugInfo("Engines支持性标记: false")
     }
-    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], "秒"), "up");
+    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "up");
 }
 
 function checkVersions() {
     let current_autojs_package = "";
     try {
-        current_autojs_package = context.packageName;
+        current_autojs_package = current_app.current_autojs_package = context.packageName;
+        current_app.current_autojs_app_name = "Auto.js" + (current_autojs_package.match(/pro/) ? " Pro" : "")
     } catch (e) {
         messageAction("无法获取当前Auto.js包名", 3);
         messageAction("Context对象无效", 3, 0, 1);
@@ -3297,7 +3444,7 @@ function checkEngines() {
         messageAction("跳过\"执行特殊指令\"检查", 3);
         messageAction("Engines模块功能异常", 3, 0, 1);
     } else {
-        let special_exec_command = engines.myEngine().execArgv.special_exec_command;
+        let {special_exec_command} = my_engine.execArgv;
         if (special_exec_command) {
             if (!(special_exec_command in special_exec_list)) {
                 messageAction("未知的执行命令参数:\n" + special_exec_command, null, 1);
@@ -3517,7 +3664,7 @@ function plans(operation_name, params) {
     let plans = {
         launchHomepage: {
             plans_data: [
-                ["intent_with_rich_params", launchHomepageByIntent, current_app.homepage_intent_common_browser_rich_uri],
+                ["intent_with_params", launchHomepageByIntent, current_app.homepage_intent.common_browser_rich],
                 ["click_af_btn_at_homepage", launchHomepageByClickAfBtnAtHomepage],
                 ["search_by_keyword", launchHomepageBySearchKeyword, "Ant Forest"],
             ],
@@ -3525,7 +3672,7 @@ function plans(operation_name, params) {
         },
         launchRankList: {
             plans_data: [
-                ["intent_with_rich_params", launchRankListByIntent, current_app.rank_list_intent],
+                ["intent_with_params", launchRankListByIntent, current_app.rank_list_intent],
                 ["click_list_more_btn", launchRankListByClickListMoreBtn],
             ],
             error_level: 3,
@@ -3802,7 +3949,7 @@ function speExecCollectFriendsList() {
         storage_af.put("friends_list_data", friend_list_data);
         thread_keep_toast.interrupt();
         messageAction("采集完毕", 1, 1);
-        messageAction("用时 " + timeRecorder("collect_friends_list_data", "load", null, null, " 毫秒"), 1, 0, 1);
+        messageAction("用时 " + timeRecorder("collect_friends_list_data", "load", 1000, [1], " 秒"), 1, 0, 1);
         messageAction("总计 " + friend_list_data.list_length + " 项", 1, 0, 1);
         current_app.floaty_msg_signal = 0;
 

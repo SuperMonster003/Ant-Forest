@@ -4,6 +4,11 @@ try {
     auto();
 }
 
+// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
+__global__ = typeof __global__ === "undefined" ? this : __global__;
+
+updateMethodRequire();
+
 let {
     tryRequestScreenCapture,
     waitForAction,
@@ -142,7 +147,30 @@ diag.on("positive", () => {
 diag.on("negative", () => diag.dismiss());
 diag.show();
 
+// essential function(s) //
+
+function updateMethod(o, name, f) {
+    let old = o[name];
+    o[name] = function () {
+        let isFunction = f => typeof f === "function";
+        if (!isFunction(old)) return old;
+        return old.apply(this, isFunction(f) ? f(arguments) : arguments);
+    };
+}
+
 // tool function(s) //
+
+function updateMethodRequire() {
+    updateMethod(__global__, "require", (args) => {
+        let path = args[0] || "";
+        path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js";
+        for (let i = 0; ; i += 1) {
+            if (files.exists(path)) return [path];
+            if (i === 3) return [args[0]];
+            path = "." + path;
+        }
+    });
+}
 
 function checkKeyCodePowerBug() {
     for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {

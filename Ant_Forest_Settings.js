@@ -71,7 +71,6 @@ let getLocalProjectVerName = () => "v" + files.read("./Ant_Forest_Launcher.js").
 let defs = Object.assign({}, DEFAULT_SETTINGS, {
     item_area_width: cX(DEFAULT_SETTINGS.item_area_width) + "px",
     homepage_title: "蚂蚁森林",
-    empty_non_break_check_time_area_hint: "*点击添加按钮添加新时间区间*",
     local_backup_path: files.cwd() + "/BAK/Ant_Forest/",
 });
 
@@ -255,10 +254,27 @@ let homepage = setHomePage(defs.homepage_title)
                 function setAboutPageView() {
                     diag.dismiss();
 
-                    let base64ImageData = getBase64ImageData();
-                    let icon_outlook_base64 = base64ImageData.outlook;
-                    let icon_qq_base64 = base64ImageData.qq;
-                    let icon_github_base64 = base64ImageData.github;
+                    session_params.current_avatar_recycle_name = "avatar";
+
+                    let getImageFromBase64 = (name) => {
+                        return images.fromBase64(require("./Modules/MODULE_TREASURY_VAULT").image_base64_data[name]);
+                    };
+
+                    let outlook_icon = getImageFromBase64("outlook_icon");
+                    let qq_icon = getImageFromBase64("qq_icon");
+                    let github_icon = getImageFromBase64("github_icon");
+                    let alipay_donation_qr_code = getImageFromBase64("alipay_donation_qr_code");
+                    let wechat_donation_qr_code = getImageFromBase64("wechat_donation_qr_code");
+                    let detective_avatar = getImageFromBase64("detective_avatar");
+
+                    let local_avatar_path = (() => {
+                        let path = files.getSdcardPath() + "/.local/Pics/";
+                        files.createWithDirs(path);
+                        return path + "super_monster_003_avatar.png";
+                    })();
+                    let local_avatar = images.read(local_avatar_path);
+                    let local_avatar_text = "";
+                    let donation_text = "Thank you for your donation";
 
                     let additional_view = ui.inflate(
                         <vertical bg="#ffffff" clickable="true" focusable="true">
@@ -266,7 +282,7 @@ let homepage = setHomePage(defs.homepage_title)
                                 <img id="_avatar" w="180" h="180" radius="20dp" scaleType="fitXY"/>
                             </horizontal>
                             <horizontal gravity="center">
-                                <text id="_avatar_desc" text="Avatar image is loading..."/>
+                                <text id="_avatar_desc"/>
                             </horizontal>
                             <horizontal gravity="center" margin="0 25 0 0">
                                 <img id="qq" w="50" h="50" scaleType="fitXY" margin="20"/>
@@ -287,19 +303,82 @@ let homepage = setHomePage(defs.homepage_title)
                         thread_load_url_avatar && thread_load_url_avatar.isAlive() && thread_load_url_avatar.interrupt();
                         closeAboutPage();
                     });
+                    additional_view.close.on("long_click", (e, view) => {
+                        e.consumed = true;
+
+                        if (session_params.avatar_recycle_opr_working_flag) return;
+                        session_params.avatar_recycle_opr_working_flag = true;
+
+                        let recycle_opr = [
+                            ["avatar", () => local_avatar || detective_avatar, () => local_avatar_text],
+                            ["alipay", () => alipay_donation_qr_code, () => donation_text],
+                            ["wechat", () => wechat_donation_qr_code, () => donation_text]
+                        ];
+
+                        setAnimation("vanish");
+
+                        setTimeout(function () {
+                            let next_recycle_opr = recycle_opr[getNextRecycleIdx()];
+                            additional_view._avatar.setSource(next_recycle_opr[1]());
+                            additional_view._avatar_desc.setText(next_recycle_opr[2]());
+                            session_params.current_avatar_recycle_name = next_recycle_opr[0];
+                        }, 300);
+
+                        setTimeout(function () {
+                            setAnimation("show_up");
+                        }, 500);
+
+                        delete session_params.avatar_recycle_opr_working_flag;
+
+                        // tool function(s) //
+
+                        function setAnimation(flag) {
+                            flag = flag === "vanish";
+                            let {ObjectAnimator, AnimatorSet} = android.animation;
+                            let animationY = ObjectAnimator.ofFloat(
+                                additional_view._avatar_desc, "translationY", -100 * (+!flag), -100 * (+flag)
+                            );
+                            let animationScaleX = ObjectAnimator.ofFloat(
+                                additional_view._avatar, "scaleX", +flag, +!flag
+                            );
+                            let animationScaleY = ObjectAnimator.ofFloat(
+                                additional_view._avatar, "scaleY", +flag, +!flag
+                            );
+                            let set = new AnimatorSet();
+                            set.playTogether([animationY, animationScaleX, animationScaleY]);
+                            set.setDuration(200);
+                            set.start();
+                        }
+
+                        function getNextRecycleIdx() {
+                            let opr_len = recycle_opr.length;
+                            let idx = 0;
+                            let current_name = session_params.current_avatar_recycle_name;
+                            for (let i = 0; i < opr_len; i += 1) {
+                                if (current_name === recycle_opr[idx = i][0]) break;
+                            }
+                            return (idx + 1) % opr_len;
+                        }
+                    });
+
                     session_params.back_btn_consumed_func = () => additional_view.close.click();
 
                     let old_status_bar_color = activity.getWindow().getStatusBarColor();
                     ui.statusBarColor(android.graphics.Color.TRANSPARENT);
 
-                    let path = files.getSdcardPath() + "/.local/Pics/";
-                    files.createWithDirs(path);
-                    path += "super_monster_003_avatar.png";
-                    let avatar_local_img = images.read(path);
-                    if (avatar_local_img) {
+                    let avatar_text_obj = {
+                        loading: "Online avatar image is loading...",
+                        coffee: "Coffee, coffee, and coffee",
+                        loading_failed: "Online avatar image loaded failed",
+                    };
+                    if (local_avatar) {
                         debugInfo("使用本地头像图片资源");
-                        additional_view._avatar.setSource(avatar_local_img);
-                        additional_view._avatar_desc.text("Coffee, coffee, and coffee");
+                        additional_view._avatar.setSource(local_avatar);
+                        additional_view._avatar_desc.text(local_avatar_text = avatar_text_obj.coffee);
+                    } else {
+                        debugInfo("使用默认头像图片资源");
+                        additional_view._avatar.setSource(detective_avatar);
+                        additional_view._avatar_desc.text(local_avatar_text = avatar_text_obj.loading);
                     }
 
                     let stop_loading_url_avatar_signal = false;
@@ -307,35 +386,50 @@ let homepage = setHomePage(defs.homepage_title)
                         try {
                             waitForAction(() => additional_view && additional_view._avatar, 5000, 50);
                             let avatar_url_img = null;
-                            if (!waitForAction(() => avatar_url_img = images.load("https://avatars1.githubusercontent.com/u/30370009"), 3)) {
-                                debugInfo("网络头像图片资源获取失败");
-                                throw Error();
+                            let avatar_url = "https://avatars1.githubusercontent.com/u/30370009";
+                            let max_retry_times_load_image = 3;
+                            let current_retry_load_image = 0;
+                            let maxTryTimesReached = () => current_retry_load_image > max_retry_times_load_image;
+                            while (!maxTryTimesReached()) {
+                                let try_info = " (" + current_retry_load_image + "\/" + max_retry_times_load_image + ")";
+                                debugInfo(current_retry_load_image ? "重试获取网络头像图片资源" + try_info : "尝试获取网络头像图片资源");
+
+                                if (waitForAction(() => avatar_url_img = images.load(avatar_url), 2)) break;
+
+                                if (stop_loading_url_avatar_signal) return debugInfo("检测到网络头像图片获取停止信号");
                             }
-                            if (stop_loading_url_avatar_signal) return;
+
+                            if (maxTryTimesReached()) {
+                                if (!local_avatar) {
+                                    ui.post(() => additional_view._avatar_desc.text(local_avatar_text = avatar_text_obj.loading_failed));
+                                }
+                                return debugInfo("获取网络头像图片达最大次数");
+                            }
+
                             debugInfo("网络头像图片资源获取成功");
 
-                            let savePicToLocal = () => {
-                                images.save(avatar_url_img, path);
-                                debugInfo("网络头像图片资源已保存到本地");
-                            };
-                            let similar_img_flag = false;
-                            if (avatar_local_img) {
-                                if (images.findImage(avatar_local_img, avatar_url_img)) {
-                                    debugInfo("本地头像图片无需替换");
-                                    similar_img_flag = true;
-                                } else savePicToLocal();
-                            } else savePicToLocal();
-
-                            ui.post(() => {
-                                additional_view._avatar_desc.text("Coffee, coffee, and coffee");
-                                similar_img_flag || additional_view._avatar.setSource(avatar_url_img);
-                            });
+                            if (local_avatar && images.findImage(local_avatar, avatar_url_img)) {
+                                return debugInfo("本地头像图片无需替换");
+                            } else {
+                                images.save(avatar_url_img, local_avatar_path);
+                                debugInfo(local_avatar ? "已替换本地头像图片资源" : "网络头像图片资源已保存到本地");
+                                local_avatar = avatar_url_img;
+                                local_avatar_text = avatar_text_obj.coffee;
+                                ui.post(() => {
+                                    if (additional_view._avatar_desc.getText() === avatar_text_obj.loading) {
+                                        additional_view._avatar_desc.text(local_avatar_text);
+                                    }
+                                    if (session_params.current_avatar_recycle_name === "avatar") {
+                                        additional_view._avatar.setSource(local_avatar);
+                                    }
+                                });
+                            }
                         } catch (e) {
-                            ui.post(() => additional_view._avatar_desc.text("Avatar image loaded failed"));
+
                         }
                     });
 
-                    additional_view.qq.setSource(images.fromBase64(icon_qq_base64));
+                    additional_view.qq.setSource(qq_icon);
                     additional_view.qq.on("click", () => {
                         app.startActivity({
                             action: "VIEW",
@@ -344,9 +438,9 @@ let homepage = setHomePage(defs.homepage_title)
                             ),
                         });
                     });
-                    additional_view.github.setSource(images.fromBase64(icon_github_base64));
+                    additional_view.github.setSource(github_icon);
                     additional_view.github.on("click", () => app.openUrl("https://github.com/SuperMonster003"));
-                    additional_view.outlook.setSource(images.fromBase64(icon_outlook_base64));
+                    additional_view.outlook.setSource(outlook_icon);
                     additional_view.outlook.on("click", () => {
                         app.startActivity({
                             action: "VIEW",
@@ -361,16 +455,9 @@ let homepage = setHomePage(defs.homepage_title)
 
                     // tool function(s) //
 
-                    function getBase64ImageData() {
-                        return {
-                            outlook: "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",
-                            qq: "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",
-                            github: "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",
-                        };
-                    }
-
                     function closeAboutPage() {
-                        session_params.back_btn_consumed = false;
+                        delete session_params.back_btn_consumed;
+                        delete session_params.close_btn_long_clicked_flag;
                         ui.statusBarColor(old_status_bar_color);
                         diag.show();
 
@@ -404,13 +491,38 @@ let homepage = setHomePage(defs.homepage_title)
                         newest_server_version_name = "检查超时";
                     } finally {
                         diag.setContent(ori_content + newest_server_version_name);
-                        if (newest_server_version_name.match(/v/) && newest_server_version_name !== local_version) {
+                        if (newest_server_version_name.match(/^v/) && isNewVer(newest_server_version_name, local_version)) {
                             diag.setActionButton("neutral", "查看当前更新");
                         } else {
                             only_show_history_flag = true;
                             diag.setActionButton("neutral", "查看历史更新");
                         }
                         checking_update_flag = false;
+                    }
+
+                    // tool function(s) //
+
+                    function isNewVer(ver_new, ver_old) {
+                        return getVerWeight(ver_new) > getVerWeight(ver_old);
+
+                        // tool function(s) //
+
+                        function getVerWeight(ver) {
+                            let str = ver.replace(/[v ]/g, "");
+                            if (str.match(/[Aa]lpha$|[Bb]eta$/)) str += "1";
+                            if (!str.match(/[Aa]lpha|[Bb]eta/)) str += "#9.9999";
+                            str = str.replace(/[Aa]lpha/, "#1.").replace(/[Bb]eta/, "#2.");
+                            let split_str = str.split("#");
+                            let calc = (s) => {
+                                let nums = s.split(".");
+                                let sum = 0;
+                                for (let i = 0, len = nums.length; i < len; i += 1) {
+                                    sum += nums[i] * Math.pow(10, (16 - 4 * i));
+                                }
+                                return sum;
+                            };
+                            return calc(split_str[0]) + "." + calc(split_str[1]);
+                        }
                     }
                 });
             }
@@ -1911,7 +2023,39 @@ addPage(() => {
                 view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
             },
         }))
-        .add("options", new Layout("支付宝应用保留", {
+        .add("button", new Layout("支付宝应用启动跳板", {
+            config_conj: "app_launch_springboard",
+            hint: "加载中...",
+            map: {
+                "ON": "开启跳板",
+                "OFF": "关闭跳板",
+            },
+            newWindow: function () {
+                let map = this.map;
+                let map_keys = Object.keys(map);
+                let diag = dialogs.builds(["支付宝应用启动跳板", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+                    items: map_keys.slice().map(value => map[value]),
+                    itemsSelectMode: "single",
+                    itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()),
+                });
+                diag.on("neutral", () => {
+                    let diag_about = dialogs.builds(["关于启动跳板", "about_app_launch_springboard", 0, 0, "关闭", 1]);
+                    diag_about.on("positive", () => diag_about.dismiss());
+                    diag_about.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    saveSession(this.config_conj, map_keys[diag.selectedIndex]);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = session_config[this.config_conj] || DEFAULT_AF[this.config_conj];
+                view._hint.text("已" + this.map[value.toString()].slice(0, 2));
+            },
+        }))
+        .add("options", new Layout("支付宝应用及页面保留", {
             config_conj: "kill_when_done_switch",
             hint: "加载中...",
             next_page: "kill_when_done_page",
@@ -2305,6 +2449,55 @@ addPage(() => {
                 view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
             },
         }))
+        .add("button", new Layout("列表底部控件图片模板", {
+            hint: "加载中...",
+            newWindow: function () {
+                let template_path = storage_config.rank_list_bottom_template_path;
+                let diag = dialogs.builds([
+                    "排行榜底部控件图片模板", "",
+                    ["null", "caution_btn_color"], "返回", ["null", "attraction_btn_color"], 1,
+                ]);
+                diag.on("neutral", () => {
+                    let diag_confirm = dialogs.builds(["确认删除吗", "此操作无法撤销", 0, "放弃", ["确认", "caution_btn_color"], 1]);
+                    diag_confirm.on("negative", () => diag_confirm.dismiss());
+                    diag_confirm.on("positive", () => {
+                        files.remove(template_path);
+                        diag_confirm.dismiss();
+                        this.updateOpr(this.view);
+                        updateDialog();
+                    });
+                    diag_confirm.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => app.viewFile(template_path));
+                diag.show();
+                updateDialog();
+
+                // tool function(s) //
+
+                function updateDialog() {
+                    let dialog_contents = require("./Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
+                    let [base, exists, not_exists] = [
+                        dialog_contents.rank_list_bottom_template_hint_base,
+                        dialog_contents.rank_list_bottom_template_hint_exists,
+                        dialog_contents.rank_list_bottom_template_hint_not_exists
+                    ];
+                    if (files.exists(template_path)) {
+                        diag.setContent(base + exists);
+                        diag.setActionButton("neutral", "删除模板");
+                        diag.setActionButton("positive", "查看模板");
+                    } else {
+                        diag.setContent(base + not_exists);
+                        diag.setActionButton("neutral", "");
+                        diag.setActionButton("positive", "");
+                    }
+                }
+            },
+            updateOpr: function (view) {
+                let file_exists_flag = files.exists(storage_config.rank_list_bottom_template_path);
+                view._hint.text(file_exists_flag ? "已生成" : "暂未生成");
+            },
+        }))
         .ready();
 }); // rank_list_samples_collect_page
 addPage(() => {
@@ -2417,7 +2610,7 @@ addPage(() => {
         .ready();
 }); // phone_call_state_monitor_page
 addPage(() => {
-    setPage(["支付宝应用保留", "kill_when_done_page"])
+    setPage(["支付宝应用及页面保留", "kill_when_done_page"])
         .add("switch", new Layout("总开关", {
             config_conj: "kill_when_done_switch",
             listeners: {
@@ -3063,7 +3256,11 @@ ui.emitter.on("back_pressed", e => {
     function quitNow() {
         if (storage_af.get("af_postponed")) {
             toast("配置结束\n即将运行蚂蚁森林");
-            engines.execScriptFile("./Ant_Forest_Launcher.js");
+            engines.execScriptFile("./Ant_Forest_Launcher.js", {
+                arguments: {
+                    instant_run_flag: true,
+                },
+            });
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
         }
@@ -3178,6 +3375,7 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                     engines.execScriptFile("./Ant_Forest_Launcher.js", {
                         arguments: {
                             special_exec_command: "collect_friends_list",
+                            instant_run_flag: true,
                         },
                     });
                     threads.starts(function () {
@@ -3220,9 +3418,13 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                     let items_len = items.length;
                     items = items_len ? items : ["列表为空"];
                     diag_add_from_list.setItems(items);
-                    session_params.last_friend_list_refresh_timestamp = friends_list.timestamp === Infinity ? -1 : friends_list.timestamp;
-                    let content_info = (friends_list.timestamp !== Infinity ? ("上次刷新: " + getTimeStrFromTimestamp(friends_list, "timestamp").time_str + "\n") : "") + "当前可添加的好友总数: " + items_len;
-                    diag_add_from_list.setContent(content_info);
+                    let friends_list_timestamp = friends_list.timestamp;
+                    if (friends_list_timestamp === Infinity) friends_list_timestamp = -1;
+                    session_params.last_friend_list_refresh_timestamp = friends_list_timestamp;
+                    diag_add_from_list.setContent(
+                        "上次刷新: " + getTimeStrFromTimestamp(friends_list_timestamp, "time_str") + "\n"
+                        + "当前可添加的好友总数: " + items_len
+                    );
                 }
             });
             diag.on("negative", () => {
@@ -3555,14 +3757,14 @@ function isolateBlacklistStorage() {
 function initUI(status_bar_color) {
     ui.layout(
         <vertical id="main">
-            <horizontal/>
+            <frame/>
         </vertical>
     );
     ui.statusBarColor(status_bar_color || "#03a6ef");
 }
 
-function setHomePage(home_title) {
-    let homepage = setPage(home_title, def, parent_view => setButtons(parent_view, "homepage",
+function setHomePage(home_title, title_bg_color) {
+    let homepage = setPage(home_title, title_bg_color, parent_view => setButtons(parent_view, "homepage",
         ["save", "SAVE", "OFF", (btn_view) => {
             if (!needSave()) return;
             saveNow();
@@ -4305,11 +4507,17 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
         threads.starts(function () {
             let info = {};
             let regexp_version_name = /# v\d+\.\d+\.\d+.*/g;
-            let regexp_remove_info = /(^\n)|((# *){3,})|( +(?=\s+))|(.*~~.*)|(.*`灵感`.*)|(\(http.+?\))/g;
+            let regexp_issue_refs = / ?_\[`(issue )?#(\d+)`]\(http.+?\)_ ?/g;
+            let regexp_remove_info = /^(\s*\n\s*)+|(# *){3,}| +(?=\s+)|.*~~.*|.*`灵感`.*|\(http.+?\)/g;
             let version_names = file_content.match(regexp_version_name);
             let version_infos = file_content.split(regexp_version_name);
             version_names.forEach((name, idx) => {
-                info["v" + name.split("v")[1]] = version_infos[idx + 1].replace(regexp_remove_info, "").replace(/\n{2,}/g, "\n");
+                info["v" + name.split("v")[1]] = version_infos[idx + 1]
+                    .replace(regexp_issue_refs, "[$2]")
+                    .replace(regexp_remove_info, "")
+                    .replace(/(\[(\d+)])+/g, $0 => " " + $0.split(/]\[/).join(",").replace(/\d+/g, $0 => "#" + $0))
+                    // .replace(/\* `(..)`/g, "*$1*")
+                    .replace(/(\s*\n\s*){2,}/g, "\n");
             });
             session_params.update_info = info;
             updateDialogUpdateDetails();

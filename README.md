@@ -27,7 +27,7 @@
 中文系统默认目录 `/sdcard/脚本/`  
 英文系统默认目录 `/sdcard/Scripts/`  
 3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
-运行 `Ant_Forest_Launcher.js` 文件可启动项目    
+运行 `Ant_Forest_Launcher.js` 文件可启动项目  
 运行 `Ant_Forest_Settings.js` 文件可进行项目配置  
 4. 欢迎使用并反馈  
   
@@ -38,17 +38,17 @@
 >> `-- 免费版本 --`  
 >> [`4.1.0 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha%5D(7312bb3f).apk?raw=true)  
 >> [`4.1.0 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.0_alpha2%5D(3a990e03).apk?raw=true)  
->> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true)    
+>> [`4.1.0 Alpha5`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.0_alpha5%5D(ff5bd9b3).apk?raw=true)  
 >> [`4.1.1 Alpha`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5B4.1.1_alpha%5D(accea680).apk?raw=true)  
 >> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true) `(推荐)`  
 >> `-- 付费版本 --`  
 >> [`Pro 7.0.0-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-4%5D(536f3432).apk?raw=true)  
 >> [`Pro 7.0.0-6`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5BPro_7.0.0-6%5D(5b1a1698).apk?raw=true)  
->> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)      
->> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true)      
->> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true)      
->> [`Pro 7.0.3-7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-7%5D(CC30BF10).apk?raw=true)      
->> [`Pro 7.0.4-1`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.4-1%5D(31B16C93).apk?raw=true) `(推荐)`    
+>> [`Pro 7.0.2-4`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.2-4%5D(a581978d).apk?raw=true)  
+>> [`Pro 7.0.3-0`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-0%5D(1e13098f).apk?raw=true)  
+>> [`Pro 7.0.3-2`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-2%5D(33a403c2).apk?raw=true)  
+>> [`Pro 7.0.3-7`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.3-7%5D(CC30BF10).apk?raw=true)  
+>> [`Pro 7.0.4-1`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.4-1%5D(31B16C93).apk?raw=true) `(推荐)`  
 >> `-- 不适用版本 --`  
 >> [`查看不适用版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)
 
@@ -77,7 +77,7 @@
 * 多语言支持 (简体中文 ~~繁体中文~~ ~~英语~~)  
 ·  ~~根据系统语言自动切换语言 (可开关)~~
 * 黑名单机制  
-·  能量保护罩好友自动加入黑名单/自动解除    
+·  能量保护罩好友自动加入黑名单/自动解除  
 ·  黑名单详细信息提示 (控制台)  
 ·  用户自行增删黑名单好友 (手动输入/列表选取)  
 * 样本采集策略  
@@ -86,12 +86,12 @@
 * 项目管理  
 ·  在线更新项目  
 ·  本地备份项目  
-·  本地或服务器 `(GitHub Release)` 还原项目   
+·  本地或服务器 `(GitHub Release)` 还原项目  
 * 信息加密存储  
 ·  自动生成"密文映射"字典文件  
 ·  使用密文存储账户信息/解锁密码等敏感信息  
 * ~~账户智能切换~~  
-·  ~~防止其他账户 (如支付宝小号) 意外收取 (需录入主账户信息)~~      
+·  ~~防止其他账户 (如支付宝小号) 意外收取 (需录入主账户信息)~~  
 ·  ~~主账户收取完毕可自动切换回之前登录的账户 (如果有此账户信息)~~  
 * 适应恶劣条件  
 ·  脚本在网络条件较差时仍可正常运行或识别异常  
@@ -102,16 +102,31 @@
 ******
 ### 版本历史
 ******
+# v1.8.4
+###### 2019/08/16
+* `新增` 捐赠二维码 (开发者个人页面长按 `CLOSE` 按钮) _[`issue #78`](https://github.com/SuperMonster003/Auto.js_Projects/issues/78#issue-479526561)_  
+* `新增` 排行榜列表底部控件图片模板配置 (查看/删除) _[`issue #82`](https://github.com/SuperMonster003/Auto.js_Projects/issues/82#issue-480555099)_  
+* `新增` 支付宝应用启动跳板功能及配置 _[`issue #80`](https://github.com/SuperMonster003/Auto.js_Projects/issues/80#issue-479543940)_  
+* `新增` Floaty悬浮窗结果展示遮罩层 (点击可立即结束悬浮窗结果展示)  
+* `修复` 列表选择好友的上次刷新时间数值无效的问题  
+* `修复` waitForAction()潜在的超时参数值被拉伸的问题 _[`issue #82`](https://github.com/SuperMonster003/Auto.js_Projects/issues/82#issuecomment-521696124)_  
+* `优化` 将Base64数据及Dialog文本数据移至独立的模块中  
+* `优化` 使用"立即运行"引擎参数以在某些情况下跳过运行前提示对话框  
+* `优化` 自动检测并替换高度值异常的排行榜列表底部控件图片模板 _[`issue #82`](https://github.com/SuperMonster003/Auto.js_Projects/issues/82#issue-480555099)_  
+* `优化` 关于脚本及开发者页面本地版本与服务器版本增加版本对比逻辑  
+* `优化` Floaty悬浮窗结果展示逻辑以避免主线程阻塞  
+* `管理` 增加 `GPLv3` 通用公共许可证文件  
+
 # v1.8.3
 ###### 2019/08/12
 * `新增` 帮收功能有效时段功能及配置
-* `新增` 排行榜截图样本池差异检测功能及阈值配置  
+* `新增` 排行榜截图样本池差异检测功能及阈值配置 _[`issue #72`](https://github.com/SuperMonster003/Auto.js_Projects/issues/72#issue-476406309)_ _[`#74`](https://github.com/SuperMonster003/Auto.js_Projects/issues/74#issue-476641502)_  
 * `新增` 全局事件监测机制 (屏幕关闭/通话状态)  
 * `新增` 通话状态监测配置  
 * `新增` Floaty悬浮窗结果展示时长配置  
 * `新增` 解锁提示层页面滑动起止点位置配置  
 * `新增` 支付宝应用保留配置  
-* `修复` 部分机型无法识别解锁提示层页面的问题  
+* `修复` 部分机型无法识别解锁提示层页面的问题 _[`issue #57`](https://github.com/SuperMonster003/Auto.js_Projects/issues/57#issuecomment-514873636)_  
 * `修复` 进入排行榜列表时可能出现的Activity加载失败问题  
 * `修复` 排行榜滑动时无法识别"服务器打瞌睡了"页面的问题  
 * `修复` 自己能量球数量等于6时可能无法退出监测的问题  
@@ -130,7 +145,7 @@
 * `优化` setTimePickerView()模块化  
 * `优化` setTimePickerView()自动设置初始值并使用24小时制
 * `优化` 全局变量明确声明以避免this关键字指向对象被污染  
-* `优化` 解锁提示层页面上滑时长自动设置逻辑 (硬初始化)  
+* `优化` 解锁提示层页面上滑时长自动设置逻辑 (硬初始化) _[`issue #70`](https://github.com/SuperMonster003/Auto.js_Projects/issues/70#issuecomment-518939573)_  
 
 # v1.8.2
 ###### 2019/07/26
@@ -146,7 +161,7 @@
 
 # v1.8.1
 ###### 2019/07/25
-* `修复` 意外保险机制开关与上级开关的关联失效问题  
+* `修复` 意外保险机制开关与上级开关的关联失效问题 _[`issue #52`](https://github.com/SuperMonster003/Auto.js_Projects/issues/52#issuecomment-514493225)_  
 * `修复` 意外保险机制内存数据关联异常及任务冗余问题  
 * `修复` 排行榜好友访问计数器传入参数无效的问题  
 * `修复` 黑名单样本采集的等待阈值过低可能导致的能量罩遗漏识别问题  
@@ -154,22 +169,25 @@
 
 # v1.8.0
 ###### 2019/07/24
-* `新增` 定时循环功能  
+* `新增` 定时循环功能 _[`issue #10`](https://github.com/SuperMonster003/Auto.js_Projects/issues/10)_ _[`#24`](https://github.com/SuperMonster003/Auto.js_Projects/issues/24#issue-442635694)_ _[`#50`](https://github.com/SuperMonster003/Auto.js_Projects/issues/50#issue-451816401)_ _[`#50`](https://github.com/SuperMonster003/Auto.js_Projects/issues/50#issuecomment-506215234)_ _[`#54`](https://github.com/SuperMonster003/Auto.js_Projects/issues/54#issue-455544556)_ _[`#56`](https://github.com/SuperMonster003/Auto.js_Projects/issues/56#issue-458658596)_ _[`#57`](https://github.com/SuperMonster003/Auto.js_Projects/issues/57#issue-458978058)_  
 ·  定时任务自动管理  
 ·  好友排行榜样本复查  
 ·  主页能量球循环监测  
 * `新增` 脚本运行安全  
 ·  运行失败自动重试  
-·  单次运行最大时间限制  
+·  单次运行最大时间限制 _[`issue #50`](https://github.com/SuperMonster003/Auto.js_Projects/issues/50#issuecomment-498550053)_  
 ·  排他性任务最大排队时间限制  
 ·  脚本炸弹预防  
+* `新增` 能量球点击间隔配置  
 * `新增` 运行前提示对话框及相关图形页面配置  
-* `新增` 排行榜滑动距离超限时距离参数自动修正机制  
-* `新增` 根据需要自动适时返回森林首页监测自己能量的返检机制  
+* `新增` 主页能量球控件最大准备时间配置 _[`issue #57`](https://github.com/SuperMonster003/Auto.js_Projects/issues/57#issue-458978058)_  
+* `新增` 排行榜滑动距离超限时距离参数自动修正机制 _[`issue #59`](https://github.com/SuperMonster003/Auto.js_Projects/issues/59#issue-463517330)_  
+* `新增` 根据需要自动适时返回森林首页监测自己能量的返检机制 _[`issue #63`](https://github.com/SuperMonster003/Auto.js_Projects/issues/63#issue-468138717)_  
 * `新增` 好友数量多于200时"图像识别"策略滑动间隔自增机制  
 * `新增` 图形配置页面增加排行榜滑动距离安全值建议及安全值检测  
-* `新增` 进入森林主页/好友排行榜页面增加多计划方案  
+* `新增` 进入森林主页/好友排行榜页面增加多计划方案 _[`issue #61`](https://github.com/SuperMonster003/Auto.js_Projects/issues/61#issue-466608872)_  
 * `修复` 本地项目备份的还原功能失效问题  
+* `修复` 能量球点击间隔过短可能导致的能量球点击遗漏问题 _[`issue #11`](https://github.com/SuperMonster003/Auto.js_Projects/issues/11#issuecomment-490311928)_  
 * `修复` 获取初始收取/帮收数据时迭代无效的问题  
 * `修复` 解锁后schema启动方式可能无效的问题 (试修)  
 * `修复` 部分debugInfo()信息关联错误的问题  
@@ -179,13 +197,13 @@
 * `修复` 采集黑名单数据时可能出现无法匹配日期/时间字串的问题  
 * `修复` 好友列表数据可能因选择器id属性变化导致获取失败的问题  
 * `修复` 排行榜列表容器控件id变更导致列表内容获取失败的问题  
-* `修复` 统计收取/帮收数据时控件文本转移导致正则匹配失效的问题  
+* `修复` 统计收取/帮收数据时控件文本转移导致正则匹配失效的问题  _[`issue #60`](https://github.com/SuperMonster003/Auto.js_Projects/issues/60#issue-463610448)_  
 * `修复` 统计收取/帮收数据初始统计值单位精度较低时统计异常的问题  
 * `修复` 部分机型"图像识别"策略因坐标变换失效无法识别图标的问题  
-* `修复` 潜在的黑名单数组原型方法可能因覆盖而丢失的问题  
+* `修复` 潜在的黑名单数组原型方法可能因覆盖而丢失且导致无谓延时的问题 _[`issue #50`](https://github.com/SuperMonster003/Auto.js_Projects/issues/50#issuecomment-506926016)_ _[`#55`](https://github.com/SuperMonster003/Auto.js_Projects/issues/55#issue-456752151)_ _[`#70`](https://github.com/SuperMonster003/Auto.js_Projects/issues/70#issue-475448212)_  
 * `修复` equalObjects()参数为错序对象的数组时结果错误的问题  
 * `修复` equalObjects()内部错误导致引用类型参数被破坏的问题  
-* `修复` swipeInArea()计算滑动区域时屏幕宽高数据分配错误的问题  
+* `修复` swipeInArea()计算滑动区域时屏幕宽高数据分配错误的问题 _[`issue #52`](https://github.com/SuperMonster003/Auto.js_Projects/issues/52#issuecomment-507184420)_  
 * `修复` messageActionRaw()无法显示verbose日志的问题  
 * `修复` Storage模块put及get方法无法处理Infinity的问题  
 * `修复` 图形配置页面列表滚动时导致标题栏连带滚动的问题  
@@ -194,8 +212,8 @@
 * `修复` 脚本运行时屏幕方向为横屏可能导致的脚本运行异常问题
 * `优化` 更新Bug版本检测列表  
 * `优化` 去除初始能量数据无效时其他数据额外的耗时统计  
-* `优化` 增加动态列表备用方案以增强收取/帮收数据有效性  
-* `优化` 使用动态列表/数据面板协同统计的方式增加数据有效性  
+* `优化` 增加动态列表备用方案以增强收取/帮收数据有效性  _[`issue #60`](https://github.com/SuperMonster003/Auto.js_Projects/issues/60#issue-463610448)_  
+* `优化` 使用动态列表/数据面板协同统计的方式增加数据有效性 _[`issue #60`](https://github.com/SuperMonster003/Auto.js_Projects/issues/60#issue-463610448)_  
 * `优化` 提升"图像识别"策略列表底部条件判断检测效率  
 * `优化` 去除"图像识别"策略列表滑动稳定条件判断以提升滑动效率  
 * `优化` 图形配置页面使用异步加载方式提升启动速度  
@@ -208,8 +226,9 @@
 
 # v1.7.1
 ###### 2019/06/16
-* `修复` 解锁模块成功解锁后可能出现的假死问题  
-* `修复` getDisplayParams()容易丢失精度的问题  
+* `修复` 解锁模块成功解锁后可能出现的假死问题 _[`issue #50`](https://github.com/SuperMonster003/Auto.js_Projects/issues/50#issuecomment-502027195)_ _[`#51`](https://github.com/SuperMonster003/Auto.js_Projects/issues/51#issue-452787314)_  
+* `修复` 解锁模块唤醒无密码设备可能失败的问题 _[`issue #62`](https://github.com/SuperMonster003/Auto.js_Projects/issues/62#issue-468132874)_  
+* `修复` getDisplayParams()容易丢失精度的问题 _[`issue #52`](https://github.com/SuperMonster003/Auto.js_Projects/issues/52#issuecomment-502029869)_  
 * `优化` 解锁模块增加开发者测试模式日志  
 * `优化` 解锁模块使用惰性函数优化频繁使用的函数  
 * `优化` 图形配置页面使用exit监听实现部分资源手动释放  
@@ -218,9 +237,9 @@
 
 # v1.7.0
 ###### 2019/06/14
-* `新增` 项目更新功能  
-* `新增` 项目备份还原功能 (本地/服务器)  
-* `修复` "布局分析"策略可能出现的点击错位的问题 (试修)  
+* `新增` 项目更新功能 _[`issue #21`](https://github.com/SuperMonster003/Auto.js_Projects/issues/21#issue-442191593)_  
+* `新增` 项目备份还原功能 (本地/服务器) _[`issue #48`](https://github.com/SuperMonster003/Auto.js_Projects/issues/48#issue-450576630)_  
+* `修复` "布局分析"策略可能出现的点击错位的问题 (试修) _[`issue #52`](https://github.com/SuperMonster003/Auto.js_Projects/issues/52#issuecomment-502029869)_  
 * `修复` 部分机型获取屏幕宽高数据异常的问题 (试修)  
 * `修复` 获取好友列表数据时Toast消息或提示框遮挡问题  
 * `修复` equalObjects()错序判断失误的问题  
@@ -240,7 +259,7 @@
 
 # v1.6.25 Alpha14
 ###### 2019/05/30
-* `修复` 工具函数模块使用服务获取屏幕高度像素时方法错误的问题
+* `修复` 工具函数模块使用服务获取屏幕高度像素时方法错误的问题 _[`issue #43`](https://github.com/SuperMonster003/Auto.js_Projects/issues/43#issuecomment-496122170)_  
 
 # v1.6.25 Alpha13
 ###### 2019/05/29
@@ -264,7 +283,7 @@
 
 # v1.6.25 Alpha9
 ###### 2019/05/29
-* `优化` 废弃排行榜图标图像采集及识别方法  
+* `优化` 废弃排行榜图标图像采集及识别方法 _[`issue #53`](https://github.com/SuperMonster003/Auto.js_Projects/issues/53#issue-453903442)_  
 * `优化` 废弃排行榜黑名单样本图像采集及识别方法  
 
 # v1.6.25 Alpha8
@@ -279,32 +298,32 @@
 # v1.6.25 Alpha6
 ###### 2019/05/27
 * `修复` "图像识别"策略采集可操作样本时可能出现的区域越界问题  
-* `修复` 屏幕宽高纵向拉伸方法的逻辑错误  
+* `修复` 屏幕宽高纵向拉伸方法的逻辑错误 _[`issue #43`](https://github.com/SuperMonster003/Auto.js_Projects/issues/43#issue-448579445)_ _[`#44`](https://github.com/SuperMonster003/Auto.js_Projects/issues/44#issue-448626129)_  
 
 # v1.6.25 Alpha5
 ###### 2019/05/26
 * `修复` 默认配置模块在运行图形配置页面之前可能出现不被加载的问题  
 * `修复` 关闭全部蚂蚁森林相关页面时可能出现的无限循环问题  
+* `修复` 好友列表进行颜色匹配时引用无效颜色值的问题 _[`issue #42`](https://github.com/SuperMonster003/Auto.js_Projects/issues/42#issue-448552266)_  
 * `优化` 屏幕宽高数据方法模块化且优先采用服务方式获取数据  
 
 # v1.6.25 Alpha4
 ###### 2019/05/26
 * `新增` 图形配置页面增加"排行榜样本采集"设置页面  
-* `修复` 添加新的"图像识别"策略返回列表时的条件检测以避免假死问题  
+* `修复` 添加新的"图像识别"策略返回列表时的条件检测以避免假死问题 _[`issue #15`](https://github.com/SuperMonster003/Auto.js_Projects/issues/15#issue-440288350)_  
 * `修复` "图像识别"策略存储排行榜图片样本功能失效的问题  
 
 # v1.6.25 Alpha3
 ###### 2019/05/26
 * `修复` 屏幕宽高数据获取失败的问题 (试修)  
-* `修复` 能量罩黑名单好友存储图片样本时高度参照点无效的问题  
+* `修复` 能量罩黑名单好友存储图片样本时高度参照点无效的问题 _[`issue #40`](https://github.com/SuperMonster003/Auto.js_Projects/issues/40#issue-448416344)_  
 * `修复` tryRequestScreenCapture()重试次数超限时消息提示功能失效的问题  
 * `优化` 移除采用排行榜"图像识别"策略返回列表时的条件检测  
-
 
 # v1.6.25 Alpha2
 ###### 2019/05/24
 * `新增` 排行榜样本采集新增"图像识别"策略  
-* `修复` 排行榜"图像识别"策略可能导致的黑名单空引用问题  
+* `修复` 排行榜"图像识别"策略可能导致的黑名单空引用问题 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-495919070)_  
 * `修复` 图形配置页面偶尔出现滑动不完全现象  
 * `优化` 排行榜"图像识别"策略手形图标识别准确性和高效性  
 * `优化` 增加排行榜滑动结束信号检测样本  
@@ -316,31 +335,31 @@
 
 # v1.6.24 Alpha4
 ###### 2019/05/22
-* `修复` 帮收数据可能无效的问题  
+* `修复` 帮收数据可能无效的问题 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-494628908)_  
 
 # v1.6.24 Alpha3
 ###### 2019/05/22
 * `修复` 启动完成条件检测失效的问题  
-* `修复` 能量球操作统计数据失效的问题  
+* `修复` 能量球操作统计数据失效的问题 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-494600867)_ _[`#36`](https://github.com/SuperMonster003/Auto.js_Projects/issues/36#issuecomment-494636100)_  
 
 # v1.6.24 Alpha2
 ###### 2019/05/22
-* `修复` tryRequestScreenCapture()重要参数缺失问题  
-* `修复` 关闭蚂蚁森林相关页面时clickAction()传参类型错误  
+* `修复` tryRequestScreenCapture()重要参数缺失问题 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-494584430)_  
+* `修复` 关闭蚂蚁森林相关页面时clickAction()传参类型错误 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-494430622)_ _[`#35`](https://github.com/SuperMonster003/Auto.js_Projects/issues/35#issue-446883975)_ _[`#36`](https://github.com/SuperMonster003/Auto.js_Projects/issues/36#issue-446884085)_  
 * `修复` 关闭蚂蚁森林相关页面时参考控件无限监测的问题  
 * `优化` 移除遗留的saveCurrentScreenCapture()工具调用  
 
 # v1.6.24 Alpha
 ###### 2019/05/21
-* `优化` 深度代码重构  
+* `优化` 深度代码重构 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-493279213)_ _[`#28`](https://github.com/SuperMonster003/Auto.js_Projects/issues/28#issuecomment-493378861)_  
 * `优化` 摒除排行榜样本筛选方案 - "标题列表bottom"  
-* `优化` 获取屏幕宽高数据加入缓冲方案  
-* `优化` 监测自己能量时设置屏幕常亮防止息屏  
+* `优化` 获取屏幕宽高数据加入缓冲方案 _[`issue #32`](https://github.com/SuperMonster003/Auto.js_Projects/issues/32#issuecomment-493808327)_  
+* `优化` 监测自己能量时设置屏幕常亮防止息屏 _[`issue #29`](https://github.com/SuperMonster003/Auto.js_Projects/issues/29#issue-445008791)_  
 
 # v1.6.23 Alpha8
 ###### 2019/05/20
-* `新增` 工具函数模块新增工具 (5项)  
-·  swipeInArea()    
+* `优化` 部分工具函数模块化  
+·  swipeInArea()  
 ·  swipeInAreaAndClickAction()  
 ·  keycode()  
 ·  debugInfo()  
@@ -350,22 +369,22 @@
 
 # v1.6.23 Alpha7
 ###### 2019/05/19
-* `新增` 工具函数模块新增工具 (3项)  
+* `优化` 部分工具函数模块化  
 ·  restartThisApp()  
 ·  tryRequestScreenCapture()  
 ·  waitForAndClickAction()  
 
 # v1.6.23 Alpha6
 ###### 2019/05/18
-* `新增` 工具函数模块新增工具 (3项)  
+* `修复` 工具函数killThisAppRaw()的依赖性  
+* `优化` 部分工具函数模块化  
 ·  getVerName()  
 ·  restartThisEngine()  
 ·  refreshObjects()  
-* `修复` 工具函数killThisAppRaw()的依赖性  
 
 # v1.6.23 Alpha5
 ###### 2019/05/17
-* `新增` 工具函数模块新增clickAction()  
+* `新增` 工具函数模块新增clickAction() _[`issue #19`](https://github.com/SuperMonster003/Auto.js_Projects/issues/19#issue-441649578)_  
 * `新增` 工具函数模块新增JSDoc使用示例  
 * `修复` 工具函数messageAction()部分打印格式错误  
 * `修复` 工具函数killThisApp()部分逻辑错误  
@@ -374,18 +393,18 @@
 
 # v1.6.23 Alpha4
 ###### 2019/05/17
-* `新增` 工具函数模块新增工具 (6项)  
+* `修复` 能量罩使用信息采集异常 _[`issue #25`](https://github.com/SuperMonster003/Auto.js_Projects/issues/25#issuecomment-493874078)_ _[`#34`](https://github.com/SuperMonster003/Auto.js_Projects/issues/34#issue-446366256)_  
+* `优化` 部分工具函数模块化  
 ·  parseAppName()  
 ·  launchThisApp()  
 ·  killThisApp()  
 ·  messageAction()  
 ·  showSplitLine()  
 ·  waitForAction()  
-* `修复` 能量罩使用信息采集异常
 
 # v1.6.23 Alpha3
 ###### 2019/05/16
-* `修复` 标题控件bottom数据获取异常
+* `修复` 标题控件bottom数据获取异常 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492933699)_  
 
 # v1.6.23 Alpha2
 ###### 2019/05/16
@@ -394,7 +413,7 @@
 # v1.6.23 Alpha
 ###### 2019/05/16
 * `优化` 提升收取/帮收统计数据获取稳定性  
-* `优化` 放宽黑名单颜色识别条件  
+* `优化` 放宽黑名单颜色识别条件 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492633236)_  
 * `优化` 排队机制加入排队等待最大超时  
 
 # v1.6.22 Alpha10
@@ -419,42 +438,42 @@
 
 # v1.6.22 Alpha6
 ###### 2019/05/15
-* `修复` clickBounds()携带press参数时运行异常  
-* `修复` 排行榜列表底部判断异常
+* `修复` clickBounds()携带press参数时运行异常 _[`issue #27`](https://github.com/SuperMonster003/Auto.js_Projects/issues/27#issue-444244698)_  
+* `修复` 排行榜列表底部判断异常 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492570166)_  
 
 # v1.6.22 Alpha5
 ###### 2019/05/15
-* `修复` 好友昵称获取失败的问题  
+* `修复` 好友昵称获取失败的问题 _[`issue #25`](https://github.com/SuperMonster003/Auto.js_Projects/issues/25#issuecomment-492461297)_  
 
 # v1.6.22 Alpha4
 ###### 2019/05/15
 * `修复` 标题控件bottom数据获取异常
-* `修复` 排行榜列表底部判断异常
+* `修复` 排行榜列表底部判断异常 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492509853)_  
 
 # v1.6.22 Alpha3
 ###### 2019/05/15
-* `修复` 标题控件bottom数据获取异常  
+* `修复` 标题控件bottom数据获取异常 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492480162)_  
 
 # v1.6.22 Alpha2
 ###### 2019/05/15
-* `修复` 自定义黑名单采集好友列表失败的问题  
+* `修复` 自定义黑名单采集好友列表失败的问题 _[`issue #16`](https://github.com/SuperMonster003/Auto.js_Projects/issues/16#issuecomment-492240214)_  
 
 # v1.6.22 Alpha
 ###### 2019/05/15
-* `修复` 排行榜列表底部判断异常
+* `修复` 排行榜列表底部判断异常 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-492166284)_ _[`#26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-492279828)_  
 
 # v1.6.21
 ###### 2019/05/14
-* `修复` pickup()方法遗漏样本的问题  
+* `修复` pickup()方法遗漏样本的问题 _[`issue #25`](https://github.com/SuperMonster003/Auto.js_Projects/issues/25#issuecomment-492231958)_ _[`#26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issue-443906535)_  
 
 # v1.6.20
 ###### 2019/05/14
-* `优化` 使用自定义pickup()方法获取部分控件  
+* `优化` 使用自定义pickup()方法获取部分控件 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-491829812)_ _[`#16`](https://github.com/SuperMonster003/Auto.js_Projects/issues/16#issue-441330852)_ _[`#17`](https://github.com/SuperMonster003/Auto.js_Projects/issues/17#issuecomment-491859631)_ _[`#25`](https://github.com/SuperMonster003/Auto.js_Projects/issues/25#issue-443768683)_  
 * `优化` 提升黑名单检测准确率  
 
 # v1.6.19
 ###### 2019/05/13
-* `修复` 弃用导致控件抓取缓慢的"useUsageStats"参数 `添加于 v1.6.18`  
+* `修复` 弃用导致控件抓取缓慢的"useUsageStats"参数 `添加于 v1.6.18` _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-491655175)_  
 * `修复` 图形配置页面在部分机型显示错位问题  
 
 # v1.6.18
@@ -464,12 +483,12 @@
 
 # v1.6.17
 ###### 2019/05/10
-* `修复` 进入好友列表后可能导致参考控件获取失败的问题  
-* `修复` 特殊密码解锁方案修复  
+* `修复` 进入好友列表后可能导致参考控件获取失败的问题 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-491238327)_ _[`#16`](https://github.com/SuperMonster003/Auto.js_Projects/issues/16#issue-441330852)_  
+* `修复` 特殊密码解锁方案修复 _[`issue #23`](https://github.com/SuperMonster003/Auto.js_Projects/issues/23#issue-442326458)_  
 
 # v1.6.16
 ###### 2019/05/10
-* `修复` 密码解锁误判转移失效的问题  
+* `修复` 密码解锁误判转移失效的问题 _[`issue #18`](https://github.com/SuperMonster003/Auto.js_Projects/issues/18#issuecomment-490752826)_  
 * `优化` 排行榜好友样本采集效率  
 
 # v1.6.15
@@ -480,32 +499,33 @@
 ###### 2019/05/10
 * `修复` 启动完成条件检查必备/可选条件的逻辑错误  
 * `修复` 账户未登录状态时脚本运行超长耗时问题  
-* `优化` 重写启动完成条件判断逻辑  
+* `优化` 重写启动完成条件判断逻辑 _[`issue #20`](https://github.com/SuperMonster003/Auto.js_Projects/issues/20#issue-441989541)_  
 * `优化` 还原部分click()方法以避免屏幕容易超时关闭  
 
 # v1.6.13
 ###### 2019/05/09
-* `修复` "首页状态准备"失败及定位"查看更多好友"失败的问题  
+* `修复` "首页状态准备"失败及定位"查看更多好友"失败的问题 _[`issue #20`](https://github.com/SuperMonster003/Auto.js_Projects/issues/20#issue-441989541)_  
 * `优化` 解锁模块适配部分魅族设备 (当前仅限数字PIN码方案)  
 
 # v1.6.12
 ###### 2019/05/09
-* `修复` "首页状态准备"易失败的问题 (试修)
+* `修复` "首页状态准备"易失败的问题 (试修) _[`issue #18`](https://github.com/SuperMonster003/Auto.js_Projects/issues/18#issuecomment-490748304)_ _[`#20`](https://github.com/SuperMonster003/Auto.js_Projects/issues/20#issue-441989541)_  
 * `优化` 适配图案解锁动态控件  
 
 # v1.6.11
 ###### 2019/05/08
-* `修复` clickBounds()工具函数可能出现的空指针问题  
+* `修复` clickBounds()工具函数可能出现的空指针问题 _[`issue #11`](https://github.com/SuperMonster003/Auto.js_Projects/issues/11#issuecomment-490043246)_ _[`#19`](https://github.com/SuperMonster003/Auto.js_Projects/issues/19#issue-441649578)_  
 * `优化` 图案解锁布局判断逻辑  
 
 # v1.6.10
 ###### 2019/05/08
-* `新增` 截图权限申请失败后自动重启任务  
+* `新增` 截图权限申请失败后自动重启任务 _[`issue #17`](https://github.com/SuperMonster003/Auto.js_Projects/issues/17#issue-441600611)_ _[`#18`](https://github.com/SuperMonster003/Auto.js_Projects/issues/18#issue-441609058)_  
 
 # v1.6.9
 ###### 2019/05/08
-* `优化` 提升锁屏布局工具使用稳定性 增加更多用户操作提示  
+* `优化` 提升锁屏布局工具使用稳定性 增加更多用户操作提示 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-490387036)_  
 * `优化` 使用shell()方法完全替代可能导致任务卡死的KeyCode()方法
+  
   
 # v1.6.8
 ###### 2019/05/08
@@ -519,10 +539,10 @@
 
 # v1.6.6
 ###### 2019/05/07
-* `修复` keycode(26)导致任务残留的问题
+* `修复` keycode(26)导致任务残留的问题 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-489871930)_  
 * `修复` 魅族设备使用自动关屏功能时卡死的问题  
 * `修复` 最小化支付宝功能异常问题  
-* `修复` 截图权限申请容易失败的问题  
+* `修复` 截图权限申请容易失败的问题 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-489636082)_  
 * `修复` 锁屏布局工具无法使用关屏功能时自动退出的问题  
 
 # v1.6.5
@@ -531,7 +551,7 @@
 * `修复` 点击"查看更多好友"备用方案无效的问题  
 * `修复` 排行榜首页好友可能丢失采集的问题  
 * `修复` 支付宝关闭异常时最小化功能无效的问题  
-* `优化` 图案解锁滑动效率及精确性  
+* `优化` 图案解锁滑动效率及精确性 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-489437428)_  
 * `优化` 进入好友森林超时检测的稳定性  
 * `优化` 优化keycode()工具函数以避免假死  
 
@@ -545,7 +565,7 @@
 * `修复` 因修复纵向伸缩而引发的纵向坐标异常的问题
 * `修复` 翻页时可能遗漏屏幕底部排行榜好友的问题  
 * `优化` 增加支付宝启动检测条件及启动完成检测条件判断样本  
-* `优化` 关闭某些clickObject()方法无用的debug消息    
+* `优化` 关闭某些clickObject()方法无用的debug消息  
 
 # v1.6.3
 ###### 2019/05/03
@@ -553,11 +573,11 @@
 
 # v1.6.2
 ###### 2019/05/02
-* `修复` 屏幕比例非16:9的设备纵向伸缩失调问题  
+* `修复` 屏幕比例非16:9的设备纵向伸缩失调问题 _[`issue #14`](https://github.com/SuperMonster003/Auto.js_Projects/issues/14#issuecomment-488562316)_  
 
 # v1.6.1
 ###### 2019/05/01
-* `修复` 新版支付宝返回上一级页面失败的问题  
+* `修复` 新版支付宝返回上一级页面失败的问题 _[`issue #12`](https://github.com/SuperMonster003/Auto.js_Projects/issues/12#issue-436983883)_  
 
 # v1.6.0
 ###### 2019/04/30
@@ -574,7 +594,7 @@
 * `新增` 按键监听 VOL+: 停止所有脚本 VOL-: 停止当前脚本  
 * `修复` 控件点击偶尔出现假死现象  
 * `修复` 排行榜点击目标时误点击虚拟按键的问题  
-* `优化` 使用Git命令真正精简仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_  
+* `优化` 使用Git命令真正精简仓库体积 _[`issue #5`](https://github.com/SuperMonster003/Ant_Forest/issues/5)_  
 * `优化` 点击"查看更多好友"增加备用方案  
 
 # v1.5.19
@@ -588,17 +608,17 @@
 
 # v1.5.18
 ###### 2019/04/26
-* `新增` Bug版本检测提示 (当前所有版本)  
+* `新增` Bug版本检测提示 (当前所有版本) _[`issue #12`](https://github.com/SuperMonster003/Auto.js_Projects/issues/12#issuecomment-486498208)_  
 * `优化` 完善开发者测试模式  
 * `优化` 及时回收新生成的images对象  
 * `优化` 用press()方法模拟点击  
-* `优化` 用swipe()方法模拟滑动 增加可用性检测  
+* `优化` 用swipe()方法模拟滑动 增加可用性检测 _[`issue #11`](https://github.com/SuperMonster003/Auto.js_Projects/issues/11#issue-436002977)_  
 
 # v1.5.17
 ###### 2019/04/25
 * `优化` 完善开发者测试模式  
 * `优化` 截图申请工具函数判断逻辑  
-* `优化` auto.waitFor()不被支持时自动使用auto()  
+* `优化` auto.waitFor()不被支持时自动使用auto() _[`issue #12`](https://github.com/SuperMonster003/Auto.js_Projects/issues/12#issue-436983883)_  
 * `优化` getVerName()工具函数兼容性  
 * `修复` 解锁模块读取存储数据时的常规错误  
 
@@ -610,7 +630,7 @@
 
 # v1.5.15
 ###### 2019/04/23
-* `新增` 适配部分EMUI机型的自动解锁方案 _[issue #8](https://github.com/SuperMonster003/Ant_Forest/issues/8#issuecomment-485403816)_  
+* `新增` 适配部分EMUI机型的自动解锁方案 _[`issue #8`](https://github.com/SuperMonster003/Ant_Forest/issues/8#issuecomment-485403816)_  
 * `修复` 帮收功能关闭后依然进入可帮收好友森林的问题
 * `修复` 锁屏布局工具滑动失败导致脚本异常退出的问题
 * `修复` 引入的dialogs模块中多选对话框功能异常 (临时解决方案)
@@ -622,7 +642,7 @@
 ###### 2019/04/22
 * `修复` 首次运行可能导致支付宝拉起失败且脚本长时间无响应的问题
 * `修复` 语言检测控件查找超时导致脚本运行失败的问题
-* `修复` 自动解锁可能出现的解锁图层检测异常 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484788911)_
+* `修复` 自动解锁可能出现的解锁图层检测异常 _[`issue #6`](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484788911)_
 * `修复` 深拷贝工具函数克隆数组失效的问题  
 
 # v1.5.13
@@ -636,28 +656,28 @@
 
 # v1.5.11
 ###### 2019/04/19
-* `修复` 自动解锁可能出现的异常重复上滑现象 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484503159)_
+* `修复` 自动解锁可能出现的异常重复上滑现象 _[`issue #6`](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484503159)_
 
 # v1.5.10
 ###### 2019/04/18
-* `新增` 适配采用"Gxzw"屏下指纹设备的自动解锁方案 _[issue #6](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484361198)_  
+* `新增` 适配采用"Gxzw"屏下指纹设备的自动解锁方案 _[`issue #6`](https://github.com/SuperMonster003/Ant_Forest/issues/6#issuecomment-484361198)_  
 * `优化` 锁屏布局工具控件信息采集方式  
 
 # v1.5.9
 ###### 2019/04/17
 * `修复` Shell模块返回代码137导致按键模拟无效的问题  
-* `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483967078)_
+* `优化` 排行榜样本采集稳定性 _[`issue #4`](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483967078)_
 
 # v1.5.8
 ###### 2019/04/17
 * `新增` 锁屏布局工具 方便用户发送锁屏布局信息给开发者  
-* `修复` 判断初始准备条件时可能出现无法匹配ViewId的问题 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483958381)_  
+* `修复` 判断初始准备条件时可能出现无法匹配ViewId的问题 _[`issue #4`](https://github.com/SuperMonster003/Ant_Forest/issues/4#issuecomment-483958381)_  
 * `优化` 解锁模块稳定性
 
 # v1.5.7
 ###### 2019/04/17
-* `优化` 排行榜样本采集稳定性 _[issue #4](https://github.com/SuperMonster003/Ant_Forest/issues/4)_  
-* `优化` 删除无关文件以缩小仓库体积 _[issue #5](https://github.com/SuperMonster003/Ant_Forest/issues/5)_
+* `优化` 排行榜样本采集稳定性 _[`issue #4`](https://github.com/SuperMonster003/Ant_Forest/issues/4)_  
+* `管理` 删除无关文件以缩小仓库体积 _[`issue #5`](https://github.com/SuperMonster003/Ant_Forest/issues/5)_
 
 # v1.5.6
 ###### 2019/04/16
@@ -680,7 +700,7 @@
 # v1.5.3
 ###### 2019/04/13
 * `新增` 图形配置页面黑名单管理骨架  
-* `修复` dialogs模块缺失 _[issue #2](https://github.com/SuperMonster003/Ant_Forest/issues/2)_  
+* `修复` dialogs模块缺失 _[`issue #2`](https://github.com/SuperMonster003/Ant_Forest/issues/2)_  
 
 # v1.5.2
 ###### 2019/04/12
@@ -708,7 +728,7 @@
 # v1.4.10
 ###### 2019/04/10
 * `修复` 图形配置页面对象相等判定工具的逻辑错误  
-* `修复` 部分函数内部变量覆盖函数定义的问题 _[issue #1](https://github.com/SuperMonster003/Ant_Forest/issues/1)_  
+* `修复` 部分函数内部变量覆盖函数定义的问题 _[`issue #1`](https://github.com/SuperMonster003/Ant_Forest/issues/1)_  
 * `优化` 完善图形配置页面自己能量时间区间管理工具  
 
 # v1.4.9
@@ -775,7 +795,7 @@
 ###### 2019/04/01
 * `新增` `Auto.js Pro` 版本兼容
 * `修复` 解锁配置向导在 `4.1.1 alpha2` 的兼容问题  
- 
+
 # v1.3.6
 ###### 2019/03/30
 * `修复` floaty结果显示hint区域溢出问题
@@ -846,18 +866,18 @@
 * `灵感` 功能模块分离
 
 # v1.1.1
-###### 2019/03/20 
+###### 2019/03/20  
 * `修复` 模块/脚本文件的依赖关系
 * `修复` 密文工具功能失效
 * `优化` 全面调整代码结构
 
 # v1.1.0
-###### 2019/03/19 - 脚本可用性暂未测试 
+###### 2019/03/19 - 脚本可用性暂未测试  
 * `新增` 自动检测/生成/引用本地"密文映射"文件
 * `移除` 指定账户智能切换功能 (暂时关闭)
 * `修复` 收取完毕返回好友列表时 当前屏幕信息没有及时处理即开始滑屏
-* `灵感` 账户智能切换 (账户录入 已录入账户的选择/信息更新) 
-* `灵感` 使用密文解析工具时若发现"密文映射"文件异常 及时报错 
+* `灵感` 账户智能切换 (账户录入 已录入账户的选择/信息更新)  
+* `灵感` 使用密文解析工具时若发现"密文映射"文件异常 及时报错  
 
 # v1.0.0
 ###### 2019/03/19 - 此版本依赖设备本地密文映射文件 因此暂不可用
@@ -876,23 +896,27 @@
 * `新增` 将Auto.js的日志保存在指定的文件中 (Auto.js v4.1.0版本以上)
 * `优化` 精简部分无用的方法
 * `优化` 脚本部分参数可供用户自行配置 (目前只可在脚本文件中配置)
-* `优化` 部分参数值可以自动修正/修复 
-* `优化` 恶劣条件下 (不稳定的互联网连接等) 的脚本稳定性 
-* `优化` 收取能量时 先保证能量收取成功 然后立即返回 (稳定性/高效率) 
-* `优化` 帮收能量时 若能量帮收成功 立即返回 (高效率) 
-* `优化` 线程循环展开列表 节约滑动好友列表时"加载中"的时间 (高效率) 
-* `优化` 线程监视好友列表底部 一旦进入屏幕 立即停止列表滑动 (高效率) 
-* `优化` 优化好友列表滑动的稳定性 
-* `灵感` ~~能量罩用户黑名单功能实现 (目前只是空壳)~~ v2.0.0
+* `优化` 部分参数值可以自动修正/修复  
+* `优化` 恶劣条件下 (不稳定的互联网连接等) 的脚本稳定性  
+* `优化` 收取能量时 先保证能量收取成功 然后立即返回 (稳定性/高效率)  
+* `优化` 帮收能量时 若能量帮收成功 立即返回 (高效率)  
+* `优化` 线程循环展开列表 节约滑动好友列表时"加载中"的时间 (高效率)  
+* `优化` 线程监视好友列表底部 一旦进入屏幕 立即停止列表滑动 (高效率)  
+* `优化` 优化好友列表滑动的稳定性  
+* `灵感` ~~能量罩用户黑名单功能实现 (目前只是空壳)~~ v1.2.0
 * `灵感` 脚本使用说明文档 (包含使用细节和注意事项)
 * `灵感` ~~自动生成并引用本地"密文映射"字典~~ v1.1.0
 * `灵感` ~~本地"密文映射"加解密工具~~ v1.1.0
-* `灵感` 主要方法的JSDoc注释
+* `灵感` ~~主要方法的JSDoc注释~~ v1.6.23 Alpha5
 * `灵感` ~~可用于配置脚本的UI界面 (高交互性)~~ v1.5.0
 * `灵感` ~~帮收好友能量增加精准性及效率~~ v1.1.2
 * `灵感` 登录主账户之前记录当前用户信息 脚本结束后恢复登录 (需录入账户信息)
-* `灵感` ~~额外文件的生成/存取不受机型限制~~ v2.0.0
+* `灵感` ~~额外文件的生成/存取不受机型限制~~ v1.2.0
 * `灵感` 语言智能切换且可供用户配置
 * `灵感` ~~使用Floaty方式替代Toast消息显示~~ v1.3.5
-* `灵感` 好友数量小于10的异常处理
+* `灵感` ~~好友数量小于10的异常处理~~ v1.8.0
 * `灵感` ~~shell强制结束APP的替代方案 (避免经常出现的几秒钟黑屏)~~ v1.5.1
+
+[//]: # (
+If you prefer to make a donation, run Ant_Forest_Settings.js with Auto.js, then go to the "About" page and click my name. When the page with a pink "CLOSE" button popped up, you could see the QR Code by long-clicking this button. Blue QR Code for Alipay and green for WeChat. I believe i could make it better with your support.
+)
