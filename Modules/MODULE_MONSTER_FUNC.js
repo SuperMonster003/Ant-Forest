@@ -424,7 +424,10 @@ function killThisApp(name, params) {
     let _shell_acceptable = typeof _params.shell_acceptable === "undefined" && true || _params.shell_acceptable;
     let _keycode_back_acceptable = typeof _params.keycode_back_acceptable === "undefined" && true || _params.keycode_back_acceptable;
     let _keycode_back_twice = _params.keycode_back_twice || false;
-    let _condition_success = _params.condition_success || (() => currentPackage() !== _package_name);
+    let _condition_success = _params.condition_success || (() => {
+        let samePkgName = () => currentPackage() === _package_name;
+        return _waitForAction(() => !samePkgName(), 12000) && !_waitForAction(samePkgName, 3, 150);
+    });
 
     let _shell_result = false;
     let _shell_start_timestamp = new Date().getTime();
@@ -449,7 +452,7 @@ function killThisApp(name, params) {
 
     if (_waitForAction(_condition_success, _shell_max_wait_time)) {
         _debugInfo("shell()方法强制关闭\"" + _app_name + "\"成功");
-        return !!~_debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
+        return _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms") || true;
     } else {
         _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
         _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
@@ -638,10 +641,12 @@ function restartThisApp(intent_or_name, params) {
  *     -- new file - like "hello.js", "../hello.js" or "hello"
  * @param [params.debug_info_flag=false] {boolean}
  * @param [params.max_restart_engine_times=1] {number} - max restart times for avoiding infinite recursion
+ * @param [params.instant_run_flag=false] {boolean} - whether to perform an instant run or not
  * @example
  * restartThisEngine({
  *    debug_info_flag: "forcible",
  *    max_restart_engine_times: 3,
+ *    instant_run_flag: true,
  * });
  * @return {boolean}
  */
@@ -656,6 +661,7 @@ function restartThisEngine(params) {
     let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
     let _max_restart_engine_times_params = _params.max_restart_engine_times;
     let _max_restart_engine_times;
+    let _instant_run_flag = !!_params.instant_run_flag;
     if (typeof _max_restart_engine_times_argv === "undefined") {
         if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
         else _max_restart_engine_times = _max_restart_engine_times_params;
@@ -681,6 +687,7 @@ function restartThisEngine(params) {
         arguments: {
             max_restart_engine_times: _max_restart_engine_times - 1,
             max_restart_engine_times_backup: _max_restart_engine_times_backup,
+            instant_run_flag: _instant_run_flag,
         },
     });
     _debugInfo("强制停止旧引擎任务");
@@ -931,16 +938,25 @@ function showSplitLine(extra_str, style, params) {
  * @return {boolean} - if not timed out
  */
 function waitForAction(f, timeout_or_times, interval) {
-    let _timeout = timeout_or_times || 10000;
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
+
+    let _timeout = Infinity;
     let _interval = interval || 200;
-    let _times = timeout_or_times !== 0 && timeout_or_times !== Infinity
-        ? (_timeout >= 100 ? ~~(_timeout / _interval) + 1 : _timeout)
-        : Infinity;
+    let _times = timeout_or_times;
+
+    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
+    if (timeout_or_times > 100) _timeout = timeout_or_times;
+    if (interval >= _timeout) _times = 1;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    while (!_checkF(f) && _times--) sleep(_interval);
-    return _times >= 0;
+    let _start_timestamp = +new Date();
+    while (!_checkF(f) && --_times) {
+        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+        sleep(_interval);
+    }
+    return _times > 0;
 
     // tool function(s) //
 
@@ -1226,7 +1242,7 @@ function clickAction(f, strategy, params) {
  *     -- less than 100 - take as times
  * @param [interval=300] {number}
  * @param [click_params] {object}
- * @param [click_params.intermission=300] {number}
+ * @param [click_params.intermission=200] {number}
  * @param [click_params.click_strategy] {string} - decide the way of click
  * <br>
  *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
@@ -1514,6 +1530,7 @@ function tryRequestScreenCapture(params) {
         let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
         let _max_restart_engine_times_params = _params.max_restart_engine_times;
         let _max_restart_engine_times;
+        let _instant_run_flag = !!_params.instant_run_flag;
         if (typeof _max_restart_engine_times_argv === "undefined") {
             if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
             else _max_restart_engine_times = +_max_restart_engine_times_params;
@@ -1527,6 +1544,7 @@ function tryRequestScreenCapture(params) {
         engines.execScriptFile(_file_path, {
             arguments: {
                 max_restart_engine_times: _max_restart_engine_times - 1,
+                instant_run_flag: _instant_run_flag,
             },
         });
         _my_engine.forceStop();
@@ -1904,6 +1922,8 @@ function keycode(keycode_name, params_str) {
  * @param [params] {object} - reserved
  */
 function debugInfo(msg, info_flag, params) {
+    if (info_flag === false) return;
+
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
@@ -1922,7 +1942,7 @@ function debugInfo(msg, info_flag, params) {
     if (Object.prototype.toString.call(msg).slice(8, -1) === "Array") return !~msg.forEach(msg => debugInfo(msg, info_flag, params));
     if (!!info_flag === true && !info_flag.toString().match(/up|\d/) || __global__._monster_$_debug_info_flag) {
         let info_flag_str = (info_flag || "").toString();
-        info_flag_str.match(/up[^A-Za-z0-9]/) && _showSplitLine();
+        info_flag_str.match(/up[^A-Za-z0-9]|^up$/) && _showSplitLine();
         let msg_level = +info_flag_str.match(/\d/) || 0;
         _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), msg_level);
     }
@@ -1946,7 +1966,7 @@ function debugInfo(msg, info_flag, params) {
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
             return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
         }
-        let _msg_level = typeof + msg_level === "number" ? +msg_level : -1;
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
         toast_flag && toast(_msg);
         if (_msg_level === 0) return console.verbose(_msg) || true;
         if (_msg_level === 1) return console.log(_msg) || true;
