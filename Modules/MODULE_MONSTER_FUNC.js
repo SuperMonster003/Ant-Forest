@@ -30,12 +30,15 @@ module.exports = {
     surroundWith: surroundWith,
     phoneCallingState: phoneCallingState,
     timeRecorder: timeRecorder,
+    clickActionsPipeline: clickActionsPipeline,
+    setDeviceProto: setDeviceProto,
+    vibrateDevice: vibrateDevice,
+    timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
+    sleepSafe: sleepSafe,
 };
 
 /**
- * @description tool functions (available for independent use)
- * @type {{debugInfo: debugInfo, alertContent: alertContent, alertTitle: alertTitle, equalObjects: equalObjects, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: (function((Object|Object[]|Function|Function[]), *=, *=): boolean), messageAction: messageAction, runJsFile: runJsFile, keycode: keycode, restartThisEngine: restartThisEngine, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, getDisplayParams: getDisplayParams, refreshObjects: refreshObjects, launchThisApp: (function((Object|string|Function), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?, screen_orientation?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), deepCloneObject: deepCloneObject, killThisApp: killThisApp, swipeInAreaAndClickAction: swipeInAreaAndClickAction, getSelector: (function(*=): *), captureErrScreen: captureErrScreen, smoothScrollView: smoothScrollView, observeToastMessage: observeToastMessage, clickAction: clickAction}}
- * @author {@link https://github.com/SuperMonster003}
+ * @type {{setDeviceProto: setDeviceProto, debugInfo: debugInfo, alertContent: alertContent, alertTitle: alertTitle, equalObjects: equalObjects, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: waitForAction, messageAction: messageAction, selExists: selExists, timedTaskTimeFlagConverter: (function((number|string)): any[]), clickActionsPipeline: clickActionsPipeline, runJsFile: runJsFile, surroundWith: surroundWith, keycode: keycode, restartThisEngine: restartThisEngine, timeRecorder: timeRecorder, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, getDisplayParams: getDisplayParams, refreshObjects: refreshObjects, launchThisApp: (function((Object|string|Function), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?, screen_orientation?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), deepCloneObject: deepCloneObject, killThisApp: killThisApp, phoneCallingState: (function(): number), swipeInAreaAndClickAction: swipeInAreaAndClickAction, getSelector: (function({debug_info_flag?}=): *), captureErrScreen: captureErrScreen, smoothScrollView: smoothScrollView, observeToastMessage: observeToastMessage, vibrateDevice: vibrateDevice, clickAction: clickAction}}
  */
 
 __global__ = typeof __global__ === "undefined" ? this : __global__;
@@ -71,7 +74,7 @@ function parseAppName(name) {
  *     -- /^[Cc]urrent.*[Aa]uto.*js/ - context.packageName <br>
  *     -- "self" - currentPackage()
  * @param [params] {object}
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @example
  * getVerName("Alipay"); -- app name <br>
  * getVerName("self"); -- shortcut <br>
@@ -84,10 +87,10 @@ function parseAppName(name) {
  * @return {null|string}
  */
 function getVerName(name, params) {
-    let _params = params;
+    let _params = params || {};
 
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
 
     name = _handleName(name);
     let _package_name = _parseAppName(name).package_name;
@@ -152,7 +155,7 @@ function getVerName(name, params) {
  * @param [params.condition_launch] {function}
  * @param [params.condition_ready] {function}
  * @param [params.disturbance] {function}
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @param [params.first_time_run_message_flag=true] {boolean}
  * @param [params.no_message_flag] {boolean}
  * @param [params.global_retry_times=2] {number}
@@ -189,7 +192,7 @@ function launchThisApp(trigger, params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
 
@@ -200,6 +203,9 @@ function launchThisApp(trigger, params) {
     let _task_name = _params.task_name || "";
 
     _setAppName();
+
+    _package_name = _package_name || _params.package_name;
+    _app_name = _app_name || _params.app_name;
 
     _debugInfo("启动目标参数类型: " + typeof trigger);
 
@@ -299,7 +305,7 @@ function launchThisApp(trigger, params) {
         _killThisApp(_package_name);
     }
     if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 9, 1, 0, 1);
-    _debugInfo(("\"" + _task_name || _app_name) + "\"初始状态准备完毕");
+    _debugInfo("\"" + (_task_name || _app_name) + "\"初始状态准备完毕");
     return true;
 
     // tool function(s) //
@@ -390,7 +396,7 @@ function launchThisApp(trigger, params) {
  * @param [params.keycode_back_acceptable=true] {boolean}
  * @param [params.keycode_back_twice=false] {boolean}
  * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @example
  * killThisApp("Alipay"); <br>
  * killThisApp("com.eg.android.AlipayGphone", {
@@ -404,7 +410,7 @@ function killThisApp(name, params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
@@ -542,8 +548,9 @@ function killThisApp(name, params) {
     }
 
     function clickActionRaw(kw) {
-        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
-        let _key_node = _kw.findOnce();
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
         if (!_key_node) return;
         let _bounds = _key_node.bounds();
         click(_bounds.centerX(), _bounds.centerY());
@@ -586,7 +593,7 @@ function killThisApp(name, params) {
  * @param [params.condition_launch] {function} - for launching
  * @param [params.condition_ready] {function} - for launching
  * @param [params.disturbance] {function} - for launching
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @param [params.first_time_run_message_flag=true] {boolean} - for launching
  * @param [params.no_message_flag] {boolean} - for launching
  * @param [params.global_retry_times=2] {number} - for launching
@@ -639,7 +646,7 @@ function restartThisApp(intent_or_name, params) {
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @param [params.max_restart_engine_times=1] {number} - max restart times for avoiding infinite recursion
  * @param [params.instant_run_flag=false] {boolean} - whether to perform an instant run or not
  * @example
@@ -654,9 +661,10 @@ function restartThisEngine(params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
 
     let _my_engine = engines.myEngine();
+    let _my_engine_id = _my_engine.id;
 
     let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
     let _max_restart_engine_times_params = _params.max_restart_engine_times;
@@ -684,14 +692,15 @@ function restartThisEngine(params) {
     let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
     _debugInfo("运行新引擎任务:\n" + _file_path);
     engines.execScriptFile(_file_path, {
-        arguments: {
+        arguments: Object.assign({}, _params, {
             max_restart_engine_times: _max_restart_engine_times - 1,
             max_restart_engine_times_backup: _max_restart_engine_times_backup,
             instant_run_flag: _instant_run_flag,
-        },
+        }),
     });
     _debugInfo("强制停止旧引擎任务");
-    _my_engine.forceStop();
+    // _my_engine.forceStop();
+    engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
     return true;
 
     // raw function(s) //
@@ -863,8 +872,12 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             _throw_error_flag = true;
     }
     if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
-    if (_throw_error_flag) throw Error("Error thrown on purpose");
-    else if (_exit_flag) exit();
+    if (_throw_error_flag) {
+        ui.post(function () {
+            throw ("FORCE_STOP");
+        });
+        exit();
+    } else if (_exit_flag) exit();
     return !(_msg_level in {3: 1, 4: 1});
 
     // raw function(s) //
@@ -950,21 +963,24 @@ function waitForAction(f, timeout_or_times, interval) {
     if (interval >= _timeout) _times = 1;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _sleepSafe = typeof sleepSafe === "undefined" ? sleepSafeRaw : sleepSafe;
 
     let _start_timestamp = +new Date();
     while (!_checkF(f) && --_times) {
         if (+new Date() - _start_timestamp > _timeout) return false; // timed out
-        sleep(_interval);
+        _sleepSafe(_interval);
     }
     return _times > 0;
 
     // tool function(s) //
 
     function _checkF(f) {
-        while (__global__._monster_$_global_waiting_signal) sleep(200);
+        while (__global__._monster_$_global_waiting_signal) _sleepSafe(200);
 
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (_classof(f) === "JavaObject") return _checkF(() => f.exists());
+
+        if (typeof f === "function") return f();
+        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
         if (_classof(f) === "Array") {
             let _arr = f;
             let _logic_flag = "all";
@@ -976,8 +992,9 @@ function waitForAction(f, timeout_or_times, interval) {
                 if (_logic_flag === "one" && _checkF(_arr[i])) return true;
             }
             return _logic_flag === "all";
-        } else if (typeof f === "function") return f();
-        else _messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 8, 1, 1, 1);
+        }
+
+        _messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 8, 1, 1, 1);
     }
 
     // raw function(s) //
@@ -997,6 +1014,21 @@ function waitForAction(f, timeout_or_times, interval) {
             console.error(_msg);
             _msg_level >= 8 && exit();
         }
+    }
+
+    function sleepSafeRaw(timeout) {
+        let lock = threads.lock();
+        let wait = lock.newCondition();
+        let f = function () {
+            lock.lock();
+            sleep(timeout);
+            wait.signal();
+            lock.unlock();
+        };
+        threads.start(f);
+        lock.lock();
+        wait.await();
+        lock.unlock();
     }
 }
 
@@ -1314,8 +1346,9 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
     }
 
     function clickActionRaw(kw) {
-        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
-        let _key_node = _kw.findOnce();
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
         if (!_key_node) return;
         let _bounds = _key_node.bounds();
         click(_bounds.centerX(), _bounds.centerY());
@@ -1332,12 +1365,12 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  * @param [params] {object}
  * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
  * @param [params.current_package=currentPackage()] {string}
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  */
 function refreshObjects(strategy, params) {
     let _params = params || {};
 
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _strategy = strategy || "";
 
@@ -1404,35 +1437,38 @@ function refreshObjects(strategy, params) {
 /**
  * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
  * @param [params] {object}
- * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.debug_info_flag] {boolean}
  * @param [params.restart_this_engine_flag=false] {boolean}
  * @param [params.restart_this_engine_params] {object}
  * @param [params.restart_this_engine_params.new_file] {string} - new engine task name with or without path or file extension name
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.restart_this_engine_params.debug_info_flag=false] {boolean}
+ * @param [params.restart_this_engine_params.debug_info_flag] {boolean}
  * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number} - max restart times for avoiding infinite recursion
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    if (__global__._monster_$_request_screen_capture_flag) return true;
 
     sleep(200); // why are you always a naughty boy... how can i get along well with you...
 
     let _params = params || {};
 
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
+    let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
 
-    _params.restart_this_engine_flag = !!_params.restart_this_engine_flag;
+    let sel = _getSelector();
+
+    _params.restart_this_engine_flag = typeof _params.restart_this_engine_flag === "undefined" ? true : !!_params.restart_this_engine_flag;
     _params.restart_this_engine_params = _params.restart_this_engine_params || {};
     _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
 
-    if (__global__._monster_$_request_screen_capture_flag) return !!~_debugInfo("无需重复申请截图权限");
     _debugInfo("开始申请截图权限");
 
     __global__._monster_$_request_screen_capture_flag = true;
@@ -1440,18 +1476,19 @@ function tryRequestScreenCapture(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
+        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
+        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "kw_req_capt_sure_btn", type);
 
-        // maybe not common enough
-        let _kw_no_longer_prompt = id("com.android.systemui:id/remember");
-        let _kw_start_now_btn = className("Button").textMatches(/START NOW|立即开始/);
-
-        if (!_waitForAction(_kw_no_longer_prompt, 5000)) return;
-        _debugInfo("勾选\"不再提示\"复选框");
-        _clickAction(_kw_no_longer_prompt, "widget");
-
-        if (!_waitForAction(_kw_start_now_btn, 2000)) return;
-        _debugInfo("点击\"立即开始\"按钮");
-        _clickAction(_kw_start_now_btn, "widget");
+        if (_waitForAction(_kw_sure_btn, 5000)) {
+            if (_waitForAction(_kw_no_longer_prompt, 1000)) {
+                _debugInfo("勾选\"不再提示\"复选框");
+                _clickAction(_kw_no_longer_prompt(), "widget");
+            }
+            if (_kw_sure_btn()) {
+                _debugInfo("点击\"" + _kw_sure_btn("txt") + "\"按钮");
+                _clickAction(_kw_sure_btn(), "widget");
+            }
+        }
     });
 
     let _thread_monitor = threads.start(function () {
@@ -1471,13 +1508,30 @@ function tryRequestScreenCapture(params) {
     });
 
     let _req_result = images.requestScreenCapture(false);
-    sleep(200);
+    sleep(300);
 
     _thread_monitor.join(2400);
-    _thread_monitor.isAlive() && _thread_monitor.interrupt();
+    _thread_monitor.interrupt();
     return _req_result;
 
     // raw function(s) //
+
+    function getSelectorRaw() {
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let sel = selector();
+        sel.__proto__ = {
+            pickup: (filter) => {
+                if (classof(filter) === "JavaObject") {
+                    if (filter.toString().match(/UiObject/)) return filter;
+                    return filter.findOnce() || null;
+                }
+                if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
+                if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
+                return null;
+            },
+        };
+        return sel;
+    }
 
     function debugInfoRaw(msg, info_flag) {
         if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
@@ -1498,8 +1552,9 @@ function tryRequestScreenCapture(params) {
     }
 
     function clickActionRaw(kw) {
-        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
-        let _key_node = _kw.findOnce();
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
         if (!_key_node) return;
         let _bounds = _key_node.bounds();
         click(_bounds.centerX(), _bounds.centerY());
@@ -1782,8 +1837,9 @@ function swipeInAreaAndClickAction(f, swipe_params, click_params) {
     // raw function(s) //
 
     function clickActionRaw(kw) {
-        let _kw = Object.prototype.toString.call(kw).slice(8, -1) === "Array" ? kw[0] : kw;
-        let _key_node = _kw.findOnce();
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
         if (!_key_node) return;
         let _bounds = _key_node.bounds();
         click(_bounds.centerX(), _bounds.centerY());
@@ -1810,7 +1866,8 @@ function swipeInAreaAndClickAction(f, swipe_params, click_params) {
  * @param [params_str] {string}
  * <br>
  *     - /force_shell/ - don't use accessibility functions like back(), home() or recents() <br>
- *     - /no_err(or)?_(message|msg)/ - don't print error message or not when keycode() failed
+ *     - /no_err(or)?_(message|msg)/ - don't print error message when keycode() failed <br>
+ *     - /double/ - simulate keycode twice with tiny interval
  * @example
  * keycode(3); // keycode("home"); // keycode("KEYCODE_HOME"); <br>
  * keycode(4, "force_shell|no_err_msg"); // keycode("back", "force_shell|no_err_msg"); <br>
@@ -1825,30 +1882,8 @@ function keycode(keycode_name, params_str) {
 
     if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
     let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
-    switch (_tidy_keycode_name) {
-        case "3":
-        case "home":
-            return ~home();
-        case "4":
-        case "back":
-            return ~back();
-        case "appSwitch":
-        case "187":
-        case "recent":
-        case "recentApp":
-            return ~recents();
-        case "powerDialog":
-        case "powerMenu":
-            return ~powerDialog();
-        case "notification":
-            return ~notifications();
-        case "quickSetting":
-            return ~quickSettings();
-        case "splitScreen":
-            return ~splitScreen();
-        default:
-            return keyEvent(keycode_name);
-    }
+    let first_result = simulateKey();
+    return params_str.match(/double/) ? simulateKey() : first_result;
 
     // tool function(s) //
 
@@ -1895,6 +1930,33 @@ function keycode(keycode_name, params_str) {
         }
     }
 
+    function simulateKey() {
+        switch (_tidy_keycode_name) {
+            case "3":
+            case "home":
+                return ~home();
+            case "4":
+            case "back":
+                return ~back();
+            case "appSwitch":
+            case "187":
+            case "recent":
+            case "recentApp":
+                return ~recents();
+            case "powerDialog":
+            case "powerMenu":
+                return ~powerDialog();
+            case "notification":
+                return ~notifications();
+            case "quickSetting":
+                return ~quickSettings();
+            case "splitScreen":
+                return ~splitScreen();
+            default:
+                return keyEvent(keycode_name);
+        }
+    }
+
     // raw function(s) //
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1918,34 +1980,32 @@ function keycode(keycode_name, params_str) {
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
  *     - ">sum is much smaller" - ">>> sum is much smaller"
- * @param [info_flag] {boolean|string|number} - like: true; "up"; 3; "up_3"
- * @param [params] {object} - reserved
+ * @param [info_flag] {string|number} - like: "up"; "Up"; 3; "up_3"; "both_4" -- "Up": black "up line"; "up": grey "up line"
+ * @param [forcible_flag] {boolean} - forcibly enable with true value
  */
-function debugInfo(msg, info_flag, params) {
-    if (info_flag === false) return;
-
+function debugInfo(msg, info_flag, forcible_flag) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    let global_flag = __global__._monster_$_debug_info_flag;
+    if (!global_flag && !forcible_flag) return;
+    if (global_flag === false || forcible_flag === false) return;
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-    if (typeof msg === "string" && msg.match(/^__split_line__?/)) {
-        let _msg = "";
-        if (msg.match(/dash/)) {
-            for (let i = 0; i < 16; i += 1) _msg += "- ";
-            _msg += "-";
-        } else {
-            for (let i = 0; i < 32; i += 1) _msg += "-";
-        }
-        msg = _msg;
-    }
-    if (Object.prototype.toString.call(msg).slice(8, -1) === "Array") return !~msg.forEach(msg => debugInfo(msg, info_flag, params));
-    if (!!info_flag === true && !info_flag.toString().match(/up|\d/) || __global__._monster_$_debug_info_flag) {
-        let info_flag_str = (info_flag || "").toString();
-        info_flag_str.match(/up[^A-Za-z0-9]|^up$/) && _showSplitLine();
-        let msg_level = +info_flag_str.match(/\d/) || 0;
-        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), msg_level);
-    }
+    if (msg === "__split_line__") showDebugSplitLine();
+
+    let info_flag_str = (info_flag || "").toString();
+    let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
+    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
+
+    if (info_flag_line === "Up") _showSplitLine();
+    if (info_flag_line.match(/both|up/)) debugInfo("__split_line__", "", forcible_flag);
+
+    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
+    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
+
+    if (info_flag_line === "both") debugInfo("__split_line__", "", forcible_flag);
 
     // raw function(s) //
 
@@ -1976,6 +2036,19 @@ function debugInfo(msg, info_flag, params) {
             console.error(_msg);
             _msg_level >= 8 && exit();
         }
+    }
+
+    // tool function(s) //
+
+    function showDebugSplitLine() {
+        let _msg = "";
+        if (msg.match(/dash/)) {
+            for (let i = 0; i < 16; i += 1) _msg += "- ";
+            _msg += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _msg += "-";
+        }
+        msg = _msg;
     }
 }
 
@@ -2188,38 +2261,43 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0;
         let pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
 
-        scroll_interval = setInterval(function () {
-            try {
-                if (!dx && !dy) {
-                    if ((shifting[0] === -WIDTH && sub_view) && page_scrolling_flag) {
-                        sub_view.scrollBy(WIDTH, 0);
-                        let child_count = parent.getChildCount();
-                        parent.removeView(parent.getChildAt(--child_count));
+        threads.start(function () {
+            scroll_interval = setInterval(function () {
+                ui.post(function () {
+                    try {
+                        if (!dx && !dy) {
+                            if ((shifting[0] === -WIDTH && sub_view) && page_scrolling_flag) {
+                                sub_view.scrollBy(WIDTH, 0);
+                                let child_count = parent.getChildCount();
+                                parent.removeView(parent.getChildAt(--child_count));
+                            }
+                            return page_scrolling_flag = false;
+                        }
+                        let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
+                            move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
+                        let scroll_x = neg_x && -move_x || move_x,
+                            scroll_y = neg_y && -move_y || move_y;
+                        sub_view && sub_view.scrollBy(scroll_x, scroll_y);
+                        main_view.scrollBy(scroll_x, scroll_y);
+                        dx -= ptx;
+                        dy -= pty;
+                    } catch (e) {
+                        // setInterval will throw Error even if it's in a try() body
                     }
-                    page_scrolling_flag = false;
-                    return __global__._monster_$_page_scrolling_flag = false;
-                }
-                let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
-                    move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
-                let scroll_x = neg_x && -move_x || move_x,
-                    scroll_y = neg_y && -move_y || move_y;
-                sub_view && sub_view.scrollBy(scroll_x, scroll_y);
-                main_view.scrollBy(scroll_x, scroll_y);
-                dx -= ptx;
-                dy -= pty;
-            } catch (e) {
-                // setInterval will throw Error even if it's in a try() body
-            }
-        }, each_move_time);
+                });
+            }, each_move_time);
+        });
 
         threads.start(function () {
             waitForAction(() => !page_scrolling_flag, 10000);
-            scroll_interval && clearInterval(scroll_interval);
+            ui.post(function () {
+                clearInterval(scroll_interval);
+            });
+            __global__._monster_$_page_scrolling_flag = false;
         });
     } catch (e) {
-        scroll_interval && clearInterval(scroll_interval);
         page_scrolling_flag = false;
-        __global__._monster_$_page_scrolling_flag = false;
+        log(e.message)
     }
 
     // raw function(s) //
@@ -2277,7 +2355,7 @@ function alertTitle(dialog, message, duration) {
 
     if (duration === 0) return;
 
-    setTimeout(() => {
+    setTimeout(function () {
         alert_title_info["message_showing"]--;
         if (alert_title_info["message_showing"]) return;
         setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
@@ -2407,69 +2485,305 @@ function captureErrScreen(key_name, log_level) {
 }
 
 /**
- * Returns a selector() with additional functions bound to its __proto__
+ * Returns a UiSelector with additional function(s) bound to its __proto__
+ * @member {pickup}
  * @param [params]
- * @param [params.debug_info_flag=false] {boolean} - to control the usability of debugInfo()
- * @proto pickup {function}
- * @returns {*}
+ * @param [params.debug_info_flag] {boolean} - to control the usability of debugInfo()
+ * @returns {UiSelector} - with additional function(s)
  */
 function getSelector(params) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
-    let _params = params || {};
+    let parent_params = params || {};
     let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
     let sel = selector();
     sel.__proto__ = {
         /**
-         * Returns a selector node (JavaObject) with 4 selectors /(text|desc)(Matches)?/;
-         * If no JavaObjects were found, returns a selector node according to "prefer" param ("text(Matches)" or "desc(Matches)")
-         * If memory_keyword was found in this session memory, returns a memorized selector node directly
+         * Returns a selector (UiSelector) or node (UiObject) or some attribute
+         * If no nodes (UiObjects) were found, returns null or "" or false
+         * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
          * @memberOf getSelector
-         * @param filter_condition {string|RegExp} - filter condition for this selector
-         * @param memory_keyword {string} - to mark this selector node; better use a keyword without conflict
-         * @param [prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-         * @returns {JavaObject}
+         * @param selector_body {string|RegExp|array} - selector body will be converted into array type
+         * <br>
+         *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
+         *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
+         * @param [memory_keyword {string|null}] - to mark this selector node; better use a keyword without conflict
+         * @param [result_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+         * <br>
+         *     -- "txt": available text()/desc() value or empty string
+         * @param [params] {object}
+         * @param [params.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
+         * @param [params.debug_info_flag] {boolean}
+         * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
+         * @example
+         * pickup("abc"); -- text/desc/id("abc").findOnce() or null; <br>
+         * pickup("abc", "my_alphabet", "node"); -- same as above; <br>
+         * pickup("abc", "my_alphabet", "sel"); -- text/desc/id("abc") or null -- selector <br>
+         * pickup(text("abc"), "my_alphabet"); -- text("abc").findOnce() or null <br>
+         * pickup(/^abc.+z/, "AtoZ", "sel_str"); -- id/text/desc or "" -- string <br>
+         * pickup("morning", "", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
+         * pickup(["morning", "p2c3"], "", "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
+         * pickup(["hello", "s3b"], "", "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
+         * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
+         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "back_btn", "clickable"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
          */
-        pickup: (filter_condition, memory_keyword, prefer) => {
-            let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-            if (memory_keyword) {
-                let memory_kn = __global__[_mem_kw_prefix + memory_keyword];
-                if (memory_kn) return memory_kn;
+        pickup: (selector_body, memory_keyword, result_type, params) => {
+            let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
+            let _params = Object.assign({}, parent_params, params);
+            result_type = (result_type || "").toString();
+            let _result_type = result_type;
+
+            if (!result_type || result_type.match(/^n(ode)?$/)) _result_type = "node";
+            else if (result_type.match(/^s(el(ector)?)?$/)) _result_type = "selector";
+            else if (result_type.match(/^e(xist(s)?)?$/)) _result_type = "exists";
+            else if (result_type.match(/^t(xt)?$/)) _result_type = "txt";
+            else if (result_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) _result_type = "selector_string";
+
+            if (typeof sel_body[1] === "string") sel_body.splice(1, 0, "");
+
+            let _body = sel_body[0];
+            let _additional_sel = sel_body[1];
+            let _compass = sel_body[2];
+
+            let _kw = _getSelector(_additional_sel);
+            let _node = null;
+            let _nodes = [];
+            if (_kw && _kw.toString().match(/UiObject/)) {
+                _node = _kw;
+                if (_result_type === "nodes") _nodes = [_kw];
+                _kw = null;
+            } else {
+                _node = _kw ? _kw.findOnce() : null;
+                if (_result_type === "nodes") _nodes = _kw ? _kw.find() : [];
             }
-            let kn = getSelector();
-            if (memory_keyword && kn.exists()) {
-                _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + kn]);
-                __global__[_mem_kw_prefix + memory_keyword] = kn;
+
+            if (_compass) _node = _relativeNode([_kw || _node, _compass]);
+
+            let _result = {
+                selector: _kw,
+                node: _node,
+                nodes: _nodes,
+                exists: !!_node,
+                get selector_string() {
+                    return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
+                },
+                get txt() {
+                    let _text = _node && _node.text() || "";
+                    let _desc = _node && _node.desc() || "";
+                    return _desc.length > _text.length ? _desc : _text;
+                }
+            };
+
+            if (_result_type in _result) return _result[_result_type];
+
+            try {
+                if (!_node) return null;
+                return _node[_result_type]();
+            } catch (e) {
+                try {
+                    return _node[_result_type];
+                } catch (e) {
+                    debugInfo(e, 3);
+                    return null;
+                }
             }
-            return kn;
 
             // tool function(s)//
 
-            function getSelector() {
-                let classof = Object.prototype.toString.call(filter_condition).slice(8, -1);
-                if (typeof filter_condition === "string") {
-                    if (prefer === "text") return text(filter_condition).exists() ? text(filter_condition) : desc(filter_condition);
-                    return desc(filter_condition).exists() ? desc(filter_condition) : text(filter_condition);
+            function _getSelector(addition) {
+                let _mem_kw_prefix = "_MEM_KW_PREFIX_";
+                if (memory_keyword) {
+                    let _memory_selector = __global__[_mem_kw_prefix + memory_keyword];
+                    if (_memory_selector) return _memory_selector;
                 }
-                if (classof === "RegExp") {
-                    if (prefer === "text") return textMatches(filter_condition).exists() ? textMatches(filter_condition) : descMatches(filter_condition);
-                    return descMatches(filter_condition).exists() ? descMatches(filter_condition) : textMatches(filter_condition);
+                let _kw_selector = _getSelectorFromLayout(addition);
+                if (memory_keyword && _kw_selector) {
+                    _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
+                    __global__[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                }
+                return _kw_selector;
+
+                // tool function(s) //
+
+                function _getSelectorFromLayout(addition) {
+                    let _prefer = _params.selector_prefer;
+                    let _body_class = classof(_body);
+
+                    if (_body_class === "JavaObject") {
+                        if (_body.toString().match(/UiObject/)) {
+                            addition && _debugInfo("UiObject无法使用额外选择器", 3);
+                            return _body;
+                        }
+                        return checkSelectors(_body);
+                    }
+
+                    if (typeof _body === "string") {
+                        return _prefer === "text"
+                            ? checkSelectors(text(_body), desc(_body), id(_body))
+                            : checkSelectors(desc(_body), text(_body), id(_body));
+                    }
+
+                    if (_body_class === "RegExp") {
+                        return _prefer === "text"
+                            ? checkSelectors(textMatches(_body), descMatches(_body), idMatches(_body))
+                            : checkSelectors(descMatches(_body), textMatches(_body), idMatches(_body));
+                    }
+
+                    // tool function(s) //
+
+                    function checkSelectors(selectors) {
+                        let sel_multi = selectors;
+                        if (classof(sel_multi) !== "Array") {
+                            sel_multi = [];
+                            for (let i = 0, len = arguments.length; i < len; i += 1) sel_multi[i] = arguments[i];
+                        }
+                        for (let i = 0, len = sel_multi.length; i < len; i += 1) {
+                            let result = checkSelector(sel_multi[i]);
+                            if (result) return result;
+                        }
+                        return null;
+
+                        // tool function(s) //
+
+                        function checkSelector(single_sel) {
+                            if (classof(addition) === "Array") {
+                                let o = {};
+                                o[addition[0]] = addition[1];
+                                addition = o;
+                            }
+                            if (classof(addition) === "Object") {
+                                let keys = Object.keys(addition);
+                                for (let i = 0, len = keys.length; i < len; i += 1) {
+                                    let key = keys[i];
+                                    if (!single_sel[key]) {
+                                        _debugInfo(["无效的additional_selector属性值:", key], 3);
+                                        return null;
+                                    }
+                                    let value = addition[key];
+                                    try {
+                                        single_sel = single_sel[key].apply(single_sel, classof(value) === "Array" ? value : [value]);
+                                    } catch (e) {
+                                        _debugInfo(["无效的additional_selector选择器:", key], 3);
+                                        return null;
+                                    }
+                                }
+                            }
+                            return single_sel.exists() ? single_sel : null;
+                        }
+                    }
                 }
             }
-        },
-        /**
-         * Returns the name of this selector ("text" or "desc" without "Matches")
-         * If no JavaObjects were found, returns a selector name according to "prefer" param
-         * @memberOf getSelector
-         * @param filter_condition {string|RegExp} - filter condition for this selector
-         * @param memory_keyword {string} - to mark this selector node; better use a keyword without conflict
-         * @param [prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-         * @returns {string} - "desc" or "text"
-         */
-        selStr: (filter_condition, memory_keyword, prefer) => {
-            if (classof(filter_condition) === "JavaObject") return filter_condition.toString().slice(0, 4);
-            return sel.pickup(filter_condition, memory_keyword, prefer).toString().slice(0, 4);
+
+            /**
+             * Returns a relative node (UiObject) by compass string
+             * @param node_information {array|*} - [node, compass]
+             * @returns {null|UiObject}
+             * @example
+             * relativeNode([text("Alipay"), "pp"]); -- text("Alipay").findOnce().parent().parent(); <br>
+             * relativeNode([text("Alipay").findOnce(), "p2"]); -- text("Alipay").findOnce().parent().parent(); -- same as above <br>
+             * relativeNode([id("abc"), "p3c2"]); -- id("abc").findOnce().parent().parent().parent().child(2); <br>
+             * relativeNode([id("abc"), "s5"/"s5p"]); -- id("abc").findOnce().parent().child(5); -- returns an absolute sibling <br>
+             * relativeNode([id("abc"), "s5n"]); -- id("abc").findOnce().parent().child(%childCount% - 5); -- abs sibling <br>
+             * relativeNode([id("abc"), "s+3"]); -- id("abc").findOnce().parent().child(%indexInParent()% + 3); -- rel sibling <br>
+             * relativeNode([id("abc"), "s-2"]); -- id("abc").findOnce().parent().child(%indexInParent()% - 2); -- rel sibling <br>
+             */
+            function _relativeNode(node_information) {
+                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+
+                let node_info = classof(node_information) === "Array" ? node_information.slice() : [node_information];
+
+                let node = node_info[0];
+                let node_class = classof(node);
+                let node_str = (node || "").toString();
+
+                if (typeof node === "undefined") {
+                    _debugInfo("relativeNode的node参数为Undefined");
+                    return null;
+                }
+                if (classof(node) === "Null") {
+                    _debugInfo("relativeNode的node参数为Null");
+                    return null;
+                }
+                if (node_str.match(/^Rect\(/)) {
+                    // _debugInfo("relativeNode的node参数为Rect()");
+                    return null;
+                }
+                if (node_class === "JavaObject") {
+                    if (node_str.match(/UiObject/)) {
+                        // _debugInfo("relativeNode的node参数为UiObject");
+                    } else {
+                        // _debugInfo("relativeNode的node参数为UiSelector");
+                        node = node.findOnce();
+                        if (!node) {
+                            // _debugInfo("UiSelector查找后返回Null");
+                            return null;
+                        }
+                    }
+                } else {
+                    _debugInfo("未知的relativeNode的node参数", 3);
+                    return null;
+                }
+
+                let compass = node_info[1];
+
+                if (!compass) {
+                    // _debugInfo("relativeNode的罗盘参数为空");
+                    return node;
+                }
+
+                compass = compass.toString();
+
+                try {
+                    if (compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
+                        let relative_matched = compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/); // backwards / negative
+                        let absolute_matched = compass.match(/s\d+([fp](?!\d+))?/); // forwards / positive
+                        if (relative_matched) {
+                            let rel_amount = parseInt(relative_matched[0].match(/[+\-]?\d+/)[0]);
+                            let child_count = node.parent().childCount();
+                            let current_idx = node.indexInParent();
+                            node = relative_matched[0].match(/\d+[bn]/)
+                                ? node.parent().child(child_count - Math.abs(rel_amount))
+                                : node.parent().child(current_idx + rel_amount);
+                        } else if (absolute_matched) {
+                            node = node.parent().child(parseInt(absolute_matched[0].match(/\d+/)[0]));
+                        }
+                        compass = compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
+                        if (!compass) return node;
+                    }
+                } catch (e) {
+                    return null;
+                }
+
+                let parents = compass.replace(/([Pp])(\d+)/g, ($0, $1, $2) => {
+                    let str = "";
+                    $2 = parseInt($2);
+                    for (let i = 0; i < $2; i += 1) str += "p";
+                    return str;
+                }).match(/p*/)[0]; // may be ""
+
+                let child_idx_matched = compass.match(/c\d+/g);
+
+                if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : null;
+
+                let parents_len = parents.length;
+                for (let i = 0; i < parents_len; i += 1) {
+                    if (!(node = node.parent())) return null;
+                }
+                return child_idx_matched ? getChildNode(child_idx_matched) : node;
+
+                // tool function(s) //
+
+                function getChildNode(arr) {
+                    if (!arr || classof(arr) !== "Array") return null;
+                    for (let i = 0, len = arr.length; i < len; i += 1) {
+                        if (!node.childCount()) return null;
+                        node = node.child(+arr[i].match(/\d+/));
+                        if (!node) return null;
+                    }
+                    return node;
+                }
+            }
         },
     };
     _debugInfo("选择器加入新方法");
@@ -2541,6 +2855,7 @@ function selExists(conditions) {
  * @returns {string}
  */
 function surroundWith(target, mark_left, mark_right) {
+    if (!target) return "";
     mark_left = (mark_left || '"').toString();
     mark_right = (mark_right || mark_left).toString();
     return mark_left + target.toString() + mark_right;
@@ -2587,4 +2902,276 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix) {
     if (forcible_fixed_num_flag) result = +result;
     if (suffix) result += suffix.toString();
     return result;
+}
+
+/**
+ * Function for a series of ordered click actions
+ * @param pipeline {array} - object is disordered; use array instead - last item condition: null for self exists; undefined for self disappeared
+ * @param [options={}] {object}
+ * @param [options.name] {string} - pipeline name
+ * @param [options.interval=0] {number}
+ * @param [options.max_try_times=5] {number}
+ * @param [options.default_strategy="click"] {string}
+ * @param [options.debug_info_flag] {boolean}
+ * @returns {boolean}
+ */
+function clickActionsPipeline(pipeline, options) {
+    options = options || {};
+    let default_strategy = options.default_strategy || "click";
+    let interval = +options.interval || 0;
+    let max_try_times = +options.max_try_times;
+    if (isNaN(max_try_times)) max_try_times = 5;
+    let max_try_times_backup = max_try_times;
+
+    let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
+    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _surroundWith = typeof surroundWith === "undefined" ? surroundWithRaw : surroundWith;
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", options.debug_info_flag);
+    let sel = _getSelector();
+
+    let pipeline_name = _surroundWith(options.name || "");
+
+    let pipe = pipeline.filter(value => typeof value !== "undefined").map(value => {
+        let val = Object.prototype.toString.call(value).slice(8, -1) === "Array" ? value : [value];
+        if (typeof val[1] === "function" || val[1] === null) val.splice(1, 0, null);
+        val[1] = val[1] || default_strategy;
+        return val;
+    });
+    pipe.forEach((value, idx, arr) => {
+        if (arr[idx][2] === undefined) arr[idx][2] = function () {
+            if (arr[idx + 1]) return sel.pickup(arr[idx + 1][0]);
+            return !sel.pickup(arr[idx][0]);
+        };
+        if (typeof arr[idx][2] === "function") {
+            let f = arr[idx][2];
+            arr[idx][2] = () => f(arr[idx][0]);
+        }
+    });
+
+    for (let i = 0, len = pipe.length; i < len; i += 1) {
+        max_try_times = max_try_times_backup;
+        let p = pipe[i];
+        let keyword = p[0];
+        let strategy = p[1];
+        let condition = p[2];
+        let kw_keyword = sel.pickup(keyword);
+        let clickOnce = () => condition !== null && _clickAction(kw_keyword, strategy);
+
+        clickOnce();
+        while (max_try_times-- > 0 && !_waitForAction(condition === null ? kw_keyword : condition, 1500)) {
+            clickOnce();
+            sleep(interval);
+        }
+
+        if (max_try_times < 0) {
+            _messageAction(pipeline_name + "管道破裂", 3, 1, 0, "up_dash");
+            return _messageAction(_surroundWith(keyword), 3, 0, 1, "dash");
+        }
+    }
+
+    return _debugInfo(pipeline_name + "管道完工") || true;
+
+    // raw function(s) //
+
+    function getSelectorRaw() {
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let sel = selector();
+        sel.__proto__ = {
+            pickup: (filter) => {
+                if (classof(filter) === "JavaObject") {
+                    if (filter.toString().match(/UiObject/)) return filter;
+                    return filter.findOnce() || null;
+                }
+                if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
+                if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
+                return null;
+            },
+        };
+        return sel;
+    }
+
+    function clickActionRaw(kw) {
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (!_key_node) return;
+        let _bounds = _key_node.bounds();
+        click(_bounds.centerX(), _bounds.centerY());
+        return true;
+    }
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+
+    function surroundWithRaw(target, str) {
+        if (!target) return "";
+        str = str || "\"";
+        return str + target + str;
+    }
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Add some proto function(s) to __global__.device
+ * @member {keepOn, cancelOn}
+ * @param [params] {object}
+ * @param [params.debug_info_flag] {boolean}
+ */
+function setDeviceProto(params) {
+    let _params = params || {};
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    if (typeof __global__.device === "undefined") __global__.device = {};
+
+
+    __global__.device.__proto__ = Object.assign((__global__.device.__proto__ || {}), {
+        /**
+         * device.keepScreenOn()
+         * @memberOf setDeviceProto
+         * @param [duration] {number} could be minute (less than 100) or second -- 5 and 300000 both for 5 min
+         * @param [params] {object}
+         * @param [params.debug_info_flag] {boolean}
+         */
+        keepOn: function (duration, params) {
+            params = params || {};
+            duration = duration || 5;
+            if (duration < 100) duration *= 60000;
+            device.keepScreenOn(duration);
+            if (params.debug_info_flag !== false) {
+                _debugInfo("已设置屏幕常亮");
+                _debugInfo(">最大超时时间: " + +(duration / 60000).toFixed(2) + "分钟");
+            }
+        },
+        /**
+         * device.cancelKeepingAwake()
+         * @memberOf setDeviceProto
+         * @param [params] {object}
+         * @param [params.debug_info_flag] {boolean}
+         */
+        cancelOn: function (params) {
+            // click(Math.pow(10, 7), Math.pow(10, 7));
+            params = params || {};
+            device.cancelKeepingAwake();
+            if (params.debug_info_flag !== false) {
+                _debugInfo("屏幕常亮已取消");
+            }
+        },
+    });
+
+    // raw function(s) //
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Vibrate the device with pattern and repeat times
+ * @param pattern {number|array} - vibrate pattern -- odd: delay time; even: vibrate time -- nums less than 10 will be multiplied by 1000
+ * @param [repeat=1] {number} -- repeat times -- times less than 1 or without number type will be reset to 1
+ * @example
+ * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2]); --  a pattern and default repeat times (one time) <br>
+ * vibrateDevice(0, 0.1, 0.3, 0.1, 0.3, 0.2); -- pattern could be spread with one-time repeat <br>
+ * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2); -- repeat twice
+ */
+function vibrateDevice(pattern, repeat) {
+    let _repeat = repeat;
+    let _nums = pattern;
+    if (typeof _nums !== "object") {
+        _nums = [];
+        for (let i = 0, len = arguments.length; i < len; i += 1) {
+            _nums[i] = arguments[i];
+        }
+        _repeat = 1;
+    } else {
+        _repeat = parseInt(repeat);
+        if (!_repeat || _repeat < 0) _repeat = 1;
+    }
+    while (_repeat--) {
+        for (let i = 0, len = _nums.length; i < len; i += 1) {
+            let arg = +_nums[i];
+            if (arg < 10) arg *= 1000;
+            i % 2 ? device.vibrate(arg) : sleep(arg);
+        }
+    }
+}
+
+/**
+ * Convert a timeFlag into a number array
+ * @param timeFlag {number|string} -- often a number (or number string) from 0 - 127
+ * @returns {number[]|number}
+ * @example
+ * timedTaskTimeFlagConverter(59); // [0,1,2,4,5] -- Sun, Mon, Tue, Thu, Fri <br>
+ * timedTaskTimeFlagConverter(127); // [0,1,2,3,4,5,6] -- everyday <br>
+ * timedTaskTimeFlagConverter([0,1,2,3,4,5,6]); // 127 -- to timeFlag number
+ * timedTaskTimeFlagConverter(0); // [] -- disposable <br>
+ */
+function timedTaskTimeFlagConverter(timeFlag) {
+    if (typeof timeFlag === "object") {
+        return parseInt(Array(7).join(" ").split(" ")
+            .map((value, idx) => ~timeFlag.indexOf(idx) ? 1 : 0)
+            .reverse().join(""), 2) || 0;
+    } else if (!isNaN(+timeFlag)) {
+        let info = (+timeFlag).toString(2).split("").reverse().join("");
+        return Array(7).join(" ").split(" ")
+            .map((value, idx) => +info[idx] ? idx : null)
+            .filter(value => value !== null);
+    }
+}
+
+/**
+ * A safe way to replace sleep(timeout)
+ * @param [timeout] {number}
+ */
+function sleepSafe(timeout) {
+    timeout = parseInt(timeout);
+    if (isNaN(timeout)) return;
+
+    let lock = threads.lock();
+    let wait = lock.newCondition();
+
+    threads.start(function () {
+        lock.lock();
+        sleep(timeout);
+        wait.signal();
+        lock.unlock();
+    });
+
+    lock.lock();
+    wait.await();
+    lock.unlock();
 }

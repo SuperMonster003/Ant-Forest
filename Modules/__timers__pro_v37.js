@@ -1,8 +1,9 @@
 importPackage(org.joda.time);
 
-let {getVerName, waitForAction} = files.exists("./MODULE_MONSTER_FUNC") ? require("./MODULE_MONSTER_FUNC") : {
+let {getVerName, waitForAction, sleepSafe} = files.exists("./MODULE_MONSTER_FUNC.js") ? require("./MODULE_MONSTER_FUNC") : {
     getVerName: _getVerName,
     waitForAction: _waitForAction,
+    sleepSafe: _sleepSafe,
 };
 
 module.exports = function (runtime, scope) {
@@ -174,7 +175,7 @@ module.exports = function (runtime, scope) {
                 if (!task || !task.id) return;
                 let new_id = timers.getTimedTask(task.id).id;
                 return new_id && new_id !== id;
-            }, 500, 80) && task;
+            }, 800, 50) && task;
         } catch (e) {
 
         }
@@ -190,7 +191,7 @@ function _waitForAction(f, timeout_or_times, interval) {
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    while (!_checkF(f) && _times--) sleep(_interval);
+    while (!_checkF(f) && _times--) sleepSafe(_interval);
     return _times >= 0;
 
     // tool function(s) //
@@ -276,4 +277,20 @@ function _getVerName(name, params) {
             package_name: _package_name,
         };
     }
+}
+
+function _sleepSafe(timeout) {
+    let lock = threads.lock();
+    let wait = lock.newCondition();
+
+    threads.start(function () {
+        lock.lock();
+        sleep(timeout);
+        wait.signal();
+        lock.unlock();
+    });
+
+    lock.lock();
+    wait.await();
+    lock.unlock();
 }

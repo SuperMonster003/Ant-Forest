@@ -1,3 +1,6 @@
+// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
+__global__ = typeof __global__ === "undefined" ? this : __global__;
+
 module.exports = function (__runtime__, scope) {
     var dialogs = {};
 
@@ -170,7 +173,9 @@ module.exports = function (__runtime__, scope) {
             common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
         }
 
-        return dialogs.build(Object.assign({}, common_o, o));
+        let final_dialog = dialogs.build(Object.assign({}, common_o, o));
+        __global__.dialogs_pool = (__global__.dialogs_pool || []).concat([final_dialog]);
+        return final_dialog;
     };
 
     function applyDialogProperty(builder, name, value) {

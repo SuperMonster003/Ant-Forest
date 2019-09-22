@@ -2,7 +2,10 @@ module.exports = {
     "af": {
         self_collect_switch: true, // i know the trick about the reason you wanna turn this switch off
         app_launch_springboard: "ON", // sometimes alipay will not be launched without Auto.js running in the foreground
-        // main_user_switch: false, // if you are multi-account user, you may specify a "main account" to switch
+        account_switch: false, // if you are multi-account user, you may turn this on and specify a "main account" to switch
+        account_log_back_in_switch: false, // if you are multi-account user, you may turn this on and specify a "main account" to switch
+        account_log_back_in_max_continuous_times: 3, // with this value, switching back will not always happen infinitely
+        main_account_info: {}, // stores information of the "main account" user
         max_own_forest_balls_ready_time: 800, // 200 <= x <= 2000, safe: 500; max check time for ant forest homepage balls being ready
         energy_balls_click_interval: 30, // 10 <= x <= 150; as the saying goes, "Haste makes waste"
         homepage_monitor_switch: true, // set true value if you need continuously check your own energy balls
@@ -14,6 +17,8 @@ module.exports = {
         friend_collect_icon_threshold: 10, // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         help_collect_switch: true, // set false if you do not wanna give a hand; leave it true if you like "surprise"
         help_collect_section: ["00:00", "00:00"], // a valid time section of help collect function; default: the whole day
+        six_balls_review_switch: true, // review current friend's forest if help balls have been collected successfully when 6 balls exist
+        six_balls_review_max_continuous_times: 3, // 1 <= x <= 8; max continuous review times for a certain friend
         help_collect_icon_color: "#f99137", // color for help icon with a heart pattern
         help_collect_icon_threshold: 10, // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         help_collect_balls_color: "#f99137", // color for fade-in-and-out help balls in a friend's forest
@@ -72,11 +77,13 @@ module.exports = {
     "unlock": {
         unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
         unlock_max_try_times: 20, // max times for trying unlocking your phone
+        unlock_pattern_strategy: "segmental", // of "solid"; seg for faster and more accurate swipe and solid for stable swipe without break
         unlock_pattern_size: 3, // side size of a speed-dial-like pattern for unlocking your phone, and 3 is the most common value
-        unlock_pattern_swipe_time: 120, // gesture time for pattern unlock each time, and usually won't change with correct unlock code
+        unlock_pattern_swipe_time_segmental: 120, // swipe time for pattern unlock each two points; may be auto modified
+        unlock_pattern_swipe_time_solid: 200, // swipe time for pattern unlock each time; may be auto modified
         unlock_dismiss_layer_bottom: 0.8, // 0.5 <= x <= 0.95; great value (like 0.95) may cause unexpected object activation
         unlock_dismiss_layer_top: 0.2, // 0.05 <= x <= 0.3; this value may be not that important
-        unlock_dismiss_layer_swipe_time: 105, // time for swiping up to dismiss the lock screen layer
+        unlock_dismiss_layer_swipe_time: 110, // time for swiping up to dismiss the lock screen layer; will be auto modified initially
     },
     "settings": {
         item_area_width: 0.78,

@@ -16,9 +16,9 @@ function showCurrentScreenLayoutInfo() {
     // tool function(s) //
 
     function showInfo(key_word) {
-        if (Object.prototype.toString.call(key_word).slice(8, -1) !== "Array") key_word = [key_word];
+        let key_w = Object.prototype.toString.call(key_word).slice(8, -1) === "Array" ? key_word.slice() : [key_word];
         let info_shown_flag = false;
-        key_word.forEach(kw => {
+        key_w.forEach(kw => {
             let nodes = selector()[kw + "Matches"](/.+/).find();
             if (!nodes.length) return;
             console.log("# " + kw + " #");

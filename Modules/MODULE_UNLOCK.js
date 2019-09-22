@@ -14,7 +14,15 @@ let {
     getDisplayParams,
     debugInfo,
     captureErrScreen,
+    equalObjects,
+    deepCloneObject,
+    setDeviceProto,
+    getSelector,
 } = require("./MODULE_MONSTER_FUNC");
+
+setDeviceProto();
+
+let sel = getSelector();
 
 let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = {};
 let device_intro = device.brand + " " + device.product + " " + device.release;
@@ -23,8 +31,8 @@ let PWMAP = require("./MODULE_PWMAP");
 let decrypt = new PWMAP().pwmapDecrypt;
 
 let storage_unlock = require("./MODULE_STORAGE").create("unlock");
-let config_storage = storage_unlock.get("config", {});
-let config_default = require("./MODULE_DEFAULT_CONFIG").unlock;
+let config_unlock = storage_unlock.get("config", {});
+let default_unlock = require("./MODULE_DEFAULT_CONFIG").unlock;
 
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
@@ -33,13 +41,14 @@ let wakeUpDevice = () => device.keepScreenOn(120 * 1000); // 2 min
 
 let init_screen_state = isScreenOn();
 
-let unlock_code = decrypt(config_storage.unlock_code) || "";
-let {unlock_max_try_times, unlock_pattern_size} = Object.assign({}, config_default, config_storage);
+let unlock_code = decrypt(config_unlock.unlock_code) || "";
+let {unlock_max_try_times, unlock_pattern_size} = Object.assign({}, default_unlock, config_unlock);
 
 // export module //
 
 module.exports = function () {
     this.is_screen_on = init_screen_state;
+    this.isUnlocked = isUnlocked;
     this.unlock = function () {
         let dash_line = "__split_line_dash__";
         debugInfo([dash_line, "尝试自动解锁", dash_line]);
@@ -57,6 +66,7 @@ module.exports = function () {
         while (!isUnlocked() && !maxTryTimesReached()) {
             let retry_info = " (" + current_try_unlock + "\/" + max_try_times_unlock + ")";
             debugInfo(current_try_unlock++ ? "重试解锁" + retry_info : "尝试解锁");
+            checkAndDismissQQLockScreenMsgBox();
             checkPreviewContainer() && dismissLayer();
             checkLockViews() && unlockLockView();
         }
@@ -67,6 +77,18 @@ module.exports = function () {
         return true;
 
         // key function(s) //
+
+        function checkAndDismissQQLockScreenMsgBox() {
+            let kw_qq_msg_box_txt_ident = () => sel.pickup("按住录音");
+            let kw_qq_msg_box_id_ident = () => sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
+
+            let ident = () => kw_qq_msg_box_txt_ident() || kw_qq_msg_box_id_ident();
+            if (ident()) {
+                debugInfo("匹配到QQ锁屏消息弹框控件");
+                clickAction(sel.pickup("关闭"), "widget");
+                waitForAction(() => !ident(), 3000) ? debugInfo("关闭弹框控件成功") : debugInfo("关闭弹框控件超时", 3);
+            }
+        }
 
         function checkPreviewContainer() {
             let samples = {
@@ -200,35 +222,42 @@ module.exports = function () {
                 unlock_dismiss_layer_bottom,
                 unlock_dismiss_layer_top,
                 unlock_dismiss_layer_swipe_time,
-            } = Object.assign({}, config_default, config_storage);
+            } = Object.assign({}, default_unlock, config_unlock);
 
             let vertical_pts = [unlock_dismiss_layer_bottom, unlock_dismiss_layer_top];
+
             let storage_swipe_time = unlock_dismiss_layer_swipe_time;
-            let default_swipe_time = config_default.unlock_dismiss_layer_swipe_time;
+            let data_from_storage_flag = !!storage_swipe_time;
+            let swipe_time = storage_swipe_time || default_unlock.unlock_dismiss_layer_swipe_time;
+
+            let storage_swipe_time_reliable = config_unlock.swipe_time_reliable || [];
+            let swipe_time_reliable = deepCloneObject(storage_swipe_time_reliable);
+            let chances_for_storage_data = ~swipe_time_reliable.indexOf(swipe_time) ? Infinity : 3;
+            if (!isFinite(chances_for_storage_data)) debugInfo("当前滑动时长参数可信");
+
+            let continuous_swipe = config_unlock.continuous_swipe || {};
+            if (!(swipe_time in continuous_swipe)) {
+                debugInfo("连续成功滑动累积器清零");
+                continuous_swipe = {};
+                continuous_swipe[swipe_time] = 0;
+            }
 
             let max_retry_times_dismiss = 30;
             let current_retry_dismiss = 0;
             let maxTryTimesReached = () => current_retry_dismiss > max_retry_times_dismiss;
 
-            let data_from_storage_flag = false;
-            let chances_for_storage_data = 3;
-            let gesture_time = storage_swipe_time;
-
-            if (gesture_time) data_from_storage_flag = true;
-            else gesture_time = default_swipe_time;
-
             let half_width = cX(0.5);
             let gesture_params = [];
             vertical_pts.forEach(raw_y => gesture_params.push([half_width, cY(raw_y)]));
 
-            device.keepScreenOn(180000); // 3 min at most
+            device.keepOn(3);
 
             while (!maxTryTimesReached()) {
                 let retry_info = " (" + current_retry_dismiss + "\/" + max_retry_times_dismiss + ")";
                 debugInfo(current_retry_dismiss ? "重试消除解锁页面提示层" + retry_info : "尝试消除解锁页面提示层");
-                debugInfo("使用滑动时间参数: " + gesture_time);
+                debugInfo("使用滑动时间参数: " + swipe_time);
                 debugInfo(">来源: " + (data_from_storage_flag ? "本地存储" : "自动计算"));
-                gesture.apply(null, [gesture_time].concat(gesture_params));
+                gesture.apply(null, [swipe_time].concat(gesture_params));
 
                 if (waitForAction(() => !checkPreviewContainer(), 1500) || checkLockViews()) break;
                 debugInfo("单次消除解锁页面提示层超时");
@@ -237,31 +266,64 @@ module.exports = function () {
                 if (data_from_storage_flag) {
                     if (--chances_for_storage_data < 0) {
                         data_from_storage_flag = false;
-                        gesture_time = default_swipe_time;
+                        swipe_time = default_unlock.unlock_dismiss_layer_swipe_time;
                         debugInfo("放弃本地存储数据");
-                        debugInfo("从默认值模块获取默认值: " + gesture_time);
+                        debugInfo("从默认值模块获取默认值: " + swipe_time);
                     } else {
                         debugInfo("继续使用本地存储数据");
                     }
                 } else {
-                    let increment = gesture_time < 120 ? 5 : 50; // 105, 110, 115, 120, 170, 220, 270, 320...
-                    gesture_time += increment;
+                    let increment = swipe_time < 120 ? 5 : 50; // h110, 115, 120, 170, 220, 270, 320...
+                    swipe_time += increment;
                     debugInfo("参数增量: " + increment);
                 }
             }
-            if (maxTryTimesReached()) return errorMsg("消除解锁页面提示层失败");
-
-            device.cancelKeepingAwake();
-
-            debugInfo("解锁页面提示层消除成功");
-
-            if (gesture_time !== storage_swipe_time) {
+            if (maxTryTimesReached()) {
+                continuous_swipe[swipe_time] = 0;
                 storage_unlock.put("config", Object.assign(
                     {},
                     storage_unlock.get("config", {}),
-                    {unlock_dismiss_layer_swipe_time: gesture_time}
+                    {continuous_swipe: continuous_swipe}
                 ));
-                debugInfo("存储滑动时长参数: " + gesture_time);
+                return errorMsg("消除解锁页面提示层失败");
+            }
+
+            device.cancelOn();
+
+            debugInfo("解锁页面提示层消除成功");
+
+            if (swipe_time !== storage_swipe_time) {
+                storage_unlock.put("config", Object.assign(
+                    {},
+                    storage_unlock.get("config", {}),
+                    {unlock_dismiss_layer_swipe_time: swipe_time}
+                ));
+                debugInfo("存储滑动时长参数: " + swipe_time);
+            }
+
+            let new_continuous_swipe_times = continuous_swipe[swipe_time] + 1;
+            continuous_swipe[swipe_time] = new_continuous_swipe_times;
+            storage_unlock.put("config", Object.assign(
+                {},
+                storage_unlock.get("config", {}),
+                {continuous_swipe: continuous_swipe}
+            ));
+            debugInfo("存储连续成功滑动次数: " + new_continuous_swipe_times);
+            if (new_continuous_swipe_times >= 6 && !~swipe_time_reliable.indexOf(swipe_time)) {
+                debugInfo("当前滑动时长可信度已达标");
+                swipe_time_reliable.unshift(swipe_time);
+            }
+
+            if (!equalObjects(swipe_time_reliable, storage_swipe_time_reliable)) {
+                let new_value = swipe_time_reliable[0];
+                if (!~storage_swipe_time_reliable.indexOf(new_value)) {
+                    debugInfo("存储可信滑动时长数据: " + new_value);
+                }
+                storage_unlock.put("config", Object.assign(
+                    {},
+                    storage_unlock.get("config", {}),
+                    {swipe_time_reliable: swipe_time_reliable}
+                ));
             }
         }
 
@@ -270,14 +332,14 @@ module.exports = function () {
 
             let pin_unlock_identifies = ["com.android.systemui:id/lockPattern"];
 
-            device.keepScreenOn(300000); // 5 min at most
+            device.keepOn(5);
 
             checkLockPatternView() && unlockPattern()
             || checkPasswordView() && unlockPassword()
             || checkPinView() && unlockPin()
             || handleSpecials();
 
-            device.cancelKeepingAwake();
+            device.cancelOn();
 
             // tool function(s) //
 
@@ -285,13 +347,15 @@ module.exports = function () {
                 let max_try_times_unlock_pattern = unlock_max_try_times;
                 let current_try_unlock_pattern = 0;
                 let maxTryTimesReached = () => current_try_unlock_pattern > max_try_times_unlock_pattern;
-                let unlock_pattern_swipe_time = config_storage.unlock_pattern_swipe_time;
+                let unlock_pattern_strategy = config_unlock.unlock_pattern_strategy || default_unlock.unlock_pattern_strategy;
+                let unlock_pattern_swipe_time_name = "unlock_pattern_swipe_time_" + unlock_pattern_strategy;
+                let unlock_pattern_swipe_time = config_unlock[unlock_pattern_swipe_time_name];
 
                 let data_from_storage_flag = false;
                 let chances_for_storage_data = 3;
 
                 if (unlock_pattern_swipe_time) data_from_storage_flag = true;
-                else unlock_pattern_swipe_time = config_default.unlock_pattern_swipe_time;
+                else unlock_pattern_swipe_time = default_unlock[unlock_pattern_swipe_time_name];
 
                 while (!maxTryTimesReached()) {
                     let retry_info = " (" + current_try_unlock_pattern + "\/" + max_try_times_unlock_pattern + ")";
@@ -299,25 +363,36 @@ module.exports = function () {
                     debugInfo("滑动时长参数: " + unlock_pattern_swipe_time);
 
                     let gesture_pts_params = getGesturePtsParams() || errorMsg("图案解锁方案失败", "无法获取点阵布局");
-                    let gestures_pts_params = [];
-                    for (let i = 0; i < gesture_pts_params.length - 1; i += 1) {
-                        let pt1 = gesture_pts_params[i];
-                        let pt2 = gesture_pts_params[i + 1];
-                        gestures_pts_params.push([
-                            (unlock_pattern_swipe_time - 50) * i,
-                            unlock_pattern_swipe_time,
-                            [pt1["0"], pt1["1"]],
-                            [pt2["0"], pt2["1"]]
-                        ]);
+                    let gesture_actions = {
+                        segmental: () => {
+                            let gestures_pts_params = [];
+                            for (let i = 0; i < gesture_pts_params.length - 1; i += 1) {
+                                let pt1 = gesture_pts_params[i];
+                                let pt2 = gesture_pts_params[i + 1];
+                                gestures_pts_params.push([
+                                    (unlock_pattern_swipe_time - 50) * i,
+                                    unlock_pattern_swipe_time,
+                                    [pt1["0"], pt1["1"]],
+                                    [pt2["0"], pt2["1"]]
+                                ]);
+                            }
+                            gestures.apply(null, gestures_pts_params);
+                        },
+                        solid: () => gesture.apply(null, [unlock_pattern_swipe_time].concat(gesture_pts_params)),
+                    };
+
+                    try {
+                        gesture_actions[unlock_pattern_strategy]();
+                    } catch (e) {
+                        messageAction(e.message, 4, 0, 0, "both");
                     }
-                    gestures.apply(null, gestures_pts_params);
 
                     if (checkUnlockResult()) break;
                     debugInfo("图案解锁未成功");
                     if (data_from_storage_flag) {
                         if (--chances_for_storage_data < 0) {
                             data_from_storage_flag = false;
-                            unlock_pattern_swipe_time = config_default.unlock_pattern_swipe_time;
+                            unlock_pattern_swipe_time = default_unlock[unlock_pattern_swipe_time_name];
                         }
                     } else unlock_pattern_swipe_time += 80;
                 }
@@ -325,9 +400,9 @@ module.exports = function () {
                 if (maxTryTimesReached()) return errorMsg("图案解锁方案失败");
 
                 debugInfo("图案解锁成功");
-                if (unlock_pattern_swipe_time !== config_storage.unlock_pattern_swipe_time) {
-                    config_storage.unlock_pattern_swipe_time = unlock_pattern_swipe_time;
-                    storage_unlock.put("config", config_storage);
+                if (unlock_pattern_swipe_time !== config_unlock[unlock_pattern_swipe_time_name]) {
+                    config_unlock[unlock_pattern_swipe_time_name] = unlock_pattern_swipe_time;
+                    storage_unlock.put("config", config_unlock);
                     debugInfo("存储滑动时长参数: " + unlock_pattern_swipe_time);
                 }
                 return true;
@@ -364,9 +439,11 @@ module.exports = function () {
                     let gesture_pts_params = unlock_code;
                     if (typeof unlock_code === "string") {
                         gesture_pts_params = unlock_code.match(/[^1-9]+/)
-                            ? unlock_code.split(/[^1-9]+/).join("").split("")
+                            ? unlock_code.split(/[^1-9]+/).join(" ").split(" ")
                             : unlock_code.split("");
                     }
+                    gesture_pts_params = simplifyCode(gesture_pts_params, unlock_pattern_size);
+
                     return gesture_pts_params
                         .filter(value => +value && points[value])
                         .map(value => [points[value].x, points[value].y]);
@@ -398,6 +475,34 @@ module.exports = function () {
                         thread_bounds_stable.join(1500);
                         thread_bounds_stable.isAlive() && ~thread_bounds_stable.interrupt();
                         return bounds;
+                    }
+
+                    function simplifyCode(arr, side) {
+                        let coords = {};
+                        let p = 1;
+                        for (let i = 1; i <= side; i += 1) {
+                            for (let j = 1; j <= side; j += 1) {
+                                coords[p++] = [i, j];
+                            }
+                        }
+
+                        let k = (u1, u2) => {
+                            let p1 = coords[u1];
+                            let p2 = coords[u2];
+                            if (!p1 || !p2) return NaN;
+                            return (p2[1] - p1[1]) / (p2[0] - p1[0]);
+                        };
+                        let tmp_k = NaN;
+                        for (let u = 0, len = arr.length; u < len - 1; u += 1) {
+                            let current_k = k(arr[u + 1], arr[u]);
+                            if (current_k !== tmp_k) tmp_k = current_k;
+                            else delete arr[u];
+                        }
+                        arr = arr.filter(x => typeof x !== "undefined");
+                        for (z = arr.length - 1; z > 0; z -= 1) {
+                            if (arr[z] === arr[z - 1]) arr.splice(z, 1);
+                        }
+                        return arr;
                     }
                 }
             }
@@ -675,7 +780,11 @@ module.exports = function () {
                 let cond_ok_btn = () => kw_ok_btn.exists();
                 let cond_state_ok = () => isUnlocked() || cond_incorrect_pw() && ~debugInfo("密码错误") || cond_try_again() || cond_ok_btn();
                 if (!waitForAction(cond_state_ok, 1000) && !waitForAction(isUnlocked, 1000)) return false;
-                clickAction(kw_ok_btn, "widget") && sleep(1000);
+                try {
+                    clickAction(kw_ok_btn, "widget") && sleep(1000);
+                } catch (e) {
+                    // nothing to do here
+                }
                 if (cond_try_again()) {
                     debugInfo("正在等待重试超时");
                     waitForAction(() => !cond_try_again(), 65000);
@@ -686,9 +795,9 @@ module.exports = function () {
 
         // tool function(s) //
 
-        function errorMsg(msg) {
-            device.cancelKeepingAwake();
-            if (typeof msg === "string") msg = [msg];
+        function errorMsg(message) {
+            device.cancelOn();
+            let msg = typeof message === "string" ? [message] : message.slice(); // may be dangerous
             messageAction("解锁失败", 4, 1, 0, "up");
             msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
             messageAction(device_intro, 4, 0, 2, 1);

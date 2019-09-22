@@ -1,9 +1,19 @@
 "ui";
 auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
 
+// set up the device screen in a portrait orientation
+activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
+__global__ = typeof __global__ === "undefined" ? this : __global__;
+
+// better compatibility for both free version and pro version
+let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
+
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
 // in another way, dialogs.builds() could make things easier sometimes
-let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, this);
+let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
+
 
 threads.starts = (f, error_msg_consume_flag) => {
     try {
@@ -25,6 +35,7 @@ let {
     waitForAction,
     waitForAndClickAction,
     phoneCallingState,
+    timedTaskTimeFlagConverter,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 let session_params = {};
@@ -38,6 +49,7 @@ let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, status_bar_height, action_bar_default
 let {DEFAULT_AF, DEFAULT_UNLOCK, DEFAULT_SETTINGS} = getDefaultConfigParams();
 let {storage_cfg, storage_af, storage_unlock} = getStorageParams();
 let encrypt = new (require("./Modules/MODULE_PWMAP"))().pwmapEncrypt;
+let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
 let storage_config = initStorageConfig();
 let session_config = deepCloneObject(storage_config);
@@ -115,6 +127,21 @@ let list_heads = {
         },
         {interval: "间隔 (分)"},
     ],
+    timed_tasks: [
+        {
+            type: "任务类型", width: 0.47, stringTransform: {
+                // []: daily; number[]: weekly; 0: disposable
+                forward: getTimedTaskTypeStr,
+                backward: restoreFromTimedTaskTypeStr,
+            },
+        },
+        {
+            next_run_time: "下次运行", sort: 1, stringTransform: {
+                forward: data => getTimeStrFromTimestamp(data, "time_str_full"),
+                backward: restoreFromTimestamp,
+            },
+        }
+    ],
 };
 
 // entrance //
@@ -172,6 +199,14 @@ let homepage = setHomePage(defs.homepage_title)
             view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
         },
     }))
+    .add("options_lazy", new Layout("账户功能", {
+        config_conj: "account_switch",
+        hint: "加载中...",
+        next_page: "account_page",
+        updateOpr: function (view) {
+            view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
+        },
+    }))
     .add("options_lazy", new Layout("黑名单管理", {
         next_page: "blacklist_page",
     }))
@@ -224,7 +259,7 @@ let homepage = setHomePage(defs.homepage_title)
         hint: "正在读取中...",
         view_label: "about",
         newWindow: function () {
-            let local_version = this.view._hint.getText();
+            let local_version = this.view._hint.getText().toString();
             let newest_server_version_name = "";
             let server_md_file_content = "";
             let diag = dialogs.builds(["关于", "", [0, "attraction_btn_color"], "返回", "检查更新", 1], {
@@ -366,6 +401,9 @@ let homepage = setHomePage(defs.homepage_title)
                     let old_status_bar_color = activity.getWindow().getStatusBarColor();
                     ui.statusBarColor(android.graphics.Color.TRANSPARENT);
 
+                    // let {FLAG_FULLSCREEN} = android.view.WindowManager.LayoutParams;
+                    // activity.getWindow().setFlags(FLAG_FULLSCREEN, FLAG_FULLSCREEN);
+
                     let avatar_text_obj = {
                         loading: "Online avatar image is loading...",
                         coffee: "Coffee, coffee, and coffee",
@@ -382,7 +420,7 @@ let homepage = setHomePage(defs.homepage_title)
                     }
 
                     let stop_loading_url_avatar_signal = false;
-                    thread_load_url_avatar = threads.start(function () {
+                    thread_load_url_avatar = threads.starts(function () {
                         try {
                             waitForAction(() => additional_view && additional_view._avatar, 5000, 50);
                             let avatar_url_img = null;
@@ -416,7 +454,7 @@ let homepage = setHomePage(defs.homepage_title)
                                 local_avatar = avatar_url_img;
                                 local_avatar_text = avatar_text_obj.coffee;
                                 ui.post(() => {
-                                    if (additional_view._avatar_desc.getText() === avatar_text_obj.loading) {
+                                    if (additional_view._avatar_desc.getText().toString() === avatar_text_obj.loading) {
                                         additional_view._avatar_desc.text(local_avatar_text);
                                     }
                                     if (session_params.current_avatar_recycle_name === "avatar") {
@@ -459,6 +497,7 @@ let homepage = setHomePage(defs.homepage_title)
                         delete session_params.back_btn_consumed;
                         delete session_params.close_btn_long_clicked_flag;
                         ui.statusBarColor(old_status_bar_color);
+                        // activity.getWindow().clearFlags(FLAG_FULLSCREEN);
                         diag.show();
 
                         let parent = ui.main.getParent();
@@ -777,8 +816,8 @@ addPage(() => {
             config_conj: "friend_collect_icon_color",
             hint: "加载中...",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
-                    _lim255 = regexp_num_0_to_255.source;
+                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
+                let _lim255 = regexp_num_0_to_255.source;
                 let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
                 let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
                 let current_color = undefined;
@@ -849,6 +888,408 @@ addPage(() => {
         .ready();
 }); // friend_collect_page
 addPage(() => {
+    setPage(["排行榜样本采集", "rank_list_samples_collect_page"])
+        .add("sub_head", new Layout("基本设置"))
+        .add("button", new Layout("滑动距离", {
+            config_conj: "rank_list_swipe_distance",
+            hint: "加载中...",
+            newWindow: function () {
+                let avail_top = Math.ceil(HEIGHT * 0.4);
+                let avail_bottom = Math.floor(HEIGHT * 0.9);
+                let collect_icon_height = cY(46, 16 / 9);
+                let safe_value = (USABLE_HEIGHT - status_bar_height - action_bar_default_height - collect_icon_height);
+                let default_value = DEFAULT_AF[this.config_conj].toString();
+                let getScaleStr = value => " [ " + ~~(value * 100 / HEIGHT) / 100 + " ]";
+                let diag = dialogs.builds(["设置排行榜页面滑动距离", "", ["使用安全值", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+                    content: "参数示例:\n1260: 每次滑动 1260 像素\n0.6: 每次滑动 60% 屏幕距离\n\n" +
+                        "有效值: " + avail_top + " [ " + (avail_top / HEIGHT) + " ] " +
+                        " -  " + avail_bottom + " [ " + (avail_bottom / HEIGHT) + " ]\n" +
+                        "默认值: " + ~~(default_value * HEIGHT) + " [ " + default_value + " ]\n" +
+                        "安全值: " + safe_value + getScaleStr(safe_value),
+                    inputHint: "{x|0.4(*HEIGHT)<=x<=0.9(*HEIGHT),x∈R}",
+                });
+                diag.on("neutral", () => diag.getInputEditText().setText(safe_value.toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") input = (session_config[this.config_conj] || default_value).toString();
+                    if (input.match(/^\d+%$/)) input = input.replace("%", "") / 100;
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 0 && value < 1) value *= HEIGHT;
+                    if (value > avail_bottom || value < avail_top) return alertTitle(dialog, "输入值范围不合法");
+                    if (value > safe_value) {
+                        let diag_confirm = dialogs.builds([
+                            ["请注意", "caution_btn_color"], "",
+                            ["什么是安全值", "hint_btn_bright_color"], "放弃", ["确定", "warn_btn_color"], 1,
+                        ], {
+                            content: "当前值: " + value + "\n安全值: " + safe_value + "\n\n" +
+                                "当前设置值大于安全值\n滑动时可能出现遗漏采集目标的问题\n\n" +
+                                "确定要保留当前设置值吗",
+                        });
+                        diag_confirm.on("neutral", () => {
+                            dialogs.builds(["滑动距离安全值", "", 0, 0, "返回"], {
+                                content: "安全值指排行榜滑动时可避免采集目标遗漏的理论最大值\n\n" +
+                                    "计算方法:\n屏幕高度 [ " + HEIGHT + " ]\n" +
+                                    "减去 导航栏高度 [ " + navigation_bar_height + " ]\n" +
+                                    "减去 状态栏高度 [ " + status_bar_height + " ]\n" +
+                                    "减去 ActionBar默认高度 [ " + action_bar_default_height + " ]\n" +
+                                    "减去 帮收图标缩放高度 [ " + collect_icon_height + " ]\n" +
+                                    "得到 安全值 [ " + safe_value + " ]\n\n" +
+                                    "* 括号中的数据均源自当前设备\n" +
+                                    "* 安全值为理论值\n-- 不代表真实可操作的最佳值",
+                            }).show();
+                        });
+                        diag_confirm.on("negative", () => diag_confirm.dismiss());
+                        diag_confirm.on("positive", () => {
+                            saveSession(this.config_conj, ~~value);
+                            diag_confirm.dismiss();
+                            diag.dismiss();
+                        });
+                        diag_confirm.show();
+                    } else {
+                        saveSession(this.config_conj, ~~value);
+                        diag.dismiss();
+                    }
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = session_config[this.config_conj] || DEFAULT_AF[this.config_conj];
+                if (value < 1) value = ~~(value * HEIGHT);
+                view._hint.text(value.toString() + " px  [ " + Math.round(value / HEIGHT * 100) + "% H ]");
+            },
+        }))
+        .add("button", new Layout("滑动时长", {
+            config_conj: "rank_list_swipe_time",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "设置排行榜页面滑动时长", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|50<=x<=500,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 500 || value < 50) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
+            },
+        }))
+        .add("button", new Layout("滑动间隔", {
+            config_conj: "rank_list_swipe_interval",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag_strategy_image = dialogs.builds([
+                    "设置排行榜页面滑动间隔", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|100<=x<=800,x∈N}"});
+                diag_strategy_image.on("neutral", () => diag_strategy_image.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag_strategy_image.on("negative", () => diag_strategy_image.dismiss());
+                diag_strategy_image.on("positive", dialog => {
+                    let input = diag_strategy_image.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 800 || value < 100) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag_strategy_image.dismiss();
+                });
+                let diag_strategy_layout = dialogs.builds([
+                    "设置排行榜页面滑动间隔", "采用\"布局分析\"策略时\n滑动间隔将由脚本自动获取动态最优值",
+                    0, 0, "返回", 1,
+                ]);
+                diag_strategy_layout.on("positive", () => diag_strategy_layout.dismiss());
+                session_config.rank_list_samples_collect_strategy === "image" && diag_strategy_image.show() || diag_strategy_layout.show();
+            },
+            updateOpr: function (view) {
+                if (session_config.rank_list_samples_collect_strategy === "image") view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
+                else view._hint.text("自动设置");
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("高级设置"))
+        .add("options", new Layout("列表自动展开", {
+            config_conj: "rank_list_auto_expand_switch",
+            hint: "加载中...",
+            next_page: "rank_list_auto_expand_page",
+            updateOpr: function (view) {
+                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
+            },
+        }))
+        .add("options", new Layout("样本复查", {
+            config_conj: "rank_list_review_switch",
+            hint: "加载中...",
+            next_page: "rank_list_review_page",
+            updateOpr: function (view) {
+                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
+                checkDependency(view, "timers_switch");
+            },
+        }))
+        .add("button", new Layout("采集策略", {
+            config_conj: "rank_list_samples_collect_strategy",
+            hint: "加载中...",
+            map: {
+                "layout": "布局分析",
+                "image": "图像处理",
+            },
+            newWindow: function () {
+                let map = this.map;
+                let map_keys = Object.keys(map);
+                let diag = dialogs.builds(["排行榜样本采集策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+                    items: map_keys.slice().map(value => map[value]),
+                    itemsSelectMode: "single",
+                    itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()),
+                });
+                diag.on("neutral", () => {
+                    let diag_about = dialogs.builds(["关于采集策略", "about_rank_list_samples_collect_strategy", 0, 0, "关闭", 1]);
+                    diag_about.on("positive", () => diag_about.dismiss());
+                    diag_about.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    saveSession(this.config_conj, map_keys[diag.selectedIndex]);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()]);
+            },
+        }))
+        .add("button", new Layout("截图样本池差异检测阈值", {
+            config_conj: "rank_list_capt_pool_diff_check_threshold",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "排行榜截图差异检测阈值", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|5<=x<=800,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 800 || value < 5) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
+            },
+        }))
+        .add("button", new Layout("列表底部控件图片模板", {
+            hint: "加载中...",
+            newWindow: function () {
+                let template_path = storage_config.rank_list_bottom_template_path;
+                let diag = dialogs.builds([
+                    "排行榜底部控件图片模板", "",
+                    ["null", "caution_btn_color"], "返回", ["null", "attraction_btn_color"], 1,
+                ]);
+                diag.on("neutral", () => {
+                    let diag_confirm = dialogs.builds(["确认删除吗", "此操作无法撤销", 0, "放弃", ["确认", "caution_btn_color"], 1]);
+                    diag_confirm.on("negative", () => diag_confirm.dismiss());
+                    diag_confirm.on("positive", () => {
+                        files.remove(template_path);
+                        diag_confirm.dismiss();
+                        this.updateOpr(this.view);
+                        updateDialog();
+                    });
+                    diag_confirm.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => app.viewFile(template_path));
+                diag.show();
+                updateDialog();
+
+                // tool function(s) //
+
+                function updateDialog() {
+                    let dialog_contents = require("./Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
+                    let [base, exists, not_exists] = [
+                        dialog_contents.rank_list_bottom_template_hint_base,
+                        dialog_contents.rank_list_bottom_template_hint_exists,
+                        dialog_contents.rank_list_bottom_template_hint_not_exists
+                    ];
+                    if (files.exists(template_path)) {
+                        diag.setContent(base + exists);
+                        diag.setActionButton("neutral", "删除模板");
+                        diag.setActionButton("positive", "查看模板");
+                    } else {
+                        diag.setContent(base + not_exists);
+                        diag.setActionButton("neutral", "");
+                        diag.setActionButton("positive", "");
+                    }
+                }
+            },
+            updateOpr: function (view) {
+                let file_exists_flag = files.exists(storage_config.rank_list_bottom_template_path);
+                view._hint.text(file_exists_flag ? "已生成" : "暂未生成");
+            },
+        }))
+        .ready();
+}); // rank_list_samples_collect_page
+addPage(() => {
+    setPage(["排行榜列表自动展开", "rank_list_auto_expand_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "rank_list_auto_expand_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("基本设置"))
+        .add("button", new Layout("列表自动展开最大值", {
+            config_conj: "rank_list_auto_expand_length",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "设置列表自动展开最大值", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|100<=x<=500,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 500 || value < 100) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
+            },
+        }))
+        .ready();
+}); // rank_list_auto_expand_page
+addPage(() => {
+    setPage(["排行榜样本复查", "rank_list_review_page"], def, def, {
+        check_page_state: (view) => {
+            let samples = [
+                "rank_list_review_threshold_switch",
+                "rank_list_review_samples_clicked_switch",
+                "rank_list_review_difference_switch"
+            ];
+            if (!session_config.rank_list_review_switch) return true;
+            let chk = tag_name => findViewByTag(view, tag_name, 3)._checkbox_switch.checked;
+            for (let i = 0, len = samples.length; i < len; i += 1) {
+                if (chk(samples[i])) return true;
+            }
+            dialogs.builds(["提示", "样本复查条件需至少选择一个", 0, 0, "返回"]).show();
+        },
+    })
+        .add("switch", new Layout("总开关", {
+            config_conj: "rank_list_review_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("复查条件", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("checkbox_switch", new Layout("列表状态差异", {
+            config_conj: "rank_list_review_difference_switch",
+            view_tag: "rank_list_review_difference_switch",
+            listeners: {
+                "_checkbox_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state, false, "split_line");
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_checkbox_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("checkbox_switch", new Layout("样本点击记录", {
+            config_conj: "rank_list_review_samples_clicked_switch",
+            view_tag: "rank_list_review_samples_clicked_switch",
+            listeners: {
+                "_checkbox_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state, false, "split_line");
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_checkbox_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("checkbox_switch", new Layout("最小倒计时阈值", {
+            config_conj: "rank_list_review_threshold_switch",
+            view_tag: "rank_list_review_threshold_switch",
+            listeners: {
+                "_checkbox_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state, false, "split_line");
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_checkbox_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("seekbar", new Layout("阈值", {
+            config_conj: "rank_list_review_threshold",
+            nums: [1, 5],
+            unit: "min",
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("帮助与支持"))
+        .add("button", new Layout("了解更多", {
+            newWindow: function () {
+                let diag = dialogs.builds(["关于排行榜样本复查", "about_rank_list_review", 0, 0, "关闭", 1]);
+                diag.on("positive", () => diag.dismiss());
+                diag.show();
+            },
+        }))
+        .add("split_line")
+        .add("info", new Layout("\"收取\/帮收功能\"与\"定时循环\"共用此页面配置"))
+        .ready();
+}); // rank_list_review_page
+addPage(() => {
     setPage(["帮收功能", "help_collect_page"])
         .add("switch", new Layout("总开关", {
             config_conj: "help_collect_switch",
@@ -913,7 +1354,7 @@ addPage(() => {
                     buttons: {
                         reserved_btn: {
                             text: "设置 '全天'",
-                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
+                            onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
                                 closeTimePickerPage("全天");
                             },
                         },
@@ -931,6 +1372,14 @@ addPage(() => {
                 view._hint.text(hint_text);
             },
         }))
+        .add("options", new Layout("六球复查", {
+            config_conj: "six_balls_review_switch",
+            hint: "加载中...",
+            next_page: "six_balls_review_page",
+            updateOpr: function (view) {
+                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
+            },
+        }))
         .add("options", new Layout("排行榜样本采集", {
             next_page: "rank_list_samples_collect_page",
         }))
@@ -940,8 +1389,8 @@ addPage(() => {
             config_conj: "help_collect_icon_color",
             hint: "加载中...",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
-                    _lim255 = regexp_num_0_to_255.source;
+                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
+                let _lim255 = regexp_num_0_to_255.source;
                 let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
                 let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
                 let current_color = undefined;
@@ -1013,8 +1462,8 @@ addPage(() => {
             config_conj: "help_collect_balls_color",
             hint: "加载中...",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/,
-                    _lim255 = regexp_num_0_to_255.source;
+                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
+                let _lim255 = regexp_num_0_to_255.source;
                 let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
                 let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
                 let current_color = undefined;
@@ -1110,6 +1559,61 @@ addPage(() => {
         .ready();
 }); // help_collect_page
 addPage(() => {
+    setPage(["六球复查", "six_balls_review_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "six_balls_review_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("基本设置"))
+        .add("button", new Layout("最大连续复查次数", {
+            config_conj: "six_balls_review_max_continuous_times",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "设置最大连续复查次数", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|1<=x<=8,x∈N*}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 8 || value < 1) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("帮助与支持"))
+        .add("button", new Layout("了解更多", {
+            newWindow: function () {
+                let diag = dialogs.builds(["关于六球复查", "about_six_balls_review", 0, 0, "关闭", 1]);
+                diag.on("positive", () => diag.dismiss());
+                diag.show();
+            },
+        }))
+        .ready();
+}); // six_balls_review_page
+addPage(() => {
     setPage(["自动解锁", "auto_unlock_page"])
         .add("switch", new Layout("总开关", {
             config_conj: "auto_unlock_switch",
@@ -1146,11 +1650,40 @@ addPage(() => {
                     diag_demo.show();
                 });
                 diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
+                diag.on("positive", () => {
                     let input = diag.getInputEditText().getText().toString();
-                    if (input && input.length < 4) return alertTitle(diag, "密码长度不小于4位");
-                    saveSession(this.config_conj, input ? encrypt(input) : "");
-                    diag.dismiss();
+                    if (input && input.length < 3) return alertTitle(diag, "密码长度不小于 3 位");
+                    if (input && !storage_af.get("unlock_code_safe_dialog_prompt_prompted")) {
+                        let unlock_code_safe_dialog_prompt_prompted = false;
+                        let diag_prompt = dialogs.builds([
+                            "风险提示", "unlock_code_safe_confirm",
+                            ["了解详情", "hint_btn_bright_color"], "放弃", ["继续", "caution_btn_color"], 1, 1
+                        ]);
+                        diag_prompt.on("check", checked => unlock_code_safe_dialog_prompt_prompted = !!checked);
+                        diag_prompt.on("neutral", () => {
+                            let diag_about = dialogs.builds([
+                                "设备遗失对策", "about_lost_device_solution",
+                                0, 0, "关闭", 1
+                            ]).on("positive", diag => diag.dismiss()).show();
+                            let content_view = diag_about.getContentView();
+                            let content_text_ori = content_view.getText().toString();
+                            content_view.setAutoLinkMask(android.text.util.Linkify.WEB_URLS);
+                            content_view.setText(content_text_ori);
+                        });
+                        diag_prompt.on("negative", () => diag_prompt.dismiss());
+                        diag_prompt.on("positive", () => {
+                            if (unlock_code_safe_dialog_prompt_prompted) {
+                                storage_af.put("unlock_code_safe_dialog_prompt_prompted", true);
+                            }
+                            saveSession(this.config_conj, input ? encrypt(input) : "");
+                            diag.dismiss();
+                            diag_prompt.dismiss();
+                        });
+                        diag_prompt.show();
+                    } else {
+                        saveSession(this.config_conj, input ? encrypt(input) : "");
+                        diag.dismiss();
+                    }
                 });
                 diag.show();
             },
@@ -1268,15 +1801,48 @@ addPage(() => {
         }))
         .add("split_line")
         .add("sub_head", new Layout("图案解锁设置", {sub_head_color: "#bf360c"}))
+        .add("button", new Layout("滑动策略", {
+            config_conj: "unlock_pattern_strategy",
+            hint: "加载中...",
+            map: {
+                "segmental": "叠加路径", // gestures()
+                "solid": "连续路径", // gesture()
+            },
+            newWindow: function () {
+                let map = this.map;
+                let map_keys = Object.keys(map);
+                let diag = dialogs.builds(["图案解锁滑动策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+                    items: map_keys.slice().map(value => map[value]),
+                    itemsSelectMode: "single",
+                    itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()),
+                });
+                diag.on("neutral", () => {
+                    let diag_about = dialogs.builds(["关于图案解锁滑动策略", "about_unlock_pattern_strategy", 0, 0, "关闭", 1]);
+                    diag_about.on("positive", () => diag_about.dismiss());
+                    diag_about.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    saveSession(this.config_conj, map_keys[diag.selectedIndex]);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()]);
+            },
+        }))
         .add("button", new Layout("滑动时长", {
-            config_conj: "unlock_pattern_swipe_time",
+            config_conj: () => "unlock_pattern_swipe_time_"
+                + (session_config.unlock_pattern_strategy || DEFAULT_UNLOCK.unlock_pattern_strategy),
             hint: "加载中...",
             newWindow: function () {
+                let config_conj = this.config_conj();
                 let diag = dialogs.builds([
-                    "设置图案解锁滑动时长", this.config_conj,
+                    "设置图案解锁滑动时长", config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|120<=x<=3000,x∈N}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[config_conj].toString()));
                 diag.on("negative", () => diag.dismiss());
                 diag.on("positive", dialog => {
                     let input = diag.getInputEditText().getText().toString();
@@ -1284,13 +1850,14 @@ addPage(() => {
                     let value = +input;
                     if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
                     if (value > 3000 || value < 120) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
+                    saveSession(config_conj, ~~value);
                     diag.dismiss();
                 });
                 diag.show();
             },
             updateOpr: function (view) {
-                view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
+                let config_conj = this.config_conj();
+                view._hint.text((session_config[config_conj] || DEFAULT_UNLOCK[config_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("点阵边长", {
@@ -1572,10 +2139,8 @@ addPage(() => {
                 view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
             },
         }))
-        .add("button", new Layout("定时任务控制面板", {
-            newWindow: function () {
-                dialogs.builds(["开发未完成", "此功能暂未完成开发", 0, 0, "返回"]).show();
-            },
+        .add("options", new Layout("定时任务控制面板", {
+            next_page: "timers_control_panel_page",
         }))
         .ready();
 }); // timers_page
@@ -1891,6 +2456,767 @@ addPage(() => {
         }))
         .ready();
 }); // timers_self_manage_page
+
+addPage(() => {
+    setPage(["定时任务控制面板", "timers_control_panel_page"], def, parent_view => setTimersControlPanelPageButtons(parent_view, "timed_tasks", wizardFunc), {no_margin_bottom: true, no_scroll_view: true})
+        .add("list", new Layout("/*管理本项目定时任务*/", {
+            list_head: list_heads.timed_tasks,
+            data_source_key_name: "timed_tasks",
+            custom_data_source: function () {
+                let all_tasks = timers.queryTimedTasks({
+                    path: files.cwd() + "/Ant_Forest_Launcher.js",
+                });
+
+                let data_source = [];
+
+                all_tasks.forEach(task => data_source.push({
+                    task: task,
+                    type: preprocessDataSourceType(timedTaskTimeFlagConverter(task.getTimeFlag()), task.id),
+                    next_run_time: task.getNextTime(),
+                }));
+
+                return data_source;
+
+                // tool function(s) //
+
+                function preprocessDataSourceType(arr, id) {
+                    if (arr.length) return arr;
+                    let type_info = {
+                        min_countdown: "最小倒计时",
+                        uninterrupted: "延时接力",
+                        insurance: "意外保险",
+                        postponed: "用户推迟",
+                    };
+
+                    let sto_auto_task = storage_af.get("next_auto_task");
+                    if (sto_auto_task && id === sto_auto_task.task_id) return type_info[sto_auto_task.type];
+
+                    let sto_ins_tasks = storage_af.get("insurance_tasks", []);
+                    if (sto_ins_tasks.length && ~sto_ins_tasks.indexOf(id)) return type_info.insurance;
+
+                    return 0; // "一次性"
+                }
+            },
+            list_checkbox: "gone",
+            listeners: {
+                "_list_data": {
+                    "item_click": function (item, idx, item_view, list_view) {
+                        let {task, list_item_name_0} = item;
+                        let [type, next_run_time] = [list_item_name_0, task.getNextTime()];
+                        let type_code = restoreFromTimedTaskTypeStr(type);
+                        let task_id = task.id;
+
+                        let {data_source_key_name, custom_data_source} = this;
+                        let reInitDataSource = () => updateDataSource(data_source_key_name, "re_init", custom_data_source());
+
+                        let type_info = {
+                            min_countdown: "最小倒计时",
+                            uninterrupted: "延时接力",
+                            insurance: "意外保险",
+                            postponed: "用户推迟",
+                        };
+
+                        let keys = Object.keys(type_info);
+                        for (let i = 0, len = keys.length; i < len; i += 1) {
+                            let key = keys[i];
+                            if (type_info[key] === type_code) {
+                                type_code = key;
+                                break;
+                            }
+                        }
+
+                        let diag = dialogs.builds([
+                            "任务详情", showDiagContent(), ["删除任务", "caution_btn_color"], ["编辑任务", "warn_btn_color"], "关闭", 1
+                        ]);
+                        diag.on("neutral", () => {
+                            let diag_confirm = dialogs.builds([
+                                "删除提示", "确认要删除当前任务吗\n此操作将立即生效且无法撤销",
+                                0, "放弃", ["删除", "caution_btn_color"], 1,
+                            ]);
+                            diag_confirm.on("negative", () => diag_confirm.dismiss());
+                            diag_confirm.on("positive", () => {
+                                if (type_code === "min_countdown") {
+                                    dialogs.builds([
+                                        ["小心", "#880e4f"], ["delete_min_countdown_task_warn", "#ad1457"],
+                                        0, "放弃", ["确定", "caution_btn_color"], 1,
+                                    ]).on("negative", (dialog) => {
+                                        dialog.dismiss();
+                                    }).on("positive", (dialog) => {
+                                        dialog.dismiss();
+                                        deleteNow();
+                                    }).show();
+                                } else deleteNow();
+
+                                // tool function(s) //
+
+                                function deleteNow() {
+                                    diag.dismiss();
+                                    diag_confirm.dismiss();
+                                    timers.removeTimedTask(task_id);
+                                    reInitDataSource();
+                                }
+                            });
+                            diag_confirm.show();
+                        });
+                        diag.on("negative", () => {
+                            if (type_code !== 0 && classof(type_code) !== "Array") {
+                                return dialogs.builds([
+                                    "无法编辑", "仅以下类型的任务可供编辑:\n\n1. 一次性任务\n2. 每日任务\n3. 每周任务\n\n自动管理的任务不提供编辑功能",
+                                    0, 0, "返回", 1
+                                ]).on("positive", dialog => dialog.dismiss()).show();
+                            }
+                            if (!timers.getTimedTask(task_id)) {
+                                return dialogs.builds([
+                                    "无法编辑", "该任务ID不存在\n可能是任务已自动完成或被删除",
+                                    0, 0, "返回", 1
+                                ]).on("positive", dialog => dialog.dismiss()).show();
+                            }
+                            diag.dismiss();
+                            wizardFunc("modify", task, type_code, diag);
+                        });
+                        diag.on("positive", () => diag.dismiss());
+                        diag.show();
+
+                        // tool function(s) //
+
+                        function showDiagContent() {
+                            let is_weekly_type = type.match(/每周/);
+                            return "任务ID: " + task_id + "\n\n" +
+                                "任务类型: " + (is_weekly_type ? "每周" : type) + "任务" + "\n\n" +
+                                (is_weekly_type ? "任务周期: " + type.match(/\d/g).join(", ") + "\n\n" : "") +
+                                "下次运行: " + getTimeStrFromTimestamp(next_run_time, "time_str_full");
+                        }
+                    },
+                    "item_bind": function (item_view, item_holder) {
+                        item_view._checkbox.setVisibility(8);
+                    }
+                },
+                "ui": {
+                    "resume": function () {
+                        let {data_source_key_name, custom_data_source} = this;
+                        updateDataSource(data_source_key_name, "re_init", custom_data_source());
+                    },
+                }
+            },
+        }))
+        .add("info", new Layout("此页全部操作将立即生效且无法撤销"))
+        .ready();
+
+    // tool function(s) //
+
+    function wizardFunc(operation, task, type_code, diag_before_modifying) {
+        let modify_mode = operation === "modify";
+
+        let type_str = null;
+        if (modify_mode) type_str = type_code === 0 ? "disposable" : (type_code.length < 7 ? "weekly" : "daily");
+
+        let task_type_map = {
+            "disposable": "一次性任务",
+            "daily": "每日任务",
+            "weekly": "每周任务",
+        };
+
+        let diag_main = dialogs.builds([
+            "选择定时任务类型", "",
+            ["了解详情", "hint_btn_bright_color"], "放弃", "下一步", 1,
+        ], {
+            items: ["disposable", "daily", "weekly"].map(i => task_type_map[i]),
+            itemsSelectMode: "single",
+            itemsSelectedIndex: 0,
+        });
+        diag_main.on("neutral", () => {
+            dialogs.builds(
+                ["关于定时任务类型设置", "about_timed_task_type", 0, 0, "关闭", 1]
+            ).on("positive", dialog => dialog.dismiss()).show();
+        });
+        diag_main.on("negative", () => diag_main.dismiss());
+        // diag_main.on("positive", () => null); // taken over by "single_choice"
+        diag_main.on("single_choice", (index, value, dialog) => {
+            let keys = Object.keys(task_type_map);
+            for (let i = 0, len = keys.length; i < len; i += 1) {
+                let key = keys[i];
+                if (value === task_type_map[key]) {
+                    diag_main.dismiss();
+                    showTimePickView(key);
+                    break;
+                }
+            }
+        });
+
+        modify_mode ? showTimePickView(type_str) : diag_main.show();
+
+        // tool function(s) //
+
+        function showTimePickView(type_str) {
+            // type_str
+            // modify_mode
+            let view_title_text_prefix = (modify_mode ? "修改" : "设置") + task_type_map[type_str];
+            setTimePickerView({
+                picker_views: [type_str === "disposable" ? {
+                    type: "date",
+                    text: view_title_text_prefix + "日期",
+                    init: task ? task.getNextTime() : null
+                } : {
+                    type: "time",
+                    text: view_title_text_prefix + "时间",
+                    init: task ? task.getNextTime() : null
+                }, type_str === "weekly" ? {
+                    type: "week",
+                    text: view_title_text_prefix + "星期",
+                    init: task ? task.getTimeFlag() : null
+                } : type_str === "daily" ? {} : {
+                    type: "time",
+                    text: view_title_text_prefix + "时间",
+                    init: task ? task.getNextTime() : null
+                }],
+                time_str: {
+                    prefix: "已选择",
+                },
+                buttons: {
+                    back_btn: {
+                        onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
+                            diag_before_modifying && diag_before_modifying.show();
+                            closeTimePickerPage();
+                        },
+                    },
+                    confirm_btn: {
+                        onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
+                            if (type_str === "weekly") {
+                                let days_of_week = getTimeInfoFromPicker(2).daysOfWeek();
+                                if (!days_of_week.length) return alert("需至少选择一个星期");
+                                closeTimePickerPage({days_of_week: days_of_week, timestamp: getTimeInfoFromPicker(1).timestamp()});
+                            } else if (type_str === "disposable") {
+                                let set_time = getTimeInfoFromPicker(0).timestamp();
+                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                closeTimePickerPage(set_time);
+                            } else if (type_str === "daily") {
+                                closeTimePickerPage(getTimeInfoFromPicker(1).timestamp());
+                            }
+                        },
+                    },
+                },
+                onFinish: (return_value) => {
+                    let new_task = update() || add();
+
+                    if (diag_before_modifying && 0) {
+                        diag_before_modifying.show();
+                        diag_before_modifying.setContent(
+                            "任务ID: " + new_task.id + "\n\n" +
+                            "任务类型: " + task_type_map[type_str] + "\n\n" + (
+                                type_str === "weekly" ? "任务周期: " + getTimedTaskTypeStr(
+                                    timedTaskTimeFlagConverter(new_task.getTimeFlag())
+                                ).match(/\d/g).join(", ") + "\n\n" : ""
+                            ) + "下次运行: " + getTimeStrFromTimestamp(return_value, "time_str_full")
+                        );
+                    }
+                    ui.emitter.emit("resume"); // to fresh data list; maybe not a good way
+
+                    // tool function(s) //
+
+                    function trimTimestamp(time, string_flag) {
+                        let d = new Date(time);
+                        if (string_flag) return getTimeStrFromTimestamp(time).match(/\d+:\d+/)[0];
+                        return time - +new Date(d.getFullYear(), d.getMonth(), d.getDate())
+                    }
+
+                    function update() {
+                        let current_task = task && timers.getTimedTask(task.id);
+                        if (!current_task) return;
+
+
+                        if (type_str === "disposable") {
+                            current_task.setMillis(return_value);
+                        } else if (type_str === "daily") {
+                            current_task.setMillis(trimTimestamp(return_value));
+                        } else if (type_str === "weekly") {
+                            current_task.setMillis(trimTimestamp(return_value.timestamp));
+                            current_task.setTimeFlag(timedTaskTimeFlagConverter(return_value.days_of_week));
+                        } else return;
+
+                        timers.updateTimedTask(current_task);
+                        return current_task;
+                    }
+
+                    function add() {
+                        let path = files.cwd() + "/Ant_Forest_Launcher.js";
+                        if (type_str === "disposable") timers.addDisposableTask({
+                            path: path,
+                            date: return_value,
+                        });
+                        else if (type_str === "daily") timers.addDailyTask({
+                            path: path,
+                            time: trimTimestamp(return_value, true),
+                        });
+                        else if (type_str === "weekly") timers.addWeeklyTask({
+                            path: path,
+                            time: trimTimestamp(return_value.timestamp, true),
+                            daysOfWeek: return_value.days_of_week,
+                        });
+                    }
+                },
+            });
+        }
+    }
+}); // timers_control_panel_page
+
+addPage(() => {
+    setPage(["延时接力管理", "timers_uninterrupted_check_sections_page"], def, parent_view => setTimersUninterruptedCheckAreasPageButtons(parent_view, "timers_uninterrupted_check_sections"), {no_margin_bottom: true, no_scroll_view: true})
+        .add("list", new Layout("/*延时接力时间区间*/", {
+            list_head: list_heads.timers_uninterrupted_check_sections,
+            data_source_key_name: "timers_uninterrupted_check_sections",
+            list_checkbox: "visible",
+            listeners: {
+                "_list_data": {
+                    "item_long_click": function (e, item, idx, item_view, list_view) {
+                        item_view._checkbox.checked && item_view._checkbox.click();
+                        e.consumed = true;
+                        let {data_source_key_name} = this;
+                        let edit_item_diag = dialogs.builds(["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1], {
+                            items: ["\xa0"],
+                        });
+
+                        refreshItems();
+
+                        edit_item_diag.on("positive", () => {
+                            let sectionStringTransform = () => {
+                                let arr = list_heads[data_source_key_name];
+                                for (let i = 0, len = arr.length; i < len; i += 1) {
+                                    let o = arr[i];
+                                    if ("section" in o) return o.stringTransform;
+                                }
+                            };
+                            updateDataSource(data_source_key_name, "splice", [idx, 1, {
+                                section: sectionStringTransform()["backward"](edit_item_diag.getItems().toArray()[0].split(": ")[1]),
+                                interval: +edit_item_diag.getItems().toArray()[1].split(": ")[1],
+                            }]);
+                            if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) {
+                                session_params[data_source_key_name + "_btn_restore"].switch_on();
+                            }
+                            edit_item_diag.dismiss();
+                        });
+                        edit_item_diag.on("negative", () => edit_item_diag.dismiss());
+                        edit_item_diag.on("item_select", (idx, list_item, dialog) => {
+                            let list_item_prefix = list_item.split(": ")[0];
+                            let list_item_content = list_item.split(": ")[1];
+
+                            if (list_item_prefix === "区间") {
+                                edit_item_diag.dismiss();
+                                setTimePickerView({
+                                    picker_views: [
+                                        {type: "time", text: "设置开始时间", init: timeStrToSection(list_item_content)[0]},
+                                        {type: "time", text: "设置结束时间", init: timeStrToSection(list_item_content)[1]},
+                                    ],
+                                    time_str: {
+                                        suffix: (getStrFunc) => {
+                                            if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
+                                        },
+                                    },
+                                    onFinish: (return_value) => {
+                                        edit_item_diag.show();
+                                        return_value && refreshItems(list_item_prefix, return_value);
+                                    },
+                                });
+                            }
+
+                            if (list_item_prefix === "间隔") {
+                                let diag = dialogs.builds(["修改" + list_item_prefix, "", 0, "返回", "确认修改", 1], {
+                                    inputHint: "{x|1<=x<=600,x∈N}",
+                                    inputPrefill: list_item_content.toString(),
+                                });
+                                diag.on("negative", () => diag.dismiss());
+                                diag.on("positive", dialog => {
+                                    let input = diag.getInputEditText().getText().toString();
+                                    if (input === "") return dialog.dismiss();
+                                    let value = +input;
+                                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                                    if (value > 600 || value < 1) return alertTitle(dialog, "输入值范围不合法");
+                                    refreshItems(list_item_prefix, ~~value);
+                                    diag.dismiss();
+                                });
+                                diag.show();
+                            }
+                        });
+                        edit_item_diag.show();
+
+                        // tool function(s) //
+
+                        function refreshItems(prefix, value) {
+                            let value_obj = {};
+                            let key_map = {
+                                0: "区间",
+                                1: "间隔",
+                            };
+                            if (!prefix && !value) {
+                                value_obj = {};
+                                value_obj[key_map[0]] = item[item.section];
+                                value_obj[key_map[1]] = item[item.interval];
+                            } else {
+                                edit_item_diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(": ")[1])
+                            }
+                            if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
+                            let items = [];
+                            Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
+                            edit_item_diag.setItems(items);
+                        }
+                    },
+                    "item_click": function (item, idx, item_view, list_view) {
+                        item_view._checkbox.click();
+                    },
+                    "item_bind": function (item_view, item_holder) {
+                        item_view._checkbox.on("click", checkbox_view => {
+                            let {data_source_key_name} = this;
+                            let remove_btn_view = session_params[data_source_key_name + "_btn_remove"];
+                            let item = item_holder.item;
+                            let aim_checked = !item.checked;
+                            item.checked = aim_checked;
+                            let idx = item_holder.position;
+                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                            session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                            session_params[deleted_items_idx_count] = session_params[deleted_items_idx_count] || 0;
+                            session_params[deleted_items_idx][idx] = aim_checked;
+                            aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
+                            session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
+                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[data_source_key_name].length);
+                        });
+                    },
+                },
+                "_check_all": {
+                    "click": function (view) {
+                        let {data_source_key_name} = this;
+                        let aim_checked = view.checked;
+                        let blacklist_len = session_params[data_source_key_name].length;
+                        if (!blacklist_len) return view.checked = !aim_checked;
+
+                        session_params[data_source_key_name].forEach((o, idx) => {
+                            let o_new = deepCloneObject(o);
+                            o_new.checked = aim_checked;
+                            updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                        });
+
+                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        session_params[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
+                        session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                        for (let i = 0; i < blacklist_len; i += 1) {
+                            session_params[deleted_items_idx][i] = aim_checked;
+                        }
+
+                        let remove_btn = session_params[data_source_key_name + "_btn_remove"];
+                        aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
+                    },
+                },
+            },
+        }))
+        .add("info", new Layout("/*dynamic_info*/", {
+            updateOpr: function (view) {
+                let amount = session_config.timers_uninterrupted_check_sections.length;
+                view._info_text.setText(amount ? "时间区间的\"+1\"表示次日时间" : "点击添加按钮可添加区间");
+            },
+        }))
+        .add("info", new Layout("长按列表项可编辑项目 点击标题可排序", {
+            updateOpr: function (view) {
+                let amount = session_config.timers_uninterrupted_check_sections.length;
+                view.setVisibility(amount ? 0 : 8);
+            },
+        }))
+        .ready();
+}); // timers_uninterrupted_check_sections_page
+addPage(() => {
+    setPage(["账户功能", "account_page"], def, def, {
+        check_page_state: (view) => {
+            let {main_account_info} = session_config;
+            if (!view._switch.checked) return true;
+            if (classof(main_account_info) === "Object" && Object.keys(main_account_info).length) return true;
+            let diag_prompt = dialogs.builds(["提示", "当前未设置主账户信息\n继续返回将关闭账户功能", 0, "放弃返回", ["继续返回", "warn_btn_color"]]);
+            diag_prompt.on("positive", () => {
+                view._switch.setChecked(false);
+                pageJump("back");
+            });
+            diag_prompt.on("negative", () => diag_prompt.dismiss());
+            diag_prompt.show();
+        },
+    })
+        .add("switch", new Layout("总开关", {
+            config_conj: "account_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("主账户设置", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("button", new Layout("主账户信息", {
+            config_conj: "main_account_info",
+            hint: "加载中...",
+            checkMainAccountInfo: function () {
+                let main_account_info = session_config[this.config_conj];
+                return classof(main_account_info) === "Object" && Object.keys(main_account_info).length;
+            },
+            newWindow: function () {
+                setInfoInputView({
+                    input_views: [
+                        {
+                            type: "account", text: "账户", hint_text: "未设置", init: session_config[this.config_conj].account_name
+                        },
+                        {
+                            type: "password", text: "密码", hint_text: () => {
+                                return session_config[this.config_conj].account_code ? "已设置 (点击修改)" : "未设置";
+                            }
+                        },
+                    ],
+                    buttons: {
+                        reserved_btn: {
+                            text: "帮助",
+                            onClickListener: () => {
+                                let diag = dialogs.builds([
+                                    "信息录入提示", "account_info_hint",
+                                    ["了解密码存储", "hint_btn_bright_color"], 0, "关闭", 1
+                                ]);
+                                diag.on("neutral", () => dialogs.builds(["密码存储方式", "how_password_stores", 0, 0, "关闭"]).show());
+                                diag.on("positive", () => diag.dismiss());
+                                diag.show();
+                            },
+                            // hint_color: "#ffcdd2",
+                        },
+                        confirm_btn: {
+                            onClickListener: (input_views_obj, closeInfoInputPage) => {
+                                let account_view = input_views_obj["账户"];
+                                let code_view = input_views_obj["密码"];
+                                let account_name = account_view.input_area.getText().toString();
+                                let account_code = code_view.input_area.getText().toString();
+
+                                let final_data = Object.assign({}, session_config[this.config_conj] || {});
+                                if (account_name) {
+                                    final_data.account_name = accountNameConverter(account_name, "encrypt");
+                                    if (account_code) final_data.account_code = encrypt(account_code);
+                                    saveSession(this.config_conj, final_data);
+                                    closeInfoInputPage();
+                                } else {
+                                    if (final_data.account_code) {
+                                        let diag_confirm = dialogs.builds([
+                                            "提示", "未设置账户时\n已存在的密码数据将被销毁\n主账户信息恢复为\"未设置\"状态\n确定继续吗",
+                                            0, "返回", "确定", 1
+                                        ]);
+                                        diag_confirm.on("negative", () => diag_confirm.dismiss());
+                                        diag_confirm.on("positive", () => {
+                                            final_data = {};
+                                            saveSession(this.config_conj, final_data);
+                                            diag_confirm.dismiss();
+                                            closeInfoInputPage();
+                                        });
+                                        diag_confirm.show();
+                                    } else {
+                                        saveSession(this.config_conj, final_data);
+                                        closeInfoInputPage();
+                                        final_data = {};
+                                    }
+                                }
+                            },
+                        },
+                        additional: [
+                            [{
+                                text: "  信息销毁  ",
+                                hint_color: "#ef9a9a",
+                                onClickListener: (input_views_obj, closeInfoInputPage) => {
+                                    let config_conj = "main_account_info";
+                                    let checkMainAccountInfo = () => {
+                                        let main_account_info = session_config[config_conj];
+                                        return classof(main_account_info) === "Object" && Object.keys(main_account_info).length;
+                                    };
+
+                                    if (!checkMainAccountInfo()) return toast("无需销毁");
+
+                                    let diag = dialogs.builds([
+                                        "主账户信息销毁", "destroy_main_account_info",
+                                        0, "返回", ["销毁", "warn_btn_color"]
+                                    ]);
+                                    diag.on("negative", () => diag.dismiss());
+                                    diag.on("positive", () => {
+                                        let diag_confirm = dialogs.builds([
+                                            "确认销毁吗", "此操作本次会话无法撤销\n销毁后需在首页\"保存\"生效",
+                                            0, "放弃", ["确认", "caution_btn_color"], 1
+                                        ]);
+                                        diag_confirm.on("negative", () => diag_confirm.dismiss());
+                                        diag_confirm.on("positive", () => {
+                                            saveSession(config_conj, {});
+                                            input_views_obj["账户"].input_area.setText("");
+                                            let pw_input_area = input_views_obj["密码"].input_area;
+                                            pw_input_area.setViewHintText("未设置");
+                                            pw_input_area.setText("");
+                                            toast("信息已销毁");
+                                            diag_confirm.dismiss();
+                                        });
+                                        diag_confirm.show();
+                                    });
+                                    diag.show();
+                                },
+                            }],
+                            [{
+                                text: "从 [ 支付宝 ] 录入信息",
+                                hint_color: "#c5cae9",
+                                onClickListener: (input_views_obj, closeInfoInputPage) => {
+                                    let diag = dialogs.builds([
+                                        "从支付宝录入信息", "get_account_name_from_alipay",
+                                        0, "返回", "开始获取", 1
+                                    ]);
+                                    diag.on("negative", () => diag.dismiss());
+                                    diag.on("positive", () => {
+                                        let storage_key_name = "collected_current_account_name";
+                                        storage_af.remove(storage_key_name);
+                                        toast("即将打开\"支付宝\"采集当前账户名");
+                                        diag.dismiss();
+                                        engines.execScriptFile("./Ant_Forest_Launcher.js", {
+                                            arguments: {
+                                                special_exec_command: "collect_current_account_name",
+                                                instant_run_flag: true,
+                                                no_insurance_flag: true,
+                                            },
+                                        });
+                                        threads.starts(function () {
+                                            if (waitForAction(text("打开"), 3500)) clickAction(text("打开"), "widget");
+                                        });
+                                        threads.starts(function () {
+                                            waitForAction(() => currentPackage().match(/AlipayGphone/), 8000);
+                                            ui.emitter.prependOnceListener("resume", () => {
+                                                let collected_name = storage_af.get(storage_key_name, "");
+                                                storage_af.remove(storage_key_name);
+                                                collected_name ? debugInfo("存储模块中发现账户名") : debugInfo("存储模块中未发现账户名");
+                                                if (!collected_name) return toast("未能成功采集到当前账户名");
+
+                                                let {input_area} = input_views_obj["账户"];
+                                                let _acc = accountNameConverter(collected_name, "decrypt");
+                                                input_area.setText(_acc);
+
+                                                threads.starts(function () {
+                                                    let max_try_times_input = 3;
+                                                    while (max_try_times_input--) {
+                                                        if (waitForAction(() => {
+                                                            return input_area.getText().toString() === _acc;
+                                                        }, 1000)) break;
+                                                        ui.post(() => input_area.setText(_acc));
+                                                    }
+                                                    if (max_try_times_input >= 0) {
+                                                        toast("已自动填入账户名");
+                                                    } else {
+                                                        let diag = dialogs.builds([
+                                                            "提示", "自动填入账户名失败\n账户名已复制到剪切板\n可手动粘贴至\"账户\"输入框内",
+                                                            0, 0, "返回", 1
+                                                        ]);
+                                                        diag.on("negative", () => diag.dismiss());
+                                                        diag.show();
+                                                    }
+                                                });
+                                            });
+                                        });
+                                    });
+                                    diag.show();
+                                },
+                            }, {
+                                text: "从 [ 账户库 ] 录入信息",
+                                hint_color: "#d1c4e9",
+                                onClickListener: (input_views_obj, closeInfoInputPage) => {
+                                    dialogs.builds(["从账户库录入信息", "此功能暂未完成开发", 0, 0, "返回"]).show();
+                                },
+                            }]
+                        ],
+                    },
+                });
+
+                if (!storage_af.get("before_use_main_account_dialog_prompt_prompted")) {
+                    let before_use_main_account_dialog_prompt_prompted = false;
+                    let diag = dialogs.builds(["功能使用提示", "before_use_main_account", 0, 0, "继续使用", 1, 1]);
+                    diag.on("check", checked => before_use_main_account_dialog_prompt_prompted = !!checked);
+                    diag.on("positive", () => {
+                        if (before_use_main_account_dialog_prompt_prompted) {
+                            storage_af.put("before_use_main_account_dialog_prompt_prompted", true);
+                        }
+                        diag.dismiss();
+                    });
+                    diag.show();
+                }
+            },
+            updateOpr: function (view) {
+                view._hint.text(this.checkMainAccountInfo() ? "已设置" : "未设置");
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("高级设置"))
+        .add("options", new Layout("旧账户回切", {
+            config_conj: "account_log_back_in_switch",
+            hint: "加载中...",
+            next_page: "account_log_back_in_page",
+            updateOpr: function (view) {
+                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("帮助与支持"))
+        .add("button", new Layout("了解详情", {
+            newWindow: function () {
+                let diag = dialogs.builds(["关于账户功能", "about_account_function", 0, 0, "关闭", 1]);
+                diag.on("positive", () => diag.dismiss());
+                diag.show();
+            },
+        }))
+        .ready();
+}); // account_page
+addPage(() => {
+    setPage(["旧账户回切", "account_log_back_in_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "account_log_back_in_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("基本设置"))
+        .add("button", new Layout("最大连续回切次数", {
+            config_conj: "account_log_back_in_max_continuous_times",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "设置最大连续回切次数", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|0<=x<=10,x∈N*}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 10 || value < 0) return alertTitle(dialog, "输入值范围不合法");
+                    saveSession(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let session_value = +session_config[this.config_conj];
+                if (isNaN(session_value)) session_value = +DEFAULT_AF[this.config_conj];
+                view._hint.text((session_value === 0 ? "无限制" : session_value).toString());
+            },
+        }))
+        .ready();
+}); // account_log_back_in_page
 addPage(() => {
     setPage(["黑名单管理", "blacklist_page"])
         .add("sub_head", new Layout("名单簿", {sub_head_color: defs.sub_head_highlight_color}))
@@ -1912,6 +3238,183 @@ addPage(() => {
         }))
         .ready();
 }); // blacklist_page
+addPage(() => {
+    setPage(["能量罩黑名单", "cover_blacklist_page"], def, def, {no_margin_bottom: true, no_scroll_view: true})
+        .add("list", new Layout("/*能量罩黑名单成员*/", {
+            list_head: list_heads.blacklist_protect_cover,
+            data_source_key_name: "blacklist_protect_cover",
+            list_checkbox: "gone",
+            listeners: {
+                "_list_data": {
+                    "item_bind": function (item_view, item_holder) {
+                        item_view._checkbox.setVisibility(8);
+                    }
+                },
+            }
+        }))
+        .add("info", new Layout("能量罩黑名单由脚本自动管理"))
+        .ready();
+}); // cover_blacklist_page
+addPage(() => {
+    setPage(["自定义黑名单", "self_def_blacklist_page"], def, parent_view => setBlacklistPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
+        .add("list", new Layout("/*自定义黑名单成员*/", {
+            list_head: list_heads.blacklist_by_user,
+            data_source_key_name: "blacklist_by_user",
+            list_checkbox: "visible",
+            listeners: {
+                "_list_data": {
+                    "item_long_click": function (e, item, idx, item_view, list_view) {
+                        item_view._checkbox.checked && item_view._checkbox.click();
+                        e.consumed = true;
+                        let {data_source_key_name} = this;
+                        let edit_item_diag = dialogs.builds(["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1], {
+                            items: ["\xa0"],
+                        });
+
+                        refreshItems();
+
+                        edit_item_diag.on("positive", () => {
+                            let new_item = {};
+                            new_item.name = edit_item_diag.getItems().toArray()[0].split(": ")[1];
+                            let input = edit_item_diag.getItems().toArray()[1].split(": ")[1];
+                            new_item.timestamp = restoreFromTimestamp(input);
+                            updateDataSource(data_source_key_name, "splice", [idx, 1, new_item]);
+                            if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) {
+                                session_params[data_source_key_name + "_btn_restore"].switch_on();
+                            }
+                            edit_item_diag.dismiss();
+                        });
+                        edit_item_diag.on("negative", () => edit_item_diag.dismiss());
+                        edit_item_diag.on("item_select", (idx, list_item, dialog) => {
+                            let list_item_prefix = list_item.split(": ")[0];
+                            let list_item_content = list_item.split(": ")[1];
+
+                            if (list_item_prefix === "好友昵称") {
+                                dialogs.rawInput("修改" + list_item_prefix, list_item_content, input => {
+                                    if (input) refreshItems(list_item_prefix, input);
+                                });
+                            }
+
+                            if (list_item_prefix === "解除时间") {
+                                edit_item_diag.dismiss();
+                                let init_value = restoreFromTimestamp(list_item_content);
+                                if (!isFinite(init_value)) init_value = null;
+                                setTimePickerView({
+                                    picker_views: [
+                                        {type: "date", text: "设置日期", init: init_value},
+                                        {type: "time", text: "设置时间", init: init_value},
+                                    ],
+                                    time_str: {
+                                        prefix: "已选择",
+                                    },
+                                    buttons: {
+                                        reserved_btn: {
+                                            text: "设置 '永不'",
+                                            onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
+                                                closeTimePickerPage(Infinity);
+                                            },
+                                        },
+                                        confirm_btn: {
+                                            onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
+                                                let set_time = getTimeInfoFromPicker(0).timestamp();
+                                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                                closeTimePickerPage(set_time);
+                                            },
+                                        },
+                                    },
+                                    onFinish: (return_value) => {
+                                        edit_item_diag.show();
+                                        refreshItems(list_item_prefix, getTimeStrFromTimestamp(return_value, "time_str_remove"));
+                                    },
+                                });
+                            }
+                        });
+                        edit_item_diag.show();
+
+                        // tool function(s) //
+
+                        function refreshItems(prefix, value) {
+                            let value_obj = {};
+                            let key_map = {
+                                0: "好友昵称",
+                                1: "解除时间",
+                            };
+                            if (!prefix && !value) {
+                                value_obj = {};
+                                value_obj[key_map[0]] = item[item.name];
+                                value_obj[key_map[1]] = item[item.timestamp];
+                            } else {
+                                edit_item_diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(": ")[1])
+                            }
+                            if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
+                            let items = [];
+                            Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
+                            edit_item_diag.setItems(items);
+                        }
+                    },
+                    "item_click": function (item, idx, item_view, list_view) {
+                        item_view._checkbox.click();
+                    },
+                    "item_bind": function (item_view, item_holder) {
+                        item_view._checkbox.on("click", checkbox_view => {
+                            let {data_source_key_name} = this;
+                            let remove_btn_view = session_params[data_source_key_name + "_btn_remove"];
+                            let item = item_holder.item;
+                            let aim_checked = !item.checked;
+                            item.checked = aim_checked;
+                            let idx = item_holder.position;
+                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                            session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                            session_params[deleted_items_idx_count] = session_params[deleted_items_idx_count] || 0;
+                            session_params[deleted_items_idx][idx] = aim_checked;
+                            aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
+                            session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
+                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[this.data_source_key_name].length);
+                        });
+                    },
+                },
+                "_check_all": {
+                    "click": function (view) {
+                        let {data_source_key_name} = this;
+                        let aim_checked = view.checked;
+                        let blacklist_len = session_params[data_source_key_name].length;
+                        if (!blacklist_len) return view.checked = !aim_checked;
+
+                        session_params[data_source_key_name].forEach((o, idx) => {
+                            let o_new = deepCloneObject(o);
+                            o_new.checked = aim_checked;
+                            updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                        });
+
+                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        session_params[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
+                        session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                        for (let i = 0; i < blacklist_len; i += 1) {
+                            session_params[deleted_items_idx][i] = aim_checked;
+                        }
+
+                        let remove_btn = session_params[this.data_source_key_name + "_btn_remove"];
+                        aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
+                    },
+                },
+            },
+        }))
+        .add("info", new Layout("/*dynamic_info*/", {
+            updateOpr: function (view) {
+                let amount = session_config.blacklist_by_user.length;
+                view._info_text.setText(amount ? "长按列表项可编辑项目" : "点击添加按钮可添加人员");
+            },
+        }))
+        .add("info", new Layout("点击标题可排序", {
+            updateOpr: function (view) {
+                let amount = session_config.blacklist_by_user.length;
+                view.setVisibility(amount ? 0 : 8);
+            },
+        }))
+        .ready();
+}); // self_def_blacklist_page
 addPage(() => {
     setPage(["运行与安全", "script_security_page"])
         .add("sub_head", new Layout("基本设置"))
@@ -2073,6 +3576,137 @@ addPage(() => {
         }))
         .ready();
 }); // script_security_page
+addPage(() => {
+    setPage(["支付宝应用及页面保留", "kill_when_done_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "kill_when_done_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("支付宝应用保留", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("radio", new Layout(["智能保留", "总是保留"], {
+            values: [true, false],
+            config_conj: "kill_when_done_intelligent",
+            listeners: {
+                "check": function (checked, view) {
+                    let {text} = view;
+                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
+                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = session_config[this.config_conj];
+                let child_idx = this.values.indexOf(session_conf);
+                if (!~child_idx) return;
+                let child_view = view._radiogroup.getChildAt(child_idx);
+                !child_view.checked && child_view.setChecked(true);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("蚂蚁森林页面保留", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("radio", new Layout(["智能剔除", "全部保留"], {
+            values: [false, true],
+            config_conj: "kill_when_done_keep_af_pages",
+            listeners: {
+                "check": function (checked, view) {
+                    let {text} = view;
+                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
+                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = session_config[this.config_conj];
+                let child_idx = this.values.indexOf(session_conf);
+                if (!~child_idx) return;
+                let child_view = view._radiogroup.getChildAt(child_idx);
+                !child_view.checked && child_view.setChecked(true);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("帮助与支持"))
+        .add("button", new Layout("了解更多", {
+            newWindow: function () {
+                let diag = dialogs.builds(["关于支付宝应用保留", "about_kill_when_done", 0, 0, "关闭", 1]);
+                diag.on("positive", () => diag.dismiss());
+                diag.show();
+            },
+        }))
+        .ready();
+}); // kill_when_done_page
+addPage(() => {
+    setPage(["通话状态监测", "phone_call_state_monitor_page"])
+        .add("switch", new Layout("总开关", {
+            config_conj: "phone_call_state_monitor_switch",
+            listeners: {
+                "_switch": {
+                    "check": function (state) {
+                        saveSession(this.config_conj, !!state);
+                        showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr: function (view) {
+                let session_conf = !!session_config[this.config_conj];
+                view["_switch"].setChecked(session_conf);
+            },
+        }))
+        .add("split_line")
+        .add("sub_head", new Layout("高级设置"))
+        .add("button", new Layout("空闲状态值", {
+            config_conj: "phone_call_state_idle_value",
+            hint: "加载中...",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "通话空闲状态值", this.config_conj,
+                    ["获取空闲值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|x∈N*}"});
+                diag.on("neutral", () => diag.getInputEditText().setText(phoneCallingState().toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    value = ~~value;
+                    if (value !== phoneCallingState()) {
+                        let diag_confirm = dialogs.builds([
+                            ["小心", "#880e4f"], ["phone_call_state_idle_value_warn", "#ad1457"],
+                            0, "放弃", ["确定", "caution_btn_color"], 1,
+                        ]);
+                        diag_confirm.on("negative", () => diag_confirm.dismiss());
+                        diag_confirm.on("positive", () => {
+                            diag_confirm.dismiss();
+                            saveSession(this.config_conj, value);
+                            diag.dismiss();
+                        });
+                        diag_confirm.show();
+                    } else {
+                        saveSession(this.config_conj, value);
+                        diag.dismiss();
+                    }
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = DEFAULT_AF[this.config_conj];
+                let storage_value = session_config[this.config_conj];
+                if (typeof storage_value !== "undefined") value = storage_value;
+                view._hint.text(value === undefined ? "未配置" : value.toString());
+            },
+        }))
+        .ready();
+}); // phone_call_state_monitor_page
 addPage(() => {
     setPage(["项目备份还原", "local_project_backup_restore_page"])
         .add("sub_head", new Layout("备份", {sub_head_color: defs.sub_head_highlight_color}))
@@ -2246,879 +3880,6 @@ addPage(() => {
         .ready();
 }); // local_project_backup_restore_page
 addPage(() => {
-    setPage(["排行榜样本采集", "rank_list_samples_collect_page"])
-        .add("sub_head", new Layout("基本设置"))
-        .add("button", new Layout("滑动距离", {
-            config_conj: "rank_list_swipe_distance",
-            hint: "加载中...",
-            newWindow: function () {
-                let avail_top = Math.ceil(HEIGHT * 0.4);
-                let avail_bottom = Math.floor(HEIGHT * 0.9);
-                let collect_icon_height = cY(46, 16 / 9);
-                let safe_value = (USABLE_HEIGHT - status_bar_height - action_bar_default_height - collect_icon_height);
-                let default_value = DEFAULT_AF[this.config_conj].toString();
-                let getScaleStr = value => " [ " + ~~(value * 100 / HEIGHT) / 100 + " ]";
-                let diag = dialogs.builds(["设置排行榜页面滑动距离", "", ["使用安全值", "hint_btn_bright_color"], "返回", "确认修改", 1], {
-                    content: "参数示例:\n1260: 每次滑动 1260 像素\n0.6: 每次滑动 60% 屏幕距离\n\n" +
-                        "有效值: " + avail_top + " [ " + (avail_top / HEIGHT) + " ] " +
-                        " -  " + avail_bottom + " [ " + (avail_bottom / HEIGHT) + " ]\n" +
-                        "默认值: " + ~~(default_value * HEIGHT) + " [ " + default_value + " ]\n" +
-                        "安全值: " + safe_value + getScaleStr(safe_value),
-                    inputHint: "{x|0.4(*HEIGHT)<=x<=0.9(*HEIGHT),x∈R}",
-                });
-                diag.on("neutral", () => diag.getInputEditText().setText(safe_value.toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") input = (session_config[this.config_conj] || default_value).toString();
-                    if (input.match(/^\d+%$/)) input = input.replace("%", "") / 100;
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 0 && value < 1) value *= HEIGHT;
-                    if (value > avail_bottom || value < avail_top) return alertTitle(dialog, "输入值范围不合法");
-                    if (value > safe_value) {
-                        let diag_confirm = dialogs.builds([
-                            ["请注意", "caution_btn_color"], "",
-                            ["什么是安全值", "hint_btn_bright_color"], "放弃", ["确定", "warn_btn_color"], 1,
-                        ], {
-                            content: "当前值: " + value + "\n安全值: " + safe_value + "\n\n" +
-                                "当前设置值大于安全值\n滑动时可能出现遗漏采集目标的问题\n\n" +
-                                "确定要保留当前设置值吗",
-                        });
-                        diag_confirm.on("neutral", () => {
-                            dialogs.builds(["滑动距离安全值", "", 0, 0, "返回"], {
-                                content: "安全值指排行榜滑动时可避免采集目标遗漏的理论最大值\n\n" +
-                                    "计算方法:\n屏幕高度 [ " + HEIGHT + " ]\n" +
-                                    "减去 导航栏高度 [ " + navigation_bar_height + " ]\n" +
-                                    "减去 状态栏高度 [ " + status_bar_height + " ]\n" +
-                                    "减去 ActionBar默认高度 [ " + action_bar_default_height + " ]\n" +
-                                    "减去 帮收图标缩放高度 [ " + collect_icon_height + " ]\n" +
-                                    "得到 安全值 [ " + safe_value + " ]\n\n" +
-                                    "* 括号中的数据均源自当前设备\n" +
-                                    "* 安全值为理论值\n-- 不代表真实可操作的最佳值",
-                            }).show();
-                        });
-                        diag_confirm.on("negative", () => diag_confirm.dismiss());
-                        diag_confirm.on("positive", () => {
-                            saveSession(this.config_conj, ~~value);
-                            diag_confirm.dismiss();
-                            diag.dismiss();
-                        });
-                        diag_confirm.show();
-                    } else {
-                        saveSession(this.config_conj, ~~value);
-                        diag.dismiss();
-                    }
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                let value = session_config[this.config_conj] || DEFAULT_AF[this.config_conj];
-                if (value < 1) value = ~~(value * HEIGHT);
-                view._hint.text(value.toString() + " px  [ " + Math.round(value / HEIGHT * 100) + "% H ]");
-            },
-        }))
-        .add("button", new Layout("滑动时长", {
-            config_conj: "rank_list_swipe_time",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag = dialogs.builds([
-                    "设置排行榜页面滑动时长", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|50<=x<=500,x∈N}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 500 || value < 50) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
-            },
-        }))
-        .add("button", new Layout("滑动间隔", {
-            config_conj: "rank_list_swipe_interval",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag_strategy_image = dialogs.builds([
-                    "设置排行榜页面滑动间隔", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|100<=x<=800,x∈N}"});
-                diag_strategy_image.on("neutral", () => diag_strategy_image.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
-                diag_strategy_image.on("negative", () => diag_strategy_image.dismiss());
-                diag_strategy_image.on("positive", dialog => {
-                    let input = diag_strategy_image.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 800 || value < 100) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
-                    diag_strategy_image.dismiss();
-                });
-                let diag_strategy_layout = dialogs.builds([
-                    "设置排行榜页面滑动间隔", "采用\"布局分析\"策略时\n滑动间隔将由脚本自动获取动态最优值",
-                    0, 0, "返回", 1,
-                ]);
-                diag_strategy_layout.on("positive", () => diag_strategy_layout.dismiss());
-                session_config.rank_list_samples_collect_strategy === "image" && diag_strategy_image.show() || diag_strategy_layout.show();
-            },
-            updateOpr: function (view) {
-                if (session_config.rank_list_samples_collect_strategy === "image") view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString() + " ms");
-                else view._hint.text("自动设置");
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("高级设置"))
-        .add("options", new Layout("列表自动展开", {
-            config_conj: "rank_list_auto_expand_switch",
-            hint: "加载中...",
-            next_page: "rank_list_auto_expand_page",
-            updateOpr: function (view) {
-                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
-            },
-        }))
-        .add("options", new Layout("样本复查", {
-            config_conj: "rank_list_review_switch",
-            hint: "加载中...",
-            next_page: "rank_list_review_page",
-            updateOpr: function (view) {
-                view._hint.text(session_config[this.config_conj] ? "已开启" : "已关闭");
-                checkDependency(view, "timers_switch");
-            },
-        }))
-        .add("button", new Layout("采集策略", {
-            config_conj: "rank_list_samples_collect_strategy",
-            hint: "加载中...",
-            map: {
-                "layout": "布局分析",
-                "image": "图像处理",
-            },
-            newWindow: function () {
-                let map = this.map;
-                let map_keys = Object.keys(map);
-                let diag = dialogs.builds(["排行榜样本采集策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
-                    items: map_keys.slice().map(value => map[value]),
-                    itemsSelectMode: "single",
-                    itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()),
-                });
-                diag.on("neutral", () => {
-                    let diag_about = dialogs.builds(["关于采集策略", "about_rank_list_samples_collect_strategy", 0, 0, "关闭", 1]);
-                    diag_about.on("positive", () => diag_about.dismiss());
-                    diag_about.show();
-                });
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", () => {
-                    saveSession(this.config_conj, map_keys[diag.selectedIndex]);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString()]);
-            },
-        }))
-        .add("button", new Layout("截图样本池差异检测阈值", {
-            config_conj: "rank_list_capt_pool_diff_check_threshold",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag = dialogs.builds([
-                    "排行榜截图差异检测阈值", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|5<=x<=800,x∈N}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 800 || value < 5) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
-            },
-        }))
-        .add("button", new Layout("列表底部控件图片模板", {
-            hint: "加载中...",
-            newWindow: function () {
-                let template_path = storage_config.rank_list_bottom_template_path;
-                let diag = dialogs.builds([
-                    "排行榜底部控件图片模板", "",
-                    ["null", "caution_btn_color"], "返回", ["null", "attraction_btn_color"], 1,
-                ]);
-                diag.on("neutral", () => {
-                    let diag_confirm = dialogs.builds(["确认删除吗", "此操作无法撤销", 0, "放弃", ["确认", "caution_btn_color"], 1]);
-                    diag_confirm.on("negative", () => diag_confirm.dismiss());
-                    diag_confirm.on("positive", () => {
-                        files.remove(template_path);
-                        diag_confirm.dismiss();
-                        this.updateOpr(this.view);
-                        updateDialog();
-                    });
-                    diag_confirm.show();
-                });
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", () => app.viewFile(template_path));
-                diag.show();
-                updateDialog();
-
-                // tool function(s) //
-
-                function updateDialog() {
-                    let dialog_contents = require("./Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
-                    let [base, exists, not_exists] = [
-                        dialog_contents.rank_list_bottom_template_hint_base,
-                        dialog_contents.rank_list_bottom_template_hint_exists,
-                        dialog_contents.rank_list_bottom_template_hint_not_exists
-                    ];
-                    if (files.exists(template_path)) {
-                        diag.setContent(base + exists);
-                        diag.setActionButton("neutral", "删除模板");
-                        diag.setActionButton("positive", "查看模板");
-                    } else {
-                        diag.setContent(base + not_exists);
-                        diag.setActionButton("neutral", "");
-                        diag.setActionButton("positive", "");
-                    }
-                }
-            },
-            updateOpr: function (view) {
-                let file_exists_flag = files.exists(storage_config.rank_list_bottom_template_path);
-                view._hint.text(file_exists_flag ? "已生成" : "暂未生成");
-            },
-        }))
-        .ready();
-}); // rank_list_samples_collect_page
-addPage(() => {
-    setPage(["排行榜列表自动展开", "rank_list_auto_expand_page"])
-        .add("switch", new Layout("总开关", {
-            config_conj: "rank_list_auto_expand_switch",
-            listeners: {
-                "_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state);
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("基本设置"))
-        .add("button", new Layout("列表自动展开最大值", {
-            config_conj: "rank_list_auto_expand_length",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag = dialogs.builds([
-                    "设置列表自动展开最大值", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|100<=x<=500,x∈N}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_AF[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 500 || value < 100) return alertTitle(dialog, "输入值范围不合法");
-                    saveSession(this.config_conj, ~~value);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text((session_config[this.config_conj] || DEFAULT_AF[this.config_conj]).toString());
-            },
-        }))
-        .ready();
-}); // rank_list_auto_expand_page
-addPage(() => {
-    setPage(["通话状态监测", "phone_call_state_monitor_page"])
-        .add("switch", new Layout("总开关", {
-            config_conj: "phone_call_state_monitor_switch",
-            listeners: {
-                "_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state);
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("高级设置"))
-        .add("button", new Layout("空闲状态值", {
-            config_conj: "phone_call_state_idle_value",
-            hint: "加载中...",
-            newWindow: function () {
-                let diag = dialogs.builds([
-                    "通话空闲状态值", this.config_conj,
-                    ["获取空闲值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|x∈N*}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(phoneCallingState().toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    let input = diag.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
-                    let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    value = ~~value;
-                    if (value !== phoneCallingState()) {
-                        let diag_confirm = dialogs.builds([
-                            ["小心", "#880e4f"], ["phone_call_state_idle_value_warn", "#ad1457"],
-                            0, "放弃", ["确定", "warn_btn_color"], 1,
-                        ]);
-                        diag_confirm.on("negative", () => diag_confirm.dismiss());
-                        diag_confirm.on("positive", () => {
-                            diag_confirm.dismiss();
-                            saveSession(this.config_conj, value);
-                            diag.dismiss();
-                        });
-                        diag_confirm.show();
-                    } else {
-                        saveSession(this.config_conj, value);
-                        diag.dismiss();
-                    }
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                let value = DEFAULT_AF[this.config_conj];
-                let storage_value = session_config[this.config_conj];
-                if (typeof storage_value !== "undefined") value = storage_value;
-                view._hint.text(value === undefined ? "未配置" : value.toString());
-            },
-        }))
-        .ready();
-}); // phone_call_state_monitor_page
-addPage(() => {
-    setPage(["支付宝应用及页面保留", "kill_when_done_page"])
-        .add("switch", new Layout("总开关", {
-            config_conj: "kill_when_done_switch",
-            listeners: {
-                "_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !state);
-                        showOrHideBySwitch(this, state);
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !session_config[this.config_conj];
-                view["_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("支付宝应用保留", {sub_head_color: defs.sub_head_highlight_color}))
-        .add("radio", new Layout(["智能保留", "总是保留"], {
-            values: [true, false],
-            config_conj: "kill_when_done_intelligent",
-            listeners: {
-                "check": function (checked, view) {
-                    let {text} = view;
-                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
-                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = session_config[this.config_conj];
-                let child_idx = this.values.indexOf(session_conf);
-                if (!~child_idx) return;
-                let child_view = view._radiogroup.getChildAt(child_idx);
-                !child_view.checked && child_view.setChecked(true);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("蚂蚁森林页面保留", {sub_head_color: defs.sub_head_highlight_color}))
-        .add("radio", new Layout(["智能剔除", "全部保留"], {
-            values: [false, true],
-            config_conj: "kill_when_done_keep_af_pages",
-            listeners: {
-                "check": function (checked, view) {
-                    let {text} = view;
-                    checked && saveSession(this.config_conj, this.values[this.title.indexOf(text)]);
-                    text === this.title[0] && showOrHideBySwitch(this, checked, false, "split_line");
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = session_config[this.config_conj];
-                let child_idx = this.values.indexOf(session_conf);
-                if (!~child_idx) return;
-                let child_view = view._radiogroup.getChildAt(child_idx);
-                !child_view.checked && child_view.setChecked(true);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("帮助与支持"))
-        .add("button", new Layout("了解更多", {
-            newWindow: function () {
-                let diag = dialogs.builds(["关于支付宝应用保留", "about_kill_when_done", 0, 0, "关闭", 1]);
-                diag.on("positive", () => diag.dismiss());
-                diag.show();
-            },
-        }))
-        .ready();
-}); // kill_when_done_page
-addPage(() => {
-    setPage(["排行榜样本复查", "rank_list_review_page"], def, def, {
-        check_page_state: (view) => {
-            let samples = [
-                "rank_list_review_threshold_switch",
-                "rank_list_review_samples_clicked_switch",
-                "rank_list_review_difference_switch"
-            ];
-            if (!session_config.rank_list_review_switch) return true;
-            let chk = tag_name => findViewByTag(view, tag_name, 3)._checkbox_switch.checked;
-            for (let i = 0, len = samples.length; i < len; i += 1) {
-                if (chk(samples[i])) return true;
-            }
-            dialogs.builds(["提示", "样本复查条件需至少选择一个", 0, 0, "返回"]).show();
-        },
-    })
-        .add("switch", new Layout("总开关", {
-            config_conj: "rank_list_review_switch",
-            listeners: {
-                "_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state);
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("复查条件", {sub_head_color: defs.sub_head_highlight_color}))
-        .add("checkbox_switch", new Layout("列表状态差异", {
-            config_conj: "rank_list_review_difference_switch",
-            view_tag: "rank_list_review_difference_switch",
-            listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state, false, "split_line");
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_checkbox_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("checkbox_switch", new Layout("样本点击记录", {
-            config_conj: "rank_list_review_samples_clicked_switch",
-            view_tag: "rank_list_review_samples_clicked_switch",
-            listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state, false, "split_line");
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_checkbox_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("checkbox_switch", new Layout("最小倒计时阈值", {
-            config_conj: "rank_list_review_threshold_switch",
-            view_tag: "rank_list_review_threshold_switch",
-            listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
-                        saveSession(this.config_conj, !!state);
-                        showOrHideBySwitch(this, state, false, "split_line");
-                    },
-                },
-            },
-            updateOpr: function (view) {
-                let session_conf = !!session_config[this.config_conj];
-                view["_checkbox_switch"].setChecked(session_conf);
-            },
-        }))
-        .add("seekbar", new Layout("阈值", {
-            config_conj: "rank_list_review_threshold",
-            nums: [1, 5],
-            unit: "min",
-        }))
-        .add("split_line")
-        .add("sub_head", new Layout("帮助与支持"))
-        .add("button", new Layout("了解更多", {
-            newWindow: function () {
-                let diag = dialogs.builds(["关于排行榜样本复查", "about_rank_list_review", 0, 0, "关闭", 1]);
-                diag.on("positive", () => diag.dismiss());
-                diag.show();
-            },
-        }))
-        .add("split_line")
-        .add("info", new Layout("\"收取\/帮收功能\"与\"定时循环\"共用此页面配置"))
-        .ready();
-}); // rank_list_review_page
-addPage(() => {
-    setPage(["能量罩黑名单", "cover_blacklist_page"], def, def, {no_margin_bottom: true, no_scroll_view: true})
-        .add("list", new Layout("/*能量罩黑名单成员*/", {
-            list_head: list_heads.blacklist_protect_cover,
-            data_source_key_name: "blacklist_protect_cover",
-            list_checkbox: "gone",
-            listeners: {
-                "_list_data": {
-                    "item_bind": function (item_view, item_holder) {
-                        item_view._checkbox.setVisibility(8);
-                    }
-                },
-            }
-        }))
-        .add("info", new Layout("能量罩黑名单由脚本自动管理"))
-        .ready();
-}); // cover_blacklist_page
-addPage(() => {
-    setPage(["自定义黑名单", "self_def_blacklist_page"], def, parent_view => setBlacklistPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
-        .add("list", new Layout("/*自定义黑名单成员*/", {
-            list_head: list_heads.blacklist_by_user,
-            data_source_key_name: "blacklist_by_user",
-            list_checkbox: "visible",
-            listeners: {
-                "_list_data": {
-                    "item_long_click": function (e, item, idx, item_view, list_view) {
-                        item_view._checkbox.checked && item_view._checkbox.click();
-                        e.consumed = true;
-                        let {data_source_key_name} = this;
-                        let edit_item_diag = dialogs.builds(["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1], {
-                            items: ["\xa0"],
-                        });
-
-                        refreshItems();
-
-                        edit_item_diag.on("positive", () => {
-                            let new_item = {};
-                            new_item.name = edit_item_diag.getItems().toArray()[0].split(": ")[1];
-                            let input = edit_item_diag.getItems().toArray()[1].split(": ")[1];
-                            new_item.timestamp = restoreFromTimestamp(input);
-                            updateDataSource(data_source_key_name, "splice", [idx, 1, new_item]);
-                            if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) {
-                                session_params[data_source_key_name + "_btn_restore"].switch_on();
-                            }
-                            edit_item_diag.dismiss();
-                        });
-                        edit_item_diag.on("negative", () => edit_item_diag.dismiss());
-                        edit_item_diag.on("item_select", (idx, list_item, dialog) => {
-                            let list_item_prefix = list_item.split(": ")[0];
-                            let list_item_content = list_item.split(": ")[1];
-
-                            if (list_item_prefix === "好友昵称") {
-                                dialogs.rawInput("修改" + list_item_prefix, list_item_content, input => {
-                                    if (input) refreshItems(list_item_prefix, input);
-                                });
-                            }
-
-                            if (list_item_prefix === "解除时间") {
-                                edit_item_diag.dismiss();
-                                let init_value = restoreFromTimestamp(list_item_content);
-                                if (!isFinite(init_value)) init_value = null;
-                                setTimePickerView({
-                                    picker_views: [
-                                        {type: "date", text: "设置日期", init: init_value},
-                                        {type: "time", text: "设置时间", init: init_value},
-                                    ],
-                                    time_str: {
-                                        prefix: "已选择",
-                                    },
-                                    buttons: {
-                                        reserved_btn: {
-                                            text: "设置 '永不'",
-                                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
-                                                closeTimePickerPage(Infinity);
-                                            },
-                                        },
-                                        confirm_btn: {
-                                            onClickListener: (getTimeStrFromPicker, closeTimePickerPage) => {
-                                                let set_time = getTimeStrFromPicker(0).timestamp();
-                                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
-                                                closeTimePickerPage(set_time);
-                                            },
-                                        },
-                                    },
-                                    onFinish: (return_value) => {
-                                        edit_item_diag.show();
-                                        refreshItems(list_item_prefix, getTimeStrFromTimestamp(return_value, "time_str_remove"));
-                                    },
-                                });
-                            }
-                        });
-                        edit_item_diag.show();
-
-                        // tool function(s) //
-
-                        function refreshItems(prefix, value) {
-                            let value_obj = {};
-                            let key_map = {
-                                0: "好友昵称",
-                                1: "解除时间",
-                            };
-                            if (!prefix && !value) {
-                                value_obj = {};
-                                value_obj[key_map[0]] = item[item.name];
-                                value_obj[key_map[1]] = item[item.timestamp];
-                            } else {
-                                edit_item_diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(": ")[1])
-                            }
-                            if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
-                            let items = [];
-                            Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
-                            edit_item_diag.setItems(items);
-                        }
-                    },
-                    "item_click": function (item, idx, item_view, list_view) {
-                        item_view._checkbox.click();
-                    },
-                    "item_bind": function (item_view, item_holder) {
-                        item_view._checkbox.on("click", checkbox_view => {
-                            let {data_source_key_name} = this;
-                            let remove_btn_view = session_params[data_source_key_name + "_btn_remove"];
-                            let item = item_holder.item;
-                            let aim_checked = !item.checked;
-                            item.checked = aim_checked;
-                            let idx = item_holder.position;
-                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                            session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
-                            session_params[deleted_items_idx_count] = session_params[deleted_items_idx_count] || 0;
-                            session_params[deleted_items_idx][idx] = aim_checked;
-                            aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
-                            session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
-                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[this.data_source_key_name].length);
-                        });
-                    },
-                },
-                "_check_all": {
-                    "click": function (view) {
-                        let {data_source_key_name} = this;
-                        let aim_checked = view.checked;
-                        let blacklist_len = session_params[data_source_key_name].length;
-                        if (!blacklist_len) return view.checked = !aim_checked;
-
-                        session_params[data_source_key_name].forEach((o, idx) => {
-                            let o_new = deepCloneObject(o);
-                            o_new.checked = aim_checked;
-                            updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
-                        });
-
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                        session_params[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
-                        session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
-                        for (let i = 0; i < blacklist_len; i += 1) {
-                            session_params[deleted_items_idx][i] = aim_checked;
-                        }
-
-                        let remove_btn = session_params[this.data_source_key_name + "_btn_remove"];
-                        aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
-                    },
-                },
-            },
-        }))
-        .add("info", new Layout("/*dynamic_info*/", {
-            updateOpr: function (view) {
-                let amount = session_config.blacklist_by_user.length;
-                view._info_text.setText(amount ? "长按列表项可编辑项目" : "点击添加按钮可添加人员");
-            },
-        }))
-        .add("info", new Layout("点击标题可排序", {
-            updateOpr: function (view) {
-                let amount = session_config.blacklist_by_user.length;
-                view.setVisibility(amount ? 0 : 8);
-            },
-        }))
-        .ready();
-}); // self_def_blacklist_page
-addPage(() => {
-    setPage(["延时接力管理", "timers_uninterrupted_check_sections_page"], def, parent_view => setTimersUninterruptedCheckAreasPageButtons(parent_view, "timers_uninterrupted_check_sections"), {no_margin_bottom: true, no_scroll_view: true})
-        .add("list", new Layout("/*延时接力时间区间*/", {
-            list_head: list_heads.timers_uninterrupted_check_sections,
-            data_source_key_name: "timers_uninterrupted_check_sections",
-            list_checkbox: "visible",
-            listeners: {
-                "_list_data": {
-                    "item_long_click": function (e, item, idx, item_view, list_view) {
-                        item_view._checkbox.checked && item_view._checkbox.click();
-                        e.consumed = true;
-                        let {data_source_key_name} = this;
-                        let edit_item_diag = dialogs.builds(["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1], {
-                            items: ["\xa0"],
-                        });
-
-                        refreshItems();
-
-                        edit_item_diag.on("positive", () => {
-                            let sectionStringTransform = () => {
-                                let arr = list_heads[data_source_key_name];
-                                for (let i = 0, len = arr.length; i < len; i += 1) {
-                                    let o = arr[i];
-                                    if ("section" in o) return o.stringTransform;
-                                }
-                            };
-                            updateDataSource(data_source_key_name, "splice", [idx, 1, {
-                                section: sectionStringTransform()["backward"](edit_item_diag.getItems().toArray()[0].split(": ")[1]),
-                                interval: +edit_item_diag.getItems().toArray()[1].split(": ")[1],
-                            }]);
-                            if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) {
-                                session_params[data_source_key_name + "_btn_restore"].switch_on();
-                            }
-                            edit_item_diag.dismiss();
-                        });
-                        edit_item_diag.on("negative", () => edit_item_diag.dismiss());
-                        edit_item_diag.on("item_select", (idx, list_item, dialog) => {
-                            let list_item_prefix = list_item.split(": ")[0];
-                            let list_item_content = list_item.split(": ")[1];
-
-                            if (list_item_prefix === "区间") {
-                                edit_item_diag.dismiss();
-                                setTimePickerView({
-                                    picker_views: [
-                                        {type: "time", text: "设置开始时间", init: timeStrToSection(list_item_content)[0]},
-                                        {type: "time", text: "设置结束时间", init: timeStrToSection(list_item_content)[1]},
-                                    ],
-                                    time_str: {
-                                        suffix: (getStrFunc) => {
-                                            if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
-                                        },
-                                    },
-                                    onFinish: (return_value) => {
-                                        edit_item_diag.show();
-                                        return_value && refreshItems(list_item_prefix, return_value);
-                                    },
-                                });
-                            }
-
-                            if (list_item_prefix === "间隔") {
-                                let diag = dialogs.builds(["修改" + list_item_prefix, "", 0, "返回", "确认修改", 1], {
-                                    inputHint: "{x|1<=x<=600,x∈N}",
-                                    inputPrefill: list_item_content.toString(),
-                                });
-                                diag.on("negative", () => diag.dismiss());
-                                diag.on("positive", dialog => {
-                                    let input = diag.getInputEditText().getText().toString();
-                                    if (input === "") return dialog.dismiss();
-                                    let value = +input;
-                                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                                    if (value > 600 || value < 1) return alertTitle(dialog, "输入值范围不合法");
-                                    refreshItems(list_item_prefix, ~~value);
-                                    diag.dismiss();
-                                });
-                                diag.show();
-                            }
-                        });
-                        edit_item_diag.show();
-
-                        // tool function(s) //
-
-                        function refreshItems(prefix, value) {
-                            let value_obj = {};
-                            let key_map = {
-                                0: "区间",
-                                1: "间隔",
-                            };
-                            if (!prefix && !value) {
-                                value_obj = {};
-                                value_obj[key_map[0]] = item[item.section];
-                                value_obj[key_map[1]] = item[item.interval];
-                            } else {
-                                edit_item_diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(": ")[1])
-                            }
-                            if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
-                            let items = [];
-                            Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
-                            edit_item_diag.setItems(items);
-                        }
-                    },
-                    "item_click": function (item, idx, item_view, list_view) {
-                        item_view._checkbox.click();
-                    },
-                    "item_bind": function (item_view, item_holder) {
-                        item_view._checkbox.on("click", checkbox_view => {
-                            let {data_source_key_name} = this;
-                            let remove_btn_view = session_params[data_source_key_name + "_btn_remove"];
-                            let item = item_holder.item;
-                            let aim_checked = !item.checked;
-                            item.checked = aim_checked;
-                            let idx = item_holder.position;
-                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                            session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
-                            session_params[deleted_items_idx_count] = session_params[deleted_items_idx_count] || 0;
-                            session_params[deleted_items_idx][idx] = aim_checked;
-                            aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
-                            session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
-                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[data_source_key_name].length);
-                        });
-                    },
-                },
-                "_check_all": {
-                    "click": function (view) {
-                        let {data_source_key_name} = this;
-                        let aim_checked = view.checked;
-                        let blacklist_len = session_params[data_source_key_name].length;
-                        if (!blacklist_len) return view.checked = !aim_checked;
-
-                        session_params[data_source_key_name].forEach((o, idx) => {
-                            let o_new = deepCloneObject(o);
-                            o_new.checked = aim_checked;
-                            updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
-                        });
-
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                        session_params[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
-                        session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
-                        for (let i = 0; i < blacklist_len; i += 1) {
-                            session_params[deleted_items_idx][i] = aim_checked;
-                        }
-
-                        let remove_btn = session_params[data_source_key_name + "_btn_remove"];
-                        aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
-                    },
-                },
-            },
-        }))
-        .add("info", new Layout("/*dynamic_info*/", {
-            updateOpr: function (view) {
-                let amount = session_config.timers_uninterrupted_check_sections.length;
-                view._info_text.setText(amount ? "时间区间的\"+1\"表示次日时间" : "点击添加按钮可添加区间");
-            },
-        }))
-        .add("info", new Layout("长按列表项可编辑项目 点击标题可排序", {
-            updateOpr: function (view) {
-                let amount = session_config.timers_uninterrupted_check_sections.length;
-                view.setVisibility(amount ? 0 : 8);
-            },
-        }))
-        .ready();
-}); // timers_uninterrupted_check_sections_page
-addPage(() => {
     setPage(["从本地还原项目", "restore_projects_from_local"], def, def, {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*本地项目还原*/", {
             list_head: list_heads.project_backup_info,
@@ -3233,8 +3994,8 @@ ui.emitter.on("back_pressed", e => {
         }
         return;
     }
-    let len = rolling_pages.length,
-        need_save = needSave();
+    let len = rolling_pages.length;
+    let need_save = needSave();
     if (!checkPageState()) return e.consumed = true;
     if (len === 1 && !need_save) return quitNow(); // "back" function
     e.consumed = true;
@@ -3248,7 +4009,7 @@ ui.emitter.on("back_pressed", e => {
             "返回", ["强制退出", "caution_btn_color"], ["保存并退出", "hint_btn_bright_color"], 1,
         ]);
         diag.on("neutral", () => diag.dismiss());
-        diag.on("negative", () => ~diag.dismiss() && quitNow());
+        diag.on("negative", () => quitNow());
         diag.on("positive", () => saveNow() && ~diag.dismiss() && quitNow());
         diag.show();
     }
@@ -3259,20 +4020,25 @@ ui.emitter.on("back_pressed", e => {
             engines.execScriptFile("./Ant_Forest_Launcher.js", {
                 arguments: {
                     instant_run_flag: true,
+                    no_insurance_flag: true,
                 },
             });
             storage_af.remove("af_postponed");
             storage_af.put("config_prompted", true);
         }
-        exit();
+        need_save && exit();
     }
 });
 events.on("exit", () => {
-    initUI();
-    // thread_sub_page_views.isAlive() && thread_sub_page_views.interrupt();
-    threads.shutDownAll();
     listener.removeAllListeners();
-    // dialogs_pool.forEach(diag => diag = null);
+    threads.shutDownAll();
+    __global__.dialogs_pool && __global__.dialogs_pool.forEach((diag) => {
+        diag.dismiss();
+        diag = null;
+    });
+    ui.setContentView(ui.inflate(<vertical/>));
+    ui.main.getParent().removeAllViews();
+    ui.main.removeAllViews();
     ui.finish();
 });
 listener.emit("sub_page_views_add");
@@ -3306,7 +4072,7 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
             diag.on("positive", () => {
                 let list_page_view = findViewByTag(parent_view, "list_page_view");
                 diag.dismiss();
-                updateDataSource(data_source_key_name, "splice", [0, session_params[data_source_key_name].length]);
+                updateDataSource(data_source_key_name, "splice", 0);
 
                 let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
                 let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
@@ -3370,25 +4136,28 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                     itemsSelectMode: "multi",
                 });
                 diag_add_from_list.on("neutral", () => {
+                    let neutral_btn_text = diag.getActionButton("neutral");
                     diag_add_from_list.dismiss();
                     diag.dismiss();
                     engines.execScriptFile("./Ant_Forest_Launcher.js", {
                         arguments: {
                             special_exec_command: "collect_friends_list",
                             instant_run_flag: true,
+                            no_insurance_flag: true,
                         },
                     });
                     threads.starts(function () {
                         if (waitForAction(text("打开"), 3500)) clickAction(text("打开"), "widget");
                     });
-                    ui.emitter.on("resume", () => {
+                    ui.emitter.prependOnceListener("resume", () => {
                         diag.show();
                         threads.starts(function () {
-                            let aim_btn_text = diag.getActionButton("neutral");
-                            waitForAndClickAction(text(aim_btn_text), 3500);
+                            neutral_btn_text && waitForAndClickAction(text(neutral_btn_text), 4000, 100, {click_strategy: "widget"});
                         });
                     });
-                    setTimeout(() => toast("即将打开\"支付宝\"刷新好友列表"), 500);
+                    setTimeout(function () {
+                        toast("即将打开\"支付宝\"刷新好友列表");
+                    }, 500);
                 });
                 diag_add_from_list.on("positive", () => {
                     refreshDiag();
@@ -3458,7 +4227,9 @@ function setBlacklistPageButtons(parent_view, data_source_key_name) {
                     name: name,
                     timestamp: Infinity,
                 }));
-                if (tmp_selected_friends.length) setTimeout(() => parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5)), 200);
+                if (tmp_selected_friends.length) setTimeout(function () {
+                    parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
+                }, 200);
                 let restore_btn = list_page_view.getParent()._text_restore.getParent();
                 equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
                 saveSession(data_source_key_name, session_config[data_source_key_name]);
@@ -3523,7 +4294,7 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
             diag.on("positive", () => {
                 let list_page_view = findViewByTag(parent_view, "list_page_view");
                 diag.dismiss();
-                updateDataSource(data_source_key_name, "splice", [0, session_params[data_source_key_name].length]);
+                updateDataSource(data_source_key_name, "splice", 0);
 
                 let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
                 let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
@@ -3587,7 +4358,9 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
                     section: sectionStringTransform()["backward"](diag_new_item.getItems().toArray()[0].split(": ")[1]),
                     interval: +diag_new_item.getItems().toArray()[1].split(": ")[1],
                 });
-                setTimeout(() => parent_view._list_data.smoothScrollBy(0, Math.pow(10, 5)), 200);
+                setTimeout(function () {
+                    parent_view._list_data.smoothScrollBy(0, Math.pow(10, 5));
+                }, 200);
                 let restore_btn = session_params[data_source_key_name + "_btn_restore"];
                 equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
                 saveSession(data_source_key_name, session_config[data_source_key_name]);
@@ -3661,6 +4434,12 @@ function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_ke
     );
 }
 
+function setTimersControlPanelPageButtons(parent_view, data_source_key_name, wizardFunc) {
+    return setButtons(parent_view, data_source_key_name,
+        ["add_circle", "NEW", "ON", (btn_view) => wizardFunc("add")]
+    );
+}
+
 // constructor //
 
 function Layout(title, params) {
@@ -3701,6 +4480,16 @@ function Layout(title, params) {
     if (params.config_conj) {
         if (!session_params.title) session_params.title = {};
         session_params.title[params.config_conj] = session_params.title[params.config_conj] || title;
+    }
+    if (params.custom_data_source) {
+        Object.defineProperties(this, {
+            custom_data_source: {
+                get: () => {
+                    let {custom_data_source} = params;
+                    return typeof custom_data_source === "function" ? custom_data_source.bind(this) : custom_data_source;
+                },
+            }
+        });
     }
 }
 
@@ -3932,7 +4721,9 @@ function setPage(title_param, title_bg_color, additions, options) {
             Object.keys(listener_ids).forEach(id => {
                 let listeners = listener_ids[id];
                 Object.keys(listeners).forEach(listener => {
-                    new_view[id].on(listener, listeners[listener].bind(item_params));
+                    let callback = listeners[listener].bind(item_params);
+                    if (id === "ui") ui.emitter.prependListener(listener, callback);
+                    else new_view[id].on(listener, callback);
                 });
             });
         } else if (type.match(/^options/)) {
@@ -3950,6 +4741,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                 new_view._item_area.on("click", listener);
             };
             new_view.restoreClickListener = () => new_view.setClickListener(() => {
+                if (__global__._monster_$_page_scrolling_flag) return;
                 let next_page = item_params.next_page;
                 if (next_page && view_pages[next_page]) pageJump("next", next_page);
             });
@@ -4001,8 +4793,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         }
 
         function setSubHead(item) {
-            let title = item["title"],
-                sub_head_color = item["sub_head_color"] || defs["sub_head_color"];
+            let title = item["title"];
+            let sub_head_color = item["sub_head_color"] || defs["sub_head_color"];
 
             let new_view = ui.inflate(
                 <vertical>
@@ -4074,7 +4866,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                 </vertical>
             );
 
-            updateDataSource(data_source_key_name, "init");
+            updateDataSource(data_source_key_name, "init", item_params.custom_data_source);
             new_view["_check_all"].setVisibility(android.view.View[item_params["list_checkbox"].toUpperCase()]);
             new_view["_list_data"].setDataSource(session_params[data_source_key_name]);
             new_view["_list_title_bg"].attr("bg", list_title_bg_color);
@@ -4112,7 +4904,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                         tmp_deleted_items_idx[indices_table[ori_idx_key]] = session_params[deleted_items_idx][ori_idx_key];
                     });
                     session_params[deleted_items_idx] = deepCloneObject(tmp_deleted_items_idx);
-                    session_params[data_source_key_name].splice(0, session_params[data_source_key_name].length);
+                    session_params[data_source_key_name].splice(0);
                     session_data.forEach(value => session_params[data_source_key_name].push(value));
                     session_params["list_sort_flag_" + data_key_name] *= -1;
                     // updateDataSource(data_source_key_name, "rewrite");
@@ -4134,7 +4926,9 @@ function setPage(title_param, title_bg_color, additions, options) {
             Object.keys(listener_ids).forEach(id => {
                 let listeners = listener_ids[id];
                 Object.keys(listeners).forEach(listener => {
-                    new_view[id].on(listener, listeners[listener].bind(item_params));
+                    let callback = listeners[listener].bind(item_params);
+                    if (id === "ui") ui.emitter.prependListener(listener, callback);
+                    else new_view[id].on(listener, callback);
                 });
             });
 
@@ -4238,7 +5032,7 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
 }
 
 function pageJump(direction, next_page) {
-    if (this._monster_$_page_scrolling_flag) return;
+    if (__global__._monster_$_page_scrolling_flag) return;
     if (direction.match(/back|previous|last/)) {
         smoothScrollView("full_right", null, rolling_pages);
         return rolling_pages.pop();
@@ -4260,15 +5054,15 @@ function saveNow() {
     // tool function(s) //
 
     function writeUnlockStorage() {
-        let ori_config = deepCloneObject(DEFAULT_UNLOCK),
-            tmp_config = {};
+        let ori_config = deepCloneObject(DEFAULT_UNLOCK);
+        let tmp_config = {};
         for (let i in ori_config) {
             if (ori_config.hasOwnProperty(i)) {
                 tmp_config[i] = session_config[i];
                 delete session_config_mixed[i];
             }
         }
-        storage_unlock.put("config", tmp_config);
+        storage_unlock.put("config", Object.assign({}, storage_unlock.get("config", {}), tmp_config));
     }
 
     function writeBlacklist() {
@@ -4311,9 +5105,9 @@ function getTimeStrFromTimestamp(time_param, format_str) {
     if (!timestamp) time_str = time_str_remove = "时间戳无效";
     if (timestamp === Infinity) time_str_remove = "永不";
     else if (timestamp <= time.getTime()) time_str_remove = "下次运行";
+    let padZero = num => ("0" + num).slice(-2);
     if (!time_str) {
         time.setTime(timestamp);
-        let padZero = num => ("0" + num).slice(-2);
         let yy = time.getFullYear();
         let MM = padZero(time.getMonth() + 1);
         let dd = padZero(time.getDate());
@@ -4324,9 +5118,10 @@ function getTimeStrFromTimestamp(time_param, format_str) {
 
     return {
         time_str: time_str,
+        time_str_full: time_str + ":" + padZero(time.getSeconds()),
         time_str_remove: time_str_remove || time_str,
         timestamp: timestamp,
-    }[format_str];
+    }[format_str || "time_str"];
 }
 
 function restoreFromTimestamp(timestamp) {
@@ -4334,6 +5129,20 @@ function restoreFromTimestamp(timestamp) {
     if (timestamp === "永不") return Infinity;
     let time_nums = timestamp.split(/\D+/);
     return new Date(+time_nums[0], time_nums[1] - 1, +time_nums[2], +time_nums[3], +time_nums[4]).getTime();
+}
+
+function getTimedTaskTypeStr(source) {
+    if (classof(source) === "Array") {
+        if (source.length === 7) return "每日";
+        if (source.length) return "每周 [" + source.slice().map(x => x === 0 ? 7 : x).sort().join(",") + "]";
+    }
+    return source === 0 ? "一次性" : source;
+}
+
+function restoreFromTimedTaskTypeStr(str) {
+    if (str === "每日") return [0, 1, 2, 3, 4, 5, 6];
+    if (str.match(/每周/)) return str.split(/\D/).filter(x => x !== "").map(x => +x === 7 ? 0 : +x).sort();
+    return str === "一次性" ? 0 : str;
 }
 
 function findViewByTag(parent_view, tag_name, level) {
@@ -4507,17 +5316,25 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
         threads.starts(function () {
             let info = {};
             let regexp_version_name = /# v\d+\.\d+\.\d+.*/g;
-            let regexp_issue_refs = / ?_\[`(issue )?#(\d+)`]\(http.+?\)_ ?/g;
-            let regexp_remove_info = /^(\s*\n\s*)+|(# *){3,}| +(?=\s+)|.*~~.*|.*`灵感`.*|\(http.+?\)/g;
+            let regexp_remove_info = new RegExp(
+                /^(\s*\n\s*)+/.source // starts with multi blank lines
+                + "|" + /(# *){3,}/.source // over three hash symbols
+                + "|" + / +(?=\s+)/.source // ends with blank spaces in a single line
+                + "|" + /.*~~.*/.source // markdown strikethrough
+                + "|" + /.*`灵感`.*/.source // lines with inspiration label
+                + "|" + /\(http.+?\)/.source // URL content (not the whole line)
+                + "|" + /\[\/\/]:.+\(\n*.+?\n*\)/.source // markdown comments
+                , "g" // global flag
+            );
             let version_names = file_content.match(regexp_version_name);
             let version_infos = file_content.split(regexp_version_name);
             version_names.forEach((name, idx) => {
                 info["v" + name.split("v")[1]] = version_infos[idx + 1]
-                    .replace(regexp_issue_refs, "[$2]")
+                    .replace(/ ?_\[`(issue )?#(\d+)`]\(http.+?\)_ ?/g, "[$2]") // issues
                     .replace(regexp_remove_info, "")
                     .replace(/(\[(\d+)])+/g, $0 => " " + $0.split(/]\[/).join(",").replace(/\d+/g, $0 => "#" + $0))
-                    // .replace(/\* `(..)`/g, "*$1*")
-                    .replace(/(\s*\n\s*){2,}/g, "\n");
+                    .replace(/(\s*\n\s*){2,}/g, "\n")
+                ;
             });
             session_params.update_info = info;
             updateDialogUpdateDetails();
@@ -4820,9 +5637,12 @@ function copyFolder(src, target, inside_flag) {
     return true;
 }
 
-function updateDataSource(data_source_key_name, operation, data_params, quiet_flag) {
-    if (operation === "init") {
-        let ori_data_source = session_config[data_source_key_name] || session_params[data_source_key_name];
+function updateDataSource(data_source_key_name, operation, data_params, quiet_flag, no_rewrite_flag) {
+    if (operation.match(/init/)) {
+        let ori_data_source = data_params // custom data source
+            || session_config[data_source_key_name]
+            || session_params[data_source_key_name];
+        ori_data_source = typeof ori_data_source === "function" ? ori_data_source() : ori_data_source;
         for (let i = 0, len = list_heads[data_source_key_name].length; i < len; i += 1) {
             let sort_prop = list_heads[data_source_key_name][i].sort;
             if (sort_prop) {
@@ -4831,15 +5651,20 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
                 break;
             }
         }
-        session_params[data_source_key_name] = ori_data_source.map(magicData);
-        return;
+        if (operation.match(/re/)) {
+            if (!session_params[data_source_key_name]) session_params[data_source_key_name] = [];
+            session_params[data_source_key_name].splice(0);
+            return ori_data_source.map(magicData).forEach(value => session_params[data_source_key_name].push(value));
+        }
+        return session_params[data_source_key_name] = ori_data_source.map(magicData);
     }
 
     if (operation === "rewrite") return rewriteToSessionConfig();
 
     if (operation.match(/delete|splice/)) {
-        if (data_params.length > 2 && !data_params[2]["list_item_name_0"]) data_params[2] = magicData(data_params[2]);
-        Array.prototype.splice.apply(session_params[data_source_key_name], data_params);
+        let _data_params = classof(data_params === "Array") ? data_params.slice() : [data_params];
+        if (_data_params.length > 2 && !_data_params[2]["list_item_name_0"]) _data_params[2] = magicData(_data_params[2]);
+        Array.prototype.splice.apply(session_params[data_source_key_name], _data_params);
         return rewriteToSessionConfig();
     }
 
@@ -4875,6 +5700,8 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
     }
 
     function rewriteToSessionConfig() {
+        if (no_rewrite_flag) return;
+
         session_config[data_source_key_name] = [];
 
         let session_data = session_params[data_source_key_name];
@@ -5017,42 +5844,51 @@ function weakOrStrongBySwitch(view, state, view_index_padding) {
     });
 }
 
-function checkDependency(view, dependencies) {
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+function checkDependency(view, dependencies, params) {
+    params = params || {};
     let deps = dependencies;
-    if (classof(dependencies) !== "Array") deps = [deps];
-    checkAllDependencies(deps) ? setViewEnabled(view, deps) : setViewDisabled(view, deps);
+    let check_dependence_result = (() => {
+        if (typeof dependencies === "function") return dependencies();
+        if (classof(deps) !== "Array") deps = [deps];
+        for (let i = 0, len = deps.length; i < len; i += 1) {
+            if (session_config[deps[i]]) return true;
+        }
+    })();
+
+    check_dependence_result ? setViewEnabled(view) : setViewDisabled(view, deps, params);
 
     // tool function(s) //
 
-    function checkAllDependencies(arr) {
-        for (let i = 0, len = arr.length; i < len; i += 1) {
-            if (session_config[arr[i]]) return true;
+    function setViewDisabled(view, deps, params) {
+        let hint_text = params.hint_text || "";
+        if (!hint_text && classof(deps) === "Array") {
+            deps.forEach(conj_text => hint_text += session_params.title[conj_text] + " ");
+            if (deps.length > 1) hint_text += "均";
+            hint_text = "不可用  [ " + hint_text + "未开启 ]";
+        }
+        view._hint.text(hint_text);
+        view._chevron_btn && view._chevron_btn.setVisibility(8);
+        view._title.setTextColor(colors.parseColor("#919191"));
+        view._hint.setTextColor(colors.parseColor("#b0b0b0"));
+        let next_page = view.getNextPage();
+        if (next_page) {
+            view.next_page_backup = next_page;
+            view.setNextPage(null);
         }
     }
 
-    function setViewDisabled(view, arr) {
-        let arr_info = "";
-        arr.forEach(conj_text => arr_info += session_params.title[conj_text] + " ");
-        if (arr.length > 1) arr_info += "均";
-        view._hint.text("已失效  [ " + arr_info + "未开启 ]");
-        view._chevron_btn.setVisibility(8);
-        view._title.setTextColor(colors.parseColor("#919191"));
-        view._hint.setTextColor(colors.parseColor("#b0b0b0"));
-        view.next_page_backup = view.getNextPage();
-        view.setNextPage(null);
-    }
-
     function setViewEnabled(view) {
-        view._chevron_btn.setVisibility(0);
+        view._chevron_btn && view._chevron_btn.setVisibility(0);
         view._title.setTextColor(colors.parseColor("#111111"));
         view._hint.setTextColor(colors.parseColor("#888888"));
-        view.next_page_backup && view.setNextPage(view.next_page_backup);
+        let {next_page_backup} = view;
+        next_page_backup && view.setNextPage(next_page_backup);
     }
 }
 
 function setTimePickerView(params) {
     let time_picker_view = null;
+    let week_checkbox_states = Array(7).join(" ").split(" ").map(() => false);
 
     params = params || {};
     if (typeof session_params !== "undefined") {
@@ -5063,6 +5899,13 @@ function setTimePickerView(params) {
                 : () => time_picker_view.back_btn.click()
         );
     }
+
+    let picker_views = params.picker_views;
+    let date_or_time_indices = [];
+    ["date", "time"].forEach((aim_type) => {
+        picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
+    });
+    let date_or_time_len = date_or_time_indices.length;
 
     initPickerView();
     addPickers();
@@ -5086,23 +5929,23 @@ function setTimePickerView(params) {
     }
 
     function addPickers() {
-        let picker_views = params.picker_views;
         picker_views.forEach(addPickerView);
 
-        let len = picker_views.length;
-        let type1 = (picker_views[0] || {}).type;
-        let type2 = (picker_views[1] || {}).type;
-        time_picker_view.getPickerTimeStr[0] = len === 2 && type1 !== type2 ? {
+        let type1 = (picker_views[date_or_time_indices[0]] || {}).type;
+        let type2 = (picker_views[date_or_time_indices[1]] || {}).type;
+        time_picker_view.getPickerTimeInfo[0] = date_or_time_len === 2 && type1 !== type2 ? {
             timestamp: () => {
-                let f = num => time_picker_view.getPickerTimeStr[num];
+                let f = num => time_picker_view.getPickerTimeInfo[date_or_time_indices[num - 1] + 1];
                 if (type1 === "date") return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
                 if (type2 === "date") return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
-            },
+            }, // timestamp from one "date" AND one "time"
         } : {};
 
         // tool function(s) //
 
         function addPickerView(o, idx) {
+            if (!o || !o.type) return;
+
             let picker_view = ui.inflate(
                 <vertical id="picker_root">
                     <frame h="1" bg="#acacac" w="*"/>
@@ -5152,11 +5995,57 @@ function setTimePickerView(params) {
                     }
                     picker_node.updateDate.apply(picker_node, init);
                 }
+            } else if (type === "week") {
+                let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                let checkbox_views = ui.inflate(
+                    <vertical id="checkboxes">
+                        <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
+                            <checkbox id="week_1" marginRight="13"/>
+                            <checkbox id="week_2"/>
+                        </horizontal>
+                        <horizontal margin="0 5" layout_gravity="center" w="auto">
+                            <checkbox id="week_3" marginRight="13"/>
+                            <checkbox id="week_4"/>
+                        </horizontal>
+                        <horizontal margin="0 5 0 15" layout_gravity="center" w="auto">
+                            <checkbox id="week_5" marginRight="13"/>
+                            <checkbox id="week_6" marginRight="13"/>
+                            <checkbox id="week_0"/>
+                        </horizontal>
+                    </vertical>
+                );
+
+                for (let i = 0; i < 7; i += 1) {
+                    checkbox_views["week_" + i].setText(weeks_str[i]);
+                    checkbox_views["week_" + i].on("check", (checked, view) => {
+                        week_checkbox_states[weeks_str.indexOf(view.text)] = checked;
+                        threads.start(function () {
+                            let max_try_times = 20;
+                            let interval = setInterval(function () {
+                                if (!max_try_times--) return clearInterval(interval);
+                                try {
+                                    ui.post(setTimeStr);
+                                    clearInterval(interval);
+                                } catch (e) {
+                                }
+                            }, 100);
+                        });
+                    });
+                }
+
+                picker_view.picker_root.addView(checkbox_views);
+
+                if (init) {
+                    if (typeof init === "number") init = timedTaskTimeFlagConverter(init);
+                    init.forEach(num => picker_view.checkboxes["week_" + num].setChecked(true));
+                }
             }
 
-            time_picker_view.getPickerTimeStr = time_picker_view.getPickerTimeStr || {};
+            time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
             let picker_node = picker_view.picker;
-            picker_node["setOn" + (type.slice(0, 1).toUpperCase() + type.slice(1).toLowerCase()) + "ChangedListener"](setTimeStr);
+            if (type !== "week") {
+                picker_node["setOn" + (type.slice(0, 1).toUpperCase() + type.slice(1).toLowerCase()) + "ChangedListener"](setTimeStr);
+            }
 
             let {yy, MM, dd, hh, mm} = {
                 yy: () => {
@@ -5180,12 +6069,29 @@ function setTimePickerView(params) {
                         return new Date().getDate();
                     }
                 })()),
-                hh: () => padZero(picker_node.getCurrentHour()),
-                mm: () => padZero(picker_node.getCurrentMinute()),
+                hh: () => {
+                    try {
+                        return padZero(picker_node.getCurrentHour());
+                    } catch (e) {
+                        return null;
+                    }
+                },
+                mm: () => {
+                    try {
+                        return padZero(picker_node.getCurrentMinute());
+                    } catch (e) {
+                        return null;
+                    }
+                },
             };
             let padZero = num => ("0" + num).slice(-2);
+            let parseDaysOfWeek = () => {
+                let result = [];
+                week_checkbox_states.forEach((bool, idx) => bool && result.push(idx));
+                return result;
+            };
 
-            time_picker_view.getPickerTimeStr[idx + 1] = {
+            time_picker_view.getPickerTimeInfo[idx + 1] = {
                 yy: yy,
                 MM: MM,
                 dd: dd,
@@ -5194,8 +6100,14 @@ function setTimePickerView(params) {
                 default: () => {
                     if (type === "date") return yy() + "年" + MM() + "月" + dd() + "日";
                     if (type === "time") return hh() + ":" + mm();
+                    if (type === "week") {
+                        let parsed = parseDaysOfWeek();
+                        if (!parsed.length) return "";
+                        return "  [ " + parsed.map(x => x === 0 ? 7 : x).sort().join(", ") + " ]";
+                    }
                 },
                 timestamp: () => +new Date(yy(), MM(), dd(), hh(), mm()),
+                daysOfWeek: parseDaysOfWeek,
             };
 
             time_picker_view.time_picker_view_main.addView(picker_view);
@@ -5217,41 +6129,46 @@ function setTimePickerView(params) {
 
     function setTimeStr() {
         let {picker_views} = params || [];
-        let picker_amount = picker_views.length;
         let {prefix, format, suffix, middle} = params.time_str || {};
-        let getTimeStrFromPicker = num => time_picker_view.getPickerTimeStr[num];
+        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
 
         prefix = prefix && prefix.replace(/: ?/, "") + ": " || "";
 
-        if (typeof middle === "function") middle = middle(getTimeStrFromPicker);
-        middle = middle || formatTimeStr(picker_amount);
+        if (typeof middle === "function") middle = middle(getTimeInfoFromPicker);
+        middle = middle || formatTimeStr();
 
-        if (typeof suffix === "function") suffix = suffix(getTimeStrFromPicker);
+        if (typeof suffix === "function") suffix = suffix(getTimeInfoFromPicker);
         suffix = suffix && suffix.replace(/^ */, " ") || "";
 
         time_picker_view.time_str.setText(prefix + middle + suffix);
 
         // tool function(s) //
 
-        function formatTimeStr(len) {
+        function formatTimeStr() {
             if (!format) {
-                let str = getTimeStrFromPicker(1).default();
+                let len = date_or_time_indices.length;
+                let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
                 if (len === 2) {
-                    str += (picker_views[0].type === picker_views[1].type ? " - " : " ") + getTimeStrFromPicker(2).default();
+                    str += (
+                        picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? " - " : " "
+                    ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
                 }
+                picker_views.forEach((o, idx) => {
+                    if (o.type === "week") str += getTimeInfoFromPicker(idx + 1).default();
+                });
                 return str;
             }
-            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeStrFromPicker($3)[$2]());
+            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeInfoFromPicker($3)[$2]());
         }
     }
 
     function addButtons() {
-        let getTimeStrFromPicker = num => time_picker_view.getPickerTimeStr[num];
+        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
         let btn_view = ui.inflate(
             <vertical>
                 <horizontal id="btn_group" w="auto" layout_gravity="center">
                     <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
-                    <button id="reserved_btn" text="预留按钮" margin="-10 0 -10 0" backgroundTint="#fff9c4" visibility="gone"/>
+                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#fff9c4" visibility="gone"/>
                     <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
                 </horizontal>
             </vertical>
@@ -5261,16 +6178,22 @@ function setTimePickerView(params) {
             let reserved_btn_view = btn_view.reserved_btn;
             reserved_btn_view.setVisibility(0);
             text && reserved_btn_view.setText(text);
-            onClickListener && reserved_btn_view.on("click", () => onClickListener(getTimeStrFromPicker, closeTimePickerPage));
+            onClickListener && reserved_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
         }
         time_picker_view.time_picker_view_main.addView(btn_view);
 
-        time_picker_view.back_btn.on("click", () => closeTimePickerPage());
+        if ((params.buttons || {})["back_btn"]) {
+            let {text, onClickListener} = params.buttons.back_btn;
+            let confirm_btn_view = btn_view.back_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
+        } else time_picker_view.back_btn.on("click", () => closeTimePickerPage());
+
         if ((params.buttons || {})["confirm_btn"]) {
             let {text, onClickListener} = params.buttons.confirm_btn;
             let confirm_btn_view = btn_view.confirm_btn;
             text && confirm_btn_view.setText(text);
-            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeStrFromPicker, closeTimePickerPage));
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
         } else time_picker_view.confirm_btn.on("click", () => closeTimePickerPage("picker_view"));
     }
 
@@ -5288,9 +6211,192 @@ function setTimePickerView(params) {
         }
 
         if (params.onFinish && typeof return_value !== "undefined") {
-            params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText() : return_value);
+            params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText().toString() : return_value);
         }
     }
+}
+
+function setInfoInputView(params) {
+    let info_input_view = null;
+    let input_views_obj = {};
+    let {InputType, SpannableString, style, Spanned, SpannedString} = android.text;
+
+    params = params || {};
+    if (typeof session_params !== "undefined") {
+        session_params.back_btn_consumed = true;
+        session_params.back_btn_consumed_func = (
+            typeof params.back_btn_comsumed === "function"
+                ? () => params.back_btn_comsumed()
+                : () => info_input_view.back_btn.click()
+        );
+    }
+
+    initInfoInputView();
+    addInputBoxes();
+    addButtons();
+
+    ui.main.getParent().addView(info_input_view);
+
+    // tool function(s) //
+
+    function initInfoInputView() {
+        info_input_view = ui.inflate(
+            <vertical focusable="true" focusableInTouchMode="true" bg="#ffffff" clickable="true">
+                <vertical h="*" gravity="center" id="info_input_view_main" clickable="true" focusableInTouchMode="true"/>
+            </vertical>
+        );
+
+        info_input_view.setTag("fullscreen_info_input");
+    }
+
+    function addInputBoxes() {
+        params.input_views.forEach((o, idx) => {
+            let view = ui.inflate(
+                <vertical>
+                    <card w="*" h="50" cardCornerRadius="2dp" cardElevation="3dp" foreground="?selectableItemBackground" cardBackgroundColor="#546e7a" margin="18 0 18 30">
+                        <input id="input_area" selectAllOnFocus="true" gravity="center" textSize="17" background="?null" hint="未设置" textColorHint="#e3e3e3" textColor="#eeeeee"/>
+                        <vertical gravity="right|bottom">
+                            <text id="input_text" bg="#66000000" gravity_layout="right" h="auto" w="auto" padding="6 2" textColor="#ffffff" textSize="12sp" maxLines="1"/>
+                        </vertical>
+                    </card>
+                </vertical>
+            );
+            let {text, type, hint_text, init} = o;
+            let input_area_view = view.input_area;
+            let input_text_view = view.input_text;
+            let setViewHintText = hint_text => setEditTextHint(input_area_view, "-2", hint_text);
+
+            if (type === "password") {
+                input_area_view.setInputType(input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                input_area_view.setOnKeyListener(
+                    function onKey(view, keyCode, event) {
+                        let {KEYCODE_ENTER, ACTION_UP} = android.view.KeyEvent;
+                        let is_keycode_enter = keyCode === KEYCODE_ENTER;
+                        let is_action_up = event.getAction() === ACTION_UP;
+                        is_keycode_enter && is_action_up && info_input_view.confirm_btn.click();
+                        return is_keycode_enter;
+                    }
+                );
+            } else {
+                input_area_view.setSingleLine(true);
+            }
+
+            if (type === "account") init = accountNameConverter(init, "decrypt");
+
+            input_text_view.setText(text);
+            init && input_area_view.setText(init);
+            setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
+            view.input_area.setViewHintText = setViewHintText;
+            input_area_view.setOnFocusChangeListener(onFocusChangeListener);
+            info_input_view.info_input_view_main.addView(view);
+            input_views_obj[text] = view;
+
+            // tool function(s) //
+
+            function onFocusChangeListener(view, has_focus) {
+                has_focus ? view.setHint(null) : setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
+            }
+
+            function setEditTextHint(edit_text_view, text_size, text_str) {
+                if (text_size.toString().match(/^[+-]\d+$/)) {
+                    text_size = edit_text_view.getTextSize() / context.getResources().getDisplayMetrics().scaledDensity + +text_size;
+                }
+                let span_string = new SpannableString(text_str || edit_text_view.hint);
+                let abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
+                span_string.setSpan(abs_size_span, 0, span_string.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                edit_text_view.setHint(new SpannedString(span_string));
+            }
+        });
+        info_input_view.info_input_view_main.addView(ui.inflate(
+            <vertical>
+                <frame margin="0 15"/>
+            </vertical>
+        ));
+    }
+
+    function addButtons() {
+        let {buttons} = params;
+        let {additional} = buttons;
+
+        additional && addAdditionalButtons(additional);
+
+        let common_btn_view = ui.inflate(
+            <vertical>
+                <horizontal id="btn_group" w="auto" layout_gravity="center">
+                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
+                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#bbdefb" visibility="gone"/>
+                    <button id="confirm_btn" text="确定" margin="20 0" backgroundTint="#dcedc8"/>
+                </horizontal>
+            </vertical>
+        );
+
+        if (buttons.reserved_btn) {
+            let {text, onClickListener, hint_color} = buttons.reserved_btn;
+            let reserved_btn_view = common_btn_view.reserved_btn;
+            reserved_btn_view.setVisibility(0);
+            text && reserved_btn_view.setText(text);
+            onClickListener && reserved_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+            if (hint_color) reserved_btn_view.attr("backgroundTint", hint_color);
+        }
+
+        info_input_view.info_input_view_main.addView(common_btn_view);
+        info_input_view.back_btn.on("click", () => closeInfoInputPage());
+
+        if (buttons.confirm_btn) {
+            let {text, onClickListener} = buttons.confirm_btn;
+            let confirm_btn_view = common_btn_view.confirm_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+        } else info_input_view.confirm_btn.on("click", closeInfoInputPage);
+
+        // tool function(s) //
+
+        function addAdditionalButtons(additional) {
+            let addi_buttons = classof(additional) === "Array" ? additional.slice() : [additional];
+            let addi_btn_view = ui.inflate(
+                <vertical>
+                    <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
+                </vertical>
+            );
+            addi_buttons.forEach((o, idx) => {
+                if (classof(o) === "Array") return addAdditionalButtons(o);
+                let btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
+                let {text, hint_color, onClickListener} = o;
+                if (text) btn_view.setText(text);
+                if (hint_color) btn_view.attr("backgroundTint", hint_color);
+                if (onClickListener) btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+                addi_btn_view.addi_button_area.addView(btn_view);
+            });
+            info_input_view.info_input_view_main.addView(addi_btn_view);
+        }
+    }
+
+    function closeInfoInputPage() {
+        if (typeof session_params !== "undefined") {
+            delete session_params.back_btn_consumed;
+            delete session_params.back_btn_consumed_func;
+        }
+
+        let parent = ui.main.getParent();
+        let child_count = parent.getChildCount();
+        for (let i = 0; i < child_count; i += 1) {
+            let child_view = parent.getChildAt(i);
+            if (child_view.findViewWithTag("fullscreen_info_input")) parent.removeView(child_view);
+        }
+    }
+}
+
+function accountNameConverter(str, opr_name) {
+    if (!str) return "";
+    let arr = str.toString().split("");
+    arr.forEach((value, idx, arr) => {
+        arr[idx] = unescape(
+            "%u" + ("0000" + (
+                value.charCodeAt(0) + (996 + idx) * {encrypt: 1, decrypt: -1}[opr_name]
+            ).toString(16)).slice(-4)
+        );
+    });
+    return arr.join("");
 }
 
 function timeSectionToStr(arr) {
