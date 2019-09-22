@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Aug 16, 2019
- * @version 1.8.4
+ * @last_modified Sep 23, 2019
+ * @version 1.9.0
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -18,28 +18,37 @@ let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 // better compatibility for both free version and pro version
 let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
+// more functions offered by Stardust and some others by me
+let app = require("./Modules/__app__pro_v41")(runtime, __global__);
+
+let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+
 let {
     launchThisApp,
     killThisApp,
-    waitForAction,
+    restartThisEngine,
+    runJsFile,
     clickAction,
+    clickActionsPipeline,
+    waitForAction,
     waitForAndClickAction,
     messageAction,
     showSplitLine,
-    getVerName,
-    runJsFile,
     debugInfo,
-    swipeInArea,
-    refreshObjects,
+    surroundWith,
+    observeToastMessage,
     tryRequestScreenCapture,
     keycode,
-    getDisplayParams,
-    observeToastMessage,
-    equalObjects,
-    getSelector,
-    surroundWith,
-    phoneCallingState,
     timeRecorder,
+    getSelector,
+    getVerName,
+    getDisplayParams,
+    setDeviceProto,
+    vibrateDevice,
+    phoneCallingState,
+    refreshObjects,
+    equalObjects,
+    swipeInArea,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 try {
@@ -70,33 +79,43 @@ antForest();
 function antForest() {
     let main = () => {
         prologue();
-        launchHomepage();
+        monitorLoggedOut();
+        launchAFHomepage();
         checkLanguage();
+        loginMainUser();
         checkEnergy();
-        showResult();
+        logBackInIfNeeded();
         epilogue();
     };
 
     let {max_retry_times_global} = config;
     let max_retry_times_global_backup = max_retry_times_global;
-    while (max_retry_times_global--) {
+    while (1) {
         try {
             return main();
         } catch (e) {
             let {message} = e;
+            let throwErrorToMainThread = () => {
+                ui.post(() => {
+                    showSplitLine();
+                    throw (e);
+                }); // throw Error to main thread for an easy location and ignore max_retry_times_global param as needed
+                sleep(2000); // to prevent continuous running of the remaining code
+            };
+            let current_retry_times = max_retry_times_global_backup - --max_retry_times_global;
+
             if (message) {
-                if (message.match("ScriptInterruptedException")) return;
-                if (message.match(/RuntimeException|IllegalArgument/)) throw (e);
-                messageAction(message, 4, 1, 0, "both_dash");
+                if (message.match("ScriptInterruptedException")) return sleep(2000); // exit signal
+                if (message.match(/RuntimeException|IllegalArgument|FORCE_STOP/)) throwErrorToMainThread();
+                else if (max_retry_times_global >= 0) messageAction(message, 4, 1, 0, "both_dash");
             }
 
-            let current_retry_times = max_retry_times_global_backup - max_retry_times_global;
-            messageAction("任务失败重试 (" + current_retry_times + "\/" + max_retry_times_global_backup + ")", 1, 0, 0, "both");
-
-            killThisApp("com.eg.android.AlipayGphone");
+            if (max_retry_times_global >= 0) {
+                messageAction("任务失败重试 (" + current_retry_times + "\/" + max_retry_times_global_backup + ")", 1, 0, 0, "both");
+                killThisApp("com.eg.android.AlipayGphone");
+            } else throwErrorToMainThread();
         }
     }
-    return main(); // to make Error (if exists) thrown to main thread and easy to locate
 }
 
 // main function(s) //
@@ -108,9 +127,8 @@ function prologue() {
     unlock();
     setScreenPixelData();
     setSelectorProto();
-    setAutoJsLogPath();
+    setDeviceProto();
     setParams();
-    loginSpecificUser(); // init_operation_logged doesn't set, and needs optimization
     debugInfo("初始化完毕");
 
     if (init_operation_logged) showSplitLine();
@@ -122,23 +140,8 @@ function prologue() {
         sel = getSelector();
     }
 
-    function setAutoJsLogPath() {
-        // need more actions here
-        let log_path = config.auto_js_log_record_path;
-
-        if (!log_path) return debugInfo("日志存储功能关闭");
-
-        files.createWithDirs(log_path);
-
-        console.setGlobalLogConfig({
-            file: log_path,
-        });
-
-        debugInfo("日志存储功能开启");
-    }
-
     function setParams() {
-        files.createWithDirs(files.getSdcardPath() + "/.local/Pics/");
+        files.createWithDirs(current_app.local_pics_path = files.getSdcardPath() + "/.local/Pics/");
 
         images.getName = (img) => {
             let img_str = img.toString().split("@")[1];
@@ -153,31 +156,54 @@ function prologue() {
                 return !!e.message.match(/has been recycled/);
             }
         };
+        images.reclaim = function () {
+            for (let i = 0, len = arguments.length; i < len; i += 1) {
+                let img = arguments[i];
+                if (!img) continue;
+                img.recycle();
+                img = null;
+            }
+        };
         images.captureCurrentScreen = () => {
-            let img = captureScreen();
             let max_try_times = 10;
             while (max_try_times--) {
                 try {
-                    return images.copy(img || captureScreen());
+                    tryRequestScreenCapture();
+                    let img = captureScreen();
+                    let img_copy = images.copy(img);
+                    images.reclaim(img);
+                    return img_copy;
                 } catch (e) {
-                    img = null;
-                    sleep(200);
+                    sleep(240);
                 }
             }
             messageAction("截取当前屏幕失败", 9, 1, 0, 1);
         };
 
+        let main_account_info = config.main_account_info || {};
+
         current_app = Object.assign({}, current_app, new App("蚂蚁森林"));
         current_app.first_time_run = true;
-        current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/);
-        current_app.kw_af_home = () => sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/, "kw_af_home");
-        current_app.kw_list_more_friends = () => sel.pickup("查看更多好友", "kw_list_more_friends");
-        current_app.kw_rank_list_title = () => sel.pickup(/好友排行榜|Green heroes/, "kw_rank_list_title");
-        current_app.kw_end_list_ident = () => sel.pickup(/.*没有更多了.*/, "kw_end_list_ident");
-        current_app.kw_wait_for_awhile = () => sel.pickup(/.*稍等片刻.*/, "kw_wait_for_awhile");
-        current_app.kw_reload_forest_page_btn = () => sel.pickup("重新加载", "kw_reload_forest_page_btn");
-        current_app.kw_close_btn = () => sel.pickup(/关闭|Close/, "kw_close_btn");
-        current_app.kw_back_btn = () => sel.pickup("返回", "kw_back_btn_common");
+        current_app.init_screen_on_state = typeof my_engine.execArgv.init_screen_on_state === "undefined"
+            ? __global__.is_init_screen_on
+            : my_engine.execArgv.init_screen_on_state;
+        current_app.init_running_app_package = typeof my_engine.execArgv.init_running_app_package === "undefined"
+            ? currentPackage()
+            : my_engine.execArgv.init_running_app_package;
+        current_app.kw_alipay_homepage = type => sel.pickup([/首页|Homepage/, {
+            boundsInside: [0, cY(0.7, 16 / 9), WIDTH, HEIGHT],
+        }], "kw_alipay_homepage", type);
+        current_app.kw_af_title = type => sel.pickup([/蚂蚁森林|Ant Forest/, {
+            boundsInside: [0, 0, cX(0.8), cY(0.2, 16 / 9)],
+        }], "kw_af_title", type);
+        current_app.kw_af_home = type => sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/, "kw_af_home", type);
+        current_app.kw_list_more_friends = type => sel.pickup("查看更多好友", "kw_list_more_friends", type);
+        current_app.kw_rank_list_title = type => sel.pickup(/好友排行榜|Green heroes/, "kw_rank_list_title", type);
+        current_app.kw_end_list_ident = type => sel.pickup(/.*没有更多了.*/, "kw_end_list_ident", type);
+        current_app.kw_wait_for_awhile = type => sel.pickup(/.*稍等片刻.*/, "kw_wait_for_awhile", type);
+        current_app.kw_reload_forest_page_btn = type => sel.pickup("重新加载", "kw_reload_forest_page_btn", type);
+        current_app.kw_close_btn = type => sel.pickup(/关闭|Close/, "kw_close_btn", type);
+        current_app.kw_back_btn = type => sel.pickup("返回", "kw_back_btn_common", type);
         current_app.kw_rank_list = () => {
             let ref = [
                 [idMatches(/.*J_rank_list_append/), 0],
@@ -195,10 +221,24 @@ function prologue() {
             }
             return ref.sort((a, b) => b[1] - a[1])[0][0];
         };
-        current_app.kw_rank_list_more = idMatches(/.*J_rank_list_more/);
-        current_app.kw_rank_list_self = idMatches(/.*J_rank_list_self/);
-        current_app.kw_login_or_switch = idMatches(/.*switchAccount|.*loginButton/);
-        current_app.init_running_app_package = currentPackage();
+        current_app.kw_rank_list_more = type => sel.pickup(idMatches(/.*J_rank_list_more/), "kw_rank_list_more", type);
+        current_app.kw_rank_list_self = type => sel.pickup(idMatches(/.*J_rank_list_self/), "kw_rank_list_self", type);
+        current_app.kw_login_btn = type => sel.pickup(/登录|.*loginButton/, "kw_login_btn", type);
+        current_app.kw_login_by_code_btn = type => sel.pickup("密码登录", "kw_login_by_code_btn", type);
+        current_app.kw_login_with_other_user = type => sel.pickup("换个账号登录", "kw_login_with_other_user", type);
+        current_app.kw_login_with_other_method = type => sel.pickup(/换个方式登录|.*switchLoginMethod.*/, "kw_login_with_other_method", type);
+        current_app.kw_login_next_step_btn = type => sel.pickup(/下一步|.*nextButton/, "kw_login_next_step_btn", type);
+        current_app.kw_login_error_ensure_btn = type => sel.pickup(idMatches(/.*ensure/), "kw_login_error_ensure_btn", type);
+        current_app.kw_input_label_account = type => sel.pickup("账号", "kw_input_label_account", type);
+        current_app.kw_input_label_code = type => sel.pickup("密码", "kw_input_label_code", type);
+        current_app.kw_user_logged_out = type => sel.pickup(/.*(在其他设备登录|.*账号于.*通过.*登录.*).*/, "kw_user_logged_out", type);
+        current_app.kw_login_with_new_user = type => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user", type);
+        current_app.kw_switch_account_title = type => sel.pickup(/账号切换/, "kw_switch_account_title", type);
+        current_app.getLoginErrorMsg = () => sel.pickup([current_app.kw_login_error_ensure_btn(), "p2c0c0c0"], "", "txt");
+        current_app.isInLoginPage = () => current_app.kw_login_with_other_user() || current_app.kw_input_label_account();
+        current_app.isInSwitchAccPage = () => current_app.kw_login_with_new_user() || current_app.kw_switch_account_title();
+        current_app.user_account_name = main_account_info.account_name;
+        current_app.user_account_code = main_account_info.account_code;
         current_app.logged_blacklist_names = [];
         current_app.homepage_intent = {
             app_id_rich: {
@@ -278,12 +318,12 @@ function prologue() {
                 };
             },
         };
-        current_app.isAutojsLogPage = () => getAutojsTitleNode(/日志|Log/).exists();
-        current_app.isAutojsSettingsPage = () => getAutojsTitleNode(/设置|Settings?/).exists();
-        current_app.isAutojsHomepage = () => idMatches(/.*action_(log|search)/).exists();
-        current_app.isAutojsForeground = () => className("ImageButton").desc("Navigate up").exists()
+        current_app.isAutojsLogPage = () => checkAutojsTitle(/日志|Log/, "kw_autojs_log_page_title");
+        current_app.isAutojsSettingsPage = () => checkAutojsTitle(/设置|Settings?/, "kw_autojs_settings_page_title");
+        current_app.isAutojsHomepage = () => sel.pickup(idMatches(/.*action_(log|search)/), "", "exists");
+        current_app.isAutojsForeground = () => sel.pickup(["Navigate up", {className: "ImageButton"}], "kw_autojs_back_btn")
             || current_app.isAutojsHomepage() || current_app.isAutojsLogPage()
-            || current_app.isAutojsSettingsPage() || idMatches(/.*md_\w+/).exists();
+            || current_app.isAutojsSettingsPage() || sel.pickup(idMatches(/.*md_\w+/));
         current_app.init_autojs_state = {
             init_foreground: current_app.isAutojsForeground(),
             init_homepage: current_app.isAutojsHomepage(),
@@ -303,7 +343,6 @@ function prologue() {
             this.name = name;
             this.quote_name = surroundWith(name);
             this.package_name = getAlipayPkgName();
-            this.specific_user = setSpecificUser();
             this.blacklist = handleFirstTimeRunBlacklist();
 
             // tool function(s) //
@@ -314,8 +353,8 @@ function prologue() {
                 if (app.getAppName(default_pkg)) return default_pkg;
 
                 let result;
-                let pkg_samples = ["Alipay", "支付宝", "支付寶"],
-                    joined_pkg_name = "\"" + pkg_samples.join("\/") + "\"";
+                let pkg_samples = ["Alipay", "支付宝", "支付寶"];
+                let joined_pkg_name = "\"" + pkg_samples.join("\/") + "\"";
 
                 for (let i = 0, len = pkg_samples.length; i < len; i += 1) {
                     if ((result = app.getPackageName(pkg_samples[i]))) {
@@ -325,11 +364,7 @@ function prologue() {
                         return result;
                     }
                 }
-                return messageAction("此设备未安装\"" + pkg_samples.join("\/") + "\"软件", 8, 1);
-            }
-
-            function setSpecificUser() {
-                return "此功能暂未开发" && false;
+                return messageAction("此设备未安装\"" + pkg_samples.join("\/") + "\"软件", 9, 1);
             }
 
             function handleFirstTimeRunBlacklist() {
@@ -366,9 +401,9 @@ function prologue() {
             let alipay_ver = getVerName(current_app.package_name);
             debugInfo("支付宝版本: " + alipay_ver);
             if (~bug_vers.indexOf(alipay_ver)) {
-                messageAction("脚本无法继续", 4);
+                messageAction("脚本无法继续", 4, 0, 0, "up");
                 messageAction("当前支付宝版本存在已知问题", 4);
-                messageAction("请更换支付宝版本", 8, 1, 1, 1);
+                messageAction("请更换支付宝版本", 9, 1, 1, 1);
             }
         }
 
@@ -378,19 +413,65 @@ function prologue() {
             if (!max || !+max) return;
 
             threads.start(function () {
-                setTimeout(() => messageAction("超时强制退出", 8, 1, 0, "both_n"), +max * 60000 + 3000);
+                setTimeout(function () {
+                    ui.post(() => messageAction("超时强制退出", 9, 1, 0, "both_n"));
+                }, +max * 60000 + 3000);
             });
             debugInfo("单次运行最大超时设置完毕");
         }
 
-        function getAutojsTitleNode(regexp) {
-            return className("TextView").textMatches(regexp)
-                .boundsInside(cX(0.12), cY(0.03, 16 / 9), cX(0.5), cY(0.12, 16 / 9));
+        function checkAutojsTitle(regexp, memory_keyword) {
+            sel.pickup([regexp, {
+                className: "TextView",
+                boundsInside: [cX(0.12), cY(0.03, 16 / 9), cX(0.5), cY(0.12, 16 / 9)],
+            }], memory_keyword, "exists")
         }
     }
 }
 
-function launchHomepage(params) {
+function monitorLoggedOut() {
+    let {need_login_first} = my_engine.execArgv;
+    if (need_login_first) {
+        debugInfo("检测到\"预先登录\"引擎参数");
+        loginMainUser("direct_login");
+    }
+    debugInfo("已开启账户登出监测线程");
+    threads.start(function () {
+        current_app.account_logged_out = false;
+        let is_logged_out = false;
+        let is_in_login_page = false;
+        let {kw_user_logged_out, isInLoginPage} = current_app;
+        let loggedOut = () => is_logged_out = kw_user_logged_out();
+        let inLoginPage = () => is_in_login_page = isInLoginPage();
+
+        while (!loggedOut() && !inLoginPage()) sleep(500);
+
+        current_app.account_logged_out = true;
+        messageAction("检测到账户登出状态", 1, 0, 0, "up");
+        messageAction(is_logged_out ? "账户在其他地方登录" : "需要登录账户", 1);
+
+        if (!config.account_switch) {
+            messageAction("无法登录账户", null, 1);
+            messageAction("脚本无法继续", 4, 0, 0, "up");
+            messageAction("当前支付宝未登录账户", 4, 0, 1);
+            messageAction("且主账户功能未开启", 9, 0, 1, 1);
+        }
+
+        messageAction("尝试重启引擎并自动登录账户", 1, 0, 0, 1);
+        if (!restartThisEngine({
+            max_restart_engine_times: 1,
+            need_login_first: true,
+            instant_run_flag: true,
+            init_screen_on_state: current_app.init_screen_on_state,
+            init_running_app_package: current_app.init_running_app_package,
+        })) {
+            messageAction("脚本无法继续", 4, 0, 0, "up");
+            messageAction("无法登录主账户", 9, 1, 1, 1);
+        }
+    });
+}
+
+function launchAFHomepage(params) {
     params = params || {};
     if (current_app.first_time_run) {
         messageAction("开始" + current_app.quote_name + "任务", 1, 1, 0, "both");
@@ -408,23 +489,18 @@ function launchHomepage(params) {
             condition_ready: current_app.isAutojsForeground,
         }) ? debugInfo("跳板启动成功") : debugInfo(["跳板启动失败", ">打开" + current_autojs_app_name + "应用超时"], 3);
     }
-    let launch_result = plans("launchHomepage", Object.assign({}, {exclude: "_test_"}, params));
+    let launch_result = plans("launch_af_homepage", Object.assign({}, {exclude: "_test_"}, params));
     if (screen_orientation !== 0) setScreenPixelData("refresh");
     return launch_result;
 }
 
 function launchRankList(params) {
-    return plans("launchRankList", Object.assign({}, {exclude: "_test_"}, params || {}));
+    return plans("launch_rank_list", Object.assign({}, {exclude: "_test_"}, params || {}));
 }
 
 function checkLanguage() {
     let title_str = "";
-    if (!waitForAction(() => {
-        let title_node = current_app.kw_af_title().findOnce();
-        let title_desc = title_node && title_node.desc();
-        let title_text = title_node && title_node.text();
-        return title_str = title_desc || title_text;
-    }, 10000, 100)) {
+    if (!waitForAction(() => title_str = current_app.kw_af_title("txt"), 10000, 100)) {
         messageAction("语言检测已跳过", 3);
         return messageAction("语言检测超时", 3, 0, 1, 1);
     }
@@ -432,14 +508,32 @@ function checkLanguage() {
     else {
         debugInfo("当前支付宝语言: 英语");
         changeLangToChs();
-        launchHomepage();
+        launchAFHomepage()
+            ? messageAction("切换支付宝语言: 简体中文", 1, 0, 0, 1)
+            : messageAction("语言切换失败", 8, 1, 0, 1);
     }
     debugInfo("语言检查完毕");
 
     // tool function(s) //
 
     function changeLangToChs() {
-        getReady() && ~handleTxtPipeline() && showSplitLine();
+        if (!getReady()) return;
+
+        messageAction("切换支付宝语言: 简体中文", null, 1);
+
+        return clickActionsPipeline([
+            [["Me", "p1"]],
+            [["Settings", {clickable: true}]],
+            [["General", "p4"]],
+            [["Language", "p4"]],
+            [["简体中文", "p4"], () => sel.pickup(["简体中文", "p3"], "", "children").length > 1],
+            ["Save"],
+        ], {
+            name: "切换简体中文语言",
+            default_strategy: "widget",
+        });
+
+        // tool function(s) //
 
         function getReady() {
             let max_try_times_close_btn = 10;
@@ -447,7 +541,7 @@ function checkLanguage() {
                 if (clickAction(current_app.kw_close_btn())) break;
                 sleep(500);
             }
-            let kw_homepage = className("android.widget.TextView").idContains("tab_description");
+            let kw_homepage = className("TextView").idContains("tab_description");
             if (waitForAction(kw_homepage, 2000)) return true;
             let max_try_times = 5;
             while (max_try_times--) {
@@ -463,39 +557,356 @@ function checkLanguage() {
             }
             return true;
         }
+    }
+}
 
-        function handleTxtPipeline() {
-            let txt_pipe_line = {
-                "Me": "_next",
-                "Settings": "_next",
-                "General": "_next",
-                "Language": "_next",
-                "\u7b80\u4f53\u4e2d\u6587": () => sel.pickup("简体中文").findOnce().parent().parent().parent().children().size() === 2,
-                "Save": () => !text("Save").exists() && !desc("Save").exists(),
+function loginMainUser(direct_login_flag) {
+    if (!config.account_switch) return debugInfo("主账户功能未开启");
+
+    let {user_account_name} = current_app;
+    if (!user_account_name) return debugInfo("主账户用户名未设置");
+    let _acc = accountNameConverter(user_account_name, "decrypt");
+
+    if (direct_login_flag) return loginMainUserNow();
+
+    let avatar_local_path = current_app.local_pics_path + "main_user_mini_avatar_clip.png";
+    let avatar_local_img = images.read(avatar_local_path);
+
+    timeRecorder("avatar_check");
+    let avatar_check_result = checkAvatar(avatar_local_img);
+    current_app.avatar_checked_time = timeRecorder("avatar_check", "load");
+
+    if (avatar_check_result) {
+        debugInfo(["当前账户符合主账户身份", ">本地主账户头像匹配成功"]);
+        current_app.init_is_main_user_logged_in = true;
+        return true;
+    } else {
+        debugInfo(["主账户身份检查未通过", ">本地主账户头像不匹配"])
+    }
+
+    if (checkIfUserLoggedIn(_acc) || loginMainUserNow()) {
+        launchAFHomepage();
+        saveNewAvatar();
+        return true;
+    }
+
+    messageAction("强制停止脚本", 4, 1, 0, "up");
+    return messageAction("主账户登录失败", 8, 1, 1, 1);
+
+    // tool function(s) //
+
+    function checkAvatar(img) {
+        if (!img) return;
+        let current_avatar = getCurrentAvatar();
+        if (!current_avatar) return;
+        let matched = images.findImage(current_avatar, img, {level: 1});
+        images.reclaim(current_avatar);
+        return matched;
+    }
+
+    function getCurrentAvatar() {
+        let bounds = null;
+        waitForAction(() => bounds = getAvatarPosition("bounds"), 3000, 100);
+        if (!bounds) {
+            messageAction("无法获取当前头像样本", 3);
+            return messageAction("森林主页头像控件定位失败", 3, 1);
+        }
+        let [l, t, w, h] = [bounds.left, bounds.top, bounds.width(), bounds.height()];
+        let [w_chopped, h_chopped] = [w / Math.sqrt(2), h / Math.sqrt(2)];
+        let capt_img = images.captureCurrentScreen();
+        let avatar_clip = images.clip(
+            capt_img,
+            // to get the biggest rectangle area inside the circle (or ellipse)
+            // remove 1 pixel from each side of the area
+            l + (w - w_chopped) / 2 + 1,
+            t + (h - h_chopped) / 2 + 1,
+            w_chopped - 2,
+            h_chopped - 2
+        );
+        images.reclaim(capt_img);
+        return avatar_clip;
+
+        // tool function(s) //
+
+        function getAvatarPosition(specified_type) {
+            let sel = getSelector({debug_info_flag: false});
+            let o = {
+                kw_my_tree_plant_plan: type => sel.pickup("我的大树养成记录", "", type),
+                kw_user_energy: type => sel.pickup([idMatches(/.*user.+nergy/), "p2c0"], "", type),
+                kw_plant_tree_btn: type => sel.pickup(["种树", {
+                    className: "Button"
+                }, "p1c0"], "", type),
+                kw_home_panel: type => sel.pickup([idMatches(/.*home.*panel/), "c0c0c0"], "", type),
             };
+            let o_keys = Object.keys(o);
+            for (let i = 0, len = o_keys.length; i < len; i += 1) {
+                let kw = o[o_keys[i]];
+                let result = kw(specified_type);
+                if (result) {
+                    debugInfo(["森林主页头像控件定位成功", ">" + kw("selector").toString()]);
+                    return result;
+                }
+            }
+            return null;
+        }
+    }
 
-            let ppl_keys = Object.keys(txt_pipe_line);
+    function saveNewAvatar() {
+        let current_avatar = getCurrentAvatar();
+        if (!current_avatar) return;
+        images.save(current_avatar, avatar_local_path);
+        images.reclaim(current_avatar);
+        return true;
+    }
 
-            for (let i = 0, len = ppl_keys.length; i < len; i += 1) {
-                let key = ppl_keys[i],
-                    value = txt_pipe_line[key],
-                    next_key = ppl_keys[i + 1],
-                    condition = value === "_next" ? sel.pickup(next_key) : value;
+    function loginMainUserNow() {
+        let {
+            user_account_code,
+            kw_alipay_homepage,
+            kw_close_btn,
+            kw_login_with_other_user,
+            kw_login_with_other_method,
+            kw_login_next_step_btn,
+            kw_login_btn,
+            kw_login_by_code_btn,
+            kw_input_label_account,
+            kw_input_label_code,
+            kw_login_error_ensure_btn,
+            kw_user_logged_out,
+            getLoginErrorMsg,
+            isInLoginPage,
+            isInSwitchAccPage,
+        } = current_app;
 
-                let kw_key = sel.pickup(key);
-                clickAction(kw_key);
-                let max_try_times = 5;
-                while (!waitForAction(condition, 2000) && max_try_times--) clickAction(kw_key);
-                if (max_try_times < 0) return handleFailure(next_key);
+        return clickAbbrNameInUserList() || inputUsernameAndCode();
+
+        // tool function(s) //
+
+        function inputUsernameAndCode() {
+            if (!waitForAction(() => {
+                if (kw_user_logged_out()) clickAction(sel.pickup("好的"), "widget");
+                return isInLoginPage() || isInSwitchAccPage();
+            }, 3000)) return messageAction("无法判断当前登录页面状态", 4, 1, 0, "both_dash");
+
+            if (!isInLoginPage()) {
+                if (!clickAction(sel.pickup([current_app.kw_login_with_new_user(), "p4"]), "widget")) {
+                    app.startActivity({
+                        action: "VIEW",
+                        className: "com.alipay.mobile.security.login.ui.RecommandAlipayUserLoginActivity",
+                        packageName: "com.eg.android.AlipayGphone",
+                    });
+                }
             }
 
-            return messageAction("Language switched to Chinese (Simplified)", 1, 1);
+            clickUseAnotherAccountBtnIfNeeded();
+            inputUserAccount() && inputUserCode();
+
+            return checkLoginState();
 
             // tool function(s) //
 
-            function handleFailure(title) {
-                messageAction("Language switched failed", 4, 1);
-                messageAction(title + " failed to get ready", 4, 0, 1);
+            function clickUseAnotherAccountBtnIfNeeded() {
+                waitForAction(() => kw_login_with_other_user() || kw_input_label_account(), 3000);
+                if (kw_login_with_other_user()) {
+                    debugInfo("点击\"换个账号登录\"按钮");
+                    clickAction(kw_login_with_other_user(), "widget");
+                    waitForAction(kw_input_label_account, 3000); // just in case
+                }
+            }
+
+            function inputUserAccount() {
+                debugInfo("尝试完成账户名输入");
+
+                let inputExists = () => sel.pickup(_acc);
+                let condition_a = () => waitForAction(inputExists, 1000);
+                let condition_b = () => !waitForAction(() => !inputExists(), 500, 100);
+                let condition_ok = () => condition_a() && condition_b();
+
+                let max_try_input_account = 3;
+                while (max_try_input_account--) {
+                    if (kw_input_label_account()) {
+                        debugInfo("找到\"账号\"输入项控件");
+                        let input_node = sel.pickup([kw_input_label_account(), "p2c1"]);
+                        let input_result = false;
+                        if (input_node) {
+                            debugInfo("布局树查找可编辑\"账号\"控件成功");
+                            input_result = input_node.setText(_acc);
+                        } else {
+                            debugInfo("布局树查找可编辑\"账号\"控件失败", 3);
+                            debugInfo("尝试使用通用可编辑控件", 3);
+                            let edit_text_node = className("EditText").findOnce();
+                            input_result = edit_text_node && edit_text_node.setText(_acc);
+                        }
+                        debugInfo("控件输入账户名" + (input_result ? "成功" : "失败"), input_result ? 0 : 3);
+                    } else {
+                        messageAction("布局查找\"账号\"输入项控件失败", 3, 0, 0, "up_dash");
+                        messageAction("尝试盲输", 3, 0, 0, "dash");
+                        setText(0, _acc);
+                    }
+                    if (condition_ok()) break;
+                }
+                if (max_try_input_account < 0) return messageAction("输入账户名后检查输入未通过", 4, 1, 0, "both_dash");
+                debugInfo("成功输入账户名");
+
+                if (kw_input_label_code()) return debugInfo(["无需点击\"下一步\"按钮", ">存在\"密码\"输入项控件"]) || true;
+                if (kw_login_btn()) return debugInfo(["无需点击\"下一步\"按钮", ">存在\"登录\"按钮控件"]) || true;
+
+                debugInfo("点击\"下一步\"按钮");
+
+                clickAction(sel.pickup([kw_login_next_step_btn(), "p1"]), "widget", {
+                    max_check_times: 3,
+                    check_time_once: 500,
+                    condition_success: () => !kw_login_next_step_btn(),
+                });
+
+                if (waitForAction(() => kw_input_label_code() || kw_login_with_other_method() || kw_login_error_ensure_btn(), 8000)) {
+                    let wait_times = 3;
+                    while (wait_times--) {
+                        if (waitForAction(kw_input_label_code, 1500)) return debugInfo("找到\"密码\"输入项控件") || true;
+                        if (kw_login_error_ensure_btn()) {
+                            messageAction("登录失败", 4, 1, 0, "up");
+                            messageAction("失败提示信息:" + getLoginErrorMsg(), 8, 0, 1, 1);
+                        }
+                        if (kw_login_with_other_method()) {
+                            debugInfo("点击\"换个方式登录\"按钮");
+                            clickAction(kw_login_with_other_method(), "widget");
+                            if (!waitForAction(kw_login_by_code_btn, 2000)) {
+                                return messageAction("未找到\"密码登录\"按钮", 4, 1, 0, "both_dash");
+                            }
+                            debugInfo("点击\"密码登录\"按钮");
+                            clickAction(sel.pickup([kw_login_by_code_btn(), "p1"]), "widget");
+                        }
+                    }
+                }
+
+                return messageAction("查找\"密码\"输入项控件超时", 4, 1, 0, "both_dash");
+            }
+
+            function inputUserCode() {
+                debugInfo("尝试完成密码输入");
+                return user_account_code ? inputAutomatically() : inputManually();
+
+                // tool function(s) //
+
+                function inputManually() {
+                    debugInfo("需要手动输入密码");
+                    vibrateDevice(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+
+                    let timeout_user_response = 2; // min
+                    let timeout_login_btn_dismissed = 2; // min
+                    let result = false;
+
+                    let max_check_time = ~~(timeout_user_response + timeout_login_btn_dismissed) * 60000;
+                    __global__.pause_screen_off_state_monitor = true;
+                    device.keepOn(max_check_time);
+
+                    threads.start(function () {
+                        let diag = dialogs.builds(["需要密码", "login_password_needed", 0, 0, "确定", 1]);
+                        diag.on("positive", () => diag.dismiss()).show();
+
+                        threads.start(function () {
+                            debugInfo(["等待用户响应\"需要密码\"对话框", ">最大超时时间: " + timeout_user_response + "分钟"]);
+                            if (!waitForAction(() => {
+                                return diag.isCancelled() && !waitForAction(() => !diag.isCancelled(), 2000);
+                            }, timeout_user_response * 60000)) {
+                                device.cancelOn();
+                                diag.dismiss();
+                                messageAction("脚本无法继续", 4, 0, 0, "up");
+                                messageAction("登录失败", 4, 0, 1);
+                                messageAction("需要密码时等待用户响应超时", 9, 1, 1, 1);
+                            }
+                            debugInfo(["等待用户点击\"登录\"按钮", ">最大超时时间: " + timeout_login_btn_dismissed + "分钟"]);
+                            if (!waitForAction(() => {
+                                return !kw_login_btn() && !waitForAction(() => {
+                                    return sel.pickup(/.*confirmSetting|.*mainTip|.*登录中.*|.*message/)
+                                        || kw_login_error_ensure_btn();
+                                }, 500);
+                            }, timeout_login_btn_dismissed * 60000)) {
+                                device.cancelOn();
+                                diag.dismiss(); // just in case
+                                messageAction("脚本无法继续", 4, 0, 0, "up");
+                                messageAction("登录失败", 4, 0, 1);
+                                messageAction("等待\"登录\"按钮消失超时", 9, 1, 1, 1);
+                            }
+                            result = true;
+                        });
+                    });
+
+                    while (!result) sleep(500);
+
+                    click(Math.pow(10, 7), Math.pow(10, 7));
+                    delete __global__.pause_screen_off_state_monitor;
+                    device.cancelOn();
+
+                    return true;
+                }
+
+                function inputAutomatically() {
+                    debugInfo("尝试自动输入密码");
+
+                    let decrypt = new (require("./Modules/MODULE_PWMAP"))().pwmapDecrypt;
+                    if (sel.pickup([kw_input_label_code(), "p2c1"]).setText(decrypt(user_account_code))) {
+                        debugInfo("布局树查找可编辑\"密码\"控件成功");
+                    } else {
+                        debugInfo("布局树查找可编辑\"密码\"控件失败", 3);
+                        debugInfo("尝试使用通用可编辑控件", 3);
+                        let edit_text_node = className("EditText").findOnce();
+                        let input_result = edit_text_node && edit_text_node.setText(decrypt(user_account_code));
+                        debugInfo("通用可编辑控件输入" + (input_result ? "成功" : "失败"), input_result ? 0 : 3);
+                    }
+
+                    debugInfo("点击\"登录\"按钮");
+                    if (!clickAction(kw_login_btn(), "widget")) {
+                        return messageAction("输入密码后点击\"登录\"失败", 4, 1, 0, "both_dash");
+                    }
+                }
+            }
+
+            function checkLoginState() {
+                let conditions = {
+                    name: "登录账户",
+                    time: 0.5, // 30 sec
+                    wait: [{
+                        remark: "登录中进度条",
+                        cond: () => sel.pickup(/.*登录中.*/),
+                    }],
+                    success: [{
+                        remark: "支付宝首页",
+                        cond: kw_alipay_homepage,
+                    }, {
+                        remark: "H5关闭按钮",
+                        cond: kw_close_btn,
+                    }],
+                    fail: [{
+                        remark: "失败提示",
+                        cond: kw_login_error_ensure_btn,
+                        feedback: () => {
+                            device.cancelOn();
+                            messageAction("脚本无法继续", 4, 0, 0, "up");
+                            messageAction("登录失败", 4, 1, 1);
+                            messageAction("失败提示信息:" + getLoginErrorMsg(), 9, 0, 1, 1);
+                        },
+                    }, {
+                        remark: "失败提示",
+                        cond: () => sel.pickup(/.*confirmSetting|.*mainTip/),
+                        feedback: () => {
+                            device.cancelOn();
+                            messageAction("脚本无法继续", 4, 0, 0, "up");
+                            messageAction("登录失败", 4, 1, 1);
+                            messageAction("失败提示信息:" + sel.pickup(/.*mainTip/, "", "txt"), 9, 0, 1, 1);
+                        },
+                    }],
+                    timeout_review: [{
+                        remark: "强制账号列表检查",
+                        cond: () => {
+                            if (checkIfUserLoggedIn(_acc, "forcible")) return true;
+                            messageAction("脚本无法继续", 4, 0, 0, "up");
+                            messageAction("切换主账户超时", 9, 1, 1, 1);
+                        },
+                    }]
+                };
+
+                return conditionChecker(conditions);
             }
         }
     }
@@ -503,9 +914,9 @@ function checkLanguage() {
 
 function checkEnergy() {
     let list_end_signal = 0;
-    let kw_more_friends = () => current_app.kw_list_more_friends();
-    let kw_energy_balls = (type) => {
-        type = type || "all";
+    let kw_energy_balls = (balls_kind, type) => {
+        balls_kind = balls_kind || "all";
+        type = type || "nodes";
         let regexp_type = {
             "normal": /\xa0/,
             "ripe": /收集能量\d+克/,
@@ -516,7 +927,7 @@ function checkEnergy() {
             return current_app.combined_kw_energy_balls_regexp = new RegExp(combined_regexp_str.replace(/\|$/, ""));
         })();
 
-        return sel.pickup(regexp_type[type], "kw_energy_balls_" + type); // className("Button") has been removed
+        return sel.pickup([regexp_type[balls_kind], {className: "Button"}], "kw_energy_balls_" + balls_kind, type);
     };
 
     checkOwnEnergy();
@@ -526,7 +937,7 @@ function checkEnergy() {
     // main function(s) //
 
     function checkOwnEnergy() {
-        if (!config.self_collect_switch) return debugInfo("自收功能未开启");
+        if (!config.self_collect_switch) return debugInfo(["跳过自己能量检查", "自收功能未开启"]);
 
         debugInfo("开始检查自己能量");
 
@@ -534,14 +945,23 @@ function checkEnergy() {
         let total_init_data = current_app.total_energy_init;
         debugInfo("初始能量: " + total_init_data + "g");
 
-        waitForAction([kw_more_friends(), current_app.kw_af_home(), "or"], 12000)
+        waitForAction([current_app.kw_list_more_friends, current_app.kw_af_home, "or"], 12000)
             ? debugInfo("蚂蚁森林主页准备完毕")
             : debugInfo("蚂蚁森林主页准备超时", 3);
 
         let {max_own_forest_balls_ready_time} = config;
         debugInfo(["查找主页能量球控件", ">最大时间参数: " + max_own_forest_balls_ready_time + "ms"]);
+
+        let {avatar_checked_time} = current_app;
+        if (avatar_checked_time) {
+            let final_minified_time = Math.max(150, max_own_forest_balls_ready_time - avatar_checked_time);
+            max_own_forest_balls_ready_time = final_minified_time;
+            debugInfo(["查找时间值削减至: " + final_minified_time + "ms", ">主账户检测耗时抵充"]);
+            delete current_app.avatar_checked_time;
+        }
+
         let homepage_balls_len = 0;
-        if (waitForAction(() => homepage_balls_len = kw_energy_balls().find().length, max_own_forest_balls_ready_time, 50)) {
+        if (waitForAction(() => homepage_balls_len = kw_energy_balls().length, max_own_forest_balls_ready_time, 50)) {
             debugInfo("找到主页能量球: " + homepage_balls_len + "个");
             checkEnergyBalls();
         } else debugInfo("指定时间内未发现主页能量球");
@@ -569,16 +989,16 @@ function checkEnergy() {
 
             function checkRipeBalls() {
                 let ripe_balls_nodes = null;
-                let ripe_balls_size = 0;
+                let ripe_balls_len = 0;
 
-                let getRipeBallsNodes = () => ripe_balls_nodes = kw_energy_balls("ripe").find();
-                let getRipeBallsSize = () => ripe_balls_size = getRipeBallsNodes().length;
+                let getRipeBallsNodes = () => ripe_balls_nodes = kw_energy_balls("ripe");
+                let getRipeBallsSize = () => ripe_balls_len = getRipeBallsNodes().length;
 
                 if (!getRipeBallsSize()) return;
 
                 let max_try_times = 8;
-                while (ripe_balls_size && max_try_times--) {
-                    debugInfo("点击自己成熟能量球: " + ripe_balls_size + "个");
+                while (ripe_balls_len && max_try_times--) {
+                    debugInfo("点击自己成熟能量球: " + ripe_balls_len + "个");
                     ripe_balls_nodes.forEach((w) => {
                         clickAction(w.bounds(), "press", {press_time: config.energy_balls_click_interval});
                     });
@@ -594,7 +1014,7 @@ function checkEnergy() {
             function getMinCountdownOwn() {
                 debugInfo("开始检测自己能量球最小倒计时");
 
-                let raw_balls = kw_energy_balls("normal").find();
+                let raw_balls = kw_energy_balls("normal");
                 let raw_balls_len = raw_balls.length;
                 debugInfo("找到自己未成熟能量球: " + raw_balls_len + "个");
                 if (!raw_balls_len) {
@@ -637,7 +1057,7 @@ function checkEnergy() {
                     if (thread_get_countdown_data.isAlive()) {
                         thread_get_countdown_data.interrupt();
                         messageAction("获取自己能量倒计时超时", 3);
-                        messageAction("最小倒计时数据可能不准确", 3, 0, 1);
+                        messageAction("最小倒计时数据可能不准确", 3, 0, 1, 1);
                     }
 
                     return countdown_data.map(str => {
@@ -660,9 +1080,7 @@ function checkEnergy() {
                 timeRecorder("homepage_monitor", "save");
                 messageAction("Non-stop checking time", null, 1);
                 debugInfo("开始监测自己能量");
-                device.keepScreenOn(max_check_time);
-                debugInfo("已设置屏幕常亮");
-                debugInfo(">最大超时时间: " + max_check_time + "ms");
+                device.keepOn(max_check_time);
                 try {
                     while (timeRecorder("homepage_monitor", "load") < max_check_time) {
                         if (checkRipeBalls()) break;
@@ -674,8 +1092,7 @@ function checkEnergy() {
                 messageAction("Checking completed", null, 1);
                 debugInfo("自己能量监测完毕");
                 debugInfo("本次监测收取结果: " + (current_app.total_energy_collect_own - old_collect_own) + "g");
-                device.cancelKeepingAwake();
-                debugInfo("屏幕常亮已取消");
+                device.cancelOn();
                 debugInfo("监测用时: " + timeRecorder("homepage_monitor", "load", 1000, [1], "秒"));
             }
         }
@@ -683,7 +1100,7 @@ function checkEnergy() {
         function getOwnEnergyAmount(buffer_flag) {
             let regexp_energy_amount = /\d+g/;
             if (buffer_flag) {
-                let condition = () => sel.pickup(regexp_energy_amount).exists() && current_app.kw_af_home().exists();
+                let condition = () => sel.pickup(regexp_energy_amount) && current_app.kw_af_home();
                 if (!waitForAction(condition, 8000)) {
                     debugInfo("尝试刷新总能量值参考控件");
                     refreshObjects();
@@ -696,12 +1113,10 @@ function checkEnergy() {
             }
             let max_try_times = buffer_flag ? 10 : 1;
             while (max_try_times--) {
-                let node_desc = descMatches(regexp_energy_amount).findOnce();
-                let node_text = textMatches(regexp_energy_amount).findOnce();
-                let content_desc = node_desc && node_desc.desc() && node_desc.desc().match(/\d+/);
-                let content_text = node_text && node_text.text() && node_text.text().match(/\d+/);
-                if (content_desc && content_desc[0]) return +content_desc[0];
-                if (content_text && content_text[0]) return +content_text[0];
+                let amount = +sel.pickup([regexp_energy_amount, {
+                    boundsInside: [cX(0.6), cY(0.1, 16 / 9), WIDTH - 2, cY(0.3, 16 / 9)],
+                }], "", "txt").match(/\d+/);
+                if (!isNaN(amount)) return amount;
                 sleep(200);
             }
             if (max_try_times < 0) return -1;
@@ -719,6 +1134,8 @@ function checkEnergy() {
         let blacklist_ident_captures = setBlacklistIdentCapturesProto();
         blacklist_ident_captures.splice(0, blacklist_ident_captures.length);
 
+        let kw_dynamic_list_info = type => sel.pickup(/来浇过水.+|(帮忙)?收取\d+g/, "kw_dynamic_list_info", type);
+
         let {help_collect_switch, friend_collect_switch} = config;
         if (!friend_collect_switch) {
             if (!help_collect_switch) return debugInfo(["跳过好友能量检查", ">收取功能与帮收功能均已关闭"]);
@@ -730,6 +1147,7 @@ function checkEnergy() {
         if (!rankListReady(review_flag)) return;
 
         let help_balls_coords = {};
+        let init_balls_len = 0;
         let strategy = config.rank_list_samples_collect_strategy;
         let thread_energy_balls_monitor = undefined;
         let thread_list_end = threads.start(monitorEndOfListByUiObjThread);
@@ -743,6 +1161,9 @@ function checkEnergy() {
             let pop_item_0, pop_item_1, pop_item;
 
             while ((pop_item = (pop_item_0 = targets[0].pop()) || (pop_item_1 = targets[1].pop()))) {
+                init_balls_len = 0;
+                delete current_app.rank_list_icon_clicked;
+
                 let pop_name = pop_item.name;
                 current_app.current_friend.name = pop_name;
                 current_app.current_friend.console_logged = 0;
@@ -757,17 +1178,27 @@ function checkEnergy() {
                 let clickRankListItemFunc = () => {
                     if (strategy === "image") clickAction([cX(0.5), pop_item.list_item_click_y], "press");
                     else if (strategy === "layout") clickAction(sel.pickup(pop_name), "click");
-                    debugInfo("点击" + (pop_item_0 && "收取目标" || pop_item_1 && "帮收目标"));
+
+                    if (current_app.current_friend.six_balls_review_flag) debugInfo("复查当前好友", "both");
+                    else debugInfo("点击" + (pop_item_0 && "收取目标" || pop_item_1 && "帮收目标"));
+
+                    current_app.rank_list_icon_clicked = true;
                 };
 
-                if (inBlackList(clickRankListItemFunc)) continue;
+                while (1) {
+                    if (inBlackList(clickRankListItemFunc)) break;
 
-                forestPageGetReady() && collectBalls();
-                backToHeroList();
+                    forestPageGetReady() && collectBalls();
+                    backToHeroList();
 
-                if (message_switch_on) {
-                    !current_app.current_friend.console_logged && messageAction("无能量球可操作", 1, 0, 1);
-                    showSplitLine();
+                    let {console_logged, six_balls_review_flag} = current_app.current_friend;
+                    if (!six_balls_review_flag) {
+                        if (message_switch_on) {
+                            if (!console_logged) messageAction("无能量球可操作", 1, 0, 1);
+                            showSplitLine();
+                        }
+                        break;
+                    }
                 }
             }
 
@@ -802,14 +1233,13 @@ function checkEnergy() {
                     debugInfo("黑名单采集样本已达阈值: " + max_length);
                     let last_capt = blacklist_ident_captures.pop();
                     debugInfo(">移除并回收最旧样本: " + images.getName(last_capt));
-                    last_capt.recycle();
+                    images.reclaim(last_capt);
                 }
-                // let new_capt = images.clip(capture, cX(298), cY16h9w(218), cX(120), cY16h9w(22));
-                let new_capt = images.clip(capture, cX(288), cY(210, 16 / 9), cX(142), cY(44, 16 / 9)); // more flexible condition(s)
-                blacklist_ident_captures.unshift(new_capt);
-                debugInfo("添加黑名单采集样本: " + images.getName(new_capt));
+                blacklist_ident_captures.unshift(capture);
+                debugInfo("添加黑名单采集样本: " + images.getName(capture));
             };
             blacklist_ident_captures.__proto__.clear = function () {
+                if (!blacklist_ident_captures.length) return;
                 debugInfo("回收全部黑名单采集样本");
                 blacklist_ident_captures.forEach(capt => {
                     capt.recycle();
@@ -825,10 +1255,7 @@ function checkEnergy() {
         function rankListReady(review_flag) {
             if (!launchRankList({review_flag: review_flag})) return;
 
-            if (!__global__._monster_$_request_screen_capture_flag) {
-                tryRequestScreenCapture({restart_this_engine_flag: true});
-                sleep(300);
-            }
+            tryRequestScreenCapture();
 
             getRankListRefMaterials();
 
@@ -836,10 +1263,6 @@ function checkEnergy() {
 
             if (!(current_app.thread_expand_hero_list && current_app.thread_expand_hero_list.isAlive())) {
                 current_app.thread_expand_hero_list = threads.start(expandHeroListThread);
-            }
-
-            if (!current_app.thread_monitor_and_set_user_id) {
-                current_app.thread_monitor_and_set_user_id = threads.start(monitorAndSetUserIdThread);
             }
 
             return true;
@@ -851,12 +1274,12 @@ function checkEnergy() {
                 debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
                 sleep(100);
 
-                waitForAction(() => current_app.kw_rank_list_title().exists(), 2500, 80); // just in case
+                let key_node = null;
+                waitForAction(() => key_node = current_app.kw_rank_list_title(), 2500, 80); // just in case
 
                 getCloseBtnCenterCoord();
 
-                let key_node = current_app.kw_rank_list_title().findOnce();
-                if (!key_node) return debugInfo("排行榜标题控件抓取失败");
+                if (!key_node) return debugInfo("排行榜标题控件抓取失败", 3);
                 let bounds = key_node.bounds();
                 debugInfo("采集并存储排行榜标题区域样本:");
                 let [l, t, w, h] = [3, bounds.top, WIDTH - 6, bounds.height()];
@@ -864,20 +1287,21 @@ function checkEnergy() {
                 current_app.rank_list_title_area_capt_bounds = [l, t, w, h];
                 (current_app.setRankListTitleAreaCapt = () => {
                     if (!current_app.rank_list_title_area_capt_bounds) return debugInfo("排行榜标题区域边界数据不存在");
-                    return current_app.rank_list_title_area_capt = images.clip.apply(null, [current_app.rank_list_capt_img].concat(current_app.rank_list_title_area_capt_bounds));
+                    return current_app.rank_list_title_area_capt = images.clip.apply(null,
+                        [current_app.rank_list_capt_img].concat(current_app.rank_list_title_area_capt_bounds)
+                    );
                 })();
             }
 
             function getCurrentUserNickname() {
+                if (current_app.user_nickname) return debugInfo("无需重复获取当前账户昵称");
                 try {
-                    let user_nickname_parent_node = current_app.kw_rank_list_self.findOnce();
-                    if (user_nickname_parent_node) {
-                        let user_nickname_node = user_nickname_parent_node.child(0).child(2);
-                        current_app.user_nickname = user_nickname_node.desc() || user_nickname_node.text() || "";
-                        current_app.user_nickname ? debugInfo("已获取当前用户昵称字符串") : debugInfo("获取到无效的当前用户昵称");
+                    if (current_app.kw_rank_list_self("exists")) {
+                        current_app.user_nickname = sel.pickup([current_app.kw_rank_list_self("sel"), "c0c2"], "", "txt");
+                        current_app.user_nickname ? debugInfo("已获取当前账户昵称字符串") : debugInfo("获取到无效的当前账户昵称");
                     }
                 } catch (e) {
-                    debugInfo("获取当前用户昵称失败");
+                    debugInfo("获取当前账户昵称失败", 3);
                 }
             }
 
@@ -887,8 +1311,8 @@ function checkEnergy() {
                 let kw_list_more = current_app.kw_rank_list_more;
                 let click_count = 0;
                 while (!desc("没有更多了").exists() && !text("没有更多了").exists()) {
-                    if (kw_list_more.exists()) {
-                        clickAction(kw_list_more, "widget");
+                    if (kw_list_more()) {
+                        clickAction(kw_list_more(), "widget");
                         click_count++;
                     }
                     sleep(200);
@@ -905,50 +1329,6 @@ function checkEnergy() {
                 }
                 debugInfo(["排行榜展开完毕", ">点击\"查看更多\": " + click_count + "次"]);
             }
-
-            function monitorAndSetUserIdThread() {
-                return; // still not works well
-
-                debugInfo("已开启好友UserId监测采集线程");
-                let old_id = getId();
-                let new_id = old_id;
-                while (1) {
-                    while (old_id === new_id) {
-                        sleep(200);
-                        new_id = getId();
-                    }
-                    setId(new_id) && debugInfo("已存储当前好友UserId: .+" + new_id.slice(-4));
-                    old_id = new_id;
-                }
-
-                // tool function(s) //
-
-                function getId() {
-                    let user_ids = shell("logcat *:I -d | grep userId=2088").result.match(/userId=2088\d+/g);
-                    return user_ids && user_ids.pop().match(/2088\d+/)[0];
-                }
-
-                function setId(id) {
-                    // users: {
-                    //     208812345678: {
-                    //         nickname: "ABC",
-                    //     },
-                    //     208823456789: {
-                    //         nickname: "DEF",
-                    //     },
-                    // }
-                    let name = current_app.current_friend.name;
-                    if (!name) return;
-
-                    let users = storage_af.get("users", {});
-                    let user = users[id] || {};
-                    if (user.nickname === name) return;
-                    user.nickname = name;
-                    users[id] = user;
-                    storage_af.put("users", users);
-                    return true;
-                }
-            }
         }
 
         function getCurrentScreenTargets(strategy) {
@@ -962,23 +1342,18 @@ function checkEnergy() {
                 let screenAreaSamples = getScreenSamples() || [];
 
                 screenAreaSamples.forEach(w => {
-                    let parent_node = w.parent();
+                    let parent_node = sel.pickup([w, "p1"]);
                     if (!parent_node) return debugInfo("采集到无效的排行榜样本");
 
-                    let state_ident_node = parent_node.child(parent_node.childCount() - 2);
+                    let state_ident_node = sel.pickup([w, "s2b"]);
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
                     let find_color_options = getFindColorOptions(parent_node);
+                    if (!checkRegion(find_color_options.region)) return;
 
                     // special treatment for first 3 ones
-                    let name_node = parent_node.child(1);
-                    let name = name_node.desc() || name_node.text();
-                    if (!name) {
-                        name_node = parent_node.child(2);
-                        name = name_node.desc() || name_node.text();
-                    }
-
-                    if (!checkRegion(find_color_options.region)) return;
+                    let getName = compass => sel.pickup([parent_node, compass], "", "txt");
+                    let name = getName("c1") || getName("c2");
 
                     if (friend_collect_switch) {
                         let pt_green = images.findColor(
@@ -1019,21 +1394,19 @@ function checkEnergy() {
                     let regexp_energy_amount = /\d+(\.\d+)?(k?g|t)/;
                     let max_try_times = 10;
                     while (max_try_times--) {
-                        let screen_samples = boundsInside(cX(0.7), 0, WIDTH, USABLE_HEIGHT - 1).visibleToUser().filter(function (w) {
-                            let {bottom, top} = w.bounds();
-                            if (bottom - top > 2) {
-                                let _desc_w = w.desc();
-                                if (_desc_w && _desc_w.match(regexp_energy_amount)) return true;
-                                let _text_w = w.text();
-                                if (_text_w && _text_w.match(regexp_energy_amount)) return true;
+                        let screen_samples = sel.pickup([boundsInside(cX(0.7), 0, WIDTH, USABLE_HEIGHT - 1), {
+                            visibleToUser: true,
+                            filter: function (w) {
+                                let {bottom, top} = w.bounds();
+                                return !!(bottom - top > 2 && sel.pickup(w, "", "txt").match(regexp_energy_amount));
                             }
-                            return false;
-                        }).find();
-                        let screen_samples_size = screen_samples.size();
-                        debugInfo("获取当前屏幕好友样本数量: " + screen_samples_size);
-                        if (screen_samples_size) return screen_samples;
+                        }], "", "nodes");
+                        let screen_samples_len = screen_samples.length;
+                        debugInfo("获取当前屏幕好友样本数量: " + screen_samples_len);
+                        if (screen_samples_len) return screen_samples;
+                        sleep(100);
                     }
-                    return debugInfo("刷新样本区域失败");
+                    return debugInfo("刷新样本区域失败", 3);
                 }
 
                 function getFindColorOptions(parent_node) {
@@ -1145,9 +1518,9 @@ function checkEnergy() {
                 while (1) sleep(clickAction(current_app.kw_reload_forest_page_btn()) ? 3000 : 1000);
             });
 
-            while (!(sel.pickup(/你收取TA|发消息/).exists() || className("ListView").exists()) && max_safe_wait_time > 0) {
+            while (!sel.pickup(/你收取TA|发消息/) && !className("ListView").exists() && max_safe_wait_time > 0) {
                 sleep(sleep_interval);
-                max_safe_wait_time -= sleep_interval * (current_app.kw_wait_for_awhile().exists() ? 1 : 6);
+                max_safe_wait_time -= sleep_interval * (current_app.kw_wait_for_awhile() ? 1 : 6);
             }
 
             let wait_times_sec = (max_safe_wait_time_backup - max_safe_wait_time) / 1000;
@@ -1160,62 +1533,116 @@ function checkEnergy() {
 
             getCloseBtnCenterCoord();
 
-            current_app.blacklist_need_capture_flag = true;
             thread_energy_balls_monitor = threads.start(energyBallsMonitorThread);
 
             // minimum time is about 879.83 ms before energy balls ready (Sony G8441)
 
-            return waitForAction(() => kw_energy_balls().exists(), 2000, 80) ? ~debugInfo("能量球准备完毕") : debugInfo("等待能量球超时");
+            if (waitForAction(() => kw_energy_balls().length, 2000, 80)) {
+                debugInfo(["能量球准备完毕", "共计: " + (init_balls_len = kw_energy_balls().length) + "个"]);
+                return true;
+            }
+            return debugInfo("等待能量球超时") && false;
 
             // tool function(s) //
 
             function energyBallsMonitorThread() {
                 debugInfo("已开启能量球监测线程");
 
+                delete current_app.blacklist_idents_ready;
+                let blacklist_capts_checked_flag = false;
+
                 let orange_balls = config.help_collect_balls_color;
                 let orange_balls_threshold = config.help_collect_balls_threshold;
-                let intensity_time = config.help_collect_balls_intensity * 100;
+                let intensity_time = config.help_collect_balls_intensity * 160 - 1200;
+
+                debugInfo("能量球监测采集密度: " + intensity_time + "ms");
 
                 timeRecorder("energy_balls_monitor", "save");
 
-                while (timeRecorder("energy_balls_monitor", "load") < intensity_time) {
-                    let screen_capture = images.captureCurrentScreen();
+                let screen_capture = null;
+
+                fillInBlacklistIdents();
+                collectAndAnalyseHelpBalls();
+
+                // tool function(s) //
+
+                function captureCurrentScreen() {
+                    screen_capture = images.captureCurrentScreen();
                     debugInfo("存储屏幕截图: " + images.getName(screen_capture));
-                    // sleep(80);
-                    if (current_app.blacklist_need_capture_flag) blacklist_ident_captures.add(screen_capture);
-                    if (help_collect_switch && checkHelpSection()) {
-                        if (!waitForAction(() => kw_energy_balls("normal").exists(), 1500, 80)) {
-                            return debugInfo("指定时间内未发现普通能量球");
+                    return screen_capture;
+                }
+
+                function fillInBlacklistIdents() {
+                    let max_add_times = 4;
+                    while (max_add_times--) {
+                        blacklist_ident_captures.add(captureCurrentScreen());
+                        if (blacklist_ident_captures.length >= 3) return current_app.blacklist_idents_ready = true;
+                        sleep(120);
+                    }
+                }
+
+                function collectAndAnalyseHelpBalls() {
+                    while (1) {
+                        screen_capture = captureCurrentScreen();
+
+                        let checkHelpBallsInBlacklistCapts = (node) => {
+                            if (!blacklist_capts_checked_flag) {
+                                debugInfo(["采集黑名单样本中的橙色球", ">样本数量: " + blacklist_ident_captures.length]);
+                                checkHelpBalls(node, blacklist_ident_captures);
+                                blacklist_capts_checked_flag = true;
+                                debugInfo(["黑名单样本橙色球采集完毕", "采集结果数量: " + Object.keys(help_balls_coords).length]);
+                            }
+                        };
+                        let checkHelpBallsInCurrentCapt = node => checkHelpBalls(node, screen_capture);
+                        let checkHelpBalls = (node, capts) => {
+                            if (classof(capts) !== "Array") capts = [capts];
+                            capts.forEach((capt) => {
+                                node.forEach(w => {
+                                    let b = w.bounds();
+                                    let {top} = b;
+                                    if (top in help_balls_coords) return;
+
+                                    let options = {
+                                        region: [b.left, top, b.width(), b.height()],
+                                        threshold: orange_balls_threshold,
+                                    };
+                                    if (!images.findColor(capt, orange_balls, options)) return;
+
+                                    let cx = b.centerX();
+                                    let cy = b.centerY();
+                                    help_balls_coords[top] = {x: cx, y: cy};
+                                    debugInfo("记录橙色球坐标: (" + cx + ", " + cy + ")");
+                                });
+                            })
+                        };
+
+                        if (help_collect_switch && checkHelpSection()) {
+                            if (!waitForAction(() => kw_energy_balls("normal").length, 1500, 100)) {
+                                return debugInfo(["采集中断", ">指定时间内未发现普通能量球"]);
+                            }
+
+                            let all_normal_balls = kw_energy_balls("normal");
+                            let norm_balls_len = all_normal_balls.length;
+                            let help_balls_len = () => Object.keys(help_balls_coords).length;
+
+                            if (!norm_balls_len) return debugInfo(["采集中断", ">没有需要采集状态的能量球"]);
+                            if (norm_balls_len === help_balls_len()) return debugInfo(["采集中断", ">橙色球状态已全部采集完毕"]);
+
+                            checkHelpBallsInBlacklistCapts(all_normal_balls) || checkHelpBallsInCurrentCapt(all_normal_balls);
+
+                            if (!help_balls_len()) debugInfo("未采集到橙色球: " + images.getName(screen_capture));
                         }
 
-                        let all_normal_balls = kw_energy_balls("normal").find();
-                        let norm_balls_size = all_normal_balls.size();
-                        let help_balls_size = () => Object.keys(help_balls_coords).length;
+                        debugInfo("已回收屏幕截图: " + images.getName(screen_capture));
+                        images.reclaim(screen_capture);
 
-                        if (!norm_balls_size) return debugInfo("没有需要采集状态的能量球");
-                        if (norm_balls_size === help_balls_size()) return debugInfo("橙色球状态全部采集完毕");
-
-                        all_normal_balls.forEach(w => {
-                            let b = w.bounds(),
-                                top = b.top;
-                            if (top in help_balls_coords) return;
-
-                            let options = {
-                                region: [b.left, top, b.width(), b.height()],
-                                threshold: orange_balls_threshold,
-                            };
-                            if (!images.findColor(screen_capture, orange_balls, options)) return;
-
-                            let cx = b.centerX();
-                            let cy = b.centerY();
-                            help_balls_coords[top] = {x: cx, y: cy};
-                            debugInfo("记录橙色球坐标: (" + cx + ", " + cy + ")");
-                        });
-                        if (!help_balls_size()) debugInfo("未采集到橙色球: " + images.getName(screen_capture));
+                        let progress = timeRecorder("energy_balls_monitor", "load", intensity_time / 100, [1], "%");
+                        if (+progress.match(/\d+(\.\d+)?/)[0] >= 95) {
+                            debugInfo(["当前采集进度: 100%", "采集结果数量: " + Object.keys(help_balls_coords).length]);
+                            break;
+                        }
+                        debugInfo("当前采集进度: " + progress);
                     }
-                    screen_capture.recycle();
-                    debugInfo("已回收屏幕截图: " + images.getName(screen_capture));
-                    screen_capture = null;
                 }
             }
         }
@@ -1230,19 +1657,24 @@ function checkEnergy() {
             thread_blacklist_check.join();
             debugInfo("黑名单检测完毕");
 
-            if (!blacklist_passed_flag) {
+            let thread_take = null;
+            let thread_help = null;
+
+            if (blacklist_passed_flag) {
+                thread_take = threads.start(take);
+                thread_help = threads.start(help);
+
+                thread_help.join();
+                debugInfo("帮收线程结束");
+                help_balls_coords = {}; // reset
+                thread_take.join();
+                debugInfo("收取线程结束");
+            } else {
                 debugInfo(["能量球监测线程中断", ">黑名单检测未通过"]);
-                return thread_energy_balls_monitor.interrupt();
+                thread_energy_balls_monitor.interrupt();
             }
 
-            let thread_take = threads.start(take);
-            let thread_help = threads.start(help);
-
-            thread_help.join();
-            debugInfo("帮收线程结束");
-            help_balls_coords = {}; // reset
-            thread_take.join();
-            debugInfo("收取线程结束");
+            return blacklist_ident_captures.clear();
 
             // main function(s) //
 
@@ -1252,6 +1684,9 @@ function checkEnergy() {
                     if (!thread_energy_balls_monitor.isAlive()) break;
                     sleep(100);
                 }
+
+                waitForAction(() => current_app.blacklist_idents_ready, 800, 50); // just in case
+
                 let blacklist_ident_capts_len = blacklist_ident_captures.length;
 
                 if (blacklist_ident_capts_len) {
@@ -1259,7 +1694,7 @@ function checkEnergy() {
                     debugInfo("黑名单采集样本数量: " + blacklist_ident_capts_len);
                     if (blacklist_ident_capts_len < 3) {
                         debugInfo("黑名单样本数量不足");
-                        let max_wait_times_enough_idents = 3;
+                        let max_wait_times_enough_idents = 10;
                         while (max_wait_times_enough_idents-- || true) {
                             if (!thread_energy_balls_monitor.isAlive()) {
                                 debugInfo(["能量球监测线程已停止", "现场采集新黑名单样本数据"]);
@@ -1283,12 +1718,16 @@ function checkEnergy() {
                     captNewBlackListIdent();
                 }
 
-                current_app.blacklist_need_capture_flag = false;
-                debugInfo("发送黑名单停止采集信号");
+                debugInfo("开始检查黑名单样本颜色特征");
 
                 let protect_color_match = false;
                 for (let i = 0, len = blacklist_ident_captures.length; i < len; i += 1) {
-                    if (images.findColor(blacklist_ident_captures[i], config.protect_cover_ident_color, {
+                    // let new_capt = images.clip(blacklist_ident_captures[i], cX(298), cY16h9w(218), cX(120), cY16h9w(22));
+                    let new_capt = images.clip(
+                        blacklist_ident_captures[i],
+                        cX(288), cY(210, 16 / 9), cX(142), cY(44, 16 / 9)
+                    ); // more flexible condition(s)
+                    if (images.findColor(new_capt, config.protect_cover_ident_color, {
                         threshold: config.protect_cover_ident_threshold,
                     })) {
                         protect_color_match = true;
@@ -1296,14 +1735,12 @@ function checkEnergy() {
                     }
                 }
 
-                blacklist_ident_captures.clear();
-
                 if (protect_color_match) blacklist_passed_flag = false;
                 else return debugInfo("颜色识别无保护罩");
 
                 debugInfo("颜色识别检测到保护罩");
 
-                let kw_list = className("android.widget.ListView");
+                let kw_list = className("ListView");
                 if (!waitForAction(kw_list, 3000, 80)) return messageAction("未能通过列表获取能量罩信息", 3, 1, 1);
 
                 debugInfo("已开启动态列表自动展开线程");
@@ -1318,7 +1755,7 @@ function checkEnergy() {
 
                 function listMoreThread() {
                     let kw_list_more = () => sel.pickup("点击加载更多", "kw_list_more_for_rank_list_page");
-                    if (!waitForAction(() => kw_list_more().exists(), 2000, 80)) return;
+                    if (!waitForAction(kw_list_more, 2000, 80)) return;
 
                     let safe_max_try_times = 50; // 10 sec at most
                     let click_count = 0;
@@ -1326,58 +1763,69 @@ function checkEnergy() {
                         clickAction(kw_list_more(), "widget");
                         click_count++;
                         sleep(200);
-                        if (!waitForAction(() => kw_list_more().exists(), 2000, 80)) return;
+                        if (!waitForAction(kw_list_more, 2000, 80)) return;
                     }
                     debugInfo(["动态列表展开完毕", ">点击\"点击加载更多\": " + click_count + "次"]);
                 }
 
                 function listMonitorThread() {
-                    let kw_protect_cover = () => sel.pickup(/.*使用了保护罩.*/, "kw_protect_cover_used");
-                    let dates_arr = getDatesArr();
-                    if (dates_arr && kw_protect_cover().exists()) addBlacklist();
+                    let kw_protect_cover = type => sel.pickup(/.*使用了保护罩.*/, "kw_protect_cover_used", type);
+                    let date_nodes = getDateNodes();
+                    if (date_nodes && kw_protect_cover()) addBlacklist();
 
                     thread_list_more.interrupt();
 
                     // tool function(s) //
 
-                    function getDatesArr() {
+                    function getDateNodes() {
                         if (!waitForAction(kw_list, 3000, 80)) return debugInfo("好友动态列表准备超时");
-                        let renewDatesArr = () => {
-                            // 3 arrays at most which can enhance efficiency a little bit
-                            return kw_list.findOnce().children().filter(w => !w.childCount()).slice(0, 3);
-                        };
+
                         let safe_max_try_times = 8;
                         while (safe_max_try_times--) {
-                            let dates_arr = renewDatesArr(),
-                                max_i = dates_arr.length;
-                            for (let i = 0; i < max_i; i += 1) {
-                                let _desc = dates_arr[i].desc();
-                                let _text = dates_arr[i].text();
-                                let regexp_over_two_days = /\d{2}.\d{2}/;
-                                let over_two_days = _desc && _desc.match(regexp_over_two_days) ||
-                                    _text && _text.match(regexp_over_two_days); // like: "03-22"
-                                if (waitForAction(() => kw_protect_cover().exists(), 1000, 80) || over_two_days) {
-                                    thread_list_more.isAlive() && thread_list_more.interrupt();
-                                    debugInfo(["动态列表展开已停止", "能量罩信息定位在: " + (_desc || _text)]);
-                                    return max_i < 3 ? renewDatesArr() : dates_arr; // 3 samples at most
+                            let date_nodes = getDateNodes();
+                            for (let i = 0, len = date_nodes.length; i < len; i += 1) {
+                                let days_txt = sel.pickup(date_nodes[i], "", "txt");
+                                let over_two_days = days_txt.match(/\d{2}.\d{2}/); // like: "03-22"
+                                if (waitForAction(kw_protect_cover, 1000, 80) || over_two_days) {
+                                    thread_list_more.interrupt();
+                                    debugInfo(["动态列表展开已停止", "能量罩信息定位在: " + days_txt]);
+                                    return len < 3 ? getDateNodes() : date_nodes; // 3 samples at most
                                 }
                             }
+                        }
+
+                        // tool function(s) //
+
+                        function getDateNodes() {
+                            // 3 arrays at most which can enhance efficiency a little bit
+                            return kw_list.findOnce().children().filter((w) => {
+                                return !w.childCount() && w.indexInParent() < w.parent().childCount() - 1;
+                            }).slice(0, 3);
                         }
                     }
 
                     function addBlacklist() {
-                        let cover = kw_protect_cover().findOnce(),
-                            cover_top = cover.bounds().top;
-                        let i = 1;
-                        for (let len = dates_arr.length; i < len; i += 1) {
-                            if (cover_top < dates_arr[i].bounds().top) break;
+                        let cover_node = kw_protect_cover("node");
+                        let cover_txt = kw_protect_cover("txt");
+                        let list_node = className("ListView").findOnce();
+                        let list_children_size = list_node.childCount();
+                        let date_str = "";
+                        for (let i = 0; i < list_children_size; i += 1) {
+                            let child = list_node.child(i);
+                            if (!child.childCount()) {
+                                let txt = sel.pickup(child, "", "txt");
+                                if (!txt.match(/.天/)) break;
+                                date_str = txt;
+                            } else {
+                                if (sel.pickup([child, "c0c1"], "", "txt") === cover_txt) break;
+                            }
                         }
 
-                        let sel_str = sel.selStr(kw_protect_cover());
-                        let date_str = dates_arr[i - 1][sel_str](); // "今天" or "昨天"
+                        if (!date_str) return messageAction("获取能量罩使用时间失败", 3, 0, 0, "both_dash");
+
                         debugInfo("捕获动态列表日期字串: " + date_str);
-                        let time_str_clip = cover.parent().parent().child(1)[sel_str](); // like: "03:19"
-                        debugInfo("捕获动态列表时间字串: " + date_str);
+                        let time_str_clip = sel.pickup([cover_node, "p2c1"], "", "txt"); // like: "03:19"
+                        debugInfo("捕获动态列表时间字串: " + time_str_clip);
                         let time_str = date_str + time_str_clip;
 
                         let current_name = current_app.current_friend.name;
@@ -1413,9 +1861,9 @@ function checkEnergy() {
             function take() {
                 debugInfo("已开启能量球收取线程");
 
-                if (!waitForAction(() => kw_energy_balls().exists(), 1000, 80)) return debugInfo("能量球准备超时");
+                if (!waitForAction(() => kw_energy_balls().length, 1000, 80)) return debugInfo("能量球准备超时");
 
-                let ripe_balls = kw_energy_balls("ripe").find();
+                let ripe_balls = kw_energy_balls("ripe");
                 if (!ripe_balls.length) return (current_app.collect_clicked_flag = true) && debugInfo("没有可收取的能量球");
 
                 clickAndCount("collect", ripe_balls);
@@ -1430,13 +1878,32 @@ function checkEnergy() {
                 }
 
                 let coords_arr = Object.keys(help_balls_coords);
-                if (!coords_arr.length) return (current_app.help_clicked_flag = true) && debugInfo("没有可帮收的能量球");
+                if (!coords_arr.length) {
+                    current_app.help_clicked_flag = true;
+                    current_app.current_friend.six_balls_review_flag = false;
+                    return debugInfo("没有可帮收的能量球");
+                }
                 if (!waitForAction(() => current_app.collect_clicked_flag || !thread_take.isAlive(), 2000, 80)) {
+                    current_app.current_friend.six_balls_review_flag = false;
                     return messageAction("等待收取线程信号超时", 3, 0, 1);
                 }
                 debugInfo("收取线程信号返回正常");
 
                 clickAndCount("help", coords_arr);
+
+                if (init_balls_len === 6) {
+                    if (!config.six_balls_review_switch) return debugInfo("六球复查未开启");
+
+                    let getReviewFlag = () => current_app.current_friend.six_balls_review_flag;
+                    let init_flag = getReviewFlag();
+                    current_app.current_friend.six_balls_review_flag = ++init_flag || 1;
+
+                    let max_times = config.six_balls_review_max_continuous_times;
+                    if (getReviewFlag() > max_times) {
+                        debugInfo(["不再设置六球复查标记", ">连续复查次数已达上限"]);
+                        delete current_app.current_friend.six_balls_review_flag;
+                    } else debugInfo("设置六球复查标记: " + getReviewFlag());
+                }
             }
 
             function clickAndCount(action_str, balls_nodes) {
@@ -1547,7 +2014,7 @@ function checkEnergy() {
                     let dashboard_data = stabilizer(() => getDashboardData.apply(null, cfg.dashboard_params.slice(0, 2)));
                     if (isNaN(dashboard_data)) return debugInfo(name + "面板稳定数据无效");
                     if (dashboard_data < ori_dashboard_data) return debugInfo(name + "面板稳定数据异常"); // possible condition: "g" to "kg"
-                    debugInfo("收取面板数据已稳定: " + dashboard_data);
+                    debugInfo(name + "面板数据已稳定: " + dashboard_data);
                     final_result.compareAndSet(-1, dashboard_data - ori_dashboard_data);
                 }
 
@@ -1567,17 +2034,18 @@ function checkEnergy() {
                     debugInfo("等待" + name + "动态列表数据稳定");
                     let list_item_count = stabilizer(() => getCountFromDynamicInfoList(action_str), ori_list_item_count);
                     if (isNaN(list_item_count)) return debugInfo(name + "动态列表稳定数据无效");
-                    debugInfo("动态列表数据已稳定: " + list_item_count);
+                    debugInfo(name + "动态列表数据已稳定: " + list_item_count);
                     let list_node = null;
-                    if (waitForAction(() => list_node = className("ListView").findOnce(), 500, 100)) {
+                    let kw_list = type => sel.pickup(className("ListView"), "", type);
+                    if (waitForAction(() => list_node = kw_list(), 500, 100)) {
                         let result = 0;
-                        let sel_str = sel.selStr(/来浇过水.+|(帮忙)?收取\d+g/, "kw_dynamic_list_info");
                         for (let i = 1, len = list_item_count - ori_list_item_count; i <= len; i += 1) {
-                            result += +list_node.child(i).child(0).child(1)[sel_str]().match(/\d+/)[0];
+                            let matched = sel.pickup([list_node, "c" + i + "c0c1"], "", "txt").match(/\d+/);
+                            if (matched) result += +matched[0];
                         }
                         debugInfo(name + "动态列表统计结果: " + result);
                         final_result.compareAndSet(-1, result);
-                    } else debugInfo(name + "动态列表结果统计失败");
+                    } else debugInfo(name + "动态列表结果统计失败", 3);
                 }
             }
         }
@@ -1589,25 +2057,28 @@ function checkEnergy() {
             while (max_try_times--) {
                 jumpBackOnce();
                 sleep(200);
-                if (waitForAction(condition, 2000, 200)) return true;
+                if (waitForAction(condition, 2000)) return true;
                 debugInfo("返回排行榜单次超时");
             }
-            debugInfo(["返回排行榜失败", "尝试重启支付宝到排行榜页面"]);
+            debugInfo(["返回排行榜失败", "尝试重启支付宝到排行榜页面", 3]);
             restartAlipayToHeroList();
 
-            let kw_rank_list_self = current_app.kw_rank_list_self;
-            let condition_rank_list_ready = () => kw_rank_list_self.exists() && kw_rank_list_self.findOnce().childCount();
+            let {kw_rank_list_self} = current_app;
+            let condition_rank_list_ready = () => kw_rank_list_self() && kw_rank_list_self().childCount();
             if (!waitForAction(condition_rank_list_ready, 2000)) restartAlipayToHeroList(); // just in case
 
             // tool function(s) //
 
             function condition() {
+                if (current_app.rank_list_icon_clicked) {
+                    delete current_app.rank_list_icon_clicked;
+                    return current_app.kw_rank_list_title();
+                }
                 let capt_img = images.captureCurrentScreen();
                 let imageOrColorMatched = titleAreaMatch() || closeBtnColorMatch();
-                capt_img.recycle();
-                capt_img = null;
+                images.reclaim(capt_img);
                 if (imageOrColorMatched) return true;
-                if (strategy === "layout") return current_app.kw_rank_list_title().exists();
+                if (strategy === "layout") return current_app.kw_rank_list_title();
 
                 // tool function(s) //
 
@@ -1622,7 +2093,8 @@ function checkEnergy() {
                         }
                         return;
                     }
-                    if (images.findImage(images.isRecycled(capt_img) ? images.captureCurrentScreen() : capt_img, template)) {
+                    if (!capt_img || images.isRecycled(capt_img)) capt_img = images.captureCurrentScreen();
+                    if (images.findImage(capt_img, template)) {
                         debugInfo(["返回排行榜成功", ">已匹配排行榜标题区域样本"]);
                         return true;
                     }
@@ -1632,7 +2104,8 @@ function checkEnergy() {
                     let pt = current_app.close_btn_coord;
                     if (!pt) return;
                     let {x, y} = current_app.close_btn_coord;
-                    if (images.detectsColor(images.isRecycled(capt_img) ? images.captureCurrentScreen() : capt_img, "#118ee9", x, y)) {
+                    if (!capt_img || images.isRecycled(capt_img)) capt_img = images.captureCurrentScreen();
+                    if (images.detectsColor(capt_img, "#118ee9", x, y)) {
                         debugInfo(["返回排行榜成功", ">已匹配排行榜关闭按钮中心颜色"]);
                         return true;
                     }
@@ -1640,7 +2113,7 @@ function checkEnergy() {
             }
 
             function restartAlipayToHeroList() {
-                launchHomepage();
+                launchAFHomepage();
                 rankListReady();
             }
         }
@@ -1648,7 +2121,7 @@ function checkEnergy() {
         function swipeUp() {
             if (checkOwnCountdownDemand(+!!config.homepage_background_monitor_switch)) rankListReady();
             if (list_end_signal) return debugInfo("检测到排行榜停检信号");
-            while (__global__._monster_$_global_waiting_signal || current_app.swipe_up_waiting_signal) sleep(200);
+            while (__global__._monster_$_global_monitor_waiting_signal || current_app.swipe_up_waiting_signal) sleep(200);
 
             swipeOnce();
 
@@ -1668,7 +2141,7 @@ function checkEnergy() {
                         debugInfo("参照值: NaN");
                         invalid_rank_list_ref_data++;
                         if (invalid_rank_list_ref_data > 10) {
-                            messageAction("脚本无法继续", 4);
+                            messageAction("脚本无法继续", 4, 0, 0, "up");
                             messageAction("排行榜列表参照值异常", 9, 1, 1, 1);
                         }
                     } else debugInfo("参照值: " + tmp_bottom_data);
@@ -1680,27 +2153,35 @@ function checkEnergy() {
             debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
 
             if (!checkRankListCaptDifference()) {
-                if (sel.pickup(/正在加载.*/).exists()) {
-                    if (waitForAction(() => !sel.pickup(/正在加载.*/).exists(), 2 * 60000, 1000)) {
+                let kw_loading = type => sel.pickup(/正在加载.*/, "kw_loading", type);
+                if (kw_loading()) {
+                    let max_keep_waiting_time = 2 * 60000; // 2 min
+                    debugInfo(["检测到\"正在加载\"按钮", "等待按钮消失 (最多" + max_keep_waiting_time + "分钟)"]);
+                    if (waitForAction(() => !kw_loading(), max_keep_waiting_time, 1000)) {
                         list_end_signal = 0;
                         return debugInfo(["排行榜停检信号撤销", ">\"正在加载\"按钮已消失"]);
                     }
+                    debugInfo("等待\"正在加载\"按钮消失超时", 3);
                 }
 
-                let kw_end_list_ident_node = current_app.kw_end_list_ident().findOnce();
-                if (kw_end_list_ident_node) {
-                    let {top, bottom} = kw_end_list_ident_node.bounds();
+                let {kw_end_list_ident} = current_app;
+                if (kw_end_list_ident()) {
+                    let {left, top, right, bottom} = kw_end_list_ident("bounds");
                     if (bottom - top > cX(0.08)) {
                         list_end_signal = 1;
                         debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
-                        let {left, top, right, bottom} = kw_end_list_ident_node.bounds();
-                        let btn_clip = images.clip(images.captureCurrentScreen(), left, top, right - left - 3, bottom - top - 3);
-                        images.save(current_app.rank_list_bottom_template = btn_clip, current_app.rank_list_bottom_template_path);
+                        let capt_img = images.captureCurrentScreen();
+                        let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
+                        images.save(
+                            current_app.rank_list_bottom_template = images.copy(btn_clip),
+                            current_app.rank_list_bottom_template_path)
+                        ;
+                        images.reclaim(capt_img, btn_clip);
                         return debugInfo("列表底部控件图片模板已更新");
                     }
                 }
 
-                if (waitForAction(() => sel.pickup(/.*打瞌睡.*/).exists(), 2, 1000)) {
+                if (waitForAction(() => sel.pickup(/.*打瞌睡.*/), 2, 1000)) {
                     waitForAndClickAction(sel.pickup("再试一次"), 15000, 500, {click_strategy: "widget"});
                     list_end_signal = 0;
                     return debugInfo(["排行榜停检信号撤销", ">检测到\"服务器打瞌睡\"页面"]);
@@ -1767,7 +2248,7 @@ function checkEnergy() {
                 let max_try_times = 50;
                 while (max_try_times--) {
                     try {
-                        return current_app.kw_rank_list_self.findOnce().bounds().bottom;
+                        return current_app.kw_rank_list_self("bounds").bottom;
                     } catch (e) {
                         sleep(50);
                     }
@@ -1785,10 +2266,10 @@ function checkEnergy() {
                     return pool[0] = img;
                 }
                 if (pool_len > 1) {
-                    let toRecycleImg = pool.shift();
+                    let img_to_recycle = pool.shift();
                     pool_len -= 1;
-                    debugInfo("回收排行榜截图: " + images.getName(toRecycleImg));
-                    toRecycleImg.recycle();
+                    debugInfo("回收排行榜截图: " + images.getName(img_to_recycle));
+                    images.reclaim(img_to_recycle);
                 }
 
                 let similar_captures = false;
@@ -1881,30 +2362,19 @@ function checkEnergy() {
                 if (!equalObjects(
                     current_app.last_collected_samples && Object.keys(current_app.last_collected_samples),
                     Object.keys(current_app.last_collected_samples = getSamplesInfo())
-                )) {
-                    debugInfo("__split_line__");
-                    debugInfo(["触发排行榜样本复查条件:", "列表状态差异"]);
-                    debugInfo("__split_line__");
-                    return true;
-                }
+                )) return debugInfo(["触发排行榜样本复查条件:", "列表状态差异"], "both") || true;
             }
 
             if (config.rank_list_review_samples_clicked_switch) {
                 if (current_app.valid_rank_list_icon_clicked) {
                     current_app.valid_rank_list_icon_clicked = false;
-                    debugInfo("__split_line__");
-                    debugInfo(["触发排行榜样本复查条件:", "样本点击记录"]);
-                    debugInfo("__split_line__");
-                    return true;
+                    return debugInfo(["触发排行榜样本复查条件:", "样本点击记录"], "both") || true;
                 }
             }
 
             if (config.rank_list_review_threshold_switch) {
                 if (checkMinCountdownFriends(config.rank_list_review_threshold)) {
-                    debugInfo("__split_line__");
-                    debugInfo(["触发排行榜样本复查条件:", "最小倒计时阈值"]);
-                    debugInfo("__split_line__");
-                    return true;
+                    return debugInfo(["触发排行榜样本复查条件:", "最小倒计时阈值"], "both") || true;
                 }
             }
         }
@@ -1949,7 +2419,7 @@ function checkEnergy() {
         function getCloseBtnCenterCoord() {
             if (current_app.close_btn_coord) return;
 
-            let node = current_app.kw_close_btn().findOnce();
+            let node = current_app.kw_close_btn();
             if (node) {
                 let bounds = node.bounds();
                 let [x, y] = [bounds.centerX(), bounds.centerY()];
@@ -1968,7 +2438,6 @@ function checkEnergy() {
             let delay_swipe_time = 3000;
             let delay_swipe_time_sec = ~~(delay_swipe_time / 1000);
             delay_swipe_time = delay_swipe_time_sec * 1000;
-            let sel_type = null;
             let {kw_end_list_ident} = current_app;
 
             while (sleep(500) || true) {
@@ -1977,20 +2446,24 @@ function checkEnergy() {
                     sleep(delay_swipe_time);
                 }
 
-                while (__global__._monster_$_global_waiting_signal) sleep(200);
+                while (__global__._monster_$_global_monitor_waiting_signal) sleep(200);
 
-                let kw_end_list_ident_node = kw_end_list_ident().findOnce();
-                if (!kw_end_list_ident_node) continue;
+                if (!kw_end_list_ident()) continue;
 
-                sel_type = sel_type || kw_end_list_ident().toString().slice(0, 4);
-                let {left, top, right, bottom} = kw_end_list_ident_node.bounds();
+                let sel_str = kw_end_list_ident("sel_str");
+                let {left, top, right, bottom} = kw_end_list_ident("bounds");
                 if (bottom - top > cX(0.08)) {
                     list_end_signal = 1;
                     debugInfo("列表底部条件满足");
                     debugInfo(">bounds: [" + left + ", " + top + ", " + right + ", " + bottom + "]");
-                    debugInfo(">" + sel_type + ": " + kw_end_list_ident_node[sel_type]());
-                    let btn_clip = images.clip(images.captureCurrentScreen(), left, top, right - left - 3, bottom - top - 3);
-                    images.save(current_app.rank_list_bottom_template = btn_clip, current_app.rank_list_bottom_template_path);
+                    debugInfo(">" + sel_str + ": " + kw_end_list_ident(sel_str));
+                    let capt_img = images.captureCurrentScreen();
+                    let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
+                    images.save(
+                        current_app.rank_list_bottom_template = images.copy(btn_clip),
+                        current_app.rank_list_bottom_template_path
+                    );
+                    images.reclaim(capt_img, btn_clip);
                     debugInfo("已存储列表底部控件图片模板");
                     break;
                 }
@@ -2000,22 +2473,18 @@ function checkEnergy() {
         }
 
         function getDashboardData(selector_text, memory_keyword, max_try_times) {
-            let selector_node = sel.pickup(selector_text, memory_keyword).findOnce();
-            if (!selector_node) return NaN;
+            // let selector_node = sel.pickup(selector_text, memory_keyword);
+            // if (!selector_node) return NaN;
 
             max_try_times = max_try_times || 1;
             while (max_try_times--) {
                 try {
-                    let key_node = selector_node.parent().child(+selector_node.indexInParent() + 1);
-                    let desc_str = key_node.desc();
-                    let text_str = key_node.text();
-                    let desc_matched = desc_str && desc_str.match(/\d+/);
-                    let text_matched = text_str && text_str.match(/\d+/);
-                    if (desc_matched && desc_str.match(/\d+(kg|t)/) || text_matched && text_str.match(/\d+(kg|t)/)) {
+                    let txt = sel.pickup([selector_text, "s+1"], memory_keyword, "txt");
+                    if (txt.match(/\d+(kg|t)/)) {
                         debugInfo("放弃参照值精度过低的统计方法");
                         return NaN;
                     }
-                    let value = +(desc_matched || text_matched || [NaN])[0];
+                    let value = +txt.match(/\d+/);
                     if (!isNaN(value)) return value;
                 } catch (e) {
                     console.error(e); //// TEST ////
@@ -2027,19 +2496,19 @@ function checkEnergy() {
 
         function getCountFromDynamicInfoList(type_str) {
             let list_node = null;
-            if (!waitForAction(() => list_node = className("ListView").findOnce(), 500, 100)) return NaN;
+            let kw_list = type => sel.pickup(className("ListView"), "", type);
+            if (!waitForAction(() => list_node = kw_list(), 500, 100)) return NaN;
 
             let user_nickname = current_app.user_nickname;
-            let sel_str = sel.selStr(/来浇过水.+|(帮忙)?收取\d+g/, "kw_dynamic_list_info");
+            let sel_str = kw_dynamic_list_info("sel_str");
             let regexp_activity = new RegExp("^" + (type_str.slice(0, 4) === "help" ? "帮忙" : "") + "收取\\d+g$");
-            if (list_node.child(0)[sel_str]() !== "今天") return 0;
+            if (sel.pickup([list_node, "c0"], "", sel_str) !== "今天") return 0;
             let i = 1;
             for (let len = list_node.childCount(); i < len; i += 1) {
-                let child_node = list_node.child(i);
-                if (!child_node.childCount()) break;
-                let child_node_0 = child_node.child(0);
-                if ((child_node_0).child(0)[sel_str]() !== user_nickname) break;
-                if (!(child_node_0).child(1)[sel_str]().match(regexp_activity)) break;
+                let child_node = sel.pickup([list_node, "c" + i + "c0"]);
+                if (!child_node) continue;
+                if (sel.pickup([child_node, "c0"], "", sel_str) !== user_nickname) break;
+                if (!sel.pickup([child_node, "c1"], "", sel_str).match(regexp_activity)) break;
             }
             return i - 1;
         }
@@ -2066,13 +2535,15 @@ function checkEnergy() {
             // tool function(s) //
 
             function checkForestTitle() {
-                let key_node = null;
-                if (!waitForAction(() => key_node = sel.pickup(/.+的蚂蚁森林/).findOnce(), 20000)) return messageAction("标题采集好友昵称超时", 3);
-                let getNameStr = string => string.match(/.+(?=的蚂蚁森林$)/);
-                let friend_nickname = (getNameStr(key_node.text()) || getNameStr(key_node.desc()) || [])[0];
+                let friend_nickname = "";
+                if (!waitForAction(() => friend_nickname = sel.pickup(/.+的蚂蚁森林/, "", "txt"), 20000)) {
+                    return messageAction("标题采集好友昵称超时", 3);
+                }
+                friend_nickname = friend_nickname.replace(/的蚂蚁森林$/, "");
+
                 current_app.friend_drop_by_counter.increase(friend_nickname);
-                if (!friend_nickname) return messageAction("好友昵称无效", 3);
                 current_app.current_friend.name = friend_nickname;
+
                 if ((config.console_log_details || config.debug_info_switch) && !current_app.current_friend.name_logged) {
                     messageAction(friend_nickname, "title");
                     current_app.current_friend.name_logged = 1;
@@ -2114,18 +2585,17 @@ function checkEnergy() {
         }
 
         function getSamplesInfo() {
-            let kw_countdown_minute = () => sel.pickup(new RegExp("\\d+\u2019"), "kw_countdown_minute"); // \u2019(’)
-            let countdown_nodes_arr = kw_countdown_minute().find();
+            let countdown_nodes_arr = sel.pickup(new RegExp("\\d+\u2019"), "kw_countdown_minute", "nodes");
             let countdown_nodes_len = countdown_nodes_arr.length;
+
             debugInfo("捕获好友能量倒计时数据: " + countdown_nodes_len + "个");
             if (!countdown_nodes_len) return {};
+
             let collected_samples = {};
             countdown_nodes_arr.forEach((countdown_node) => {
-                let parent_node = countdown_node.parent().parent();
-                let getSelectorText = node => node.text() || node.desc() || "";
-                let name = getSelectorText(parent_node.child(1)) || getSelectorText(parent_node.child(2));
-                let mm = +countdown_node[sel.selStr(new RegExp("\\d+\u2019"), "kw_countdown_minute")]().match(/\d+/)[0];
-                collected_samples[name] = +new Date() + mm * 60000; // next ripe timestamp
+                let getTxt = compass => sel.pickup([countdown_node, compass], "", "txt");
+                let mm = +sel.pickup(countdown_node, "", "txt").match(/\d+/)[0];
+                collected_samples[getTxt("p2c1") || getTxt("p2c2")] = +new Date() + mm * 60000; // next ripe timestamp
             });
             return collected_samples;
         }
@@ -2136,7 +2606,7 @@ function checkEnergy() {
             if (!countdown || countdown === Infinity) return;
             if (current_app.min_countdown_own - +new Date() <= minute * 60000 + 3000) {
                 messageAction("返回蚂蚁森林主页监测自己能量", 1, 1, 0, 1);
-                launchHomepage();
+                launchAFHomepage();
                 checkOwnEnergy();
                 return true;
             }
@@ -2271,357 +2741,594 @@ function checkEnergy() {
     }
 }
 
-function showResult() {
-    if (!config.message_showing_switch || !config.result_showing_switch) return true;
+function logBackInIfNeeded() {
+    let {account_log_back_in_switch, account_log_back_in_max_continuous_times} = config;
+    let {init_logged_in_user_abbr_name, init_is_main_user_logged_in} = current_app;
+    let sto_key_name = "log_back_in_user";
+    let clearLogBackInStorage = () => {
+        if (storage_af.contains(sto_key_name)) {
+            storage_af.remove(sto_key_name);
+            debugInfo("已清理回切账户存储信息");
+        }
+    };
 
-    debugInfo("开始展示统计结果");
+    if (init_is_main_user_logged_in) {
+        debugInfo(["无需回切账户", ">初始登录账户已是主账户"]);
+        return clearLogBackInStorage();
+    }
 
-    let isNoneNegNum = num => !isNaN(+num) && +num >= 0;
-    let own = current_app.total_energy_collect_own;
-    debugInfo("自己能量收取值: " + own);
-    let friends = current_app.total_energy_collect_friends;
-    debugInfo("好友能量收取值: " + friends);
-    if (!isNoneNegNum(own) || !isNoneNegNum(friends)) return showMessage("数据统计失败");
+    if (!account_log_back_in_switch) {
+        debugInfo(["无需回切账户", ">旧账户回切功能未开启"]);
+        return clearLogBackInStorage();
+    }
 
-    showMessage(energyStr(friends, own) || "A fruitless attempt");
+    if (!init_logged_in_user_abbr_name) {
+        debugInfo(["无法回切账户", ">未获取初始登录账户信息"]);
+        return clearLogBackInStorage();
+    }
+
+    let init_data = {name: init_logged_in_user_abbr_name, times: 0};
+    let sto_data = storage_af.get(sto_key_name, init_data);
+    if (sto_data.name !== init_logged_in_user_abbr_name) sto_data = init_data;
+
+    if (sto_data.times >= account_log_back_in_max_continuous_times) {
+        debugInfo([
+            "禁止回切账户",
+            ">此旧账户回切次数已达上限",
+            ">上限值: " + account_log_back_in_max_continuous_times
+        ]);
+        return clearLogBackInStorage();
+    }
+
+    sto_data.times += 1;
+    debugInfo(["开始旧账户回切操作", ">当前连续回切次数: " + sto_data.times]);
+
+    if (!logBackIn()) {
+        debugInfo("旧账户回切失败", 3);
+        return clearLogBackInStorage();
+    }
+
+    debugInfo("旧账户回切成功");
+    storage_af.put(sto_key_name, sto_data);
+    debugInfo("已更新回切账户存储信息");
+    return true;
 
     // tool function(s) //
 
-    function energyStr(friends_num, self_num) {
-        let msg = "";
-        if (self_num) msg = "Energy from yourself: " + self_num + "g";
-        if (friends_num) msg += (self_num ? "\n" : "") + "Energy from friends: " + friends_num + "g";
-        return msg;
-    }
-
-    function showMessage(msg) {
-        msg.split("\n").forEach(msg => messageAction(msg, 1));
-        if (msg.match(/失败|错误/)) own = -1;
-        if (config.floaty_result_switch) {
-            showFloatyResult(own, friends, config.floaty_result_countdown);
-        } else {
-            messageAction(msg, null, 1);
-            debugInfo("统计结果展示完毕");
-        }
-
-        // tool function(s) //
-
-        function showFloatyResult(you, friends, countdown) {
-            debugInfo("发送Floaty消息等待信号");
-            current_app.floaty_msg_signal = 1;
-            let timeout = countdown * 1000;
-            debugInfo("时间参数: " + timeout);
-
-            let hints = [];
-
-            if (!~you) hints.push("SORRY");
-            else {
-                if (you) hints.push("YOURSELF: " + you);
-                if (friends) hints.push("FRIENDS: " + friends);
-            }
-            let hint_len = hints.length;
-            debugInfo("消息数量参数: " + hint_len);
-            if (hint_len === 2) hints = hints.map(str => str.replace(/(\w{3})\w+(?=:)/, "$1")); // %alias%.slice(0, 3) + ": \d+g"
-            if (hint_len === 1) hints = hints.map(str => str.replace(/(\w+)(?=:).*/, "$1")); // %alias% only
-            if (!hints.length) {
-                let pickUpOneNote = () => {
-                    let notes = "NEVER.contains(SAY+DIE)%5cnLIFE+!%3d%3d+ALL+ROSES%5cnIMPOSSIBLE+%3d%3d%3d+undefined%5cnGOD.FAIR()+%3d%3d%3d+true%5cn%2f((%3f!GIVE+(UP%7cIN)).)%2b%2fi%5cnWORKMAN+%3d+new+Work()%5cnLUCK.length+%3d%3d%3d+Infinity%5cnLLIST.next+%3d%3d%3d+LUCKY%5cnBLESSING.discard(DISGUISE)%5cnWATER.drink().drink()".split("%5cn");
-                    return decodeURIComponent(notes[~~(Math.random() * notes.length)]).replace(/\+(?!\/)/g, " ");
-                };
-                hints = [pickUpOneNote()];
-                debugInfo("随机挑选提示语");
-                hint_len = hints.length;
-            }
-
-            debugInfo("开始绘制Floaty");
-
-            let window_cover = floaty.rawWindow(<frame id="cover" gravity="center" bg="#7f000000"/>);
-            window_cover.cover.on("click", () => {
-                current_app.floaty_msg_signal = 0;
-                floaty_failed_flag = false;
-                debugInfo(["触发遮罩层触摸事件", "提前结束Floaty结果展示", "发送Floaty消息结束等待信号"]);
-                window_cover.close();
-            });
-
-            ui.run(() => {
-                window_cover.setSize(-1, -1);
-                window_cover.setTouchable(true); // prevent touch event transferring to the view beneath
-            });
-
-            let base_height = cY(0.66);
-            let message_height = cY(80, 16 / 9);
-            let hint_height = message_height * 0.7;
-            let timeout_height = hint_height;
-            let color_stripe_height = message_height * 0.2;
-
-            let message_layout =
-                <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="24" padding="10 2" color="#ccffffff" gravity="center"/>
-                </frame>;
-
-            let timeout_layout =
-                <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center" text="0"/>
-                </frame>;
-
-            let color_stripe_layout =
-                <frame gravity="center">
-                    <text id="text" bg="#ffffffff" size="24" padding="10 2" color="{{colors.toString(-1)}}" gravity="center"/>
-                </frame>;
-
-            let hint_layout =
-                <frame gravity="center">
-                    <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center"/>
-                </frame>;
-
-            let message_raw_win = floaty.rawWindow(message_layout);
-
-            ui.run(() => {
-                message_raw_win.text.setText(!~you && "Statistics Failed" || (you + friends).toString() || "0");
-                message_raw_win.setSize(-2, 0);
-                let max_wait_time = 5000;
-                let start_timestamp = timeRecorder("message_raw_win_width");
-                while (timeRecorder("message_raw_win_width", "load") - start_timestamp < max_wait_time) {
-                    if (message_raw_win.getWidth() > 0) break;
-                }
-            });
-
-            let min_width = Math.max(message_raw_win.getWidth(), cX(0.54), cX(0.25) * hint_len);
-            let left_pos = (WIDTH - min_width) / 2;
-
-            ui.run(() => {
-                message_raw_win.setPosition(left_pos, base_height);
-                message_raw_win.setSize(min_width, message_height);
-            });
-
-            let hint_top_pos = base_height - color_stripe_height - hint_height;
-            let color_stripe_up_top_pos = base_height - color_stripe_height;
-            let color_stripe_down_top_pos = base_height + message_height;
-            let timeout_top_pos = base_height + message_height + color_stripe_height;
-
-            let avg_width = ~~(min_width / hint_len);
-
-            let stripe_color_map = {
-                "YOU": "#7dae17",
-                "FRI": "#2ba653",
-                "SOR": "#a3555e", // SORRY
-                "OTHER": "#907aa3",
-            };
-
-            for (let i = 0; i < hint_len; i += 1) {
-                let current_hint = hints[i];
-                let current_hint_color = "#cc" + (stripe_color_map[current_hint.slice(0, 3)] || stripe_color_map["OTHER"]).slice(1);
-                let color_stripe_bg = colors.parseColor(current_hint_color);
-                let current_left_pos = left_pos + avg_width * i;
-                let current_width = i === hint_len - 1 ? min_width - (hint_len - 1) * avg_width : avg_width;
-
-                let color_stripe_raw_win_down = floaty.rawWindow(color_stripe_layout);
-                ui.run(() => {
-                    color_stripe_raw_win_down.setSize(1, 0);
-                    color_stripe_raw_win_down.text.setBackgroundColor(color_stripe_bg);
-                    color_stripe_raw_win_down.setPosition(current_left_pos, color_stripe_down_top_pos);
-                });
-
-                let color_stripe_raw_win_up = floaty.rawWindow(color_stripe_layout);
-                ui.run(() => {
-                    color_stripe_raw_win_up.setSize(1, 0);
-                    color_stripe_raw_win_up.text.setBackgroundColor(color_stripe_bg);
-                    color_stripe_raw_win_up.setPosition(current_left_pos, color_stripe_up_top_pos);
-                });
-
-                let hint_raw_win = floaty.rawWindow(hint_layout);
-                ui.run(() => {
-                    hint_raw_win.setSize(1, 0);
-                    hint_raw_win.text.setText(current_hint);
-                    hint_raw_win.setPosition(current_left_pos, hint_top_pos);
-                });
-
-                ui.run(() => {
-                    color_stripe_raw_win_down.setSize(current_width, color_stripe_height);
-                    color_stripe_raw_win_up.setSize(current_width, color_stripe_height);
-                    hint_raw_win.setSize(current_width, hint_height);
-                });
-            }
-
-            let timeout_raw_win = floaty.rawWindow(timeout_layout);
-            ui.run(() => {
-                timeout_raw_win.setSize(1, 0);
-                timeout_raw_win.setPosition(left_pos, timeout_top_pos);
-                timeout_raw_win.setSize(min_width, timeout_height);
-                timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
-            });
-
-            debugInfo("Floaty绘制完毕");
-
-            let floaty_failed_flag = true;
-
-            debugInfo("开始Floaty倒计时");
-            ui.run(() => {
-                let countdown_interval = setInterval(setCountdownText, 1000);
-                let countdown_timeout = setTimeout(() => {
-                    clearInterval(countdown_interval);
-
-                    if (floaty_failed_flag) {
-                        messageAction("此设备可能无法使用Floaty功能", 3, 1);
-                        messageAction("建议改用Toast方式显示收取结果", 3);
-                    }
-
-                    let prefix = floaty_failed_flag ? "强制" : "";
-                    debugInfo(prefix + "关闭所有Floaty窗口");
-                    floaty.closeAll();
-
-                    if (current_app.floaty_msg_signal) {
-                        current_app.floaty_msg_signal = 0;
-                        debugInfo(prefix + "发送Floaty消息结束等待信号");
-                    }
-
-                    debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
-                }, timeout);
-
-                // tool function(s) //
-
-                function setCountdownText() {
-                    try {
-                        if (--countdown <= 0) return;
-                        if (!current_app.floaty_msg_signal) return clearTimeout(countdown_timeout);
-                        timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
-                        floaty_failed_flag = false;
-                    } catch (e) {
-                        debugInfo(["Floaty超时文本设置单次失败", e.message]);
-                    }
-                }
-            });
-        }
+    function logBackIn() {
+        return launchUserList() && clickAbbrNameInUserList(init_logged_in_user_abbr_name);
     }
 }
 
 function epilogue() {
-    if (current_app.blacklist) {
-        debugInfo("存储本次会话黑名单数据");
-        storage_af.put("blacklist", current_app.blacklist);
+    Promise.all([showResultAsync(), prepareForExitAsync()])
+        .then(() => cleanRankListCaptPool())
+        .then(() => screenOffIfNeededAsync())
+        .then(() => exitNow())
+        .catch((e) => messageAction(e, 4, 1, 0, "both"));
+
+    // promise function(s) //
+
+    function showResultAsync() {
+        return new Promise((resolve) => {
+            if (!config.message_showing_switch || !config.result_showing_switch) return resolve(true);
+
+            debugInfo("开始展示统计结果");
+
+            let isNoneNegNum = num => !isNaN(+num) && +num >= 0;
+            let own = current_app.total_energy_collect_own;
+            debugInfo("自己能量收取值: " + own);
+            let friends = current_app.total_energy_collect_friends;
+            debugInfo("好友能量收取值: " + friends);
+            if (!isNoneNegNum(own) || !isNoneNegNum(friends)) return resolve(showMessage("数据统计失败"));
+
+            return resolve(showMessage(energyStr(friends, own) || "A fruitless attempt"));
+
+            // tool function(s) //
+
+            function energyStr(friends_num, self_num) {
+                let msg = "";
+                if (self_num) msg = "Energy from yourself: " + self_num + "g";
+                if (friends_num) msg += (self_num ? "\n" : "") + "Energy from friends: " + friends_num + "g";
+                return msg;
+            }
+
+            function showMessage(msg) {
+                msg.split("\n").forEach(msg => messageAction(msg, 1));
+                if (msg.match(/失败|错误/)) own = -1;
+                if (config.floaty_result_switch) {
+                    return showFloatyResultAsync(own, friends, config.floaty_result_countdown);
+                }
+                messageAction(msg, null, 1);
+                debugInfo("统计结果展示完毕");
+
+                // tool function(s) //
+
+                function showFloatyResultAsync(you, friends, countdown) {
+                    debugInfo("发送Floaty消息等待信号");
+                    current_app.floaty_msg_finished_flag = 0;
+                    let floaty_failed_flag = true;
+                    let timeout = countdown * 1000;
+                    debugInfo("时间参数: " + timeout);
+
+                    let hints = [];
+
+                    if (!~you) hints.push("SORRY");
+                    else {
+                        if (you) hints.push("YOURSELF: " + you);
+                        if (friends) hints.push("FRIENDS: " + friends);
+                    }
+                    let hint_len = hints.length;
+                    debugInfo("消息数量参数: " + hint_len);
+                    if (hint_len === 2) hints = hints.map(str => str.replace(/(\w{3})\w+(?=:)/, "$1")); // %alias%.slice(0, 3) + ": \d+g"
+                    if (hint_len === 1) hints = hints.map(str => str.replace(/(\w+)(?=:).*/, "$1")); // %alias% only
+                    if (!hints.length) {
+                        let pickUpOneNote = () => {
+                            let notes = "NEVER.contains(SAY+DIE)%5cnLIFE+!%3d%3d+ALL+ROSES%5cnIMPOSSIBLE+%3d%3d%3d+undefined%5cnGOD.FAIR()+%3d%3d%3d+true%5cn%2f((%3f!GIVE+(UP%7cIN)).)%2b%2fi%5cnWORKMAN+%3d+new+Work()%5cnLUCK.length+%3d%3d%3d+Infinity%5cnLLIST.next+%3d%3d%3d+LUCKY%5cnBLESSING.discard(DISGUISE)%5cnWATER.drink().drink()".split("%5cn");
+                            return decodeURIComponent(notes[~~(Math.random() * notes.length)]).replace(/\+(?!\/)/g, " ");
+                        };
+                        hints = [pickUpOneNote()];
+                        debugInfo("随机挑选提示语");
+                        hint_len = hints.length;
+                    }
+
+                    debugInfo("开始绘制Floaty");
+
+                    let window_cover = floaty.rawWindow(<frame id="cover" gravity="center" bg="#7f000000"/>);
+                    let human_touched = false;
+
+                    window_cover.cover.on("click", () => {
+                        if (human_touched) {
+                            floaty_failed_flag = false;
+                            current_app.floaty_msg_finished_flag = 1;
+                            debugInfo(["触发遮罩层触摸事件", "提前结束Floaty结果展示", "发送Floaty消息结束等待信号"]);
+                            floaty.closeAll();
+                        } else {
+                            debugInfo(["模拟一次\"深度返回\"操作", ">检测到非用户点击行为"]);
+                            keycode(4, "double");
+                        }
+                    });
+
+                    window_cover.cover.setOnTouchListener(
+                        function onTouch(view, event) {
+                            if (!human_touched) {
+                                let {ACTION_DOWN, ACTION_UP, ACTION_MOVE} = android.view.MotionEvent;
+                                let ACT = event.getAction();
+                                if (ACT === ACTION_DOWN) human_touched = event.getY() > cY(0.12, 16 / 9);
+                                if (ACT === ACTION_MOVE) human_touched = true;
+                                if (ACT === ACTION_UP) human_touched = event.getEventTime() - event.getDownTime() > 200;
+                            }
+                            return false; // event will not be consumed and will send to onClickListener
+                        }
+                    );
+
+                    window_cover.setSize(-1, -1);
+                    window_cover.setTouchable(true); // prevent touch event transferring to the view beneath
+
+                    let base_height = cY(0.66);
+                    let message_height = cY(80, 16 / 9);
+                    let hint_height = message_height * 0.7;
+                    let timeout_height = hint_height;
+                    let color_stripe_height = message_height * 0.2;
+
+                    let message_layout =
+                        <frame gravity="center">
+                            <text id="text" bg="#cc000000" size="24" padding="10 2" color="#ccffffff" gravity="center"/>
+                        </frame>;
+
+                    let timeout_layout =
+                        <frame gravity="center">
+                            <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center" text="0"/>
+                        </frame>;
+
+                    let color_stripe_layout =
+                        <frame gravity="center">
+                            <text id="text" bg="#ffffffff" size="24" padding="10 2" color="{{colors.toString(-1)}}" gravity="center"/>
+                        </frame>;
+
+                    let hint_layout =
+                        <frame gravity="center">
+                            <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center"/>
+                        </frame>;
+
+                    let message_raw_win = floaty.rawWindow(message_layout);
+
+                    ui.run(() => {
+                        message_raw_win.text.setText(!~you && "Statistics Failed" || (you + friends).toString() || "0");
+                        message_raw_win.setSize(-2, 0);
+                        let max_wait_time = 5000;
+                        let start_timestamp = timeRecorder("message_raw_win_width");
+                        while (timeRecorder("message_raw_win_width", "load") - start_timestamp < max_wait_time) {
+                            if (message_raw_win.getWidth() > 0) break;
+                        }
+                    });
+
+                    let min_width = Math.max(message_raw_win.getWidth(), cX(0.54), cX(0.25) * hint_len);
+                    let left_pos = (WIDTH - min_width) / 2;
+
+                    ui.run(() => {
+                        message_raw_win.setPosition(left_pos, base_height);
+                        message_raw_win.setSize(min_width, message_height);
+                    });
+
+                    let hint_top_pos = base_height - color_stripe_height - hint_height;
+                    let color_stripe_up_top_pos = base_height - color_stripe_height;
+                    let color_stripe_down_top_pos = base_height + message_height;
+                    let timeout_top_pos = base_height + message_height + color_stripe_height;
+
+                    let avg_width = ~~(min_width / hint_len);
+
+                    let stripe_color_map = {
+                        "YOU": "#7dae17",
+                        "FRI": "#2ba653",
+                        "SOR": "#a3555e", // SORRY
+                        "OTHER": "#907aa3",
+                    };
+
+                    for (let i = 0; i < hint_len; i += 1) {
+                        let current_hint = hints[i];
+                        let current_hint_color = "#cc" + (stripe_color_map[current_hint.slice(0, 3)] || stripe_color_map["OTHER"]).slice(1);
+                        let color_stripe_bg = colors.parseColor(current_hint_color);
+                        let current_left_pos = left_pos + avg_width * i;
+                        let current_width = i === hint_len - 1 ? min_width - (hint_len - 1) * avg_width : avg_width;
+
+                        let color_stripe_raw_win_down = floaty.rawWindow(color_stripe_layout);
+                        color_stripe_raw_win_down.setSize(1, 0);
+                        ui.run(() => color_stripe_raw_win_down.text.setBackgroundColor(color_stripe_bg));
+                        color_stripe_raw_win_down.setPosition(current_left_pos, color_stripe_down_top_pos);
+
+                        let color_stripe_raw_win_up = floaty.rawWindow(color_stripe_layout);
+                        color_stripe_raw_win_up.setSize(1, 0);
+                        ui.run(() => color_stripe_raw_win_up.text.setBackgroundColor(color_stripe_bg));
+                        color_stripe_raw_win_up.setPosition(current_left_pos, color_stripe_up_top_pos);
+
+                        let hint_raw_win = floaty.rawWindow(hint_layout);
+                        hint_raw_win.setSize(1, 0);
+                        ui.run(() => hint_raw_win.text.setText(current_hint));
+                        hint_raw_win.setPosition(current_left_pos, hint_top_pos);
+
+                        color_stripe_raw_win_down.setSize(current_width, color_stripe_height);
+                        color_stripe_raw_win_up.setSize(current_width, color_stripe_height);
+                        hint_raw_win.setSize(current_width, hint_height);
+                    }
+
+                    let timeout_raw_win = floaty.rawWindow(timeout_layout);
+                    timeout_raw_win.setSize(1, 0);
+                    timeout_raw_win.setPosition(left_pos, timeout_top_pos);
+                    timeout_raw_win.setSize(min_width, timeout_height);
+
+                    let countdown_interval = null;
+
+                    let p1 = new Promise((resolve => {
+                        debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
+                        setFloatyTimeoutText(countdown);
+                        countdown_interval = setInterval(function () {
+                            if (--countdown <= 0) return resolve(clearInterval(countdown_interval));
+                            if (current_app.floaty_msg_finished_flag) return resolve(clearInterval(countdown_interval));
+                            setFloatyTimeoutText(countdown);
+                        }, 1000);
+                    }));
+
+                    let p2 = new Promise((resolve => {
+                        setTimeout(function () {
+                            clearInterval(countdown_interval);
+
+                            if (floaty_failed_flag) {
+                                messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                                messageAction("建议改用Toast方式显示收取结果", 3);
+                            }
+
+                            let prefix = floaty_failed_flag ? "强制" : "";
+                            debugInfo(prefix + "关闭所有Floaty窗口");
+                            floaty.closeAll();
+
+                            if (current_app.floaty_msg_finished_flag === 0) {
+                                current_app.floaty_msg_finished_flag = 1;
+                                debugInfo(prefix + "发送Floaty消息结束等待信号");
+                            }
+
+                            debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
+                            resolve();
+                        }, timeout);
+                    }));
+
+                    return Promise.race([p1, p2])
+                        .then(() => true)
+                        .catch(e => messageAction(e, 4, 1, 0, "both"));
+
+                    // tool function(s) //
+
+                    function setFloatyTimeoutText(countdown) {
+                        ui.run(function () {
+                            try {
+                                debugInfo("设置倒计时数据文本: " + countdown);
+                                timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
+                                floaty_failed_flag = false;
+                            } catch (e) {
+                                debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
+                            }
+                        });
+                    }
+                }
+            }
+        });
     }
 
-    if (config.kill_when_done_switch) {
-        endAlipay(); // kill (or minimize) alipay immediately
-    } else {
-        if (current_app.kill_when_done_intelligent_kill) endAlipay();
-        else config.kill_when_done_keep_af_pages || closeAfWindows();
+    function prepareForExitAsync() {
+        if (current_app.blacklist) {
+            debugInfo("存储本次会话黑名单数据");
+            storage_af.put("blacklist", current_app.blacklist);
+        }
+
+        if (config.kill_when_done_switch) {
+            endAlipay(); // kill (or minimize) alipay immediately
+        } else {
+            if (current_app.kill_when_done_intelligent_kill) endAlipay();
+            else config.kill_when_done_keep_af_pages || closeAFWindows();
+        }
+
+        removeSpringboardIfNeeded();
+
+        current_app.may_exit_when_screen_off_flag = true;
+
+        return new Promise((resolve => {
+            if (current_app.floaty_msg_finished_flag === 1) return resolve();
+
+            timeRecorder("wait_for_floaty_msg_finished");
+            let max_wait_duration = (+config.floaty_result_countdown + 3) * 1000;
+            let timedOut = () => timeRecorder("wait_for_floaty_msg_finished", "load") > max_wait_duration;
+
+            debugInfo("等待Floaty消息结束等待信号");
+            let interval = setInterval(function () {
+                if (current_app.floaty_msg_finished_flag === 1) {
+                    resolve();
+                    return clearInterval(interval);
+                }
+                if (timedOut()) {
+                    current_app.floaty_msg_finished_flag = 1;
+                    debugInfo(["放弃等待Floaty消息结束信号", ">等待结束信号超时"], 3);
+                    resolve();
+                    return clearInterval(interval);
+                }
+                // debugInfo("继续等待Floaty消息结束等待信号"); //// TEST ////
+            }, 200);
+        }));
+
+        // tool function(s) //
+
+        function closeAFWindows() {
+            debugInfo("关闭全部蚂蚁森林相关页面");
+
+            let max_close_time = 10000;
+            while (closeBtnCondition() || loginPageCondition()) {
+                sleep(400);
+                max_close_time -= 400;
+                if (max_close_time <= 0) break;
+            }
+            debugInfo(max_close_time > 0 ? ["相关页面关闭完毕", "保留当前支付宝页面"] : "页面关闭可能没有成功");
+
+            // tool function(s) //
+
+            function closeBtnCondition() {
+                let afTitle = current_app.kw_af_title;
+                let rankListTitle = current_app.kw_rank_list_title;
+                let forestPage = () => sel.pickup([/浇水|发消息/, {className: "Button"}]);
+                if (afTitle() || rankListTitle() || forestPage()) return clickAction(current_app.kw_close_btn(), "widget");
+            }
+
+            function loginPageCondition() {
+                if (current_app.kw_login_with_new_user()) return jumpBackOnce() || true;
+            }
+        }
+
+        function removeSpringboardIfNeeded() {
+            if (config.app_launch_springboard === "ON") {
+                if (!current_app.alipay_closed_flag) return debugInfo(["跳过启动跳板移除操作", ">支付宝未关闭"]);
+
+                let {init_autojs_state, current_autojs_app_name, isAutojsForeground, isAutojsHomepage} = current_app;
+                let {init_foreground, init_homepage, init_log_page, init_settings_page} = init_autojs_state;
+                let doubleBack = () => ~back() && ~back() && sleep(400);
+                let restoreSpringboard = (symbol) => {
+                    let message = "恢复跳板" + surroundWith(symbol[0].toUpperCase() + symbol.slice(1), " ") + "页面";
+                    debugInfo(message);
+                    messageAction(message, null, 1);
+                    return app.startActivity(symbol);
+                };
+
+                if (!waitForAction(isAutojsForeground, 9000, 300)) {
+                    return debugInfo("等待返回" + current_autojs_app_name + "应用页面超时");
+                }
+
+                if (!init_foreground) return removeSpringboard(isAutojsForeground, doubleBack);
+
+                if (!init_homepage) {
+                    if (init_log_page) return restoreSpringboard("console");
+                    if (init_settings_page) return restoreSpringboard("settings");
+                    return removeSpringboard(isAutojsHomepage, doubleBack);
+                }
+
+                return debugInfo("无需移除启动跳板");
+            }
+
+            // tool function(s) //
+
+            function removeSpringboard(conditionFunc, removeFunc) {
+                debugInfo("移除启动跳板");
+                let max_times_back = 5;
+                while (conditionFunc() && max_times_back--) removeFunc();
+                return max_times_back >= 0 ? debugInfo("跳板移除成功") : debugInfo("跳板移除可能失败", 3);
+            }
+        }
     }
-
-    removeSpringboardIfNeeded();
-
-    current_app.may_exit_when_screen_off_flag = true;
-
-    if (current_app.floaty_msg_signal) {
-        debugInfo("等待Floaty消息结束等待信号");
-        waitForAction(() => !current_app.floaty_msg_signal, 8000) || debugInfo("等待信号超时 放弃等待");
-    }
-
-
-    debugInfo("关闭所有线程");
-    threads.shutDownAll(); // kill all threads started by threads.start()
-
-    let pool = current_app.rank_list_capt_diff_check_pool || [];
-    while (pool.length) pool.shift().recycle();
-
-    screenOffIfNeeded();
-    messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
-    exit();
 
     // tool function(s) //
 
-    function closeAfWindows() {
-        debugInfo("关闭全部蚂蚁森林相关页面");
+    function screenOffIfNeededAsync() {
+        if (current_app.init_screen_on_state) return debugInfo("无需关闭屏幕");
 
-        let max_close_time = 10000;
-        while (closeBtnCondition() || loginPageCondition()) {
-            sleep(400);
-            max_close_time -= 400;
-            if (max_close_time <= 0) break;
-        }
-        debugInfo(max_close_time > 0 ? ["相关页面关闭完毕", "保留当前支付宝页面"] : "页面关闭可能没有成功");
+        __global__.pause_screen_off_state_monitor = true;
+        debugInfo("尝试关闭屏幕");
 
-        // tool function(s) //
-
-        function closeBtnCondition() {
-            let afTitle = () => current_app.kw_af_title().boundsInside(0, 0, cX(0.8), cY(0.2, 16 / 9)).exists();
-            let rankListTitle = () => current_app.kw_rank_list_title().exists();
-            let forestPage = () => sel.pickup("浇水").exists();
-            if (afTitle() || rankListTitle() || forestPage()) return clickAction(current_app.kw_close_btn(), "widget");
+        try {
+            if (screenOffByKeyCode()) return debugInfo("关闭屏幕成功") || true;
+        } catch (e) {
+            messageAction(e.message, 4, 1, 0, "both");
         }
 
-        function loginPageCondition() {
-            let kw_login_with_new_user = () => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user");
-            if (kw_login_with_new_user().exists()) return jumpBackOnce() || true;
+        return Promise.resolve()
+            .then(screenOffByModifyingAndroidSettingsProviderAsync)
+            .catch((e) => messageAction(e.message, 4, 0, 1, 1))
+            .then((result) => result ? debugInfo("关闭屏幕成功") : debugInfo("关闭屏幕失败", 3));
+
+        // tool function (s) //
+
+        function screenOffByKeyCode() {
+            let strategy_name = "模拟电源按键";
+            debugInfo("尝试策略: " + strategy_name);
+
+            if (!checkBugModel()) return false;
+
+            timeRecorder("SCREEN_OFF_TIMEOUT");
+            let keycode_name = "26";
+            if (keycode(keycode_name, "no_err_msg")) {
+                debugInfo("策略执行成功");
+                debugInfo("用时: " + timeRecorder("SCREEN_OFF_TIMEOUT", "load", 1000, [1], "秒"));
+                return true;
+            }
+            debugInfo(["策略执行失败", ">按键模拟失败", ">键值: " + keycode_name]);
+            return false;
+
+            // tool function(s) //
+
+            function checkBugModel() {
+                let device_brand = device.brand;
+                let keycode_power_bug_versions = [/[Mm]eizu/]; // poor guy, don't cry... :sweat_smile:
+                // let keycode_power_bug_versions = [/[Mm]eizu|Sony/]; //// TEST ////
+                for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
+                    if (device_brand.match(keycode_power_bug_versions[i])) {
+                        return debugInfo(["策略执行失败", ">设备型号不支持KeyCode方法", ">设备型号: " + device_brand]) && false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        function screenOffByModifyingAndroidSettingsProviderAsync() {
+            let sto = storages.create("screen_off_by_modifying_android_settings_provider_params");
+            let {System, Global, Secure} = android.provider.Settings;
+            let {SCREEN_OFF_TIMEOUT} = System;
+            let {DEVELOPMENT_SETTINGS_ENABLED} = Secure;
+            let {STAY_ON_WHILE_PLUGGED_IN} = Global;
+            let context_resolver = context.getContentResolver();
+            let setScreenOffTimeout = time => System.putInt(context_resolver, SCREEN_OFF_TIMEOUT, time || 1);
+            let setStayOnState = state => Global.putInt(context_resolver, STAY_ON_WHILE_PLUGGED_IN, state || 0);
+            let screen_off_result = false;
+
+            let strategy_name = "修改屏幕超时参数";
+            debugInfo("尝试策略: " + strategy_name);
+
+            if (!System.canWrite(context)) {
+                debugInfo([
+                    "策略执行失败",
+                    ">需要\"修改系统设置\"权限",
+                    ">可使用以下工具获得帮助支持:",
+                    ">" + files.path("./Tools/Auto.js_Write_Settings_Permission_Helper.js")
+                ]);
+                return false;
+            }
+
+            return Promise.resolve()
+                .then(() => timeRecorder("settings_provider_params"))
+                .then(() => setScreenOffParams(1))
+                .then(() => monitorScreenStateAsync())
+                .then(() => restoreScreenParams())
+                .then(() => screen_off_result)
+                .catch(e => messageAction(e, 4));
+
+            // tool function(s) //
+
+            function setScreenOffParams(time) {
+                let current_dev_enabled = Secure.getInt(context_resolver, DEVELOPMENT_SETTINGS_ENABLED, 0);
+                let current_stay_on_state = Global.getInt(context_resolver, STAY_ON_WHILE_PLUGGED_IN, 0);
+                if (current_dev_enabled && current_stay_on_state) {
+                    sto.put("STAY_ON_WHILE_PLUGGED_IN", current_stay_on_state);
+                    setStayOnState(0);
+                }
+
+                let current_screen_off_timeout = System.getInt(context_resolver, SCREEN_OFF_TIMEOUT, 0);
+                if (current_screen_off_timeout > 2000) sto.put("SCREEN_OFF_TIMEOUT", current_screen_off_timeout);
+                setScreenOffTimeout(time);
+            }
+
+            function restoreScreenParams() {
+                debugInfo("恢复修改前的设置参数:");
+
+                let sto_stay_on_state_value = sto.get("STAY_ON_WHILE_PLUGGED_IN", 0);
+                if (sto_stay_on_state_value) {
+                    setStayOnState(sto_stay_on_state_value);
+                    debugInfo("STAY_ON_WHILE_PLUGGED_IN: " + sto_stay_on_state_value);
+                }
+
+                let sto_timeout_value = sto.get("SCREEN_OFF_TIMEOUT", 60000);
+                setScreenOffTimeout(sto_timeout_value);
+                debugInfo("SCREEN_OFF_TIMEOUT: " + sto_timeout_value);
+
+                storages.remove("screen_off_by_modifying_android_settings_provider_params");
+            }
+
+            function monitorScreenStateAsync() {
+                return new Promise((resolve) => {
+                    let timedOut = () => timeRecorder("settings_provider_params", "load") > 20000;
+                    let interval = setInterval(function () {
+                        if (!device.isScreenOn()) {
+                            debugInfo("策略执行成功");
+                            debugInfo("用时: " + timeRecorder("settings_provider_params", "load", 1000, [1], "秒"));
+                            resolve(screen_off_result = true);
+                            return clearInterval(interval);
+                        }
+                        if (timedOut()) {
+                            debugInfo([
+                                "策略执行失败",
+                                ">等待屏幕关闭时间已达阈值",
+                                ">有关此策略更多详细信息",
+                                ">可使用并参阅以下工具:",
+                                ">" + files.path("./Tools/Auto.js_Write_Settings_Permission_Helper.js")
+                            ]);
+                            resolve(false);
+                            return clearInterval(interval);
+                        }
+                        // debugInfo("继续等待策略执行结果"); //// TEST ////
+                    }, 200);
+                });
+            }
         }
     }
 
-    function endAlipay() {
-        debugInfo("关闭支付宝");
-        let alipay_pkg_name = current_app.package_name;
-        if (!killThisApp(alipay_pkg_name, {shell_acceptable: true})) return debugInfo("支付宝关闭超时", 3);
-        debugInfo("支付宝关闭完毕");
-        current_app.alipay_closed_flag = true;
-    }
-
-    function removeSpringboardIfNeeded() {
-        if (config.app_launch_springboard === "ON") {
-            if (!current_app.alipay_closed_flag) return debugInfo(["跳过启动跳板移除操作", ">支付宝未关闭"]);
-
-            let {init_autojs_state, current_autojs_app_name, isAutojsForeground, isAutojsHomepage} = current_app;
-            let {init_foreground, init_homepage, init_log_page, init_settings_page} = init_autojs_state;
-            let doubleBack = () => ~back() && ~back() && sleep(400);
-            let restoreSpringboard = (symbol) => {
-                let message = "恢复跳板" + surroundWith(symbol[0].toUpperCase() + symbol.slice(1), " ") + "页面";
-                debugInfo(message);
-                messageAction(message, null, 1);
-                return app.startActivity(symbol);
-            };
-
-            if (!waitForAction(isAutojsForeground, 9000, 300)) {
-                return debugInfo("等待返回" + current_autojs_app_name + "应用页面超时");
-            }
-
-            if (!init_foreground) return removeSpringboard(isAutojsForeground, doubleBack);
-
-            if (!init_homepage) {
-                if (init_log_page) return restoreSpringboard("console");
-                if (init_settings_page) return restoreSpringboard("settings");
-                return removeSpringboard(isAutojsHomepage, doubleBack);
-            }
-
-            return debugInfo("无需移除启动跳板");
-        }
-
-        // tool function(s) //
-
-        function removeSpringboard(conditionFunc, removeFunc) {
-            debugInfo("移除启动跳板");
-            let max_times_back = 5;
-            while (conditionFunc() && max_times_back--) removeFunc();
-            return max_times_back >= 0 ? debugInfo("跳板移除成功") : debugInfo("跳板移除可能失败");
-        }
-    }
-
-    function screenOffIfNeeded() {
-        if (current_app.is_init_screen_on) return debugInfo("无需关闭屏幕");
-        let device_brand = device.brand;
-        let keycode_power_bug_versions = [/[Mm]eizu/];
-        let keycode_power_bug = !!function () {
-            for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
-                if (device_brand.match(keycode_power_bug_versions[i])) return true;
-            }
-        }();
-        if (!keycode_power_bug) ~debugInfo("关闭屏幕") && keycode(26) || debugInfo("关闭屏幕失败");
-        else {
-            messageAction("关闭屏幕失败", 3);
-            messageAction("设备型号不支持自动关屏", 3, 0, 1);
-            messageAction("型号: " + device_brand, 3, 0, 1);
+    function cleanRankListCaptPool() {
+        try {
+            debugInfo("清理排行榜截图样本池");
+            let pool = current_app.rank_list_capt_diff_check_pool || [];
+            while (pool.length) pool.shift().recycle();
+        } catch (e) {
+            messageAction(e.message, 4, 1, 0, "both");
         }
     }
 }
 
 // tool function(s) //
+
+function endAlipay() {
+    debugInfo("关闭支付宝");
+    let alipay_pkg_name = current_app.package_name;
+    if (!killThisApp(alipay_pkg_name, {shell_acceptable: true})) return debugInfo("支付宝关闭超时", 3);
+    debugInfo("支付宝关闭完毕");
+    current_app.alipay_closed_flag = true;
+}
+
+function exitNow() {
+    messageAction(current_app.quote_name + "任务结束", 1, 0, 0, "both_n");
+    return ui.post(exit);
+}
 
 function unlock() {
     unlockMain();
@@ -2634,11 +3341,11 @@ function unlock() {
             messageAction("自动解锁功能无法使用", 3);
             return messageAction("解锁模块未导入", 3, 0, 1);
         }
-        if (!current_app.is_init_screen_on && !config.auto_unlock_switch) {
-            messageAction("脚本无法继续", 4);
-            messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
+        if (!__global__.is_init_screen_on && !config.auto_unlock_switch) {
+            messageAction("脚本无法继续", 4, 0, 0, "up");
+            messageAction("屏幕关闭且自动解锁功能未开启", 9, 1, 1, 1);
         }
-        if (!context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked()) {
+        if (unlock_module.isUnlocked()) {
             __global__._monster_$_no_need_unlock_flag = true;
             return debugInfo("无需解锁");
         }
@@ -2668,75 +3375,87 @@ function setVolKeysListener() {
 }
 
 function setGlobalWaitingMonitors() {
-    __global__._monster_$_global_waiting_signal = 0; // counter
+    __global__._monster_$_global_monitor_waiting_signal = 0; // counter
 
-    let monitors = [
-        {
-            switch: "phone_call_state_monitor_switch",
-            condition: () => phoneCallingState() !== currentPhoneCallState(),
-            onRelease: () => {
-                debugInfo("前置\"支付宝\"应用");
-                app.launchPackage(current_app.package_name || "com.eg.android.AlipayGphone");
-            },
-            description: "通话状态",
-            timeout_or_times: 120 * 60000, // 2 hr
+    let monitors = [{
+        switch: "phone_call_state_monitor_switch",
+        condition: () => !__global__.pause_phone_call_state_monitor && phoneCallingState() !== currentPhoneCallState(),
+        onRelease: () => {
+            debugInfo("前置\"支付宝\"应用");
+            app.launchPackage(current_app.package_name || "com.eg.android.AlipayGphone");
         },
-        {
-            condition: () => current_app.device_ever_unlocked_flag && !device.isScreenOn(),
-            onRelease: () => {
-                current_app.swipe_up_waiting_signal = true;
-                __global__._monster_$_global_waiting_signal--;
-                unlock();
-                current_app.swipe_up_waiting_signal = false;
-                __global__._monster_$_global_waiting_signal++;
-            },
-            onTrigger: () => {
-                if (current_app.may_exit_when_screen_off_flag) {
-                    messageAction("允许脚本提前退出", 4, 1, 0, "up");
-                    messageAction("相关标识已激活且屏幕已关闭", 8, 0, 1, 1);
-                }
-            },
-            description: "屏幕关闭",
-            timeout_or_times: 2 * 60000, // 2 min
-        }
-    ];
+        description: "通话状态",
+        timeout_or_times: "2 hr",
+    }, {
+        condition: () => !__global__.pause_screen_off_state_monitor && current_app.device_ever_unlocked_flag && !device.isScreenOn(),
+        onRelease: () => {
+            current_app.swipe_up_waiting_signal = true;
+            __global__._monster_$_global_monitor_waiting_signal--;
+            unlock();
+            current_app.swipe_up_waiting_signal = false;
+            __global__._monster_$_global_monitor_waiting_signal++;
+        },
+        onTrigger: () => {
+            if (current_app.may_exit_when_screen_off_flag) {
+                messageAction("允许脚本提前退出", 4, 1, 0, "up");
+                messageAction("相关标识已激活且屏幕已关闭", 8, 0, 1, 1);
+            }
+        },
+        description: "屏幕关闭",
+        timeout_or_times: "2 min",
+    }];
 
     monitors.forEach((o) => {
         let {condition, description, timeout_or_times, onTrigger, onRelease} = o;
         description = surroundWith(description);
+        if (typeof timeout_or_times === "string") {
+            if (timeout_or_times.match(/h((ou)?rs?)?/)) timeout_or_times = timeout_or_times.match(/\d+/)[0] * 3600000;
+            else if (timeout_or_times.match(/m(in(utes?))?/)) timeout_or_times = timeout_or_times.match(/\d+/)[0] * 60000;
+            else if (timeout_or_times.match(/s(ec(conds?))?/)) timeout_or_times = timeout_or_times.match(/\d+/)[0] * 1000;
+            else if (timeout_or_times.match(/m(illi)?s(ec(conds?))?/)) timeout_or_times = timeout_or_times.match(/\d+/)[0] * 1;
+        } else {
+            timeout_or_times = +timeout_or_times;
+            if (timeout_or_times < 1000) timeout_or_times *= 1000; // take as seconds
+            if (!timeout_or_times) timeout_or_times = Infinity; // endless monitoring
+        }
 
         if (o.switch && !config[o.switch]) return debugInfo(description + "事件监测未开启");
         debugInfo("开启" + description + "事件监测");
 
         threads.start(function () {
             let triggered_flag = false;
+            let timed_out_flag = false;
             while (sleep(200) || true) {
-                let max_try_time = timeout_or_times || Infinity;
-                while (condition() && max_try_time > 0) {
+                while (condition()) {
                     if (!triggered_flag) {
-                        timeRecorder(description, "save");
+                        timeRecorder("global_monitor_" + description, "save");
                         messageAction("触发" + description + "事件", 1, 1, 0, "up_dash");
                         triggered_flag = true;
-                        __global__._monster_$_global_waiting_signal++;
+                        __global__._monster_$_global_monitor_waiting_signal++;
                         messageAction("等待事件解除" + (
-                            max_try_time !== Infinity ? " (最多" + millisecondToStr(max_try_time, [2]) + ")" : ""
+                            timeout_or_times !== Infinity ? " (最多" + millisecondToStr(timeout_or_times, [2]) + ")" : ""
                         ), 1, 0, 0, "dash");
                         onTrigger && onTrigger();
                     }
                     sleep(200);
-                    max_try_time -= 200;
+                    if (timeRecorder("global_monitor_" + description, "load") >= timeout_or_times) {
+                        timed_out_flag = true;
+                        break;
+                    }
                 }
                 if (triggered_flag) {
-                    if (max_try_time <= 0) {
+                    if (timed_out_flag) {
                         messageAction("强制停止脚本", 4, 1, 0, "up");
-                        messageAction(description + "事件解除超时", 8, 1, 1, 1);
+                        messageAction(description + "事件解除超时", 9, 1, 1, 1);
                     } else {
                         messageAction("解除" + description + "事件", 1, 0, 0, "up_dash");
-                        messageAction("解除用时: " + timeRecorder(description, "load", 1000, [1], "秒"), 1, 0, 1, "dash");
+                        messageAction("解除用时: " + timeRecorder(
+                            "global_monitor_" + description, "load", 1000, [1], "秒"), 1, 0, 1, "dash"
+                        );
                         onRelease && onRelease();
                     }
                     triggered_flag = false;
-                    __global__._monster_$_global_waiting_signal--;
+                    __global__._monster_$_global_monitor_waiting_signal--;
                 }
             }
         });
@@ -2804,14 +3523,14 @@ function setGlobalWaitingMonitors() {
 }
 
 function showRunningCountdownIfNeeded() {
-    if (!current_app.is_init_screen_on) return debugInfo(["跳过\"运行前提示\"", ">屏幕未亮起"]);
+    if (!__global__.is_init_screen_on) return debugInfo(["跳过\"运行前提示\"", ">屏幕未亮起"]);
+    if (!unlock_module.isUnlocked()) return debugInfo(["跳过\"运行前提示\"", ">设备未解锁"]);
     if (!config.prompt_before_running_switch) return debugInfo("\"运行前提示\"未开启");
     if (my_engine.execArgv.instant_run_flag) return debugInfo(["跳过\"运行前提示\"", ">检测到\"立即运行\"引擎参数"]);
 
     let move_on_signal = false;
     let thread_running_countdown = threads.start(function () {
-        // let count_down_second = config.prompt_before_running_countdown_seconds;
-        let count_down_second = config.prompt_before_running_countdown_seconds + 1; // maybe this is a better scenario than the one above ?
+        let count_down_second = +config.prompt_before_running_countdown_seconds + 1;
 
         let thread_set_countdown = null;
         let countdown_stop_signal = false;
@@ -2848,7 +3567,7 @@ function showRunningCountdownIfNeeded() {
 
         thread_set_countdown = threads.start(function () {
             while (--count_down_second) {
-                if (countdown_stop_signal) return debugInfo("检测到倒计时停止信号");
+                if (countdown_stop_signal) return debugInfo("检测到计时器停止监测信号");
                 let content_text = diag.getContentView().getText().toString();
                 diag.setContent(content_text.replace(/\d+/, count_down_second));
                 let button_text = diag.getActionButton("positive").replace(/ *\[ *\d+ *]$/, "");
@@ -2993,10 +3712,10 @@ function showRunningCountdownIfNeeded() {
         }
     });
 
-    if (!waitForAction(() => move_on_signal, 5 * 60 * 3600)) {
+    if (!waitForAction(() => move_on_signal, 5 * 60000)) {
         thread_running_countdown.interrupt();
         messageAction("强制结束脚本", 4, 1);
-        messageAction("等待运行前对话框操作超时", 8, 1, 0, 1);
+        messageAction("等待运行前对话框操作超时", 9, 1, 0, 1);
     }
 }
 
@@ -3004,6 +3723,7 @@ function setInsuranceTaskIfNeeded() {
     if (!config.timers_switch) return debugInfo("定时循环功能未开启");
     if (!config.timers_self_manage_switch) return debugInfo("定时任务自动管理未开启");
     if (!config.timers_insurance_switch) return debugInfo("意外保险未开启");
+    if (my_engine.execArgv.no_insurance_flag) return debugInfo(["跳过\"意外保险\"设置", ">检测到\"无需保险\"引擎参数"]);
 
     let storage_task_ids = storage_af.get("insurance_tasks", []).filter(id => timers.getTimedTask(id));
     let continuous_times = +storage_af.get("insurance_tasks_continuous_times", 0) + 1;
@@ -3036,18 +3756,6 @@ function setInsuranceTaskIfNeeded() {
             timers.updateTimedTask(task);
         }, 10000);
     });
-}
-
-function startActivity(main, timeout_or_times, interval) {
-    if (!main || typeof main !== "object") messageAction("startActivity()参数main无效", 8, 1, 0, "both");
-    if (!waitForAction(() => {
-        try {
-            app.startActivity(main);
-            return true;
-        } catch (e) {
-        }
-    }, timeout_or_times || 8, interval || 400)) messageAction("startActivity()执行失败", 8, 1, 0, "both");
-    return true;
 }
 
 function checkBlackTimestamp(timestamp) {
@@ -3093,8 +3801,8 @@ function checkModules() {
         );
         __global__._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
         unlock_module = new (require("./Modules/MODULE_UNLOCK"));
-        current_app.is_init_screen_on = unlock_module.is_screen_on;
-        debugInfo("接入\"af_cfg\"存储", "up");
+        __global__.is_init_screen_on = unlock_module.is_screen_on;
+        debugInfo("接入\"af_cfg\"存储", "Up");
         debugInfo("整合代码配置与本地配置");
         debugInfo("成功导入解锁模块");
 
@@ -3116,6 +3824,7 @@ function checkTasksQueue() {
     let queue_flag = false;
     timeRecorder("queue_beginning", "save");
     my_engine = (engines || {}).myEngine() || {};
+    if (typeof my_engine.execArgv === "undefined") my_engine.execArgv = {};
     let my_engine_id = my_engine.id;
     let bomb_flag = false;
     let checkExclusiveTasks = () => {
@@ -3137,7 +3846,7 @@ function checkTasksQueue() {
         if (typeof my_engine.execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
         if (checkBomb()) {
             bomb_flag = true;
-            debugInfo("脚本因安全限制强制停止");
+            messageAction("脚本因安全限制被强制终止", 3, 0, 0, "both");
             exit();
         }
         let queuing_ex_tasks_check = checkExclusiveTasks();
@@ -3169,7 +3878,7 @@ function checkTasksQueue() {
         __global__.engines_not_supported_flag = true;
         debugInfo("Engines支持性标记: false")
     }
-    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "up");
+    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "Up");
 }
 
 function checkVersions() {
@@ -3206,8 +3915,8 @@ function checkVersions() {
         let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
         debugInfo("安卓系统SDK版本: " + current_sdk_ver);
         if (current_sdk_ver >= 24) return true;
-        messageAction("脚本无法继续", 4);
-        messageAction("安卓系统版本低于7.0", 8, 1, 1, 1);
+        messageAction("脚本无法继续", 4, 0, 0, "up");
+        messageAction("安卓系统版本低于7.0", 9, 1, 1, 1);
     }
 
     function checkBugVersions() {
@@ -3438,6 +4147,7 @@ function checkEngines() {
 
     let special_exec_list = {
         "collect_friends_list": speExecCollectFriendsList,
+        "collect_current_account_name": speExecCollectCurrentAccountName,
     };
 
     if (__global__.engines_not_supported_flag) {
@@ -3450,10 +4160,11 @@ function checkEngines() {
                 messageAction("未知的执行命令参数:\n" + special_exec_command, null, 1);
                 messageAction("脚本无法继续", 4, 0, 0, "up");
                 messageAction("未知的执行命令参数", 4, 0, 1);
-                messageAction(special_exec_command, 8, 0, 2, 1);
+                messageAction(special_exec_command, 9, 0, 2, 1);
             }
             debugInfo("执行特殊指令: " + special_exec_command);
             special_exec_list[special_exec_command]();
+            sleep(2000);
         }
     }
 }
@@ -3486,111 +4197,15 @@ function promptConfig() {
     }
 }
 
-function jumpBackOnce(specialCond) {
-    let kw_back_btn_common = () => sel.pickup("返回", "kw_back_btn_common");
-    let kw_back_btn_antui_id = idMatches(/.*back.button/);
-    let kw_back_btn_h5_id = idMatches(/.*h5.(tv.)?nav.back/);
-    let clickBackBtn = () =>
-        clickAction(kw_back_btn_common(), "widget") ||
-        clickAction(kw_back_btn_antui_id, "widget") ||
-        clickAction(kw_back_btn_h5_id, "widget")
-    ;
-    let click_result = specialCond && specialCond() || clickBackBtn();
-    if (!click_result) keycode(4) && ~debugInfo("模拟返回按键返回上一页") && sleep(1000);
-}
+function jumpBackOnce() {
+    let kw_back_btn_common = current_app.kw_back_btn;
+    let kw_back_btn_antui_id = type => sel.pickup(idMatches(/.*back.button/), "kw_back_btn_antui_id", type);
+    let kw_back_btn_h5_id = type => sel.pickup(idMatches(/.*h5.(tv.)?nav.back/), "kw_back_btn_h5_id", type);
+    let back_node = kw_back_btn_common() || kw_back_btn_antui_id() || kw_back_btn_h5_id();
 
-function loginSpecificUser() {
-    if (!current_app.specific_user) return debugInfo("主账户未设置");
-
-    let kw_login_with_new_user = textMatches(/换个新账号登录|[Aa]dd [Aa]ccount/);
-    let intent_alipay_acc_manager = {
-        action: "VIEW",
-        packageName: "com.eg.android.AlipayGphone",
-        className: "com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_",
-    };
-
-    startActivity(intent_alipay_acc_manager);
-
-    let max_wait_times = 8;
-    let try_times = 0;
-    while (!waitForAction(kw_login_with_new_user, try_times++ ? 5000 : 1500) && max_wait_times--) {
-        jumpBackOnce();
-        startActivity(intent_alipay_acc_manager);
-    }
-    if (max_wait_times < 0) return messageAction("无法进入用户列表页面", 9, 1);
-
-    let specific_user = current_app.specific_user;
-    let kw_list_arrow = id("com.alipay.mobile.antui:id/list_arrow"),
-        current_logged_in_user_ident = kw_list_arrow.exists() && kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text(),
-        specific_user_ident = specific_user.username_ident;
-    if (current_logged_in_user_ident === specific_user_ident) return true;
-
-    let kw_specific_user_ident = text(specific_user.username_ident),
-        kw_me = textMatches(/我的|Me/).boundsInside(0, cY(0.7), WIDTH, HEIGHT),
-        kw_switch_account = idMatches(/.*switchAccount.*/),
-        kw_user_acc_input = id("com.ali.user.mobile.security.ui:id/userAccountInput");
-    if (clickAction(kw_specific_user_ident)) {
-        let condition_click_acc = () => kw_me.exists() || kw_switch_account.exists() || kw_user_acc_input.exists();
-        if (!waitForAction(condition_click_acc, 30000)) messageAction("切换账号点击已有账户时出现未知情况", 9, 1);
-        if (kw_me.exists()) return true;
-        clickAction(kw_switch_account);
-    } else clickAction(kw_login_with_new_user);
-
-    let max_try_times_user_acc_input = 3;
-    while (!waitForAction(kw_user_acc_input, 10000) && max_try_times_user_acc_input--) {
-        clickAction(kw_login_with_new_user) || clickAction(kw_switch_account);
-    }
-    if (max_try_times_user_acc_input < 0) return messageAction("未找到用户名输入文本框", 9, 1);
-
-    kw_user_acc_input.findOnce().children().forEach(w => {
-        if (w.className() === "android.widget.EditText") w.setText(specific_user.login_username);
-    });
-    let kw_pw_input = idMatches(/.*userPasswordInput.*/),
-        kw_next_step = idMatches(/.*nextButton/);
-    if (!kw_pw_input.exists()) {
-        if (!waitForAndClickAction(kw_next_step, 8000)) messageAction("输入用户名后未找到下一步按钮", 9, 1);
-    }
-    let max_wait_times_pw_input = 60;
-    while (!waitForAction(idMatches(/.*(switchLoginMethodCenter|userPasswordInput).*/), 1000) && max_wait_times_pw_input--) {
-        clickAction(id("com.ali.user.mobile.security.ui:id/comfirmSetting")); // "确定" button
-        clickAction(kw_next_step);
-    }
-    if (max_wait_times_pw_input < 0) return messageAction("输入用户名后下一步操作超时", 9, 1);
-    let kw_switch_login_method = idMatches(/.*switchLoginMethodCenter.*/);
-    if (clickAction(kw_switch_login_method)) {
-        let kw_login_by_pw = textMatches(/.*(密码登录|with passw).*/);
-        if (!waitForAction(kw_login_by_pw, 8000)) return messageAction("等待切换登录方式页面超时", 9, 1);
-        clickAction(kw_login_by_pw);
-    }
-    if (!waitForAction(kw_pw_input, 5000)) messageAction("等待密码输入框超时", 9, 1);
-    kw_pw_input.findOnce().children().forEach(w => {
-        if (w.className() === "android.widget.EditText") w.setText(specific_user.login_pw);
-    });
-    clickAction(idMatches(/.*loginButton/), 1);
-    sleep(1000);
-
-    let case_a = textMatches(/Me|我的/),
-        case_b = textMatches(/重新输入|Try again/), // wrong password
-        case_c = descMatches(/.*(验证码|Verification Code).*/), // sms code is needed
-        case_d = textMatches(/.{3,}验证码.{3,}|.{6,}Verification Code.{6,}/), // just a prompt, can be ignored
-        case_e = descMatches(/.*(回答|questions|换个方式登录|[Aa]nother).*/), // need answering some questions // 英文的desc没有具体确定
-        case_f = kw_list_arrow;
-    if (!waitForAction(() => {
-        clickAction(idMatches(/.*btn_confirm/));
-        return case_a.exists() || case_b.exists() || case_c.exists() || case_d.exists() || case_e.exists() || case_f.exists();
-    }, 20000, 1000)) messageAction("登录后检测登录状态失败", 9, 1);
-
-    if (case_a.exists()) return true;
-    if (case_b.exists()) return messageAction("登录密码错误", 3, 1);
-    if (case_c.exists()) return messageAction("需要验证码", 3, 1);
-    if (case_d.exists()) {
-        clickAction(textMatches(/进入支付宝|.*[En]ter.*/)); // 英文的text没有具体确定
-        return waitForAction(textMatches(/Me|我的/), 10000) || messageAction("登录账户超时", 9, 1);
-    }
-    if (case_e.exists()) return messageAction("需要回答问题", 3, 1);
-    if (case_f.exists()) {
-        let current_logged_in_user_ident = kw_list_arrow.findOnce().parent().child(0).child(0).child(0).text();
-        if (current_logged_in_user_ident === specific_user.username_ident) return true;
+    if (!back_node || !clickAction(back_node, "widget")) {
+        debugInfo("模拟返回按键返回上一页");
+        ~keycode(4, "double") && sleep(1000);
     }
 }
 
@@ -3602,18 +4217,17 @@ function encodeURIParams(prefix, params) {
     return params ? _data : _data.slice(1);
 }
 
-function goToUsersForestPage(user_id) {
-    user_id && startActivity({
-        action: "VIEW",
-        data: encodeURIParams("alipays://platformapi/startapp", {
-            saId: 20000067,
-            url: "https://60000002.h5app.alipay.com/www/home.html?userId=" + user_id,
-            __webview_options__: {
-                showOptionMenu: "YES",
-                startMultApp: "YES",
-            },
-        }),
+function accountNameConverter(str, opr_name) {
+    if (!str) return "";
+    let arr = str.toString().split("");
+    arr.forEach((value, idx, arr) => {
+        arr[idx] = unescape(
+            "%u" + ("0000" + (
+                value.charCodeAt(0) + (996 + idx) * {encrypt: 1, decrypt: -1}[opr_name]
+            ).toString(16)).slice(-4)
+        );
     });
+    return arr.join("");
 }
 
 function stabilizer(condition, init, condition_timeout, stable_timeout) {
@@ -3662,15 +4276,15 @@ function plans(operation_name, params) {
     params = params || {};
 
     let plans = {
-        launchHomepage: {
+        launch_af_homepage: {
             plans_data: [
-                ["intent_with_params", launchHomepageByIntent, current_app.homepage_intent.common_browser_rich],
-                ["click_af_btn_at_homepage", launchHomepageByClickAfBtnAtHomepage],
-                ["search_by_keyword", launchHomepageBySearchKeyword, "Ant Forest"],
+                ["intent_with_params", launchAFHomepageByIntent, current_app.homepage_intent.common_browser_rich],
+                ["click_af_btn_at_homepage", launchAFHomepageByClickAFBtnAtHomepage],
+                ["search_by_keyword", launchAFHomepageBySearchKeyword, "蚂蚁森林小程序"],
             ],
             error_level: 4,
         },
-        launchRankList: {
+        launch_rank_list: {
             plans_data: [
                 ["intent_with_params", launchRankListByIntent, current_app.rank_list_intent],
                 ["click_list_more_btn", launchRankListByClickListMoreBtn],
@@ -3703,36 +4317,36 @@ function plans(operation_name, params) {
         } catch (e) {
             debugInfo(e.message);
         }
-        debugInfo("失败: " + plan_name);
+        debugInfo("失败: " + plan_name, 3);
     }
 
     let [error_level] = plans[operation_name];
     let error_msg = "操作计划全部失败";
     if (+error_level === 4) throw Error(error_msg);
-    messageAction(error_msg, +error_level);
+    return messageAction(error_msg, +error_level) && false;
 
     // tool function(s) //
 
-    function launchHomepageWithTrigger(trigger) {
+    function launchAFHomepageWithTrigger(trigger) {
         return launchThisApp(trigger, Object.assign({}, {
             task_name: "蚂蚁森林",
             package_name: current_app.package_name,
             no_message_flag: true,
             condition_launch: () => {
                 let condition_a = () => currentPackage() === current_app.package_name;
-                let condition_c = () => current_app.kw_list_more_friends().exists() || current_app.kw_af_home().exists() || current_app.kw_wait_for_awhile().exists();
+                let condition_c = () => current_app.kw_list_more_friends() || current_app.kw_af_home() || current_app.kw_wait_for_awhile();
 
                 // return condition_a() || condition_b() || condition_c();
                 return condition_a() || condition_c();
             },
             condition_ready: () => {
                 let conditions_necessary = {
-                    af_title_or_login: () => current_app.kw_af_title().exists() || current_app.kw_login_or_switch.exists(),
+                    af_title_or_login: () => current_app.kw_af_title() || current_app.kw_login_btn(),
                 };
                 let conditions_optional = {
-                    kw_function_buttons: () => current_app.kw_af_home().exists(),
-                    kw_list_more_friends_btn: () => current_app.kw_list_more_friends().exists(),
-                    kw_login_or_switch: current_app.kw_login_or_switch,
+                    kw_function_buttons: current_app.kw_af_home,
+                    kw_list_more_friends_btn: current_app.kw_list_more_friends,
+                    kw_login_btn: current_app.kw_login_btn,
                 };
                 let keys_nec = Object.keys(conditions_necessary);
                 for (let i = 0, len = keys_nec.length; i < len; i += 1) {
@@ -3743,7 +4357,6 @@ function plans(operation_name, params) {
                     ) return debugInfo(["启动必要条件不满足", ">" + key_nec]);
                 }
                 debugInfo("已满足全部启动必要条件");
-                current_app.kw_af_title = () => sel.pickup(/蚂蚁森林|Ant Forest/, "kw_af_title");
 
                 let keys_opt = Object.keys(conditions_optional);
                 for (let i = 0, len = keys_opt.length; i < len; i += 1) {
@@ -3764,77 +4377,51 @@ function plans(operation_name, params) {
         }, params));
     }
 
-    function launchHomepageLegacy() {
-        let kw_homepage_btn = () => sel.pickup("首页");
-        let kw_back_btn_common = () => current_app.kw_back_btn();
-        let kw_close_btn_common = () => current_app.kw_close_btn();
-        return launchThisApp(current_app.package_name, {
-            app_name: "支付宝",
-            no_message_flag: true,
-            condition_ready: () => kw_homepage_btn().exists(),
-            disturbance: () => {
-                while (!kw_homepage_btn().exists()) {
-                    if (kw_back_btn_common().exists()) {
-                        clickAction(kw_back_btn_common());
-                        sleep(500);
-                        continue;
-                    }
-                    if (kw_close_btn_common().exists()) {
-                        clickAction(kw_close_btn_common());
-                        sleep(500);
-                        continue;
-                    }
-                    sleep(100);
-                }
-            },
-        });
+    function launchAFHomepageByIntent(intent) {
+        if (app.checkActivity(intent)) return launchAFHomepageWithTrigger(intent);
+        debugInfo("Activity在设备系统中不存在", 3);
     }
 
-    function launchHomepageByIntent(intent) {
-        return launchHomepageWithTrigger(intent);
+    function launchAFHomepageByClickAFBtnAtHomepage() {
+        if (!launchAlipayHomepage()) return;
+        let kw_ant_forest_icon = type => sel.pickup("蚂蚁森林", "", type);
+        if (!waitForAction(kw_ant_forest_icon, 1500, 80)) return;
+        return launchAFHomepageWithTrigger(() => clickAction(kw_ant_forest_icon()));
     }
 
-    function launchHomepageByClickAfBtnAtHomepage() {
-        if (!launchHomepageLegacy()) return;
-        let kw_ant_forest_icon = () => sel.pickup("蚂蚁森林");
-        if (!waitForAction(() => kw_ant_forest_icon().exists(), 1500, 80)) return;
-        return launchHomepageWithTrigger(() => clickAction(kw_ant_forest_icon()));
-    }
-
-    function launchHomepageBySearchKeyword(input_text) {
-        if (!launchHomepageLegacy()) return;
+    function launchAFHomepageBySearchKeyword(input_text) {
+        if (!launchAlipayHomepage()) return;
 
         if (!waitForAndClickAction(idMatches(/.*home.title.search.button/), 5000, 80, {click_strategy: "widget"})) return;
 
         let node_input_box = null;
-        let setInputBoxNode = () => node_input_box = idMatches(/.*search.input.box/).findOnce();
-        if (!waitForAction(setInputBoxNode, 5000, 80)) return;
+        if (!waitForAction(() => node_input_box = sel.pickup(idMatches(/.*search.input.box/)), 5000, 80)) return;
         node_input_box.setText(input_text);
-        waitForAction(text(input_text), 3000, 80); // just in case
+        waitForAction(() => sel.pickup(input_text), 3000, 80); // just in case
 
         let node_af_search_item = null;
-        let setAfSearchItemNode = () => node_af_search_item = sel.pickup("蚂蚁森林").findOnce();
+        let setAFSearchItemNode = () => node_af_search_item = sel.pickup("蚂蚁森林");
 
         if (!clickAction(idMatches(/.*search.confirm/), "widget", {
-            condition_success: setAfSearchItemNode,
+            condition_success: setAFSearchItemNode,
             max_check_times: 10,
             check_time_once: 300,
         })) return;
 
         let max_try_times = 8;
-        let [ctx, cty] = [node_af_search_item.bounds().centerX(), node_af_search_item.bounds().centerY()];
+        let bounds = node_af_search_item.bounds();
+        let [ctx, cty] = [bounds.centerX(), bounds.centerY()];
         while (max_try_times--) {
             if (!node_af_search_item) continue;
             if (node_af_search_item.clickable()) break;
             node_af_search_item = node_af_search_item.parent();
         }
-        return launchHomepageWithTrigger(() => {
+        return launchAFHomepageWithTrigger(() => {
             max_try_times < 0 ? clickAction([ctx, cty]) : clickAction(node_af_search_item, "widget");
         });
     }
 
     function launchRankListWithTrigger(trigger) {
-        let rank_list_review_flag = params.review_flag;
         return launchThisApp(trigger, Object.assign({}, {
             task_name: "好友排行榜",
             package_name: current_app.package_name,
@@ -3842,12 +4429,11 @@ function plans(operation_name, params) {
             condition_launch: () => true,
             condition_ready: () => {
                 try {
-                    // let condition = () => current_app.kw_rank_list().exists() || current_app.kw_rank_list_title().exists();
                     let condition = () => {
                         let node_rank_list = current_app.kw_rank_list().findOnce();
                         return node_rank_list && node_rank_list.childCount() > 5;
                     };
-                    return rank_list_review_flag ? condition() && !waitForAction(() => !condition(), 500, 80) : condition();
+                    return condition() && !waitForAction(() => !condition(), 500, 80);
                 } catch (e) {
                     // nothing to do here
                 }
@@ -3862,23 +4448,24 @@ function plans(operation_name, params) {
     }
 
     function launchRankListByIntent(intent) {
-        return launchRankListWithTrigger(intent);
+        if (app.checkActivity(intent)) return launchRankListWithTrigger(intent);
+        debugInfo("Activity在设备系统中不存在", 3);
     }
 
     function launchRankListByClickListMoreBtn() {
-        let kw_more_friends = () => current_app.kw_list_more_friends();
+        let kw_more_friends = current_app.kw_list_more_friends;
         let rank_list_review_flag = params.review_flag;
 
         if (rank_list_review_flag) {
-            current_app.kw_back_btn().exists() ? clickAction(current_app.kw_back_btn(), "widget") : (~keycode(4) && keycode(4));
+            current_app.kw_back_btn() ? clickAction(current_app.kw_back_btn(), "widget") : keycode(4, "double");
         }
 
-        if (!waitForAction(() => kw_more_friends().exists(), 3000)) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
+        if (!waitForAction(kw_more_friends, 3000)) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
 
         debugInfo("定位到\"查看更多好友\"按钮");
 
         let trigger = () => {
-            if (!clickAction(kw_more_friends(), "widget") || !waitForAction(() => !kw_more_friends().exists(), 800)) {
+            if (!clickAction(kw_more_friends(), "widget") || !waitForAction(() => !kw_more_friends(), 800)) {
                 debugInfo("备份方案点击\"查看更多好友\"");
                 swipeInArea(kw_more_friends(), {
                     swipe_time: 200,
@@ -3892,11 +4479,275 @@ function plans(operation_name, params) {
     }
 }
 
+function launchAlipayHomepage(params) {
+    let {kw_alipay_homepage, kw_back_btn, kw_close_btn} = current_app;
+
+    return launchThisApp(current_app.package_name, Object.assign({
+        app_name: "支付宝",
+        no_message_flag: true,
+        condition_ready: kw_alipay_homepage,
+        disturbance: () => {
+            while (!kw_alipay_homepage()) {
+                let valid_node = kw_back_btn() || kw_close_btn();
+                if (valid_node) {
+                    clickAction(valid_node);
+                    sleep(500);
+                } else sleep(100);
+            }
+        },
+    }, params));
+}
+
+function launchUserList(forcible_flag) {
+    let {isInSwitchAccPage} = current_app;
+    if (!forcible_flag && isInSwitchAccPage()) return true;
+
+    debugInfo("打开\"账号切换\"页面");
+
+    let plans = {
+        launch_user_list_by_activity: () => {
+            app.startActivity({
+                action: "VIEW",
+                className: "com.alipay.mobile.security.accountmanager.ui.AccountManagerActivity_",
+                packageName: "com.eg.android.AlipayGphone",
+            });
+        },
+        launch_user_list_by_pipeline: () => {
+            launchAlipayHomepage({debug_info_flag: false});
+            clickActionsPipeline([
+                [["我的", "p1"], "widget"],
+                [["设置", {clickable: true}], "widget"],
+                [["换账号登录", null]],
+            ]);
+        },
+    };
+    let plan_keys = Object.keys(plans);
+    for (let i = 0, len = plan_keys.length; i < len; i += 1) {
+        let plan_name = plan_keys[i]; // maybe useful for debugInfo()
+        let plan_func = plans[plan_name];
+        plan_func();
+        if (waitForAction(isInSwitchAccPage, 2000)) return debugInfo("计划" + surroundWith(plan_name) + "成功") || true;
+        debugInfo("计划" + surroundWith(plan_name) + "失败", 3);
+    }
+    return messageAction("进入\"账号切换\"页面失败", 4, 1, 0, "both_dash");
+}
+
+function checkIfUserLoggedIn(user_name, forcible_flag) {
+    if (!launchUserList(forcible_flag)) return;
+
+    let is_main_user_name = user_name === accountNameConverter(current_app.user_account_name, "decrypt");
+
+    let {
+        logged_in_user_abbr_name,
+        is_logged_in,
+        is_in_list,
+    } = getCurrentLoggedInUserInfoFromUserList() || {};
+
+    debugInfo("检查账号列表");
+
+    let account_log_ident_str = (is_main_user_name ? "主" : "") + "账户";
+
+    if (logged_in_user_abbr_name) {
+        let is_main_user_logged_in = is_main_user_name && is_logged_in;
+        if (!current_app.init_logged_in_user_abbr_name) {
+            current_app.init_logged_in_user_abbr_name = logged_in_user_abbr_name;
+            debugInfo("记录初始登录账户缩略名");
+            current_app.init_is_main_user_logged_in = is_main_user_logged_in;
+        }
+        if (is_logged_in) return debugInfo(account_log_ident_str + "已在登录状态") || true;
+    } else {
+        debugInfo("当前登录账户缩略名无效", 3);
+    }
+
+    debugInfo(account_log_ident_str + (is_in_list ? "在账号列表中但未登录" : "不在账号列表中"));
+
+    // tool function(s) //
+
+    function getCurrentLoggedInUserInfoFromUserList() {
+        let kw_list_arrow = idMatches(/.*list_arrow/);
+        waitForAction(kw_list_arrow, 2000); // just in case
+        sleep(300);
+
+        let current_logged_in_abbr_name = sel.pickup([kw_list_arrow, "s-1c0c0"], "", "txt");
+        let is_logged_in = checkAbbrName(user_name, current_logged_in_abbr_name);
+
+        if (is_main_user_name && is_logged_in) current_app.main_user_abbr_name = current_logged_in_abbr_name;
+
+        return {
+            logged_in_user_abbr_name: current_logged_in_abbr_name,
+            is_logged_in: is_logged_in,
+            is_in_list: checkIfUserInList(),
+        };
+
+        // tool function(s) //
+
+        function checkAbbrName(full_name, abbr_name) {
+            if (!full_name || !abbr_name) return false;
+
+            full_name = full_name.toString();
+            abbr_name = abbr_name.toString();
+
+            let [i, j, k] = [0, full_name.length - 1, abbr_name.length - 1];
+            let sameStr = (p, q) => full_name[p] === abbr_name[q];
+            let abbrNotStar = q => abbr_name[q] !== "*";
+            for (; i <= j; i += 1) {
+                if (sameStr(i, i)) continue;
+                if (abbrNotStar(i)) return false;
+                break;
+            }
+            if (i > j) return true;
+            for (; j > i, k > i; j -= 1, k -= 1) {
+                if (sameStr(j, k)) continue;
+                if (abbrNotStar(k)) return false;
+                break;
+            }
+            return !!abbr_name.slice(i, k + 1).match(/^\*+$/);
+        }
+
+        function checkIfUserInList() {
+            if (is_logged_in) return true;
+
+            let kw_abbr_name_with_star_chars = /.+\*{3,}.+/;
+            let sel_str = sel.pickup(kw_abbr_name_with_star_chars, "", "sel_str");
+            let abbr_names = [];
+            selector()[sel_str + "Matches"](kw_abbr_name_with_star_chars).find().forEach(w => abbr_names.push(w[sel_str]()));
+            if (classof(abbr_names) !== "Array") abbr_names = [abbr_names];
+
+            for (let u = 0, len = abbr_names.length; u < len; u += 1) {
+                let abbr_name = abbr_names[u].toString();
+                if (checkAbbrName(user_name, abbr_name)) {
+                    if (is_main_user_name) current_app.main_user_abbr_name = abbr_name;
+                    return true;
+                }
+            }
+        }
+    }
+}
+
+function clickAbbrNameInUserList(abbr_name) {
+    let {
+        main_user_abbr_name,
+        kw_alipay_homepage,
+        kw_close_btn,
+        isInLoginPage,
+    } = current_app;
+    abbr_name = abbr_name || main_user_abbr_name;
+    if (!abbr_name) return false;
+    let clickAbbrUser = () => clickAction(sel.pickup([abbr_name, "p5"]), "widget");
+
+    for (let i = 0; i < 3; i += 1) {
+        debugInfo((i ? "再次尝试" : "") + "点击列表中的账户");
+        clickAbbrUser();
+
+        let conditions = {
+            name: "列表快捷切换账户",
+            time: 1, // 1 min
+            wait: [{
+                remark: "登录中进度条",
+                cond: () => sel.pickup(className("ProgressBar")),
+            }],
+            success: [{
+                remark: "支付宝首页",
+                cond: kw_alipay_homepage,
+            }, {
+                remark: "H5关闭按钮",
+                cond: kw_close_btn,
+            }],
+            fail: [{
+                remark: "出现登录页面",
+                cond: isInLoginPage,
+            }],
+            timeout_review: [{
+                remark: "强制账号列表检查",
+                cond: () => {
+                    if (checkIfUserLoggedIn(abbr_name, "forcible")) return true;
+                    messageAction("脚本无法继续", 4, 0, 0, "up");
+                    messageAction("列表快捷切换账户超时", 9, 1, 1, 1);
+                },
+            }]
+        };
+
+        debugInfo("开始监测账户切换结果");
+        let condition_check_result = conditionChecker(conditions);
+        if (!condition_check_result) return false;
+        if (checkIfUserLoggedIn(abbr_name)) return true;
+    }
+    messageAction("脚本无法继续", 4, 0, 0, "up");
+    messageAction("列表快捷切换账户次数已达阈值", 9, 1, 1, 1);
+}
+
+function conditionChecker(c) {
+    let classof_c = classof(c);
+    if (classof_c !== "Object") return debugInfo(["条件检查器参数不合法", ">" + classof_c]) && false;
+
+    let {name, time, success, fail, wait, timeout_review} = c;
+    debugInfo("开始" + (name || "") + "条件检查");
+
+    name = name || "条件检查";
+    time = time || 1;
+    if (time < 100) time *= 60000;
+    time += 5 * 60000;
+
+    device.keepOn(time);
+    let check_result = checker();
+    device.cancelOn();
+    return check_result;
+
+    // tool function(s) //
+
+    function checker() {
+        while (time > 0) {
+            if (meetCondition(success, "success")) return debugInfo(name + "成功") || true;
+            if (meetCondition(fail, "fail")) return debugInfo(name + "失败", 3) && false;
+            if (meetCondition(wait, "wait")) continue;
+            sleep(500);
+            time -= 500;
+        }
+
+        debugInfo("确定性条件检查已超时");
+        if (!timeout_review) return debugInfo(name + "失败", 3) && false;
+
+        debugInfo("开始检查超时复检条件");
+        let timeout_review_result = meetCondition(timeout_review, "timeout_review");
+        if (!timeout_review_result) return debugInfo(["超时复检失败", name + "失败"], 3) && false;
+        return debugInfo(name + "成功") || true;
+
+        // tool function(s) //
+
+        function meetCondition(cond_arr, type) {
+            if (!cond_arr) return;
+            let type_map = {
+                "success": "成功",
+                "fail": "失败",
+                "wait": "持续等待",
+                "timeout_review": "超时复检成功",
+            };
+            for (let i = 0, len = cond_arr.length; i < len; i += 1) {
+                let cond = cond_arr[i] || {};
+                if (cond.cond && cond.cond()) {
+                    debugInfo("满足" + (type_map[type] || "未知") + "条件");
+                    cond.remark && debugInfo(">" + cond.remark);
+                    if (type === "wait") {
+                        while (cond.cond()) sleep(300);
+                    }
+                    if (typeof cond.feedback === "function") {
+                        debugInfo("检测到反馈方法");
+                        cond.feedback();
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+}
+
 // special exec comm function(s) //
 
 function speExecCollectFriendsList() {
+    timeRecorder("collect_friends_list_data", "save");
+
     prologue();
-    plans("launchRankList", {
+    plans("launch_rank_list", {
         task_name: "好友列表采集",
         first_time_run_message_flag: false,
         condition_ready: () => {
@@ -3915,14 +4766,14 @@ function speExecCollectFriendsList() {
         },
     });
     collectFriendsListData();
-    epilogue();
+    endAlipay();
+    exitNow();
 
     // tool function(s) //
 
     function collectFriendsListData() {
         current_app.quote_name = surroundWith("好友列表采集");
 
-        timeRecorder("collect_friends_list_data", "save");
         let first_time_collect_flag = true;
         let thread_keep_toast = threads.start(function () {
             while (1) {
@@ -3935,15 +4786,15 @@ function speExecCollectFriendsList() {
         let thread_expand_hero_list = threads.start(function expandHeroListThread() {
             let kw_list_more = current_app.kw_rank_list_more;
             let click_count = 0;
-            while (!desc("没有更多了").exists() && !text("没有更多了").exists()) {
-                clickAction(kw_list_more, "widget");
+            while (!sel.pickup("没有更多了")) {
+                clickAction(kw_list_more(), "widget");
                 click_count++;
                 sleep(200);
             }
             debugInfo(["排行榜展开完毕", ">点击\"查看更多\": " + click_count + "次"]);
         });
         thread_expand_hero_list.join(5 * 60000); // 5 minutes at most
-        thread_expand_hero_list.isAlive() && thread_expand_hero_list.interrupt();
+        thread_expand_hero_list.interrupt();
 
         let friend_list_data = getFriendsListData();
         storage_af.put("friends_list_data", friend_list_data);
@@ -3951,12 +4802,12 @@ function speExecCollectFriendsList() {
         messageAction("采集完毕", 1, 1);
         messageAction("用时 " + timeRecorder("collect_friends_list_data", "load", 1000, [1], " 秒"), 1, 0, 1);
         messageAction("总计 " + friend_list_data.list_length + " 项", 1, 0, 1);
-        current_app.floaty_msg_signal = 0;
+        current_app.floaty_msg_finished_flag = 1;
 
         // tool function (s) //
 
         function getFriendsListData() {
-            let kw_rank_list_node = sel.pickup("没有更多了").findOnce().parent();
+            let kw_rank_list_node = sel.pickup(["没有更多了", "p1"]);
             let rank_list_node_id = kw_rank_list_node.id();
             debugInfo(["布局层次获取列表控件id:", rank_list_node_id]);
             if (!rank_list_node_id || kw_rank_list_node.children().size() < 5) {
@@ -3966,14 +4817,12 @@ function speExecCollectFriendsList() {
             let rank_list = [];
             kw_rank_list_node.children().forEach((child, idx) => {
                 try {
-                    let rank_num = getRankNum(child, idx);
-                    let nickname = getNickname(child, idx);
-                    if (+rank_num) {
-                        rank_list.push({
-                            rank_num: +rank_num,
-                            nickname: nickname,
-                        });
-                    }
+                    let checkChild = num => sel.pickup([child, "c" + num], "", "txt");
+                    let rank_num = idx < 3 ? idx + 1 : +(checkChild(0) || checkChild(1));
+                    isNaN(rank_num) || rank_list.push({
+                        rank_num: rank_num,
+                        nickname: checkChild(1) || checkChild(2),
+                    });
                 } catch (e) {
                     // nothing to do here
                 }
@@ -3987,39 +4836,68 @@ function speExecCollectFriendsList() {
                 list_data: rank_list,
                 list_length: rank_list.length,
             };
+        }
+    }
+}
 
-            // tool function(s) //
+function speExecCollectCurrentAccountName() {
+    timeRecorder("collect_current_account_name", "save");
 
-            function getRankNum(child, idx) {
-                if (idx < 3) return idx + 1;
-                return checkChild(0) || checkChild(1);
+    prologue();
+    collectCurrentAccountName();
+    endAlipay();
+    exitNow();
 
-                // tool function(s) //
+    // tool function(s) //
 
-                function checkChild(num) {
-                    let key_node = child.child(num);
-                    if (!key_node) return;
-                    let desc = child.child(num).desc();
-                    if (desc && desc.match(/\d+/)) return desc;
-                    let text = child.child(num).text();
-                    if (text && text.match(/\d+/)) return text;
-                }
+    function collectCurrentAccountName() {
+        let collected_name = getNameByPipeline();
+        let storage_key_name = "collected_current_account_name";
+        storage_af.remove(storage_key_name);
+        storage_af.put(storage_key_name, collected_name);
+        messageAction("采集完毕", 1);
+        messageAction("用时 " + timeRecorder("collect_current_account_name", "load", 1000, [1], " 秒"), 1, 0, 1);
+        current_app.floaty_msg_finished_flag = 1;
+
+        // tool function (s) //
+
+        function getNameByPipeline() {
+            let account_name = "";
+            let thread_get_account_name = threads.start(function () {
+                current_app.quote_name = surroundWith("采集当前账户名");
+                launchAlipayHomepage();
+
+                messageAction("正在采集当前账户名", 1, 0, 0, "up");
+
+                clickActionsPipeline([
+                    [["我的", "p1"]],
+                    [idMatches(/.*userinfo_view/)],
+                    [["个人主页", "p4"]],
+                    ["支付宝账户", null]
+                ], {
+                    name: "支付宝个人主页",
+                    default_strategy: "widget",
+                });
+                let getNameTxt = () => sel.pickup(["支付宝账户", "s+1"], "", "txt");
+                let txt = "";
+                waitForAction(() => txt = getNameTxt(), 2000);
+                return account_name = txt ? accountNameConverter(txt, "encrypt") : "";
+            });
+            let thread_monitor_logged_out = threads.start(function () {
+                current_app.account_logged_out = false;
+                let {isInLoginPage, kw_user_logged_out} = current_app;
+                while (!isInLoginPage() && !kw_user_logged_out()) sleep(500);
+                current_app.account_logged_out = true;
+            });
+            waitForAction(() => account_name || current_app.account_logged_out, 12000);
+            thread_get_account_name.interrupt();
+            thread_monitor_logged_out.interrupt();
+            if (account_name) return account_name;
+            if (current_app.account_logged_out) {
+                messageAction("账户已登出", 3, 1, 0, "both_dash");
+                delete current_app.account_logged_out;
             }
-
-            function getNickname(child, idx) {
-                return checkChild(1) || checkChild(2);
-
-                // tool function(s) //
-
-                function checkChild(num) {
-                    let key_node = child.child(num);
-                    if (!key_node) return;
-                    let desc = child.child(num).desc();
-                    if (desc) return desc;
-                    let text = child.child(num).text();
-                    if (text) return text;
-                }
-            }
+            return "";
         }
     }
 }
