@@ -1,11 +1,5 @@
 importPackage(org.joda.time);
 
-let {getVerName, waitForAction, sleepSafe} = files.exists("./MODULE_MONSTER_FUNC.js") ? require("./MODULE_MONSTER_FUNC") : {
-    getVerName: _getVerName,
-    waitForAction: _waitForAction,
-    sleepSafe: _sleepSafe,
-};
-
 module.exports = function (runtime, scope) {
 
     let is_pro = getVerName("current_autojs").match(/[Pp]ro/);
@@ -182,9 +176,9 @@ module.exports = function (runtime, scope) {
     }
 };
 
-// monster function(s) //
+// tool function(s) //
 
-function _waitForAction(f, timeout_or_times, interval) {
+function waitForAction(f, timeout_or_times, interval) {
     let _timeout = timeout_or_times || 10000;
     let _interval = interval || 200;
     let _times = _timeout < 100 ? _timeout : ~~(_timeout / _interval) + 1;
@@ -228,9 +222,27 @@ function _waitForAction(f, timeout_or_times, interval) {
         _msg_level >= 8 && exit();
         return !(_msg_level in {3: 1, 4: 1});
     }
+
+    // tool function(s) //
+
+    function sleepSafe(timeout) {
+        let lock = threads.lock();
+        let wait = lock.newCondition();
+
+        threads.start(function () {
+            lock.lock();
+            sleep(timeout);
+            wait.signal();
+            lock.unlock();
+        });
+
+        lock.lock();
+        wait.await();
+        lock.unlock();
+    }
 }
 
-function _getVerName(name, params) {
+function getVerName(name, params) {
     let _params = params;
 
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
@@ -277,20 +289,4 @@ function _getVerName(name, params) {
             package_name: _package_name,
         };
     }
-}
-
-function _sleepSafe(timeout) {
-    let lock = threads.lock();
-    let wait = lock.newCondition();
-
-    threads.start(function () {
-        lock.lock();
-        sleep(timeout);
-        wait.signal();
-        lock.unlock();
-    });
-
-    lock.lock();
-    wait.await();
-    lock.unlock();
 }

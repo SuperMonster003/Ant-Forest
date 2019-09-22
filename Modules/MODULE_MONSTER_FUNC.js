@@ -34,7 +34,6 @@ module.exports = {
     setDeviceProto: setDeviceProto,
     vibrateDevice: vibrateDevice,
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
-    sleepSafe: sleepSafe,
 };
 
 /**
@@ -963,19 +962,18 @@ function waitForAction(f, timeout_or_times, interval) {
     if (interval >= _timeout) _times = 1;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _sleepSafe = typeof sleepSafe === "undefined" ? sleepSafeRaw : sleepSafe;
 
     let _start_timestamp = +new Date();
     while (!_checkF(f) && --_times) {
         if (+new Date() - _start_timestamp > _timeout) return false; // timed out
-        _sleepSafe(_interval);
+        sleep(_interval);
     }
     return _times > 0;
 
     // tool function(s) //
 
     function _checkF(f) {
-        while (__global__._monster_$_global_waiting_signal) _sleepSafe(200);
+        while (__global__._monster_$_global_waiting_signal) sleep(200);
 
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
@@ -1014,21 +1012,6 @@ function waitForAction(f, timeout_or_times, interval) {
             console.error(_msg);
             _msg_level >= 8 && exit();
         }
-    }
-
-    function sleepSafeRaw(timeout) {
-        let lock = threads.lock();
-        let wait = lock.newCondition();
-        let f = function () {
-            lock.lock();
-            sleep(timeout);
-            wait.signal();
-            lock.unlock();
-        };
-        threads.start(f);
-        lock.lock();
-        wait.await();
-        lock.unlock();
     }
 }
 
@@ -3151,27 +3134,4 @@ function timedTaskTimeFlagConverter(timeFlag) {
             .map((value, idx) => +info[idx] ? idx : null)
             .filter(value => value !== null);
     }
-}
-
-/**
- * A safe way to replace sleep(timeout)
- * @param [timeout] {number}
- */
-function sleepSafe(timeout) {
-    timeout = parseInt(timeout);
-    if (isNaN(timeout)) return;
-
-    let lock = threads.lock();
-    let wait = lock.newCondition();
-
-    threads.start(function () {
-        lock.lock();
-        sleep(timeout);
-        wait.signal();
-        lock.unlock();
-    });
-
-    lock.lock();
-    wait.await();
-    lock.unlock();
 }
