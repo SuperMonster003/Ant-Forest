@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Sep 23, 2019
- * @version 1.9.0
+ * @last_modified Sep 24, 2019
+ * @version 1.9.1
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -203,7 +203,7 @@ function prologue() {
         current_app.kw_wait_for_awhile = type => sel.pickup(/.*稍等片刻.*/, "kw_wait_for_awhile", type);
         current_app.kw_reload_forest_page_btn = type => sel.pickup("重新加载", "kw_reload_forest_page_btn", type);
         current_app.kw_close_btn = type => sel.pickup(/关闭|Close/, "kw_close_btn", type);
-        current_app.kw_back_btn = type => sel.pickup("返回", "kw_back_btn_common", type);
+        current_app.kw_back_btn = type => sel.pickup(["返回", "c0"], null, type) || sel.pickup("返回", null, type);
         current_app.kw_rank_list = () => {
             let ref = [
                 [idMatches(/.*J_rank_list_append/), 0],
@@ -223,19 +223,39 @@ function prologue() {
         };
         current_app.kw_rank_list_more = type => sel.pickup(idMatches(/.*J_rank_list_more/), "kw_rank_list_more", type);
         current_app.kw_rank_list_self = type => sel.pickup(idMatches(/.*J_rank_list_self/), "kw_rank_list_self", type);
-        current_app.kw_login_btn = type => sel.pickup(/登录|.*loginButton/, "kw_login_btn", type);
-        current_app.kw_login_by_code_btn = type => sel.pickup("密码登录", "kw_login_by_code_btn", type);
-        current_app.kw_login_with_other_user = type => sel.pickup("换个账号登录", "kw_login_with_other_user", type);
-        current_app.kw_login_with_other_method = type => sel.pickup(/换个方式登录|.*switchLoginMethod.*/, "kw_login_with_other_method", type);
-        current_app.kw_login_next_step_btn = type => sel.pickup(/下一步|.*nextButton/, "kw_login_next_step_btn", type);
+        current_app.kw_login_btn = type => sel.pickup(/登录|Log in|.*loginButton/, "kw_login_btn", type);
+        current_app.kw_login_by_code_btn = type => sel.pickup(/密码登录|Log ?in with password/, "kw_login_by_code_btn", type);
+        current_app.kw_login_with_other_user = type => sel.pickup(/换个账号登录|.*switchAccount/, "kw_login_with_other_user", type);
+        current_app.kw_login_with_other_method = type => {
+            let memory_keyword = "kw_login_with_other_method";
+            return sel.pickup(/换个方式登录|Switch login method|.*switchLoginMethod/, memory_keyword, type);
+        };
+        current_app.kw_login_with_other_method_in_init_page = type => {
+            let memory_keyword = "kw_login_with_other_method_in_init_page";
+            return sel.pickup(/其他登录方式|Other accounts/, memory_keyword, type);
+        };
+        current_app.kw_login_next_step_btn = type => sel.pickup(/下一步|Next|.*nextButton/, "kw_login_next_step_btn", type);
         current_app.kw_login_error_ensure_btn = type => sel.pickup(idMatches(/.*ensure/), "kw_login_error_ensure_btn", type);
-        current_app.kw_input_label_account = type => sel.pickup("账号", "kw_input_label_account", type);
-        current_app.kw_input_label_code = type => sel.pickup("密码", "kw_input_label_code", type);
-        current_app.kw_user_logged_out = type => sel.pickup(/.*(在其他设备登录|.*账号于.*通过.*登录.*).*/, "kw_user_logged_out", type);
+        current_app.kw_input_label_account = type => sel.pickup(/账号|Account/, "kw_input_label_account", type);
+        current_app.kw_input_label_code = type => sel.pickup(/密码|Password/, "kw_input_label_code", type);
+        current_app.kw_user_logged_out = type => {
+            let regexp_logged_out = new RegExp(".*(" +
+                /在其他设备登录|logged +in +on +another/.source + "|" +
+                /.*账号于.*通过.*登录.*|account +logged +on +to/.source +
+                ").*");
+            sel.pickup(regexp_logged_out, "kw_user_logged_out", type);
+        };
         current_app.kw_login_with_new_user = type => sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, "kw_login_with_new_user", type);
-        current_app.kw_switch_account_title = type => sel.pickup(/账号切换/, "kw_switch_account_title", type);
-        current_app.getLoginErrorMsg = () => sel.pickup([current_app.kw_login_error_ensure_btn(), "p2c0c0c0"], "", "txt");
-        current_app.isInLoginPage = () => current_app.kw_login_with_other_user() || current_app.kw_input_label_account();
+        current_app.kw_switch_account_title = type => sel.pickup(/账号切换|Accounts/, "kw_switch_account_title", type);
+        current_app.getLoginErrorMsg = () => {
+            return sel.pickup(id("com.alipay.mobile.antui:id/message"), "alipay_antui_msg", "txt")
+                || sel.pickup([current_app.kw_login_error_ensure_btn(), "p2c0c0c0"], "", "txt");
+        };
+        current_app.isInLoginPage = () => {
+            return current_app.kw_login_with_other_user()
+                || current_app.kw_input_label_account()
+                || current_app.kw_login_with_other_method_in_init_page();
+        };
         current_app.isInSwitchAccPage = () => current_app.kw_login_with_new_user() || current_app.kw_switch_account_title();
         current_app.user_account_name = main_account_info.account_name;
         current_app.user_account_code = main_account_info.account_code;
@@ -521,6 +541,8 @@ function checkLanguage() {
 
         messageAction("切换支付宝语言: 简体中文", null, 1);
 
+        dismissPermissionDialogsIfNeeded();
+
         return clickActionsPipeline([
             [["Me", "p1"]],
             [["Settings", {clickable: true}]],
@@ -557,6 +579,18 @@ function checkLanguage() {
             }
             return true;
         }
+    }
+}
+
+function dismissPermissionDialogsIfNeeded() {
+    let kw_need_to_dismiss = type => sel.pickup(idMatches(/.*btn_confirm/), "kw_need_to_dismiss_of_permission", type);
+    let kw_allow_btn = type => sel.pickup(/[Aa][Ll]{2}[Oo][Ww]|允许/, "kw_allow_btn", type);
+
+    let max_try_times = 10;
+    let condition = () => kw_need_to_dismiss() || kw_allow_btn();
+    while (condition() && max_try_times--) {
+        clickAction(condition(), "widget");
+        sleep(500);
     }
 }
 
@@ -666,6 +700,7 @@ function loginMainUser(direct_login_flag) {
             kw_close_btn,
             kw_login_with_other_user,
             kw_login_with_other_method,
+            kw_login_with_other_method_in_init_page,
             kw_login_next_step_btn,
             kw_login_btn,
             kw_login_by_code_btn,
@@ -684,7 +719,7 @@ function loginMainUser(direct_login_flag) {
 
         function inputUsernameAndCode() {
             if (!waitForAction(() => {
-                if (kw_user_logged_out()) clickAction(sel.pickup("好的"), "widget");
+                if (kw_user_logged_out()) clickAction(sel.pickup(/好的|OK/), "widget");
                 return isInLoginPage() || isInSwitchAccPage();
             }, 3000)) return messageAction("无法判断当前登录页面状态", 4, 1, 0, "both_dash");
 
@@ -706,12 +741,19 @@ function loginMainUser(direct_login_flag) {
             // tool function(s) //
 
             function clickUseAnotherAccountBtnIfNeeded() {
-                waitForAction(() => kw_login_with_other_user() || kw_input_label_account(), 3000);
+                waitForAction(() => {
+                    return kw_login_with_other_user()
+                        || kw_input_label_account()
+                        || kw_login_with_other_method_in_init_page();
+                }, 3000);
                 if (kw_login_with_other_user()) {
                     debugInfo("点击\"换个账号登录\"按钮");
                     clickAction(kw_login_with_other_user(), "widget");
-                    waitForAction(kw_input_label_account, 3000); // just in case
+                } else if (kw_login_with_other_method_in_init_page()) {
+                    debugInfo("点击\"其他登录方式\"按钮");
+                    clickAction(kw_login_with_other_method_in_init_page(), "widget");
                 }
+                waitForAction(kw_input_label_account, 3000); // just in case
             }
 
             function inputUserAccount() {
@@ -759,11 +801,15 @@ function loginMainUser(direct_login_flag) {
                     condition_success: () => !kw_login_next_step_btn(),
                 });
 
-                if (waitForAction(() => kw_input_label_code() || kw_login_with_other_method() || kw_login_error_ensure_btn(), 8000)) {
+                let kw_incorrect_code_try_again = type => sel.pickup(/重新输入|Try again/, "kw_incorrect_code_try_again", type);
+                if (waitForAction(() => {
+                    return kw_input_label_code() || kw_login_with_other_method()
+                        || kw_login_error_ensure_btn() || kw_incorrect_code_try_again();
+                }, 8000)) {
                     let wait_times = 3;
                     while (wait_times--) {
                         if (waitForAction(kw_input_label_code, 1500)) return debugInfo("找到\"密码\"输入项控件") || true;
-                        if (kw_login_error_ensure_btn()) {
+                        if (kw_login_error_ensure_btn() || kw_incorrect_code_try_again()) {
                             messageAction("登录失败", 4, 1, 0, "up");
                             messageAction("失败提示信息:" + getLoginErrorMsg(), 8, 0, 1, 1);
                         }
@@ -1124,6 +1170,7 @@ function checkEnergy() {
     }
 
     function checkFriendsEnergy(review_flag) {
+        closeH5PageIfNeeded();
         list_end_signal = 0;
 
         delete current_app.valid_rank_list_icon_clicked;
@@ -1223,6 +1270,21 @@ function checkEnergy() {
         return list_end_signal;
 
         // tool function(s) //
+
+        function closeH5PageIfNeeded() {
+            let condition = () => current_app.kw_af_title() || current_app.kw_rank_list_title();
+            if (condition()) {
+                debugInfo("检测到需要关闭的H5页面");
+                let max_try_times = 20;
+                let counter = 0;
+                while (max_try_times--) {
+                    keycode(4, "double");
+                    counter += 1;
+                    sleep(500);
+                    if (!condition()) return debugInfo("共计关闭H5页面: " + counter + "页");
+                }
+            }
+        }
 
         function setBlacklistIdentCapturesProto() {
             if (current_app.blacklist_ident_captures) return current_app.blacklist_ident_captures;
@@ -2055,7 +2117,7 @@ function checkEnergy() {
 
             let max_try_times = 3;
             while (max_try_times--) {
-                jumpBackOnce();
+                jumpBackOnce("forcibly_back");
                 sleep(200);
                 if (waitForAction(condition, 2000)) return true;
                 debugInfo("返回排行榜单次超时");
@@ -3099,26 +3161,19 @@ function epilogue() {
         function closeAFWindows() {
             debugInfo("关闭全部蚂蚁森林相关页面");
 
+            let afTitle = current_app.kw_af_title;
+            let rankListTitle = current_app.kw_rank_list_title;
+            let forestPage = () => sel.pickup([/浇水|发消息/, {className: "Button"}]);
+            let {kw_login_with_new_user} = current_app;
+
             let max_close_time = 10000;
-            while (closeBtnCondition() || loginPageCondition()) {
+            timeRecorder("close_af_windows");
+            while (afTitle() || rankListTitle() || forestPage() || kw_login_with_new_user()) {
+                jumpBackOnce("forcibly_back");
                 sleep(400);
-                max_close_time -= 400;
-                if (max_close_time <= 0) break;
+                if (timeRecorder("close_af_windows", "load") >= max_close_time) break;
             }
             debugInfo(max_close_time > 0 ? ["相关页面关闭完毕", "保留当前支付宝页面"] : "页面关闭可能没有成功");
-
-            // tool function(s) //
-
-            function closeBtnCondition() {
-                let afTitle = current_app.kw_af_title;
-                let rankListTitle = current_app.kw_rank_list_title;
-                let forestPage = () => sel.pickup([/浇水|发消息/, {className: "Button"}]);
-                if (afTitle() || rankListTitle() || forestPage()) return clickAction(current_app.kw_close_btn(), "widget");
-            }
-
-            function loginPageCondition() {
-                if (current_app.kw_login_with_new_user()) return jumpBackOnce() || true;
-            }
         }
 
         function removeSpringboardIfNeeded() {
@@ -4197,15 +4252,15 @@ function promptConfig() {
     }
 }
 
-function jumpBackOnce() {
+function jumpBackOnce(forcibly_back_flag) {
     let kw_back_btn_common = current_app.kw_back_btn;
     let kw_back_btn_antui_id = type => sel.pickup(idMatches(/.*back.button/), "kw_back_btn_antui_id", type);
     let kw_back_btn_h5_id = type => sel.pickup(idMatches(/.*h5.(tv.)?nav.back/), "kw_back_btn_h5_id", type);
-    let back_node = kw_back_btn_common() || kw_back_btn_antui_id() || kw_back_btn_h5_id();
+    let back_node = () => kw_back_btn_common() || kw_back_btn_antui_id() || kw_back_btn_h5_id();
 
-    if (!back_node || !clickAction(back_node, "widget")) {
+    if (forcibly_back_flag || !back_node() || !clickAction(back_node(), "widget")) {
         debugInfo("模拟返回按键返回上一页");
-        ~keycode(4, "double") && sleep(1000);
+        keycode(4, "double");
     }
 }
 
@@ -4372,6 +4427,7 @@ function plans(operation_name, params) {
                 while (!waitForAction(() => __global__._monster_$_launch_ready_monitor_signal, 1000, 80)) {
                     clickAction(current_app.kw_reload_forest_page_btn());
                     clickAction(sel.pickup("打开", "kw_confirm_launch_alipay"));
+                    dismissPermissionDialogsIfNeeded();
                 }
             },
         }, params));
@@ -4488,11 +4544,10 @@ function launchAlipayHomepage(params) {
         condition_ready: kw_alipay_homepage,
         disturbance: () => {
             while (!kw_alipay_homepage()) {
+                dismissPermissionDialogsIfNeeded();
                 let valid_node = kw_back_btn() || kw_close_btn();
-                if (valid_node) {
-                    clickAction(valid_node);
-                    sleep(500);
-                } else sleep(100);
+                if (valid_node) clickAction(valid_node);
+                sleep(valid_node ? 500 : 100);
             }
         },
     }, params));
@@ -4525,8 +4580,12 @@ function launchUserList(forcible_flag) {
     for (let i = 0, len = plan_keys.length; i < len; i += 1) {
         let plan_name = plan_keys[i]; // maybe useful for debugInfo()
         let plan_func = plans[plan_name];
-        plan_func();
-        if (waitForAction(isInSwitchAccPage, 2000)) return debugInfo("计划" + surroundWith(plan_name) + "成功") || true;
+        try {
+            plan_func();
+            if (waitForAction(isInSwitchAccPage, 2000)) return debugInfo("计划" + surroundWith(plan_name) + "成功") || true;
+        } catch (e) {
+
+        }
         debugInfo("计划" + surroundWith(plan_name) + "失败", 3);
     }
     return messageAction("进入\"账号切换\"页面失败", 4, 1, 0, "both_dash");

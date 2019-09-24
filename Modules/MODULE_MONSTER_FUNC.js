@@ -2761,8 +2761,12 @@ function getSelector(params) {
                     if (!arr || classof(arr) !== "Array") return null;
                     for (let i = 0, len = arr.length; i < len; i += 1) {
                         if (!node.childCount()) return null;
-                        node = node.child(+arr[i].match(/\d+/));
-                        if (!node) return null;
+                        try {
+                            node = node.child(+arr[i].match(/\d+/));
+                            if (!node) return null;
+                        } catch (e) {
+                            return null;
+                        }
                     }
                     return node;
                 }

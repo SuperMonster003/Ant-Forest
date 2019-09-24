@@ -5984,17 +5984,22 @@ function setTimePickerView(params) {
                         <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
                     </vertical>
                 ));
+                let picker_node = picker_view.picker;
                 if (init) {
                     // init:
                     // 1. 1564483851219 - timestamp
                     // 2. [2018, 7, 8] - number[]
-                    let picker_node = picker_view.picker;
                     if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
                         let date = new Date(init);
                         init = [date.getFullYear(), date.getMonth(), date.getDate()];
                     }
-                    picker_node.updateDate.apply(picker_node, init);
+                } else {
+                    let now = new Date();
+                    init = [now.getFullYear(), now.getMonth(), now.getDate()];
                 }
+                let onDateChangedListener = new android.widget.DatePicker.OnDateChangedListener({onDateChanged: setTimeStr});
+                let init_params = init.concat(onDateChangedListener);
+                picker_node.init.apply(picker_node, init_params);
             } else if (type === "week") {
                 let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                 let checkbox_views = ui.inflate(
@@ -6043,9 +6048,7 @@ function setTimePickerView(params) {
 
             time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
             let picker_node = picker_view.picker;
-            if (type !== "week") {
-                picker_node["setOn" + (type.slice(0, 1).toUpperCase() + type.slice(1).toLowerCase()) + "ChangedListener"](setTimeStr);
-            }
+            if (type === "time") picker_node.setOnTimeChangedListener(setTimeStr);
 
             let {yy, MM, dd, hh, mm} = {
                 yy: () => {
