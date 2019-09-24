@@ -106,6 +106,13 @@
 ******
 ### 版本历史
 ******
+# v1.9.1
+###### 2019/09/24
+* `修复` 支付宝 `v10.1.75.7000` 进入及返回好友排行榜失败的问题 _[`issue #98`](https://github.com/SuperMonster003/Auto.js_Projects/issues/98#issue-496619668)_ _[`#99`](https://github.com/SuperMonster003/Auto.js_Projects/issues/99#issue-497458889)_  
+* `修复` 英文语言环境可能无法完成自动登录或语言切换的问题  
+* `修复` 打开账户切换页面的备用方案可能无法生效的问题  
+* `修复` 安卓 8.0 以下 (sdk < 26) 无法正常使用日期控件监听器的问题  
+
 # v1.9.0
 ###### 2019/09/23
 * `新增` 账户功能  
@@ -137,7 +144,6 @@
 * `优化` 部分工具函数模块化  
 ·  setDeviceProto()  
 ·  vibrateDevice()  
-·  sleepSafe()  
 ·  clickActionsPipeline()  
 ·  timeFlagToDaysOfWeek()  
 * `优化` sel.pickup()代码重构并摒弃sel.selStr()  
