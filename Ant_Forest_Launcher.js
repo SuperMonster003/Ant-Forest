@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Sep 24, 2019
- * @version 1.9.1
+ * @last_modified Sep 28, 2019
+ * @version 1.9.2
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -18,7 +18,7 @@ let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 // better compatibility for both free version and pro version
 let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
-// more functions offered by Stardust and some others by me
+// more functions offered by Stardust and some others by myself
 let app = require("./Modules/__app__pro_v41")(runtime, __global__);
 
 let classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -49,6 +49,8 @@ let {
     refreshObjects,
     equalObjects,
     swipeInArea,
+    baiduOcr,
+    setIntervalBySetTimeout,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 try {
@@ -98,7 +100,7 @@ function antForest() {
             let throwErrorToMainThread = () => {
                 ui.post(() => {
                     showSplitLine();
-                    throw (e);
+                    if (!e.message || !e.message.match("ScriptInterruptedException")) throw (e);
                 }); // throw Error to main thread for an easy location and ignore max_retry_times_global param as needed
                 sleep(2000); // to prevent continuous running of the remaining code
             };
@@ -559,8 +561,9 @@ function checkLanguage() {
 
         function getReady() {
             let max_try_times_close_btn = 10;
-            while (max_try_times_close_btn--) {
-                if (clickAction(current_app.kw_close_btn())) break;
+            let {kw_close_btn} = current_app;
+            while (kw_close_btn() && max_try_times_close_btn--) {
+                clickAction(kw_close_btn());
                 sleep(500);
             }
             let kw_homepage = className("TextView").idContains("tab_description");
@@ -1020,6 +1023,7 @@ function checkEnergy() {
         // tool function(s) //
 
         function checkEnergyBalls() {
+            let initial_af_home_capt = images.captureCurrentScreen();
             checkRipeBalls();
 
             let condition_a = config.homepage_background_monitor_switch;
@@ -1068,42 +1072,84 @@ function checkEnergy() {
                     return debugInfo("自己能量球最小倒计时检测完毕");
                 } // no countdown, no need to checkRemain
 
-                let now = new Date();
+                let now = timeRecorder("own_energy_balls_check_time");
                 let min_countdown_own = Math.min.apply(null, getCountdownData());
                 let ripe_time = new Date(min_countdown_own);
-                let padZero = num => ("0" + num).slice(-2);
-                let hh = +padZero(ripe_time.getHours() - now.getHours());
-                let mm = +padZero(ripe_time.getMinutes() - now.getMinutes());
-                let remain_minute = hh * 60 + mm;
+                let remain_minutes = timeRecorder("own_energy_balls_check_time", "load", 60000, 0, null, +ripe_time);
 
-                debugInfo("自己能量最小倒计时: " + remain_minute + "min");
-                current_app.min_countdown_own = min_countdown_own; // ripe timestamp
-                debugInfo("时间数据: " + getNextTimeStr(min_countdown_own));
+                if (isNaN(remain_minutes)) debugInfo("自己能量最小倒计时数据无效", 3);
+                else {
+                    debugInfo("自己能量最小倒计时: " + remain_minutes + "min");
+                    current_app.min_countdown_own = min_countdown_own; // ripe timestamp
+                    debugInfo("时间数据: " + getNextTimeStr(min_countdown_own));
+                }
 
                 debugInfo("自己能量球最小倒计时检测完毕");
 
-                return config.homepage_monitor_switch && remain_minute <= config.homepage_monitor_threshold; // if needs to checkRemain
+                return config.homepage_monitor_switch && remain_minutes <= config.homepage_monitor_threshold; // if needs to checkRemain
 
                 // tool function(s) //
 
                 function getCountdownData() {
+                    let isThreadAlive = thr => thr && thr.isAlive();
+                    let killThread = (thr) => {
+                        thr && thr.interrupt();
+                        thr = null;
+                    };
                     let countdown_data = [];
 
-                    let thread_get_countdown_data = threads.start(function () {
+                    let thread_get_by_ocr = threads.start(function () {
+                        debugInfo("已开启倒计时数据OCR识别线程");
+                        let stitched_initial_af_home_balls_img = (() => {
+                            let nodeToImage = (node) => {
+                                let bounds = node.bounds();
+                                return images.clip(initial_af_home_capt, bounds.left, bounds.top, bounds.width(), bounds.height());
+                            };
+
+                            let stitched = nodeToImage(raw_balls[0]);
+                            raw_balls.forEach((node, idx) => {
+                                stitched = idx ? images.concat(stitched, nodeToImage(node), "BOTTOM") : stitched;
+                            });
+                            return stitched;
+                        })();
+                        let raw_countdown_data = baiduOcr([raw_balls, stitched_initial_af_home_balls_img], {
+                            fetch_times: 3,
+                            fetch_interval: 500,
+                            no_toast_msg_flag: true,
+                        });
+                        countdown_data = raw_countdown_data
+                            .map(result => result.filter(str => !!str.match(/\d{2}:\d{2}/)))
+                            .filter(arr => !!arr.length)
+                            .map(arr => arr.sort()[0]);
+                        debugInfo("OCR识别线程" + (countdown_data.length ? "已获取有效数据" : "获取数据无效"));
+                    });
+                    let thread_get_by_toast = threads.start(function () {
+                        debugInfo("已开启倒计时数据Toast监控线程");
                         raw_balls.forEach((node) => {
-                            let max_try_times = 3;
-                            while (max_try_times--) {
-                                clickAction(node, "press");
-                                let data = observeToastMessage(current_app.package_name, /才能收取/, 300); // results array, maybe []
-                                if (data.length) return countdown_data = countdown_data.concat(data);
+                            clickAction(node, "press");
+                            let data = observeToastMessage(current_app.package_name, /才能收取/, 240); // results array, maybe []
+                            // data = []; //// TEST ////
+                            if (data.length && isThreadAlive(thread_get_by_ocr)) {
+                                killThread(thread_get_by_ocr);
+                                debugInfo(["Toast监控线程已获取有效数据", "强制停止OCR识别线程"]);
+                                return countdown_data = countdown_data.concat(data);
                             }
                         });
+                        countdown_data.length || debugInfo("Toast监控线程未能获取有效数据");
                     });
-                    thread_get_countdown_data.join(6000);
-                    if (thread_get_countdown_data.isAlive()) {
-                        thread_get_countdown_data.interrupt();
+
+                    let timeout_get_countdown_data = 12000;
+                    timeRecorder("get_own_countdown_data");
+                    let getRemainingTime = () => timeout_get_countdown_data - timeRecorder("get_own_countdown_data", "load");
+
+                    thread_get_by_toast.join(timeout_get_countdown_data);
+                    thread_get_by_ocr.join(getRemainingTime());
+
+                    if (getRemainingTime() < 0) {
+                        killThread(thread_get_by_toast);
+                        killThread(thread_get_by_ocr);
                         messageAction("获取自己能量倒计时超时", 3);
-                        messageAction("最小倒计时数据可能不准确", 3, 0, 1, 1);
+                        messageAction("最小倒计时数据" + (countdown_data.length ? "可能不准确" : "获取失败"), 3, 0, 0, 1);
                     }
 
                     return countdown_data.map(str => {
@@ -1615,7 +1661,7 @@ function checkEnergy() {
 
                 let orange_balls = config.help_collect_balls_color;
                 let orange_balls_threshold = config.help_collect_balls_threshold;
-                let intensity_time = config.help_collect_balls_intensity * 160 - 1200;
+                let intensity_time = config.help_collect_balls_intensity * 160 - 920;
 
                 debugInfo("能量球监测采集密度: " + intensity_time + "ms");
 
@@ -2122,7 +2168,7 @@ function checkEnergy() {
                 if (waitForAction(condition, 2000)) return true;
                 debugInfo("返回排行榜单次超时");
             }
-            debugInfo(["返回排行榜失败", "尝试重启支付宝到排行榜页面", 3]);
+            debugInfo(["返回排行榜失败", "尝试重启支付宝到排行榜页面"], 3);
             restartAlipayToHeroList();
 
             let {kw_rank_list_self} = current_app;
@@ -2980,7 +3026,7 @@ function epilogue() {
 
                     let timeout_layout =
                         <frame gravity="center">
-                            <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center" text="0"/>
+                            <text id="text" bg="#cc000000" size="14" color="#ccffffff" gravity="center" text=""/>
                         </frame>;
 
                     let color_stripe_layout =
@@ -3059,22 +3105,44 @@ function epilogue() {
                     timeout_raw_win.setPosition(left_pos, timeout_top_pos);
                     timeout_raw_win.setSize(min_width, timeout_height);
 
-                    let countdown_interval = null;
+                    setFloatyTimeoutText(countdown);
 
                     let p1 = new Promise((resolve => {
-                        debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
-                        setFloatyTimeoutText(countdown);
-                        countdown_interval = setInterval(function () {
-                            if (--countdown <= 0) return resolve(clearInterval(countdown_interval));
-                            if (current_app.floaty_msg_finished_flag) return resolve(clearInterval(countdown_interval));
-                            setFloatyTimeoutText(countdown);
-                        }, 1000);
+                        let thr;
+                        try {
+                            thr = threads.start(function () {
+                                debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
+                                timeRecorder("set_floaty_timeout_text");
+
+                                let condition = () => {
+                                    if (countdown <= 0 || current_app.floaty_msg_finished_flag) {
+                                        return resolve() || true;
+                                    }
+                                };
+
+                                setIntervalBySetTimeout(function () {
+                                    if (condition()) return;
+                                    let remaining_time = timeout - timeRecorder("set_floaty_timeout_text", "load");
+                                    let remaining_countdown = Math.ceil(remaining_time / 1000);
+                                    if (remaining_countdown < countdown) {
+                                        setFloatyTimeoutText(Math.max(0, countdown = remaining_countdown));
+                                    }
+                                }, 150, condition);
+                            });
+                            threads.start(function () {
+                                // dunno if this is necessary
+                                setTimeout(function () {
+                                    resolve();
+                                }, timeout + 2000);
+                            });
+                        } catch (e) {
+                            thr && thr.interrupt();
+                            return resolve();
+                        }
                     }));
 
                     let p2 = new Promise((resolve => {
                         setTimeout(function () {
-                            clearInterval(countdown_interval);
-
                             if (floaty_failed_flag) {
                                 messageAction("此设备可能无法使用Floaty功能", 3, 1);
                                 messageAction("建议改用Toast方式显示收取结果", 3);
@@ -3133,7 +3201,7 @@ function epilogue() {
 
         current_app.may_exit_when_screen_off_flag = true;
 
-        return new Promise((resolve => {
+        return new Promise((resolve) => {
             if (current_app.floaty_msg_finished_flag === 1) return resolve();
 
             timeRecorder("wait_for_floaty_msg_finished");
@@ -3141,20 +3209,21 @@ function epilogue() {
             let timedOut = () => timeRecorder("wait_for_floaty_msg_finished", "load") > max_wait_duration;
 
             debugInfo("等待Floaty消息结束等待信号");
-            let interval = setInterval(function () {
+
+            let condition = () => {
                 if (current_app.floaty_msg_finished_flag === 1) {
-                    resolve();
-                    return clearInterval(interval);
+                    return resolve() || true;
                 }
+            };
+
+            setIntervalBySetTimeout(function () {
                 if (timedOut()) {
                     current_app.floaty_msg_finished_flag = 1;
                     debugInfo(["放弃等待Floaty消息结束信号", ">等待结束信号超时"], 3);
                     resolve();
-                    return clearInterval(interval);
                 }
-                // debugInfo("继续等待Floaty消息结束等待信号"); //// TEST ////
-            }, 200);
-        }));
+            }, 200, condition);
+        });
 
         // tool function(s) //
 
@@ -3334,13 +3403,7 @@ function epilogue() {
             function monitorScreenStateAsync() {
                 return new Promise((resolve) => {
                     let timedOut = () => timeRecorder("settings_provider_params", "load") > 20000;
-                    let interval = setInterval(function () {
-                        if (!device.isScreenOn()) {
-                            debugInfo("策略执行成功");
-                            debugInfo("用时: " + timeRecorder("settings_provider_params", "load", 1000, [1], "秒"));
-                            resolve(screen_off_result = true);
-                            return clearInterval(interval);
-                        }
+                    setIntervalBySetTimeout(function () {
                         if (timedOut()) {
                             debugInfo([
                                 "策略执行失败",
@@ -3350,10 +3413,15 @@ function epilogue() {
                                 ">" + files.path("./Tools/Auto.js_Write_Settings_Permission_Helper.js")
                             ]);
                             resolve(false);
-                            return clearInterval(interval);
                         }
-                        // debugInfo("继续等待策略执行结果"); //// TEST ////
-                    }, 200);
+                    }, 200, () => {
+                        if (!device.isScreenOn()) {
+                            debugInfo("策略执行成功");
+                            debugInfo("用时: " + timeRecorder("settings_provider_params", "load", 1000, [1], "秒"));
+                            return resolve(screen_off_result = true) || true;
+                        }
+                        if (timedOut()) return true;
+                    });
                 });
             }
         }
@@ -4509,21 +4577,39 @@ function plans(operation_name, params) {
     }
 
     function launchRankListByClickListMoreBtn() {
-        let kw_more_friends = current_app.kw_list_more_friends;
-        let rank_list_review_flag = params.review_flag;
+        let {
+            kw_list_more_friends,
+            kw_alipay_homepage,
+            kw_rank_list,
+        } = current_app;
 
-        if (rank_list_review_flag) {
-            current_app.kw_back_btn() ? clickAction(current_app.kw_back_btn(), "widget") : keycode(4, "double");
+        function locateListMoreFriBtn() {
+            if (kw_list_more_friends()) return true;
+            let max_try_times = 8;
+            while (max_try_times--) {
+                if (kw_alipay_homepage()) {
+                    debugInfo(["检测到支付宝主页页面", "尝试进入蚂蚁森林主页"]);
+                    launchAFHomepage();
+                } else if (kw_rank_list()) {
+                    debugInfo(["检测到好友排行榜页面", "尝试关闭当前页面"]);
+                    current_app.kw_back_btn()
+                        ? clickAction(current_app.kw_back_btn(), "widget")
+                        : keycode(4, "double");
+                } else {
+                    debugInfo(["未知页面", "尝试关闭当前页面"]);
+                    keycode(4, "double");
+                }
+                if (waitForAction(kw_list_more_friends, 1000)) return true;
+            }
         }
 
-        if (!waitForAction(kw_more_friends, 3000)) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
-
+        if (!locateListMoreFriBtn()) return messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
         debugInfo("定位到\"查看更多好友\"按钮");
 
         let trigger = () => {
-            if (!clickAction(kw_more_friends(), "widget") || !waitForAction(() => !kw_more_friends(), 800)) {
+            if (!clickAction(kw_list_more_friends(), "widget") || !waitForAction(() => !kw_list_more_friends(), 800)) {
                 debugInfo("备份方案点击\"查看更多好友\"");
-                swipeInArea(kw_more_friends(), {
+                swipeInArea(kw_list_more_friends(), {
                     swipe_time: 200,
                     check_interval: 100,
                     if_click: "click",
