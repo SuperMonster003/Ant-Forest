@@ -34,6 +34,8 @@ module.exports = {
     setDeviceProto: setDeviceProto,
     vibrateDevice: vibrateDevice,
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
+    baiduOcr: baiduOcr,
+    setIntervalBySetTimeout: setIntervalBySetTimeout,
 };
 
 /**
@@ -1460,16 +1462,24 @@ function tryRequestScreenCapture(params) {
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
         let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
-        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "kw_req_capt_sure_btn", type);
+        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "", type);
 
         if (_waitForAction(_kw_sure_btn, 5000)) {
             if (_waitForAction(_kw_no_longer_prompt, 1000)) {
                 _debugInfo("勾选\"不再提示\"复选框");
                 _clickAction(_kw_no_longer_prompt(), "widget");
             }
-            if (_kw_sure_btn()) {
-                _debugInfo("点击\"" + _kw_sure_btn("txt") + "\"按钮");
-                _clickAction(_kw_sure_btn(), "widget");
+            if (_waitForAction(_kw_sure_btn, 2000)) {
+                let _node = _kw_sure_btn();
+                let _btn_click_action_str = "点击\"" + _kw_sure_btn("txt") + "\"按钮";
+
+                _debugInfo(_btn_click_action_str);
+                _clickAction(_node, "widget");
+
+                if (!_waitForAction(() => !_kw_sure_btn(), 1000)) {
+                    _debugInfo("尝试click()方法再次" + _btn_click_action_str);
+                    _clickAction(_node, "click");
+                }
             }
         }
     });
@@ -2223,8 +2233,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
     let _getDisplayParams = typeof getDisplayParams === "undefined" ? getDisplayParamsRaw : getDisplayParams;
     let {WIDTH} = _getDisplayParams();
 
-    let abs = num => num < 0 && -num || num;
-    let scroll_interval = null;
+    let abs = num => num < 0 ? -num : num;
 
     try {
         if (shifting === "full_left") {
@@ -2241,46 +2250,45 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         dx = abs(dx);
         dy = abs(dy);
 
-        let ptx = dx && Math.ceil(each_move_time * dx / duration) || 0;
-        let pty = dy && Math.ceil(each_move_time * dy / duration) || 0;
+        let ptx = dx ? Math.ceil(each_move_time * dx / duration) : 0;
+        let pty = dy ? Math.ceil(each_move_time * dy / duration) : 0;
 
         threads.start(function () {
-            scroll_interval = setInterval(function () {
-                ui.post(function () {
-                    try {
-                        if (!dx && !dy) {
-                            if ((shifting[0] === -WIDTH && sub_view) && page_scrolling_flag) {
+            let scroll_interval = setInterval(function () {
+                try {
+                    if (dx <= 0 && dy <= 0) {
+                        clearInterval(scroll_interval);
+                        if ((shifting[0] === -WIDTH && sub_view) && page_scrolling_flag) {
+                            ui.post(() => {
                                 sub_view.scrollBy(WIDTH, 0);
-                                let child_count = parent.getChildCount();
-                                parent.removeView(parent.getChildAt(--child_count));
-                            }
-                            return page_scrolling_flag = false;
+                                parent.removeView(parent.getChildAt(parent.getChildCount() - 1));
+                            });
                         }
-                        let move_x = ptx && (dx > ptx ? ptx : (ptx - (dx % ptx))),
-                            move_y = pty && (dy > pty ? pty : (pty - (dy % pty)));
-                        let scroll_x = neg_x && -move_x || move_x,
-                            scroll_y = neg_y && -move_y || move_y;
+                        return page_scrolling_flag = false;
+                    }
+                    let move_x = ptx ? Math.min(dx, ptx) : 0;
+                    let move_y = pty ? Math.min(dy, pty) : 0;
+                    let scroll_x = neg_x ? -move_x : move_x;
+                    let scroll_y = neg_y ? -move_y : move_y;
+                    ui.post(() => {
                         sub_view && sub_view.scrollBy(scroll_x, scroll_y);
                         main_view.scrollBy(scroll_x, scroll_y);
-                        dx -= ptx;
-                        dy -= pty;
-                    } catch (e) {
-                        // setInterval will throw Error even if it's in a try() body
-                    }
-                });
+                    });
+                    dx -= move_x;
+                    dy -= move_y;
+                } catch (e) {
+                    // setInterval will throw Error even if it's in a try() body
+                }
             }, each_move_time);
         });
 
         threads.start(function () {
             waitForAction(() => !page_scrolling_flag, 10000);
-            ui.post(function () {
-                clearInterval(scroll_interval);
-            });
             __global__._monster_$_page_scrolling_flag = false;
         });
     } catch (e) {
         page_scrolling_flag = false;
-        log(e.message)
+        console.warn(e.message); //// TEST ////
     }
 
     // raw function(s) //
@@ -2842,7 +2850,8 @@ function selExists(conditions) {
  * @returns {string}
  */
 function surroundWith(target, mark_left, mark_right) {
-    if (!target) return "";
+    if (typeof target === "undefined" || target === null) return "";
+    target = target.toString();
     mark_left = (mark_left || '"').toString();
     mark_right = (mark_right || mark_left).toString();
     return mark_left + target.toString() + mark_right;
@@ -2869,6 +2878,7 @@ function phoneCallingState() {
  * @param [divisor=1] {number}
  * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
  * @param [suffix] {string}
+ * @param [load_timestamp] {number|Date}
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
  * timeRecorder("running", "put"); timeRecorder("running", "get") - eg: 1565080123796
@@ -2876,7 +2886,7 @@ function phoneCallingState() {
  * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
  * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
  */
-function timeRecorder(keyword, operation, divisor, fixed, suffix) {
+function timeRecorder(keyword, operation, divisor, fixed, suffix, load_timestamp) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
     let records = __global__._monster_$_timestamp_records;
@@ -2884,7 +2894,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix) {
     if (!operation || operation.toString().match(/save|put/)) return records[keyword] = +new Date();
     let forcible_fixed_num_flag = false;
     if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
-    let result = (+new Date() - records[keyword]) / (divisor || 1); // number
+    let result = ((+load_timestamp || +new Date()) - records[keyword]) / (divisor || 1); // number
     if (typeof fixed !== "undefined" && fixed !== null) result = result.toFixed(+fixed); // string
     if (forcible_fixed_num_flag) result = +result;
     if (suffix) result += suffix.toString();
@@ -3138,4 +3148,239 @@ function timedTaskTimeFlagConverter(timeFlag) {
             .map((value, idx) => +info[idx] ? idx : null)
             .filter(value => value !== null);
     }
+}
+
+/**
+ * Fetching data by calling OCR API from Baidu
+ * @param src {Array|ImageWrapper|UiObject|UiObjectCollection} -- will be converted into ImageWrapper(s)
+ * @param [params] {object}
+ * @param [params.no_toast_msg_flag=false] {boolean}
+ * @param [params.fetch_times=1] {boolean}
+ * @param [params.fetch_interval=100] {number}
+ * @param [params.debug_info_flag=false] {boolean}
+ * @param [params.timeout=60000] {number} -- no less than 5000
+ * @returns {Array|Array[]} -- [] or [[], [], []...]
+ * @example
+ * let sel = getSelector(); // @see getSelector() from MODULE_MONSTER_FUNC
+ * baiduOcr(sel.pickup(/\xa0/, "", "nodes"), {
+ *     fetch_times: 3,
+ *     timeout: 12000
+ * }); // [[], [], []] -- 3 groups of data
+ */
+function baiduOcr(src, params) {
+    if (!src) return [];
+
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    params = params || {};
+
+    let timeout = params.timeout || 60000;
+    if (!+timeout || timeout < 5000) timeout = 5000;
+    let timed_out_timestamp = +new Date() + timeout;
+
+    let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
+    let _debugInfo = (_msg) => {
+        if (!params.debug_info_flag) return null;
+        return (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", true);
+    };
+
+    let function_start_msg = "使用baiduOcr获取数据";
+    _debugInfo(function_start_msg);
+    if (!params.no_toast_msg_flag) toast(function_start_msg);
+
+    let access_token = "";
+    let max_try_times_acc_token = 10;
+
+    let thread_access_token = threads.start(function () {
+        while (max_try_times_acc_token--) {
+            try {
+                let access_token_url = "https://aip.baidubce.com/oauth/2.0/token" +
+                    "?grant_type=client_credentials" +
+                    "&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE" +
+                    "&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj";
+                access_token = http.get(access_token_url).body.json().access_token;
+                _debugInfo("access_token准备完毕");
+                break;
+            } catch (e) {
+                sleep(200);
+            }
+        }
+    });
+
+    thread_access_token.join(timeout);
+
+    if (max_try_times_acc_token < 0) {
+        _messageAction("baiduOcr获取access_token失败", 3, +!params.no_toast_msg_flag, 0, "both_dash");
+        return [];
+    }
+
+    if (thread_access_token.isAlive()) {
+        _messageAction("baiduOcr获取access_token超时", 3, +!params.no_toast_msg_flag, 0, "both_dash");
+        return [];
+    }
+
+    let url = "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic" +
+        "?access_token=" + access_token;
+
+    _tryRequestScreenCapture({
+        restart_this_engine_flag: false
+    });
+
+    let fetch_times = params.fetch_times || 1;
+    let fetch_times_backup = fetch_times;
+    let fetch_interval = params.fetch_interval || 300;
+    let results = [];
+    let threads_pool = [];
+    let allThreadsDead = () => {
+        for (let i = 0, len = threads_pool.length; i < len; i += 1) {
+            if (threads_pool[i].isAlive()) return;
+        }
+        return true;
+    };
+
+    while (fetch_times--) {
+        threads_pool.push(threads.start(function () {
+            let img = stitchImages(src);
+            if (!img) return [];
+            let current_times = fetch_times_backup - fetch_times;
+            _debugInfo("stitched_image" + (fetch_times_backup > 1 ? "[" + current_times + "]" : "") + "准备完毕");
+
+            let post_obj = {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                image: images.toBase64(img), // images.read(img_file) for local file
+                image_type: "BASE64",
+            };
+
+            img.recycle();
+            img = null;
+
+            try {
+                let fetched = JSON.parse(http.post(url, post_obj).body.string()).words_result.map(val => val.words);
+                _debugInfo("数据" + (fetch_times_backup > 1 ? "[" + current_times + "]" : "") + "获取成功");
+                results.push(fetched); // result array
+            } catch (e) {
+                if (e.message && e.message.match(/InterruptedIOException/)) return;
+                throw (e);
+            }
+        }));
+        sleep(fetch_interval);
+    }
+    let thread_timeout_monitor = threads.start(function () {
+        while (sleep(500) || true) {
+            if (allThreadsDead()) return;
+            if (+new Date() >= timed_out_timestamp) {
+                threads_pool.forEach(thr => thr.interrupt());
+                _messageAction("baiduOcr获取数据超时", 3, +!params.no_toast_msg_flag, 0, "up_dash");
+                if (results.length) _messageAction("已获取的数据可能不完整", 3);
+                _showSplitLine("", "dash");
+            }
+        }
+    });
+    while (sleep(500) || true) {
+        if (allThreadsDead()) {
+            if (!params.no_toast_msg_flag && results.length) toast("baiduOcr获取数据完毕");
+            return fetch_times_backup === 1 ? results[0] : results;
+        }
+    }
+
+    // tool function(s) //
+
+    function stitchImages(imgs) {
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let getType = (o) => {
+            let matched = o.toString().match(/\w+(?=@)/);
+            return matched ? matched[0] : null;
+        };
+        let nodeToImage = (node) => {
+            let bounds = node.bounds();
+            return images.clip(images.captureScreen(), bounds.left, bounds.top, bounds.width(), bounds.height());
+        };
+        let nodesToImage = (nodes) => {
+            let imgs = [];
+            nodes.forEach(node => imgs.push(nodeToImage(node)));
+            return stitchImg(imgs);
+        };
+        let stitchImg = (imgs) => {
+            if (getType(imgs) === "ImageWrapper" && classof(imgs) !== "Array") return imgs;
+            if (imgs.length === 1) return imgs[0];
+            let stitched = imgs[0];
+            imgs.forEach((img, idx) => stitched = idx ? images.concat(stitched, img, "BOTTOM") : stitched);
+            return stitched;
+        };
+        if (classof(imgs) !== "Array") imgs = [imgs].slice();
+        imgs = imgs.map(img => {
+            let type = getType(img);
+            if (type === "UiObject") return nodeToImage(img);
+            if (type === "UiObjectCollection") return nodesToImage(img);
+            return img;
+        });
+        return stitchImg(imgs);
+    }
+
+    // raw function(s) //
+
+    function tryRequestScreenCaptureRaw() {
+        if (!__global__._monster_$_request_screen_capture_flag) {
+            images.requestScreenCapture();
+            sleep(300);
+        }
+    }
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+
+    function showSplitLineRaw(extra_str, style) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return ~console.log(_split_line + _extra_str);
+    }
+}
+
+/**
+ * Function for replacing setInterval() and avoiding its so-called (maybe real ?) "flaws"
+ * @param func {function}
+ * @param [interval=200] {number}
+ * @param [timeout] {number|function} -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
+ * @example
+ * setIntervalBySetTimeout(() => {
+ *     console.log("hello");
+ * }, 1000, 5000); // print "hello" every 1 second for 5 (or 4 sometimes) times
+ */
+function setIntervalBySetTimeout(func, interval, timeout) {
+    interval = interval || 200;
+    let init_timestamp = +new Date();
+    let timeoutReached = typeof timeout === "function" ? timeout : () => {
+        return +new Date() - init_timestamp >= timeout;
+    };
+    setTimeout(function fn() {
+        func();
+        timeoutReached() || setTimeout(fn, interval);
+    }, interval);
 }
