@@ -578,7 +578,7 @@ let homepage = setHomePage(defs.homepage_title)
     }))
 ;
 
-let addPage = (addFunc) => sub_page_views.push(addFunc);
+let addPage = addFunc => sub_page_views.push(addFunc);
 
 addPage(() => {
     setPage(["自收功能", "self_collect_page"])
@@ -2456,7 +2456,6 @@ addPage(() => {
         }))
         .ready();
 }); // timers_self_manage_page
-
 addPage(() => {
     setPage(["定时任务控制面板", "timers_control_panel_page"], def, parent_view => setTimersControlPanelPageButtons(parent_view, "timed_tasks", wizardFunc), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*管理本项目定时任务*/", {
@@ -2758,7 +2757,6 @@ addPage(() => {
         }
     }
 }); // timers_control_panel_page
-
 addPage(() => {
     setPage(["延时接力管理", "timers_uninterrupted_check_sections_page"], def, parent_view => setTimersUninterruptedCheckAreasPageButtons(parent_view, "timers_uninterrupted_check_sections"), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*延时接力时间区间*/", {

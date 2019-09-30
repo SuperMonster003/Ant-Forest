@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Sep 28, 2019
- * @version 1.9.2
+ * @last_modified Sep 30, 2019
+ * @version 1.9.3
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -96,27 +96,26 @@ function antForest() {
         try {
             return main();
         } catch (e) {
-            let {message} = e;
-            let throwErrorToMainThread = () => {
-                ui.post(() => {
-                    showSplitLine();
-                    if (!e.message || !e.message.match("ScriptInterruptedException")) throw (e);
-                }); // throw Error to main thread for an easy location and ignore max_retry_times_global param as needed
-                sleep(2000); // to prevent continuous running of the remaining code
-            };
             let current_retry_times = max_retry_times_global_backup - --max_retry_times_global;
-
+            let {message} = e;
             if (message) {
-                if (message.match("ScriptInterruptedException")) return sleep(2000); // exit signal
-                if (message.match(/RuntimeException|IllegalArgument|FORCE_STOP/)) throwErrorToMainThread();
+                if (message.match(/(Script)?InterruptedException/)) return sleep(2000); // exit signal
+                if (message.match(/RuntimeException|IllegalArgument|FORCE_STOP/)) throwErrorToMainThread(e);
                 else if (max_retry_times_global >= 0) messageAction(message, 4, 1, 0, "both_dash");
             }
-
             if (max_retry_times_global >= 0) {
                 messageAction("任务失败重试 (" + current_retry_times + "\/" + max_retry_times_global_backup + ")", 1, 0, 0, "both");
                 killThisApp("com.eg.android.AlipayGphone");
-            } else throwErrorToMainThread();
+            } else throwErrorToMainThread(e);
         }
+    }
+
+    function throwErrorToMainThread(e) {
+        ui.post(() => {
+            showSplitLine();
+            throw (e);
+        }); // throw Error to main thread for an easy location and ignore max_retry_times_global param as needed
+        sleep(2000); // to prevent continuous running of the remaining code
     }
 }
 
@@ -3107,64 +3106,39 @@ function epilogue() {
 
                     setFloatyTimeoutText(countdown);
 
-                    let p1 = new Promise((resolve => {
-                        let thr;
-                        try {
-                            thr = threads.start(function () {
-                                debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
-                                timeRecorder("set_floaty_timeout_text");
+                    return new Promise((resolve) => {
+                        debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
+                        timeRecorder("set_floaty_timeout_text");
 
-                                let condition = () => {
-                                    if (countdown <= 0 || current_app.floaty_msg_finished_flag) {
-                                        return resolve() || true;
-                                    }
-                                };
+                        let condition = () => {
+                            if (countdown <= 0 || current_app.floaty_msg_finished_flag) {
+                                if (floaty_failed_flag) {
+                                    messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                                    messageAction("建议改用Toast方式显示收取结果", 3);
+                                }
 
-                                setIntervalBySetTimeout(function () {
-                                    if (condition()) return;
-                                    let remaining_time = timeout - timeRecorder("set_floaty_timeout_text", "load");
-                                    let remaining_countdown = Math.ceil(remaining_time / 1000);
-                                    if (remaining_countdown < countdown) {
-                                        setFloatyTimeoutText(Math.max(0, countdown = remaining_countdown));
-                                    }
-                                }, 150, condition);
-                            });
-                            threads.start(function () {
-                                // dunno if this is necessary
-                                setTimeout(function () {
-                                    resolve();
-                                }, timeout + 2000);
-                            });
-                        } catch (e) {
-                            thr && thr.interrupt();
-                            return resolve();
-                        }
-                    }));
+                                let prefix = floaty_failed_flag ? "强制" : "";
+                                debugInfo(prefix + "关闭所有Floaty窗口");
+                                floaty.closeAll();
 
-                    let p2 = new Promise((resolve => {
-                        setTimeout(function () {
-                            if (floaty_failed_flag) {
-                                messageAction("此设备可能无法使用Floaty功能", 3, 1);
-                                messageAction("建议改用Toast方式显示收取结果", 3);
+                                if (current_app.floaty_msg_finished_flag === 0) {
+                                    current_app.floaty_msg_finished_flag = 1;
+                                    debugInfo(prefix + "发送Floaty消息结束等待信号");
+                                }
+
+                                debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
+                                return resolve() || true;
                             }
+                        };
 
-                            let prefix = floaty_failed_flag ? "强制" : "";
-                            debugInfo(prefix + "关闭所有Floaty窗口");
-                            floaty.closeAll();
-
-                            if (current_app.floaty_msg_finished_flag === 0) {
-                                current_app.floaty_msg_finished_flag = 1;
-                                debugInfo(prefix + "发送Floaty消息结束等待信号");
+                        setIntervalBySetTimeout(function () {
+                            let remaining_time = timeout - timeRecorder("set_floaty_timeout_text", "load");
+                            let remaining_countdown = Math.ceil(remaining_time / 1000);
+                            if (remaining_countdown < countdown) {
+                                setFloatyTimeoutText(Math.max(0, countdown = remaining_countdown));
                             }
-
-                            debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
-                            resolve();
-                        }, timeout);
-                    }));
-
-                    return Promise.race([p1, p2])
-                        .then(() => true)
-                        .catch(e => messageAction(e, 4, 1, 0, "both"));
+                        }, 200, condition);
+                    });
 
                     // tool function(s) //
 
@@ -3301,8 +3275,8 @@ function epilogue() {
 
         return Promise.resolve()
             .then(screenOffByModifyingAndroidSettingsProviderAsync)
-            .catch((e) => messageAction(e.message, 4, 0, 1, 1))
-            .then((result) => result ? debugInfo("关闭屏幕成功") : debugInfo("关闭屏幕失败", 3));
+            .catch(e => messageAction(e.message, 4, 0, 1, 1))
+            .then(result => result ? debugInfo("关闭屏幕成功") : debugInfo("关闭屏幕失败", 3));
 
         // tool function (s) //
 

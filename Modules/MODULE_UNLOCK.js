@@ -160,11 +160,17 @@ module.exports = function () {
 
         function checkPasswordView() {
             let kw_password_view_common = idMatches(/.*passwordEntry/);
+            let kw_password_view_smartisanos = idMatches(/com\.smartisanos\.keyguard:id\/passwordEntry(_.+)?/).className("EditText");
             let kw_password_view_miui = idMatches(/com\.android\.keyguard:id\/miui_mixed_password_input_field/); // borrowed from e1399579 and modified
 
             if (kw_password_view_common.exists()) {
                 debugInfo("匹配到通用密码解锁控件");
                 kw_password_view = kw_password_view_common;
+                return (checkPasswordView = () => kw_password_view.exists())();
+            }
+            if (kw_password_view_smartisanos.exists()) {
+                debugInfo("匹配到\"锤子科技\"密码解锁控件");
+                kw_password_view = kw_password_view_smartisanos;
                 return (checkPasswordView = () => kw_password_view.exists())();
             }
             if (kw_password_view_miui.exists()) {
@@ -800,7 +806,7 @@ module.exports = function () {
             let msg = typeof message === "string" ? [message] : message.slice(); // may be dangerous
             messageAction("解锁失败", 4, 1, 0, "up");
             msg.forEach(msg => msg && messageAction(msg, 4, 0, 1));
-            messageAction(device_intro, 4, 0, 2, 1);
+            messageAction(device_intro, 4, 0, 1, 1);
             captureErrScreen("unlock_failed", 1);
             init_screen_state && messageAction("自动关闭屏幕" + (keycode(26) ? "" : "失败"), 1, 0, 0, 1);
             exit();
