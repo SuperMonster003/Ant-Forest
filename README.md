@@ -13,7 +13,7 @@
 故 预启动项目全部废弃  
   
 :heart:  
-蚂蚁森林项目仍保持不定期更新  
+蚂蚁森林项目已[停止更新](https://github.com/SuperMonster003/Auto.js_Projects/issues/112)  
 感谢一路走来给予我支持和鼓励的朋友  
 
 ******
@@ -106,9 +106,14 @@
 ******
 ### 版本历史
 ******
+# v1.9.3
+###### 2019/09/30
+* `修复` Floaty展示统计结果时可能卡住的问题  
+* `优化` 解锁模块密码解锁方案增加部分机型适配 _[`issue #105`](https://github.com/SuperMonster003/Auto.js_Projects/issues/105#issuecomment-536193297)_  
+
 # v1.9.2
 ###### 2019/09/28
-* `新增` 蚂蚁森林主页能量倒计时数据获取失败时的备用方案 (OCR)  
+* `新增` 蚂蚁森林主页能量倒计时数据获取失败时的备用方案 (OCR) _[`issue #90`](https://github.com/SuperMonster003/Auto.js_Projects/issues/90#event-2596229852)_ _[`#94`](https://github.com/SuperMonster003/Auto.js_Projects/issues/94#issuecomment-529812615)_  
 * `修复` tryRequestScreenCapture()可能无法自动点击按钮的问题 _[`issue #93`](https://github.com/SuperMonster003/Auto.js_Projects/issues/93)_  
 * `修复` 控制台日志中自己能量最小倒计时分钟数据统计错误的问题  
 * `修复` 图形配置工具切换页面时可能出现页面丢失的问题 _[`issue #102`](https://github.com/SuperMonster003/Auto.js_Projects/issues/102)_  
