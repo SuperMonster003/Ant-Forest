@@ -18,6 +18,7 @@ let {
     deepCloneObject,
     setDeviceProto,
     getSelector,
+    classof,
 } = require("./MODULE_MONSTER_FUNC");
 
 setDeviceProto();
@@ -514,8 +515,8 @@ module.exports = function () {
             }
 
             function unlockPassword() {
-                let pw = Object.prototype.toString.call(unlock_code).slice(8, -1) === "Array" ? unlock_code.join("") : unlock_code;
-                let kw_confirm_btn = textMatches(/确.|[Cc]onfirm|[Ee]nter/);
+                let pw = classof(unlock_code, "Array") ? unlock_code.join("") : unlock_code;
+                let kw_confirm_btn = type => sel.pickup(/确.|完成|[Cc]onfirm|[Ee]nter/, "", type);
 
                 let max_try_unlock_pw = unlock_max_try_times;
                 let current_try_pw = 0;
@@ -526,7 +527,11 @@ module.exports = function () {
                     debugInfo(current_try_pw++ ? "重试密码解锁" + retry_info : "尝试密码解锁");
                     kw_password_view.setText(pw);
                     if (!handleSpecialPwSituations()) return;
-                    if (clickAction(kw_confirm_btn, "widget")) debugInfo("点击确认按钮");
+                    let confirm_btn_node = kw_confirm_btn("node");
+                    if (confirm_btn_node) {
+                        debugInfo("点击\"" + kw_confirm_btn("txt") + "\"按钮");
+                        clickAction(confirm_btn_node, "widget");
+                    }
                     if (checkUnlockResult()) break;
                     if (!shell("input keyevent 66", true).code) debugInfo("使用Root权限模拟回车键");
                 }
@@ -570,11 +575,10 @@ module.exports = function () {
                         sleep(300);
                         keys_coords.forEach(coords => ~click(coords[0], coords[1]) && sleep(300));
                         if (!suf_char_refill) return true;
-                        let classof = Object.prototype.toString.call(suf_char_refill).slice(8, -1);
-                        if (classof === "JavaObject") {
+                        if (classof(suf_char_refill, "JavaObject")) {
                             debugInfo("辅助后置填充类型: 控件");
                             clickAction(suf_char_refill);
-                        } else if (classof === "Array") {
+                        } else if (classof(suf_char_refill, "Array")) {
                             debugInfo("辅助后置填充类型: 坐标");
                             click(suf_char_refill[0], suf_char_refill[1]);
                         } else if (typeof suf_char_refill === "number" || typeof suf_char_refill === "string") {

@@ -1,8 +1,8 @@
 # Ant Forest  
 
 ![AF_Pic](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/Ant_Forest_Banner_361%C3%97103.png)
-###### 蚂蚁森林能量智能收取脚本 (基于Auto.js)
-###### Auto.js-based alipay ant forest energy intelligent collection script
+###### 蚂蚁森林能量智能收取脚本 (基于[Auto.js](https://github.com/hyb1996/Auto.js))
+###### [Auto.js](https://github.com/hyb1996/Auto.js)\-based alipay ant forest energy intelligent collection script
 
 ******
 ### 小私房话
@@ -106,6 +106,20 @@
 ******
 ### 版本历史
 ******
+# v1.9.4
+###### 2019/11/07
+* `修复` 蚂蚁森林主页活动入口按钮误判为能量球的问题 _[`issue #117`](https://github.com/SuperMonster003/Auto.js_Projects/issues/117)_  
+* `修复` 自己能量倒计时数据无效时可能依然进行能量球监测的问题 _[`issue #117`](https://github.com/SuperMonster003/Auto.js_Projects/issues/117)_  
+* `修复` 解析nfe文件内容异常时将导致脚本无法继续的问题 (试修) _[`issue #114`](https://github.com/SuperMonster003/Auto.js_Projects/issues/114)_  
+* `优化` 监测并自动尝试关闭蚂蚁森林主页遮罩层  
+* `优化` 解锁模块密码输入后的确认按钮匹配样本 _[`issue #105`](https://github.com/SuperMonster003/Auto.js_Projects/issues/105#issuecomment-536854045)_  
+* `优化` 增大通话状态监测功能的有效范围  
+* `优化` messageAction()同类分割线去重逻辑  
+* `优化` Auto.js及安卓SDK版本检查逻辑 _[`issue #115`](https://github.com/SuperMonster003/Auto.js_Projects/issues/115#issue-511850173)_  
+* `优化` 部分工具函数模块化  
+·  classof()  
+·  checkSdkAndAJVer()  
+
 # v1.9.3
 ###### 2019/09/30
 * `修复` Floaty展示统计结果时可能卡住的问题  

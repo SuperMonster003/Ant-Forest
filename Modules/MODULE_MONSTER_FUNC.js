@@ -36,10 +36,12 @@ module.exports = {
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
     baiduOcr: baiduOcr,
     setIntervalBySetTimeout: setIntervalBySetTimeout,
+    classof: classof,
+    checkSdkAndAJVer: checkSdkAndAJVer,
 };
 
 /**
- * @type {{setDeviceProto: setDeviceProto, debugInfo: debugInfo, alertContent: alertContent, alertTitle: alertTitle, equalObjects: equalObjects, parseAppName: (function(string): {app_name: boolean, package_name: (*|string|boolean)}), waitForAction: waitForAction, messageAction: messageAction, selExists: selExists, timedTaskTimeFlagConverter: (function((number|string)): any[]), clickActionsPipeline: clickActionsPipeline, runJsFile: runJsFile, surroundWith: surroundWith, keycode: keycode, restartThisEngine: restartThisEngine, timeRecorder: timeRecorder, swipeInArea: swipeInArea, waitForAndClickAction: (function(Object, *=, *=, {intermission?, click_strategy?, condition_success?, check_time_once?, max_check_times?, padding?}=): (boolean|*|number|boolean)), tryRequestScreenCapture: tryRequestScreenCapture, getVerName: getVerName, getDisplayParams: getDisplayParams, refreshObjects: refreshObjects, launchThisApp: (function((Object|string|Function), {package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?, screen_orientation?}=): boolean), restartThisApp: (function((Object|string), {shell_acceptable?, shell_max_wait_time?, keycode_back_acceptable?, keycode_back_twice?, condition_success?, package_name?, app_name?, task_name?, condition_launch?, condition_ready?, disturbance?, debug_info_flag?, first_time_run_message_flag?, no_message_flag?, global_retry_times?, launch_retry_times?, ready_retry_times?}=): boolean), showSplitLine: (function(*=, *=, *=): boolean), deepCloneObject: deepCloneObject, killThisApp: killThisApp, phoneCallingState: (function(): number), swipeInAreaAndClickAction: swipeInAreaAndClickAction, getSelector: (function({debug_info_flag?}=): *), captureErrScreen: captureErrScreen, smoothScrollView: smoothScrollView, observeToastMessage: observeToastMessage, vibrateDevice: vibrateDevice, clickAction: clickAction}}
+ * @type {{setDeviceProto: *, debugInfo: *, alertContent: *, alertTitle: *, equalObjects: *, timedTaskTimeFlagConverter: *, parseAppName: *, waitForAction: *, messageAction: *, selExists: *, baiduOcr: *, clickActionsPipeline: *, runJsFile: *, setIntervalBySetTimeout: *, surroundWith: *, keycode: *, restartThisEngine: *, timeRecorder: *, swipeInArea: *, waitForAndClickAction: *, tryRequestScreenCapture: *, getVerName: *, getDisplayParams: *, refreshObjects: *, checkSdkAndAJVer: *, launchThisApp: *, restartThisApp: *, showSplitLine: *, deepCloneObject: *, classof: *, killThisApp: *, phoneCallingState: *, swipeInAreaAndClickAction: *, getSelector: *, captureErrScreen: *, smoothScrollView: *, observeToastMessage: *, vibrateDevice: *, clickAction: *}}
  */
 
 __global__ = typeof __global__ === "undefined" ? this : __global__;
@@ -791,6 +793,8 @@ function runJsFile(file_name) {
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
         return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
@@ -805,11 +809,14 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
 
     if (_if_toast) toast(_msg);
 
-    let _split_line_style = "";
+    let _split_line_style = "solid";
     if (typeof _if_split_line === "string") {
         if (_if_split_line.match(/dash/)) _split_line_style = "dash";
         if (_if_split_line.match(/both|up/)) {
-            _showSplitLine("", _split_line_style);
+            if (_split_line_style !== __global__._monster_$_last_console_split_line_type) {
+                _showSplitLine("", _split_line_style);
+            }
+            delete __global__._monster_$_last_console_split_line_type;
             if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
             else if (_if_split_line.match(/both/)) _if_split_line = 1;
             else if (_if_split_line.match(/up/)) _if_split_line = 0;
@@ -818,10 +825,8 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
 
     if (_if_arrow) {
         if (_if_arrow > 10) {
-            console.error("\"if_arrow\"参数不可大于10");
-            toast("\"if_arrow\"参数不可大于10");
-            _showSplitLine();
-            exit();
+            console.warn("-> \"if_arrow\"参数大于10");
+            _if_arrow = 10;
         }
         _msg = "> " + _msg;
         for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
@@ -872,7 +877,22 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             console.error(_msg);
             _throw_error_flag = true;
     }
-    if (_if_split_line) _showSplitLine(typeof _if_split_line === "string" ? (_if_split_line.match(/dash/) ? (_if_split_line.match(/_n|n_/) ? "\n" : "") : _if_split_line) : "", _split_line_style);
+    if (_if_split_line) {
+        let show_split_line_extra_str = "";
+        if (typeof _if_split_line === "string") {
+            if (_if_split_line.match(/dash/)) {
+                show_split_line_extra_str = _if_split_line.match(/_n|n_/) ? "\n" : ""
+            } else {
+                show_split_line_extra_str = _if_split_line;
+            }
+        }
+        if (!show_split_line_extra_str.match(/\n/)) {
+            __global__._monster_$_last_console_split_line_type = _split_line_style || "solid";
+        }
+        _showSplitLine(show_split_line_extra_str, _split_line_style);
+    } else {
+        delete __global__._monster_$_last_console_split_line_type;
+    }
     if (_throw_error_flag) {
         ui.post(function () {
             throw ("FORCE_STOP");
@@ -1078,9 +1098,10 @@ function clickAction(f, strategy, params) {
      * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
      */
     let _type = _checkType(f);
+    f
     let _padding = _checkPadding(_params.padding);
     if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
-    let _strategy = strategy || "click";
+    let _strategy = (strategy || "click").toString();
     let _widget_id = 0;
     let _widget_parent_id = 0;
 
@@ -1113,7 +1134,7 @@ function clickAction(f, strategy, params) {
             } catch (e) {
                 _widget_id = 0;
             }
-            if (_strategy === "widget" && _node.clickable() === true) return _node.click();
+            if (_strategy.match(/^w(idget)?$/) && _node.clickable() === true) return _node.click();
             let _bounds = _node.bounds();
             _x = _bounds.centerX();
             _y = _bounds.centerY();
@@ -1123,12 +1144,12 @@ function clickAction(f, strategy, params) {
             } catch (e) {
                 _widget_parent_id = 0;
             }
-            if (_strategy === "widget" && f.clickable() === true) return f.click();
+            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) return f.click();
             let _bounds = f.bounds();
             _x = _bounds.centerX();
             _y = _bounds.centerY();
         } else if (_type === "Bounds") {
-            if (_strategy === "widget") {
+            if (_strategy.match(/^w(idget)?$/)) {
                 _strategy = "click";
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对Rect对象应用widget策略", 3, 0, 1);
@@ -1136,7 +1157,7 @@ function clickAction(f, strategy, params) {
             _x = f.centerX();
             _y = f.centerY();
         } else {
-            if (_strategy === "widget") {
+            if (_strategy.match(/^w(idget)?$/)) {
                 _strategy = "click";
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
@@ -1151,7 +1172,7 @@ function clickAction(f, strategy, params) {
         _x += _padding.x;
         _y += _padding.y;
 
-        _strategy === "press" ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
+        _strategy.match(/^m(atch)?$/) ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
     }
 
     function _checkType(f) {
@@ -1421,6 +1442,7 @@ function refreshObjects(strategy, params) {
 
 /**
  * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
+ * During this operation, permission prompt window will be confirmed (with checkbox checked if possible) automatically with effort
  * @param [params] {object}
  * @param [params.debug_info_flag] {boolean}
  * @param [params.restart_this_engine_flag=false] {boolean}
@@ -2781,8 +2803,8 @@ function getSelector(params) {
             }
         },
     };
-    _debugInfo("选择器加入新方法");
-    Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
+    // _debugInfo("选择器加入新方法");
+    // Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
     return sel;
 
     // raw function(s) //
@@ -2878,7 +2900,7 @@ function phoneCallingState() {
  * @param [divisor=1] {number}
  * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
  * @param [suffix] {string}
- * @param [load_timestamp] {number|Date}
+ * @param [override_timestamp] {number|Date}
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
  * timeRecorder("running", "put"); timeRecorder("running", "get") - eg: 1565080123796
@@ -2886,7 +2908,7 @@ function phoneCallingState() {
  * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
  * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
  */
-function timeRecorder(keyword, operation, divisor, fixed, suffix, load_timestamp) {
+function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
     let records = __global__._monster_$_timestamp_records;
@@ -2894,7 +2916,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, load_timestamp
     if (!operation || operation.toString().match(/save|put/)) return records[keyword] = +new Date();
     let forcible_fixed_num_flag = false;
     if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
-    let result = ((+load_timestamp || +new Date()) - records[keyword]) / (divisor || 1); // number
+    let result = ((+override_timestamp || +new Date()) - records[keyword]) / (divisor || 1); // number
     if (typeof fixed !== "undefined" && fixed !== null) result = result.toFixed(+fixed); // string
     if (forcible_fixed_num_flag) result = +result;
     if (suffix) result += suffix.toString();
@@ -3383,4 +3405,330 @@ function setIntervalBySetTimeout(func, interval, timeout) {
         func();
         timeoutReached() || setTimeout(fn, interval);
     }, interval);
+}
+
+/**
+ * Returns the class name of an object or any type of param, or, returns if the result is the same as specified
+ * @param source {*} - any type of param
+ * @param [check_value] {string}
+ * @returns {boolean|string}
+ */
+function classof(source, check_value) {
+    let class_result = Object.prototype.toString.call(source).slice(8, -1);
+    return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+}
+
+/**
+ * Check if device is running compatible (relatively) Auto.js version and android sdk version
+ * @param [params] {object}
+ * @param [params.debug_info_flag] {boolean}
+ */
+function checkSdkAndAJVer(params) {
+    let current_autojs_package = "";
+    let _current_app = typeof current_app === "undefined" ? {} : current_app;
+
+    let _params = params || {};
+
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+
+    try {
+        current_autojs_package = _current_app.current_autojs_package = context.packageName;
+        _current_app.current_autojs_app_name = "Auto.js" + (current_autojs_package.match(/pro/) ? " Pro" : "")
+    } catch (e) {
+        _messageAction("无法获取当前Auto.js包名", 3);
+        _messageAction("Context对象无效", 3, 0, 1);
+    }
+    let current_autojs_version = getVerName(current_autojs_package) || 0;
+    _debugInfo("Auto.js版本: " + (current_autojs_version || "未知版本"));
+    _debugInfo("项目版本: " + (() => {
+        try {
+            return "v" + files.read("./Ant_Forest_Launcher.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
+        } catch (e) {
+            return "未知版本";
+        }
+    })());
+
+    checkSdk();
+
+    let threads_functional_flag = typeof threads !== "undefined";
+
+    if (threads_functional_flag) {
+        let thread_check_bug_vers = threads.start(checkBugVersions);
+        thread_check_bug_vers.join();
+    } else checkBugVersions();
+
+    // tool function(s) //
+
+    function getVerName(name, params) {
+        let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
+
+        try {
+            name = _handleName(name);
+            let _package_name = _parseAppName(name).package_name;
+            if (!_package_name) return null;
+
+            let _installed_packages = context.getPackageManager().getInstalledPackages(0).toArray();
+            for (let i in _installed_packages) {
+                if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
+                    return _installed_packages[i].versionName;
+                }
+            }
+        } catch (e) {
+            _debugInfo(e);
+        }
+        return null;
+
+        // tool function(s) //
+
+        function _handleName(name) {
+            if (name.match(/^[Aa]uto\.?js/)) return "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "");
+            if (name === "self") return currentPackage();
+            if (name.match(/^[Cc]urrent.*[Aa]uto.*js/)) return context.packageName;
+            return name;
+        }
+
+        // raw function(s) //
+
+        function parseAppNameRaw(name) {
+            let _app_name = !name.match(/.+\..+\./) && app.getPackageName(name) && name;
+            let _package_name = app.getAppName(name) && name;
+            _app_name = _app_name || _package_name && app.getAppName(_package_name);
+            _package_name = _package_name || _app_name && app.getPackageName(_app_name);
+            return {
+                app_name: _app_name,
+                package_name: _package_name,
+            };
+        }
+    }
+
+    function checkSdk() {
+        let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
+        _debugInfo("安卓系统SDK版本: " + current_sdk_ver);
+        if (current_sdk_ver >= 24) return true;
+        _messageAction("脚本无法继续", 4, 0, 0, "up");
+        _messageAction("安卓系统版本低于7.0", 8, 1, 1, "\n");
+    }
+
+    function checkBugVersions() {
+        let bug_code_map = {
+            failed: "版本信息获取失败\n不建议使用此版本运行项目",
+            ab_cwd: "cwd()方法功能异常",
+            ab_engines_setArguments: "engines.setArguments()功能异常",
+            ab_find_forEach: "UiSelector.find().forEach()方法功能异常",
+            ab_floaty: "Floaty模块异常",
+            ab_floaty_rawWindow: "floaty.rawWindow()功能异常",
+            ab_relative_path: "相对路径功能异常",
+            ab_setGlobalLogConfig: "console.setGlobalLogConfig()功能异常",
+            ab_SimpActAuto: "SimpleActionAutomator模块异常",
+            ab_inflate: "ui.inflate()方法功能异常",
+            ab_uiSelector: "UiSelector模块功能异常",
+            ab_ui_layout: "图形配置页面布局异常",
+            crash_autojs: "脚本运行后导致Auto.js崩溃",
+            crash_ui_call_ui: "ui脚本调用ui脚本会崩溃",
+            crash_ui_settings: "图形配置页面崩溃",
+            dislocation_floaty: "Floaty模块绘制存在错位现象",
+            dialogs_event: "Dialogs模块事件失效",
+            forcibly_update: "强制更新",
+            na_login: "无法登陆Auto.js账户",
+            press_block: "press()方法时间过短时可能出现阻塞现象",
+            un_cwd: "不支持cwd()方法及相对路径",
+            un_engines: "不支持Engines模块",
+            un_execArgv: "不支持Engines模块的execArgv对象",
+            un_inflate: "不支持ui.inflate()方法",
+            un_relative_path: "不支持相对路径",
+            un_runtime: "不支持runtime参数",
+            un_view_bind: "不支持view对象绑定自定义方法",
+            not_full_function: "此版本可能未包含所需全部功能",
+        };
+
+        let bugs_check_result = checkBugs(current_autojs_version);
+        if (bugs_check_result === 0) return _debugInfo("Bug版本检查: 正常");
+        if (bugs_check_result === "") return _debugInfo("Bug版本检查: 未知");
+        bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
+        _debugInfo("Bug版本检查: 确诊");
+        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + (current_autojs_version || "/* 版本检测失败 */") +
+            "\n\n异常详情:" + bugs_check_result.join();
+
+        try {
+            let known_dialogs_bug_versions = ["Pro 7.0.3-1"];
+            if (~known_dialogs_bug_versions.indexOf(current_autojs_version)) throw Error();
+
+            let diag_bug = dialogs.build({
+                title: "Auto.js版本异常提示",
+                content: bug_content,
+                neutral: "为何出现此提示",
+                neutralColor: "#03a6ef",
+                negative: "退出",
+                negativeColor: "#33bb33",
+                positive: "尝试继续",
+                positiveColor: "#ee3300",
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            });
+            diag_bug.on("neutral", () => {
+                let diag_bug_reason = dialogs.build({
+                    title: "什么是版本异常",
+                    content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
+                        "您看到的异常提示源于开发者提供的测试结果",
+                    positive: "我知道了",
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                });
+                diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
+                diag_bug_reason.show();
+            });
+            diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
+            diag_bug.on("positive", () => {
+                _debugInfo("用户选择了尝试运行Bug版本");
+                diag_bug.dismiss();
+            });
+            diag_bug.show();
+        } catch (e) {
+            if (threads_functional_flag) {
+                threads.start(function () {
+                    events.removeAllKeyDownListeners("volume_up");
+                    events.removeAllKeyDownListeners("volume_down");
+                    events.observeKey();
+                    events.onKeyDown("volume_down", function (event) {
+                        _debugInfo("用户按下音量减键");
+                        _debugInfo("尝试点击确定按钮");
+                        clickAction(textMatches(/OK|确定/), "widget");
+                        _messageAction("脚本已停止", 4, 1);
+                        _messageAction("用户终止运行", 4, 0, 1);
+                        exit();
+                    });
+                });
+            }
+            _debugInfo(["Dialogs模块功能异常", "使用Alert()方法替代"]);
+            if (threads_functional_flag) {
+                alert(bug_content + "\n\n" +
+                    "按'确定/OK'键尝试继续执行\n" +
+                    "按'音量减/VOL-'键停止执行"
+                );
+                events.removeAllKeyDownListeners("volume_up");
+                events.removeAllKeyDownListeners("volume_down");
+            } else {
+                alert(bug_content + "\n\n" +
+                    "按'确定/OK'键停止执行"
+                );
+                exit();
+            }
+        }
+
+        // tool function(s) //
+
+        /**
+         * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
+         */
+        function checkBugs(ver_name) {
+            ver_name = ver_name || "0";
+
+            // version <= 3.0.0 Alpha20
+            if (ver_name.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings", "not_full_function"];
+            }
+
+            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
+            if (ver_name.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
+            if (ver_name.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
+            if (ver_name.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+                return ["un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
+            if (ver_name.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
+                return ["un_inflate", "un_engines", "not_full_function"];
+            }
+
+            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
+            if (ver_name.match(/^3\.1\.1 Alpha[34]$/)) {
+                return ["ab_inflate", "un_engines", "not_full_function"];
+            }
+
+            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
+            if (ver_name.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+                return ["un_execArgv", "ab_inflate", "not_full_function"];
+            }
+
+            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
+            if (ver_name.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+                return ["dislocation_floaty", "ab_inflate", "not_full_function"];
+            }
+
+            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
+            if (ver_name.match(/^4\.1\.0 Alpha[34]$/)) {
+                return ["ab_SimpActAuto"];
+            }
+
+            // version === Pro 7.0.0-(1|2)
+            if (ver_name.match(/^Pro 7\.0\.0-[12]$/)) {
+                return ["ab_relative_path"];
+            }
+
+            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
+            if (ver_name.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
+                return ["crash_autojs"];
+            }
+
+            // other 4.0.x versions
+            if (ver_name.match(/^4\.0\./)) {
+                return ["not_full_function"];
+            }
+
+            // version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
+            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
+            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
+            if (ver_name.match(/^((4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
+                ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/) ||
+                ver_name === "Pro 7.0.3-7" ||
+                ver_name === "Pro 7.0.4-1"
+            ) {
+                return 0; // known normal
+            }
+
+            switch (ver_name) {
+                case "0":
+                    return ["failed"];
+                case "4.0.3 Alpha6":
+                    return ["ab_floaty", "ab_inflate", "not_full_function"];
+                case "4.0.4 Alpha":
+                    return ["dislocation_floaty", "un_view_bind", "not_full_function"];
+                case "4.0.4 Alpha3":
+                    return ["dislocation_floaty", "ab_ui_layout", "not_full_function"];
+                case "4.0.4 Alpha4":
+                    return ["ab_find_forEach", "not_full_function"];
+                case "4.0.4 Alpha12":
+                    return ["un_execArgv", "not_full_function"];
+                case "4.0.5 Alpha":
+                    return ["ab_uiSelector", "not_full_function"];
+                case "Pro 7.0.0-0":
+                    return ["na_login"];
+                case "Pro 7.0.0-3":
+                    return ["crash_ui_call_ui"];
+                case "Pro 7.0.0-5":
+                    return ["forcibly_update"];
+                case "Pro 7.0.3-1":
+                    return ["dialogs_event"];
+                case "Pro 7.0.3-4":
+                    return ["ab_setGlobalLogConfig"];
+                case "Pro 7.0.3-5":
+                    return ["ab_floaty_rawWindow"];
+                case "Pro 7.0.3-6":
+                    return ["ab_engines_setArguments", "press_block"];
+                case "Pro 7.0.4-0":
+                    return ["crash_ui_settings"];
+                default:
+                    return ""; // unrecorded version
+            }
+        }
+    }
 }

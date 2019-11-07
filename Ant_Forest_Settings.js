@@ -14,7 +14,6 @@ let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 // in another way, dialogs.builds() could make things easier sometimes
 let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 
-
 threads.starts = (f, error_msg_consume_flag) => {
     try {
         return threads.start(f);
@@ -36,7 +35,11 @@ let {
     waitForAndClickAction,
     phoneCallingState,
     timedTaskTimeFlagConverter,
+    classof,
+    checkSdkAndAJVer,
 } = require("./Modules/MODULE_MONSTER_FUNC");
+
+checkSdkAndAJVer();
 
 let session_params = {};
 let view_pages = {};
@@ -49,7 +52,6 @@ let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, status_bar_height, action_bar_default
 let {DEFAULT_AF, DEFAULT_UNLOCK, DEFAULT_SETTINGS} = getDefaultConfigParams();
 let {storage_cfg, storage_af, storage_unlock} = getStorageParams();
 let encrypt = new (require("./Modules/MODULE_PWMAP"))().pwmapEncrypt;
-let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
 let storage_config = initStorageConfig();
 let session_config = deepCloneObject(storage_config);
@@ -2558,7 +2560,7 @@ addPage(() => {
                             diag_confirm.show();
                         });
                         diag.on("negative", () => {
-                            if (type_code !== 0 && classof(type_code) !== "Array") {
+                            if (type_code !== 0 && !classof(type_code, "Array")) {
                                 return dialogs.builds([
                                     "无法编辑", "仅以下类型的任务可供编辑:\n\n1. 一次性任务\n2. 每日任务\n3. 每周任务\n\n自动管理的任务不提供编辑功能",
                                     0, 0, "返回", 1
@@ -2925,7 +2927,7 @@ addPage(() => {
         check_page_state: (view) => {
             let {main_account_info} = session_config;
             if (!view._switch.checked) return true;
-            if (classof(main_account_info) === "Object" && Object.keys(main_account_info).length) return true;
+            if (classof(main_account_info, "Object") && Object.keys(main_account_info).length) return true;
             let diag_prompt = dialogs.builds(["提示", "当前未设置主账户信息\n继续返回将关闭账户功能", 0, "放弃返回", ["继续返回", "warn_btn_color"]]);
             diag_prompt.on("positive", () => {
                 view._switch.setChecked(false);
@@ -2957,7 +2959,7 @@ addPage(() => {
             hint: "加载中...",
             checkMainAccountInfo: function () {
                 let main_account_info = session_config[this.config_conj];
-                return classof(main_account_info) === "Object" && Object.keys(main_account_info).length;
+                return classof(main_account_info, "Object") && Object.keys(main_account_info).length;
             },
             newWindow: function () {
                 setInfoInputView({
@@ -3028,7 +3030,7 @@ addPage(() => {
                                     let config_conj = "main_account_info";
                                     let checkMainAccountInfo = () => {
                                         let main_account_info = session_config[config_conj];
-                                        return classof(main_account_info) === "Object" && Object.keys(main_account_info).length;
+                                        return classof(main_account_info, "Object") && Object.keys(main_account_info).length;
                                     };
 
                                     if (!checkMainAccountInfo()) return toast("无需销毁");
@@ -4570,7 +4572,7 @@ function setPage(title_param, title_bg_color, additions, options) {
     let {no_margin_bottom, no_scroll_view, check_page_state} = options || {};
     let title = title_param;
     let view_page_name = "";
-    if (Object.prototype.toString.call(title_param).slice(8, -1) === "Array") [title, view_page_name] = title_param;
+    if (classof(title_param, "Array")) [title, view_page_name] = title_param;
     session_params.page_title = title;
     title_bg_color = title_bg_color || defs["title_bg_color"];
     let new_view = ui.inflate(<vertical/>);
@@ -5130,7 +5132,7 @@ function restoreFromTimestamp(timestamp) {
 }
 
 function getTimedTaskTypeStr(source) {
-    if (classof(source) === "Array") {
+    if (classof(source, "Array")) {
         if (source.length === 7) return "每日";
         if (source.length) return "每周 [" + source.slice().map(x => x === 0 ? 7 : x).sort().join(",") + "]";
     }
@@ -5660,14 +5662,14 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
     if (operation === "rewrite") return rewriteToSessionConfig();
 
     if (operation.match(/delete|splice/)) {
-        let _data_params = classof(data_params === "Array") ? data_params.slice() : [data_params];
+        let _data_params = classof(data_params, "Array") ? data_params.slice() : [data_params];
         if (_data_params.length > 2 && !_data_params[2]["list_item_name_0"]) _data_params[2] = magicData(_data_params[2]);
         Array.prototype.splice.apply(session_params[data_source_key_name], _data_params);
         return rewriteToSessionConfig();
     }
 
     if (operation.match(/update/)) {
-        if (data_params && Object.prototype.toString.call(data_params).slice(8, -1) !== "Array") data_params = [data_params];
+        if (data_params && !classof(data_params, "Array")) data_params = [data_params];
         let arr_unshift_flag = operation.match(/unshift|beginning/);
 
         if (!session_params[data_source_key_name]) session_params[data_source_key_name] = [];
@@ -5826,7 +5828,7 @@ function showOrHideBySwitch(view, state, hide_when_checked, nearest_end_view_tag
 }
 
 function weakOrStrongBySwitch(view, state, view_index_padding) {
-    if (Object.prototype.toString.call(view_index_padding).slice(8, -1) !== "Array") {
+    if (!classof(view_index_padding, "Array")) {
         view_index_padding = [view_index_padding || 1];
     }
     let myself = view.view;
@@ -5847,7 +5849,7 @@ function checkDependency(view, dependencies, params) {
     let deps = dependencies;
     let check_dependence_result = (() => {
         if (typeof dependencies === "function") return dependencies();
-        if (classof(deps) !== "Array") deps = [deps];
+        if (!classof(deps, "Array")) deps = [deps];
         for (let i = 0, len = deps.length; i < len; i += 1) {
             if (session_config[deps[i]]) return true;
         }
@@ -5859,7 +5861,7 @@ function checkDependency(view, dependencies, params) {
 
     function setViewDisabled(view, deps, params) {
         let hint_text = params.hint_text || "";
-        if (!hint_text && classof(deps) === "Array") {
+        if (!hint_text && classof(deps, "Array")) {
             deps.forEach(conj_text => hint_text += session_params.title[conj_text] + " ");
             if (deps.length > 1) hint_text += "均";
             hint_text = "不可用  [ " + hint_text + "未开启 ]";
@@ -6353,14 +6355,14 @@ function setInfoInputView(params) {
         // tool function(s) //
 
         function addAdditionalButtons(additional) {
-            let addi_buttons = classof(additional) === "Array" ? additional.slice() : [additional];
+            let addi_buttons = classof(additional, "Array") ? additional.slice() : [additional];
             let addi_btn_view = ui.inflate(
                 <vertical>
                     <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
                 </vertical>
             );
             addi_buttons.forEach((o, idx) => {
-                if (classof(o) === "Array") return addAdditionalButtons(o);
+                if (classof(o, "Array")) return addAdditionalButtons(o);
                 let btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
                 let {text, hint_color, onClickListener} = o;
                 if (text) btn_view.setText(text);

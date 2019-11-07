@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Sep 30, 2019
- * @version 1.9.3
+ * @last_modified Nov 7, 2019
+ * @version 1.9.4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -20,8 +20,6 @@ let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
 // more functions offered by Stardust and some others by myself
 let app = require("./Modules/__app__pro_v41")(runtime, __global__);
-
-let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
 let {
     launchThisApp,
@@ -51,6 +49,8 @@ let {
     swipeInArea,
     baiduOcr,
     setIntervalBySetTimeout,
+    classof,
+    checkSdkAndAJVer,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 try {
@@ -66,10 +66,10 @@ let {storage_af, storage_af_cfg, unlock_module, sel, my_engine} = {};
 let {WIDTH, HEIGHT, USABLE_HEIGHT, screen_orientation, cX, cY} = {};
 
 checkModules();
+checkSdkAndAJVer();
 checkTasksQueue();
 showRunningCountdownIfNeeded();
 setInsuranceTaskIfNeeded();
-checkVersions();
 checkEngines();
 setVolKeysListener();
 setGlobalWaitingMonitors();
@@ -79,22 +79,23 @@ antForest();
 // entrance function //
 
 function antForest() {
-    let main = () => {
-        prologue();
-        monitorLoggedOut();
-        launchAFHomepage();
-        checkLanguage();
-        loginMainUser();
-        checkEnergy();
-        logBackInIfNeeded();
-        epilogue();
-    };
+    let exec = f => checkGlobalMonitorWaitingSignal() && f();
+    let main = [
+        prologue,
+        monitorLoggedOut,
+        launchAFHomepage,
+        checkLanguage,
+        loginMainUser,
+        checkEnergy,
+        logBackInIfNeeded,
+        epilogue,
+    ];
 
     let {max_retry_times_global} = config;
     let max_retry_times_global_backup = max_retry_times_global;
     while (1) {
         try {
-            return main();
+            return main.forEach(exec);
         } catch (e) {
             let current_retry_times = max_retry_times_global_backup - --max_retry_times_global;
             let {message} = e;
@@ -962,9 +963,8 @@ function loginMainUser(direct_login_flag) {
 
 function checkEnergy() {
     let list_end_signal = 0;
-    let kw_energy_balls = (balls_kind, type) => {
+    let kw_energy_balls = (balls_kind) => {
         balls_kind = balls_kind || "all";
-        type = type || "nodes";
         let regexp_type = {
             "normal": /\xa0/,
             "ripe": /收集能量\d+克/,
@@ -975,14 +975,48 @@ function checkEnergy() {
             return current_app.combined_kw_energy_balls_regexp = new RegExp(combined_regexp_str.replace(/\|$/, ""));
         })();
 
-        return sel.pickup([regexp_type[balls_kind], {className: "Button"}], "kw_energy_balls_" + balls_kind, type);
+        return sel.pickup([regexp_type[balls_kind], {className: "Button"}], "kw_energy_balls_" + balls_kind, "nodes")
+            .filter((node) => {
+                let bounds = node.bounds();
+                return bounds.left >= cX(0.08) && bounds.right <= cX(0.92);
+            });
     };
 
+    monitorMaskLayer();
     checkOwnEnergy();
     checkFriendsEnergy();
     setTimers();
 
     // main function(s) //
+
+    function monitorMaskLayer(timeout) {
+        debugInfo("开启遮罩层监测线程");
+
+        threads.start(function () {
+            timeout = timeout || 8000;
+            let kw_mask_layer = type => sel.pickup("关闭蒙层", "af_homepage_mask_layer", type);
+            if (!waitForAction(kw_mask_layer, timeout)) return;
+
+            debugInfo("检测到遮罩层");
+            timeRecorder("af_homepage_mask_layer_matched");
+            return tryCloseMaskLayer()
+                ? debugInfo([
+                    "关闭遮罩层成功",
+                    "遮罩层关闭用时: " + timeRecorder("af_homepage_mask_layer_matched", "load", 1000, [2], "ms")
+                ])
+                : debugInfo("关闭遮罩层失败", 3);
+
+            // tool function(s) //
+
+            function tryCloseMaskLayer() {
+                let success = () => waitForAction(() => !kw_mask_layer(), 2000, 80) && !waitForAction(kw_mask_layer, 800, 80);
+                clickAction(kw_mask_layer(), "widget");
+                if (success()) return true;
+                clickAction(kw_mask_layer(), "click");
+                if (success()) return true;
+            }
+        });
+    }
 
     function checkOwnEnergy() {
         if (!config.self_collect_switch) return debugInfo(["跳过自己能量检查", "自收功能未开启"]);
@@ -1074,9 +1108,9 @@ function checkEnergy() {
                 let now = timeRecorder("own_energy_balls_check_time");
                 let min_countdown_own = Math.min.apply(null, getCountdownData());
                 let ripe_time = new Date(min_countdown_own);
-                let remain_minutes = timeRecorder("own_energy_balls_check_time", "load", 60000, 0, null, +ripe_time);
+                let remain_minutes = +timeRecorder("own_energy_balls_check_time", "load", 60000, 0, null, +ripe_time);
 
-                if (isNaN(remain_minutes)) debugInfo("自己能量最小倒计时数据无效", 3);
+                if (!remain_minutes || remain_minutes < 0) debugInfo("自己能量最小倒计时数据无效", 3);
                 else {
                     debugInfo("自己能量最小倒计时: " + remain_minutes + "min");
                     current_app.min_countdown_own = min_countdown_own; // ripe timestamp
@@ -1702,7 +1736,7 @@ function checkEnergy() {
                         };
                         let checkHelpBallsInCurrentCapt = node => checkHelpBalls(node, screen_capture);
                         let checkHelpBalls = (node, capts) => {
-                            if (classof(capts) !== "Array") capts = [capts];
+                            if (!classof(capts, "Array")) capts = [capts];
                             capts.forEach((capt) => {
                                 node.forEach(w => {
                                     let b = w.bounds();
@@ -2553,7 +2587,7 @@ function checkEnergy() {
                     sleep(delay_swipe_time);
                 }
 
-                while (__global__._monster_$_global_monitor_waiting_signal) sleep(200);
+                checkGlobalMonitorWaitingSignal();
 
                 if (!kw_end_list_ident()) continue;
 
@@ -3149,7 +3183,7 @@ function epilogue() {
                                 timeout_raw_win.text.setText(surroundWith(countdown, "(", ")"));
                                 floaty_failed_flag = false;
                             } catch (e) {
-                                debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
+                                current_app.floaty_msg_finished_flag || debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
                             }
                         });
                     }
@@ -3414,6 +3448,11 @@ function epilogue() {
 
 // tool function(s) //
 
+function checkGlobalMonitorWaitingSignal() {
+    while (__global__._monster_$_global_monitor_waiting_signal) sleep(200);
+    return true;
+}
+
 function endAlipay() {
     debugInfo("关闭支付宝");
     let alipay_pkg_name = current_app.package_name;
@@ -3623,7 +3662,7 @@ function showRunningCountdownIfNeeded() {
     if (!__global__.is_init_screen_on) return debugInfo(["跳过\"运行前提示\"", ">屏幕未亮起"]);
     if (!unlock_module.isUnlocked()) return debugInfo(["跳过\"运行前提示\"", ">设备未解锁"]);
     if (!config.prompt_before_running_switch) return debugInfo("\"运行前提示\"未开启");
-    if (my_engine.execArgv.instant_run_flag) return debugInfo(["跳过\"运行前提示\"", ">检测到\"立即运行\"引擎参数"]);
+    if ((my_engine.execArgv || {}).instant_run_flag) return debugInfo(["跳过\"运行前提示\"", ">检测到\"立即运行\"引擎参数"]);
 
     let move_on_signal = false;
     let thread_running_countdown = threads.start(function () {
@@ -3820,7 +3859,7 @@ function setInsuranceTaskIfNeeded() {
     if (!config.timers_switch) return debugInfo("定时循环功能未开启");
     if (!config.timers_self_manage_switch) return debugInfo("定时任务自动管理未开启");
     if (!config.timers_insurance_switch) return debugInfo("意外保险未开启");
-    if (my_engine.execArgv.no_insurance_flag) return debugInfo(["跳过\"意外保险\"设置", ">检测到\"无需保险\"引擎参数"]);
+    if ((my_engine.execArgv || {}).no_insurance_flag) return debugInfo(["跳过\"意外保险\"设置", ">检测到\"无需保险\"引擎参数"]);
 
     let storage_task_ids = storage_af.get("insurance_tasks", []).filter(id => timers.getTimedTask(id));
     let continuous_times = +storage_af.get("insurance_tasks_continuous_times", 0) + 1;
@@ -3921,7 +3960,11 @@ function checkTasksQueue() {
     let queue_flag = false;
     timeRecorder("queue_beginning", "save");
     my_engine = (engines || {}).myEngine() || {};
-    if (typeof my_engine.execArgv === "undefined") my_engine.execArgv = {};
+    try {
+        if (typeof my_engine.execArgv === "undefined") my_engine.execArgv = {};
+    } catch (e) {
+        // nothing to do here
+    }
     let my_engine_id = my_engine.id;
     let bomb_flag = false;
     let checkExclusiveTasks = () => {
@@ -3976,267 +4019,6 @@ function checkTasksQueue() {
         debugInfo("Engines支持性标记: false")
     }
     queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "Up");
-}
-
-function checkVersions() {
-    let current_autojs_package = "";
-    try {
-        current_autojs_package = current_app.current_autojs_package = context.packageName;
-        current_app.current_autojs_app_name = "Auto.js" + (current_autojs_package.match(/pro/) ? " Pro" : "")
-    } catch (e) {
-        messageAction("无法获取当前Auto.js包名", 3);
-        messageAction("Context对象无效", 3, 0, 1);
-    }
-    let current_autojs_version = getVerName(current_autojs_package) || 0;
-    debugInfo("Auto.js版本: " + (current_autojs_version || "未知版本"));
-    debugInfo("项目版本: " + (() => {
-        try {
-            return "v" + files.read("./Ant_Forest_Launcher.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
-        } catch (e) {
-            return "未知版本";
-        }
-    })());
-
-    checkSdk();
-
-    let threads_functional_flag = typeof threads !== "undefined";
-
-    if (threads_functional_flag) {
-        let thread_check_bug_vers = threads.start(checkBugVersions);
-        thread_check_bug_vers.join();
-    } else checkBugVersions();
-
-    // tool function(s) //
-
-    function checkSdk() {
-        let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
-        debugInfo("安卓系统SDK版本: " + current_sdk_ver);
-        if (current_sdk_ver >= 24) return true;
-        messageAction("脚本无法继续", 4, 0, 0, "up");
-        messageAction("安卓系统版本低于7.0", 9, 1, 1, 1);
-    }
-
-    function checkBugVersions() {
-        let bug_code_map = {
-            failed: "版本信息获取失败\n不建议使用此版本运行项目",
-            ab_cwd: "cwd()方法功能异常",
-            ab_engines_setArguments: "engines.setArguments()功能异常",
-            ab_find_forEach: "UiSelector.find().forEach()方法功能异常",
-            ab_floaty: "Floaty模块异常",
-            ab_floaty_rawWindow: "floaty.rawWindow()功能异常",
-            ab_relative_path: "相对路径功能异常",
-            ab_setGlobalLogConfig: "console.setGlobalLogConfig()功能异常",
-            ab_SimpActAuto: "SimpleActionAutomator模块异常",
-            ab_inflate: "ui.inflate()方法功能异常",
-            ab_uiSelector: "UiSelector模块功能异常",
-            ab_ui_layout: "图形配置页面布局异常",
-            crash_autojs: "脚本运行后导致Auto.js崩溃",
-            crash_ui_call_ui: "ui脚本调用ui脚本会崩溃",
-            crash_ui_settings: "图形配置页面崩溃",
-            dislocation_floaty: "Floaty模块绘制存在错位现象",
-            dialogs_event: "Dialogs模块事件失效",
-            forcibly_update: "强制更新",
-            na_login: "无法登陆Auto.js账户",
-            press_block: "press()方法时间过短时可能出现阻塞现象",
-            un_cwd: "不支持cwd()方法及相对路径",
-            un_engines: "不支持Engines模块",
-            un_execArgv: "不支持Engines模块的execArgv对象",
-            un_inflate: "不支持ui.inflate()方法",
-            un_relative_path: "不支持相对路径",
-            un_runtime: "不支持runtime参数",
-            un_view_bind: "不支持view对象绑定自定义方法",
-            not_full_function: "此版本可能未包含所需全部功能",
-        };
-
-        let bugs_check_result = checkBugs(current_autojs_version);
-        if (bugs_check_result === 0) return debugInfo("Bug版本检查: 正常");
-        if (bugs_check_result === "") return debugInfo("Bug版本检查: 未知");
-        bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
-        debugInfo("Bug版本检查: 确诊");
-        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + (current_autojs_version || "/* 版本检测失败 */") +
-            "\n\n异常详情:" + bugs_check_result.join();
-
-        try {
-            let known_dialogs_bug_versions = ["Pro 7.0.3-1"];
-            if (~known_dialogs_bug_versions.indexOf(current_autojs_version)) throw Error();
-
-            let diag_bug = dialogs.build({
-                title: "Auto.js版本异常提示",
-                content: bug_content,
-                neutral: "为何出现此提示",
-                neutralColor: "#03a6ef",
-                negative: "退出",
-                negativeColor: "#33bb33",
-                positive: "尝试继续",
-                positiveColor: "#ee3300",
-                autoDismiss: false,
-                canceledOnTouchOutside: false,
-            });
-            diag_bug.on("neutral", () => {
-                let diag_bug_reason = dialogs.build({
-                    title: "什么是版本异常",
-                    content: "开发者提供的脚本无法保证所有Auto.js版本均正常运行\n\n" +
-                        "您看到的异常提示源于开发者提供的测试结果",
-                    positive: "我知道了",
-                    autoDismiss: false,
-                    canceledOnTouchOutside: false,
-                });
-                diag_bug_reason.on("positive", () => diag_bug_reason.dismiss());
-                diag_bug_reason.show();
-            });
-            diag_bug.on("negative", () => ~diag_bug.dismiss() && exit());
-            diag_bug.on("positive", () => {
-                debugInfo("用户选择了尝试运行Bug版本");
-                diag_bug.dismiss();
-            });
-            diag_bug.show();
-        } catch (e) {
-            if (threads_functional_flag) {
-                threads.start(function () {
-                    events.removeAllKeyDownListeners("volume_up");
-                    events.removeAllKeyDownListeners("volume_down");
-                    events.observeKey();
-                    events.onKeyDown("volume_down", function (event) {
-                        debugInfo("用户按下音量减键");
-                        debugInfo("尝试点击确定按钮");
-                        clickAction(textMatches(/OK|确定/), "widget");
-                        messageAction("脚本已停止", 4, 1);
-                        messageAction("用户终止运行", 4, 0, 1);
-                        exit();
-                    });
-                });
-            }
-            debugInfo(["Dialogs模块功能异常", "使用Alert()方法替代"]);
-            if (threads_functional_flag) {
-                alert(bug_content + "\n\n" +
-                    "按'确定/OK'键尝试继续执行\n" +
-                    "按'音量减/VOL-'键停止执行"
-                );
-                events.removeAllKeyDownListeners("volume_up");
-                events.removeAllKeyDownListeners("volume_down");
-            } else {
-                alert(bug_content + "\n\n" +
-                    "按'确定/OK'键停止执行"
-                );
-                exit();
-            }
-        }
-
-        // tool function(s) //
-
-        /**
-         * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
-         */
-        function checkBugs(ver_name) {
-            ver_name = ver_name || "0";
-
-            // version <= 3.0.0 Alpha20
-            if (ver_name.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings", "not_full_function"];
-            }
-
-            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-            if (ver_name.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-            if (ver_name.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
-                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-            if (ver_name.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
-                return ["un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (ver_name.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
-                return ["un_inflate", "un_engines", "not_full_function"];
-            }
-
-            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-            if (ver_name.match(/^3\.1\.1 Alpha[34]$/)) {
-                return ["ab_inflate", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-            if (ver_name.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
-                return ["un_execArgv", "ab_inflate", "not_full_function"];
-            }
-
-            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-            if (ver_name.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
-                return ["dislocation_floaty", "ab_inflate", "not_full_function"];
-            }
-
-            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
-            if (ver_name.match(/^4\.1\.0 Alpha[34]$/)) {
-                return ["ab_SimpActAuto"];
-            }
-
-            // version === Pro 7.0.0-(1|2)
-            if (ver_name.match(/^Pro 7\.0\.0-[12]$/)) {
-                return ["ab_relative_path"];
-            }
-
-            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
-            if (ver_name.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
-                return ["crash_autojs"];
-            }
-
-            // other 4.0.x versions
-            if (ver_name.match(/^4\.0\./)) {
-                return ["not_full_function"];
-            }
-
-            // version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
-            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
-            if (ver_name.match(/^((4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
-                ver_name.match(/^Pro 7\.0\.((0-[46])|(2-4))$/) ||
-                ver_name === "Pro 7.0.3-7" ||
-                ver_name === "Pro 7.0.4-1"
-            ) {
-                return 0; // known normal
-            }
-
-            switch (ver_name) {
-                case "0":
-                    return ["failed"];
-                case "4.0.3 Alpha6":
-                    return ["ab_floaty", "ab_inflate", "not_full_function"];
-                case "4.0.4 Alpha":
-                    return ["dislocation_floaty", "un_view_bind", "not_full_function"];
-                case "4.0.4 Alpha3":
-                    return ["dislocation_floaty", "ab_ui_layout", "not_full_function"];
-                case "4.0.4 Alpha4":
-                    return ["ab_find_forEach", "not_full_function"];
-                case "4.0.4 Alpha12":
-                    return ["un_execArgv", "not_full_function"];
-                case "4.0.5 Alpha":
-                    return ["ab_uiSelector", "not_full_function"];
-                case "Pro 7.0.0-0":
-                    return ["na_login"];
-                case "Pro 7.0.0-3":
-                    return ["crash_ui_call_ui"];
-                case "Pro 7.0.0-5":
-                    return ["forcibly_update"];
-                case "Pro 7.0.3-1":
-                    return ["dialogs_event"];
-                case "Pro 7.0.3-4":
-                    return ["ab_setGlobalLogConfig"];
-                case "Pro 7.0.3-5":
-                    return ["ab_floaty_rawWindow"];
-                case "Pro 7.0.3-6":
-                    return ["ab_engines_setArguments", "press_block"];
-                case "Pro 7.0.4-0":
-                    return ["crash_ui_settings"];
-                default:
-                    return ""; // unrecorded version
-            }
-        }
-    }
 }
 
 function checkEngines() {
@@ -4730,7 +4512,7 @@ function checkIfUserLoggedIn(user_name, forcible_flag) {
             let sel_str = sel.pickup(kw_abbr_name_with_star_chars, "", "sel_str");
             let abbr_names = [];
             selector()[sel_str + "Matches"](kw_abbr_name_with_star_chars).find().forEach(w => abbr_names.push(w[sel_str]()));
-            if (classof(abbr_names) !== "Array") abbr_names = [abbr_names];
+            if (!classof(abbr_names, "Array")) abbr_names = [abbr_names];
 
             for (let u = 0, len = abbr_names.length; u < len; u += 1) {
                 let abbr_name = abbr_names[u].toString();
@@ -4796,8 +4578,7 @@ function clickAbbrNameInUserList(abbr_name) {
 }
 
 function conditionChecker(c) {
-    let classof_c = classof(c);
-    if (classof_c !== "Object") return debugInfo(["条件检查器参数不合法", ">" + classof_c]) && false;
+    if (!classof(c, "Object")) return debugInfo(["条件检查器参数不合法", ">" + classof(c)]) && false;
 
     let {name, time, success, fail, wait, timeout_review} = c;
     debugInfo("开始" + (name || "") + "条件检查");

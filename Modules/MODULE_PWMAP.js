@@ -1,4 +1,22 @@
-module.exports = function () {
+module.exports = pwmap;
+
+/**
+ * @description Module for encrypting/decrypting string via "PWMAP" file generated automatically
+ * @example
+ * let PWMAP = require("./Modules/MODULE_PWMAP");
+ * let pwmap = new PWMAP();
+ * let encrypt = pwmap.pwmapEncrypt;
+ * let decrypt = pwmap.pwmapDecrypt;
+ * encrypt(); // input manually
+ * encrypt("12345");
+ * decrypt(); // decrypt manually
+ * decrypt("['xxx', 'yyy']"); // array string
+ * decrypt(['xxx', 'yyy']); // string array
+ * pwmap.pwmapGenerate(); // generate or regenerate "PWMAP" file - use with caution
+ * @functions pwmapGenerate|pwmapEncrypt|pwmapDecrypt
+ * @author {@link https://github.com/SuperMonster003}
+ */
+function pwmap () {
     let pwmap_path = files.getSdcardPath() + "/.local/PWMAP.txt";
     let pwmap_map = {};
     let config = {
@@ -135,7 +153,9 @@ module.exports = function () {
 
     function checkPWMAPFile() {
         if (!files.exists(pwmap_path)) {
+            showSplitLineRaw();
             toastLog("已生成新的密文文件");
+            showSplitLineRaw();
             pwmapGenerate();
         }
         pwmap_map = JSON.parse(files.read(pwmap_path));
@@ -171,21 +191,16 @@ module.exports = function () {
             }
         });
     }
-};
 
-/**
- * @description Module for encrypting/decrypting string via "PWMAP" file generated automatically
- * @example
- * let PWMAP = require("./Modules/MODULE_PWMAP");
- * let pwmap = new PWMAP();
- * let encrypt = pwmap.pwmapEncrypt;
- * let decrypt = pwmap.pwmapDecrypt;
- * encrypt(); // input manually
- * encrypt("12345");
- * decrypt(); // decrypt manually
- * decrypt("['xxx', 'yyy']"); // array string
- * decrypt(['xxx', 'yyy']); // string array
- * pwmap.pwmapGenerate(); // generate or regenerate "PWMAP" file - use with caution
- * @functions pwmapGenerate|pwmapEncrypt|pwmapDecrypt
- * @author {@link https://github.com/SuperMonster003}
- */
+    function showSplitLineRaw(extra_str, style) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return ~console.log(_split_line + _extra_str);
+    }
+}
