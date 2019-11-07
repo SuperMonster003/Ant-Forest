@@ -1,5 +1,5 @@
 module.exports = {
-    "af": {
+    af: {
         self_collect_switch: true, // i know the trick about the reason you wanna turn this switch off
         app_launch_springboard: "ON", // sometimes alipay will not be launched without Auto.js running in the foreground
         account_switch: false, // if you are multi-account user, you may turn this on and specify a "main account" to switch
@@ -74,7 +74,7 @@ module.exports = {
         prompt_before_running_postponed_minutes_user: 3, // record user selected value of postponed settings dialog in countdown dialog
         rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
     },
-    "unlock": {
+    unlock: {
         unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
         unlock_max_try_times: 20, // max times for trying unlocking your phone
         unlock_pattern_strategy: "segmental", // of "solid"; seg for faster and more accurate swipe and solid for stable swipe without break
@@ -85,7 +85,7 @@ module.exports = {
         unlock_dismiss_layer_top: 0.2, // 0.05 <= x <= 0.3; this value may be not that important
         unlock_dismiss_layer_swipe_time: 110, // time for swiping up to dismiss the lock screen layer; will be auto modified initially
     },
-    "settings": {
+    settings: {
         item_area_width: 0.78,
         sub_head_color: "#03a6ef",
         sub_head_highlight_color: "#bf360c",
@@ -106,4 +106,25 @@ module.exports = {
         hint_btn_dark_color: "#a1887f",
         hint_btn_bright_color: "#26a69a",
     },
+    checkin: {
+        config: {
+            auto_unlock_switch: false,
+        },
+        checkin_items: {
+            alipay: {name: "支付宝", package_name: "com.eg.android.AlipayGphone"},
+            jd: {name: "京东", package_name: "com.jingdong.app.mall22222"},
+            tieba: {name: "百度贴吧", package_name: "com.baidu.tieba"},
+            unionpay: {name: "云闪付", package_name: "com.unionpay22222"},
+            cmblife: {name: "掌上生活", package_name: "com.cmbchina.ccd.pluto.cmbActivity"}, // depend on WeChat partially
+            gbanker: {name: "黄金钱包", package_name: "com.gbanker.gbankerandroid22222"},
+            ole: {name: "Olé lifestyle", package_name: "com.crv.ole"},
+            youcoffee: {
+                name: "友咖啡",
+                depend: {
+                    name: "微信",
+                    package_name: "com.tencent.mm",
+                }, // depend on WeChat totally
+            },
+        },
+    }
 };

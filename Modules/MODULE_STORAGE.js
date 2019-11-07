@@ -34,7 +34,7 @@
         function contains(key) {
             let read = readFile();
             if (!read) return false;
-            return !!(key in JSON.parse(read));
+            return key in JSON.parse(read);
         }
 
         function put(key, value) {
@@ -51,8 +51,13 @@
         function get(key, value) {
             let read = readFile();
             if (!read) return value;
-            let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
-            return key in obj ? obj[key] : value;
+            try {
+                let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
+                return key in obj ? obj[key] : value;
+            } catch (e) {
+                console.warn(e.message);
+                return value;
+            }
         }
 
         function remove(key) {
