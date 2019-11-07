@@ -5,18 +5,6 @@
 ###### [Auto.js](https://github.com/hyb1996/Auto.js)\-based alipay ant forest energy intelligent collection script
 
 ******
-### 小私房话
-******
-:lock:  
-裸辞已超一年  
-需 继续潜心修行 以求生计  
-故 预启动项目全部废弃  
-  
-:heart:  
-蚂蚁森林项目已[停止更新](https://github.com/SuperMonster003/Auto.js_Projects/issues/112)  
-感谢一路走来给予我支持和鼓励的朋友  
-
-******
 ### 使用说明
 ******
 1. 下载项目  
