@@ -3317,12 +3317,30 @@ function baiduOcr(src, params) {
             return matched ? matched[0] : null;
         };
         let nodeToImage = (node) => {
-            let bounds = node.bounds();
-            return images.clip(images.captureScreen(), bounds.left, bounds.top, bounds.width(), bounds.height());
+            let clipImg = bounds => images.clip(images.captureScreen(), bounds.left, bounds.top, bounds.width(), bounds.height());
+            try {
+                // XXX: Nov 11, 2019 by SuperMonster003
+                // there is a strong possibility that `node.bounds()` would throw an exception
+                // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
+                let bounds = {};
+                let regexp = /.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/;
+                node.toString().replace(regexp, ($0, $1, $2, $3, $4) => {
+                    bounds = {
+                        left: +$1, top: +$2, right: +$3, bottom: +$4,
+                        width: () => $3 - $1, height: () => $4 - $2,
+                    };
+                });
+                return clipImg(bounds);
+            } catch (e) {
+                // just in case
+            }
         };
         let nodesToImage = (nodes) => {
             let imgs = [];
-            nodes.forEach(node => imgs.push(nodeToImage(node)));
+            nodes.forEach((node) => {
+                let img = nodeToImage(node);
+                img && imgs.push(img);
+            });
             return stitchImg(imgs);
         };
         let stitchImg = (imgs) => {
@@ -3552,7 +3570,7 @@ function checkSdkAndAJVer(params) {
 
         try {
             let known_dialogs_bug_versions = ["Pro 7.0.3-1"];
-            if (~known_dialogs_bug_versions.indexOf(current_autojs_version)) throw Error();
+            if (~known_dialogs_bug_versions.indexOf(current_autojs_version.toString())) throw Error();
 
             let diag_bug = dialogs.build({
                 title: "Auto.js版本异常提示",
@@ -3600,7 +3618,7 @@ function checkSdkAndAJVer(params) {
                     });
                 });
             }
-            _debugInfo(["Dialogs模块功能异常", "使用Alert()方法替代"]);
+            _debugInfo(["dialogs模块功能异常", "使用alert()方法替代"], 3);
             if (threads_functional_flag) {
                 alert(bug_content + "\n\n" +
                     "按'确定/OK'键尝试继续执行\n" +
@@ -3730,5 +3748,28 @@ function checkSdkAndAJVer(params) {
                     return ""; // unrecorded version
             }
         }
+    }
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }

@@ -1,10 +1,48 @@
 /**
- * @description module for unlocking your phone by widget capturing with Auto.js
+ * @overview individual module for unlocking your phone by widget capturing with Auto.js
+ * @description a graphic configuration tool (Unlock_Config_Tool.js) is available for customise the unlock behaviour of the device
+ *
  * @example
- * let module_unlock = new (require("./Modules/MODULE_UNLOCK"))();
- * module_unlock.unlock();
+ * require("./MODULE_UNLOCK").unlock();
+ *
+ * @last_modified Nov 14, 2019
  * @author {@link https://github.com/SuperMonster003}
  */
+
+// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
+__global__ = typeof __global__ === "undefined" ? this : __global__;
+
+let _require = require.bind(__global__); // copy __global__.require(){}
+
+require = function (path) {
+    path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
+    for (let i = 0, len = path.match(/\//g).length; i < len; i += 1) {
+        let _path = path;
+        for (let j = 0; j < i; j += 1) _path = _path.replace(/\/\w+?(?=\/)/, "");
+        for (let j = 0; j < 3; j += 1) {
+            if (files.exists(_path)) return _require(_path);
+            if (!files.path(_path).match(/\/Modules\//)) {
+                let _module_path = files.path(_path).replace(/\/(.+?\.js$)/, "\/Modules/$1");
+                if (files.exists(_module_path)) return _require(_module_path);
+            }
+            _path = "." + _path;
+        }
+    }
+}; // override __global__.require(){}
+
+let DEFAULT = (require("./MODULE_DEFAULT_CONFIG") || {
+    unlock: {
+        unlock_code: null,
+        unlock_max_try_times: 20,
+        unlock_pattern_strategy: "segmental",
+        unlock_pattern_size: 3,
+        unlock_pattern_swipe_time_segmental: 120,
+        unlock_pattern_swipe_time_solid: 200,
+        unlock_dismiss_layer_bottom: 0.8,
+        unlock_dismiss_layer_top: 0.2,
+        unlock_dismiss_layer_swipe_time: 110,
+    },
+}).unlock; // updated at Nov 14, 2019
 
 let {
     messageAction,
@@ -19,7 +57,7 @@ let {
     setDeviceProto,
     getSelector,
     classof,
-} = require("./MODULE_MONSTER_FUNC");
+} = require("./MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
 
 setDeviceProto();
 
@@ -28,12 +66,11 @@ let sel = getSelector();
 let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = {};
 let device_intro = device.brand + " " + device.product + " " + device.release;
 
-let PWMAP = require("./MODULE_PWMAP");
-let decrypt = new PWMAP().pwmapDecrypt;
+let decrypt = new (require("./MODULE_PWMAP") || loadInternalModulePWMAP())().pwmapDecrypt;
 
-let storage_unlock = require("./MODULE_STORAGE").create("unlock");
-let config_unlock = storage_unlock.get("config", {});
-let default_unlock = require("./MODULE_DEFAULT_CONFIG").unlock;
+let storage_unlock = (require("./MODULE_STORAGE") || loadInternalModuleStorage()).create("unlock");
+let config_unlock = Object.assign({}, DEFAULT, storage_unlock.get("config", {}));
+storage_unlock.put("config", config_unlock);
 
 let keyguard_manager = context.getSystemService(context.KEYGUARD_SERVICE);
 let isUnlocked = () => !keyguard_manager.isKeyguardLocked();
@@ -43,14 +80,15 @@ let wakeUpDevice = () => device.keepScreenOn(120 * 1000); // 2 min
 let init_screen_state = isScreenOn();
 
 let unlock_code = decrypt(config_unlock.unlock_code) || "";
-let {unlock_max_try_times, unlock_pattern_size} = Object.assign({}, default_unlock, config_unlock);
+let {unlock_max_try_times, unlock_pattern_size} = config_unlock;
 
 // export module //
 
-module.exports = function () {
-    this.is_screen_on = init_screen_state;
-    this.isUnlocked = isUnlocked;
-    this.unlock = function () {
+module.exports = {
+    DEFAULT: DEFAULT,
+    is_screen_on: init_screen_state,
+    isUnlocked: isUnlocked,
+    unlock: function () {
         let dash_line = "__split_line_dash__";
         debugInfo([dash_line, "尝试自动解锁", dash_line]);
 
@@ -229,13 +267,13 @@ module.exports = function () {
                 unlock_dismiss_layer_bottom,
                 unlock_dismiss_layer_top,
                 unlock_dismiss_layer_swipe_time,
-            } = Object.assign({}, default_unlock, config_unlock);
+            } = config_unlock;
 
             let vertical_pts = [unlock_dismiss_layer_bottom, unlock_dismiss_layer_top];
 
             let storage_swipe_time = unlock_dismiss_layer_swipe_time;
             let data_from_storage_flag = !!storage_swipe_time;
-            let swipe_time = storage_swipe_time || default_unlock.unlock_dismiss_layer_swipe_time;
+            let swipe_time = storage_swipe_time;
 
             let storage_swipe_time_reliable = config_unlock.swipe_time_reliable || [];
             let swipe_time_reliable = deepCloneObject(storage_swipe_time_reliable);
@@ -273,7 +311,7 @@ module.exports = function () {
                 if (data_from_storage_flag) {
                     if (--chances_for_storage_data < 0) {
                         data_from_storage_flag = false;
-                        swipe_time = default_unlock.unlock_dismiss_layer_swipe_time;
+                        swipe_time = config_unlock.unlock_dismiss_layer_swipe_time;
                         debugInfo("放弃本地存储数据");
                         debugInfo("从默认值模块获取默认值: " + swipe_time);
                     } else {
@@ -354,15 +392,12 @@ module.exports = function () {
                 let max_try_times_unlock_pattern = unlock_max_try_times;
                 let current_try_unlock_pattern = 0;
                 let maxTryTimesReached = () => current_try_unlock_pattern > max_try_times_unlock_pattern;
-                let unlock_pattern_strategy = config_unlock.unlock_pattern_strategy || default_unlock.unlock_pattern_strategy;
+                let unlock_pattern_strategy = config_unlock.unlock_pattern_strategy;
                 let unlock_pattern_swipe_time_name = "unlock_pattern_swipe_time_" + unlock_pattern_strategy;
                 let unlock_pattern_swipe_time = config_unlock[unlock_pattern_swipe_time_name];
 
-                let data_from_storage_flag = false;
+                let data_from_storage_flag = !!unlock_pattern_swipe_time;
                 let chances_for_storage_data = 3;
-
-                if (unlock_pattern_swipe_time) data_from_storage_flag = true;
-                else unlock_pattern_swipe_time = default_unlock[unlock_pattern_swipe_time_name];
 
                 while (!maxTryTimesReached()) {
                     let retry_info = " (" + current_try_unlock_pattern + "\/" + max_try_times_unlock_pattern + ")";
@@ -399,7 +434,7 @@ module.exports = function () {
                     if (data_from_storage_flag) {
                         if (--chances_for_storage_data < 0) {
                             data_from_storage_flag = false;
-                            unlock_pattern_swipe_time = default_unlock[unlock_pattern_swipe_time_name];
+                            unlock_pattern_swipe_time = config_unlock[unlock_pattern_swipe_time_name];
                         }
                     } else unlock_pattern_swipe_time += 80;
                 }
@@ -530,7 +565,11 @@ module.exports = function () {
                     let confirm_btn_node = kw_confirm_btn("node");
                     if (confirm_btn_node) {
                         debugInfo("点击\"" + kw_confirm_btn("txt") + "\"按钮");
-                        clickAction(confirm_btn_node, "widget");
+                        try {
+                            clickAction(confirm_btn_node, "widget");
+                        } catch (e) {
+                            debugInfo("按钮点击可能未成功");
+                        }
                     }
                     if (checkUnlockResult()) break;
                     if (!shell("input keyevent 66", true).code) debugInfo("使用Root权限模拟回车键");
@@ -843,5 +882,1628 @@ module.exports = function () {
             debugInfo("可用屏幕高度: " + USABLE_HEIGHT);
             if (typeof cX !== "function" || typeof cY !== "function") return errorMsg("屏幕像素伸缩方法无效");
         }
-    };
+    },
 };
+
+// internal modules //
+
+function loadInternalModuleMonsterFunc() {
+    return {
+        messageAction: messageAction,
+        waitForAction: waitForAction,
+        keycode: keycode,
+        clickAction: clickAction,
+        getDisplayParams: getDisplayParams,
+        debugInfo: debugInfo,
+        captureErrScreen: captureErrScreen,
+        equalObjects: equalObjects,
+        deepCloneObject: deepCloneObject,
+        setDeviceProto: setDeviceProto,
+        getSelector: getSelector,
+        classof: classof,
+    };
+
+    // some may be used by a certain monster function(s) even though not showing up above
+    // monster function(s) //
+
+    function restartThisEngine(params) {
+        let _params = params || {};
+
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+
+        let _my_engine = engines.myEngine();
+        let _my_engine_id = _my_engine.id;
+
+        let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+        let _max_restart_engine_times_params = _params.max_restart_engine_times;
+        let _max_restart_engine_times;
+        let _instant_run_flag = !!_params.instant_run_flag;
+        if (typeof _max_restart_engine_times_argv === "undefined") {
+            if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+            else _max_restart_engine_times = _max_restart_engine_times_params;
+        } else _max_restart_engine_times = _max_restart_engine_times_argv;
+
+        _max_restart_engine_times = +_max_restart_engine_times;
+        let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
+
+        if (!_max_restart_engine_times) {
+            _messageAction("引擎重启已拒绝", 3);
+            return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
+        }
+
+        _debugInfo("重启当前引擎任务");
+        _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
+        _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
+        let _file_name = _params.new_file || _my_engine.source.toString();
+        if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+
+        let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+        _debugInfo("运行新引擎任务:\n" + _file_path);
+        engines.execScriptFile(_file_path, {
+            arguments: Object.assign({}, _params, {
+                max_restart_engine_times: _max_restart_engine_times - 1,
+                max_restart_engine_times_backup: _max_restart_engine_times_backup,
+                instant_run_flag: _instant_run_flag,
+            }),
+        });
+        _debugInfo("强制停止旧引擎任务");
+        // _my_engine.forceStop();
+        engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+        return true;
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
+    }
+
+    function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+        let _msg = msg || "";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+        }
+
+        let _msg_level = typeof msg_level === "number" ? msg_level : -1;
+        let _if_toast = if_toast || false;
+        let _if_arrow = if_arrow || false;
+        let _if_split_line = if_split_line || false;
+
+        let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
+
+        if (_if_toast) toast(_msg);
+
+        let _split_line_style = "solid";
+        if (typeof _if_split_line === "string") {
+            if (_if_split_line.match(/dash/)) _split_line_style = "dash";
+            if (_if_split_line.match(/both|up/)) {
+                if (_split_line_style !== __global__._monster_$_last_console_split_line_type) {
+                    _showSplitLine("", _split_line_style);
+                }
+                delete __global__._monster_$_last_console_split_line_type;
+                if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
+                else if (_if_split_line.match(/both/)) _if_split_line = 1;
+                else if (_if_split_line.match(/up/)) _if_split_line = 0;
+            }
+        }
+
+        if (_if_arrow) {
+            if (_if_arrow > 10) {
+                console.warn("-> \"if_arrow\"参数大于10");
+                _if_arrow = 10;
+            }
+            _msg = "> " + _msg;
+            for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+        }
+
+        let _exit_flag = false;
+        let _throw_error_flag = false;
+        switch (_msg_level) {
+            case 0:
+            case "verbose":
+            case "v":
+                _msg_level = 0;
+                console.verbose(_msg);
+                break;
+            case 1:
+            case "log":
+            case "l":
+                _msg_level = 1;
+                console.log(_msg);
+                break;
+            case 2:
+            case "i":
+            case "info":
+                _msg_level = 2;
+                console.info(_msg);
+                break;
+            case 3:
+            case "warn":
+            case "w":
+                _msg_level = 3;
+                console.warn(_msg);
+                break;
+            case 4:
+            case "error":
+            case "e":
+                _msg_level = 4;
+                console.error(_msg);
+                break;
+            case 8:
+            case "x":
+                _msg_level = 4;
+                console.error(_msg);
+                _exit_flag = true;
+                break;
+            case 9:
+            case "t":
+                _msg_level = 4;
+                console.error(_msg);
+                _throw_error_flag = true;
+        }
+        if (_if_split_line) {
+            let show_split_line_extra_str = "";
+            if (typeof _if_split_line === "string") {
+                if (_if_split_line.match(/dash/)) {
+                    show_split_line_extra_str = _if_split_line.match(/_n|n_/) ? "\n" : ""
+                } else {
+                    show_split_line_extra_str = _if_split_line;
+                }
+            }
+            if (!show_split_line_extra_str.match(/\n/)) {
+                __global__._monster_$_last_console_split_line_type = _split_line_style || "solid";
+            }
+            _showSplitLine(show_split_line_extra_str, _split_line_style);
+        } else {
+            delete __global__._monster_$_last_console_split_line_type;
+        }
+        if (_throw_error_flag) {
+            ui.post(function () {
+                throw ("FORCE_STOP");
+            });
+            exit();
+        } else if (_exit_flag) exit();
+        return !(_msg_level in {3: 1, 4: 1});
+
+        // raw function(s) //
+
+        function showSplitLineRaw(extra_str, style) {
+            let _extra_str = extra_str || "";
+            let _split_line = "";
+            if (style === "dash") {
+                for (let i = 0; i < 16; i += 1) _split_line += "- ";
+                _split_line += "-";
+            } else {
+                for (let i = 0; i < 32; i += 1) _split_line += "-";
+            }
+            return ~console.log(_split_line + _extra_str);
+        }
+    }
+
+    function showSplitLine(extra_str, style, params) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return !!~console.log(_split_line + _extra_str);
+    }
+
+    function waitForAction(f, timeout_or_times, interval) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
+
+        let _timeout = Infinity;
+        let _interval = interval || 200;
+        let _times = timeout_or_times;
+
+        if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
+        if (timeout_or_times > 100) _timeout = timeout_or_times;
+        if (interval >= _timeout) _times = 1;
+
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+
+        let _start_timestamp = +new Date();
+        while (!_checkF(f) && --_times) {
+            if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+            sleep(_interval);
+        }
+        return _times > 0;
+
+        // tool function(s) //
+
+        function _checkF(f) {
+            while (__global__._monster_$_global_waiting_signal) sleep(200);
+
+            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+
+            if (typeof f === "function") return f();
+            if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+            if (_classof(f) === "Array") {
+                let _arr = f;
+                let _logic_flag = "all";
+                if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
+                if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
+                for (let i = 0, len = _arr.length; i < len; i += 1) {
+                    if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
+                    if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
+                    if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+                }
+                return _logic_flag === "all";
+            }
+
+            _messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 8, 1, 1, 1);
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+    }
+
+    function clickAction(f, strategy, params) {
+        if (typeof f === "undefined" || f === null) return false;
+
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _params = params || {};
+
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+
+        /**
+         * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
+         */
+        let _type = _checkType(f);
+        f
+        let _padding = _checkPadding(_params.padding);
+        if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+        let _strategy = (strategy || "click").toString();
+        let _widget_id = 0;
+        let _widget_parent_id = 0;
+
+        let _condition_success = _params.condition_success;
+
+        let _check_time_once = _params.check_time_once || 500;
+        let _max_check_times = _params.max_check_times || 0;
+        if (!_max_check_times && _condition_success) _max_check_times = 3;
+
+        if (typeof _condition_success === "string" && _condition_success.match(/disappear/)) {
+            _condition_success = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
+        } else if (typeof _condition_success === "undefined") _condition_success = () => true;
+
+        while (~_clickOnce() && _max_check_times--) {
+            if (_waitForAction(() => _condition_success(), _check_time_once, 50)) return true;
+        }
+        return _condition_success();
+
+        // tool function(s) //
+
+        function _clickOnce() {
+            let _x = 0 / 0;
+            let _y = 0 / 0;
+
+            if (_type === "UiSelector") {
+                let _node = f.findOnce();
+                if (!_node) return;
+                try {
+                    _widget_id = _node.toString().match(/@\w+/)[0].slice(1);
+                } catch (e) {
+                    _widget_id = 0;
+                }
+                if (_strategy.match(/^w(idget)?$/) && _node.clickable() === true) return _node.click();
+                let _bounds = _node.bounds();
+                _x = _bounds.centerX();
+                _y = _bounds.centerY();
+            } else if (_type === "UiObject") {
+                try {
+                    _widget_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
+                } catch (e) {
+                    _widget_parent_id = 0;
+                }
+                if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) return f.click();
+                let _bounds = f.bounds();
+                _x = _bounds.centerX();
+                _y = _bounds.centerY();
+            } else if (_type === "Bounds") {
+                if (_strategy.match(/^w(idget)?$/)) {
+                    _strategy = "click";
+                    _messageAction("clickAction()控件策略已改为click", 3);
+                    _messageAction("无法对Rect对象应用widget策略", 3, 0, 1);
+                }
+                _x = f.centerX();
+                _y = f.centerY();
+            } else {
+                if (_strategy.match(/^w(idget)?$/)) {
+                    _strategy = "click";
+                    _messageAction("clickAction()控件策略已改为click", 3);
+                    _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
+                }
+                _x = f[0];
+                _y = f[1];
+            }
+            if (isNaN(_x) || isNaN(_y)) {
+                _messageAction("clickAction()内部坐标值无效", 4, 1);
+                _messageAction("(" + _x + ", " + _y + ")", 8, 0, 1, 1);
+            }
+            _x += _padding.x;
+            _y += _padding.y;
+
+            _strategy.match(/^m(atch)?$/) ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
+        }
+
+        function _checkType(f) {
+            let _checkJavaObject = o => {
+                if (_classof(o) !== "JavaObject") return;
+                let string = o.toString();
+                if (string.match(/^Rect\(/)) return "Bounds";
+                if (string.match(/UiObject/)) return "UiObject";
+                return "UiSelector";
+            };
+            let _checkCoordsArray = arr => {
+                if (_classof(f) !== "Array") return;
+                if (arr.length !== 2) _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
+                if (typeof arr[0] !== "number" || typeof arr[1] !== "number") _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
+                return "CoordsArray";
+            };
+            let _type_f = _checkJavaObject(f) || _checkCoordsArray(f);
+            if (!_type_f) _messageAction("clickAction()f参数类型未知", 8, 1, 0, 1);
+            return _type_f;
+        }
+
+        function _checkPadding(arr) {
+            if (!arr) return {x: 0, y: 0};
+
+            let _coords = [];
+            if (typeof arr === "number") _coords = [0, arr];
+            else if (_classof(arr) !== "Array") _messageAction("clickAction()坐标偏移参数类型未知", 8, 1, 0, 1);
+            else {
+                let _arr_len = arr.length;
+                if (_arr_len === 1) _coords = [0, arr[0]];
+                else if (_arr_len === 2) {
+                    let _arr_param_0 = arr[0];
+                    if (_arr_param_0 === "x") _coords = [arr[1], 0];
+                    else if (_arr_param_0 === "y") _coords = [0, arr[1]];
+                    else _coords = arr;
+                } else _messageAction("clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1);
+            }
+            let _x = +_coords[0];
+            let _y = +_coords[1];
+            if (isNaN(_x) || isNaN(_y)) _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
+            return {
+                x: _x,
+                y: _y,
+            };
+        }
+
+        function _checkDisappearance() {
+            try {
+                if (_type === "UiSelector") {
+                    let _node = f.findOnce();
+                    if (!_node) return true;
+                    return _params.condition_success.match(/in.?place/) ? _node.toString().match(/@\w+/)[0].slice(1) !== _widget_id : !_node;
+                } else if (_type === "UiObject") {
+                    let _node_parent = f.parent();
+                    if (!_node_parent) return true;
+                    return _node_parent.toString().match(/@\w+/)[0].slice(1) !== _widget_parent_id;
+                }
+            } catch (e) {
+                return true
+            }
+            return true;
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+    }
+
+    function tryRequestScreenCapture(params) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        if (__global__._monster_$_request_screen_capture_flag) return true;
+
+        sleep(200); // why are you always a naughty boy... how can i get along well with you...
+
+        let _params = params || {};
+
+        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+        let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+        let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
+        let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
+
+        let sel = _getSelector();
+
+        _params.restart_this_engine_flag = typeof _params.restart_this_engine_flag === "undefined" ? true : !!_params.restart_this_engine_flag;
+        _params.restart_this_engine_params = _params.restart_this_engine_params || {};
+        _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
+
+        _debugInfo("开始申请截图权限");
+
+        __global__._monster_$_request_screen_capture_flag = true;
+        _debugInfo("已存储截图权限申请标记");
+
+        _debugInfo("已开启弹窗监测线程");
+        let _thread_prompt = threads.start(function () {
+            let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
+            let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "", type);
+
+            if (_waitForAction(_kw_sure_btn, 5000)) {
+                if (_waitForAction(_kw_no_longer_prompt, 1000)) {
+                    _debugInfo("勾选\"不再提示\"复选框");
+                    _clickAction(_kw_no_longer_prompt(), "widget");
+                }
+                if (_waitForAction(_kw_sure_btn, 2000)) {
+                    let _node = _kw_sure_btn();
+                    let _btn_click_action_str = "点击\"" + _kw_sure_btn("txt") + "\"按钮";
+
+                    _debugInfo(_btn_click_action_str);
+                    _clickAction(_node, "widget");
+
+                    if (!_waitForAction(() => !_kw_sure_btn(), 1000)) {
+                        _debugInfo("尝试click()方法再次" + _btn_click_action_str);
+                        _clickAction(_node, "click");
+                    }
+                }
+            }
+        });
+
+        let _thread_monitor = threads.start(function () {
+            if (_waitForAction(() => !!_req_result, 2000, 500)) {
+                _thread_prompt.interrupt();
+                return _debugInfo("截图权限申请结果: " + _req_result);
+            }
+            if (!__global__._monster_$_debug_info_flag) {
+                __global__._monster_$_debug_info_flag = true;
+                _debugInfo("开发者测试模式已自动开启", 3);
+            }
+            if (_params.restart_this_engine_flag) {
+                _debugInfo("截图权限申请结果: 失败", 3);
+                if (_restartThisEngine(_params.restart_this_engine_params)) return;
+            }
+            _messageAction("截图权限申请失败", 9, 1, 0, 1);
+        });
+
+        let _req_result = images.requestScreenCapture(false);
+        sleep(300);
+
+        _thread_monitor.join(2400);
+        _thread_monitor.interrupt();
+        return _req_result;
+
+        // raw function(s) //
+
+        function getSelectorRaw() {
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let sel = selector();
+            sel.__proto__ = {
+                pickup: (filter) => {
+                    if (classof(filter) === "JavaObject") {
+                        if (filter.toString().match(/UiObject/)) return filter;
+                        return filter.findOnce() || null;
+                    }
+                    if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
+                    if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
+                    return null;
+                },
+            };
+            return sel;
+        }
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+
+        function clickActionRaw(kw) {
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+            let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+            if (!_key_node) return;
+            let _bounds = _key_node.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+
+        function restartThisEngineRaw(params) {
+            let _params = params || {};
+            let _my_engine = engines.myEngine();
+
+            let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+            let _max_restart_engine_times_params = _params.max_restart_engine_times;
+            let _max_restart_engine_times;
+            let _instant_run_flag = !!_params.instant_run_flag;
+            if (typeof _max_restart_engine_times_argv === "undefined") {
+                if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+                else _max_restart_engine_times = +_max_restart_engine_times_params;
+            } else _max_restart_engine_times = +_max_restart_engine_times_argv;
+
+            if (!_max_restart_engine_times) return;
+
+            let _file_name = _params.new_file || _my_engine.source.toString();
+            if (_file_name.match(/^\[remote]/)) return ~console.error("远程任务不支持重启引擎") && exit();
+            let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+            engines.execScriptFile(_file_path, {
+                arguments: {
+                    max_restart_engine_times: _max_restart_engine_times - 1,
+                    instant_run_flag: _instant_run_flag,
+                },
+            });
+            _my_engine.forceStop();
+        }
+    }
+
+    function keycode(keycode_name, params_str) {
+        params_str = params_str || "";
+
+        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+
+        if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
+        let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
+        let first_result = simulateKey();
+        return params_str.match(/double/) ? simulateKey() : first_result;
+
+        // tool function(s) //
+
+        function keyEvent(keycode_name) {
+            let _key_check = {
+                "26, power": checkPower,
+            };
+            for (let _key in _key_check) {
+                if (_key_check.hasOwnProperty(_key)) {
+                    if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) return _key_check[_key]();
+                }
+            }
+            return shellInputKeyEvent(keycode_name);
+
+            // tool function(s) //
+
+            function shellInputKeyEvent(keycode_name) {
+                let shell_result = false;
+                try {
+                    shell_result = !shell("input keyevent " + keycode_name, true).code;
+                } catch (e) {
+                    // nothing to do here
+                }
+                return shell_result ? true : (!params_str.match(/no.*err(or)?.*(message|msg)/) && !!keyEventFailedMsg());
+
+                // tool function(s) //
+
+                function keyEventFailedMsg() {
+                    messageAction("按键模拟失败", 0);
+                    messageAction("键值: " + keycode_name, 0, 0, 1);
+                }
+            }
+
+            function checkPower() {
+                let isScreenOn = () => device.isScreenOn();
+                let isScreenOff = () => !isScreenOn();
+                if (isScreenOff()) {
+                    device.wakeUp();
+                    let max_try_times_wake_up = 10;
+                    while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
+                    return max_try_times_wake_up >= 0;
+                }
+                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2400) : false;
+            }
+        }
+
+        function simulateKey() {
+            switch (_tidy_keycode_name) {
+                case "3":
+                case "home":
+                    return ~home();
+                case "4":
+                case "back":
+                    return ~back();
+                case "appSwitch":
+                case "187":
+                case "recent":
+                case "recentApp":
+                    return ~recents();
+                case "powerDialog":
+                case "powerMenu":
+                    return ~powerDialog();
+                case "notification":
+                    return ~notifications();
+                case "quickSetting":
+                    return ~quickSettings();
+                case "splitScreen":
+                    return ~splitScreen();
+                default:
+                    return keyEvent(keycode_name);
+            }
+        }
+
+        // raw function(s) //
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+    }
+
+    function debugInfo(msg, info_flag, forcible_flag) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        let global_flag = __global__._monster_$_debug_info_flag;
+        if (!global_flag && !forcible_flag) return;
+        if (global_flag === false || forcible_flag === false) return;
+
+        let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+
+        if (msg === "__split_line__") showDebugSplitLine();
+
+        let info_flag_str = (info_flag || "").toString();
+        let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
+        let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
+
+        if (info_flag_line === "Up") _showSplitLine();
+        if (info_flag_line.match(/both|up/)) debugInfo("__split_line__", "", forcible_flag);
+
+        if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
+        else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
+
+        if (info_flag_line === "both") debugInfo("__split_line__", "", forcible_flag);
+
+        // raw function(s) //
+
+        function showSplitLineRaw(extra_str, style) {
+            let _extra_str = extra_str || "";
+            let _split_line = "";
+            if (style === "dash") {
+                for (let i = 0; i < 16; i += 1) _split_line += "- ";
+                _split_line += "-";
+            } else {
+                for (let i = 0; i < 32; i += 1) _split_line += "-";
+            }
+            return ~console.log(_split_line + _extra_str);
+        }
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+
+        // tool function(s) //
+
+        function showDebugSplitLine() {
+            let _msg = "";
+            if (msg.match(/dash/)) {
+                for (let i = 0; i < 16; i += 1) _msg += "- ";
+                _msg += "-";
+            } else {
+                for (let i = 0; i < 32; i += 1) _msg += "-";
+            }
+            msg = _msg;
+        }
+    }
+
+    function getDisplayParams() {
+        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
+        let [WIDTH, HEIGHT] = [];
+        let display_info = {};
+        if (_waitForAction(checkData, 3000, 500)) {
+            display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
+            display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
+            return display_info;
+        }
+
+        // tool function(s) //
+
+        function checkData() {
+            try {
+                WIDTH = +_window_service_display.getWidth();
+                HEIGHT = +_window_service_display.getHeight();
+                if (!(WIDTH * HEIGHT)) throw Error();
+
+                let ORIENTATION = +_window_service_display.getOrientation(); // left: 1, right: 3, portrait: 0 (or 2 ?)
+                let MAX = +_window_service_display.maximumSizeDimension;
+
+                let [USABLE_HEIGHT, USABLE_WIDTH] = [HEIGHT, WIDTH];
+
+                ORIENTATION in {0: true, 2: true} ? [USABLE_HEIGHT, HEIGHT] = [HEIGHT, MAX] : [USABLE_WIDTH, WIDTH] = [WIDTH, MAX];
+
+                return display_info = {
+                    WIDTH: WIDTH,
+                    USABLE_WIDTH: USABLE_WIDTH,
+                    HEIGHT: HEIGHT,
+                    USABLE_HEIGHT: USABLE_HEIGHT,
+                    screen_orientation: ORIENTATION,
+                    status_bar_height: getDataByDimenName("status_bar_height"),
+                    navigation_bar_height: getDataByDimenName("navigation_bar_height"),
+                    navigation_bar_height_computed: ORIENTATION in {0: true, 2: true} ? HEIGHT - USABLE_HEIGHT : WIDTH - USABLE_WIDTH,
+                    action_bar_default_height: getDataByDimenName("action_bar_default_height"),
+                };
+            } catch (e) {
+                try {
+                    WIDTH = +device.width;
+                    HEIGHT = +device.height;
+                    if (!(WIDTH * HEIGHT)) throw Error();
+                    return display_info = {
+                        WIDTH: WIDTH,
+                        HEIGHT: HEIGHT,
+                        USABLE_HEIGHT: ~~(HEIGHT * 0.9), // evaluated value
+                    };
+                } catch (e) {
+
+                }
+            }
+
+            // tool function(s) //
+
+            function getDataByDimenName(name) {
+                let resources = context.getResources();
+                let resource_id = resources.getIdentifier(name, "dimen", "android");
+                return resource_id > 0 ? resources.getDimensionPixelSize(resource_id) : NaN;
+            }
+        }
+
+        // raw function(s) //
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+    }
+
+    function equalObjects(obj_a, obj_b) {
+        let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+        let class_of_a = classOf(obj_a),
+            class_of_b = classOf(obj_b),
+            type_of_a = typeof obj_a,
+            type_of_b = typeof obj_b;
+        let matchFeature = (a, b, feature) => a === feature && b === feature;
+        if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
+        if (matchFeature(class_of_a, class_of_b, "Null")) return true;
+
+        if (class_of_a === "Array") {
+            if (class_of_b !== "Array") return false;
+            let len_a = obj_a.length,
+                len_b = obj_b.length;
+            if (len_a !== len_b) return false;
+            let used_obj_b_indices = [];
+            for (let i = 0, len = obj_a.length; i < len; i += 1) {
+                if (!function () {
+                    let a = obj_a[i];
+                    for (let j = 0, len_j = obj_b.length; j < len_j; j += 1) {
+                        if (~used_obj_b_indices.indexOf(j)) continue;
+                        if (equalObjects(a, obj_b[j])) {
+                            used_obj_b_indices.push(j);
+                            return true;
+                        }
+                    }
+                }()) return false;
+            }
+            return true;
+        }
+
+        if (class_of_a === "Object") {
+            if (class_of_b !== "Object") return false;
+            let keys_a = Object.keys(obj_a),
+                keys_b = Object.keys(obj_b),
+                len_a = keys_a.length,
+                len_b = keys_b.length;
+            if (len_a !== len_b) return false;
+            if (!equalObjects(keys_a, keys_b)) return false;
+            for (let i in obj_a) {
+                if (obj_a.hasOwnProperty(i)) {
+                    if (!equalObjects(obj_a[i], obj_b[i])) return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    function deepCloneObject(obj) {
+        let classOfObj = Object.prototype.toString.call(obj).slice(8, -1);
+        if (classOfObj === "Null" || classOfObj !== "Object" && classOfObj !== "Array") return obj;
+        let new_obj = classOfObj === "Array" ? [] : {};
+        for (let i in obj) {
+            if (obj.hasOwnProperty(i)) {
+                new_obj[i] = classOfObj === "Array" ? obj[i] : deepCloneObject(obj[i]);
+            }
+        }
+        return new_obj;
+    }
+
+    function captureErrScreen(key_name, log_level) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+        let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
+
+        _tryRequestScreenCapture();
+
+        let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
+
+        files.createWithDirs(path);
+        captureScreen(path);
+        _messageAction("已存储屏幕截图文件:", log_level);
+        _messageAction(path, log_level);
+
+        // tool function(s) //
+
+        function getTimeStr() {
+            let now = new Date();
+            let padZero = num => (num < 10 ? "0" : "") + num;
+            return now.getFullYear() + padZero(now.getMonth() + 1) + padZero(now.getDate())
+                + padZero(now.getHours()) + padZero(now.getMinutes()) + padZero(now.getSeconds());
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, msg_level, toast_flag) {
+            let _msg = msg || " ";
+            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            }
+            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            toast_flag && toast(_msg);
+            if (_msg_level === 0) return console.verbose(_msg) || true;
+            if (_msg_level === 1) return console.log(_msg) || true;
+            if (_msg_level === 2) return console.info(_msg) || true;
+            if (_msg_level === 3) return console.warn(_msg) || false;
+            if (_msg_level >= 4) {
+                console.error(_msg);
+                _msg_level >= 8 && exit();
+            }
+        }
+
+        function tryRequestScreenCaptureRaw() {
+            if (!__global__._monster_$_request_screen_capture_flag) {
+                images.requestScreenCapture();
+                sleep(300);
+            }
+        }
+    }
+
+    function getSelector(params) {
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+        let parent_params = params || {};
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
+        let sel = selector();
+        sel.__proto__ = {
+            /**
+             * Returns a selector (UiSelector) or node (UiObject) or some attribute
+             * If no nodes (UiObjects) were found, returns null or "" or false
+             * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
+             * @memberOf getSelector
+             * @param selector_body {string|RegExp|array} - selector body will be converted into array type
+             * <br>
+             *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
+             *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
+             * @param [memory_keyword {string|null}] - to mark this selector node; better use a keyword without conflict
+             * @param [result_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+             * <br>
+             *     -- "txt": available text()/desc() value or empty string
+             * @param [params] {object}
+             * @param [params.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
+             * @param [params.debug_info_flag] {boolean}
+             * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
+             * @example
+             * pickup("abc"); -- text/desc/id("abc").findOnce() or null; <br>
+             * pickup("abc", "my_alphabet", "node"); -- same as above; <br>
+             * pickup("abc", "my_alphabet", "sel"); -- text/desc/id("abc") or null -- selector <br>
+             * pickup(text("abc"), "my_alphabet"); -- text("abc").findOnce() or null <br>
+             * pickup(/^abc.+z/, "AtoZ", "sel_str"); -- id/text/desc or "" -- string <br>
+             * pickup("morning", "", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
+             * pickup(["morning", "p2c3"], "", "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
+             * pickup(["hello", "s3b"], "", "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
+             * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
+             * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "back_btn", "clickable"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
+             */
+            pickup: (selector_body, memory_keyword, result_type, params) => {
+                let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
+                let _params = Object.assign({}, parent_params, params);
+                result_type = (result_type || "").toString();
+                let _result_type = result_type;
+
+                if (!result_type || result_type.match(/^n(ode)?$/)) _result_type = "node";
+                else if (result_type.match(/^s(el(ector)?)?$/)) _result_type = "selector";
+                else if (result_type.match(/^e(xist(s)?)?$/)) _result_type = "exists";
+                else if (result_type.match(/^t(xt)?$/)) _result_type = "txt";
+                else if (result_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) _result_type = "selector_string";
+
+                if (typeof sel_body[1] === "string") sel_body.splice(1, 0, "");
+
+                let _body = sel_body[0];
+                let _additional_sel = sel_body[1];
+                let _compass = sel_body[2];
+
+                let _kw = _getSelector(_additional_sel);
+                let _node = null;
+                let _nodes = [];
+                if (_kw && _kw.toString().match(/UiObject/)) {
+                    _node = _kw;
+                    if (_result_type === "nodes") _nodes = [_kw];
+                    _kw = null;
+                } else {
+                    _node = _kw ? _kw.findOnce() : null;
+                    if (_result_type === "nodes") _nodes = _kw ? _kw.find() : [];
+                }
+
+                if (_compass) _node = _relativeNode([_kw || _node, _compass]);
+
+                let _result = {
+                    selector: _kw,
+                    node: _node,
+                    nodes: _nodes,
+                    exists: !!_node,
+                    get selector_string() {
+                        return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
+                    },
+                    get txt() {
+                        let _text = _node && _node.text() || "";
+                        let _desc = _node && _node.desc() || "";
+                        return _desc.length > _text.length ? _desc : _text;
+                    }
+                };
+
+                if (_result_type in _result) return _result[_result_type];
+
+                try {
+                    if (!_node) return null;
+                    return _node[_result_type]();
+                } catch (e) {
+                    try {
+                        return _node[_result_type];
+                    } catch (e) {
+                        debugInfo(e, 3);
+                        return null;
+                    }
+                }
+
+                // tool function(s)//
+
+                function _getSelector(addition) {
+                    let _mem_kw_prefix = "_MEM_KW_PREFIX_";
+                    if (memory_keyword) {
+                        let _memory_selector = __global__[_mem_kw_prefix + memory_keyword];
+                        if (_memory_selector) return _memory_selector;
+                    }
+                    let _kw_selector = _getSelectorFromLayout(addition);
+                    if (memory_keyword && _kw_selector) {
+                        _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
+                        __global__[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                    }
+                    return _kw_selector;
+
+                    // tool function(s) //
+
+                    function _getSelectorFromLayout(addition) {
+                        let _prefer = _params.selector_prefer;
+                        let _body_class = classof(_body);
+
+                        if (_body_class === "JavaObject") {
+                            if (_body.toString().match(/UiObject/)) {
+                                addition && _debugInfo("UiObject无法使用额外选择器", 3);
+                                return _body;
+                            }
+                            return checkSelectors(_body);
+                        }
+
+                        if (typeof _body === "string") {
+                            return _prefer === "text"
+                                ? checkSelectors(text(_body), desc(_body), id(_body))
+                                : checkSelectors(desc(_body), text(_body), id(_body));
+                        }
+
+                        if (_body_class === "RegExp") {
+                            return _prefer === "text"
+                                ? checkSelectors(textMatches(_body), descMatches(_body), idMatches(_body))
+                                : checkSelectors(descMatches(_body), textMatches(_body), idMatches(_body));
+                        }
+
+                        // tool function(s) //
+
+                        function checkSelectors(selectors) {
+                            let sel_multi = selectors;
+                            if (classof(sel_multi) !== "Array") {
+                                sel_multi = [];
+                                for (let i = 0, len = arguments.length; i < len; i += 1) sel_multi[i] = arguments[i];
+                            }
+                            for (let i = 0, len = sel_multi.length; i < len; i += 1) {
+                                let result = checkSelector(sel_multi[i]);
+                                if (result) return result;
+                            }
+                            return null;
+
+                            // tool function(s) //
+
+                            function checkSelector(single_sel) {
+                                if (classof(addition) === "Array") {
+                                    let o = {};
+                                    o[addition[0]] = addition[1];
+                                    addition = o;
+                                }
+                                if (classof(addition) === "Object") {
+                                    let keys = Object.keys(addition);
+                                    for (let i = 0, len = keys.length; i < len; i += 1) {
+                                        let key = keys[i];
+                                        if (!single_sel[key]) {
+                                            _debugInfo(["无效的additional_selector属性值:", key], 3);
+                                            return null;
+                                        }
+                                        let value = addition[key];
+                                        try {
+                                            single_sel = single_sel[key].apply(single_sel, classof(value) === "Array" ? value : [value]);
+                                        } catch (e) {
+                                            _debugInfo(["无效的additional_selector选择器:", key], 3);
+                                            return null;
+                                        }
+                                    }
+                                }
+                                return single_sel.exists() ? single_sel : null;
+                            }
+                        }
+                    }
+                }
+
+                /**
+                 * Returns a relative node (UiObject) by compass string
+                 * @param node_information {array|*} - [node, compass]
+                 * @returns {null|UiObject}
+                 * @example
+                 * relativeNode([text("Alipay"), "pp"]); -- text("Alipay").findOnce().parent().parent(); <br>
+                 * relativeNode([text("Alipay").findOnce(), "p2"]); -- text("Alipay").findOnce().parent().parent(); -- same as above <br>
+                 * relativeNode([id("abc"), "p3c2"]); -- id("abc").findOnce().parent().parent().parent().child(2); <br>
+                 * relativeNode([id("abc"), "s5"/"s5p"]); -- id("abc").findOnce().parent().child(5); -- returns an absolute sibling <br>
+                 * relativeNode([id("abc"), "s5n"]); -- id("abc").findOnce().parent().child(%childCount% - 5); -- abs sibling <br>
+                 * relativeNode([id("abc"), "s+3"]); -- id("abc").findOnce().parent().child(%indexInParent()% + 3); -- rel sibling <br>
+                 * relativeNode([id("abc"), "s-2"]); -- id("abc").findOnce().parent().child(%indexInParent()% - 2); -- rel sibling <br>
+                 */
+                function _relativeNode(node_information) {
+                    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+
+                    let node_info = classof(node_information) === "Array" ? node_information.slice() : [node_information];
+
+                    let node = node_info[0];
+                    let node_class = classof(node);
+                    let node_str = (node || "").toString();
+
+                    if (typeof node === "undefined") {
+                        _debugInfo("relativeNode的node参数为Undefined");
+                        return null;
+                    }
+                    if (classof(node) === "Null") {
+                        _debugInfo("relativeNode的node参数为Null");
+                        return null;
+                    }
+                    if (node_str.match(/^Rect\(/)) {
+                        // _debugInfo("relativeNode的node参数为Rect()");
+                        return null;
+                    }
+                    if (node_class === "JavaObject") {
+                        if (node_str.match(/UiObject/)) {
+                            // _debugInfo("relativeNode的node参数为UiObject");
+                        } else {
+                            // _debugInfo("relativeNode的node参数为UiSelector");
+                            node = node.findOnce();
+                            if (!node) {
+                                // _debugInfo("UiSelector查找后返回Null");
+                                return null;
+                            }
+                        }
+                    } else {
+                        _debugInfo("未知的relativeNode的node参数", 3);
+                        return null;
+                    }
+
+                    let compass = node_info[1];
+
+                    if (!compass) {
+                        // _debugInfo("relativeNode的罗盘参数为空");
+                        return node;
+                    }
+
+                    compass = compass.toString();
+
+                    try {
+                        if (compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
+                            let relative_matched = compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/); // backwards / negative
+                            let absolute_matched = compass.match(/s\d+([fp](?!\d+))?/); // forwards / positive
+                            if (relative_matched) {
+                                let rel_amount = parseInt(relative_matched[0].match(/[+\-]?\d+/)[0]);
+                                let child_count = node.parent().childCount();
+                                let current_idx = node.indexInParent();
+                                node = relative_matched[0].match(/\d+[bn]/)
+                                    ? node.parent().child(child_count - Math.abs(rel_amount))
+                                    : node.parent().child(current_idx + rel_amount);
+                            } else if (absolute_matched) {
+                                node = node.parent().child(parseInt(absolute_matched[0].match(/\d+/)[0]));
+                            }
+                            compass = compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
+                            if (!compass) return node;
+                        }
+                    } catch (e) {
+                        return null;
+                    }
+
+                    let parents = compass.replace(/([Pp])(\d+)/g, ($0, $1, $2) => {
+                        let str = "";
+                        $2 = parseInt($2);
+                        for (let i = 0; i < $2; i += 1) str += "p";
+                        return str;
+                    }).match(/p*/)[0]; // may be ""
+
+                    let child_idx_matched = compass.match(/c\d+/g);
+
+                    if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : null;
+
+                    let parents_len = parents.length;
+                    for (let i = 0; i < parents_len; i += 1) {
+                        if (!(node = node.parent())) return null;
+                    }
+                    return child_idx_matched ? getChildNode(child_idx_matched) : node;
+
+                    // tool function(s) //
+
+                    function getChildNode(arr) {
+                        if (!arr || classof(arr) !== "Array") return null;
+                        for (let i = 0, len = arr.length; i < len; i += 1) {
+                            if (!node.childCount()) return null;
+                            try {
+                                node = node.child(+arr[i].match(/\d+/));
+                                if (!node) return null;
+                            } catch (e) {
+                                return null;
+                            }
+                        }
+                        return node;
+                    }
+                }
+            },
+        };
+        // _debugInfo("选择器加入新方法");
+        // Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
+        return sel;
+
+        // raw function(s) //
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
+    }
+
+    function setDeviceProto(params) {
+        let _params = params || {};
+        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+
+        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        if (typeof __global__.device === "undefined") __global__.device = {};
+
+
+        __global__.device.__proto__ = Object.assign((__global__.device.__proto__ || {}), {
+            /**
+             * device.keepScreenOn()
+             * @memberOf setDeviceProto
+             * @param [duration] {number} could be minute (less than 100) or second -- 5 and 300000 both for 5 min
+             * @param [params] {object}
+             * @param [params.debug_info_flag] {boolean}
+             */
+            keepOn: function (duration, params) {
+                params = params || {};
+                duration = duration || 5;
+                if (duration < 100) duration *= 60000;
+                device.keepScreenOn(duration);
+                if (params.debug_info_flag !== false) {
+                    _debugInfo("已设置屏幕常亮");
+                    _debugInfo(">最大超时时间: " + +(duration / 60000).toFixed(2) + "分钟");
+                }
+            },
+            /**
+             * device.cancelKeepingAwake()
+             * @memberOf setDeviceProto
+             * @param [params] {object}
+             * @param [params.debug_info_flag] {boolean}
+             */
+            cancelOn: function (params) {
+                // click(Math.pow(10, 7), Math.pow(10, 7));
+                params = params || {};
+                device.cancelKeepingAwake();
+                if (params.debug_info_flag !== false) {
+                    _debugInfo("屏幕常亮已取消");
+                }
+            },
+        });
+
+        // raw function(s) //
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
+    }
+
+    function classof(source, check_value) {
+        let class_result = Object.prototype.toString.call(source).slice(8, -1);
+        return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+    }
+} // updated at Nov 14, 2019
+
+function loadInternalModulePWMAP() {
+    return function () {
+        let pwmap_path = files.getSdcardPath() + "/.local/PWMAP.txt";
+        let pwmap_map = {};
+        let config = {
+            "code_length": 8, // 密文字串长度 - eg, 8 - "SCPrMtaB": "A"
+            "code_amount": 10, // 密文映射数量 - eg, 3 - "......": "A", "......": "A", "......": "A"
+            "separator": "_.|._",
+            "encrypt_power": 2,
+        };
+
+        this.pwmapEncrypt = pwmapEncrypt;
+        this.pwmapDecrypt = pwmapDecrypt;
+        this.pwmapGenerate = pwmapGenerate;
+
+        // main function(s) //
+
+        function pwmapEncrypt(input) {
+            checkPWMAPFile();
+            let is_empty_input = !arguments.length;
+            input = is_empty_input && userInput("请输入要加密的字符串") || input;
+            let thread_monitor = monitorRunningTime("正在加密中 请稍候...");
+
+            let encrypt_power = Math.min(parseInt(config.encrypt_power), 2) || 1;
+            input = encrypt(input);
+            encrypt_power--;
+            while (encrypt_power--) input = encrypt(input.join(config.separator));
+
+            thread_monitor.interrupt();
+
+            let regexp = new RegExp(/[A-Za-z0-9`~!@#$%^&*()_+=\-\[\]}{'\\;:\/?.>,<| ]/);
+            let encrypted = "[" + input.map(value => "\"" + value + "\"") + "]";
+            is_empty_input && ~setClip(encrypted) && toast("密文数组已复制剪切板");
+            return encrypted;
+
+            // tool function(s) //
+
+            function encrypt(str) {
+                let result = [];
+                for (let i = 0, len = str.length; i < len; i += 1) {
+                    if (str[i].match(regexp)) result.push(pickARandResult(str[i]));
+                    else encrypt("\\u" + str[i].charCodeAt(0).toString(16).toUpperCase());
+                }
+                return result;
+            }
+
+            function pickARandResult(str) {
+                let tempArr = [];
+                for (let name in pwmap_map) {
+                    if (pwmap_map.hasOwnProperty(name)) {
+                        pwmap_map[name] === str && tempArr.push(name);
+                    }
+                }
+                return tempArr[~~(Math.random() * config.code_amount)];
+            }
+        }
+
+        function pwmapDecrypt(input) {
+            checkPWMAPFile();
+            let is_empty_input = !arguments.length;
+            input = is_empty_input && userInput("请输入要解密的字符串数组") || input;
+            let thread_monitor = monitorRunningTime("正在解密中 请稍候...");
+
+            let decrypted = decrypt(input);
+            thread_monitor.interrupt();
+            is_empty_input && ~setClip(decrypted) && toast("解密字符串已复制剪切板");
+            return decrypted;
+
+            // tool function(s) //
+
+            function decrypt(encrypted_arr) {
+                if (typeof encrypted_arr === "undefined") return undefined;
+                if (encrypted_arr === null) return encrypted_arr;
+
+                let arr = encrypted_arr,
+                    skip_times = 0,
+                    result = "";
+                if (typeof arr === "string") {
+                    if (!arr.length) return "";
+                    if (arr[0] !== "[") ~toast("输入的加密字符串不合法") && exit();
+                    arr = arr.slice(1, -1).split(/, ?/).map(value => value.replace(/^"([^]+)"$/g, "$1"));
+                }
+
+                while (1) {
+                    for (let i = 0, len = arr.length; i < len; i += 1) {
+                        if (skip_times) {
+                            skip_times--;
+                            continue;
+                        }
+                        let decrypted_str = pwmap_map[arr[i]];
+                        if (decrypted_str === undefined) return undefined;
+                        if (decrypted_str === "\\" && pwmap_map[arr[i + 1]] === "u") {
+                            let tmp_str = "";
+                            for (let j = 0; j < 4; j += 1) tmp_str += pwmap_map[arr[i + j + 2]];
+                            tmp_str = "%u" + tmp_str;
+                            result += unescape(tmp_str);
+                            skip_times = 5;
+                        } else result += decrypted_str;
+                    }
+                    if (!result.match(new RegExp(config.separator))) break;
+                    arr = result.split(config.separator);
+                    result = "";
+                }
+                return result;
+            }
+        }
+
+        function pwmapGenerate() {
+            if (files.exists(pwmap_path)) if (!confirm("密文文件已存在\n继续操作将覆盖已有文件\n新的密文文件生成后\n涉及密文的全部相关代码\n均需重新设置才能解密\n确定要继续吗?")) exit();
+            files.createWithDirs(pwmap_path);
+            files.open(pwmap_path);
+
+            let str_map = "~!@#$%^&*`'-_+=,./\\ 0123456789:;?AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz()[]<>{}|\"";
+            let az_map = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz";
+
+            //// SAMPLE - "SCPrMtaB": "A" ////
+            //// SAMPLE - "doaAisDd": "%" ////
+
+            let result = {};
+
+            for (let i = 0, len_i = str_map.length; i < len_i; i += 1) {
+                for (let j = 0, len_j = config.code_amount; j < len_j; j += 1) {
+                    let code_str = "";
+                    for (let k = 0, len_k = config.code_length, len_map = az_map.length; k < len_k; k += 1) {
+                        code_str += az_map[~~(Math.random() * len_map)];
+                    }
+                    result[code_str] = str_map[i];
+                }
+            }
+
+            files.write(pwmap_path, JSON.stringify(result));
+            toast("密文文件生成完毕");
+        }
+
+        // tool function(s) //
+
+        function checkPWMAPFile() {
+            if (!files.exists(pwmap_path)) {
+                messageAction("已生成新的密文文件", 1, 1, 0, "both");
+                pwmapGenerate();
+            }
+            pwmap_map = JSON.parse(files.read(pwmap_path));
+        }
+
+        function userInput(msg) {
+            let input = "",
+                safe_max_try_times = 20;
+            while (safe_max_try_times--) {
+                input = dialogs.rawInput(msg + "\n点击其他区域放弃输入");
+                if (input === null) {
+                    exit();
+                } else if (!input) {
+                    toast("输入内容无效");
+                    continue;
+                }
+                break;
+            }
+            if (safe_max_try_times < 0) ~toast("已达最大尝试次数") && exit();
+
+            return input;
+        }
+
+        function monitorRunningTime(msg) {
+            return threads.start(function () {
+                msg = msg || "运行中 请稍候...";
+                sleep(1200);
+                toast(msg);
+                let count = 0;
+                while (~sleep(1000) && ~count++) {
+                    if (count % 5) continue;
+                    toast(msg);
+                }
+            });
+        }
+    };
+} // updated at Nov 14, 2019
+
+function loadInternalModuleStorage() {
+    return (function () {
+        let storages = {};
+
+        storages.create = function (name) {
+            return new Storage(name);
+        };
+
+        storages.remove = function (name) {
+            this.create(name).clear();
+        };
+
+        return storages;
+
+        // constructor //
+
+        function Storage(name) {
+            let storage_dir = files.getSdcardPath() + "/.local/";
+            let file = createFile(storage_dir);
+            let opened = files.open(file);
+            let readFile = () => files.read(file);
+
+            this.contains = contains;
+            this.get = get;
+            this.put = put;
+            this.remove = remove;
+            this.clear = clear;
+
+            function createFile(dir) {
+                let file = dir + name + ".nfe";
+                files.createWithDirs(file);
+                return file;
+            }
+
+            function contains(key) {
+                let read = readFile();
+                if (!read) return false;
+                return key in JSON.parse(read);
+            }
+
+            function put(key, value) {
+                if (typeof value === "undefined") throw new TypeError("\"put\" value can't be undefined");
+                let read = readFile();
+                let obj = read && JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
+                let new_obj = {};
+                new_obj[key] = value;
+                Object.assign(obj, new_obj);
+                files.write(file, JSON.stringify(obj, (key, value) => value === Infinity ? "Infinity" : value));
+                opened.close();
+            }
+
+            function get(key, value) {
+                let read = readFile();
+                if (!read) return value;
+                try {
+                    let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
+                    return key in obj ? obj[key] : value;
+                } catch (e) {
+                    console.warn(e.message);
+                    return value;
+                }
+            }
+
+            function remove(key) {
+                let read = readFile();
+                if (!read) return;
+                let obj = JSON.parse(read);
+                if (!(key in obj)) return;
+                delete obj[key];
+                files.write(file, JSON.stringify(obj));
+                opened.close();
+            }
+
+            function clear() {
+                files.remove(file);
+            }
+        }
+    })();
+} // updated at Nov 14, 2019

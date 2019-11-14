@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 7, 2019
- * @version 1.9.4
+ * @last_modified Nov 14, 2019
+ * @version 1.9.5
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -10,6 +10,17 @@
 
 // window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
 __global__ = typeof __global__ === "undefined" ? this : __global__;
+
+checkModulesMap([
+    "__dialogs__pro_v6",
+    "__timers__pro_v37",
+    "__app__pro_v41",
+    "MODULE_MONSTER_FUNC",
+    "MODULE_PWMAP",
+    "MODULE_STORAGE",
+    "MODULE_DEFAULT_CONFIG",
+    "MODULE_UNLOCK",
+]);
 
 // given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
 // in another way, dialogs.builds() could make things easier sometimes
@@ -93,7 +104,9 @@ function antForest() {
 
     let {max_retry_times_global} = config;
     let max_retry_times_global_backup = max_retry_times_global;
+
     while (1) {
+        if (!max_retry_times_global) return main.forEach(exec); // throw Error to main thread for an easy location
         try {
             return main.forEach(exec);
         } catch (e) {
@@ -115,12 +128,65 @@ function antForest() {
         ui.post(() => {
             showSplitLine();
             throw (e);
-        }); // throw Error to main thread for an easy location and ignore max_retry_times_global param as needed
+        });
         sleep(2000); // to prevent continuous running of the remaining code
     }
 }
 
 // main function(s) //
+
+function checkModulesMap(modules_map) {
+    let wanted = [];
+    for (let i = 0, len = modules_map.length; i < len; i += 1) {
+        let module = modules_map[i];
+        let path = "./Modules/" + module + ".js";
+        let file_exists = files.exists(path.replace(/(\.js){2,}/, ".js"));
+        if (!file_exists) wanted.push(module);
+    }
+    let wanted_len = wanted.length;
+    if (wanted_len) {
+        showSplitLineRaw();
+        messageActionRaw("脚本无法继续", 4);
+        messageActionRaw("以下模块缺失或路径错误\n", 4);
+        for (let i = 0; i < wanted_len; i += 1) {
+            messageActionRaw("-> \"./Modules/" + wanted[i] + ".js\"" + (i === wanted_len - 1 ? "\n" : ""), 4);
+        }
+        messageActionRaw("请检查或重新放置模块", 4);
+        showSplitLineRaw();
+        exit();
+    }
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function showSplitLineRaw(extra_str, style) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return ~console.log(_split_line + _extra_str);
+    }
+}
 
 function prologue() {
     let init_operation_logged = null;
@@ -180,6 +246,10 @@ function prologue() {
                 }
             }
             messageAction("截取当前屏幕失败", 9, 1, 0, 1);
+        };
+        images.regenerate = function (img) {
+            images.reclaim(img);
+            return images.captureCurrentScreen();
         };
 
         let main_account_info = config.main_account_info || {};
@@ -313,6 +383,8 @@ function prologue() {
         current_app.rank_list_icon_help = storage_af.get("af_rank_list_icon_help");
         current_app.rank_list_bottom_template_path = config.rank_list_bottom_template_path;
         current_app.rank_list_bottom_template = images.read(current_app.rank_list_bottom_template_path);
+        current_app.rank_list_capt_img = null;
+        current_app.rank_list_capt_diff_check_pool = [];
         current_app.current_file_path = files.path("./Ant_Forest_Launcher.js");
         current_app.total_energy_collect_own = 0;
         current_app.total_energy_collect_friends = 0;
@@ -1143,6 +1215,7 @@ function checkEnergy() {
                             raw_balls.forEach((node, idx) => {
                                 stitched = idx ? images.concat(stitched, nodeToImage(node), "BOTTOM") : stitched;
                             });
+                            images.reclaim(initial_af_home_capt);
                             return stitched;
                         })();
                         let raw_countdown_data = baiduOcr([raw_balls, stitched_initial_af_home_balls_img], {
@@ -1411,9 +1484,8 @@ function checkEnergy() {
             // tool function(s) //
 
             function getRankListRefMaterials() {
-                current_app.rank_list_capt_img = images.captureCurrentScreen();
+                current_app.rank_list_capt_img = images.regenerate(current_app.rank_list_capt_img);
                 debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
-                sleep(100);
 
                 let key_node = null;
                 waitForAction(() => key_node = current_app.kw_rank_list_title(), 2500, 80); // just in case
@@ -1480,9 +1552,8 @@ function checkEnergy() {
 
             function getTargetsByLayout() {
                 let [targets_green, targets_orange] = [[], []];
-                let screenAreaSamples = getScreenSamples() || [];
 
-                screenAreaSamples.forEach(w => {
+                getScreenSamples().forEach(w => {
                     let parent_node = sel.pickup([w, "p1"]);
                     if (!parent_node) return debugInfo("采集到无效的排行榜样本");
 
@@ -1535,25 +1606,41 @@ function checkEnergy() {
                     let regexp_energy_amount = /\d+(\.\d+)?(k?g|t)/;
                     let max_try_times = 10;
                     while (max_try_times--) {
-                        let screen_samples = sel.pickup([boundsInside(cX(0.7), 0, WIDTH, USABLE_HEIGHT - 1), {
-                            visibleToUser: true,
-                            filter: function (w) {
-                                let {bottom, top} = w.bounds();
-                                return !!(bottom - top > 2 && sel.pickup(w, "", "txt").match(regexp_energy_amount));
+                        // let screen_samples = sel.pickup(regexp_energy_amount, "", "nodes", {selector_prefer: "text"});
+                        // sel.pickup() may cost more time than the traditional way
+                        let nodes_text = textMatches(regexp_energy_amount).find();
+                        let nodes_desc = descMatches(regexp_energy_amount).find();
+                        let screen_samples = nodes_text.length >= nodes_desc.length ? nodes_text : nodes_desc;
+
+                        let filtered_samples = [];
+                        let meet_min_threshold = (a, b) => Math.abs(a - b) < 5;
+
+                        for (let i = 1, len = screen_samples.length; i < len; i += 1) {
+                            let cur_node = screen_samples[i];
+                            let pre_node = screen_samples[i - 1];
+                            let cur_bounds = cur_node.bounds();
+                            let pre_bounds = pre_node.bounds();
+
+                            if (!meet_min_threshold(cur_bounds.bottom, pre_bounds.bottom)
+                                && !meet_min_threshold(cur_bounds.top, pre_bounds.top)
+                                && cur_node.parent().bounds().height() > 10) {
+                                if (i === 1) filtered_samples.push(pre_node);
+                                filtered_samples.push(cur_node);
                             }
-                        }], "", "nodes");
-                        let screen_samples_len = screen_samples.length;
-                        debugInfo("获取当前屏幕好友样本数量: " + screen_samples_len);
-                        if (screen_samples_len) return screen_samples;
-                        sleep(100);
+                        }
+
+                        let filtered_screen_samples_len = filtered_samples.length;
+                        debugInfo("获取当前屏幕好友样本数量: " + filtered_screen_samples_len);
+                        if (filtered_screen_samples_len) return filtered_samples;
                     }
-                    return debugInfo("刷新样本区域失败", 3);
+                    debugInfo("刷新样本区域失败", 3);
+                    return [];
                 }
 
                 function getFindColorOptions(parent_node) {
                     let region_ref = {
                         l: cX(0.7),
-                        t: parent_node.bounds().top,
+                        t: parent_node.bounds().top - 3,
                     };
                     let region = [region_ref.l, region_ref.t, WIDTH - region_ref.l - 3, parent_node.bounds().centerY() - region_ref.t];
                     debugInfo("排行榜图标取色区域:");
@@ -1707,16 +1794,16 @@ function checkEnergy() {
 
                 // tool function(s) //
 
-                function captureCurrentScreen() {
+                function reCaptureCurrentScreen() {
                     screen_capture = images.captureCurrentScreen();
                     debugInfo("存储屏幕截图: " + images.getName(screen_capture));
-                    return screen_capture;
                 }
 
                 function fillInBlacklistIdents() {
                     let max_add_times = 4;
                     while (max_add_times--) {
-                        blacklist_ident_captures.add(captureCurrentScreen());
+                        reCaptureCurrentScreen();
+                        blacklist_ident_captures.add(screen_capture);
                         if (blacklist_ident_captures.length >= 3) return current_app.blacklist_idents_ready = true;
                         sleep(120);
                     }
@@ -1724,7 +1811,7 @@ function checkEnergy() {
 
                 function collectAndAnalyseHelpBalls() {
                     while (1) {
-                        screen_capture = captureCurrentScreen();
+                        reCaptureCurrentScreen();
 
                         let checkHelpBallsInBlacklistCapts = (node) => {
                             if (!blacklist_capts_checked_flag) {
@@ -1991,11 +2078,9 @@ function checkEnergy() {
                 function captNewBlackListIdent() {
                     let screen_capture_new = images.captureCurrentScreen();
                     debugInfo("生成屏幕截图: " + images.getName(screen_capture_new));
-                    sleep(100);
                     blacklist_ident_captures.add(screen_capture_new);
-                    screen_capture_new.recycle();
                     debugInfo("已回收屏幕截图: " + images.getName(screen_capture_new));
-                    screen_capture_new = null;
+                    images.reclaim(screen_capture_new);
                 }
             }
 
@@ -2268,29 +2353,36 @@ function checkEnergy() {
 
             if (strategy === "image") sleep(config.rank_list_swipe_interval);
             else if (strategy === "layout") {
-                debugInfo("等待排行榜列表稳定");
-                timeRecorder("rank_list_swipe_beginning", "save");
-                let bottom_data = undefined;
-                let tmp_bottom_data = getRankListSelfBottom();
-                debugInfo("参照值: " + tmp_bottom_data);
-                let invalid_rank_list_ref_data = 0;
-                while (bottom_data !== tmp_bottom_data) {
-                    bottom_data = tmp_bottom_data;
-                    sleep(50);
-                    tmp_bottom_data = getRankListSelfBottom();
-                    if (isNaN(tmp_bottom_data)) {
-                        debugInfo("参照值: NaN");
-                        invalid_rank_list_ref_data++;
-                        if (invalid_rank_list_ref_data > 10) {
-                            messageAction("脚本无法继续", 4, 0, 0, "up");
-                            messageAction("排行榜列表参照值异常", 9, 1, 1, 1);
-                        }
-                    } else debugInfo("参照值: " + tmp_bottom_data);
+                let thread_rank_list_swiping = threads.start(function () {
+                    debugInfo("等待排行榜列表稳定");
+                    timeRecorder("rank_list_swipe_beginning", "save");
+                    let bottom_data = undefined;
+                    let tmp_bottom_data = getRankListSelfBottom();
+                    debugInfo("参照值: " + tmp_bottom_data);
+                    let invalid_rank_list_ref_data = 0;
+                    while (bottom_data !== tmp_bottom_data) {
+                        bottom_data = tmp_bottom_data;
+                        sleep(50);
+                        tmp_bottom_data = getRankListSelfBottom();
+                        if (isNaN(tmp_bottom_data)) {
+                            debugInfo("参照值: NaN");
+                            invalid_rank_list_ref_data++;
+                            if (invalid_rank_list_ref_data > 10) {
+                                messageAction("脚本无法继续", 4, 0, 0, "up");
+                                messageAction("排行榜列表参照值异常", 9, 1, 1, 1);
+                            }
+                        } else debugInfo("参照值: " + tmp_bottom_data);
+                    }
+                    debugInfo("排行榜列表已稳定: " + timeRecorder("rank_list_swipe_beginning", "load", null, null, "ms"));
+                });
+                thread_rank_list_swiping.join(config.rank_list_swipe_interval);
+                if (thread_rank_list_swiping.isAlive()) {
+                    thread_rank_list_swiping.interrupt();
+                    debugInfo(["强制停止列表稳定等待线程", "交予排行榜样本池差异检测线程"]);
                 }
-                debugInfo("排行榜列表已稳定: " + timeRecorder("rank_list_swipe_beginning", "load", null, null, "ms"));
             }
 
-            current_app.rank_list_capt_img = images.captureCurrentScreen();
+            current_app.rank_list_capt_img = images.regenerate(current_app.rank_list_capt_img);
             debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
 
             if (!checkRankListCaptDifference()) {
@@ -2364,19 +2456,26 @@ function checkEnergy() {
                 debugInfo("上滑屏幕: " + calcSwipeDistance() + "px");
 
                 let calc_swipe_distance = calcSwipeDistance();
-                if (calc_swipe_distance >= 0.4 * HEIGHT && calc_swipe_distance <= 0.9 * HEIGHT && swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) return;
+                let swipeAndClickOutside = () => {
+                    if (swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) {
+                        // just to prevent screen from turning off;
+                        // maybe this is not a good idea
+                        click(Math.pow(10, 7), Math.pow(10, 7)); // not press()
+                        return true;
+                    }
+                };
+                if (calc_swipe_distance >= 0.4 * HEIGHT
+                    && calc_swipe_distance <= 0.9 * HEIGHT
+                    && swipeAndClickOutside()) {
+                    return true;
+                }
                 debugInfo("滑动参数或功能异常");
                 debugInfo("滑动距离参数: " + calc_swipe_distance);
                 debugInfo("滑动时长参数: " + swipe_time);
                 [swipe_bottom, swipe_top, swipe_time] = [cY(0.75), cY(0.25), 500]; // safe values
                 debugInfo("尝试使用安全值:");
                 debugInfo("[" + swipe_bottom + ", " + swipe_top + ", " + swipe_time + "]");
-                if (swipe(half_width, swipe_bottom, half_width, swipe_top, swipe_time)) {
-                    // just to prevent screen from turning off;
-                    // maybe this is not a good idea
-                    click(Math.pow(10, 7), Math.pow(10, 7)); // not press()
-                    return sleep(100);
-                }
+                swipeAndClickOutside();
                 debugInfo(calcSwipeDistance() > 0 ? "swipe()方法异常" : "滑动距离数据无效");
                 debugInfo(">替代使用scrollDown()方法");
                 strategy === "image" && debugInfo(">列表滑动效率可能受到影响");
@@ -2398,30 +2497,32 @@ function checkEnergy() {
             }
 
             function checkRankListCaptDifference() {
-                let img = current_app.rank_list_capt_img;
                 let pool = current_app.rank_list_capt_diff_check_pool;
-                if (!pool) pool = current_app.rank_list_capt_diff_check_pool = [];
                 let pool_len = pool.length;
-                if (!pool_len) {
-                    // debugInfo("添加截图到排行榜截图样本池");
-                    return pool[0] = img;
+
+                for (let i = 0; i < pool_len; i += 1) {
+                    if (images.isRecycled(pool[i])) pool.splice(i, 1);
                 }
-                if (pool_len > 1) {
+
+                if (!pool_len) {
+                    // debugInfo("添加当前截图到排行榜截图样本池");
+                    current_app.rank_list_capt_diff_check_pool.push(images.copy(current_app.rank_list_capt_img));
+                    return true;
+                }
+
+                while (pool_len > 1) {
                     let img_to_recycle = pool.shift();
-                    pool_len -= 1;
+                    pool_len = pool.length;
                     debugInfo("回收排行榜截图: " + images.getName(img_to_recycle));
                     images.reclaim(img_to_recycle);
                 }
 
                 let similar_captures = false;
-                let thread_find_image = threads.start(function () {
-                    similar_captures = !!images.findImage(img, pool[pool_len - 1]);
-                });
-                thread_find_image.join(150);
-                if (thread_find_image.isAlive()) {
-                    thread_find_image.interrupt();
-                    debugInfo(["放弃排行榜截图样本差异检测", ">单次检测超时"]);
-                    return true;
+
+                try {
+                    similar_captures = images.findImage(current_app.rank_list_capt_img, pool[pool_len - 1]);
+                } catch (e) {
+                    // debugInfo(["放弃排行榜截图样本差异检测", ">单次检测失败", ">" + e.message], 3);
                 }
 
                 let check_threshold = config.rank_list_capt_pool_diff_check_threshold;
@@ -2436,7 +2537,8 @@ function checkEnergy() {
                     // debugInfo("排行榜截图样本池差异检测通过");
                     current_app.rank_list_capt_pool_diff_check_counter = 0;
                 }
-                pool.push(img);
+
+                pool.push(images.copy(current_app.rank_list_capt_img));
                 return true;
             }
 
@@ -3936,7 +4038,7 @@ function checkModules() {
             storage_af_cfg.get("config", {})
         );
         __global__._monster_$_debug_info_flag = config.debug_info_switch && config.message_showing_switch;
-        unlock_module = new (require("./Modules/MODULE_UNLOCK"));
+        unlock_module = require("./Modules/MODULE_UNLOCK");
         __global__.is_init_screen_on = unlock_module.is_screen_on;
         debugInfo("接入\"af_cfg\"存储", "Up");
         debugInfo("整合代码配置与本地配置");

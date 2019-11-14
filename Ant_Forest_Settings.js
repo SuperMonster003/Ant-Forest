@@ -1,6 +1,16 @@
 "ui";
 auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
 
+checkModulesMap([
+    "__dialogs__pro_v6",
+    "__timers__pro_v37",
+    "MODULE_DEFAULT_CONFIG",
+    "MODULE_MONSTER_FUNC",
+    "MODULE_PWMAP",
+    "MODULE_STORAGE",
+    "MODULE_TREASURY_VAULT",
+]);
+
 // set up the device screen in a portrait orientation
 activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
@@ -4494,6 +4504,59 @@ function Layout(title, params) {
 }
 
 // tool function(s) //
+
+function checkModulesMap(modules_map) {
+    let wanted = [];
+    for (let i = 0, len = modules_map.length; i < len; i += 1) {
+        let module = modules_map[i];
+        let path = "./Modules/" + module + ".js";
+        let file_exists = files.exists(path.replace(/(\.js){2,}/, ".js"));
+        if (!file_exists) wanted.push(module);
+    }
+    let wanted_len = wanted.length;
+    if (wanted_len) {
+        showSplitLineRaw();
+        messageActionRaw("脚本无法继续", 4);
+        messageActionRaw("以下模块缺失或路径错误\n", 4);
+        for (let i = 0; i < wanted_len; i += 1) {
+            messageActionRaw("-> \"./Modules/" + wanted[i] + ".js\"" + (i === wanted_len - 1 ? "\n" : ""), 4);
+        }
+        messageActionRaw("请检查或重新放置模块", 4);
+        showSplitLineRaw();
+        exit();
+    }
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function showSplitLineRaw(extra_str, style) {
+        let _extra_str = extra_str || "";
+        let _split_line = "";
+        if (style === "dash") {
+            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            _split_line += "-";
+        } else {
+            for (let i = 0; i < 32; i += 1) _split_line += "-";
+        }
+        return ~console.log(_split_line + _extra_str);
+    }
+}
 
 function getDefaultConfigParams() {
     let DEFAULT_CONFIG = require("./Modules/MODULE_DEFAULT_CONFIG");
