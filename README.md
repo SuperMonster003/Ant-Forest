@@ -11,9 +11,13 @@
 [点击可直接下载最新项目包](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip)  
 或点击页面右侧绿色 `Clone or download` 按钮  
 手机浏览器需在项目主页拉到底部点击 `Desktop version`  
-2. 将项目中的全部文件放置于手机存储  
-中文系统默认目录 `/sdcard/脚本/`  
-英文系统默认目录 `/sdcard/Scripts/`  
+2. 将项目中的全部文件放置于移动设备存储  
+定位到设备的内部存储目录 如:  
+`/sdcard/` `/Internal Storage/` `/内部存储/` `/storage/emulated/0/` 等  
+在此目录下找到 `Auto.js` 默认工作目录  
+中文系统默认目录 `./脚本/`  
+英文系统默认目录 `./Scripts/`  
+若不存在则需手动建立 或在 `Auto.js` 软件中设置一个工作目录  
 3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
 运行 `Ant_Forest_Launcher.js` 文件可启动项目  
 运行 `Ant_Forest_Settings.js` 文件可进行项目配置  
@@ -94,6 +98,18 @@
 ******
 ### 版本历史
 ******
+# v1.9.5
+###### 2019/11/14
+* `新增` 项目启动前的模块文件检查并提供缺失的模块提示  
+* `新增` 独立的解锁参数配置工具 (./Tools/Unlock_Config_Tool.js)  
+* `修复` UiObject对象可能出现的bounds属性丢失问题 _[`issue #117`](https://github.com/SuperMonster003/Auto.js_Projects/issues/117#issuecomment-552169450)_
+* `修复` 主线程出现致命错误时未能在日志中显示详细的代码定位信息问题  
+* `修复` 解锁模块出现屏幕外部的干扰按钮控件时可能导致脚本无法继续的问题 _[`issue #122`](https://github.com/SuperMonster003/Auto.js_Projects/issues/122)_  
+* `修复` OpenCV内存泄露导致Auto.js崩溃或项目无法运行的问题 (试修) _[`issue #81`](https://github.com/SuperMonster003/Auto.js_Projects/issues/81)_ _[`#118`](https://github.com/SuperMonster003/Auto.js_Projects/issues/118)_ _[`#123`](https://github.com/SuperMonster003/Auto.js_Projects/issues/123)_  
+* `修复` 布局分析策略循环进入同一个好友森林的问题 (试修) _[`issue #72`](https://github.com/SuperMonster003/Auto.js_Projects/issues/72)_ _[`#97`](https://github.com/SuperMonster003/Auto.js_Projects/issues/97)_ _[`#100`](https://github.com/SuperMonster003/Auto.js_Projects/issues/100)_  
+* `修复` 布局分析策略中途无法继续滑动的问题 (试修) _[`issue #74`](https://github.com/SuperMonster003/Auto.js_Projects/issues/74)_ _[`#107`](https://github.com/SuperMonster003/Auto.js_Projects/issues/107)_ _[`#109`](https://github.com/SuperMonster003/Auto.js_Projects/issues/109)_  
+* `优化` 独立解锁模块 (./Modules/MODULE_UNLOCK.js) _[`issue #3`](https://github.com/SuperMonster003/Auto.js_Projects/issues/3)_ _[`#28`](https://github.com/SuperMonster003/Auto.js_Projects/issues/28)_  
+
 # v1.9.4
 ###### 2019/11/07
 * `修复` 蚂蚁森林主页活动入口按钮误判为能量球的问题 _[`issue #117`](https://github.com/SuperMonster003/Auto.js_Projects/issues/117)_  
