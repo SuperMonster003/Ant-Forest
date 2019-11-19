@@ -51,19 +51,35 @@ __global__ = typeof __global__ === "undefined" ? this : __global__;
 /**
  * Returns both app name and app package name with either one input
  * @param name {string} - app name or app package name
+ * @param [params] {object}
+ * @param [params.hard_refresh=false] {boolean} - get app information from global cache by default
  * @example
  * parseAppName("Alipay"); <br>
  * parseAppName("com.eg.android.AlipayGphone");
  * @return {{app_name: string, package_name: string}}
  */
-function parseAppName(name) {
-    let _app_name = !name.match(/.+\..+\./) && app.getPackageName(name) && name;
-    let _package_name = app.getAppName(name) && name;
+function parseAppName(name, params) {
+    if (!name) return {app_name: "", package_name: ""};
+
+    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+
+    __global__._monster_$_app_name_cache = __global__._monster_$_app_name_cache || {};
+    __global__._monster_$_app_package_name_cache = __global__._monster_$_app_package_name_cache || {};
+
+    params = params || {};
+    let hard_refresh = params.hard_refresh || false;
+
+    let checkCache = (cacheObj) => !hard_refresh && name in cacheObj ? cacheObj[name] : null;
+
+    let _app_name = checkCache(__global__._monster_$_app_name_cache) || !name.match(/.+\..+\./) && app.getPackageName(name) && name;
+    let _package_name = checkCache(__global__._monster_$_app_package_name_cache) || app.getAppName(name) && name;
+
     _app_name = _app_name || _package_name && app.getAppName(_package_name);
     _package_name = _package_name || _app_name && app.getPackageName(_app_name);
+
     return {
-        app_name: _app_name,
-        package_name: _package_name,
+        app_name: __global__._monster_$_app_name_cache[_package_name] = _app_name,
+        package_name: __global__._monster_$_app_package_name_cache[_app_name] = _package_name,
     };
 }
 
@@ -1517,6 +1533,17 @@ function tryRequestScreenCapture(params) {
         }
         if (_params.restart_this_engine_flag) {
             _debugInfo("截图权限申请结果: 失败", 3);
+            try {
+                if (android.os.Build.MANUFACTURER.toLowerCase().match(/xiaomi/)) {
+                    _debugInfo("__split_line__dash_");
+                    _debugInfo("检测到当前设备制造商为小米", 3);
+                    _debugInfo("可能需要给Auto.js以下权限:", 3);
+                    _debugInfo(">\"后台弹出界面\"", 3);
+                    _debugInfo("__split_line__dash_");
+                }
+            } catch (e) {
+                // nothing to do here
+            }
             if (_restartThisEngine(_params.restart_this_engine_params)) return;
         }
         _messageAction("截图权限申请失败", 9, 1, 0, 1);
@@ -2008,7 +2035,7 @@ function debugInfo(msg, info_flag, forcible_flag) {
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-    if (msg === "__split_line__") showDebugSplitLine();
+    if (typeof msg === "string" && msg.match(/^__split_line_/)) showDebugSplitLine();
 
     let info_flag_str = (info_flag || "").toString();
     let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
@@ -2884,10 +2911,11 @@ function surroundWith(target, mark_left, mark_right) {
  * @returns {number} - 0: IDLE; 1: RINGING; 2: OFF-HOOK // some device may behave abnormally - 2: IDLE; 1: OFF-HOOK
  */
 function phoneCallingState() {
-    let phone_service = com.android.internal.telephony.ITelephony.Stub.asInterface(
+    let phone_service_server_mgr = com.android.internal.telephony.ITelephony.Stub.asInterface(
         android.os.ServiceManager.checkService("phone")
     );
-    return +phone_service.getCallState();
+    let phone_service_context = context.getSystemService(context.TELEPHONY_SERVICE);
+    return +phone_service_server_mgr.getCallState() | +phone_service_context.getCallState();
 }
 
 /**
@@ -3469,12 +3497,7 @@ function checkSdkAndAJVer(params) {
 
     checkSdk();
 
-    let threads_functional_flag = typeof threads !== "undefined";
-
-    if (threads_functional_flag) {
-        let thread_check_bug_vers = threads.start(checkBugVersions);
-        thread_check_bug_vers.join();
-    } else checkBugVersions();
+    checkBugVersions();
 
     // tool function(s) //
 
@@ -3521,7 +3544,8 @@ function checkSdkAndAJVer(params) {
     }
 
     function checkSdk() {
-        let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
+        // let current_sdk_ver = +shell("getprop ro.build.version.sdk").result;
+        let current_sdk_ver = android.os.Build.VERSION.SDK_INT;
         _debugInfo("安卓系统SDK版本: " + current_sdk_ver);
         if (current_sdk_ver >= 24) return true;
         _messageAction("脚本无法继续", 4, 0, 0, "up");
@@ -3565,7 +3589,8 @@ function checkSdkAndAJVer(params) {
         if (bugs_check_result === "") return _debugInfo("Bug版本检查: 未知");
         bugs_check_result = bugs_check_result.map(bug_code => "\n-> " + (bug_code_map[bug_code] || "\/*无效的Bug描述*\/"));
         _debugInfo("Bug版本检查: 确诊");
-        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n当前版本:\n-> " + (current_autojs_version || "/* 版本检测失败 */") +
+        let bug_content = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n" +
+            "当前版本:\n-> " + (current_autojs_version || "/* 版本检测失败 */") +
             "\n\n异常详情:" + bugs_check_result.join();
 
         try {
@@ -3603,6 +3628,7 @@ function checkSdkAndAJVer(params) {
             });
             diag_bug.show();
         } catch (e) {
+            let threads_functional_flag = typeof threads !== "undefined";
             if (threads_functional_flag) {
                 threads.start(function () {
                     events.removeAllKeyDownListeners("volume_up");
@@ -3620,16 +3646,11 @@ function checkSdkAndAJVer(params) {
             }
             _debugInfo(["dialogs模块功能异常", "使用alert()方法替代"], 3);
             if (threads_functional_flag) {
-                alert(bug_content + "\n\n" +
-                    "按'确定/OK'键尝试继续执行\n" +
-                    "按'音量减/VOL-'键停止执行"
-                );
+                alert(bug_content + "\n\n按'确定/OK'键尝试继续执行\n按'音量减/VOL-'键停止执行");
                 events.removeAllKeyDownListeners("volume_up");
                 events.removeAllKeyDownListeners("volume_down");
             } else {
-                alert(bug_content + "\n\n" +
-                    "按'确定/OK'键停止执行"
-                );
+                alert(bug_content + "\n\n按'确定/OK'键停止执行");
                 exit();
             }
         }

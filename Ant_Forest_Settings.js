@@ -40,7 +40,6 @@ let {
     debugInfo,
     alertTitle,
     alertContent,
-    clickAction,
     waitForAction,
     waitForAndClickAction,
     phoneCallingState,
@@ -129,6 +128,19 @@ let list_heads = {
                 backward: restoreFromTimestamp,
             }
         },
+    ],
+    foreground_app_blacklist: [
+        {app_combined_name: "应用名称 (含包名)", width: 0.85, sort: 1},
+        {
+            available: "有效", gravity: "center", stringTransform: {
+                forward: function () {
+                    let {app_combined_name} = this;
+                    let pkg_name = app_combined_name.split("\n")[1];
+                    return app.getAppName(pkg_name) ? "\u2713" : "\u2717";
+                },
+                backward: "__keep__",
+            }
+        }
     ],
     timers_uninterrupted_check_sections: [
         {
@@ -3092,7 +3104,7 @@ addPage(() => {
                                             },
                                         });
                                         threads.starts(function () {
-                                            if (waitForAction(text("打开"), 3500)) clickAction(text("打开"), "widget");
+                                            waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "widget"});
                                         });
                                         threads.starts(function () {
                                             waitForAction(() => currentPackage().match(/AlipayGphone/), 8000);
@@ -3229,7 +3241,7 @@ addPage(() => {
 }); // account_log_back_in_page
 addPage(() => {
     setPage(["黑名单管理", "blacklist_page"])
-        .add("sub_head", new Layout("名单簿", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("sub_head", new Layout("蚂蚁森林名单簿", {sub_head_color: defs.sub_head_highlight_color}))
         .add("options", new Layout("能量罩黑名单", {
             hint: "加载中...",
             next_page: "cover_blacklist_page",
@@ -3244,6 +3256,30 @@ addPage(() => {
             updateOpr: function (view) {
                 let amount = session_config.blacklist_by_user.length;
                 view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
+            },
+        }))
+        .add("sub_head", new Layout("应用程序名单簿", {sub_head_color: defs.sub_head_highlight_color}))
+        .add("options", new Layout("前置应用黑名单", {
+            hint: "加载中...",
+            next_page: "foreground_app_blacklist_page",
+            updateOpr: function (view) {
+                let hint_text = "空名单";
+                let {foreground_app_blacklist} = session_config;
+                foreground_app_blacklist = foreground_app_blacklist || [];
+                let amount = session_config.foreground_app_blacklist.length;
+                if (amount) {
+                    hint_text = "包含应用:  " + amount + " 项";
+                    let invalid_items_count = 0;
+                    foreground_app_blacklist.forEach((o) => {
+                        let {app_combined_name} = o;
+                        if (app_combined_name) {
+                            let pkg_name = app_combined_name.split("\n")[1];
+                            if (!app.getAppName(pkg_name)) invalid_items_count += 1;
+                        }
+                    });
+                    hint_text += invalid_items_count ? "  ( 含有 " + invalid_items_count + " 个无效项 )" : "";
+                }
+                view._hint.text(hint_text);
             },
         }))
         .ready();
@@ -3266,7 +3302,7 @@ addPage(() => {
         .ready();
 }); // cover_blacklist_page
 addPage(() => {
-    setPage(["自定义黑名单", "self_def_blacklist_page"], def, parent_view => setBlacklistPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
+    setPage(["自定义黑名单", "self_def_blacklist_page"], def, parent_view => setListPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*自定义黑名单成员*/", {
             list_head: list_heads.blacklist_by_user,
             data_source_key_name: "blacklist_by_user",
@@ -3380,7 +3416,7 @@ addPage(() => {
                             session_params[deleted_items_idx][idx] = aim_checked;
                             aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
                             session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
-                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[this.data_source_key_name].length);
+                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[data_source_key_name].length);
                         });
                     },
                 },
@@ -3405,7 +3441,7 @@ addPage(() => {
                             session_params[deleted_items_idx][i] = aim_checked;
                         }
 
-                        let remove_btn = session_params[this.data_source_key_name + "_btn_remove"];
+                        let remove_btn = session_params[data_source_key_name + "_btn_remove"];
                         aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
                     },
                 },
@@ -3425,6 +3461,77 @@ addPage(() => {
         }))
         .ready();
 }); // self_def_blacklist_page
+addPage(() => {
+    setPage(["前置应用黑名单", "foreground_app_blacklist_page"], def, parent_view => setListPageButtons(parent_view, "foreground_app_blacklist"), {no_margin_bottom: true, no_scroll_view: true})
+        .add("list", new Layout("/*前置应用黑名单项目*/", {
+            list_head: list_heads.foreground_app_blacklist,
+            data_source_key_name: "foreground_app_blacklist",
+            list_checkbox: "visible",
+            listeners: {
+                "_list_data": {
+                    "item_click": function (item, idx, item_view, list_view) {
+                        item_view._checkbox.click();
+                    },
+                    "item_bind": function (item_view, item_holder) {
+                        item_view._checkbox.on("click", checkbox_view => {
+                            let {data_source_key_name} = this;
+                            let remove_btn_view = session_params[data_source_key_name + "_btn_remove"];
+                            let item = item_holder.item;
+                            let aim_checked = !item.checked;
+                            item.checked = aim_checked;
+                            let idx = item_holder.position;
+                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                            session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                            session_params[deleted_items_idx_count] = session_params[deleted_items_idx_count] || 0;
+                            session_params[deleted_items_idx][idx] = aim_checked;
+                            aim_checked ? session_params[deleted_items_idx_count]++ : session_params[deleted_items_idx_count]--;
+                            session_params[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
+                            this.view._check_all.setChecked(session_params[deleted_items_idx_count] === session_config[data_source_key_name].length);
+                        });
+                    },
+                },
+                "_check_all": {
+                    "click": function (view) {
+                        let {data_source_key_name} = this;
+                        let aim_checked = view.checked;
+                        let blacklist_len = session_params[data_source_key_name].length;
+                        if (!blacklist_len) return view.checked = !aim_checked;
+
+                        session_params[data_source_key_name].forEach((o, idx) => {
+                            let o_new = deepCloneObject(o);
+                            o_new.checked = aim_checked;
+                            updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                        });
+
+                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        session_params[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
+                        session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
+                        for (let i = 0; i < blacklist_len; i += 1) {
+                            session_params[deleted_items_idx][i] = aim_checked;
+                        }
+
+                        let remove_btn = session_params[data_source_key_name + "_btn_remove"];
+                        aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
+                    },
+                },
+            },
+        }))
+        .add("info", new Layout("/*dynamic_info*/", {
+            updateOpr: function (view) {
+                let amount = session_config.foreground_app_blacklist.length;
+                view._info_text.setText(amount ? "点击标题可排序" : "点击添加按钮可添加应用");
+            },
+        }))
+        .add("info", new Layout("\"有效\"标签表示应用是否存在于设备中", {
+            updateOpr: function (view) {
+                let amount = session_config.foreground_app_blacklist.length;
+                view.setVisibility(amount ? 0 : 8);
+            },
+        }))
+        .ready();
+}); // foreground_app_blacklist_page
 addPage(() => {
     setPage(["运行与安全", "script_security_page"])
         .add("sub_head", new Layout("基本设置"))
@@ -3929,8 +4036,9 @@ addPage(() => {
                         this.tool_box.deleteItem(null, idx);
                     },
                     "item_click": function (item, idx, item_view, list_view) {
+                        let {data_source_key_name, tool_box} = this;
                         let backup_details = [];
-                        let single_session_data = session_config[this.data_source_key_name][idx] || {};
+                        let single_session_data = session_config[data_source_key_name][idx] || {};
                         let map = {
                             version_name: "版本",
                             timestamp: "时间",
@@ -3966,7 +4074,7 @@ addPage(() => {
                             diag_confirm.show();
                         });
                         diag.on("negative", () => diag.dismiss());
-                        diag.on("neutral", () => this.tool_box.deleteItem(diag, idx));
+                        diag.on("neutral", () => tool_box.deleteItem(diag, idx));
                         diag.show();
                     },
                     "item_bind": function (item_view, item_holder) {
@@ -4053,224 +4161,443 @@ events.on("exit", () => {
 });
 listener.emit("sub_page_views_add");
 
+setTimeout(function () {
+    let interval_add_sub_page = setInterval(function () {
+        session_params.sub_page_view_idx < sub_page_views.length
+            ? listener.emit("sub_page_views_add")
+            : clearInterval(interval_add_sub_page);
+    }, 50);
+}, 3000);
+
 // layout function(s) //
 
-function setBlacklistPageButtons(parent_view, data_source_key_name) {
-    return setButtons(parent_view, data_source_key_name,
-        ["restore", "RESTORE", "OFF", (btn_view) => {
-            let blacklist_backup = storage_config[data_source_key_name];
-            if (equalObjects(session_config[data_source_key_name], blacklist_backup)) return;
-            let diag = dialogs.builds([
-                "恢复列表数据", "restore_original_list_data",
-                ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
-            ]);
-            diag.on("neutral", () => {
-                let diag_restore_list = dialogs.builds(["查看恢复列表", "", 0, 0, "返回", 1], {
-                    content: "共计 " + blacklist_backup.length + " 项",
-                    items: (function () {
-                        let split_line = "";
-                        for (let i = 0; i < 18; i += 1) split_line += "- ";
-                        let items = [split_line];
-                        blacklist_backup.forEach(o => items.push("好友昵称: " + o.name, "解除时间: " + getTimeStrFromTimestamp(o.timestamp, "time_str_remove"), split_line));
-                        return items.length > 1 ? items : ["列表为空"];
-                    })(),
-                });
-                diag_restore_list.on("positive", () => diag_restore_list.dismiss());
-                diag_restore_list.show();
-            });
-            diag.on("negative", () => diag.dismiss());
-            diag.on("positive", () => {
-                let list_page_view = findViewByTag(parent_view, "list_page_view");
-                diag.dismiss();
-                updateDataSource(data_source_key_name, "splice", 0);
+function setListPageButtons(parent_view, data_source_key_name) {
+    let scenarios = {
+        blacklist_by_user: sceBlacklistByUser,
+        foreground_app_blacklist: sceForeAppBlacklist,
+    };
+    return setButtons.apply(setButtons, [parent_view, data_source_key_name].concat(scenarios[data_source_key_name]()));
 
+    // scenario function(s) //
+
+    function sceBlacklistByUser() {
+        return [
+            ["restore", "RESTORE", "OFF", (btn_view) => {
+                let blacklist_backup = storage_config[data_source_key_name];
+                if (equalObjects(session_config[data_source_key_name], blacklist_backup)) return;
+                let diag = dialogs.builds([
+                    "恢复列表数据", "restore_original_list_data",
+                    ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
+                ]);
+                diag.on("neutral", () => {
+                    let diag_restore_list = dialogs.builds(["查看恢复列表", "", 0, 0, "返回", 1], {
+                        content: "共计 " + blacklist_backup.length + " 项",
+                        items: (function () {
+                            let split_line = "";
+                            for (let i = 0; i < 18; i += 1) split_line += "- ";
+                            let items = [split_line];
+                            blacklist_backup.forEach(o => items.push("好友昵称: " + o.name, "解除时间: " + getTimeStrFromTimestamp(o.timestamp, "time_str_remove"), split_line));
+                            return items.length > 1 ? items : ["列表为空"];
+                        })(),
+                    });
+                    diag_restore_list.on("positive", () => diag_restore_list.dismiss());
+                    diag_restore_list.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    let list_page_view = findViewByTag(parent_view, "list_page_view");
+                    diag.dismiss();
+                    updateDataSource(data_source_key_name, "splice", 0);
+
+                    let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                    let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                    session_params[deleted_items_idx] = {};
+                    session_params[deleted_items_idx_count] = 0;
+                    let remove_btn = parent_view._text_remove.getParent();
+                    remove_btn.switch_off();
+                    btn_view.switch_off();
+                    blacklist_backup.forEach(value => updateDataSource(data_source_key_name, "update", value));
+                    list_page_view._check_all.setChecked(true);
+                    list_page_view._check_all.setChecked(false);
+                });
+                diag.show();
+            }],
+            ["delete_forever", "REMOVE", "OFF", (btn_view) => {
                 let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
                 let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                if (!session_params[deleted_items_idx_count]) return;
+
+                let thread_items_stable = threads.starts(function () {
+                    let old_count = undefined;
+                    while (session_params[deleted_items_idx_count] !== old_count) {
+                        old_count = session_params[deleted_items_idx_count];
+                        sleep(50);
+                    }
+                });
+                thread_items_stable.join(800);
+
+                let deleted_items_idx_keys = Object.keys(session_params[deleted_items_idx]);
+                deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => session_params[deleted_items_idx][idx] && session_params[data_source_key_name].splice(idx, 1));
+                updateDataSource(data_source_key_name, "rewrite");
                 session_params[deleted_items_idx] = {};
                 session_params[deleted_items_idx_count] = 0;
-                let remove_btn = parent_view._text_remove.getParent();
-                remove_btn.switch_off();
-                btn_view.switch_off();
-                blacklist_backup.forEach(value => updateDataSource(data_source_key_name, "update", value));
+
+                let list_page_view = findViewByTag(parent_view, "list_page_view");
+                let restore_btn = parent_view._text_restore.getParent();
+                if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) restore_btn.switch_on();
+                else restore_btn.switch_off();
                 list_page_view._check_all.setChecked(true);
                 list_page_view._check_all.setChecked(false);
-            });
-            diag.show();
-        }],
-        ["delete_forever", "REMOVE", "OFF", (btn_view) => {
+                btn_view.switch_off();
+            }],
+            ["add_circle", "NEW", "ON", (btn_view) => {
+                let tmp_selected_friends = [];
+                let blacklist_selected_friends = [];
+                let list_page_view = findViewByTag(parent_view, "list_page_view");
 
-            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-            if (!session_params[deleted_items_idx_count]) return;
+                session_config[data_source_key_name].forEach(o => blacklist_selected_friends.push(o.name));
 
-            let thread_items_stable = threads.starts(function () {
-                let old_count = undefined;
-                while (session_params[deleted_items_idx_count] !== old_count) {
-                    old_count = session_params[deleted_items_idx_count];
-                    sleep(50);
-                }
-            });
-            thread_items_stable.join(800);
-
-            let deleted_items_idx_keys = Object.keys(session_params[deleted_items_idx]);
-            deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => session_params[deleted_items_idx][idx] && session_params[data_source_key_name].splice(idx, 1));
-            updateDataSource(data_source_key_name, "rewrite");
-            session_params[deleted_items_idx] = {};
-            session_params[deleted_items_idx_count] = 0;
-
-            let list_page_view = findViewByTag(parent_view, "list_page_view");
-            let restore_btn = parent_view._text_restore.getParent();
-            if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) restore_btn.switch_on();
-            else restore_btn.switch_off();
-            list_page_view._check_all.setChecked(true);
-            list_page_view._check_all.setChecked(false);
-            btn_view.switch_off();
-        }],
-        ["add_circle", "NEW", "ON", (btn_view) => {
-            let tmp_selected_friends = [];
-            let blacklist_selected_friends = [];
-            let list_page_view = findViewByTag(parent_view, "list_page_view");
-
-            session_config[data_source_key_name].forEach(o => blacklist_selected_friends.push(o.name));
-
-            let diag = dialogs.builds([
-                "添加新数据", "从好友列表中选择并添加好友\n或手动输入好友昵称",
-                ["从列表中选择", "hint_btn_bright_color"], ["手动添加", "hint_btn_bright_color"], "确认添加", 1,
-            ], {items: [" "]});
-            diag.on("neutral", () => {
-                let diag_add_from_list = dialogs.builds([
-                    "列表选择好友", "",
-                    ["刷新列表", "hint_btn_bright_color"], 0, "确认选择", 1,
-                ], {
-                    items: ["列表为空"],
-                    itemsSelectMode: "multi",
-                });
-                diag_add_from_list.on("neutral", () => {
-                    let neutral_btn_text = diag.getActionButton("neutral");
-                    diag_add_from_list.dismiss();
-                    diag.dismiss();
-                    engines.execScriptFile("./Ant_Forest_Launcher.js", {
-                        arguments: {
-                            special_exec_command: "collect_friends_list",
-                            instant_run_flag: true,
-                            no_insurance_flag: true,
-                        },
+                let diag = dialogs.builds([
+                    "添加新数据", "从好友列表中选择并添加好友\n或检索选择好友",
+                    ["从列表中选择", "hint_btn_bright_color"], ["检索选择", "hint_btn_bright_color"], "确认添加", 1,
+                ], {items: [" "]});
+                diag.on("neutral", () => {
+                    let diag_add_from_list = dialogs.builds([
+                        "列表选择好友", "",
+                        ["刷新列表", "hint_btn_bright_color"], 0, "确认选择", 1,
+                    ], {
+                        items: ["列表为空"],
+                        itemsSelectMode: "multi",
                     });
-                    threads.starts(function () {
-                        if (waitForAction(text("打开"), 3500)) clickAction(text("打开"), "widget");
-                    });
-                    ui.emitter.prependOnceListener("resume", () => {
-                        diag.show();
-                        threads.starts(function () {
-                            neutral_btn_text && waitForAndClickAction(text(neutral_btn_text), 4000, 100, {click_strategy: "widget"});
+                    diag_add_from_list.on("neutral", () => {
+                        refreshFriendsListByLaunchingAlipay({
+                            dialog_prompt: true,
+                            onTrigger: function () {
+                                diag_add_from_list.dismiss();
+                                diag.dismiss();
+                            },
+                            onResume: function () {
+                                diag.show();
+                                threads.starts(function () {
+                                    let neutral_btn_text = diag.getActionButton("neutral");
+                                    if (neutral_btn_text) {
+                                        waitForAndClickAction(text(neutral_btn_text), 4000, 100, {
+                                            click_strategy: "widget",
+                                        });
+                                    }
+                                });
+                            },
                         });
                     });
-                    setTimeout(function () {
-                        toast("即将打开\"支付宝\"刷新好友列表");
-                    }, 500);
-                });
-                diag_add_from_list.on("positive", () => {
-                    refreshDiag();
-                    diag_add_from_list.dismiss();
-                });
-                diag_add_from_list.on("multi_choice", (items, indices_damaged_, dialog) => {
-                    if (items.length === 1 && items[0] === "列表为空") return;
-                    if (items) items.forEach(name => tmp_selected_friends.push(name.split(". ")[1]));
-                });
-                diag_add_from_list.show();
+                    diag_add_from_list.on("positive", () => {
+                        refreshDiag();
+                        diag_add_from_list.dismiss();
+                    });
+                    diag_add_from_list.on("multi_choice", (items, indices_damaged_, dialog) => {
+                        if (items.length === 1 && items[0] === "列表为空") return;
+                        if (items) items.forEach(name => tmp_selected_friends.push(name.split(". ")[1]));
+                    });
+                    diag_add_from_list.show();
 
-                refreshAddFromListDiag();
+                    refreshAddFromListDiag();
+
+                    // tool function(s) //
+
+                    function refreshAddFromListDiag() {
+                        let items = [];
+                        let friends_list = storage_af.get("friends_list_data", {});
+                        if (friends_list.list_data) {
+                            friends_list.list_data.forEach(o => {
+                                let nickname = o.nickname;
+                                if (!~blacklist_selected_friends.indexOf(nickname) && !~tmp_selected_friends.indexOf(nickname)) {
+                                    items.push(o.rank_num + ". " + nickname);
+                                }
+                            });
+                        }
+                        let items_len = items.length;
+                        items = items_len ? items : ["列表为空"];
+                        diag_add_from_list.setItems(items);
+                        let friends_list_timestamp = friends_list.timestamp;
+                        if (friends_list_timestamp === Infinity) friends_list_timestamp = -1;
+                        session_params.last_friend_list_refresh_timestamp = friends_list_timestamp;
+                        diag_add_from_list.setContent(
+                            "上次刷新: " + getTimeStrFromTimestamp(friends_list_timestamp, "time_str") + "\n"
+                            + "当前可添加的好友总数: " + items_len
+                        );
+                    }
+                });
+                diag.on("negative", () => {
+                    diag.dismiss();
+                    setListItemsSearchAndSelectView((() => {
+                        let {list_data} = storage_af.get("friends_list_data", {list_data: []});
+                        return list_data.map(o => o.nickname);
+                    }), {
+                        empty_list_prompt: true,
+                        refresh_btn_listener: (data_source_updater, data_source_src) => {
+                            refreshFriendsListByLaunchingAlipay({
+                                dialog_prompt: true,
+                                onResume: function () {
+                                    data_source_updater(data_source_src());
+                                },
+                            });
+                        },
+                        list_item_listener: (item, closeListPage) => {
+                            let excluded_data_arrays = [blacklist_selected_friends, tmp_selected_friends];
+
+                            for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                                if (~excluded_data_arrays[i].indexOf(item)) {
+                                    return toast("此项已存在于黑名单列表或待添加列表中");
+                                }
+                            }
+                            closeListPage(item);
+                        },
+                        onFinish: (result) => {
+                            result && tmp_selected_friends.push(result);
+                            diag.show();
+                            refreshDiag();
+                        }
+                    });
+                });
+                diag.on("positive", () => {
+                    tmp_selected_friends.forEach(name => updateDataSource(data_source_key_name, "update_unshift", {
+                        name: name,
+                        timestamp: Infinity,
+                    }));
+                    if (tmp_selected_friends.length) setTimeout(function () {
+                        parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
+                    }, 200);
+                    let restore_btn = list_page_view.getParent()._text_restore.getParent();
+                    equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
+                    saveSession(data_source_key_name, session_config[data_source_key_name]);
+                    diag.dismiss();
+                });
+                diag.on("item_select", (idx, item, dialog) => {
+                    let diag_items = diag.getItems().toArray();
+                    if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
+                    let delete_confirm_diag = dialogs.builds(["确认移除此项吗", "", 0, "返回", "确认", 1]);
+                    delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
+                    delete_confirm_diag.on("positive", () => {
+                        tmp_selected_friends.splice(idx, 1);
+                        refreshDiag();
+                        delete_confirm_diag.dismiss();
+                    });
+                    delete_confirm_diag.show();
+                });
+                diag.show();
+
+                refreshDiag();
 
                 // tool function(s) //
 
-                function refreshAddFromListDiag() {
-                    let items = [];
-                    let friends_list = storage_af.get("friends_list_data", {});
-                    if (friends_list.list_data) {
-                        friends_list.list_data.forEach(o => {
-                            let nickname = o.nickname;
-                            if (!~blacklist_selected_friends.indexOf(nickname) && !~tmp_selected_friends.indexOf(nickname)) {
-                                items.push(o.rank_num + ". " + nickname);
-                            }
+                function refreshDiag() {
+                    let tmp_items_len = tmp_selected_friends.length;
+                    let tmp_items = tmp_items_len ? tmp_selected_friends : ["\xa0"];
+                    diag.setItems(tmp_items);
+                    let content_info = tmp_items_len ? ("当前选择区好友总数: " + tmp_items_len) : "从好友列表中选择并添加好友\n或手动输入好友昵称";
+                    diag.setContent(content_info);
+                }
+            }]
+        ];
+    }
+
+    function sceForeAppBlacklist() {
+        return [
+            ["restore", "RESTORE", "OFF", (btn_view) => {
+                let blacklist_backup = storage_config[data_source_key_name];
+                if (equalObjects(session_config[data_source_key_name], blacklist_backup)) return;
+                let diag = dialogs.builds([
+                    "恢复列表数据", "restore_original_list_data",
+                    ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
+                ]);
+                diag.on("neutral", () => {
+                    let diag_restore_list = dialogs.builds(["查看恢复列表", "", 0, 0, "返回", 1], {
+                        content: "共计 " + blacklist_backup.length + " 项",
+                        items: (function () {
+                            let items = [];
+                            blacklist_backup.forEach(o => items.push(o.app_combined_name));
+                            return items.length ? items : ["列表为空"];
+                        })(),
+                    });
+                    diag_restore_list.on("positive", () => diag_restore_list.dismiss());
+                    diag_restore_list.show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    let list_page_view = findViewByTag(parent_view, "list_page_view");
+                    diag.dismiss();
+                    updateDataSource(data_source_key_name, "splice", 0);
+
+                    let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                    let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                    session_params[deleted_items_idx] = {};
+                    session_params[deleted_items_idx_count] = 0;
+                    let remove_btn = parent_view._text_remove.getParent();
+                    remove_btn.switch_off();
+                    btn_view.switch_off();
+                    blacklist_backup.forEach(value => updateDataSource(data_source_key_name, "update", value));
+                    list_page_view._check_all.setChecked(true);
+                    list_page_view._check_all.setChecked(false);
+                });
+                diag.show();
+            }],
+            ["delete_forever", "REMOVE", "OFF", (btn_view) => {
+                let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
+                let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                if (!session_params[deleted_items_idx_count]) return;
+
+                let thread_items_stable = threads.starts(function () {
+                    let old_count = undefined;
+                    while (session_params[deleted_items_idx_count] !== old_count) {
+                        old_count = session_params[deleted_items_idx_count];
+                        sleep(50);
+                    }
+                });
+                thread_items_stable.join(800);
+
+                let deleted_items_idx_keys = Object.keys(session_params[deleted_items_idx]);
+                deleted_items_idx_keys.sort((a, b) => +a < +b).forEach(idx => session_params[deleted_items_idx][idx] && session_params[data_source_key_name].splice(idx, 1));
+                updateDataSource(data_source_key_name, "rewrite");
+                session_params[deleted_items_idx] = {};
+                session_params[deleted_items_idx_count] = 0;
+
+                let list_page_view = findViewByTag(parent_view, "list_page_view");
+                let restore_btn = parent_view._text_restore.getParent();
+                if (!equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name])) restore_btn.switch_on();
+                else restore_btn.switch_off();
+                list_page_view._check_all.setChecked(true);
+                list_page_view._check_all.setChecked(false);
+                btn_view.switch_off();
+            }],
+            ["add_circle", "NEW", "ON", (btn_view) => {
+                let tmp_selected_apps = [];
+                let blacklist_selected_apps = [];
+                let list_page_view = findViewByTag(parent_view, "list_page_view");
+
+                session_config[data_source_key_name].forEach(o => blacklist_selected_apps.push(o.app_combined_name));
+
+                let diag = dialogs.builds([
+                    "添加新数据", "从应用列表中选择并添加应用\n或检索选择应用",
+                    ["从列表中选择", "hint_btn_bright_color"], ["检索选择", "hint_btn_bright_color"], "确认添加", 1,
+                ], {items: ["\xa0"]});
+                diag.on("neutral", () => {
+                    let diag_add_from_list = dialogs.builds([
+                        "列表选择应用", "",
+                        ["刷新列表", "hint_btn_bright_color"], ["显示系统应用", "hint_btn_dark_color"], "确认选择", 1,
+                    ], {
+                        items: ["\xa0"],
+                        itemsSelectMode: "multi",
+                    });
+                    diag_add_from_list.on("neutral", () => refreshDiagList("force_refresh"));
+                    diag_add_from_list.on("negative", () => {
+                        if (diag_add_from_list.getActionButton("negative") === "显示系统应用") {
+                            diag_add_from_list.setActionButton("negative", "隐藏系统应用");
+                        } else {
+                            diag_add_from_list.setActionButton("negative", "显示系统应用");
+                        }
+                        refreshDiagList();
+                    });
+                    diag_add_from_list.on("positive", () => {
+                        refreshDiag();
+                        diag_add_from_list.dismiss();
+                    });
+                    diag_add_from_list.on("multi_choice", (items, indices_damaged_, dialog) => {
+                        if (!items || items[0] === "\xa0") return;
+                        items.forEach(name => name === "... ..." || tmp_selected_apps.push(name));
+                    });
+                    diag_add_from_list.show();
+
+                    refreshDiagList();
+
+                    // tool function(s) //
+
+                    function refreshDiagList(force_refresh_flag) {
+                        diag_add_from_list.setItems(Array(15).join("... ...,").split(",").slice(0, -1));
+                        diag_add_from_list.setContent("当前可添加的应用总数: ... ...");
+                        diag_add_from_list.setSelectedIndices([]);
+                        threads.start(function () {
+                            let items = getAllAppsJointStr(
+                                () => diag_add_from_list.getActionButton("negative") !== "显示系统应用",
+                                [blacklist_selected_apps, tmp_selected_apps],
+                                force_refresh_flag
+                            );
+                            let items_len = items.length;
+                            items = items_len ? items : ["列表为空"];
+                            ui.post(function () {
+                                diag_add_from_list.setSelectedIndices([]);
+                                diag_add_from_list.setItems(items);
+                                diag_add_from_list.setContent("当前可添加的应用总数: " + items_len);
+                            });
                         });
                     }
-                    let items_len = items.length;
-                    items = items_len ? items : ["列表为空"];
-                    diag_add_from_list.setItems(items);
-                    let friends_list_timestamp = friends_list.timestamp;
-                    if (friends_list_timestamp === Infinity) friends_list_timestamp = -1;
-                    session_params.last_friend_list_refresh_timestamp = friends_list_timestamp;
-                    diag_add_from_list.setContent(
-                        "上次刷新: " + getTimeStrFromTimestamp(friends_list_timestamp, "time_str") + "\n"
-                        + "当前可添加的好友总数: " + items_len
-                    );
+                });
+                diag.on("negative", () => {
+                    diag.dismiss();
+                    setListItemsSearchAndSelectView(getAllAppsJointStr, {
+                        refresh_btn_listener: (data_source_updater, data_source_src, view) => {
+                            view.list.setDataSource([]);
+                            data_source_updater(() => getAllAppsJointStr(true, [], "force_refresh"), "refresh_btn_alter");
+                        },
+                        list_item_listener: (item, closeListPage) => {
+                            let excluded_data_arrays = [blacklist_selected_apps, tmp_selected_apps];
+
+                            for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                                if (~excluded_data_arrays[i].indexOf(item)) {
+                                    return toast("此项已存在于黑名单列表或待添加列表中");
+                                }
+                            }
+                            closeListPage(item);
+                        },
+                        onFinish: (result) => {
+                            result && tmp_selected_apps.push(result);
+                            diag.show();
+                            refreshDiag();
+                        }
+                    });
+                });
+                diag.on("positive", () => {
+                    tmp_selected_apps.forEach((name) => {
+                        updateDataSource(
+                            data_source_key_name,
+                            "update_unshift",
+                            {app_combined_name: name}
+                        )
+                    });
+                    if (tmp_selected_apps.length) setTimeout(function () {
+                        parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
+                    }, 200);
+                    let restore_btn = list_page_view.getParent()._text_restore.getParent();
+                    equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
+                    saveSession(data_source_key_name, session_config[data_source_key_name]);
+                    diag.dismiss();
+                });
+                diag.on("item_select", (idx, item, dialog) => {
+                    let diag_items = diag.getItems().toArray();
+                    if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
+                    let delete_confirm_diag = dialogs.builds(["确认移除此项吗", "", 0, "返回", "确认", 1]);
+                    delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
+                    delete_confirm_diag.on("positive", () => {
+                        tmp_selected_apps.splice(idx, 1);
+                        refreshDiag();
+                        delete_confirm_diag.dismiss();
+                    });
+                    delete_confirm_diag.show();
+                });
+                diag.show();
+
+                refreshDiag();
+
+                // tool function(s) //
+
+                function refreshDiag() {
+                    let tmp_items_len = tmp_selected_apps.length;
+                    let tmp_items = tmp_items_len ? tmp_selected_apps : ["\xa0"];
+                    diag.setItems(tmp_items);
+                    let content_info = tmp_items_len ? ("当前选择区应用总数: " + tmp_items_len) : "从列表中选择并添加应用\n或检索选择并添加应用";
+                    diag.setContent(content_info);
                 }
-            });
-            diag.on("negative", () => {
-                let input_ok_flag = true;
-                let diag_add_manually = dialogs.builds([
-                    "手动添加好友昵称", "add_friend_nickname_manually",
-                    0, "返回", "添加到选择区", 1,
-                ], {inputHint: "输入好友备注昵称 (非账户名)"});
-                diag_add_manually.on("negative", () => diag_add_manually.dismiss());
-                diag_add_manually.on("positive", () => {
-                    if (!input_ok_flag) return;
-                    refreshDiag();
-                    diag_add_manually.dismiss();
-                });
-                diag_add_manually.on("input", input => {
-                    if (!input) return;
-                    if (~blacklist_selected_friends.indexOf(input)) {
-                        input_ok_flag = false;
-                        return alert(input + "\n在黑名单列表中已存在\n不可重复添加");
-                    }
-                    if (~tmp_selected_friends.indexOf(input)) {
-                        input_ok_flag = false;
-                        return ~alert(input + "\n在选择区中已存在\n不可重复添加");
-                    }
-                    tmp_selected_friends.push(input);
-                });
-                diag_add_manually.show();
-            });
-            diag.on("positive", () => {
-                tmp_selected_friends.forEach(name => updateDataSource(data_source_key_name, "update_unshift", {
-                    name: name,
-                    timestamp: Infinity,
-                }));
-                if (tmp_selected_friends.length) setTimeout(function () {
-                    parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
-                }, 200);
-                let restore_btn = list_page_view.getParent()._text_restore.getParent();
-                equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
-                saveSession(data_source_key_name, session_config[data_source_key_name]);
-                diag.dismiss();
-            });
-            diag.on("item_select", (idx, item, dialog) => {
-                let diag_items = diag.getItems().toArray();
-                if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
-                let delete_confirm_diag = dialogs.builds(["确认移除此项吗", "", 0, "返回", "确认", 1]);
-                delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
-                delete_confirm_diag.on("positive", () => {
-                    tmp_selected_friends.splice(idx, 1);
-                    refreshDiag();
-                    delete_confirm_diag.dismiss();
-                });
-                delete_confirm_diag.show();
-            });
-            diag.show();
-
-            refreshDiag();
-
-            // tool function(s) //
-
-            function refreshDiag() {
-                let tmp_items_len = tmp_selected_friends.length;
-                let tmp_items = tmp_items_len ? tmp_selected_friends : ["\xa0"];
-                diag.setItems(tmp_items);
-                let content_info = tmp_items_len ? ("当前选择区好友总数: " + tmp_items_len) : "从好友列表中选择并添加好友\n或手动输入好友昵称";
-                diag.setContent(content_info);
-            }
-        }])
+            }]
+        ];
+    }
 }
 
 function setTimersUninterruptedCheckAreasPageButtons(parent_view, data_source_key_name) {
@@ -4448,6 +4775,634 @@ function setTimersControlPanelPageButtons(parent_view, data_source_key_name, wiz
     return setButtons(parent_view, data_source_key_name,
         ["add_circle", "NEW", "ON", (btn_view) => wizardFunc("add")]
     );
+}
+
+function setTimePickerView(params) {
+    let time_picker_view = null;
+    let week_checkbox_states = Array(7).join(" ").split(" ").map(() => false);
+
+    params = params || {};
+    if (typeof session_params !== "undefined") {
+        session_params.back_btn_consumed = true;
+        session_params.back_btn_consumed_func = (
+            typeof params.back_btn_comsumed === "function"
+                ? () => params.back_btn_comsumed()
+                : () => time_picker_view.back_btn.click()
+        );
+    }
+
+    let picker_views = params.picker_views;
+    let date_or_time_indices = [];
+    ["date", "time"].forEach((aim_type) => {
+        picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
+    });
+    let date_or_time_len = date_or_time_indices.length;
+
+    initPickerView();
+    addPickers();
+    addTimeStr();
+    addButtons();
+
+    ui.main.getParent().addView(time_picker_view);
+
+    // tool function(s) //
+
+    function initPickerView() {
+        time_picker_view = ui.inflate(
+            <vertical bg="#ffffff" clickable="true" focusable="true">
+                <scroll>
+                    <vertical id="time_picker_view_main" padding="16"/>
+                </scroll>
+            </vertical>
+        );
+
+        time_picker_view.setTag("fullscreen_time_picker");
+    }
+
+    function addPickers() {
+        picker_views.forEach(addPickerView);
+
+        let type1 = (picker_views[date_or_time_indices[0]] || {}).type;
+        let type2 = (picker_views[date_or_time_indices[1]] || {}).type;
+        time_picker_view.getPickerTimeInfo[0] = date_or_time_len === 2 && type1 !== type2 ? {
+            timestamp: () => {
+                let f = num => time_picker_view.getPickerTimeInfo[date_or_time_indices[num - 1] + 1];
+                if (type1 === "date") return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
+                if (type2 === "date") return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
+            }, // timestamp from one "date" AND one "time"
+        } : {};
+
+        // tool function(s) //
+
+        function addPickerView(o, idx) {
+            if (!o || !o.type) return;
+
+            let picker_view = ui.inflate(
+                <vertical id="picker_root">
+                    <frame h="1" bg="#acacac" w="*"/>
+                    <frame w="auto" layout_gravity="center" marginTop="15">
+                        <text id="picker_title" text="设置时间" textColor="#01579b" textSize="16sp"/>
+                    </frame>
+                </vertical>
+            );
+
+            let text_node = picker_view.picker_title;
+            let {text, text_color, type, init} = o;
+            text && text_node.setText(text);
+            text_color && text_node.setTextColor(colors.parseColor(text_color));
+
+            if (type === "time") {
+                picker_view.picker_root.addView(ui.inflate(
+                    <vertical>
+                        <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
+                    </vertical>
+                ));
+                picker_view.picker.setIs24HourView(true);
+                if (init) {
+                    if (typeof init === "string") init = init.split(/\D+/);
+                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
+                        let date = new Date(init);
+                        init = [date.getHours(), date.getMinutes()];
+                    }
+                    if (typeof init === "object") {
+                        typeof +init[0] === "number" && picker_view.picker.setHour(init[0]);
+                        typeof +init[1] === "number" && picker_view.picker.setMinute(init[1]);
+                    }
+                }
+            } else if (type === "date") {
+                picker_view.picker_root.addView(ui.inflate(
+                    <vertical>
+                        <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
+                    </vertical>
+                ));
+                let picker_node = picker_view.picker;
+                if (init) {
+                    // init:
+                    // 1. 1564483851219 - timestamp
+                    // 2. [2018, 7, 8] - number[]
+                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
+                        let date = new Date(init);
+                        init = [date.getFullYear(), date.getMonth(), date.getDate()];
+                    }
+                } else {
+                    let now = new Date();
+                    init = [now.getFullYear(), now.getMonth(), now.getDate()];
+                }
+                let onDateChangedListener = new android.widget.DatePicker.OnDateChangedListener({onDateChanged: setTimeStr});
+                let init_params = init.concat(onDateChangedListener);
+                picker_node.init.apply(picker_node, init_params);
+            } else if (type === "week") {
+                let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                let checkbox_views = ui.inflate(
+                    <vertical id="checkboxes">
+                        <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
+                            <checkbox id="week_1" marginRight="13"/>
+                            <checkbox id="week_2"/>
+                        </horizontal>
+                        <horizontal margin="0 5" layout_gravity="center" w="auto">
+                            <checkbox id="week_3" marginRight="13"/>
+                            <checkbox id="week_4"/>
+                        </horizontal>
+                        <horizontal margin="0 5 0 15" layout_gravity="center" w="auto">
+                            <checkbox id="week_5" marginRight="13"/>
+                            <checkbox id="week_6" marginRight="13"/>
+                            <checkbox id="week_0"/>
+                        </horizontal>
+                    </vertical>
+                );
+
+                for (let i = 0; i < 7; i += 1) {
+                    checkbox_views["week_" + i].setText(weeks_str[i]);
+                    checkbox_views["week_" + i].on("check", (checked, view) => {
+                        week_checkbox_states[weeks_str.indexOf(view.text)] = checked;
+                        threads.start(function () {
+                            let max_try_times = 20;
+                            let interval = setInterval(function () {
+                                if (!max_try_times--) return clearInterval(interval);
+                                try {
+                                    ui.post(setTimeStr);
+                                    clearInterval(interval);
+                                } catch (e) {
+                                }
+                            }, 100);
+                        });
+                    });
+                }
+
+                picker_view.picker_root.addView(checkbox_views);
+
+                if (init) {
+                    if (typeof init === "number") init = timedTaskTimeFlagConverter(init);
+                    init.forEach(num => picker_view.checkboxes["week_" + num].setChecked(true));
+                }
+            }
+
+            time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
+            let picker_node = picker_view.picker;
+            if (type === "time") picker_node.setOnTimeChangedListener(setTimeStr);
+
+            let {yy, MM, dd, hh, mm} = {
+                yy: () => {
+                    try {
+                        return picker_node.getYear();
+                    } catch (e) {
+                        return new Date().getFullYear();
+                    }
+                },
+                MM: () => padZero((() => {
+                    try {
+                        return picker_node.getMonth();
+                    } catch (e) {
+                        return new Date().getMonth();
+                    }
+                })() + 1),
+                dd: () => padZero((() => {
+                    try {
+                        return picker_node.getDayOfMonth();
+                    } catch (e) {
+                        return new Date().getDate();
+                    }
+                })()),
+                hh: () => {
+                    try {
+                        return padZero(picker_node.getCurrentHour());
+                    } catch (e) {
+                        return null;
+                    }
+                },
+                mm: () => {
+                    try {
+                        return padZero(picker_node.getCurrentMinute());
+                    } catch (e) {
+                        return null;
+                    }
+                },
+            };
+            let padZero = num => ("0" + num).slice(-2);
+            let parseDaysOfWeek = () => {
+                let result = [];
+                week_checkbox_states.forEach((bool, idx) => bool && result.push(idx));
+                return result;
+            };
+
+            time_picker_view.getPickerTimeInfo[idx + 1] = {
+                yy: yy,
+                MM: MM,
+                dd: dd,
+                hh: hh,
+                mm: mm,
+                default: () => {
+                    if (type === "date") return yy() + "年" + MM() + "月" + dd() + "日";
+                    if (type === "time") return hh() + ":" + mm();
+                    if (type === "week") {
+                        let parsed = parseDaysOfWeek();
+                        if (!parsed.length) return "";
+                        return "  [ " + parsed.map(x => x === 0 ? 7 : x).sort().join(", ") + " ]";
+                    }
+                },
+                timestamp: () => +new Date(yy(), MM(), dd(), hh(), mm()),
+                daysOfWeek: parseDaysOfWeek,
+            };
+
+            time_picker_view.time_picker_view_main.addView(picker_view);
+        }
+    }
+
+    function addTimeStr() {
+        time_picker_view.time_picker_view_main.addView(ui.inflate(
+            <vertical>
+                <frame h="1" bg="#acacac" w="*"/>
+                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
+                    <text id="time_str" text="" textColor="#bf360c" textSize="15sp" gravity="center"/>
+                </frame>
+            </vertical>
+        ));
+
+        setTimeStr();
+    }
+
+    function setTimeStr() {
+        let {picker_views} = params || [];
+        let {prefix, format, suffix, middle} = params.time_str || {};
+        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
+
+        prefix = prefix && prefix.replace(/: ?/, "") + ": " || "";
+
+        if (typeof middle === "function") middle = middle(getTimeInfoFromPicker);
+        middle = middle || formatTimeStr();
+
+        if (typeof suffix === "function") suffix = suffix(getTimeInfoFromPicker);
+        suffix = suffix && suffix.replace(/^ */, " ") || "";
+
+        time_picker_view.time_str.setText(prefix + middle + suffix);
+
+        // tool function(s) //
+
+        function formatTimeStr() {
+            if (!format) {
+                let len = date_or_time_indices.length;
+                let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
+                if (len === 2) {
+                    str += (
+                        picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? " - " : " "
+                    ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
+                }
+                picker_views.forEach((o, idx) => {
+                    if (o.type === "week") str += getTimeInfoFromPicker(idx + 1).default();
+                });
+                return str;
+            }
+            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeInfoFromPicker($3)[$2]());
+        }
+    }
+
+    function addButtons() {
+        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
+        let btn_view = ui.inflate(
+            <vertical>
+                <horizontal id="btn_group" w="auto" layout_gravity="center">
+                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
+                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#fff9c4" visibility="gone"/>
+                    <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
+                </horizontal>
+            </vertical>
+        );
+        if ((params.buttons || {})["reserved_btn"]) {
+            let {text, onClickListener} = params.buttons.reserved_btn;
+            let reserved_btn_view = btn_view.reserved_btn;
+            reserved_btn_view.setVisibility(0);
+            text && reserved_btn_view.setText(text);
+            onClickListener && reserved_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
+        }
+        time_picker_view.time_picker_view_main.addView(btn_view);
+
+        if ((params.buttons || {})["back_btn"]) {
+            let {text, onClickListener} = params.buttons.back_btn;
+            let confirm_btn_view = btn_view.back_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
+        } else time_picker_view.back_btn.on("click", () => closeTimePickerPage());
+
+        if ((params.buttons || {})["confirm_btn"]) {
+            let {text, onClickListener} = params.buttons.confirm_btn;
+            let confirm_btn_view = btn_view.confirm_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
+        } else time_picker_view.confirm_btn.on("click", () => closeTimePickerPage("picker_view"));
+    }
+
+    function closeTimePickerPage(return_value) {
+        if (typeof session_params !== "undefined") {
+            delete session_params.back_btn_consumed;
+            delete session_params.back_btn_consumed_func;
+        }
+
+        let parent = ui.main.getParent();
+        let child_count = parent.getChildCount();
+        for (let i = 0; i < child_count; i += 1) {
+            let child_view = parent.getChildAt(i);
+            if (child_view.findViewWithTag("fullscreen_time_picker")) parent.removeView(child_view);
+        }
+
+        if (params.onFinish && typeof return_value !== "undefined") {
+            params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText().toString() : return_value);
+        }
+    }
+}
+
+function setInfoInputView(params) {
+    let info_input_view = null;
+    let input_views_obj = {};
+    let {InputType, SpannableString, style, Spanned, SpannedString} = android.text;
+
+    params = params || {};
+    if (typeof session_params !== "undefined") {
+        session_params.back_btn_consumed = true;
+        session_params.back_btn_consumed_func = (
+            typeof params.back_btn_comsumed === "function"
+                ? () => params.back_btn_comsumed()
+                : () => info_input_view.back_btn.click()
+        );
+    }
+
+    initInfoInputView();
+    addInputBoxes();
+    addButtons();
+
+    // tool function(s) //
+
+    function initInfoInputView() {
+        info_input_view = ui.inflate(
+            <vertical focusable="true" focusableInTouchMode="true" bg="#ffffff" clickable="true">
+                <vertical h="*" gravity="center" id="info_input_view_main" clickable="true" focusableInTouchMode="true"/>
+            </vertical>
+        );
+
+        info_input_view.setTag("fullscreen_info_input");
+    }
+
+    function addInputBoxes() {
+        params.input_views.forEach((o, idx) => {
+            let view = ui.inflate(
+                <vertical>
+                    <card w="*" h="50" cardCornerRadius="2dp" cardElevation="3dp" foreground="?selectableItemBackground" cardBackgroundColor="#546e7a" margin="18 0 18 30">
+                        <input id="input_area" selectAllOnFocus="true" gravity="center" textSize="17" background="?null" hint="未设置" textColorHint="#e3e3e3" textColor="#eeeeee"/>
+                        <vertical gravity="right|bottom">
+                            <text id="input_text" bg="#66000000" gravity_layout="right" h="auto" w="auto" padding="6 2" textColor="#ffffff" textSize="12sp" maxLines="1"/>
+                        </vertical>
+                    </card>
+                </vertical>
+            );
+            let {text, type, hint_text, init} = o;
+            let input_area_view = view.input_area;
+            let input_text_view = view.input_text;
+            let setViewHintText = hint_text => setEditTextHint(input_area_view, "-2", hint_text);
+
+            if (type === "password") {
+                input_area_view.setInputType(input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+                input_area_view.setOnKeyListener(
+                    function onKey(view, keyCode, event) {
+                        let {KEYCODE_ENTER, ACTION_UP} = android.view.KeyEvent;
+                        let is_keycode_enter = keyCode === KEYCODE_ENTER;
+                        let is_action_up = event.getAction() === ACTION_UP;
+                        is_keycode_enter && is_action_up && info_input_view.confirm_btn.click();
+                        return is_keycode_enter;
+                    }
+                );
+            } else {
+                input_area_view.setSingleLine(true);
+            }
+
+            if (type === "account") init = accountNameConverter(init, "decrypt");
+
+            input_text_view.setText(text);
+            init && input_area_view.setText(init);
+            setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
+            view.input_area.setViewHintText = setViewHintText;
+            input_area_view.setOnFocusChangeListener(onFocusChangeListener);
+            info_input_view.info_input_view_main.addView(view);
+            input_views_obj[text] = view;
+
+            // tool function(s) //
+
+            function onFocusChangeListener(view, has_focus) {
+                has_focus ? view.setHint(null) : setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
+            }
+
+            function setEditTextHint(edit_text_view, text_size, text_str) {
+                if (text_size.toString().match(/^[+-]\d+$/)) {
+                    text_size = edit_text_view.getTextSize() / context.getResources().getDisplayMetrics().scaledDensity + +text_size;
+                }
+                let span_string = new SpannableString(text_str || edit_text_view.hint);
+                let abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
+                span_string.setSpan(abs_size_span, 0, span_string.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                edit_text_view.setHint(new SpannedString(span_string));
+            }
+        });
+        info_input_view.info_input_view_main.addView(ui.inflate(
+            <vertical>
+                <frame margin="0 15"/>
+            </vertical>
+        ));
+    }
+
+    function addButtons() {
+        let {buttons} = params;
+        let {additional} = buttons;
+
+        additional && addAdditionalButtons(additional);
+
+        let common_btn_view = ui.inflate(
+            <vertical>
+                <horizontal id="btn_group" w="auto" layout_gravity="center">
+                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
+                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#bbdefb" visibility="gone"/>
+                    <button id="confirm_btn" text="确定" margin="20 0" backgroundTint="#dcedc8"/>
+                </horizontal>
+            </vertical>
+        );
+
+        if (buttons.reserved_btn) {
+            let {text, onClickListener, hint_color} = buttons.reserved_btn;
+            let reserved_btn_view = common_btn_view.reserved_btn;
+            reserved_btn_view.setVisibility(0);
+            text && reserved_btn_view.setText(text);
+            onClickListener && reserved_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+            if (hint_color) reserved_btn_view.attr("backgroundTint", hint_color);
+        }
+
+        info_input_view.info_input_view_main.addView(common_btn_view);
+        info_input_view.back_btn.on("click", () => closeInfoInputPage());
+
+        if (buttons.confirm_btn) {
+            let {text, onClickListener} = buttons.confirm_btn;
+            let confirm_btn_view = common_btn_view.confirm_btn;
+            text && confirm_btn_view.setText(text);
+            onClickListener && confirm_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+        } else info_input_view.confirm_btn.on("click", closeInfoInputPage);
+
+        // tool function(s) //
+
+        function addAdditionalButtons(additional) {
+            let addi_buttons = classof(additional, "Array") ? additional.slice() : [additional];
+            let addi_btn_view = ui.inflate(
+                <vertical>
+                    <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
+                </vertical>
+            );
+            addi_buttons.forEach((o, idx) => {
+                if (classof(o, "Array")) return addAdditionalButtons(o);
+                let btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
+                let {text, hint_color, onClickListener} = o;
+                if (text) btn_view.setText(text);
+                if (hint_color) btn_view.attr("backgroundTint", hint_color);
+                if (onClickListener) btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
+                addi_btn_view.addi_button_area.addView(btn_view);
+            });
+            info_input_view.info_input_view_main.addView(addi_btn_view);
+        }
+    }
+
+    function closeInfoInputPage() {
+        if (typeof session_params !== "undefined") {
+            delete session_params.back_btn_consumed;
+            delete session_params.back_btn_consumed_func;
+        }
+
+        let parent = ui.main.getParent();
+        let child_count = parent.getChildCount();
+        for (let i = 0; i < child_count; i += 1) {
+            let child_view = parent.getChildAt(i);
+            if (child_view.findViewWithTag("fullscreen_info_input")) parent.removeView(child_view);
+        }
+    }
+}
+
+function setListItemsSearchAndSelectView(data_source_src, params) {
+    params = params || {};
+    let {empty_list_prompt, refresh_btn_listener, list_item_listener} = params;
+
+    let search_view = null;
+
+    if (typeof session_params !== "undefined") {
+        session_params.back_btn_consumed = true;
+        session_params.back_btn_consumed_func = (
+            typeof params.back_btn_comsumed === "function"
+                ? () => params.back_btn_comsumed()
+                : () => search_view.back_btn.click()
+        );
+    }
+
+    search_view = ui.inflate(
+        <vertical focusable="true" focusableInTouchMode="true" bg="#ffffff" clickable="true">
+            <horizontal margin="16 8 0 4">
+                <input id="input" lines="1" layout_weight="1" hint="列表加载中..." textColor="black" textSize="15sp" marginTop="3"/>
+                <horizontal margin="0 0 8 0">
+                    <button id="refresh_btn" text="刷新" style="Widget.AppCompat.Button.Borderless.Colored" w="55"/>
+                    <button id="back_btn" text="返回" style="Widget.AppCompat.Button.Borderless.Colored" w="55"/>
+                </horizontal>
+            </horizontal>
+            <grid id="list" spanCount="1" margin="16 0" border="1">
+                <text text="{{this}}" padding="4 5" margin="2 5" bg="#eeeeeef8"/>
+            </grid>
+        </vertical>
+    );
+
+    search_view.setTag("fullscreen_list_items_search_and_select");
+
+    let data_source_ori = [];
+    search_view.list.setDataSource(data_source_ori);
+
+    updateListData(data_source_src);
+
+    search_view.input.setOnKeyListener(
+        function onKey(view, keyCode, event) {
+            return keyCode === android.view.KeyEvent.KEYCODE_ENTER; // disable ENTER_KEY
+        }
+    );
+
+    let thread_calc_and_set_input = null;
+    search_view.input.addTextChangedListener(
+        new android.text.TextWatcher({afterTextChanged: afterTextChanged})
+    );
+
+    if (typeof refresh_btn_listener === "function") {
+        search_view.refresh_btn.on("click", () => {
+            refresh_btn_listener(updateListData, data_source_src, search_view);
+        });
+    } else {
+        search_view.refresh_btn.setVisibility(8);
+    }
+    search_view.back_btn.on("click", () => {
+        collapseSoftKeyboard(search_view.input);
+        closeListPage();
+    });
+    search_view.list.on("item_click", (item) => {
+        if (typeof list_item_listener === "function") {
+            list_item_listener(item, closeListPage);
+        }
+    });
+
+    ui.main.getParent().addView(search_view);
+
+    // tool function(s) //
+
+    function afterTextChanged(input_text) {
+        if (thread_calc_and_set_input && thread_calc_and_set_input.isAlive()) {
+            thread_calc_and_set_input.interrupt();
+        }
+        thread_calc_and_set_input = threads.start(function () {
+            let data_source = [];
+            if (input_text) {
+                data_source_ori.forEach((name) => {
+                    let _name = name.toString().toLowerCase();
+                    let _input = input_text.toString().toLowerCase();
+                    if (_name.match(_input)) data_source.push(name);
+                })
+            }
+            ui.post(() => search_view.list.setDataSource(input_text ? data_source : data_source_ori));
+        });
+    }
+
+    function updateListData(data_source, refresh_btn_text_alter_flag) {
+        session_params.list_refreshing_counter = session_params.list_refreshing_counter || 0;
+        if (session_params.list_refreshing_counter) return;
+        threads.start(function () {
+            refresh_btn_text_alter_flag && search_view.refresh_btn.setText("...");
+            session_params.list_refreshing_counter += 1;
+            let _data_source = typeof data_source === "function" ? data_source() : data_source;
+            if (!_data_source.length && empty_list_prompt) {
+                empty_list_prompt = false;
+                dialogs.builds([
+                    "空列表提示", "当前列表为空\n可能需要点击\"刷新\"按钮\n刷新后列表将自动更新",
+                    0, 0, "确定", 1
+                ]).on("positive", diag => diag.dismiss()).show();
+            }
+            ui.post(() => {
+                search_view.list.setDataSource(data_source_ori = _data_source);
+                search_view.input.setHint(_data_source.length ? "在此键入并筛选列表内容" : "列表为空");
+                refresh_btn_text_alter_flag && search_view.refresh_btn.setText("刷新");
+                session_params.list_refreshing_counter -= 1;
+            });
+        });
+    }
+
+    function closeListPage(result) {
+        if (typeof session_params !== "undefined") {
+            delete session_params.back_btn_consumed;
+            delete session_params.back_btn_consumed_func;
+        }
+
+        let parent = ui.main.getParent();
+        let child_count = parent.getChildCount();
+        for (let i = 0; i < child_count; i += 1) {
+            let child_view = parent.getChildAt(i);
+            if (child_view.findViewWithTag("fullscreen_list_items_search_and_select")) parent.removeView(child_view);
+        }
+
+        let {onFinish} = params;
+        typeof onFinish === "function" && onFinish(result);
+    }
 }
 
 // constructor //
@@ -4917,12 +5872,36 @@ function setPage(title_param, title_bg_color, additions, options) {
                         <list id="_list_data" fastScrollEnabled="true" focusable="true" scrollbars="none">
                             <horizontal>
                                 <horizontal w="{{this.width_0}}">
-                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16" layout_gravity="left|center" clickable="false"/>
-                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0" ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
+                                    <checkbox id="_checkbox" layout_gravity="left|center"
+                                              checked="{{this.checked}}" clickable="false"
+                                              h="50" margin="8 0 -16"
+                                    />
+                                    <text text="{{this.list_item_name_0}}" textSize="15"
+                                          h="50" margin="16 0 0" w="*"
+                                          gravity="left|center"
+                                    />
                                 </horizontal>
-                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}" visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}" textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}" visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}" visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <horizontal w="{{session_params['list_width_1'] || 1}}" margin="8 0 0 0">
+                                    <text text="{{this.list_item_name_1}}"
+                                          visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}"
+                                          textSize="15" h="50"
+                                          gravity="left|center"
+                                    />
+                                </horizontal>
+                                <horizontal w="{{session_params['list_width_2'] || 1}}">
+                                    <text text="{{this.list_item_name_2}}"
+                                          visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}"
+                                          textSize="15" h="50"
+                                          gravity="left|center"
+                                    />
+                                </horizontal>
+                                <horizontal w="{{session_params['list_width_3'] || 1}}">
+                                    <text text="{{this.list_item_name_3}}"
+                                          visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}"
+                                          textSize="15" h="50"
+                                          gravity="left|center"
+                                    />
+                                </horizontal>
                             </horizontal>
                         </list>
                     </vertical>
@@ -4973,13 +5952,21 @@ function setPage(title_param, title_bg_color, additions, options) {
                     // updateDataSource(data_source_key_name, "rewrite");
                 });
 
+                list_title_view = (function () {
+                    let _view = ui.inflate(<horizontal>
+                        <frame/>
+                    </horizontal>);
+                    _view.addView(list_title_view);
+                    return _view;
+                })();
+
                 if (idx === 0) new_view["_check_all"].getParent().addView(list_title_view);
                 else new_view["_list_title_bg"].addView(list_title_view);
 
-                list_title_view.attr("gravity", "left|center");
-                list_title_view.attr("layout_gravity", "left|center");
-                list_title_view.attr("ellipsize", "end");
-                list_title_view.attr("lines", "1");
+                list_title_view.attr("gravity", title_obj.gravity || "left|center");
+                list_title_view.attr("layout_gravity", title_obj.layout_gravity || "left|center");
+                list_title_view.attr("ellipsize", title_obj.ellipsize || "end");
+                list_title_view.attr("lines", title_obj.lines || "1");
                 idx && list_title_view.attr("width", session_params["list_width_" + idx]);
             });
 
@@ -5752,7 +6739,9 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
         list_heads[data_source_key_name].forEach((o, i) => {
             let list_item_name = Object.keys(o).filter(key => typeof o[key] === "string")[0];
             let list_item_value = obj[list_item_name];
-            final_o["list_item_name_" + i] = o.stringTransform ? o.stringTransform.forward(list_item_value) : list_item_value;
+            final_o["list_item_name_" + i] = o.stringTransform
+                ? o.stringTransform.forward.bind(obj)(list_item_value)
+                : list_item_value;
             final_o[list_item_name] = "list_item_name_" + i; // backup
             final_o["width_" + i] = o.width ? ~~(o.width * WIDTH) + "px" : -2;
         });
@@ -5786,7 +6775,9 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
             list_head_objs.forEach((o) => {
                 if ("stringTransform" in o) {
                     let aim_key = Object.keys(o).filter((key => typeof o[key] === "string"))[0];
-                    final_o[aim_key] = o.stringTransform.backward(final_o[aim_key]);
+                    let {backward} = o.stringTransform;
+                    if (backward === "__delete__") delete final_o[aim_key];
+                    else if (typeof backward === "function") final_o[aim_key] = backward.bind(final_o)(final_o[aim_key]);
                 }
             });
 
@@ -5949,509 +6940,6 @@ function checkDependency(view, dependencies, params) {
     }
 }
 
-function setTimePickerView(params) {
-    let time_picker_view = null;
-    let week_checkbox_states = Array(7).join(" ").split(" ").map(() => false);
-
-    params = params || {};
-    if (typeof session_params !== "undefined") {
-        session_params.back_btn_consumed = true;
-        session_params.back_btn_consumed_func = (
-            typeof params.back_btn_comsumed === "function"
-                ? () => params.back_btn_comsumed()
-                : () => time_picker_view.back_btn.click()
-        );
-    }
-
-    let picker_views = params.picker_views;
-    let date_or_time_indices = [];
-    ["date", "time"].forEach((aim_type) => {
-        picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
-    });
-    let date_or_time_len = date_or_time_indices.length;
-
-    initPickerView();
-    addPickers();
-    addTimeStr();
-    addButtons();
-
-    ui.main.getParent().addView(time_picker_view);
-
-    // tool function(s) //
-
-    function initPickerView() {
-        time_picker_view = ui.inflate(
-            <vertical bg="#ffffff" clickable="true" focusable="true">
-                <scroll>
-                    <vertical id="time_picker_view_main" padding="16"/>
-                </scroll>
-            </vertical>
-        );
-
-        time_picker_view.setTag("fullscreen_time_picker");
-    }
-
-    function addPickers() {
-        picker_views.forEach(addPickerView);
-
-        let type1 = (picker_views[date_or_time_indices[0]] || {}).type;
-        let type2 = (picker_views[date_or_time_indices[1]] || {}).type;
-        time_picker_view.getPickerTimeInfo[0] = date_or_time_len === 2 && type1 !== type2 ? {
-            timestamp: () => {
-                let f = num => time_picker_view.getPickerTimeInfo[date_or_time_indices[num - 1] + 1];
-                if (type1 === "date") return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
-                if (type2 === "date") return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
-            }, // timestamp from one "date" AND one "time"
-        } : {};
-
-        // tool function(s) //
-
-        function addPickerView(o, idx) {
-            if (!o || !o.type) return;
-
-            let picker_view = ui.inflate(
-                <vertical id="picker_root">
-                    <frame h="1" bg="#acacac" w="*"/>
-                    <frame w="auto" layout_gravity="center" marginTop="15">
-                        <text id="picker_title" text="设置时间" textColor="#01579b" textSize="16sp"/>
-                    </frame>
-                </vertical>
-            );
-
-            let text_node = picker_view.picker_title;
-            let {text, text_color, type, init} = o;
-            text && text_node.setText(text);
-            text_color && text_node.setTextColor(colors.parseColor(text_color));
-
-            if (type === "time") {
-                picker_view.picker_root.addView(ui.inflate(
-                    <vertical>
-                        <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
-                    </vertical>
-                ));
-                picker_view.picker.setIs24HourView(true);
-                if (init) {
-                    if (typeof init === "string") init = init.split(/\D+/);
-                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
-                        let date = new Date(init);
-                        init = [date.getHours(), date.getMinutes()];
-                    }
-                    if (typeof init === "object") {
-                        typeof +init[0] === "number" && picker_view.picker.setHour(init[0]);
-                        typeof +init[1] === "number" && picker_view.picker.setMinute(init[1]);
-                    }
-                }
-            } else if (type === "date") {
-                picker_view.picker_root.addView(ui.inflate(
-                    <vertical>
-                        <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
-                    </vertical>
-                ));
-                let picker_node = picker_view.picker;
-                if (init) {
-                    // init:
-                    // 1. 1564483851219 - timestamp
-                    // 2. [2018, 7, 8] - number[]
-                    if (typeof init === "number" && init.toString().match(/^\d{13}$/)) {
-                        let date = new Date(init);
-                        init = [date.getFullYear(), date.getMonth(), date.getDate()];
-                    }
-                } else {
-                    let now = new Date();
-                    init = [now.getFullYear(), now.getMonth(), now.getDate()];
-                }
-                let onDateChangedListener = new android.widget.DatePicker.OnDateChangedListener({onDateChanged: setTimeStr});
-                let init_params = init.concat(onDateChangedListener);
-                picker_node.init.apply(picker_node, init_params);
-            } else if (type === "week") {
-                let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-                let checkbox_views = ui.inflate(
-                    <vertical id="checkboxes">
-                        <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
-                            <checkbox id="week_1" marginRight="13"/>
-                            <checkbox id="week_2"/>
-                        </horizontal>
-                        <horizontal margin="0 5" layout_gravity="center" w="auto">
-                            <checkbox id="week_3" marginRight="13"/>
-                            <checkbox id="week_4"/>
-                        </horizontal>
-                        <horizontal margin="0 5 0 15" layout_gravity="center" w="auto">
-                            <checkbox id="week_5" marginRight="13"/>
-                            <checkbox id="week_6" marginRight="13"/>
-                            <checkbox id="week_0"/>
-                        </horizontal>
-                    </vertical>
-                );
-
-                for (let i = 0; i < 7; i += 1) {
-                    checkbox_views["week_" + i].setText(weeks_str[i]);
-                    checkbox_views["week_" + i].on("check", (checked, view) => {
-                        week_checkbox_states[weeks_str.indexOf(view.text)] = checked;
-                        threads.start(function () {
-                            let max_try_times = 20;
-                            let interval = setInterval(function () {
-                                if (!max_try_times--) return clearInterval(interval);
-                                try {
-                                    ui.post(setTimeStr);
-                                    clearInterval(interval);
-                                } catch (e) {
-                                }
-                            }, 100);
-                        });
-                    });
-                }
-
-                picker_view.picker_root.addView(checkbox_views);
-
-                if (init) {
-                    if (typeof init === "number") init = timedTaskTimeFlagConverter(init);
-                    init.forEach(num => picker_view.checkboxes["week_" + num].setChecked(true));
-                }
-            }
-
-            time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
-            let picker_node = picker_view.picker;
-            if (type === "time") picker_node.setOnTimeChangedListener(setTimeStr);
-
-            let {yy, MM, dd, hh, mm} = {
-                yy: () => {
-                    try {
-                        return picker_node.getYear();
-                    } catch (e) {
-                        return new Date().getFullYear();
-                    }
-                },
-                MM: () => padZero((() => {
-                    try {
-                        return picker_node.getMonth();
-                    } catch (e) {
-                        return new Date().getMonth();
-                    }
-                })() + 1),
-                dd: () => padZero((() => {
-                    try {
-                        return picker_node.getDayOfMonth();
-                    } catch (e) {
-                        return new Date().getDate();
-                    }
-                })()),
-                hh: () => {
-                    try {
-                        return padZero(picker_node.getCurrentHour());
-                    } catch (e) {
-                        return null;
-                    }
-                },
-                mm: () => {
-                    try {
-                        return padZero(picker_node.getCurrentMinute());
-                    } catch (e) {
-                        return null;
-                    }
-                },
-            };
-            let padZero = num => ("0" + num).slice(-2);
-            let parseDaysOfWeek = () => {
-                let result = [];
-                week_checkbox_states.forEach((bool, idx) => bool && result.push(idx));
-                return result;
-            };
-
-            time_picker_view.getPickerTimeInfo[idx + 1] = {
-                yy: yy,
-                MM: MM,
-                dd: dd,
-                hh: hh,
-                mm: mm,
-                default: () => {
-                    if (type === "date") return yy() + "年" + MM() + "月" + dd() + "日";
-                    if (type === "time") return hh() + ":" + mm();
-                    if (type === "week") {
-                        let parsed = parseDaysOfWeek();
-                        if (!parsed.length) return "";
-                        return "  [ " + parsed.map(x => x === 0 ? 7 : x).sort().join(", ") + " ]";
-                    }
-                },
-                timestamp: () => +new Date(yy(), MM(), dd(), hh(), mm()),
-                daysOfWeek: parseDaysOfWeek,
-            };
-
-            time_picker_view.time_picker_view_main.addView(picker_view);
-        }
-    }
-
-    function addTimeStr() {
-        time_picker_view.time_picker_view_main.addView(ui.inflate(
-            <vertical>
-                <frame h="1" bg="#acacac" w="*"/>
-                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
-                    <text id="time_str" text="" textColor="#bf360c" textSize="15sp" gravity="center"/>
-                </frame>
-            </vertical>
-        ));
-
-        setTimeStr();
-    }
-
-    function setTimeStr() {
-        let {picker_views} = params || [];
-        let {prefix, format, suffix, middle} = params.time_str || {};
-        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
-
-        prefix = prefix && prefix.replace(/: ?/, "") + ": " || "";
-
-        if (typeof middle === "function") middle = middle(getTimeInfoFromPicker);
-        middle = middle || formatTimeStr();
-
-        if (typeof suffix === "function") suffix = suffix(getTimeInfoFromPicker);
-        suffix = suffix && suffix.replace(/^ */, " ") || "";
-
-        time_picker_view.time_str.setText(prefix + middle + suffix);
-
-        // tool function(s) //
-
-        function formatTimeStr() {
-            if (!format) {
-                let len = date_or_time_indices.length;
-                let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
-                if (len === 2) {
-                    str += (
-                        picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? " - " : " "
-                    ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
-                }
-                picker_views.forEach((o, idx) => {
-                    if (o.type === "week") str += getTimeInfoFromPicker(idx + 1).default();
-                });
-                return str;
-            }
-            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeInfoFromPicker($3)[$2]());
-        }
-    }
-
-    function addButtons() {
-        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
-        let btn_view = ui.inflate(
-            <vertical>
-                <horizontal id="btn_group" w="auto" layout_gravity="center">
-                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
-                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#fff9c4" visibility="gone"/>
-                    <button id="confirm_btn" text="确认选择" margin="20 0" backgroundTint="#dcedc8"/>
-                </horizontal>
-            </vertical>
-        );
-        if ((params.buttons || {})["reserved_btn"]) {
-            let {text, onClickListener} = params.buttons.reserved_btn;
-            let reserved_btn_view = btn_view.reserved_btn;
-            reserved_btn_view.setVisibility(0);
-            text && reserved_btn_view.setText(text);
-            onClickListener && reserved_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
-        }
-        time_picker_view.time_picker_view_main.addView(btn_view);
-
-        if ((params.buttons || {})["back_btn"]) {
-            let {text, onClickListener} = params.buttons.back_btn;
-            let confirm_btn_view = btn_view.back_btn;
-            text && confirm_btn_view.setText(text);
-            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
-        } else time_picker_view.back_btn.on("click", () => closeTimePickerPage());
-
-        if ((params.buttons || {})["confirm_btn"]) {
-            let {text, onClickListener} = params.buttons.confirm_btn;
-            let confirm_btn_view = btn_view.confirm_btn;
-            text && confirm_btn_view.setText(text);
-            onClickListener && confirm_btn_view.on("click", () => onClickListener(getTimeInfoFromPicker, closeTimePickerPage));
-        } else time_picker_view.confirm_btn.on("click", () => closeTimePickerPage("picker_view"));
-    }
-
-    function closeTimePickerPage(return_value) {
-        if (typeof session_params !== "undefined") {
-            delete session_params.back_btn_consumed;
-            delete session_params.back_btn_consumed_func;
-        }
-
-        let parent = ui.main.getParent();
-        let child_count = parent.getChildCount();
-        for (let i = 0; i < child_count; i += 1) {
-            let child_view = parent.getChildAt(i);
-            if (child_view.findViewWithTag("fullscreen_time_picker")) parent.removeView(child_view);
-        }
-
-        if (params.onFinish && typeof return_value !== "undefined") {
-            params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText().toString() : return_value);
-        }
-    }
-}
-
-function setInfoInputView(params) {
-    let info_input_view = null;
-    let input_views_obj = {};
-    let {InputType, SpannableString, style, Spanned, SpannedString} = android.text;
-
-    params = params || {};
-    if (typeof session_params !== "undefined") {
-        session_params.back_btn_consumed = true;
-        session_params.back_btn_consumed_func = (
-            typeof params.back_btn_comsumed === "function"
-                ? () => params.back_btn_comsumed()
-                : () => info_input_view.back_btn.click()
-        );
-    }
-
-    initInfoInputView();
-    addInputBoxes();
-    addButtons();
-
-    ui.main.getParent().addView(info_input_view);
-
-    // tool function(s) //
-
-    function initInfoInputView() {
-        info_input_view = ui.inflate(
-            <vertical focusable="true" focusableInTouchMode="true" bg="#ffffff" clickable="true">
-                <vertical h="*" gravity="center" id="info_input_view_main" clickable="true" focusableInTouchMode="true"/>
-            </vertical>
-        );
-
-        info_input_view.setTag("fullscreen_info_input");
-    }
-
-    function addInputBoxes() {
-        params.input_views.forEach((o, idx) => {
-            let view = ui.inflate(
-                <vertical>
-                    <card w="*" h="50" cardCornerRadius="2dp" cardElevation="3dp" foreground="?selectableItemBackground" cardBackgroundColor="#546e7a" margin="18 0 18 30">
-                        <input id="input_area" selectAllOnFocus="true" gravity="center" textSize="17" background="?null" hint="未设置" textColorHint="#e3e3e3" textColor="#eeeeee"/>
-                        <vertical gravity="right|bottom">
-                            <text id="input_text" bg="#66000000" gravity_layout="right" h="auto" w="auto" padding="6 2" textColor="#ffffff" textSize="12sp" maxLines="1"/>
-                        </vertical>
-                    </card>
-                </vertical>
-            );
-            let {text, type, hint_text, init} = o;
-            let input_area_view = view.input_area;
-            let input_text_view = view.input_text;
-            let setViewHintText = hint_text => setEditTextHint(input_area_view, "-2", hint_text);
-
-            if (type === "password") {
-                input_area_view.setInputType(input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-                input_area_view.setOnKeyListener(
-                    function onKey(view, keyCode, event) {
-                        let {KEYCODE_ENTER, ACTION_UP} = android.view.KeyEvent;
-                        let is_keycode_enter = keyCode === KEYCODE_ENTER;
-                        let is_action_up = event.getAction() === ACTION_UP;
-                        is_keycode_enter && is_action_up && info_input_view.confirm_btn.click();
-                        return is_keycode_enter;
-                    }
-                );
-            } else {
-                input_area_view.setSingleLine(true);
-            }
-
-            if (type === "account") init = accountNameConverter(init, "decrypt");
-
-            input_text_view.setText(text);
-            init && input_area_view.setText(init);
-            setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
-            view.input_area.setViewHintText = setViewHintText;
-            input_area_view.setOnFocusChangeListener(onFocusChangeListener);
-            info_input_view.info_input_view_main.addView(view);
-            input_views_obj[text] = view;
-
-            // tool function(s) //
-
-            function onFocusChangeListener(view, has_focus) {
-                has_focus ? view.setHint(null) : setViewHintText(typeof hint_text === "function" ? hint_text() : hint_text);
-            }
-
-            function setEditTextHint(edit_text_view, text_size, text_str) {
-                if (text_size.toString().match(/^[+-]\d+$/)) {
-                    text_size = edit_text_view.getTextSize() / context.getResources().getDisplayMetrics().scaledDensity + +text_size;
-                }
-                let span_string = new SpannableString(text_str || edit_text_view.hint);
-                let abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
-                span_string.setSpan(abs_size_span, 0, span_string.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-                edit_text_view.setHint(new SpannedString(span_string));
-            }
-        });
-        info_input_view.info_input_view_main.addView(ui.inflate(
-            <vertical>
-                <frame margin="0 15"/>
-            </vertical>
-        ));
-    }
-
-    function addButtons() {
-        let {buttons} = params;
-        let {additional} = buttons;
-
-        additional && addAdditionalButtons(additional);
-
-        let common_btn_view = ui.inflate(
-            <vertical>
-                <horizontal id="btn_group" w="auto" layout_gravity="center">
-                    <button id="back_btn" text="返回" margin="20 0" backgroundTint="#eeeeee"/>
-                    <button id="reserved_btn" text="预留按钮" margin="-10 0" backgroundTint="#bbdefb" visibility="gone"/>
-                    <button id="confirm_btn" text="确定" margin="20 0" backgroundTint="#dcedc8"/>
-                </horizontal>
-            </vertical>
-        );
-
-        if (buttons.reserved_btn) {
-            let {text, onClickListener, hint_color} = buttons.reserved_btn;
-            let reserved_btn_view = common_btn_view.reserved_btn;
-            reserved_btn_view.setVisibility(0);
-            text && reserved_btn_view.setText(text);
-            onClickListener && reserved_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
-            if (hint_color) reserved_btn_view.attr("backgroundTint", hint_color);
-        }
-
-        info_input_view.info_input_view_main.addView(common_btn_view);
-        info_input_view.back_btn.on("click", () => closeInfoInputPage());
-
-        if (buttons.confirm_btn) {
-            let {text, onClickListener} = buttons.confirm_btn;
-            let confirm_btn_view = common_btn_view.confirm_btn;
-            text && confirm_btn_view.setText(text);
-            onClickListener && confirm_btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
-        } else info_input_view.confirm_btn.on("click", closeInfoInputPage);
-
-        // tool function(s) //
-
-        function addAdditionalButtons(additional) {
-            let addi_buttons = classof(additional, "Array") ? additional.slice() : [additional];
-            let addi_btn_view = ui.inflate(
-                <vertical>
-                    <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
-                </vertical>
-            );
-            addi_buttons.forEach((o, idx) => {
-                if (classof(o, "Array")) return addAdditionalButtons(o);
-                let btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
-                let {text, hint_color, onClickListener} = o;
-                if (text) btn_view.setText(text);
-                if (hint_color) btn_view.attr("backgroundTint", hint_color);
-                if (onClickListener) btn_view.on("click", () => onClickListener(input_views_obj, closeInfoInputPage));
-                addi_btn_view.addi_button_area.addView(btn_view);
-            });
-            info_input_view.info_input_view_main.addView(addi_btn_view);
-        }
-    }
-
-    function closeInfoInputPage() {
-        if (typeof session_params !== "undefined") {
-            delete session_params.back_btn_consumed;
-            delete session_params.back_btn_consumed_func;
-        }
-
-        let parent = ui.main.getParent();
-        let child_count = parent.getChildCount();
-        for (let i = 0; i < child_count; i += 1) {
-            let child_view = parent.getChildAt(i);
-            if (child_view.findViewWithTag("fullscreen_info_input")) parent.removeView(child_view);
-        }
-    }
-}
-
 function accountNameConverter(str, opr_name) {
     if (!str) return "";
     let arr = str.toString().split("");
@@ -6471,4 +6959,90 @@ function timeSectionToStr(arr) {
 
 function timeStrToSection(str) {
     return str.replace(/ \(\+1\)/g, "").split(" - ");
+}
+
+function getAllAppsJointStr(if_show_sys_app, excluded_data_arrays, force_refresh_flag) {
+    let show_sys_app = typeof if_show_sys_app === "function" ? if_show_sys_app() : if_show_sys_app;
+    if (show_sys_app !== false) show_sys_app = true;
+
+    if (force_refresh_flag) {
+        delete session_params.filtered_apps_joint_str_arr;
+        delete session_params.all_apps_joint_str_arr;
+    }
+    let {all_apps_joint_str_arr, filtered_apps_joint_str_arr} = session_params;
+    if (show_sys_app && all_apps_joint_str_arr) return all_apps_joint_str_arr;
+    if (!show_sys_app && filtered_apps_joint_str_arr) return filtered_apps_joint_str_arr;
+
+    let filtered_items = [];
+    let all_items = [];
+    excluded_data_arrays = excluded_data_arrays || [];
+    let pkg_manager = context.getPackageManager();
+    let pkg_list = pkg_manager.getInstalledPackages(0).toArray();
+    if (pkg_list.length) {
+        pkg_list.forEach((o) => {
+            let pkg_info = pkg_manager.getPackageInfo(o.packageName, 0);
+            let pkg_name = o.packageName;
+            let {applicationInfo} = pkg_info;
+            let is_sys_app = (applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) > 0;
+            let app_name = applicationInfo.loadLabel(pkg_manager).toString();
+            let joint_str = app_name + "\n" + pkg_name;
+            for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                if (~excluded_data_arrays[i].indexOf(joint_str)) return;
+            }
+            is_sys_app || filtered_items.push(joint_str);
+            all_items.push(joint_str);
+        });
+    }
+    session_params.filtered_apps_joint_str_arr = filtered_items.sort();
+    session_params.all_apps_joint_str_arr = all_items.sort();
+
+    return show_sys_app ? all_items : filtered_items;
+}
+
+function collapseSoftKeyboard(view) {
+    context.getSystemService(context.INPUT_METHOD_SERVICE).hideSoftInputFromWindow(view.getWindowToken(), 0);
+}
+
+function refreshFriendsListByLaunchingAlipay(params) {
+    let {dialog_prompt, onTrigger, onResume} = params || {};
+
+    if (dialog_prompt) {
+        dialogs.builds([
+            "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
+            0, "放弃", "开始刷新", 1
+        ]).on("negative", diag => {
+            diag.dismiss();
+        }).on("positive", diag => {
+            diag.dismiss();
+            refreshNow();
+        }).show();
+    } else {
+        refreshNow();
+    }
+
+    // tool function(s) //
+
+    function refreshNow() {
+        if (typeof onTrigger === "function") {
+            onTrigger();
+        }
+        engines.execScriptFile("./Ant_Forest_Launcher.js", {
+            arguments: {
+                special_exec_command: "collect_friends_list",
+                instant_run_flag: true,
+                no_insurance_flag: true,
+            },
+        });
+        threads.starts(function () {
+            waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "widget"});
+        });
+
+        if (typeof onResume === "function") {
+            ui.emitter.prependOnceListener("resume", onResume);
+        }
+
+        setTimeout(function () {
+            toast("即将打开\"支付宝\"刷新好友列表");
+        }, 500);
+    }
 }

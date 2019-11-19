@@ -98,6 +98,19 @@
 ******
 ### 版本历史
 ******
+# v1.9.6
+###### 2019/11/19
+* `新增` 前置应用黑名单功能及配置 _[`issue #124`](https://github.com/SuperMonster003/Auto.js_Projects/issues/124)_
+* `修复` 解锁模块"完成"按钮可能匹配到非预期控件的问题 _[`issue #122`](https://github.com/SuperMonster003/Auto.js_Projects/issues/122#issuecomment-554196110)_  
+* `修复` debugInfo()的"虚线"参数解析异常的问题  
+* `修复` checkSdkAndAJVer()可能导致图形配置工具无法连续运行的问题  
+* `修复` 采集自己能量倒计时的多方案协同可能无效的问题 _[`issue #134`](https://github.com/SuperMonster003/Auto.js_Projects/issues/134#issuecomment-554689593)_  
+* `修复` 排行榜底部特例可能导致布局分析策略点击失效的问题 _[`issue #134`](https://github.com/SuperMonster003/Auto.js_Projects/issues/134#issuecomment-554689593)_  
+* `修复` 部分机型无法动态获取准确的设备通话状态值的问题  
+* `优化` 替换图形配置工具中自定义黑名单的手动输入方式为检索选择方式  
+* `优化` 使用安卓系统API替代shell()方式获取SDK版本  
+* `优化` parseAppName()使用缓存机制增加重复查询效率  
+
 # v1.9.5
 ###### 2019/11/14
 * `新增` 项目启动前的模块文件检查并提供缺失的模块提示  
