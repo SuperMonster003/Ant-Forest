@@ -280,23 +280,14 @@ module.exports = function (runtime, global) {
         return def | parseFlags("get", options) | parseFlags("match", options);
     }
 
-    function wrapAppInfo(appInfo) {
-        return new com.stardust.autojs.core.pm.AppInfo(context, appInfo);
-    }
-
-    function wrapPkgInfo(pkgInfo) {
-        pkgInfo.applicationInfo = wrapAppInfo(pkgInfo.applicationInfo);
-        return pkgInfo;
-    }
-
     app.getInstalledApps = function (options) {
         let flags = parsePMFlags(options, PM.GET_META_DATA);
-        return bridges.toArray(pm.getInstalledApplications(flags)).map(wrapAppInfo);
+        return bridges.toArray(pm.getInstalledApplications(flags));
     }
 
     app.getInstalledPackages = function (options) {
         let flags = parsePMFlags(options, PM.GET_META_DATA);
-        return bridges.toArray(pm.getInstalledPackages(flags)).map(wrapPkgInfo);
+        return bridges.toArray(pm.getInstalledPackages(flags));
     }
 
     app.getApkInfo = function (file, options) {

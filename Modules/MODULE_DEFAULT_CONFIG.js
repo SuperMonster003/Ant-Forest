@@ -73,6 +73,7 @@ module.exports = {
         prompt_before_running_postponed_minutes: 0, // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute
         prompt_before_running_postponed_minutes_user: 3, // record user selected value of postponed settings dialog in countdown dialog
         rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
+        foreground_app_blacklist: [], // ant forest timed task will be auto-delayed for 5 min if current foreground app is in this list
     },
     unlock: {
         unlock_code: null, // when we first met, i do not know your name, your age, or, your sexual orientation, wow...

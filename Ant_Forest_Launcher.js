@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 14, 2019
- * @version 1.9.5
+ * @last_modified Nov 19, 2019
+ * @version 1.9.6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -238,18 +238,15 @@ function prologue() {
                 try {
                     tryRequestScreenCapture();
                     let img = captureScreen();
-                    let img_copy = images.copy(img);
+                    let img_copy = images.copy(img); // prevent "img" from being auto-recycled
                     images.reclaim(img);
+                    img = null;
                     return img_copy;
                 } catch (e) {
                     sleep(240);
                 }
             }
             messageAction("截取当前屏幕失败", 9, 1, 0, 1);
-        };
-        images.regenerate = function (img) {
-            images.reclaim(img);
-            return images.captureCurrentScreen();
         };
 
         let main_account_info = config.main_account_info || {};
@@ -260,7 +257,7 @@ function prologue() {
             ? __global__.is_init_screen_on
             : my_engine.execArgv.init_screen_on_state;
         current_app.init_running_app_package = typeof my_engine.execArgv.init_running_app_package === "undefined"
-            ? currentPackage()
+            ? (current_app.init_running_app_package || currentPackage())
             : my_engine.execArgv.init_running_app_package;
         current_app.kw_alipay_homepage = type => sel.pickup([/首页|Homepage/, {
             boundsInside: [0, cY(0.7, 16 / 9), WIDTH, HEIGHT],
@@ -710,6 +707,7 @@ function loginMainUser(direct_login_flag) {
         if (!current_avatar) return;
         let matched = images.findImage(current_avatar, img, {level: 1});
         images.reclaim(current_avatar);
+        current_avatar = null;
         return matched;
     }
 
@@ -733,6 +731,7 @@ function loginMainUser(direct_login_flag) {
             h_chopped - 2
         );
         images.reclaim(capt_img);
+        capt_img = null;
         return avatar_clip;
 
         // tool function(s) //
@@ -743,7 +742,7 @@ function loginMainUser(direct_login_flag) {
                 kw_my_tree_plant_plan: type => sel.pickup("我的大树养成记录", "", type),
                 kw_user_energy: type => sel.pickup([idMatches(/.*user.+nergy/), "p2c0"], "", type),
                 kw_plant_tree_btn: type => sel.pickup(["种树", {
-                    className: "Button"
+                    className: "Button",
                 }, "p1c0"], "", type),
                 kw_home_panel: type => sel.pickup([idMatches(/.*home.*panel/), "c0c0c0"], "", type),
             };
@@ -765,6 +764,7 @@ function loginMainUser(direct_login_flag) {
         if (!current_avatar) return;
         images.save(current_avatar, avatar_local_path);
         images.reclaim(current_avatar);
+        current_avatar = null;
         return true;
     }
 
@@ -1049,8 +1049,8 @@ function checkEnergy() {
 
         return sel.pickup([regexp_type[balls_kind], {className: "Button"}], "kw_energy_balls_" + balls_kind, "nodes")
             .filter((node) => {
-                let bounds = node.bounds();
-                return bounds.left >= cX(0.08) && bounds.right <= cX(0.92);
+                let bounds = node && node.bounds();
+                return bounds && bounds.left >= cX(0.08) && bounds.right <= cX(0.92);
             });
     };
 
@@ -1201,7 +1201,10 @@ function checkEnergy() {
                         thr && thr.interrupt();
                         thr = null;
                     };
+                    let timeout_get_countdown_data = 12000;
                     let countdown_data = [];
+
+                    timeRecorder("get_own_countdown_data");
 
                     let thread_get_by_ocr = threads.start(function () {
                         debugInfo("已开启倒计时数据OCR识别线程");
@@ -1216,18 +1219,25 @@ function checkEnergy() {
                                 stitched = idx ? images.concat(stitched, nodeToImage(node), "BOTTOM") : stitched;
                             });
                             images.reclaim(initial_af_home_capt);
+                            initial_af_home_capt = null;
                             return stitched;
                         })();
+
                         let raw_countdown_data = baiduOcr([raw_balls, stitched_initial_af_home_balls_img], {
                             fetch_times: 3,
                             fetch_interval: 500,
                             no_toast_msg_flag: true,
-                        });
-                        countdown_data = raw_countdown_data
-                            .map(result => result.filter(str => !!str.match(/\d{2}:\d{2}/)))
+                        }).map(result => result.filter(str => !!str.match(/\d{2}:\d{2}/)))
                             .filter(arr => !!arr.length)
-                            .map(arr => arr.sort()[0]);
-                        debugInfo("OCR识别线程" + (countdown_data.length ? "已获取有效数据" : "获取数据无效"));
+                            .map(arr => arr.sort((a, b) => a > b ? 1 : -1)[0]);
+
+                        if (!raw_countdown_data.length) return debugInfo("OCR识别线程未能获取有效数据");
+
+                        debugInfo("OCR识别线程已获取有效数据");
+                        if (countdown_data.length) return debugInfo(["数据未被采纳", ">倒计时数据非空"]);
+
+                        debugInfo("OCR识别线程数据已采纳");
+                        return countdown_data = raw_countdown_data;
                     });
                     let thread_get_by_toast = threads.start(function () {
                         debugInfo("已开启倒计时数据Toast监控线程");
@@ -1244,12 +1254,14 @@ function checkEnergy() {
                         countdown_data.length || debugInfo("Toast监控线程未能获取有效数据");
                     });
 
-                    let timeout_get_countdown_data = 12000;
-                    timeRecorder("get_own_countdown_data");
                     let getRemainingTime = () => timeout_get_countdown_data - timeRecorder("get_own_countdown_data", "load");
 
-                    thread_get_by_toast.join(timeout_get_countdown_data);
-                    thread_get_by_ocr.join(getRemainingTime());
+                    thread_get_by_toast.join(4000);
+                    if (isThreadAlive(thread_get_by_toast)) {
+                        killThread(thread_get_by_toast);
+                        debugInfo(["Toast监控线程获取数据超时", "强制停止Toast监控线程"]);
+                        thread_get_by_ocr.join(getRemainingTime());
+                    }
 
                     if (getRemainingTime() < 0) {
                         killThread(thread_get_by_toast);
@@ -1448,6 +1460,7 @@ function checkEnergy() {
                     let last_capt = blacklist_ident_captures.pop();
                     debugInfo(">移除并回收最旧样本: " + images.getName(last_capt));
                     images.reclaim(last_capt);
+                    last_capt = null;
                 }
                 blacklist_ident_captures.unshift(capture);
                 debugInfo("添加黑名单采集样本: " + images.getName(capture));
@@ -1484,7 +1497,9 @@ function checkEnergy() {
             // tool function(s) //
 
             function getRankListRefMaterials() {
-                current_app.rank_list_capt_img = images.regenerate(current_app.rank_list_capt_img);
+                images.reclaim(current_app.rank_list_capt_img);
+                current_app.rank_list_capt_img = null;
+                current_app.rank_list_capt_img = images.captureCurrentScreen();
                 debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
 
                 let key_node = null;
@@ -1558,6 +1573,7 @@ function checkEnergy() {
                     if (!parent_node) return debugInfo("采集到无效的排行榜样本");
 
                     let state_ident_node = sel.pickup([w, "s2b"]);
+                    if (!state_ident_node) return debugInfo("采集到无效的排行榜样本");
                     if (state_ident_node.childCount()) return; // exclude identifies with countdown
 
                     let find_color_options = getFindColorOptions(parent_node);
@@ -1613,7 +1629,7 @@ function checkEnergy() {
                         let screen_samples = nodes_text.length >= nodes_desc.length ? nodes_text : nodes_desc;
 
                         let filtered_samples = [];
-                        let meet_min_threshold = (a, b) => Math.abs(a - b) < 5;
+                        let meet_min_threshold = (a, b) => Math.abs(a - b) > 5;
 
                         for (let i = 1, len = screen_samples.length; i < len; i += 1) {
                             let cur_node = screen_samples[i];
@@ -1621,19 +1637,26 @@ function checkEnergy() {
                             let cur_bounds = cur_node.bounds();
                             let pre_bounds = pre_node.bounds();
 
-                            if (!meet_min_threshold(cur_bounds.bottom, pre_bounds.bottom)
-                                && !meet_min_threshold(cur_bounds.top, pre_bounds.top)
-                                && cur_node.parent().bounds().height() > 10) {
-                                if (i === 1) filtered_samples.push(pre_node);
-                                filtered_samples.push(cur_node);
+                            try {
+                                if (meet_min_threshold(cur_bounds.bottom, pre_bounds.bottom)
+                                    && meet_min_threshold(cur_bounds.top, pre_bounds.top)
+                                    && cur_node.parent().bounds().height() > cX(0.08)
+                                ) {
+                                    if (i === 1) filtered_samples.push(pre_node);
+                                    filtered_samples.push(cur_node);
+                                }
+                            } catch (e) {
+                                // nothing to do here
                             }
                         }
 
                         let filtered_screen_samples_len = filtered_samples.length;
-                        debugInfo("获取当前屏幕好友样本数量: " + filtered_screen_samples_len);
-                        if (filtered_screen_samples_len) return filtered_samples;
+                        if (filtered_screen_samples_len) {
+                            debugInfo("获取当前屏幕好友样本数量: " + filtered_screen_samples_len);
+                            return filtered_samples;
+                        }
                     }
-                    debugInfo("刷新样本区域失败", 3);
+                    debugInfo("未能从样本区域获取样本");
                     return [];
                 }
 
@@ -1642,10 +1665,14 @@ function checkEnergy() {
                         l: cX(0.7),
                         t: parent_node.bounds().top - 3,
                     };
-                    let region = [region_ref.l, region_ref.t, WIDTH - region_ref.l - 3, parent_node.bounds().centerY() - region_ref.t];
-                    debugInfo("排行榜图标取色区域:");
-                    debugInfo("[" + region[0] + ", " + region[1] + ", " + (region[0] + region[2]) + ", " + (region[1] + region[3]) + "]");
-                    return {region: region};
+                    return {
+                        region: [
+                            region_ref.l,
+                            region_ref.t,
+                            WIDTH - region_ref.l - 3,
+                            parent_node.bounds().centerY() - region_ref.t
+                        ]
+                    };
                 }
 
                 function checkRegion(arr) {
@@ -1863,6 +1890,7 @@ function checkEnergy() {
 
                         debugInfo("已回收屏幕截图: " + images.getName(screen_capture));
                         images.reclaim(screen_capture);
+                        screen_capture = null;
 
                         let progress = timeRecorder("energy_balls_monitor", "load", intensity_time / 100, [1], "%");
                         if (+progress.match(/\d+(\.\d+)?/)[0] >= 95) {
@@ -2081,6 +2109,7 @@ function checkEnergy() {
                     blacklist_ident_captures.add(screen_capture_new);
                     debugInfo("已回收屏幕截图: " + images.getName(screen_capture_new));
                     images.reclaim(screen_capture_new);
+                    screen_capture_new = null;
                 }
             }
 
@@ -2303,6 +2332,7 @@ function checkEnergy() {
                 let capt_img = images.captureCurrentScreen();
                 let imageOrColorMatched = titleAreaMatch() || closeBtnColorMatch();
                 images.reclaim(capt_img);
+                capt_img = null;
                 if (imageOrColorMatched) return true;
                 if (strategy === "layout") return current_app.kw_rank_list_title();
 
@@ -2382,7 +2412,9 @@ function checkEnergy() {
                 }
             }
 
-            current_app.rank_list_capt_img = images.regenerate(current_app.rank_list_capt_img);
+            current_app.rank_list_capt_img = null;
+            images.reclaim(current_app.rank_list_capt_img);
+            current_app.rank_list_capt_img = images.captureCurrentScreen();
             debugInfo("生成排行榜截图: " + images.getName(current_app.rank_list_capt_img));
 
             if (!checkRankListCaptDifference()) {
@@ -2399,17 +2431,22 @@ function checkEnergy() {
 
                 let {kw_end_list_ident} = current_app;
                 if (kw_end_list_ident()) {
-                    let {left, top, right, bottom} = kw_end_list_ident("bounds");
+                    let {left, top, right, bottom} = kw_end_list_ident("bounds") || {};
                     if (bottom - top > cX(0.08)) {
                         list_end_signal = 1;
                         debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
                         let capt_img = images.captureCurrentScreen();
                         let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
+                        if (current_app.rank_list_bottom_template) {
+                            images.reclaim(current_app.rank_list_bottom_template);
+                            current_app.rank_list_bottom_template = null;
+                        }
                         images.save(
                             current_app.rank_list_bottom_template = images.copy(btn_clip),
                             current_app.rank_list_bottom_template_path)
                         ;
                         images.reclaim(capt_img, btn_clip);
+                        capt_img = btn_clip = null;
                         return debugInfo("列表底部控件图片模板已更新");
                     }
                 }
@@ -2504,42 +2541,46 @@ function checkEnergy() {
                     if (images.isRecycled(pool[i])) pool.splice(i, 1);
                 }
 
-                if (!pool_len) {
-                    // debugInfo("添加当前截图到排行榜截图样本池");
-                    current_app.rank_list_capt_diff_check_pool.push(images.copy(current_app.rank_list_capt_img));
+                if (!poolDiffThresholdReached()) {
+                    pool.push(images.copy(current_app.rank_list_capt_img));
                     return true;
                 }
 
-                while (pool_len > 1) {
-                    let img_to_recycle = pool.shift();
-                    pool_len = pool.length;
-                    debugInfo("回收排行榜截图: " + images.getName(img_to_recycle));
-                    images.reclaim(img_to_recycle);
-                }
+                // tool function(s) //
 
-                let similar_captures = false;
+                function poolDiffThresholdReached() {
+                    if (!pool_len) return;
 
-                try {
-                    similar_captures = images.findImage(current_app.rank_list_capt_img, pool[pool_len - 1]);
-                } catch (e) {
-                    // debugInfo(["放弃排行榜截图样本差异检测", ">单次检测失败", ">" + e.message], 3);
-                }
-
-                let check_threshold = config.rank_list_capt_pool_diff_check_threshold;
-                if (similar_captures) {
-                    let counter = current_app.rank_list_capt_pool_diff_check_counter += 1;
-                    debugInfo(["排行榜截图样本池差异检测:", "检测未通过: (" + counter + "\/" + check_threshold + ")"]);
-                    if (counter >= check_threshold) {
-                        list_end_signal = 1;
-                        return debugInfo(["发送排行榜停检信号", ">已达截图样本池差异检测阈值"]);
+                    while (pool_len > 1) {
+                        debugInfo("回收排行榜截图: " + images.getName(pool[0]));
+                        images.reclaim(pool[0]);
+                        pool[0] = null;
+                        pool.splice(0, 1);
+                        pool_len = pool.length;
                     }
-                } else {
-                    // debugInfo("排行榜截图样本池差异检测通过");
-                    current_app.rank_list_capt_pool_diff_check_counter = 0;
-                }
 
-                pool.push(images.copy(current_app.rank_list_capt_img));
-                return true;
+                    let similar_captures = false;
+
+                    try {
+                        similar_captures = images.findImage(current_app.rank_list_capt_img, pool[pool_len - 1]);
+                    } catch (e) {
+                        // debugInfo(["放弃排行榜截图样本差异检测", ">单次检测失败", ">" + e.message], 3);
+                    }
+
+                    let check_threshold = config.rank_list_capt_pool_diff_check_threshold;
+                    if (similar_captures) {
+                        let counter = current_app.rank_list_capt_pool_diff_check_counter += 1;
+                        debugInfo(["排行榜截图样本池差异检测:", "检测未通过: (" + counter + "\/" + check_threshold + ")"]);
+                        if (counter >= check_threshold) {
+                            list_end_signal = 1;
+                            debugInfo(["发送排行榜停检信号", ">已达截图样本池差异检测阈值"]);
+                            return true;
+                        }
+                    } else {
+                        // debugInfo("排行榜截图样本池差异检测通过");
+                        current_app.rank_list_capt_pool_diff_check_counter = 0;
+                    }
+                }
             }
 
             function checkRankListBottomTemplate() {
@@ -2694,7 +2735,7 @@ function checkEnergy() {
                 if (!kw_end_list_ident()) continue;
 
                 let sel_str = kw_end_list_ident("sel_str");
-                let {left, top, right, bottom} = kw_end_list_ident("bounds");
+                let {left, top, right, bottom} = kw_end_list_ident("bounds") || {};
                 if (bottom - top > cX(0.08)) {
                     list_end_signal = 1;
                     debugInfo("列表底部条件满足");
@@ -2702,11 +2743,16 @@ function checkEnergy() {
                     debugInfo(">" + sel_str + ": " + kw_end_list_ident(sel_str));
                     let capt_img = images.captureCurrentScreen();
                     let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
+                    if (current_app.rank_list_bottom_template) {
+                        images.reclaim(current_app.rank_list_bottom_template);
+                        current_app.rank_list_bottom_template = null;
+                    }
                     images.save(
                         current_app.rank_list_bottom_template = images.copy(btn_clip),
                         current_app.rank_list_bottom_template_path
                     );
                     images.reclaim(capt_img, btn_clip);
+                    capt_img = btn_clip = null;
                     debugInfo("已存储列表底部控件图片模板");
                     break;
                 }
@@ -3854,10 +3900,8 @@ function showRunningCountdownIfNeeded() {
             countdown_stop_signal = true;
             thread_set_countdown && thread_set_countdown.interrupt();
 
-            let working_flag = false;
-
             if (config.prompt_before_running_postponed_minutes !== 0) {
-                return setPostponedTaskNow(config.prompt_before_running_postponed_minutes);
+                return setPostponedTaskNow(config.prompt_before_running_postponed_minutes, [diag]);
             }
 
             let map = (() => {
@@ -3902,41 +3946,11 @@ function showRunningCountdownIfNeeded() {
                     config.prompt_before_running_postponed_minutes = put_value;
                 }
 
-                setPostponedTaskNow(+map_keys[selected_index], diag_postponed);
+                setPostponedTaskNow(+map_keys[selected_index], [diag_postponed, diag]);
             });
             diag_postponed.show();
 
             pauseCountdownDialog();
-
-            // tool function(s) //
-
-            function setPostponedTaskNow(postponed_minute, diag_postponed) {
-                working_flag || threads.start(function () {
-                    working_flag = true;
-
-                    diag_postponed && diag_postponed.dismiss();
-                    diag.dismiss();
-
-                    let task_msg = surroundWith("蚂蚁森林") + "任务";
-                    messageAction("推迟" + task_msg, 1, 0, 0, "up");
-                    messageAction("推迟时长: " + postponed_minute + "min", 1, 0, 0, 1);
-                    let toast_msg = task_msg + "推迟 " + postponed_minute + " 分钟";
-                    messageAction(toast_msg, null, 1);
-
-                    let next_launch_time = +new Date() + postponed_minute * 60000;
-
-                    let task = timers.addDisposableTask({
-                        path: current_app.current_file_path || files.path("./Ant_Forest_Launcher.js"),
-                        date: next_launch_time,
-                    });
-                    storage_af.put("next_auto_task", {
-                        task_id: task.id,
-                        timestamp: next_launch_time,
-                        type: "postponed",
-                    });
-                    exit();
-                });
-            }
         }
 
         function pauseCountdownDialog(interval) {
@@ -3955,6 +3969,35 @@ function showRunningCountdownIfNeeded() {
         messageAction("强制结束脚本", 4, 1);
         messageAction("等待运行前对话框操作超时", 9, 1, 0, 1);
     }
+}
+
+function setPostponedTaskNow(postponed_minute, dialogs_arr, toast_flag) {
+    current_app.set_postponed_task_working_flag || threads.start(function () {
+        current_app.set_postponed_task_working_flag = true;
+
+        dialogs_arr && dialogs_arr.forEach(diag => diag.dismiss());
+
+        let task_msg = surroundWith("蚂蚁森林") + "任务";
+        messageAction("推迟" + task_msg, 1, 0, 0, "up");
+        messageAction("推迟时长: " + postponed_minute + "min", 1, 0, 0, 1);
+        if (toast_flag !== false) {
+            let toast_msg = task_msg + "推迟 " + postponed_minute + " 分钟";
+            messageAction(toast_msg, null, 1);
+        }
+
+        let next_launch_time = +new Date() + postponed_minute * 60000;
+
+        let task = timers.addDisposableTask({
+            path: current_app.current_file_path || files.path("./Ant_Forest_Launcher.js"),
+            date: next_launch_time,
+        });
+        storage_af.put("next_auto_task", {
+            task_id: task.id,
+            timestamp: next_launch_time,
+            type: "postponed",
+        });
+        ui.post(() => exit());
+    });
 }
 
 function setInsuranceTaskIfNeeded() {
@@ -4059,36 +4102,24 @@ function checkModules() {
 }
 
 function checkTasksQueue() {
-    let queue_flag = false;
     timeRecorder("queue_beginning", "save");
-    my_engine = (engines || {}).myEngine() || {};
-    try {
-        if (typeof my_engine.execArgv === "undefined") my_engine.execArgv = {};
-    } catch (e) {
-        // nothing to do here
-    }
+
+    my_engine = getMyEngine();
     let my_engine_id = my_engine.id;
+    let queue_flag = false;
     let bomb_flag = false;
-    let checkExclusiveTasks = () => {
-        let filtered_tasks = engines.all()
-            .filter(e => e.getTag("exclusive_task") && e.id < my_engine_id)
-            .sort((a, b) => a.id > b.id);
-        if (filtered_tasks.length) return filtered_tasks;
-    };
-    let checkBomb = () => {
-        return engines.all().filter((e) => {
-            return e.getTag("exclusive_task") === "af"
-                && my_engine_id > e.id
-                && +new Date() - e.getTag("launch_timestamp") < config.min_bomb_interval_global;
-        }).length;
-    };
+
     try {
         my_engine.setTag("exclusive_task", "af");
         my_engine.setTag("launch_timestamp", +new Date());
-        if (typeof my_engine.execArgv === "undefined") throw Error("抛出本地异常: Engines模块功能无效");
+        if (typeof my_engine.execArgv === "undefined") {
+            throw Error("抛出本地异常: Engines模块功能无效");
+        }
         if (checkBomb()) {
             bomb_flag = true;
-            messageAction("脚本因安全限制被强制终止", 3, 0, 0, "both");
+            messageAction("脚本因安全限制被强制终止", 3, 0, 0, "up");
+            messageAction("连续运行间隔时长过小", 3, 0, 1);
+            messageAction("触发脚本炸弹预防阈值", 3, 0, 1, 1);
             exit();
         }
         let queuing_ex_tasks_check = checkExclusiveTasks();
@@ -4119,8 +4150,89 @@ function checkTasksQueue() {
         debugInfo(e.message);
         __global__.engines_not_supported_flag = true;
         debugInfo("Engines支持性标记: false")
+    } finally {
+        checkForegroundAppBlacklist();
+        storage_af.remove("foreground_app_blacklist_hit_continuous_times");
     }
     queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "Up");
+
+    // tool function(s) //
+
+    function getMyEngine() {
+        let my_engine = (engines || {}).myEngine() || {};
+        try {
+            if (typeof my_engine.execArgv === "undefined") my_engine.execArgv = {};
+        } catch (e) {
+            // nothing to do here
+        }
+        return my_engine;
+    }
+
+    function checkExclusiveTasks() {
+        let filtered_tasks = engines.all()
+            .filter(e => e.getTag("exclusive_task") && e.id < my_engine_id)
+            .sort((a, b) => a.id > b.id ? 1 : -1);
+        if (filtered_tasks.length) return filtered_tasks;
+    }
+
+    function checkBomb() {
+        return engines.all().filter((e) => {
+            return e.getTag("exclusive_task") === "af"
+                && my_engine_id > e.id
+                && +new Date() - e.getTag("launch_timestamp") < config.min_bomb_interval_global;
+        }).length;
+    }
+
+    function checkForegroundAppBlacklist() {
+        if (!__global__.is_init_screen_on) return debugInfo(["跳过前置应用黑名单检测", ">屏幕未亮起"]);
+
+        let init_running_app_package = currentPackage();
+        if (init_running_app_package.match(/autojs/)) {
+            init_running_app_package = currentPackage();
+        }
+        current_app.init_running_app_package = init_running_app_package;
+
+        let foreground_app_blacklist = config.foreground_app_blacklist || [];
+        for (let i = 0, len = foreground_app_blacklist.length; i < len; i += 1) {
+            let [app_name, pkg_name] = foreground_app_blacklist[i].app_combined_name.split("\n");
+            if (pkg_name && init_running_app_package === pkg_name) {
+                let delay_info = getAutoDelayedInfo(storage_af.get("foreground_app_blacklist_hit_continuous_times"));
+                let {continuous_times, delay_time, delay_time_sum} = delay_info;
+                messageAction("前置应用位于黑名单中:", 1, 0, 0, "up");
+                messageAction(app_name, 1);
+                if (continuous_times === 1) {
+                    messageAction("本次任务自动推迟运行", 1);
+                } else {
+                    messageAction("本次任务自动推迟: " + delay_time + "min", 1);
+                    messageAction("当前连续推迟次数: " + continuous_times, 1);
+                    messageAction("当前连续推迟总计: " + delay_time_sum + "min", 1);
+                }
+                storage_af.put("foreground_app_blacklist_hit_continuous_times", continuous_times);
+                setPostponedTaskNow(delay_time, [], false);
+                ~sleep(4000) && exit(); // just in case
+            }
+        }
+        debugInfo(["前置应用黑名单检测通过:", init_running_app_package]);
+
+        // tool function(s) //
+
+        function getAutoDelayedInfo(current_continuous_times, minutes_arr) {
+            current_continuous_times = current_continuous_times || 0;
+            minutes_arr = minutes_arr || [1, 1, 2, 3, 5, 8, 10];
+            let minutes_arr_len = minutes_arr.length;
+            let max_minute = minutes_arr[minutes_arr_len - 1];
+            let delay_time = minutes_arr[current_continuous_times] || max_minute;
+            let delay_time_sum = 0;
+            for (let i = 0; i < current_continuous_times; i += 1) {
+                delay_time_sum += minutes_arr[i] || max_minute;
+            }
+            return {
+                continuous_times: current_continuous_times + 1,
+                delay_time: delay_time,
+                delay_time_sum: delay_time_sum,
+            };
+        }
+    }
 }
 
 function checkEngines() {

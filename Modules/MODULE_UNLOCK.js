@@ -551,7 +551,10 @@ module.exports = {
 
             function unlockPassword() {
                 let pw = classof(unlock_code, "Array") ? unlock_code.join("") : unlock_code;
-                let kw_confirm_btn = type => sel.pickup(/确.|完成|[Cc]onfirm|[Ee]nter/, "", type);
+                let kw_confirm_btn = type => sel.pickup([/确.|完成|[Cc]onfirm|[Ee]nter/, {
+                    className: "Button",
+                    clickable: true,
+                }], "", type);
 
                 let max_try_unlock_pw = unlock_max_try_times;
                 let current_try_pw = 0;
@@ -1638,7 +1641,7 @@ function loadInternalModuleMonsterFunc() {
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-        if (msg === "__split_line__") showDebugSplitLine();
+        if (typeof msg === "string" && msg.match(/^__split_line_/)) showDebugSplitLine();
 
         let info_flag_str = (info_flag || "").toString();
         let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
