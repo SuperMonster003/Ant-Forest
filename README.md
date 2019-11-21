@@ -98,6 +98,13 @@
 ******
 ### 版本历史
 ******
+# v1.9.7
+###### 2019/11/21
+* `修复` 图形配置工具检索输入无法区分正则表达式的问题 (输入"#REGEXP#"激活)  
+* `修复` 森林主页样本过早回收导致OCR方案重新获取倒计时数据失败的问题 _[`issue #134`](https://github.com/SuperMonster003/Auto.js_Projects/issues/134#issuecomment-556751787)_ _[`#138`](https://github.com/SuperMonster003/Auto.js_Projects/issues/138)_  
+* `优化` 解锁模块可使用单独的开关用于控制解锁过程的日志显示  
+* `优化` 使用字节缓冲流极大提升压缩与解压缩时的数据读写效率  
+
 # v1.9.6
 ###### 2019/11/19
 * `新增` 前置应用黑名单功能及配置 _[`issue #124`](https://github.com/SuperMonster003/Auto.js_Projects/issues/124)_

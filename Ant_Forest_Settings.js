@@ -95,6 +95,7 @@ let defs = Object.assign({}, DEFAULT_SETTINGS, {
     item_area_width: cX(DEFAULT_SETTINGS.item_area_width) + "px",
     homepage_title: "蚂蚁森林",
     local_backup_path: files.cwd() + "/BAK/Ant_Forest/",
+    dialog_contents: require("./Modules/MODULE_TREASURY_VAULT").dialog_contents || {},
 });
 
 let list_heads = {
@@ -1142,7 +1143,7 @@ addPage(() => {
                 // tool function(s) //
 
                 function updateDialog() {
-                    let dialog_contents = require("./Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
+                    let {dialog_contents} = defs;
                     let [base, exists, not_exists] = [
                         dialog_contents.rank_list_bottom_template_hint_base,
                         dialog_contents.rank_list_bottom_template_hint_exists,
@@ -3848,8 +3849,8 @@ addPage(() => {
                     diag_remark.show();
                 });
                 diag.on("positive", () => {
+                    delete session_params.__signal_interrupt_update__;
                     diag.dismiss();
-                    let signal_interrupt_update = false;
                     let diag_backup = dialogs.builds(["正在备份", "此过程可能需要一些时间", 0, 0, "终止", 1], {
                         progress: {
                             max: 100,
@@ -3857,7 +3858,7 @@ addPage(() => {
                         },
                     });
                     diag_backup.on("positive", () => {
-                        signal_interrupt_update = true;
+                        session_params.__signal_interrupt_update__ = true;
                         diag_backup.dismiss();
                     });
                     diag_backup.show();
@@ -5355,9 +5356,19 @@ function setListItemsSearchAndSelectView(data_source_src, params) {
             let data_source = [];
             if (input_text) {
                 data_source_ori.forEach((name) => {
-                    let _name = name.toString().toLowerCase();
-                    let _input = input_text.toString().toLowerCase();
-                    if (_name.match(_input)) data_source.push(name);
+                    name = name.toString();
+                    input_text = input_text.toString();
+                    if (input_text.slice(0, 8).toUpperCase() === "#REGEXP#") {
+                        try {
+                            if (name.match(new RegExp(input_text.slice(8)))) data_source.push(name);
+                        } catch (e) {
+                            // unterminated char may cause a SyntaxError when typing
+                        }
+                    } else {
+                        let _name = name.toLowerCase();
+                        let _input = input_text.toLowerCase();
+                        if (~_name.indexOf(_input)) data_source.push(name);
+                    }
                 })
             }
             ui.post(() => search_view.list.setDataSource(input_text ? data_source : data_source_ori));
@@ -6246,12 +6257,6 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
         diag_download.setContent(content);
     };
 
-    let ant_forest_files_blacklist = [
-        /\/Documents\//,
-        /\.gitignore/,
-        /\/README\.md/,
-    ];
-
     if (only_show_history_flag) return showUpdateHistories();
 
     let diag_update_positive_btn_text = storage_af.get("update_dialog_prompt_prompted") ? "立即更新" : "开始更新";
@@ -6273,6 +6278,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
     // steps function(s) //
 
     function downloadArchive() {
+        delete session_params.__signal_interrupt_update__;
         parent_dialog && parent_dialog.dismiss();
 
         diag_download = dialogs.builds(["正在部署项目最新版本", "", 0, 0, "终止", 1], {
@@ -6297,10 +6303,9 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
 
     function unzipArchive() {
         setStep(2);
-        if (!unzip(defs.local_backup_path + ".Ant_Forest.zip", defs.local_backup_path, {
-            blacklist_regexp: ant_forest_files_blacklist,
-            dialog: diag_download,
-        })) return;
+        let {local_backup_path} = defs;
+        let src = local_backup_path + ".Ant_Forest.zip";
+        if (!unzip(src, local_backup_path, false, diag_download)) return;
         setStep(3);
         return backupProject();
     }
@@ -6410,26 +6415,28 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
 function backupProjectFiles(local_backup_path, version_name, dialog, auto_flag) {
     local_backup_path = local_backup_path || defs.local_backup_path;
     version_name = version_name || getLocalProjectVerName();
-    let bak = {
+    let backup_src_map = {
         Modules: "folder",
         Tools: "folder",
+        Documents: "folder",
         "Ant_Forest_Launcher.js": "file",
         "Ant_Forest_Settings.js": "file",
+        "README.md": "file",
     };
     let now = new Date();
     let time_str = getTimeStr(now);
-    let bak_dir = local_backup_path + "." + time_str + "/";
-    for (let name in bak) {
-        if (bak.hasOwnProperty(name)) {
-            copyFolder(files.path("./") + name + (bak[name] === "folder" ? "/" : ""), bak_dir);
+    let backup_dir = local_backup_path + "." + time_str + "/";
+    for (let name in backup_src_map) {
+        if (backup_src_map.hasOwnProperty(name)) {
+            copyFolder(files.path("./") + name + (backup_src_map[name] === "folder" ? "/" : ""), backup_dir);
         }
     }
-    let zip_output_name = bak_dir.replace(/\/\.(.+?)\/$/, ($0, $1) => "/Ant_Forest_" + $1 + ".zip");
-    if (!zipFolder(bak_dir, zip_output_name, dialog)) return;
+    let zip_output_file_name = backup_dir.replace(/\/\.(.+?)\/$/, ($0, $1) => "/Ant_Forest_" + $1 + ".zip");
+    if (!zip(backup_dir, zip_output_file_name, dialog)) return;
     let data_source_key_name = "project_backup_info";
     updateDataSource(data_source_key_name, "update_unshift", {
-        file_name: files.getName(zip_output_name).replace(/\.zip$/, ""),
-        file_path: zip_output_name,
+        file_name: files.getName(zip_output_file_name).replace(/\.zip$/, ""),
+        file_path: zip_output_file_name,
         version_name: version_name,
         timestamp: now.getTime(),
         remark: auto_flag ? "自动备份" : (session_params["project_backup_info_remark"] || "手动备份"),
@@ -6440,7 +6447,7 @@ function backupProjectFiles(local_backup_path, version_name, dialog, auto_flag) 
     storage_af.put(data_source_key_name, storage_config[data_source_key_name] = deepCloneObject(session_config[data_source_key_name]));
 
     delete session_params["project_backup_info_remark"];
-    files.removeDir(bak_dir);
+    files.removeDir(backup_dir);
     if (!auto_flag) {
         dialog.setContent("备份完成");
         dialog.setActionButton("positive", "返回");
@@ -6455,78 +6462,11 @@ function backupProjectFiles(local_backup_path, version_name, dialog, auto_flag) 
         return now.getFullYear() + zeroPadding(now.getMonth() + 1) + zeroPadding(now.getDate()) + "_" +
             zeroPadding(now.getHours()) + zeroPadding(now.getMinutes()) + zeroPadding(now.getSeconds());
     }
-
-    function zipFolder(src_dir, output_name, dialog) {
-        output_name = output_name || src_dir.replace(/\/$/, ".zip");
-        let zip_path = new java.io.FileOutputStream(new java.io.File(output_name));
-        let path = new java.io.File(src_dir);
-        let src_dir_parent = path.getParent();
-        let output_stream = null;
-        try {
-            output_stream = new java.util.zip.ZipOutputStream(zip_path);
-            let source_file = new java.io.File(src_dir);
-            return compress(source_file, output_stream);
-        } catch (e) {
-            dialog && alertContent(dialog, "压缩失败:\n" + e, "append");
-        } finally {
-            output_stream && output_stream.close();
-        }
-
-        // tool function(s) //
-
-        function compress(src, output_stream) {
-            let file_list = getListFilePath(src);
-            let total_file_size = file_list.map(value => value.size).reduce((acc, cur) => acc + cur);
-            let compressed_size = 0;
-            for (let i = 0, len = file_list.length; i < len; i += 1) {
-                let info = file_list[i];
-                let list_file_name = info.name;
-                let list_file_size = info.size;
-                let file_name = new java.io.File(list_file_name);
-                output_stream.putNextEntry(
-                    new java.util.zip.ZipEntry(file_name.getParent().split(src_dir_parent)[1] + "/" + file_name.getName())
-                );
-                let input_stream = new java.io.FileInputStream(list_file_name);
-                let input_stream_len;
-                while ((input_stream_len = input_stream.read()) !== -1) {
-                    if (session_params.__signal_interrupt_update__) return session_params.__signal_interrupt_update__ = false;
-                    output_stream.write(input_stream_len);
-                }
-                output_stream.closeEntry();
-                input_stream.close();
-                compressed_size += list_file_size;
-                dialog.setProgress(compressed_size / total_file_size * 100);
-            }
-            dialog.setProgress(100);
-            return true;
-
-            // tool function(s) //
-
-            function getListFilePath(path) {
-                let file_info = [];
-                handleFolder(path);
-                return file_info;
-
-                // tool function(s) //
-
-                function handleFolder(path) {
-                    path = path.toString();
-                    let abs_path_prefix = path + (path.match(/\/$/) ? "" : "/");
-                    files.listDir(path).forEach(list_file_name => {
-                        let abs_path = abs_path_prefix + list_file_name;
-                        files.isDir(abs_path) ? handleFolder(abs_path) : file_info.push({
-                            name: abs_path,
-                            size: java.io.File(abs_path).length(),
-                        });
-                    });
-                }
-            }
-        }
-    }
 }
 
 function restoreProjectFiles(source) {
-    session_params.__signal_interrupt_update__ = false;
+    delete session_params.__signal_interrupt_update__;
+
     let mode = "local";
     if (source.toString().match(/^http/)) mode = "server";
 
@@ -6585,7 +6525,7 @@ function restoreProjectFiles(source) {
 
     function remainingSteps() {
         setStep(2);
-        if (!unzip(source, null, {dialog: diag_restoring})) return;
+        if (!unzip(source, "", false, diag_restoring)) return;
         setStep(3);
         if (!copyFolder(session_params.project_name_path, files.cwd() + "/", "inside")) return;
         setProgress(100);
@@ -6598,85 +6538,204 @@ function restoreProjectFiles(source) {
     }
 }
 
-/**
- * Unzip a certain archive
- * @param zip_path
- * @param out_zip_path
- * @param [params] {object}
- * @param [params.blacklist_regexp=[]] {array}
- * @param [params.dialog] {dialogs{}}
- */
-function unzip(zip_path, out_zip_path, params) {
-    params = params || {};
-    out_zip_path = out_zip_path || zip_path.match(/.+\//)[0];
-    let blacklist_regexp = params.blacklist_regexp || [];
-    let dialog = params.dialog || null;
-    try {
-        let file = new java.io.File(zip_path);
-        let file_size = file.length();
-        let handled_size = 0;
-        let zip_file = new java.util.zip.ZipFile(file); // zip_file.size() - files count in this zip archive
-        let zip_input = new java.util.zip.ZipInputStream(new java.io.FileInputStream(file));
-        let [input, output, out_file, entry] = [null, null, null, null];
-        let setDialogProgress = num => dialog && dialog.setProgress(num || (handled_size / file_size * 100));
-        let compressed_size_map = getCompressedSizeMap(zip_path);
-        let getFileCompressedSize = file_name => compressed_size_map[file_name] || 0;
+function zip(input_path, output_path, dialog) {
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
+    if (typeof __global__.session_params === "undefined") __global__.session_params = {};
 
-        while ((entry = zip_input.getNextEntry()) !== null) {
-            let file_name = entry.getName();
-            if (!session_params.project_name_path) {
-                let _project_folder_name = file_name.match(/.+?\//) ? file_name.match(/.+?\//)[0] : file_name;
-                session_params.project_name_path = (out_zip_path + "\/" + _project_folder_name).replace(/\/\//g, "\/");
-            }
-            let file_skip_flag = false;
-            for (let i = 0, len = blacklist_regexp.length; i < len; i += 1) {
-                if (file_name.match(blacklist_regexp[i])) {
-                    file_skip_flag = true;
-                    break;
-                }
-            }
-            if (file_skip_flag) {
-                handled_size += getFileCompressedSize(file_name);
-                setDialogProgress();
-                continue;
-            }
-            out_file = new java.io.File(out_zip_path + java.io.File.separator + entry.getName());
-            if (entry.isDirectory()) {
-                out_file.mkdirs();
-                continue;
-            }
-            if (!out_file.getParentFile().exists()) out_file.getParentFile().mkdirs();
-            if (!out_file.exists()) files.createWithDirs(out_file);
-            input = zip_file.getInputStream(entry);
-            output = new java.io.FileOutputStream(out_file);
-            let temp = 0;
-            while ((temp = input.read()) !== -1) {
-                if (session_params.__signal_interrupt_update__) {
-                    session_params.__signal_interrupt_update__ = false;
-                    throw("用户终止");
-                }
-                output.write(temp);
-            }
-            handled_size += getFileCompressedSize(file_name);
-            setDialogProgress();
-            input.close();
-            output.close();
+    delete session_params.__signal_interrupt_update__;
+
+    let {BufferedInputStream, File, FileInputStream, FileOutputStream} = java.io;
+    let {CRC32, CheckedOutputStream, ZipEntry, ZipOutputStream} = java.util.zip;
+
+    let [checked_output_stream, zip_output_stream] = [null, null];
+    let [total_file_size, compressed_size] = [0, 0];
+
+    let separator = File.separator;
+    let separator_len = separator.length;
+
+    try {
+        if (!files.exists(input_path = files.path(input_path))) throw "无效的压缩源";
+        let input_file = new File(input_path);
+        input_path = input_file.getAbsolutePath(); // "./BAK" or "./BAK/bak.txt" but not "./BAK/"
+        let input_path_len = input_path.length;
+
+        let output_path_bak = output_path || input_file.getName();
+        let output_file = new File(output_path || input_path);
+        output_path = output_file.getAbsolutePath();
+
+        if (!~output_path_bak.indexOf(separator)) {
+            output_path = input_path.slice(0, input_path.lastIndexOf(separator) + separator_len) + output_path_bak;
         }
+        if (output_path.slice(0, input_path_len) === input_path) {
+            if (output_path[input_path_len] === separator) {
+                throw "压缩目标与压缩源路径冲突";
+            }
+        }
+        if (output_path.slice(-4) !== ".zip") {
+            output_path += ".zip";
+        }
+
+        output_file = new File(output_path); // refresh file as path may be modified
+
+        if (files.exists(output_path)) files.remove(output_path);
+        files.createWithDirs(output_path);
+
+        total_file_size = getPathTotalSize(input_path);
+
+        checked_output_stream = new CheckedOutputStream(new FileOutputStream(output_file), new CRC32());
+        zip_output_stream = new ZipOutputStream(checked_output_stream);
+
+        let source_path = input_path;
+        if (input_file.isFile()) {
+            let index = input_path.lastIndexOf(separator);
+            if (index !== -1) source_path = input_path.substring(0, index);
+        }
+
+        compress(source_path, input_file, zip_output_stream);
+        zip_output_stream.flush();
+
+        dialog && dialog.setProgress(100);
         return true;
     } catch (e) {
-        alertContent(dialog, "解压失败:\n" + e, "append");
+        if (dialog) alertContent(dialog, "压缩失败:\n" + e, "append");
+        else throw e;
+    } finally {
+        zip_output_stream && zip_output_stream.close();
     }
 
     // tool function(s) //
 
-    function getCompressedSizeMap(zip_path) {
-        let compressed_size_map = {};
-        let zip_enum = new java.util.zip.ZipFile(zip_path).entries();
-        while (zip_enum.hasMoreElements()) {
-            let zip_element = zip_enum.nextElement();
-            if (!zip_element.isDirectory()) compressed_size_map[zip_element.getName()] = zip_element.getCompressedSize();
+    function compress(source_path, input_file, zip_output_stream) {
+        if (input_file == null) return;
+
+        if (input_file.isFile()) {
+            let read_bytes;
+            let buffer_len = 1024;
+            let buffer_bytes = util.java.array("byte", buffer_len);
+
+            let sub_path = new File(source_path).getName() + separator + input_file.getAbsolutePath();
+            let index = sub_path.indexOf(source_path);
+            if (index !== -1) sub_path = sub_path.substring(source_path.length + separator_len);
+
+            let entry = new ZipEntry(sub_path);
+            zip_output_stream.putNextEntry(entry);
+
+            let buffered_input_stream = new BufferedInputStream(new FileInputStream(input_file));
+            while ((read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len)) !== -1) {
+                zip_output_stream.write(buffer_bytes, 0, read_bytes);
+            }
+            buffered_input_stream.close();
+            zip_output_stream.closeEntry();
+
+            if (dialog) {
+                compressed_size += input_file.length();
+                dialog.setProgress(compressed_size / total_file_size * 100);
+            }
+        } else {
+            let input_file_list = input_file.listFiles();
+            for (let i = 0, len = input_file_list.length; i < len; i += 1) {
+                input_file_list[i].getAbsolutePath().indexOf(input_file.getAbsolutePath());
+                compress(source_path, input_file_list[i], zip_output_stream);
+            }
         }
-        return compressed_size_map;
+    }
+
+    function getPathTotalSize(path) {
+        let size = 0;
+        handleFolder(path);
+        return size;
+
+        // tool function(s) //
+
+        function handleFolder(path) {
+            path = path.toString();
+            let abs_path_prefix = path + (path.match(/\/$/) ? "" : "/");
+            files.listDir(path).forEach((list_file_name) => {
+                let abs_path = abs_path_prefix + list_file_name;
+                files.isDir(abs_path) ? handleFolder(abs_path) : size += java.io.File(abs_path).length();
+            });
+        }
+    }
+}
+
+function unzip(input_path, output_path, include_zip_file_name, dialog) {
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
+    if (typeof __global__.session_params === "undefined") __global__.session_params = {};
+
+    delete session_params.__signal_interrupt_update__;
+
+    let {BufferedInputStream, BufferedOutputStream, File, FileOutputStream} = java.io;
+    let {ZipFile} = java.util.zip;
+    let {StringUtils} = org.apache.commons.lang3;
+
+    let [total_file_size, uncompressed_size] = [0, 0];
+
+    let separator = File.separator;
+
+    try {
+        input_path = files.path(input_path);
+        if (!files.exists(input_path)) {
+            input_path += ".zip";
+            if (!files.exists(input_path)) {
+                throw "解压缩源不存在";
+            }
+        }
+        let input_file = new File(input_path);
+        total_file_size += input_file.length();
+
+        output_path = output_path ? files.path(output_path) : input_path.slice(0, input_path.lastIndexOf(separator));
+
+        if (include_zip_file_name) {
+            let input_file_name = input_file.getName();
+            if (StringUtils.isNotEmpty(input_file_name)) {
+                input_file_name = input_file_name.substring(0, input_file_name.lastIndexOf("."));
+            }
+            output_path = output_path + separator + input_file_name;
+        }
+
+        files.createWithDirs(output_path + separator);
+
+        let [
+            entry_element, entry_file_path, entry_file,
+            buffered_input_stream, buffered_output_stream
+        ] = Array(5).join("|").split("|").map(() => null);
+
+        let read_bytes;
+        let buffer_len = 1024;
+        let buffer_bytes = util.java.array("byte", buffer_len);
+
+        let zip_input_file = new ZipFile(input_file);
+        let entries = zip_input_file.entries();
+
+        while (entries.hasMoreElements()) {
+            entry_element = entries.nextElement();
+            files.createWithDirs(entry_file_path = files.path(output_path + separator + entry_element.getName()));
+            session_params.project_name_path = session_params.project_name_path || entry_file_path;
+            entry_file = new File(entry_file_path);
+            if (entry_file.isDirectory()) continue;
+
+            buffered_output_stream = new BufferedOutputStream(new FileOutputStream(entry_file));
+            buffered_input_stream = new BufferedInputStream(zip_input_file.getInputStream(entry_element));
+            while ((read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len)) !== -1) {
+                if (session_params.__signal_interrupt_update__) {
+                    session_params.__signal_interrupt_update__ = false;
+                    throw "用户终止";
+                }
+                buffered_output_stream.write(buffer_bytes, 0, read_bytes);
+            }
+            buffered_output_stream.flush();
+            buffered_output_stream.close();
+
+            if (dialog) {
+                uncompressed_size += entry_file.length();
+                dialog && dialog.setProgress(uncompressed_size / total_file_size * 100);
+            }
+        }
+
+        return true;
+    } catch (e) {
+        if (dialog) alertContent(dialog, "解压失败:\n" + e, "append");
+        else throw e;
     }
 }
 
@@ -6795,6 +6854,7 @@ function updateViewByLabel(view_label) {
 }
 
 function downloader(url, path, listener, dialog) {
+    delete session_params.__signal_interrupt_update__;
     ui.post(() => {
         let [len, total_bytes, input_stream, output_stream, file_temp] = [];
         let input_stream_len = 0;
