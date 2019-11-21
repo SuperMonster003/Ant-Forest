@@ -3,7 +3,9 @@
  * @description a graphic configuration tool (Unlock_Config_Tool.js) is available for customise the unlock behaviour of the device
  *
  * @example
- * require("./MODULE_UNLOCK").unlock();
+ * require("./MODULE_UNLOCK").unlock(); <br>
+ * require("./MODULE_UNLOCK").unlock(true); // forcibly enable debugInfo() for showing debug logs in console <br>
+ * require("./MODULE_UNLOCK").unlock(false); // forcibly disable debugInfo() for not showing debug logs in console
  *
  * @last_modified Nov 14, 2019
  * @author {@link https://github.com/SuperMonster003}
@@ -12,7 +14,7 @@
 // window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
 __global__ = typeof __global__ === "undefined" ? this : __global__;
 
-let _require = require.bind(__global__); // copy __global__.require(){}
+let _require = require.bind(this); // copy __global__.require(){}
 
 require = function (path) {
     path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
@@ -88,7 +90,11 @@ module.exports = {
     DEFAULT: DEFAULT,
     is_screen_on: init_screen_state,
     isUnlocked: isUnlocked,
-    unlock: function () {
+    unlock: function (force_debug_info_flag) {
+        if (force_debug_info_flag || force_debug_info_flag === false) {
+            __global__._monster_$_debug_info_flag_bak = __global__._monster_$_debug_info_flag;
+            __global__._monster_$_debug_info_flag = !!force_debug_info_flag;
+        }
         let dash_line = "__split_line_dash__";
         debugInfo([dash_line, "尝试自动解锁", dash_line]);
 
@@ -113,6 +119,12 @@ module.exports = {
         if (maxTryTimesReached() < 0) return errorMsg("无法判断当前解锁条件");
 
         debugInfo([dash_line, "自动解锁完毕", dash_line]);
+
+        if (force_debug_info_flag || force_debug_info_flag === false) {
+            __global__._monster_$_debug_info_flag = __global__._monster_$_debug_info_flag_bak;
+            delete __global__._monster_$_debug_info_flag_bak;
+        }
+
         return true;
 
         // key function(s) //

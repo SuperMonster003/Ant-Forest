@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 19, 2019
- * @version 1.9.6
+ * @last_modified Nov 21, 2019
+ * @version 1.9.7
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1140,6 +1140,9 @@ function checkEnergy() {
                 while (getMinCountdownOwn()) checkRemain();
             }
 
+            images.reclaim(initial_af_home_capt);
+            initial_af_home_capt = null;
+
             // tool function(s) //
 
             function checkRipeBalls() {
@@ -1218,8 +1221,6 @@ function checkEnergy() {
                             raw_balls.forEach((node, idx) => {
                                 stitched = idx ? images.concat(stitched, nodeToImage(node), "BOTTOM") : stitched;
                             });
-                            images.reclaim(initial_af_home_capt);
-                            initial_af_home_capt = null;
                             return stitched;
                         })();
 
