@@ -46,6 +46,7 @@ let {
     timedTaskTimeFlagConverter,
     classof,
     checkSdkAndAJVer,
+    surroundWith,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 checkSdkAndAJVer();
@@ -2510,6 +2511,7 @@ addPage(() => {
                         uninterrupted: "延时接力",
                         insurance: "意外保险",
                         postponed: "用户推迟",
+                        postponed_auto: "自动推迟",
                     };
 
                     let sto_auto_task = storage_af.get("next_auto_task");
@@ -2538,6 +2540,7 @@ addPage(() => {
                             uninterrupted: "延时接力",
                             insurance: "意外保险",
                             postponed: "用户推迟",
+                            postponed_auto: "自动推迟",
                         };
 
                         let keys = Object.keys(type_info);
@@ -6239,8 +6242,10 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
         "　 5. 清理并完成部署",
     ];
     let setProgress = function (num, dialog) {
-        dialog = dialog || diag_download;
-        dialog.setProgress(num > 100 ? 100 : (num < 0 ? 0 : num));
+        threads.start(function () {
+            dialog = dialog || diag_download;
+            ui.post(() => dialog.setProgress(num > 100 ? 100 : (num < 0 ? 0 : num)));
+        });
     };
     let setStep = function (step_num) {
         step_num = step_num || 1;
@@ -6294,11 +6299,14 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
         });
         diag_download.show();
 
-        downloader(url_server, fetched_file_path, {
+        okHttpRequest(url_server, fetched_file_path, {
             onDownloadSuccess: unzipArchive,
             onDownloading: setProgress,
             onDownloadFailed: operation => operation(),
-        }, diag_download);
+        }, {
+            dialog: diag_download,
+            dialogReceiver: appendHttpFileSizeToDialog,
+        });
     }
 
     function unzipArchive() {
@@ -6388,8 +6396,7 @@ function handleNewVersion(parent_dialog, file_content, newest_version_name, only
                     .replace(/ ?_\[`(issue )?#(\d+)`]\(http.+?\)_ ?/g, "[$2]") // issues
                     .replace(regexp_remove_info, "")
                     .replace(/(\[(\d+)])+/g, $0 => " " + $0.split(/]\[/).join(",").replace(/\d+/g, $0 => "#" + $0))
-                    .replace(/(\s*\n\s*){2,}/g, "\n")
-                ;
+                    .replace(/(\s*\n\s*){2,}/g, "\n");
             });
             session_params.update_info = info;
             updateDialogUpdateDetails();
@@ -6488,7 +6495,11 @@ function restoreProjectFiles(source) {
         "　 3. 文件替换",
         "　 4. 清理并完成项目恢复",
     ];
-    let setProgress = num => diag_restoring.setProgress(num > 100 ? 100 : (num < 0 ? 0 : num));
+    let setProgress = (num) => {
+        threads.start(function () {
+            ui.post(() => diag_restoring.setProgress(num > 100 ? 100 : (num < 0 ? 0 : num)));
+        });
+    };
     let setStep = function (step_num) {
         step_num = step_num || 1;
         typeof step_num === "number" && step_num--;
@@ -6507,14 +6518,17 @@ function restoreProjectFiles(source) {
     setStep(1);
     if (mode === "server") {
         let fetched_file_path = getFetchedFile(defs.local_backup_path, source, ".zip");
-        downloader(source, fetched_file_path, {
+        okHttpRequest(source, fetched_file_path, {
             onDownloadSuccess: () => {
                 source = fetched_file_path;
                 remainingSteps();
             },
             onDownloading: setProgress,
-            onDownloadFailed: () => operation => operation(),
-        }, diag_restoring);
+            onDownloadFailed: operation => operation(),
+        }, {
+            dialog: diag_restoring,
+            dialogReceiver: appendHttpFileSizeToDialog,
+        });
     } else {
         files.exists(source) ? threads.starts(function () {
             remainingSteps();
@@ -6588,7 +6602,7 @@ function zip(input_path, output_path, dialog) {
         let source_path = input_path;
         if (input_file.isFile()) {
             let index = input_path.lastIndexOf(separator);
-            if (index !== -1) source_path = input_path.substring(0, index);
+            if (~index) source_path = input_path.substring(0, index);
         }
 
         compress(source_path, input_file, zip_output_stream);
@@ -6615,13 +6629,13 @@ function zip(input_path, output_path, dialog) {
 
             let sub_path = new File(source_path).getName() + separator + input_file.getAbsolutePath();
             let index = sub_path.indexOf(source_path);
-            if (index !== -1) sub_path = sub_path.substring(source_path.length + separator_len);
+            if (~index) sub_path = sub_path.substring(source_path.length + separator_len);
 
             let entry = new ZipEntry(sub_path);
             zip_output_stream.putNextEntry(entry);
 
             let buffered_input_stream = new BufferedInputStream(new FileInputStream(input_file));
-            while ((read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len)) !== -1) {
+            while (~(read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len))) {
                 zip_output_stream.write(buffer_bytes, 0, read_bytes);
             }
             buffered_input_stream.close();
@@ -6709,14 +6723,19 @@ function unzip(input_path, output_path, include_zip_file_name, dialog) {
 
         while (entries.hasMoreElements()) {
             entry_element = entries.nextElement();
-            files.createWithDirs(entry_file_path = files.path(output_path + separator + entry_element.getName()));
-            session_params.project_name_path = session_params.project_name_path || entry_file_path;
+            let entry_element_name = entry_element.getName();
+            if (!session_params.project_name_path) {
+                let _idx = entry_element_name.indexOf(separator);
+                let _path = ~_idx ? entry_element_name.slice(0, _idx) : entry_element_name;
+                session_params.project_name_path = output_path + separator + _path + separator;
+            }
+            files.createWithDirs(entry_file_path = files.path(output_path + separator + entry_element_name));
             entry_file = new File(entry_file_path);
             if (entry_file.isDirectory()) continue;
 
             buffered_output_stream = new BufferedOutputStream(new FileOutputStream(entry_file));
             buffered_input_stream = new BufferedInputStream(zip_input_file.getInputStream(entry_element));
-            while ((read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len)) !== -1) {
+            while (~(read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len))) {
                 if (session_params.__signal_interrupt_update__) {
                     session_params.__signal_interrupt_update__ = false;
                     throw "用户终止";
@@ -6853,28 +6872,86 @@ function updateViewByLabel(view_label) {
     });
 }
 
-function downloader(url, path, listener, dialog) {
+function okHttpRequest(url, path, listener, params) {
     delete session_params.__signal_interrupt_update__;
-    ui.post(() => {
-        let [len, total_bytes, input_stream, output_stream, file_temp] = [];
+
+    params = params || {};
+    let {extra_headers, dialog, dialogReceiver} = params;
+
+    let total_bytes = threads.atomic(params.total_bytes || -1);
+    let availTotalBytes = () => {
+        let _value = total_bytes.get();
+        return _value && ~_value;
+    };
+
+    let thread_get_total_bytes_bt_http = threads.start(function () {
+        if (typeof http !== "undefined") {
+            while (!availTotalBytes()) {
+                try {
+                    // FIXME returns -1 from time to time [:face_with_head_bandage:]
+                    let content_len = http.get(url).headers["Content-Length"];
+                    if (content_len > 0 && total_bytes.compareAndSet(-1, content_len)) {
+                        if (typeof dialogReceiver === "function") dialogReceiver(dialog, content_len);
+                    }
+                } catch (e) {
+                    sleep(200);
+                }
+            }
+        }
+    });
+
+    let thread_get_total_bytes_by_url_conn = threads.start(function () {
+        while (!availTotalBytes()) {
+            try {
+                let conn = new java.net.URL(url).openConnection();
+                conn.setRequestProperty("Accept-Encoding", "identity");
+
+                // FIXME returns -1 from time to time [:face_with_head_bandage:]
+                let content_len = conn.getContentLengthLong();
+
+                content_len > 0 && total_bytes.compareAndSet(-1, content_len);
+                conn.disconnect();
+            } catch (e) {
+                sleep(200);
+            }
+        }
+    });
+
+    threads.start(function () {
+        let [len, input_stream, output_stream] = [];
         let input_stream_len = 0;
         // let buffer = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, 2048);
         let buffer = util.java.array('byte', 2048);
+
+        let {Request, Callback} = Packages.okhttp3;
         let client = new OkHttpClient();
-        let request = new Packages.okhttp3.Request.Builder().url(url).get().build();
-        let callback = new Packages.okhttp3.Callback({
+        let builder = new Request.Builder();
+        if (extra_headers) {
+            let keys = Object.keys(extra_headers);
+            for (let i = 0, len = keys.length; i < len; i += 1) {
+                let key = keys[i];
+                builder.addHeader(key, extra_headers[key]);
+            }
+        }
+        let request = builder.url(url).get().build();
+        let callback = new Callback({
             onFailure: (call, err) => {
                 dialog.setActionButton("positive", "返回");
                 alertContent(dialog, "请求失败: \n" + err, "append");
             },
             onResponse: (call, res) => {
                 try {
-                    if (res.code() !== 200) throw res.code() + " " + res.message();
-                    total_bytes = res.body().contentLength();
+                    let res_code = res.code();
+                    if (res_code !== 200) throw res_code + " " + res.message();
+
                     input_stream = res.body().byteStream();
-                    file_temp = new java.io.File(path);
-                    output_stream = new java.io.FileOutputStream(file_temp);
-                    while ((len = input_stream.read(buffer)) !== -1) {
+                    output_stream = new java.io.FileOutputStream(new java.io.File(path));
+                    if (!availTotalBytes()) {
+                        let content_len = res.body().contentLength();
+                        content_len > 0 && total_bytes.compareAndSet(-1, content_len);
+                    }
+
+                    while (~(len = input_stream.read(buffer))) {
                         if (session_params.__signal_interrupt_update__) {
                             session_params.__signal_interrupt_update__ = false;
                             files.remove(path);
@@ -6883,7 +6960,9 @@ function downloader(url, path, listener, dialog) {
                         }
                         output_stream.write(buffer, 0, len);
                         input_stream_len += len;
-                        listener.onDownloading((input_stream_len / total_bytes) * 100);
+                        if (availTotalBytes()) {
+                            listener.onDownloading(input_stream_len / total_bytes * 100);
+                        }
                     }
                     output_stream.flush();
                     listener.onDownloadSuccess();
@@ -6891,6 +6970,8 @@ function downloader(url, path, listener, dialog) {
                     listener.onDownloadFailed(() => alertContent(dialog, err.toString().replace(/^Error: ?/, ""), "append"));
                 } finally {
                     try {
+                        thread_get_total_bytes_bt_http.interrupt();
+                        thread_get_total_bytes_by_url_conn.interrupt();
                         if (input_stream !== null) input_stream.close();
                     } catch (err) {
                         alertContent(dialog, "文件流处理失败:\n" + err, "append");
@@ -7104,5 +7185,103 @@ function refreshFriendsListByLaunchingAlipay(params) {
         setTimeout(function () {
             toast("即将打开\"支付宝\"刷新好友列表");
         }, 500);
+    }
+}
+
+// TODO make it available for common usage
+function getConverter(pickup) {
+    let converters = {
+        bytes: (src, init_unit, override) => parser(
+            src, init_unit,
+            Object.assign(new _ConverterFactory(
+                [1024, 1000],
+                ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+            ), override || {})),
+        time: (src, init_unit, override) => parser(
+            src, init_unit,
+            Object.assign(new _ConverterFactory(
+                60,
+                ["ms", 1000, "s", "m", "h", 24, "d"]
+            ), override || {})),
+    };
+
+    return pickup ? converters[pickup] : converters;
+
+    // constructor //
+
+    function _ConverterFactory(step, units) {
+        if (typeof step === "object" /* Array */) {
+            step.sort((a, b) => a > b ? -1 : 1);
+            this.step = step[0];
+            this.potential_step = step[1];
+        } else {
+            this.step = step;
+        }
+        this.units = units;
+    }
+
+    // tool function(s) //
+
+    function parser(src, init_unit, params) {
+        src = parseInt(src);
+
+        let {
+            step,
+            potential_step,
+            units,
+            show_space,
+        } = params;
+
+        let unit_map = {};
+        unit_map[units[0]] = [1, 1];
+
+        let accumulated_step = 1;
+        let tmp_potential_value;
+
+        for (let i = 1, len = units.length; i < len; i += 1) {
+            tmp_potential_value = potential_step ? accumulated_step : 0;
+            let unit = units[i];
+
+            if (typeof unit === "number") {
+                tmp_potential_value = accumulated_step * (potential_step || unit);
+                accumulated_step *= unit;
+                unit = units[++i];
+            } else if (typeof unit === "object" /* Array */) {
+                let _steps = unit.sort((a, b) => a > b ? -1 : 1);
+                tmp_potential_value = accumulated_step * _steps[1];
+                accumulated_step *= _steps[0];
+                unit = units[++i];
+            } else {
+                tmp_potential_value = accumulated_step * (potential_step || step);
+                accumulated_step *= step;
+            }
+            unit_map[unit] = tmp_potential_value ? [accumulated_step, tmp_potential_value] : [accumulated_step, accumulated_step];
+        }
+
+        init_unit = init_unit || units[0];
+        if (~units.indexOf(init_unit)) {
+            src *= unit_map[init_unit][0];
+        }
+
+        let unit_keys = Object.keys(unit_map);
+        for (let i = unit_keys.length - 1; i >= 0; i -= 1) {
+            let unit_key = unit_keys[i];
+            let [unit_value, potential_value] = unit_map[unit_key];
+            if (src >= potential_value) {
+                return +(src / unit_value).toFixed(2) + (show_space ? " " : "") + unit_key;
+            }
+        }
+    }
+}
+
+function appendHttpFileSizeToDialog(dialog, content_len) {
+    let content_view = dialog.getContentView();
+    let content_text = content_view.getText().toString();
+    let to_match_str = "下载项目数据包";
+    if (content_text.match(to_match_str)) {
+        let replaced_str = surroundWith(
+            getConverter("bytes")(content_len, "B", {show_space: true}), "  [ ", " ]"
+        );
+        content_view.setText(content_text.replace(to_match_str, to_match_str + replaced_str));
     }
 }

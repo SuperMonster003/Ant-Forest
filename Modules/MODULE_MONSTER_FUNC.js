@@ -109,7 +109,7 @@ function getVerName(name, params) {
     let _params = params || {};
 
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
     name = _handleName(name);
     let _package_name = _parseAppName(name).package_name;
@@ -211,7 +211,7 @@ function launchThisApp(trigger, params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
 
@@ -429,7 +429,7 @@ function killThisApp(name, params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
@@ -477,10 +477,10 @@ function killThisApp(name, params) {
 
     if (_waitForAction(_condition_success, _shell_max_wait_time)) {
         _debugInfo("shell()方法强制关闭\"" + _app_name + "\"成功");
-        return _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms") || true;
+        return _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒") || true;
     } else {
         _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
-        _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "ms");
+        _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒");
         return _messageAction("关闭时间已达最大超时", 4, 0, 1);
     }
 
@@ -680,7 +680,7 @@ function restartThisEngine(params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
     let _my_engine = engines.myEngine();
     let _my_engine_id = _my_engine.id;
@@ -1392,7 +1392,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
 function refreshObjects(strategy, params) {
     let _params = params || {};
 
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _strategy = strategy || "";
 
@@ -1479,7 +1479,7 @@ function tryRequestScreenCapture(params) {
 
     let _params = params || {};
 
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
@@ -2925,9 +2925,9 @@ function phoneCallingState() {
  * <br>
  * put a timestamp: "put"; "save"; false value <br>
  * load time gap: "load", "get", any other true value <br>
- * @param [divisor=1] {number}
+ * @param [divisor=1] {number|"auto"} - "auto" for picking up a result intelligently
  * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
- * @param [suffix] {string}
+ * @param [suffix=""|"$ch"] {string} - "$en" or "$ch" is available when %divisor% is set "auto"
  * @param [override_timestamp] {number|Date}
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
@@ -2935,20 +2935,114 @@ function phoneCallingState() {
  * timeRecorder("collect", "save"); timeRecorder("collect", "load", 1000, 2, "s") - eg: "12.40s"
  * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
  * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
+ * timeRecorder("go_to_bed"); timeRecorder("go_to_bed", "load", "auto", null, "$en") - eg: "7h 8.16m"
+ * timeRecorder("study"); timeRecorder("study", "load", "auto") - eg: "7分钟8.16秒" (means 7m 8.16s)
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
 
+    if (!__global__._monster_$_timestamp_records) {
+        __global__._monster_$_timestamp_records = {};
+    }
     let records = __global__._monster_$_timestamp_records;
-    if (!__global__._monster_$_timestamp_records) records = __global__._monster_$_timestamp_records = {};
-    if (!operation || operation.toString().match(/save|put/)) return records[keyword] = +new Date();
+    if (!operation || operation.toString().match(/save|put/)) {
+        return records[keyword] = +new Date();
+    }
+
+    divisor = divisor || 1;
+
     let forcible_fixed_num_flag = false;
     if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
-    let result = ((+override_timestamp || +new Date()) - records[keyword]) / (divisor || 1); // number
-    if (typeof fixed !== "undefined" && fixed !== null) result = result.toFixed(+fixed); // string
+
+    let prefix = "";
+    let result = +(override_timestamp || new Date()) - records[keyword]; // number
+
+    if (divisor !== "auto") {
+        suffix = suffix || "";
+        result = result / divisor;
+    } else {
+        suffix = suffix || "$ch";
+        fixed = fixed || [2];
+        forcible_fixed_num_flag = true;
+
+        let getSuffix = (unit_str) => {
+            return {
+                ms$ch: "毫秒", ms$en: "ms ",
+                sec$ch: "秒", sec$en: "s ",
+                min$ch: "分钟", min$en: "m ",
+                hour$ch: "小时", hour$en: "h ",
+                day$ch: "天", day$en: "d ",
+            }[unit_str + suffix];
+        };
+        let base_unit = {
+            ms: 1,
+            get sec() {
+                return 1000 * this.ms;
+            },
+            get min() {
+                return 60 * this.sec;
+            },
+            get hour() {
+                return 60 * this.min;
+            },
+            get day() {
+                return 24 * this.hour;
+            }
+        };
+
+        if (result >= base_unit.day) {
+            let _d = ~~(result / base_unit.day);
+            prefix += _d + getSuffix("day");
+            result %= base_unit.day;
+            let _h = ~~(result / base_unit.hour);
+            if (_h) prefix += _h + getSuffix("hour");
+            result %= base_unit.hour;
+            let _min = ~~(result / base_unit.min);
+            if (_min) {
+                result /= base_unit.min;
+                suffix = getSuffix("min");
+            } else {
+                result %= base_unit.min;
+                result /= base_unit.sec;
+                suffix = getSuffix("sec");
+            }
+        } else if (result >= base_unit.hour) {
+            let _hr = ~~(result / base_unit.hour);
+            prefix += _hr + getSuffix("hour");
+            result %= base_unit.hour;
+            let _min = ~~(result / base_unit.min);
+            if (_min) {
+                result /= base_unit.min;
+                suffix = getSuffix("min");
+            } else {
+                result %= base_unit.min;
+                result /= base_unit.sec;
+                suffix = getSuffix("sec");
+            }
+        } else if (result >= base_unit.min) {
+            let _min = ~~(result / base_unit.min);
+            prefix += _min + getSuffix("min");
+            result %= base_unit.min;
+            result /= base_unit.sec;
+            suffix = getSuffix("sec");
+        } else if (result >= base_unit.sec) {
+            result /= base_unit.sec;
+            suffix = getSuffix("sec");
+        } else {
+            result /= base_unit.ms; // yes, i have OCD [:wink:]
+            suffix = getSuffix("ms");
+        }
+    }
+
+    if (typeof fixed !== "undefined" && fixed !== null) {
+        result = result.toFixed(+fixed);  // string
+    }
+
     if (forcible_fixed_num_flag) result = +result;
-    if (suffix) result += suffix.toString();
-    return result;
+    suffix = suffix.toString().replace(/ *$/g, "");
+
+    if (!prefix) return result + suffix;
+    return prefix + (result ? result + suffix : "");
 }
 
 /**
@@ -3099,7 +3193,7 @@ function clickActionsPipeline(pipeline, options) {
  */
 function setDeviceProto(params) {
     let _params = params || {};
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
     __global__ = typeof __global__ === "undefined" ? {} : __global__;
     if (typeof __global__.device === "undefined") __global__.device = {};
@@ -3476,7 +3570,7 @@ function checkSdkAndAJVer(params) {
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
     try {
         current_autojs_package = _current_app.current_autojs_package = context.packageName;
