@@ -1,6 +1,20 @@
-"ui";
-auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
+"ui"; // indicate a ui mode and defined __global__.activity
 
+// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
+__global__ = typeof __global__ === "undefined" ? this : __global__;
+
+// not necessary [ˈsɛksi] and i know it
+let {auto, threads, events, files, runtime, activity, android, ui, java} = __global__;
+
+// script will not go on without a normal state of accessibility service
+// auto.waitFor() was abandoned here, as it may cause problems sometimes
+auto();
+
+// set up the device screen in a portrait orientation
+activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
+// friendly error message will be shown in console
+// if one of these specified modules was not able to locate
 checkModulesMap([
     "__dialogs__pro_v6",
     "__timers__pro_v37",
@@ -11,26 +25,25 @@ checkModulesMap([
     "MODULE_TREASURY_VAULT",
 ]);
 
-// set up the device screen in a portrait orientation
-activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
-
-// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
-__global__ = typeof __global__ === "undefined" ? this : __global__;
-
-// better compatibility for both free version and pro version
+// better compatibility for both free and pro versions
 let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
-// given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
+// given that there are bugs with dialogs modules
+// in auto.js versions like 4.1.0/5 and 4.1.1/2
 // in another way, dialogs.builds() could make things easier sometimes
 let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 
-threads.starts = (f, error_msg_consume_flag) => {
-    try {
-        return threads.start(f);
-    } catch (e) {
-        if (!e.message.match(/script exiting/) && !error_msg_consume_flag) throw Error(e);
+// prevent script exiting error from showing up
+// (both console and toast window) if threads were interrupted
+Object.assign(threads, {
+    starts: (f, error_msg_consume_flag) => {
+        try {
+            return threads.start(f);
+        } catch (e) {
+            if (!e.message.match(/script exiting/) && !error_msg_consume_flag) throw Error(e);
+        }
     }
-};
+});
 
 let {
     getDisplayParams,
@@ -57,6 +70,7 @@ let dynamic_views = [];
 let rolling_pages = [];
 let sub_page_views = [];
 let def = undefined;
+let page_buttons = getPageButtons();
 
 let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY, status_bar_height, action_bar_default_height, navigation_bar_height} = getDisplayParams();
 let {DEFAULT_AF, DEFAULT_UNLOCK, DEFAULT_SETTINGS} = getDefaultConfigParams();
@@ -168,6 +182,49 @@ let list_heads = {
             },
         }
     ],
+};
+
+let pages_tree = {
+    self_collect_page: {
+        homepage_monitor_page: null,
+        homepage_background_monitor_page: null,
+    },
+    friend_collect_page: {
+        rank_list_samples_collect_page: {
+            rank_list_auto_expand_page: null,
+            rank_list_review_page: null
+        },
+    },
+    help_collect_page: {
+        six_balls_review_page: null,
+        rank_list_samples_collect_page: null,
+    },
+    auto_unlock_page: null,
+    message_showing_page: null,
+    timers_page: {
+        homepage_monitor_page: null,
+        rank_list_review_page: null,
+        timers_self_manage_page: {
+            timers_uninterrupted_check_sections_page: null,
+        },
+        timers_control_panel_page: null,
+    },
+    account_page: {
+        account_log_back_in_page: null,
+    },
+    blacklist_page: {
+        cover_blacklist_page: null,
+        self_def_blacklist_page: null,
+        foreground_app_blacklist_page: null,
+    },
+    script_security_page: {
+        kill_when_done_page: null,
+        phone_call_state_monitor_page: null,
+    },
+    local_project_backup_restore_page: {
+        restore_projects_from_local_page: null,
+        restore_projects_from_server_page: null,
+    },
 };
 
 // entrance //
@@ -602,12 +659,14 @@ let homepage = setHomePage(defs.homepage_title)
             view._hint.text(current_local_version_name);
         },
     }))
+    .ready()
 ;
 
-let addPage = addFunc => sub_page_views.push(addFunc);
+let pages_buffer_obj = {};
+let addPage = (page_name, addFunc) => pages_buffer_obj[page_name] = addFunc;
 
-addPage(() => {
-    setPage(["自收功能", "self_collect_page"])
+addPage("self_collect_page", (name) => {
+    setPage(["自收功能", name])
         .add("switch", new Layout("总开关", {
             config_conj: "self_collect_switch",
             listeners: {
@@ -709,9 +768,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // self_collect_page
-addPage(() => {
-    setPage(["主页能量球循环监测", "homepage_monitor_page"])
+});
+addPage("homepage_monitor_page", (name) => {
+    setPage(["主页能量球循环监测", name])
         .add("switch", new Layout("总开关", {
             config_conj: "homepage_monitor_switch",
             listeners: {
@@ -757,9 +816,9 @@ addPage(() => {
         .add("split_line")
         .add("info", new Layout("\"自收功能\"与\"定时循环\"共用此页面配置"))
         .ready();
-}); // homepage_monitor_page
-addPage(() => {
-    setPage(["主页能量球返检监控", "homepage_background_monitor_page"])
+});
+addPage("homepage_background_monitor_page", (name) => {
+    setPage(["主页能量球返检监控"])
         .add("switch", new Layout("总开关", {
             config_conj: "homepage_background_monitor_switch",
             listeners: {
@@ -788,9 +847,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // homepage_background_monitor_page
-addPage(() => {
-    setPage(["收取功能", "friend_collect_page"])
+});
+addPage("friend_collect_page", (name) => {
+    setPage(["收取功能", name])
         .add("switch", new Layout("总开关", {
             config_conj: "friend_collect_switch",
             listeners: {
@@ -912,9 +971,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // friend_collect_page
-addPage(() => {
-    setPage(["排行榜样本采集", "rank_list_samples_collect_page"])
+});
+addPage("rank_list_samples_collect_page", (name) => {
+    setPage(["排行榜样本采集", name])
         .add("sub_head", new Layout("基本设置"))
         .add("button", new Layout("滑动距离", {
             config_conj: "rank_list_swipe_distance",
@@ -1167,9 +1226,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // rank_list_samples_collect_page
-addPage(() => {
-    setPage(["排行榜列表自动展开", "rank_list_auto_expand_page"])
+});
+addPage("rank_list_auto_expand_page", (name) => {
+    setPage(["排行榜列表自动展开", name])
         .add("switch", new Layout("总开关", {
             config_conj: "rank_list_auto_expand_switch",
             listeners: {
@@ -1213,9 +1272,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // rank_list_auto_expand_page
-addPage(() => {
-    setPage(["排行榜样本复查", "rank_list_review_page"], def, def, {
+});
+addPage("rank_list_review_page", (name) => {
+    setPage(["排行榜样本复查", name], def, def, {
         check_page_state: (view) => {
             let samples = [
                 "rank_list_review_threshold_switch",
@@ -1314,9 +1373,9 @@ addPage(() => {
         .add("split_line")
         .add("info", new Layout("\"收取\/帮收功能\"与\"定时循环\"共用此页面配置"))
         .ready();
-}); // rank_list_review_page
-addPage(() => {
-    setPage(["帮收功能", "help_collect_page"])
+});
+addPage("help_collect_page", (name) => {
+    setPage(["帮收功能", name])
         .add("switch", new Layout("总开关", {
             config_conj: "help_collect_switch",
             listeners: {
@@ -1583,9 +1642,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // help_collect_page
-addPage(() => {
-    setPage(["六球复查", "six_balls_review_page"])
+});
+addPage("six_balls_review_page", (name) => {
+    setPage(["六球复查", name])
         .add("switch", new Layout("总开关", {
             config_conj: "six_balls_review_switch",
             listeners: {
@@ -1638,9 +1697,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // six_balls_review_page
-addPage(() => {
-    setPage(["自动解锁", "auto_unlock_page"])
+});
+addPage("auto_unlock_page", (name) => {
+    setPage(["自动解锁", name])
         .add("switch", new Layout("总开关", {
             config_conj: "auto_unlock_switch",
             listeners: {
@@ -1912,9 +1971,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // auto_unlock_page
-addPage(() => {
-    setPage(["消息提示", "message_showing_page"])
+});
+addPage("message_showing_page", (name) => {
+    setPage(["消息提示", name])
         .add("switch", new Layout("总开关", {
             config_conj: "message_showing_switch",
             listeners: {
@@ -2104,9 +2163,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // message_showing_page
-addPage(() => {
-    setPage(["定时循环", "timers_page"], def, def, {
+});
+addPage("timers_page", (name) => {
+    setPage(["定时循环", name], def, def, {
         check_page_state: (view) => {
             // this is just a simple check
             let switches = [
@@ -2169,9 +2228,9 @@ addPage(() => {
             next_page: "timers_control_panel_page",
         }))
         .ready();
-}); // timers_page
-addPage(() => {
-    setPage(["定时任务自动管理", "timers_self_manage_page"], def, def, {
+});
+addPage("timers_self_manage_page", (name) => {
+    setPage(["定时任务自动管理", name], def, def, {
         check_page_state: (view) => {
             return checkCurrentPageSwitches() && checkAutoUnlockSwitch();
 
@@ -2481,9 +2540,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // timers_self_manage_page
-addPage(() => {
-    setPage(["定时任务控制面板", "timers_control_panel_page"], def, parent_view => setTimersControlPanelPageButtons(parent_view, "timed_tasks", wizardFunc), {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("timers_control_panel_page", (name) => {
+    setPage(["定时任务控制面板", name], def, parent_view => setTimersControlPanelPageButtons(parent_view, "timed_tasks", wizardFunc), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*管理本项目定时任务*/", {
             list_head: list_heads.timed_tasks,
             data_source_key_name: "timed_tasks",
@@ -2784,9 +2843,9 @@ addPage(() => {
             });
         }
     }
-}); // timers_control_panel_page
-addPage(() => {
-    setPage(["延时接力管理", "timers_uninterrupted_check_sections_page"], def, parent_view => setTimersUninterruptedCheckAreasPageButtons(parent_view, "timers_uninterrupted_check_sections"), {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("timers_uninterrupted_check_sections_page", (name) => {
+    setPage(["延时接力管理", name], def, parent_view => setTimersUninterruptedCheckAreasPageButtons(parent_view, "timers_uninterrupted_check_sections"), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*延时接力时间区间*/", {
             list_head: list_heads.timers_uninterrupted_check_sections,
             data_source_key_name: "timers_uninterrupted_check_sections",
@@ -2947,9 +3006,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // timers_uninterrupted_check_sections_page
-addPage(() => {
-    setPage(["账户功能", "account_page"], def, def, {
+});
+addPage("account_page", (name) => {
+    setPage(["账户功能", name], def, def, {
         check_page_state: (view) => {
             let {main_account_info} = session_config;
             if (!view._switch.checked) return true;
@@ -3194,9 +3253,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // account_page
-addPage(() => {
-    setPage(["旧账户回切", "account_log_back_in_page"])
+});
+addPage("account_log_back_in_page", (name) => {
+    setPage(["旧账户回切", name])
         .add("switch", new Layout("总开关", {
             config_conj: "account_log_back_in_switch",
             listeners: {
@@ -3242,9 +3301,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // account_log_back_in_page
-addPage(() => {
-    setPage(["黑名单管理", "blacklist_page"])
+});
+addPage("blacklist_page", (name) => {
+    setPage(["黑名单管理", name])
         .add("sub_head", new Layout("蚂蚁森林名单簿", {sub_head_color: defs.sub_head_highlight_color}))
         .add("options", new Layout("能量罩黑名单", {
             hint: "加载中...",
@@ -3287,9 +3346,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // blacklist_page
-addPage(() => {
-    setPage(["能量罩黑名单", "cover_blacklist_page"], def, def, {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("cover_blacklist_page", (name) => {
+    setPage(["能量罩黑名单", name], def, def, {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*能量罩黑名单成员*/", {
             list_head: list_heads.blacklist_protect_cover,
             data_source_key_name: "blacklist_protect_cover",
@@ -3304,9 +3363,9 @@ addPage(() => {
         }))
         .add("info", new Layout("能量罩黑名单由脚本自动管理"))
         .ready();
-}); // cover_blacklist_page
-addPage(() => {
-    setPage(["自定义黑名单", "self_def_blacklist_page"], def, parent_view => setListPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("self_def_blacklist_page", (name) => {
+    setPage(["自定义黑名单", name], def, parent_view => setListPageButtons(parent_view, "blacklist_by_user"), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*自定义黑名单成员*/", {
             list_head: list_heads.blacklist_by_user,
             data_source_key_name: "blacklist_by_user",
@@ -3464,9 +3523,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // self_def_blacklist_page
-addPage(() => {
-    setPage(["前置应用黑名单", "foreground_app_blacklist_page"], def, parent_view => setListPageButtons(parent_view, "foreground_app_blacklist"), {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("foreground_app_blacklist_page", (name) => {
+    setPage(["前置应用黑名单", name], def, parent_view => setListPageButtons(parent_view, "foreground_app_blacklist"), {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*前置应用黑名单项目*/", {
             list_head: list_heads.foreground_app_blacklist,
             data_source_key_name: "foreground_app_blacklist",
@@ -3535,9 +3594,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // foreground_app_blacklist_page
-addPage(() => {
-    setPage(["运行与安全", "script_security_page"])
+});
+addPage("script_security_page", (name) => {
+    setPage(["运行与安全", name])
         .add("sub_head", new Layout("基本设置"))
         .add("button", new Layout("运行失败自动重试", {
             config_conj: "max_retry_times_global",
@@ -3696,9 +3755,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // script_security_page
-addPage(() => {
-    setPage(["支付宝应用及页面保留", "kill_when_done_page"])
+});
+addPage("kill_when_done_page", (name) => {
+    setPage(["支付宝应用及页面保留", name])
         .add("switch", new Layout("总开关", {
             config_conj: "kill_when_done_switch",
             listeners: {
@@ -3764,9 +3823,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // kill_when_done_page
-addPage(() => {
-    setPage(["通话状态监测", "phone_call_state_monitor_page"])
+});
+addPage("phone_call_state_monitor_page", (name) => {
+    setPage(["通话状态监测", name])
         .add("switch", new Layout("总开关", {
             config_conj: "phone_call_state_monitor_switch",
             listeners: {
@@ -3827,9 +3886,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // phone_call_state_monitor_page
-addPage(() => {
-    setPage(["项目备份还原", "local_project_backup_restore_page"])
+});
+addPage("local_project_backup_restore_page", (name) => {
+    setPage(["项目备份还原", name])
         .add("sub_head", new Layout("备份", {sub_head_color: defs.sub_head_highlight_color}))
         .add("button", new Layout("备份至本地", {
             newWindow: function () {
@@ -3876,8 +3935,8 @@ addPage(() => {
         .add("sub_head", new Layout("还原", {sub_head_color: defs.sub_head_highlight_color}))
         .add("options", new Layout("从本地还原", {
             hint: "加载中...",
-            view_label: "restore_projects_from_local",
-            next_page: "restore_projects_from_local",
+            view_label: "restore_projects_from_local_page",
+            next_page: "restore_projects_from_local_page",
             updateOpr: function (view) {
                 let amount = session_config.project_backup_info.length;
                 view._hint.text(amount ? "共计备份:  " + amount + " 项" : "无备份");
@@ -3886,19 +3945,19 @@ addPage(() => {
         .add("options", new Layout("从服务器还原", {
             hint: "加载中...",
             next_page: null,
-            view_label: "restore_projects_from_server",
+            view_label: "restore_projects_from_server_page",
             updateOpr: function (view) {
                 let view_label = this.view_label;
                 let clearClickListener = () => view.setClickListener(() => null);
                 let restoreClickListener = () => {
-                    session_params.restore_projects_from_server_updated_flag = false;
+                    session_params.restore_projects_from_server_page_updated_flag = false;
                     view.setClickListener(() => updateViewByLabel(view_label));
                 };
-                if (session_params.restore_projects_from_server_updated_flag) return;
+                if (session_params.restore_projects_from_server_page_updated_flag) return;
                 view._chevron_btn.setVisibility(8);
                 view._hint.text("正在从服务器获取数据...");
                 clearClickListener();
-                session_params.restore_projects_from_server_updated_flag = true;
+                session_params.restore_projects_from_server_page_updated_flag = true;
                 threads.starts(function () {
                     let setViewText = text => ui.post(() => view._hint.text(text));
                     let max_try_times = 5;
@@ -3911,7 +3970,7 @@ addPage(() => {
                                 restoreClickListener();
                                 return setViewText("无备份 (点击可重新检查)");
                             }
-                            view.setNextPage("restore_projects_from_server");
+                            view.setNextPage("restore_projects_from_server_page");
                             ui.post(() => view._chevron_btn.setVisibility(0));
                             view.restoreClickListener();
                             setViewText("共计备份:  " + amount + " 项");
@@ -3999,9 +4058,9 @@ addPage(() => {
             },
         }))
         .ready();
-}); // local_project_backup_restore_page
-addPage(() => {
-    setPage(["从本地还原项目", "restore_projects_from_local"], def, def, {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("restore_projects_from_local_page", (name) => {
+    setPage(["从本地还原项目", name], def, def, {no_margin_bottom: true, no_scroll_view: true})
         .add("list", new Layout("/*本地项目还原*/", {
             list_head: list_heads.project_backup_info,
             data_source_key_name: "project_backup_info",
@@ -4024,7 +4083,7 @@ addPage(() => {
 
                             let {data_source_key_name} = this;
                             updateDataSource(data_source_key_name, "splice", [idx, 1], "quiet");
-                            updateViewByLabel("restore_projects_from_local");
+                            updateViewByLabel("restore_projects_from_local_page");
 
                             // write to storage right away
                             storage_af.put(data_source_key_name, storage_config[data_source_key_name] = deepCloneObject(session_config[data_source_key_name]));
@@ -4088,23 +4147,25 @@ addPage(() => {
             },
         }))
         .add("info", new Layout("dynamic_info", {
-            view_label: "restore_projects_from_local",
+            view_label: "restore_projects_from_local_page",
             updateOpr: function (view) {
                 view._info_text.setText(session_config.project_backup_info.length ? "点击列表项可还原项目或删除备份项目" : "暂无备份项目");
             },
         }))
         .add("info", new Layout("长按列表项可删除备份项目", {
-            view_label: "restore_projects_from_local",
+            view_label: "restore_projects_from_local_page",
             updateOpr: function (view) {
                 view.setVisibility(session_config.project_backup_info.length ? 0 : 8);
             },
         }))
         .ready();
-}); // restore_projects_from_local
-addPage(() => {
-    setPage(["从服务器还原项目", "restore_projects_from_server"], def, def, {no_margin_bottom: true, no_scroll_view: true})
+});
+addPage("restore_projects_from_server_page", (name) => {
+    setPage(["从服务器还原项目", name], def, def, {no_margin_bottom: true, no_scroll_view: true})
         .ready();
-}); // restore_projects_from_server
+});
+
+flushPagesBuffer(pages_buffer_obj, pages_tree);
 
 ui.emitter.on("back_pressed", e => {
     if (session_params.back_btn_consumed) {
@@ -4163,17 +4224,40 @@ events.on("exit", () => {
     ui.main.removeAllViews();
     ui.finish();
 });
-listener.emit("sub_page_views_add");
 
-setTimeout(function () {
+// layout function(s) //
+
+function flushPagesBuffer(pages, tree) {
+    let _pages_buffer = [];
+    let _pages_buffered_name = {};
+    pickupPage(pages, tree);
+    _pages_buffer.forEach(o => sub_page_views.push(() => o.addFunc(o.page_name)));
+
+    listener.emit("sub_page_views_add");
+
     let interval_add_sub_page = setInterval(function () {
         session_params.sub_page_view_idx < sub_page_views.length
             ? listener.emit("sub_page_views_add")
             : clearInterval(interval_add_sub_page);
     }, 50);
-}, 3000);
 
-// layout function(s) //
+    // tool function(s) //
+
+    function pickupPage(pages, tree) {
+        let sub_trees = [];
+        let keys = Object.keys(tree);
+        for (let i = 0, len = keys.length; i < len; i += 1) {
+            let key = keys[i];
+            if (key in pages && !(key in _pages_buffered_name)) {
+                _pages_buffer.push({page_name: key, addFunc: pages[key]});
+                _pages_buffered_name[key] = true;
+            }
+            let sub_tree = (tree[key]);
+            if (classof(sub_tree, "Object")) sub_trees.push(sub_tree);
+        }
+        if (sub_trees.length) sub_trees.forEach(sub_tree => pickupPage(pages, sub_tree));
+    }
+}
 
 function setListPageButtons(parent_view, data_source_key_name) {
     let scenarios = {
@@ -5585,92 +5669,102 @@ function initUI(status_bar_color) {
 }
 
 function setHomePage(home_title, title_bg_color) {
-    let homepage = setPage(home_title, title_bg_color, parent_view => setButtons(parent_view, "homepage",
-        ["save", "SAVE", "OFF", (btn_view) => {
-            if (!needSave()) return;
-            saveNow();
-            btn_view.switch_off();
-            toast("已保存");
-        }]
-    ));
+    let _homepage = setPage(home_title, title_bg_color, page_buttons.homepage);
 
-    ui.main.getParent().addView(homepage);
-    homepage._back_btn_area.setVisibility(8);
-    rolling_pages[0] = homepage;
-    return homepage;
+    _homepage.ready = function () {
+        ui.main.getParent().addView(_homepage);
+        _homepage._back_btn_area.setVisibility(8);
+        rolling_pages[0] = _homepage; //// PENDING ////
+    };
+
+    return _homepage;
+}
+
+function getPageButtons() {
+    return {
+        homepage: function (parent_view) {
+            return setButtons(parent_view, "homepage",
+                ["save", "SAVE", "OFF", (btn_view) => {
+                    if (needSave()) {
+                        saveNow();
+                        btn_view.switch_off();
+                        toast("已保存");
+                    }
+                }]
+            );
+        }
+    };
 }
 
 function setPage(title_param, title_bg_color, additions, options) {
-    let {no_margin_bottom, no_scroll_view, check_page_state} = options || {};
-    let title = title_param;
-    let view_page_name = "";
-    if (classof(title_param, "Array")) [title, view_page_name] = title_param;
-    session_params.page_title = title;
     title_bg_color = title_bg_color || defs["title_bg_color"];
-    let new_view = ui.inflate(<vertical/>);
-    new_view.addView(ui.inflate(
-        <linear id="_title_bg" clickable="true">
-            <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
-                <linear>
-                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
-                </linear>
-            </vertical>
-            <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
-        </linear>
-    ));
-    new_view._back_btn_area.on("click", () => checkPageState() && pageJump("back"));
-    new_view._title_text.text(title);
-    new_view._title_text.getPaint().setFakeBoldText(true);
+    let {no_margin_bottom, no_scroll_view, check_page_state} = options || {};
+    let [page_title_name, page_label_name] = classof(title_param, "Array") ? title_param : [title_param, ""];
+
+    let page_view = ui.inflate(<vertical/>);
+    page_view.addView(ui.inflate(<linear id="_title_bg" clickable="true">
+        <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
+            <linear>
+                <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
+            </linear>
+        </vertical>
+        <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
+        <linear id="_title_btn" gravity="right" w="*" marginRight="5"/>
+    </linear>));
+    page_view._back_btn_area.on("click", () => checkPageState() && pageJump("back"));
+    page_view._title_text.text(page_title_name);
+    page_view._title_text.getPaint().setFakeBoldText(true);
+
     let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
-    new_view._title_bg.setBackgroundColor(title_bg);
+    page_view._title_bg.setBackgroundColor(title_bg);
 
-    if (additions) typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
+    if (additions) typeof additions === "function" ? additions(page_view) : additions.forEach(f => f(page_view));
 
-    if (!no_scroll_view) {
-        new_view.addView(ui.inflate(
-            <ScrollView>
-                <vertical id="_page_content_view"/>
-            </ScrollView>
-        ));
-    } else {
-        new_view.addView(ui.inflate(
-            <vertical>
-                <vertical id="_page_content_view"/>
-            </vertical>
-        ));
-    }
-    if (!no_margin_bottom) {
-        new_view._page_content_view.addView(ui.inflate(
-            <frame>
-                <frame margin="0 0 0 8"/>
-            </frame>
-        ));
-    }
-    new_view.add = (type, item_params) => {
+    page_view.addView(no_scroll_view
+        ? ui.inflate(<vertical>
+            <vertical id="_page_content_view"/>
+        </vertical>)
+        : ui.inflate(<ScrollView>
+            <vertical id="_page_content_view"/>
+        </ScrollView>));
+
+    no_margin_bottom || page_view._page_content_view.addView(
+        ui.inflate(<frame>
+            <frame margin="0 0 0 8"/>
+        </frame>)
+    );
+
+    page_view.add = (type, item_params) => {
         let sub_view = setItem(type, item_params);
-        new_view._page_content_view.addView(sub_view);
-        if (sub_view.updateOpr) dynamic_views.push(sub_view);
-        return new_view;
+        page_view._page_content_view.addView(sub_view);
+        let {updateOpr} = sub_view;
+        if (updateOpr) {
+            updateOpr.bind(sub_view)(sub_view);
+            dynamic_views.push(sub_view);
+        }
+        return page_view;
     };
 
-    if (view_page_name) {
-        view_pages[view_page_name] = new_view;
-        new_view.setTag(view_page_name);
-    }
-
-    new_view.ready = () => {
-        session_params["ready_signal_" + view_page_name] = true;
-        listener.emit("sub_page_views_add");
-        updateAllValues("only_new");
+    page_view.ready = () => {
+        session_params["ready_signal_" + page_label_name] = true;
+        // listener.emit("sub_page_views_add");
+        // updateAllValues("only_new");
     };
 
-    new_view.checkPageState = () => {
+    page_view.checkPageState = () => {
         if (typeof check_page_state === "boolean") return check_page_state;
-        if (typeof check_page_state === "function") return check_page_state(new_view);
+        if (typeof check_page_state === "function") return check_page_state(page_view);
         return true;
     };
 
-    return new_view;
+    page_view.page_name = page_view.page_title_name = page_title_name;
+    if (page_label_name) {
+        page_view.label_name = page_view.page_label_name = page_label_name;
+        view_pages[page_label_name] = page_view;
+        page_view.setTag(page_label_name);
+    }
+
+    return page_view;
 
     // tool function(s) //
 
@@ -5759,7 +5853,6 @@ function setPage(title_param, title_bg_color, additions, options) {
                 });
             });
         } else if (type.match(/^options/)) {
-            let is_lazy = type.match(/lazy/);
             let opt_view = ui.inflate(
                 <vertical id="_chevron_btn">
                     <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
@@ -5773,19 +5866,20 @@ function setPage(title_param, title_bg_color, additions, options) {
                 new_view._item_area.on("click", listener);
             };
             new_view.restoreClickListener = () => new_view.setClickListener(() => {
-                if (__global__._monster_$_page_scrolling_flag) return;
                 let next_page = item_params.next_page;
                 if (next_page && view_pages[next_page]) pageJump("next", next_page);
             });
-            is_lazy ? (new_view.setClickListener(), new_view._chevron_btn.setVisibility(8)) : new_view.restoreClickListener();
-            threads.starts(function () {
-                if (waitForAction(() => session_params["ready_signal_" + item_params.next_page], 8000)) {
+            new_view.setClickListener();
+            new_view._chevron_btn.setVisibility(8);
+            let sub_page_ready_interval = setInterval(function () {
+                if (session_params["ready_signal_" + item_params.next_page]) {
                     ui.post(() => {
                         new_view.restoreClickListener();
                         new_view._chevron_btn.setVisibility(0);
                     });
+                    clearInterval(sub_page_ready_interval);
                 }
-            });
+            }, 200);
         } else if (type === "button") {
             let help_view = ui.inflate(
                 <vertical id="_info_icon" visibility="gone">
@@ -6039,16 +6133,13 @@ function setPage(title_param, title_bg_color, additions, options) {
 }
 
 function setButtons(parent_view, data_source_key_name, button_params_arr) {
-    let buttons_view = ui.inflate(<horizontal id="btn"/>);
     let buttons_count = 0;
     for (let i = 2, len = arguments.length; i < len; i += 1) {
         let arg = arguments[i];
         if (typeof arg !== "object") continue; // just in case
-        buttons_view.btn.addView(getButtonLayout.apply(null, arg));
+        parent_view._title_btn.addView(getButtonLayout.apply(null, arg));
         buttons_count += 1;
     }
-    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (session_params.page_title !== defs.homepage_title ? 52 : 5)) * WIDTH / 720));
-    parent_view._title_bg.addView(buttons_view);
 
     // tool function(s) //
 
@@ -6086,7 +6177,7 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
 
         function buttonView() {
             return ui.inflate(
-                <vertical margin="13 0">
+                <vertical margin="13 0" id="btn" layout_gravity="right" gravity="right">
                     <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" h="31" bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
                     <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
                 </vertical>
@@ -6097,6 +6188,10 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
 
 function pageJump(direction, next_page) {
     if (__global__._monster_$_page_scrolling_flag) return;
+
+    // necessary so far
+    if (next_page === (rolling_pages[rolling_pages.length - 1] || {}).label_name) return;
+
     if (direction.match(/back|previous|last/)) {
         smoothScrollView("full_right", null, rolling_pages);
         return rolling_pages.pop();
@@ -6448,7 +6543,7 @@ function backupProjectFiles(local_backup_path, version_name, dialog, auto_flag) 
         timestamp: now.getTime(),
         remark: auto_flag ? "自动备份" : (session_params["project_backup_info_remark"] || "手动备份"),
     }, "quiet");
-    updateViewByLabel("restore_projects_from_local");
+    updateViewByLabel("restore_projects_from_local_page");
 
     // write to storage right away
     storage_af.put(data_source_key_name, storage_config[data_source_key_name] = deepCloneObject(session_config[data_source_key_name]));
@@ -6866,10 +6961,10 @@ function updateDataSource(data_source_key_name, operation, data_params, quiet_fl
 }
 
 function updateViewByLabel(view_label) {
-    ui.post(() => {
-        let aims = dynamic_views.filter(view => view.view_label === view_label);
-        aims.forEach(view => view.updateOpr(view));
-    });
+    ui.post(() => dynamic_views
+        .filter(view => view.view_label === view_label)
+        .forEach(view => view.updateOpr(view))
+    );
 }
 
 function okHttpRequest(url, path, listener, params) {

@@ -992,7 +992,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
 
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -1128,7 +1128,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function waitForAction(f, timeout_or_times, interval) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
         if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
         let _timeout = Infinity;
@@ -1379,7 +1379,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function tryRequestScreenCapture(params) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
         if (__global__._monster_$_request_screen_capture_flag) return true;
 
         sleep(200); // why are you always a naughty boy... how can i get along well with you...
@@ -1644,7 +1644,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
         let global_flag = __global__._monster_$_debug_info_flag;
         if (!global_flag && !forcible_flag) return;
         if (global_flag === false || forcible_flag === false) return;
@@ -1851,7 +1851,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function captureErrScreen(key_name, log_level) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
 
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
         let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
@@ -1902,7 +1902,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function getSelector(params) {
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
 
         let parent_params = params || {};
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -2215,7 +2215,7 @@ function loadInternalModuleMonsterFunc() {
         let _params = params || {};
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
 
-        __global__ = typeof __global__ === "undefined" ? {} : __global__;
+        __global__ = typeof __global__ === "undefined" ? this : __global__;
         if (typeof __global__.device === "undefined") __global__.device = {};
 
 

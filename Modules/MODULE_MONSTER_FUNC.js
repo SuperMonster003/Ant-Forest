@@ -61,7 +61,7 @@ __global__ = typeof __global__ === "undefined" ? this : __global__;
 function parseAppName(name, params) {
     if (!name) return {app_name: "", package_name: ""};
 
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     __global__._monster_$_app_name_cache = __global__._monster_$_app_name_cache || {};
     __global__._monster_$_app_package_name_cache = __global__._monster_$_app_package_name_cache || {};
@@ -204,7 +204,7 @@ function getVerName(name, params) {
  * @return {boolean}
  */
 function launchThisApp(trigger, params) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     if (typeof __global__._monster_$_first_time_run === "undefined") __global__._monster_$_first_time_run = 1;
 
@@ -809,7 +809,7 @@ function runJsFile(file_name) {
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -988,7 +988,7 @@ function showSplitLine(extra_str, style, params) {
  * @return {boolean} - if not timed out
  */
 function waitForAction(f, timeout_or_times, interval) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
     if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
     let _timeout = Infinity;
@@ -1472,7 +1472,7 @@ function refreshObjects(strategy, params) {
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
     if (__global__._monster_$_request_screen_capture_flag) return true;
 
     sleep(200); // why are you always a naughty boy... how can i get along well with you...
@@ -2026,7 +2026,7 @@ function keycode(keycode_name, params_str) {
  * @param [forcible_flag] {boolean} - forcibly enable with true value
  */
 function debugInfo(msg, info_flag, forcible_flag) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
     let global_flag = __global__._monster_$_debug_info_flag;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
@@ -2263,7 +2263,7 @@ function deepCloneObject(obj) {
  * @param [base_view=ui.main] {View} - specified view for attaching parent views
  */
 function smoothScrollView(shifting, duration, pages_pool, base_view) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     if (pages_pool.length < 2) return;
     if (__global__._monster_$_page_scrolling_flag) return;
@@ -2364,7 +2364,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
  * @param [duration=3000] {number} - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     __global__._monster_$_alert_title_info = __global__._monster_$_alert_title_info || {};
     let alert_title_info = __global__._monster_$_alert_title_info;
@@ -2474,7 +2474,7 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
  * @see messageAction
  */
 function captureErrScreen(key_name, log_level) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
@@ -2532,7 +2532,7 @@ function captureErrScreen(key_name, log_level) {
  * @returns {UiSelector} - with additional function(s)
  */
 function getSelector(params) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     let parent_params = params || {};
     let classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -2939,7 +2939,7 @@ function phoneCallingState() {
  * timeRecorder("study"); timeRecorder("study", "load", "auto") - eg: "7分钟8.16秒" (means 7m 8.16s)
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
 
     if (!__global__._monster_$_timestamp_records) {
         __global__._monster_$_timestamp_records = {};
@@ -3195,7 +3195,7 @@ function setDeviceProto(params) {
     let _params = params || {};
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
     if (typeof __global__.device === "undefined") __global__.device = {};
 
 
@@ -3314,7 +3314,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
 function baiduOcr(src, params) {
     if (!src) return [];
 
-    __global__ = typeof __global__ === "undefined" ? {} : __global__;
+    __global__ = typeof __global__ === "undefined" ? this : __global__;
     params = params || {};
 
     let timeout = params.timeout || 60000;

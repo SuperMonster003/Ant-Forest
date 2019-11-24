@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 23, 2019
- * @version 1.9.8 Alpha
+ * @last_modified Nov 24, 2019
+ * @version 1.9.8
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -22,11 +22,12 @@ checkModulesMap([
     "MODULE_UNLOCK",
 ]);
 
-// given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
+// given that there are bugs with dialogs modules
+// in auto.js versions like 4.1.0/5 and 4.1.1/2
 // in another way, dialogs.builds() could make things easier sometimes
 let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 
-// better compatibility for both free version and pro version
+// better compatibility for both free and pro versions
 let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
 // more functions offered by Stardust and some others by myself
