@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 21, 2019
- * @version 1.9.7
+ * @last_modified Nov 24, 2019
+ * @version 1.9.8
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -22,11 +22,12 @@ checkModulesMap([
     "MODULE_UNLOCK",
 ]);
 
-// given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
+// given that there are bugs with dialogs modules
+// in auto.js versions like 4.1.0/5 and 4.1.1/2
 // in another way, dialogs.builds() could make things easier sometimes
 let dialogs = require("./Modules/__dialogs__pro_v6")(runtime, __global__);
 
-// better compatibility for both free version and pro version
+// better compatibility for both free and pro versions
 let timers = require("./Modules/__timers__pro_v37")(runtime, __global__);
 
 // more functions offered by Stardust and some others by myself
@@ -1074,7 +1075,7 @@ function checkEnergy() {
             return tryCloseMaskLayer()
                 ? debugInfo([
                     "关闭遮罩层成功",
-                    "遮罩层关闭用时: " + timeRecorder("af_homepage_mask_layer_matched", "load", 1000, [2], "ms")
+                    "遮罩层关闭用时: " + timeRecorder("af_homepage_mask_layer_matched", "load", "auto")
                 ])
                 : debugInfo("关闭遮罩层失败", 3);
 
@@ -1104,13 +1105,13 @@ function checkEnergy() {
             : debugInfo("蚂蚁森林主页准备超时", 3);
 
         let {max_own_forest_balls_ready_time} = config;
-        debugInfo(["查找主页能量球控件", ">最大时间参数: " + max_own_forest_balls_ready_time + "ms"]);
+        debugInfo(["查找主页能量球控件", ">最大时间参数: " + max_own_forest_balls_ready_time + "毫秒"]);
 
         let {avatar_checked_time} = current_app;
         if (avatar_checked_time) {
             let final_minified_time = Math.max(150, max_own_forest_balls_ready_time - avatar_checked_time);
             max_own_forest_balls_ready_time = final_minified_time;
-            debugInfo(["查找时间值削减至: " + final_minified_time + "ms", ">主账户检测耗时抵充"]);
+            debugInfo(["查找时间值削减至: " + final_minified_time + "毫秒", ">主账户检测耗时抵充"]);
             delete current_app.avatar_checked_time;
         }
 
@@ -1187,7 +1188,7 @@ function checkEnergy() {
 
                 if (!remain_minutes || remain_minutes < 0) debugInfo("自己能量最小倒计时数据无效", 3);
                 else {
-                    debugInfo("自己能量最小倒计时: " + remain_minutes + "min");
+                    debugInfo("自己能量最小倒计时: " + remain_minutes + "分钟");
                     current_app.min_countdown_own = min_countdown_own; // ripe timestamp
                     debugInfo("时间数据: " + getNextTimeStr(min_countdown_own));
                 }
@@ -1304,7 +1305,7 @@ function checkEnergy() {
                 debugInfo("自己能量监测完毕");
                 debugInfo("本次监测收取结果: " + (current_app.total_energy_collect_own - old_collect_own) + "g");
                 device.cancelOn();
-                debugInfo("监测用时: " + timeRecorder("homepage_monitor", "load", 1000, [1], "秒"));
+                debugInfo("监测用时: " + timeRecorder("homepage_monitor", "load", "auto"));
             }
         }
 
@@ -1811,7 +1812,7 @@ function checkEnergy() {
                 let orange_balls_threshold = config.help_collect_balls_threshold;
                 let intensity_time = config.help_collect_balls_intensity * 160 - 920;
 
-                debugInfo("能量球监测采集密度: " + intensity_time + "ms");
+                debugInfo("能量球监测采集密度: " + intensity_time + "毫秒");
 
                 timeRecorder("energy_balls_monitor", "save");
 
@@ -2196,8 +2197,7 @@ function checkEnergy() {
                 let thread_ready_count = threads.atomic(0);
                 let final_result = threads.atomic(-1);
 
-                let [thread_by_dashboard, thread_by_dynamic_list] = [threads.start(byDashboardThread), threads.start(byDynamicListThread)];
-                let threads_arr = [thread_by_dashboard, thread_by_dynamic_list];
+                let threads_arr = [threads.start(byDashboardThread), threads.start(byDynamicListThread)];
 
                 init();
                 clickBalls();
@@ -2234,6 +2234,7 @@ function checkEnergy() {
                         if (final_result_num >= 0) {
                             messageAction(action_name + ": " + final_result_num + "g", +!!final_result_num, 0, 1);
                             if (action_str === "collect") current_app.total_energy_collect_friends += final_result_num;
+                            // TODO save data to database here
                         } else messageAction(action_name + ": 统计数据无效", 0, 0, 1);
                         current_app.current_friend.console_logged = 1;
                     }
@@ -2404,7 +2405,7 @@ function checkEnergy() {
                             }
                         } else debugInfo("参照值: " + tmp_bottom_data);
                     }
-                    debugInfo("排行榜列表已稳定: " + timeRecorder("rank_list_swipe_beginning", "load", null, null, "ms"));
+                    debugInfo("排行榜列表已稳定: " + timeRecorder("rank_list_swipe_beginning", "load", "auto"));
                 });
                 thread_rank_list_swiping.join(config.rank_list_swipe_interval);
                 if (thread_rank_list_swiping.isAlive()) {
@@ -2468,7 +2469,7 @@ function checkEnergy() {
 
                 if (current_app.slow_check_kw_end_list_ident_flag && config.rank_list_swipe_interval <= 600) {
                     config.rank_list_swipe_interval += 6;
-                    debugInfo("滑动间隔递增至: " + config.rank_list_swipe_interval + "ms");
+                    debugInfo("滑动间隔递增至: " + config.rank_list_swipe_interval + "毫秒");
                 }
 
                 let half_width = cX(0.5);
@@ -2692,7 +2693,7 @@ function checkEnergy() {
             let ripe_time = new Date(min_countdown_friends);
             let remain_minute = Math.round((ripe_time - +now) / 60000);
 
-            debugInfo("好友能量最小倒计时: " + remain_minute + "min");
+            debugInfo("好友能量最小倒计时: " + remain_minute + "分钟");
             current_app.min_countdown_friends = min_countdown_friends; // ripe timestamp
             debugInfo("时间数据: " + getNextTimeStr(min_countdown_friends));
 
@@ -2727,7 +2728,7 @@ function checkEnergy() {
 
             while (sleep(500) || true) {
                 if (current_app.slow_check_kw_end_list_ident_flag) {
-                    debugInfo("延迟列表底部条件检测: " + delay_swipe_time_sec + "s");
+                    debugInfo("延迟列表底部条件检测: " + delay_swipe_time_sec + "秒");
                     sleep(delay_swipe_time);
                 }
 
@@ -2774,8 +2775,8 @@ function checkEnergy() {
                         debugInfo("放弃参照值精度过低的统计方法");
                         return NaN;
                     }
-                    let value = +txt.match(/\d+/);
-                    if (!isNaN(value)) return value;
+                    let value = txt.match(/\d+/);
+                    return value === null ? NaN : +value;
                 } catch (e) {
                     console.error(e); //// TEST ////
                 }
@@ -3473,7 +3474,7 @@ function epilogue() {
             let keycode_name = "26";
             if (keycode(keycode_name, "no_err_msg")) {
                 debugInfo("策略执行成功");
-                debugInfo("用时: " + timeRecorder("SCREEN_OFF_TIMEOUT", "load", 1000, [1], "秒"));
+                debugInfo("用时: " + timeRecorder("SCREEN_OFF_TIMEOUT", "load", "auto"));
                 return true;
             }
             debugInfo(["策略执行失败", ">按键模拟失败", ">键值: " + keycode_name]);
@@ -3483,7 +3484,7 @@ function epilogue() {
 
             function checkBugModel() {
                 let device_brand = device.brand;
-                let keycode_power_bug_versions = [/[Mm]eizu/]; // poor guy, don't cry... :sweat_smile:
+                let keycode_power_bug_versions = [/[Mm]eizu/]; // poor guy, don't cry... [:sweat_smile:]
                 // let keycode_power_bug_versions = [/[Mm]eizu|Sony/]; //// TEST ////
                 for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
                     if (device_brand.match(keycode_power_bug_versions[i])) {
@@ -3574,7 +3575,7 @@ function epilogue() {
                     }, 200, () => {
                         if (!device.isScreenOn()) {
                             debugInfo("策略执行成功");
-                            debugInfo("用时: " + timeRecorder("settings_provider_params", "load", 1000, [1], "秒"));
+                            debugInfo("用时: " + timeRecorder("settings_provider_params", "load", "auto"));
                             return resolve(screen_off_result = true) || true;
                         }
                         if (timedOut()) return true;
@@ -3734,9 +3735,8 @@ function setGlobalWaitingMonitors() {
                         messageAction(description + "事件解除超时", 9, 1, 1, 1);
                     } else {
                         messageAction("解除" + description + "事件", 1, 0, 0, "up_dash");
-                        messageAction("解除用时: " + timeRecorder(
-                            "global_monitor_" + description, "load", 1000, [1], "秒"), 1, 0, 1, "dash"
-                        );
+                        let released_time_str = timeRecorder("global_monitor_" + description, "load", "auto");
+                        messageAction("解除用时: " + released_time_str, 1, 0, 1, "dash");
                         onRelease && onRelease();
                     }
                     triggered_flag = false;
@@ -3980,7 +3980,7 @@ function setPostponedTaskNow(postponed_minute, dialogs_arr, toast_flag) {
 
         let task_msg = surroundWith("蚂蚁森林") + "任务";
         messageAction("推迟" + task_msg, 1, 0, 0, "up");
-        messageAction("推迟时长: " + postponed_minute + "min", 1, 0, 0, 1);
+        messageAction("推迟时长: " + postponed_minute + "分钟", 1, 0, 0, 1);
         if (toast_flag !== false) {
             let toast_msg = task_msg + "推迟 " + postponed_minute + " 分钟";
             messageAction(toast_msg, null, 1);
@@ -3995,7 +3995,7 @@ function setPostponedTaskNow(postponed_minute, dialogs_arr, toast_flag) {
         storage_af.put("next_auto_task", {
             task_id: task.id,
             timestamp: next_launch_time,
-            type: "postponed",
+            type: "postponed" + (storage_af.get("foreground_app_blacklist_hit_continuous_times") ? "_auto" : ""),
         });
         ui.post(() => exit());
     });
@@ -4155,7 +4155,7 @@ function checkTasksQueue() {
         checkForegroundAppBlacklist();
         storage_af.remove("foreground_app_blacklist_hit_continuous_times");
     }
-    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", 1000, [1], " 秒"), "Up");
+    queue_flag && debugInfo("任务排队用时: " + timeRecorder("queue_beginning", "load", "auto"), "Up");
 
     // tool function(s) //
 
@@ -4204,9 +4204,9 @@ function checkTasksQueue() {
                 if (continuous_times === 1) {
                     messageAction("本次任务自动推迟运行", 1);
                 } else {
-                    messageAction("本次任务自动推迟: " + delay_time + "min", 1);
+                    messageAction("本次任务自动推迟: " + delay_time + "分钟", 1);
                     messageAction("当前连续推迟次数: " + continuous_times, 1);
-                    messageAction("当前连续推迟总计: " + delay_time_sum + "min", 1);
+                    messageAction("当前连续推迟总计: " + delay_time_sum + "分钟", 1);
                 }
                 storage_af.put("foreground_app_blacklist_hit_continuous_times", continuous_times);
                 setPostponedTaskNow(delay_time, [], false);
@@ -4915,7 +4915,7 @@ function speExecCollectFriendsList() {
         storage_af.put("friends_list_data", friend_list_data);
         thread_keep_toast.interrupt();
         messageAction("采集完毕", 1, 1);
-        messageAction("用时 " + timeRecorder("collect_friends_list_data", "load", 1000, [1], " 秒"), 1, 0, 1);
+        messageAction("用时 " + timeRecorder("collect_friends_list_data", "load", "auto"), 1, 0, 1);
         messageAction("总计 " + friend_list_data.list_length + " 项", 1, 0, 1);
         current_app.floaty_msg_finished_flag = 1;
 
@@ -4971,7 +4971,7 @@ function speExecCollectCurrentAccountName() {
         storage_af.remove(storage_key_name);
         storage_af.put(storage_key_name, collected_name);
         messageAction("采集完毕", 1);
-        messageAction("用时 " + timeRecorder("collect_current_account_name", "load", 1000, [1], " 秒"), 1, 0, 1);
+        messageAction("用时 " + timeRecorder("collect_current_account_name", "load", "auto"), 1, 0, 1);
         current_app.floaty_msg_finished_flag = 1;
 
         // tool function (s) //
