@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Nov 24, 2019
- * @version 1.9.8
+ * @last_modified Nov 28, 2019
+ * @version 1.9.9
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -268,7 +268,7 @@ function prologue() {
         }], "kw_af_title", type);
         current_app.kw_af_home = type => sel.pickup(/合种|背包|通知|攻略|任务|我的大树养成记录/, "kw_af_home", type);
         current_app.kw_list_more_friends = type => sel.pickup("查看更多好友", "kw_list_more_friends", type);
-        current_app.kw_rank_list_title = type => sel.pickup(/好友排行榜|Green heroes/, "kw_rank_list_title", type);
+        current_app.kw_rank_list_title = type => sel.pickup(/.*(好友排行榜|Green heroes)/, "kw_rank_list_title", type);
         current_app.kw_end_list_ident = type => sel.pickup(/.*没有更多了.*/, "kw_end_list_ident", type);
         current_app.kw_wait_for_awhile = type => sel.pickup(/.*稍等片刻.*/, "kw_wait_for_awhile", type);
         current_app.kw_reload_forest_page_btn = type => sel.pickup("重新加载", "kw_reload_forest_page_btn", type);
@@ -372,7 +372,7 @@ function prologue() {
                     showOptionMenu: "YES",
                     appClearTop: "NO",
                     enableScrollBar: "NO",
-                    defaultTitle: "",
+                    defaultTitle: "\u2615\ufe0f\x20\u597D\u53CB\u6392\u884C\u699C",
                     transparentTitle: "none",
                 },
             }),
@@ -383,6 +383,43 @@ function prologue() {
         current_app.rank_list_bottom_template = images.read(current_app.rank_list_bottom_template_path);
         current_app.rank_list_capt_img = null;
         current_app.rank_list_capt_diff_check_pool = [];
+        current_app.rankListNode = (opr) => {
+            let {rank_list_node} = current_app;
+            if (opr === "recycle") {
+                let result = true;
+                if (rank_list_node) result = rank_list_node.recycle();
+                current_app.rank_list_node = null;
+                return result;
+            }
+            if (opr === "refresh") {
+                if (rank_list_node) {
+                    rank_list_node.refresh();
+                    return rank_list_node;
+                }
+            }
+            return _getNode();
+
+            // tool function(s) //
+
+            function _getNode() {
+                let nodes = sel.pickup(current_app.regexp_energy_amount, "", "nodes");
+                let min_list_node_height = cY(256, 16 / 9);
+
+                for (let i = nodes.length - 1; i >= 0; i -= 1) {
+                    let node = nodes[i];
+                    for (let j = 0; i < 6; j += 1) {
+                        let _node = sel.pickup([node, "p" + j])
+                        if (!_node) break;
+                        let _bounds = _node.bounds();
+                        if (!_bounds) break;
+                        if (_bounds.height() >= min_list_node_height) {
+                            return current_app.rank_list_node = _node;
+                        }
+                    }
+                }
+                return null;
+            }
+        };
         current_app.current_file_path = files.path("./Ant_Forest_Launcher.js");
         current_app.total_energy_collect_own = 0;
         current_app.total_energy_collect_friends = 0;
@@ -422,6 +459,7 @@ function prologue() {
             init_log_page: current_app.isAutojsLogPage(),
             init_settings_page: current_app.isAutojsSettingsPage(),
         };
+        current_app.regexp_energy_amount = /^\s*\d+(\.\d+)?(k?g|t)\s*$/;
 
         debugInfo("会话参数赋值完毕");
         debugInfo(["初始前置应用包名:", current_app.init_running_app_package]);
@@ -1528,8 +1566,10 @@ function checkEnergy() {
                 try {
                     if (current_app.kw_rank_list_self("exists")) {
                         current_app.user_nickname = sel.pickup([current_app.kw_rank_list_self("sel"), "c0c2"], "", "txt");
-                        current_app.user_nickname ? debugInfo("已获取当前账户昵称字符串") : debugInfo("获取到无效的当前账户昵称");
+                    } else {
+                        current_app.user_nickname = sel.pickup([current_app.regexp_energy_amount, "p2c2c0c0"], "", "txt");
                     }
+                    current_app.user_nickname ? debugInfo("已获取当前账户昵称字符串") : debugInfo("获取到无效的当前账户昵称");
                 } catch (e) {
                     debugInfo("获取当前账户昵称失败", 3);
                 }
@@ -1570,19 +1610,24 @@ function checkEnergy() {
             function getTargetsByLayout() {
                 let [targets_green, targets_orange] = [[], []];
 
-                getScreenSamples().forEach(w => {
+                getScreenSamples().forEach((w) => {
                     let parent_node = sel.pickup([w, "p1"]);
                     if (!parent_node) return debugInfo("采集到无效的排行榜样本");
 
                     let state_ident_node = sel.pickup([w, "s2b"]);
                     if (!state_ident_node) return debugInfo("采集到无效的排行榜样本");
-                    if (state_ident_node.childCount()) return; // exclude identifies with countdown
+
+                    // exclude identifies with countdown
+                    if (sel.pickup([state_ident_node, "c0"], "", "txt").match(new RegExp("\\d+\u2019"))) return;
 
                     let find_color_options = getFindColorOptions(parent_node);
                     if (!checkRegion(find_color_options.region)) return;
 
                     // special treatment for first 3 ones
-                    let getName = compass => sel.pickup([parent_node, compass], "", "txt");
+                    let getName = (compass) => {
+                        return sel.pickup([parent_node, compass + "c0c0"], "", "txt")
+                            || sel.pickup([parent_node, compass + ""], "", "txt");
+                    }
                     let name = getName("c1") || getName("c2");
 
                     if (friend_collect_switch) {
@@ -1621,7 +1666,7 @@ function checkEnergy() {
                 // tool function(s) //
 
                 function getScreenSamples() {
-                    let regexp_energy_amount = /\d+(\.\d+)?(k?g|t)/;
+                    let {regexp_energy_amount} = current_app;
                     let max_try_times = 10;
                     while (max_try_times--) {
                         // let screen_samples = sel.pickup(regexp_energy_amount, "", "nodes", {selector_prefer: "text"});
@@ -1629,6 +1674,9 @@ function checkEnergy() {
                         let nodes_text = textMatches(regexp_energy_amount).find();
                         let nodes_desc = descMatches(regexp_energy_amount).find();
                         let screen_samples = nodes_text.length >= nodes_desc.length ? nodes_text : nodes_desc;
+                        screen_samples = screen_samples.map((node) => {
+                            return sel.pickup([node, "p1c3"]) ? node : node.parent();
+                        });
 
                         let filtered_samples = [];
                         let meet_min_threshold = (a, b) => Math.abs(a - b) > 5;
@@ -2434,7 +2482,7 @@ function checkEnergy() {
                 let {kw_end_list_ident} = current_app;
                 if (kw_end_list_ident()) {
                     let {left, top, right, bottom} = kw_end_list_ident("bounds") || {};
-                    if (bottom - top > cX(0.08)) {
+                    if (bottom - top === current_app.end_list_ident_height) {
                         list_end_signal = 1;
                         debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
                         let capt_img = images.captureCurrentScreen();
@@ -2450,6 +2498,9 @@ function checkEnergy() {
                         images.reclaim(capt_img, btn_clip);
                         capt_img = btn_clip = null;
                         return debugInfo("列表底部控件图片模板已更新");
+                    } else {
+                        current_app.end_list_ident_height = bottom - top;
+                        current_app.forcible_swipe_check_flag = true;
                     }
                 }
 
@@ -2527,7 +2578,8 @@ function checkEnergy() {
                 let max_try_times = 50;
                 while (max_try_times--) {
                     try {
-                        return current_app.kw_rank_list_self("bounds").bottom;
+                        let bounds = sel.pickup(current_app.user_nickname, "", "bounds");
+                        return bounds ? bounds.bottom : -1;
                     } catch (e) {
                         sleep(50);
                     }
@@ -2537,20 +2589,24 @@ function checkEnergy() {
 
             function checkRankListCaptDifference() {
                 let pool = current_app.rank_list_capt_diff_check_pool;
-                let pool_len = pool.length;
 
-                for (let i = 0; i < pool_len; i += 1) {
-                    if (images.isRecycled(pool[i])) pool.splice(i, 1);
+                for (let i = 0; i < pool.length; i += 1) {
+                    if (images.isRecycled(pool[i])) pool.splice(i--, 1);
                 }
 
                 if (!poolDiffThresholdReached()) {
                     pool.push(images.copy(current_app.rank_list_capt_img));
-                    return true;
+                    if (current_app.forcible_swipe_check_flag) {
+                        return current_app.forcible_swipe_check_flag = false;
+                    }
+                    let counter = current_app.rank_list_capt_pool_diff_check_counter;
+                    return counter % 4 || !counter;
                 }
 
                 // tool function(s) //
 
                 function poolDiffThresholdReached() {
+                    let pool_len = pool.length;
                     if (!pool_len) return;
 
                     while (pool_len > 1) {
@@ -2589,7 +2645,7 @@ function checkEnergy() {
                 let bottom_template = current_app.rank_list_bottom_template;
                 if (bottom_template) {
                     let template_height = bottom_template.height;
-                    if (template_height < cX(0.08) - 3 || template_height > cX(0.18)) {
+                    if (template_height < cX(0.04) || template_height > cX(0.18)) {
                         files.remove(current_app.rank_list_bottom_template_path);
                         delete current_app.rank_list_bottom_template;
                         debugInfo(["列表底部控件图片模板已清除", ">图片模板高度值异常: " + template_height], 3);
@@ -4524,11 +4580,8 @@ function plans(operation_name, params) {
             condition_launch: () => true,
             condition_ready: () => {
                 try {
-                    let condition = () => {
-                        let node_rank_list = current_app.kw_rank_list().findOnce();
-                        return node_rank_list && node_rank_list.childCount() > 5;
-                    };
-                    return condition() && !waitForAction(() => !condition(), 500, 80);
+                    let condition = opr => current_app.rankListNode(opr);
+                    return condition("get") && !waitForAction(() => !condition("get"), 500, 80);
                 } catch (e) {
                     // nothing to do here
                 }

@@ -80,8 +80,8 @@ let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
 let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).settings
     || {
         item_area_width: 0.78,
-        sub_head_color: "#03a6ef",
-        sub_head_highlight_color: "#bf360c",
+        subhead_color: "#03a6ef",
+        subhead_highlight_color: "#bf360c",
         info_color: "#78909c",
         title_default_color: "#202020",
         title_caution_color: "#b71c1c",
@@ -146,7 +146,7 @@ let defs = Object.assign({}, DEFAULT_SETTINGS, {
 initUI("#000000");
 
 setHomePage(defs.homepage_title)
-    .add("sub_head", new Layout("基本设置"))
+    .add("subhead", new Layout("基本设置"))
     .add("button", new Layout("锁屏密码", {
         config_conj: "unlock_code",
         hint: "加载中...",
@@ -207,7 +207,7 @@ setHomePage(defs.homepage_title)
         },
     }))
     .add("split_line")
-    .add("sub_head", new Layout("高级设置"))
+    .add("subhead", new Layout("高级设置"))
     .add("button", new Layout("最大尝试次数", {
         config_conj: "unlock_max_try_times",
         hint: "加载中...",
@@ -234,7 +234,7 @@ setHomePage(defs.homepage_title)
         },
     }))
     .add("split_line")
-    .add("sub_head", new Layout("提示层页面设置", {sub_head_color: "#bf360c"}))
+    .add("subhead", new Layout("提示层页面设置", {subhead_color: "#bf360c"}))
     .add("button", new Layout("上滑时长", {
         config_conj: "unlock_dismiss_layer_swipe_time",
         hint: "加载中...",
@@ -315,7 +315,7 @@ setHomePage(defs.homepage_title)
         },
     }))
     .add("split_line")
-    .add("sub_head", new Layout("图案解锁设置", {sub_head_color: "#bf360c"}))
+    .add("subhead", new Layout("图案解锁设置", {subhead_color: "#bf360c"}))
     .add("button", new Layout("滑动策略", {
         config_conj: "unlock_pattern_strategy",
         hint: "加载中...",
@@ -521,7 +521,7 @@ function setPage(title_param, title_bg_color, additions, options) {
 
     function setItem(type, item_params) {
         let new_view = type.match(/^split_line/) && setSplitLine(item_params) ||
-            type === "sub_head" && setSubHead(item_params) ||
+            type === "subhead" && setSubHead(item_params) ||
             type === "info" && setInfo(item_params) ||
             type === "list" && setList(item_params) ||
             type === "seekbar" && setSeekbar(item_params) ||
@@ -653,7 +653,7 @@ function setPage(title_param, title_bg_color, additions, options) {
 
         function setSubHead(item) {
             let title = item["title"];
-            let sub_head_color = item["sub_head_color"] || defs["sub_head_color"];
+            let subhead_color = item["subhead_color"] || defs["subhead_color"];
 
             let new_view = ui.inflate(
                 <vertical>
@@ -661,7 +661,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                 </vertical>
             );
             new_view._text.text(title);
-            let title_color = typeof sub_head_color === "string" ? colors.parseColor(sub_head_color) : sub_head_color;
+            let title_color = typeof subhead_color === "string" ? colors.parseColor(subhead_color) : subhead_color;
             new_view._text.setTextColor(title_color);
 
             return new_view;
@@ -681,7 +681,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                 </horizontal>
             );
             new_view._info_text.text(title);
-            let title_color = typeof info_color === "string" ? colors.parseColor(info_color) : sub_head_color;
+            let title_color = typeof info_color === "string" ? colors.parseColor(info_color) : subhead_color;
             new_view._info_text.setTextColor(title_color);
 
             return new_view;
