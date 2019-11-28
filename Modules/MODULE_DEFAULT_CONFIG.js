@@ -88,8 +88,8 @@ module.exports = {
     },
     settings: {
         item_area_width: 0.78,
-        sub_head_color: "#03a6ef",
-        sub_head_highlight_color: "#bf360c",
+        subhead_color: "#03a6ef",
+        subhead_highlight_color: "#bf360c",
         info_color: "#78909c",
         title_default_color: "#202020",
         title_caution_color: "#b71c1c",

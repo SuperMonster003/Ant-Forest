@@ -98,6 +98,15 @@
 ******
 ### 版本历史
 ******
+# v1.9.9
+###### 2019/11/28 - 代码重构 谨慎升级
+* `修复` 好友排行榜变更"周/总排行榜"后无法适配新控件的问题 (试修) _[`issue #143`](https://github.com/SuperMonster003/Auto.js_Projects/issues/143)_ _[`#144`](https://github.com/SuperMonster003/Auto.js_Projects/issues/144)_ _[`#145`](https://github.com/SuperMonster003/Auto.js_Projects/issues/145)_ _[`#146`](https://github.com/SuperMonster003/Auto.js_Projects/issues/146)_  
+* `修复` 图形配置工具下载项目进度可能无法显示的问题  
+* `修复` 图形配置工具主页能量球返检监控子页面丢失的问题  
+* `修复` 图形配置工具主账户信息弹出页面丢失的问题  
+* `优化` 解锁模块PIN解锁方案增加Realme X机型适配 _[`issue #135`](https://github.com/SuperMonster003/Auto.js_Projects/issues/135)_  
+* `优化` 图形配置工具部分代码重构  
+
 # v1.9.8
 ###### 2019/11/24
 * `修复` 好友森林数据面板可能返回错误统计结果的问题  
@@ -470,7 +479,7 @@
 * `优化` 移除遗留的saveCurrentScreenCapture()工具调用  
 
 # v1.6.24 Alpha
-###### 2019/05/21
+###### 2019/05/21 - 代码重构 谨慎升级
 * `优化` 深度代码重构 _[`issue #26`](https://github.com/SuperMonster003/Auto.js_Projects/issues/26#issuecomment-493279213)_ _[`#28`](https://github.com/SuperMonster003/Auto.js_Projects/issues/28#issuecomment-493378861)_  
 * `优化` 摒除排行榜样本筛选方案 - "标题列表bottom"  
 * `优化` 获取屏幕宽高数据加入缓冲方案 _[`issue #32`](https://github.com/SuperMonster003/Auto.js_Projects/issues/32#issuecomment-493808327)_  

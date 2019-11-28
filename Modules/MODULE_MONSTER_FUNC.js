@@ -1114,7 +1114,6 @@ function clickAction(f, strategy, params) {
      * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
      */
     let _type = _checkType(f);
-    f
     let _padding = _checkPadding(_params.padding);
     if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
     let _strategy = (strategy || "click").toString();
@@ -2804,7 +2803,7 @@ function getSelector(params) {
 
                 let child_idx_matched = compass.match(/c\d+/g);
 
-                if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : null;
+                if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : node;
 
                 let parents_len = parents.length;
                 for (let i = 0; i < parents_len; i += 1) {

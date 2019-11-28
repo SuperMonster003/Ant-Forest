@@ -30,21 +30,32 @@ require = function (path) {
             _path = "." + _path;
         }
     }
+    let matched = path.match(/[^\/]+(?=\.js)/)[0];
+    if (matched) {
+        let internal_modules = {
+            MODULE_MONSTER_FUNC: loadInternalModuleMonsterFunc,
+            MODULE_PWMAP: loadInternalModulePWMAP,
+            MODULE_STORAGE: loadInternalModuleStorage,
+            MODULE_DEFAULT_CONFIG: {
+                unlock: {
+                    unlock_code: null,
+                    unlock_max_try_times: 20,
+                    unlock_pattern_strategy: "segmental",
+                    unlock_pattern_size: 3,
+                    unlock_pattern_swipe_time_segmental: 120,
+                    unlock_pattern_swipe_time_solid: 200,
+                    unlock_dismiss_layer_bottom: 0.8,
+                    unlock_dismiss_layer_top: 0.2,
+                    unlock_dismiss_layer_swipe_time: 110,
+                }
+            }
+        };
+        let module = internal_modules[matched];
+        return typeof module === "function" ? module() : module;
+    }
 }; // override __global__.require(){}
 
-let DEFAULT = (require("./MODULE_DEFAULT_CONFIG") || {
-    unlock: {
-        unlock_code: null,
-        unlock_max_try_times: 20,
-        unlock_pattern_strategy: "segmental",
-        unlock_pattern_size: 3,
-        unlock_pattern_swipe_time_segmental: 120,
-        unlock_pattern_swipe_time_solid: 200,
-        unlock_dismiss_layer_bottom: 0.8,
-        unlock_dismiss_layer_top: 0.2,
-        unlock_dismiss_layer_swipe_time: 110,
-    },
-}).unlock; // updated at Nov 14, 2019
+let DEFAULT = require("./MODULE_DEFAULT_CONFIG").unlock; // updated at Nov 14, 2019
 
 let {
     messageAction,
@@ -59,7 +70,7 @@ let {
     setDeviceProto,
     getSelector,
     classof,
-} = require("./MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
+} = require("./MODULE_MONSTER_FUNC");
 
 setDeviceProto();
 
@@ -68,9 +79,9 @@ let sel = getSelector();
 let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = {};
 let device_intro = device.brand + " " + device.product + " " + device.release;
 
-let decrypt = new (require("./MODULE_PWMAP") || loadInternalModulePWMAP())().pwmapDecrypt;
+let decrypt = new (require("./MODULE_PWMAP"))().pwmapDecrypt;
 
-let storage_unlock = (require("./MODULE_STORAGE") || loadInternalModuleStorage()).create("unlock");
+let storage_unlock = require("./MODULE_STORAGE").create("unlock");
 let config_unlock = Object.assign({}, DEFAULT, storage_unlock.get("config", {}));
 storage_unlock.put("config", config_unlock);
 
@@ -236,6 +247,7 @@ module.exports = {
             let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
             let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?码区域/);
             let kw_pin_view_meizu = id("com.android.systemui:id/lockPattern");
+            let kw_pin_view_oppo = id("com.android.systemui:id/keyguard_pin_view");
 
             if (kw_pin_view_common.exists()) {
                 debugInfo("匹配到通用PIN解锁控件");
@@ -255,6 +267,11 @@ module.exports = {
             if (kw_pin_view_meizu.exists()) {
                 debugInfo("匹配到魅族PIN解锁控件");
                 kw_pin_view = kw_pin_view_meizu;
+                return (checkPinView = () => kw_pin_view.exists())();
+            }
+            if (kw_pin_view_oppo.exists()) {
+                debugInfo("匹配到OPPO/PIN解锁控件");
+                kw_pin_view = kw_pin_view_oppo;
                 return (checkPinView = () => kw_pin_view.exists())();
             }
         }
@@ -671,7 +688,22 @@ module.exports = {
                 let getNumericKeypad = num => id("com.android.systemui:id/key" + num);
                 let kw_nums_container = id("com.android.systemui:id/container");
                 let getNumericInputView = num => id("com.android.keyguard:id/numeric_inputview").text(num + ""); // miui; borrowed from e1399579 and modified
-                let getNumsBySingleDesc = num => desc(num);
+                let getNumsBySingleDesc = (num) => {
+                    let node = desc(num).findOnce();
+                    if (+num === 0 && !node) {
+                        let getCenterCoords = (num) => {
+                            let bounds = desc(num).findOnce().bounds();
+                            return {x: bounds.centerX(), y: bounds.centerY()};
+                        };
+                        let viii = getCenterCoords(8);
+                        let v = getCenterCoords(5);
+                        let ii = getCenterCoords(2);
+
+                        let getZeroCoord = n => viii[n] + (v[n] - ii[n]); // $8 + ( $5 - $2 )
+                        return [getZeroCoord("x"), getZeroCoord("y")]; // [ x, y ] -- coords array
+                    }
+                    return desc(num);
+                };
 
                 while (unlock_max_try_times--) {
                     unlockPinNow();
@@ -793,10 +825,14 @@ module.exports = {
                     }
 
                     function testNumSelectors(func) {
-                        let test_nums = "1234567890";
-                        let test_result = true;
-                        test_nums.split("").forEach(num => test_result = test_result && func(num).exists());
-                        return test_result ? true : errorMsg(["PIN解锁方案失败", "未能通过全部控件检测"]);
+                        // there is no need to check "0"
+                        // as a special treatment will be given in getNumsBySingleDesc()
+                        let test_nums = "123456789";
+                        let splits = test_nums.split("");
+                        for (let i = 0, len = splits.length; i < len; i += 1) {
+                            if (!func(splits[i]).exists()) errorMsg(["PIN解锁方案失败", "未能通过全部控件检测"]);
+                        }
+                        return true;
                     }
                 }
             }
