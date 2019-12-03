@@ -1,37 +1,30 @@
+// better compatibility for both free and pro versions
+
 importPackage(org.joda.time);
 
-module.exports = function (runtime, scope) {
+let is_pro = getVerName("current_autojs").match(/[Pp]ro/);
+let timing = is_pro ? com.stardust.autojs.core.timing : org.autojs.autojs.timing;
+var TimedTask = is_pro ? timing.TimedTask.Companion : timing.TimedTask;
+var IntentTask = timing.IntentTask;
+var TimedTaskManager = is_pro ? timing.TimedTaskManager.Companion.getInstance() : timing.TimedTaskManager.getInstance();
+var bridges = require("__bridges__");
+let days_ident = [
+    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+    'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
+    '一', '二', '三', '四', '五', '六', '日',
+    1, 2, 3, 4, 5, 6, 0,
+    1, 2, 3, 4, 5, 6, 7,
+].map(value => value.toString());
 
-    let is_pro = getVerName("current_autojs").match(/[Pp]ro/);
-    let timing = is_pro ? com.stardust.autojs.core.timing : org.autojs.autojs.timing;
-    var timers = Object.create(runtime.timers);
-    var TimedTask = is_pro ? timing.TimedTask.Companion : timing.TimedTask;
-    var IntentTask = timing.IntentTask;
-    var TimedTaskManager = is_pro ? timing.TimedTaskManager.Companion.getInstance() : timing.TimedTaskManager.getInstance();
-    var bridges = require("__bridges__");
-    let days_ident = [
-        'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-        'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
-        '一', '二', '三', '四', '五', '六', '日',
-        1, 2, 3, 4, 5, 6, 0,
-        1, 2, 3, 4, 5, 6, 7,
-    ].map(value => value.toString());
-
-    scope.__asGlobal__(timers, ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'setImmediate', 'clearImmediate']);
-
-    scope.loop = function () {
-        console.warn("loop() has been deprecated and has no effect. Remove it from your code.");
-    };
-
-    timers.addDailyTask = function (task) {
+let ext = {
+    addDailyTask: function (task) {
         let localTime = parseDateTime("LocalTime", task.time);
         let timedTask = TimedTask.dailyTask(localTime, files.path(task.path), parseConfig(task));
 
         addTask(timedTask);
         return timedTask;
-    };
-
-    timers.addWeeklyTask = function (task) {
+    },
+    addWeeklyTask: function (task) {
         let localTime = parseDateTime("LocalTime", task.time);
         let timeFlag = 0;
         for (let i = 0; i < task.daysOfWeek.length; i++) {
@@ -43,46 +36,42 @@ module.exports = function (runtime, scope) {
         let timedTask = TimedTask.weeklyTask(localTime, new java.lang.Long(timeFlag), files.path(task.path), parseConfig(task));
         addTask(timedTask);
         return timedTask;
-    };
-
-    timers.addDisposableTask = function (task) {
+    },
+    addDisposableTask: function (task) {
         let localDateTime = parseDateTime("LocalDateTime", task.date);
         let timedTask = TimedTask.disposableTask(localDateTime, files.path(task.path), parseConfig(task));
         addTask(timedTask);
         return timedTask;
-    };
-
-    timers.addIntentTask = function (task) {
+    },
+    addIntentTask: function (task) {
         let intentTask = new IntentTask();
         intentTask.setScriptPath(files.path(task.path));
         task.action && intentTask.setAction(task.action);
         addTask(intentTask);
         return intentTask;
-    };
-
-    timers.getTimedTask = function (id) {
+    },
+    getTimedTask: function (id) {
         return TimedTaskManager.getTimedTask(id);
-    };
-
-    timers.getIntentTask = function (id) {
+    },
+    getIntentTask: function (id) {
         return TimedTaskManager.getIntentTask(id);
-    };
-
-    timers.removeIntentTask = function (id) {
-        if (!id && isNaN(+id)) return;
-        let task = timers.getIntentTask(id);
-        return task && removeTask(task);
-    };
-
-    timers.removeTimedTask = function (id) {
-        if (!id && isNaN(+id)) return;
-        let task = timers.getTimedTask(id);
-        return task && removeTask(task);
-    };
-
-    timers.updateTimedTask = updateTask;
-
-    timers.queryTimedTasks = function (options, callback) {
+    },
+    get removeIntentTask () {
+        return function (id) {
+            if (!id && isNaN(+id)) return;
+            let task = this.getIntentTask(id);
+            return task && removeTask(task);
+        };
+    },
+    get removeTimedTask ()  {
+        return function (id) {
+            if (!id && isNaN(+id)) return;
+            let task = this.getTimedTask(id);
+            return task && removeTask(task);
+        };
+    },
+    updateTimedTask: updateTask,
+    queryTimedTasks: function (options, callback) {
         options = options || {};
         var sql = '';
         var args = [];
@@ -103,9 +92,8 @@ module.exports = function (runtime, scope) {
             if (options.path) list = list.filter(task => task.getScriptPath() === path);
             return list;
         })();
-    };
-
-    timers.queryIntentTasks = function (options, callback) {
+    },
+    queryIntentTasks: function (options, callback) {
         var sql = '';
         var args = [];
 
@@ -121,62 +109,62 @@ module.exports = function (runtime, scope) {
         options.path && sqlAppend('script_path = ?') && args.push(options.path);
         options.action && sqlAppend('action = ?') && args.push(options.action);
         return bridges.toArray(TimedTaskManager.queryIntentTasks(sql ? sql : null, args));
-    };
-
-    return timers;
-
-    // tool function(s) //
-
-    function parseConfig(c) {
-        let config = new com.stardust.autojs.execution.ExecutionConfig();
-        config.delay = c.delay || 0;
-        config.interval = c.interval || 0;
-        config.loopTimes = (c.loopTimes === undefined) ? 1 : c.loopTimes;
-        return config;
-    }
-
-    function parseDateTime(clazz, dateTime) {
-        clazz = is_pro ? clazz : org.joda.time[clazz];
-        if (typeof (dateTime) == 'string') {
-            return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : clazz.parse(dateTime);
-        } else if (typeof (dateTime) == 'object' && dateTime.constructor === Date) {
-            return is_pro ? TimedTask.parseDateTime(clazz, dateTime.getTime()) : new clazz(dateTime.getTime());
-        } else if (typeof (dateTime) == 'number') {
-            return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : new clazz(dateTime);
-        } else {
-            throw new Error("cannot parse date time: " + dateTime);
-        }
-    }
-
-    function addTask(task) {
-        TimedTaskManager[is_pro ? "addTaskSync" : "addTask"](task);
-        waitForAction(() => task.id !== 0, 500, 80);
-    }
-
-    function removeTask(task) {
-        let id = task.id;
-        TimedTaskManager[is_pro ? "removeTaskSync" : "removeTask"](task);
-        return waitForAction(() => !timers.getTimedTask(id), 500, 80);
-    }
-
-    function updateTask(task) {
-        if (!task) return;
-        task.setScheduled(false);
-        let id = task.id;
-        TimedTaskManager[is_pro ? "updateTask" : "updateTask"](task);
-        try {
-            return waitForAction(() => {
-                if (!task || !task.id) return;
-                let new_id = timers.getTimedTask(task.id).id;
-                return new_id && new_id !== id;
-            }, 800, 50) && task;
-        } catch (e) {
-
-        }
-    }
+    },
 };
 
+module.exports = Object.assign({
+    load: () => Object.assign(global["timers"], ext),
+}, ext);
+
 // tool function(s) //
+
+function parseConfig(c) {
+    let config = new com.stardust.autojs.execution.ExecutionConfig();
+    config.delay = c.delay || 0;
+    config.interval = c.interval || 0;
+    config.loopTimes = (c.loopTimes === undefined) ? 1 : c.loopTimes;
+    return config;
+}
+
+function parseDateTime(clazz, dateTime) {
+    clazz = is_pro ? clazz : org.joda.time[clazz];
+    if (typeof (dateTime) == 'string') {
+        return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : clazz.parse(dateTime);
+    } else if (typeof (dateTime) == 'object' && dateTime.constructor === Date) {
+        return is_pro ? TimedTask.parseDateTime(clazz, dateTime.getTime()) : new clazz(dateTime.getTime());
+    } else if (typeof (dateTime) == 'number') {
+        return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : new clazz(dateTime);
+    } else {
+        throw new Error("cannot parse date time: " + dateTime);
+    }
+}
+
+function addTask(task) {
+    TimedTaskManager[is_pro ? "addTaskSync" : "addTask"](task);
+    waitForAction(() => task.id !== 0, 500, 80);
+}
+
+function removeTask(task) {
+    let id = task.id;
+    TimedTaskManager[is_pro ? "removeTaskSync" : "removeTask"](task);
+    return waitForAction(() => !ext.getTimedTask(id), 500, 80);
+}
+
+function updateTask(task) {
+    if (!task) return;
+    task.setScheduled(false);
+    let id = task.id;
+    TimedTaskManager[is_pro ? "updateTask" : "updateTask"](task);
+    try {
+        return waitForAction(() => {
+            if (!task || !task.id) return;
+            let new_id = ext.getTimedTask(task.id).id;
+            return new_id && new_id !== id;
+        }, 800, 50) && task;
+    } catch (e) {
+
+    }
+}
 
 function waitForAction(f, timeout_or_times, interval) {
     let _timeout = timeout_or_times || 10000;

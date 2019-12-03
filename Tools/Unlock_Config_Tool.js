@@ -14,10 +14,7 @@ auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
 // set up the device screen in a portrait orientation
 activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
 
-// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
-__global__ = typeof __global__ === "undefined" ? this : __global__;
-
-let _require = require.bind(__global__); // copy __global__.require(){}
+let _require = require.bind(global); // copy global.require(){}
 
 require = function (path) {
     path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
@@ -33,11 +30,9 @@ require = function (path) {
             _path = "." + _path;
         }
     }
-}; // override __global__.require(){}
+}; // override global.require(){}
 
-// given that there are bugs with dialogs modules in old auto.js versions like 4.1.0/5 and 4.1.1/2
-// in another way, dialogs.builds() could make things easier sometimes
-let dialogs = (require("../Modules/__dialogs__pro_v6") || loadInternalModuleDialog)(runtime, __global__);
+let dialogs = loadInternalModuleDialog(runtime, global);
 
 threads.starts = (f, error_msg_consume_flag) => {
     try {
@@ -423,7 +418,7 @@ ui.emitter.on("back_pressed", e => {
 events.on("exit", () => {
     listener.removeAllListeners();
     threads.shutDownAll();
-    __global__.dialogs_pool && __global__.dialogs_pool.forEach((diag) => {
+    global.dialogs_pool && global.dialogs_pool.forEach((diag) => {
         diag.dismiss();
         diag = null;
     });
@@ -1122,7 +1117,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
         }
 
         let final_dialog = dialogs.build(Object.assign({}, common_o, o));
-        __global__.dialogs_pool = (__global__.dialogs_pool || []).concat([final_dialog]);
+        global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
         return final_dialog;
     };
 
@@ -1264,10 +1259,8 @@ function loadInternalModuleMonsterFunc() {
     // monster function(s) //
 
     function alertTitle(dialog, message, duration) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
-        __global__._monster_$_alert_title_info = __global__._monster_$_alert_title_info || {};
-        let alert_title_info = __global__._monster_$_alert_title_info;
+        global._monster_$_alert_title_info = global._monster_$_alert_title_info || {};
+        let alert_title_info = global._monster_$_alert_title_info;
         alert_title_info[dialog] = alert_title_info[dialog] || {};
         alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
 
@@ -1312,8 +1305,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
             return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
@@ -1332,10 +1323,10 @@ function loadInternalModuleMonsterFunc() {
         if (typeof _if_split_line === "string") {
             if (_if_split_line.match(/dash/)) _split_line_style = "dash";
             if (_if_split_line.match(/both|up/)) {
-                if (_split_line_style !== __global__._monster_$_last_console_split_line_type) {
+                if (_split_line_style !== global._monster_$_last_console_split_line_type) {
                     _showSplitLine("", _split_line_style);
                 }
-                delete __global__._monster_$_last_console_split_line_type;
+                delete global._monster_$_last_console_split_line_type;
                 if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
                 else if (_if_split_line.match(/both/)) _if_split_line = 1;
                 else if (_if_split_line.match(/up/)) _if_split_line = 0;
@@ -1406,11 +1397,11 @@ function loadInternalModuleMonsterFunc() {
                 }
             }
             if (!show_split_line_extra_str.match(/\n/)) {
-                __global__._monster_$_last_console_split_line_type = _split_line_style || "solid";
+                global._monster_$_last_console_split_line_type = _split_line_style || "solid";
             }
             _showSplitLine(show_split_line_extra_str, _split_line_style);
         } else {
-            delete __global__._monster_$_last_console_split_line_type;
+            delete global._monster_$_last_console_split_line_type;
         }
         if (_throw_error_flag) {
             ui.post(function () {
@@ -1448,7 +1439,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function waitForAction(f, timeout_or_times, interval) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
         if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
         let _timeout = Infinity;
@@ -1471,8 +1461,6 @@ function loadInternalModuleMonsterFunc() {
         // tool function(s) //
 
         function _checkF(f) {
-            while (__global__._monster_$_global_waiting_signal) sleep(200);
-
             let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
             if (typeof f === "function") return f();
@@ -1613,16 +1601,19 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-        let global_flag = __global__._monster_$_debug_info_flag;
-        if (!global_flag && !forcible_flag) return;
-        if (global_flag === false || forcible_flag === false) return;
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+
+        let global_flag = $flag.debug_info_avail;
+        if (!global_flag && !forcible_flag) return;
+        if (global_flag === false || forcible_flag === false) return;
+
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-        if (msg === "__split_line__") showDebugSplitLine();
+        if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
 
         let info_flag_str = (info_flag || "").toString();
         let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
@@ -1669,7 +1660,7 @@ function loadInternalModuleMonsterFunc() {
 
         // tool function(s) //
 
-        function showDebugSplitLine() {
+        function setDebugSplitLine(msg) {
             let _msg = "";
             if (msg.match(/dash/)) {
                 for (let i = 0; i < 16; i += 1) _msg += "- ";
@@ -1677,20 +1668,34 @@ function loadInternalModuleMonsterFunc() {
             } else {
                 for (let i = 0; i < 32; i += 1) _msg += "-";
             }
-            msg = _msg;
+            return _msg;
         }
     }
 
-    function getDisplayParams() {
+    function getDisplayParams(params) {
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
+
+        let _params = params || {};
+
         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
         let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
         let [WIDTH, HEIGHT] = [];
         let display_info = {};
         if (_waitForAction(checkData, 3000, 500)) {
             display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
             display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
+
+            if (!$flag.display_params_got) {
+                _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+                _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
+                $flag.display_params_got = true;
+            }
+
             return display_info;
         }
+        console.error("getDisplayParams()返回结果异常");
 
         // tool function(s) //
 
@@ -1757,6 +1762,10 @@ function loadInternalModuleMonsterFunc() {
             }
             return _check_time >= 0;
         }
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
     }
 
     function equalObjects(obj_a, obj_b) {
@@ -1820,8 +1829,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function getSelector(params) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
         let parent_params = params || {};
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
@@ -1922,13 +1929,13 @@ function loadInternalModuleMonsterFunc() {
                 function _getSelector(addition) {
                     let _mem_kw_prefix = "_MEM_KW_PREFIX_";
                     if (memory_keyword) {
-                        let _memory_selector = __global__[_mem_kw_prefix + memory_keyword];
+                        let _memory_selector = global[_mem_kw_prefix + memory_keyword];
                         if (_memory_selector) return _memory_selector;
                     }
                     let _kw_selector = _getSelectorFromLayout(addition);
                     if (memory_keyword && _kw_selector) {
                         _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
-                        __global__[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                        global[_mem_kw_prefix + memory_keyword] = _kw_selector;
                     }
                     return _kw_selector;
 
@@ -2133,11 +2140,9 @@ function loadInternalModuleMonsterFunc() {
         let _params = params || {};
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
 
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-        if (typeof __global__.device === "undefined") __global__.device = {};
+        if (typeof global.device === "undefined") global.device = {};
 
-
-        __global__.device.__proto__ = Object.assign((__global__.device.__proto__ || {}), {
+        global.device.__proto__ = Object.assign((global.device.__proto__ || {}), {
             /**
              * device.keepScreenOn()
              * @memberOf setDeviceProto

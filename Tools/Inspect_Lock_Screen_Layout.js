@@ -4,9 +4,6 @@ try {
     auto();
 }
 
-// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
-__global__ = typeof __global__ === "undefined" ? this : __global__;
-
 updateMethodRequire();
 
 let {
@@ -161,7 +158,7 @@ function updateMethod(o, name, f) {
 // tool function(s) //
 
 function updateMethodRequire() {
-    updateMethod(__global__, "require", (args) => {
+    updateMethod(global, "require", (args) => {
         let path = args[0] || "";
         path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js";
         for (let i = 0; ; i += 1) {
