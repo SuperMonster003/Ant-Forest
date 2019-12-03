@@ -4,18 +4,16 @@ try {
     auto();
 }
 
-__global__ = typeof __global__ === "undefined" ? this : __global__;
-
 updateMethodRequire();
 
-let dialogs = require("../Modules/__dialogs__pro_v6")(runtime, __global__);
+require("../Modules/EXT_DIALOGS").load();
 
 showHelperDialog();
 
 // tool function(s) //
 
 function updateMethodRequire() {
-    updateMethod(__global__, "require", (args) => {
+    updateMethod(global, "require", (args) => {
         let path = args[0] || "";
         path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js";
         for (let i = 0; ; i += 1) {
@@ -57,6 +55,7 @@ function showHelperDialog() {
     });
     diag.show();
 
+    // tool function(s) //
 
     function getAboutModifyingSysSettingsStr() {
         return "当Auto.js拥有该权限时\n" +

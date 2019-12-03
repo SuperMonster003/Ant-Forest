@@ -98,6 +98,15 @@
 ******
 ### 版本历史
 ******
+# v1.9.10 Beta
+###### 2019/12/03 - 代码重构 谨慎升级
+* `修复` 运行提示对话框功能异常  
+* `修复` 好友森林返回排行榜可能出现的过度返回问题  
+* `修复` 排行榜最小倒计时数据统计失效的问题  
+* `修复` 图形配置工具列表页面排序功能失效的问题  
+* `优化` 深度代码重构 (未全部完成)  
+* `优化` 全局事件监听触发与恢复逻辑  
+
 # v1.9.9
 ###### 2019/11/28 - 代码重构 谨慎升级
 * `修复` 好友排行榜变更"周/总排行榜"后无法适配新控件的问题 (试修) _[`issue #143`](https://github.com/SuperMonster003/Auto.js_Projects/issues/143)_ _[`#144`](https://github.com/SuperMonster003/Auto.js_Projects/issues/144)_ _[`#145`](https://github.com/SuperMonster003/Auto.js_Projects/issues/145)_ _[`#146`](https://github.com/SuperMonster003/Auto.js_Projects/issues/146)_  

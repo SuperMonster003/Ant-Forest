@@ -37,14 +37,26 @@
             return key in JSON.parse(read);
         }
 
-        function put(key, value) {
-            if (typeof value === "undefined") throw new TypeError("\"put\" value can't be undefined");
-            let read = readFile();
-            let obj = read && JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
-            let new_obj = {};
-            new_obj[key] = value;
-            Object.assign(obj, new_obj);
-            files.write(file, JSON.stringify(obj, (key, value) => value === Infinity ? "Infinity" : value));
+        function put(key, new_value, forcible_flag) {
+            if (typeof new_value === "undefined") throw new TypeError("\"put\" value can't be undefined");
+            let _read = readFile();
+            let _old_data = {};
+            let _tmp_data = {};
+
+            try {
+                _old_data = JSON.parse(_read, (k, v) => v === "Infinity" ? Infinity : v);
+            } catch (e) {
+                console.warn(e.message);
+            }
+
+            let _both_type_o = classof(new_value, "Object") && classof(_old_data[key], "Object");
+            if (!forcible_flag && _both_type_o) {
+                _tmp_data[key] = Object.assign(_old_data[key], new_value);
+            } else {
+                _tmp_data[key] = new_value;
+            }
+            Object.assign(_old_data, _tmp_data);
+            files.write(file, JSON.stringify(_old_data, (k, v) => v === Infinity ? "Infinity" : v));
             opened.close();
         }
 
@@ -72,6 +84,11 @@
 
         function clear() {
             files.remove(file);
+        }
+
+        function classof(source, check_value) {
+            let class_result = Object.prototype.toString.call(source).slice(8, -1);
+            return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
         }
     }
 })();

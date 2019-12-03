@@ -11,10 +11,7 @@
  * @author {@link https://github.com/SuperMonster003}
  */
 
-// window mostly for browser, global mostly for Node.js, and __global__ for Auto.js
-__global__ = typeof __global__ === "undefined" ? this : __global__;
-
-let _require = require.bind(this); // copy __global__.require(){}
+let _require = require.bind(this); // copy global.require(){}
 
 require = function (path) {
     path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
@@ -33,7 +30,6 @@ require = function (path) {
     let matched = path.match(/[^\/]+(?=\.js)/)[0];
     if (matched) {
         let internal_modules = {
-            MODULE_MONSTER_FUNC: loadInternalModuleMonsterFunc,
             MODULE_PWMAP: loadInternalModulePWMAP,
             MODULE_STORAGE: loadInternalModuleStorage,
             MODULE_DEFAULT_CONFIG: {
@@ -53,7 +49,7 @@ require = function (path) {
         let module = internal_modules[matched];
         return typeof module === "function" ? module() : module;
     }
-}; // override __global__.require(){}
+}; // override global.require(){}
 
 let DEFAULT = require("./MODULE_DEFAULT_CONFIG").unlock; // updated at Nov 14, 2019
 
@@ -70,13 +66,13 @@ let {
     setDeviceProto,
     getSelector,
     classof,
-} = require("./MODULE_MONSTER_FUNC");
+} = loadInternalModuleMonsterFunc();
 
 setDeviceProto();
 
 let sel = getSelector();
 
-let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = {};
+let {cX, cY} = getDisplayParams();
 let device_intro = device.brand + " " + device.product + " " + device.release;
 
 let decrypt = new (require("./MODULE_PWMAP"))().pwmapDecrypt;
@@ -101,16 +97,19 @@ module.exports = {
     DEFAULT: DEFAULT,
     is_screen_on: init_screen_state,
     isUnlocked: isUnlocked,
+    isLocked: () => !isUnlocked(),
     unlock: function (force_debug_info_flag) {
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
+
         if (force_debug_info_flag || force_debug_info_flag === false) {
-            __global__._monster_$_debug_info_flag_bak = __global__._monster_$_debug_info_flag;
-            __global__._monster_$_debug_info_flag = !!force_debug_info_flag;
+            $flag.debug_info_avail_bak = $flag.debug_info_avail;
+            $flag.debug_info_avail = !!force_debug_info_flag;
         }
         let dash_line = "__split_line_dash__";
         debugInfo([dash_line, "尝试自动解锁", dash_line]);
 
         wakeupDeviceIfNeeded();
-        setDisplayParams();
 
         let {kw_lock_pattern_view, kw_password_view, kw_pin_view, special_view_bounds} = {};
         let checkLockViews = () => checkLockPatternView() || checkPasswordView() || checkPinView() || checkSpecialView();
@@ -132,8 +131,8 @@ module.exports = {
         debugInfo([dash_line, "自动解锁完毕", dash_line]);
 
         if (force_debug_info_flag || force_debug_info_flag === false) {
-            __global__._monster_$_debug_info_flag = __global__._monster_$_debug_info_flag_bak;
-            delete __global__._monster_$_debug_info_flag_bak;
+            $flag.debug_info_avail = $flag.debug_info_avail_bak;
+            delete $flag.debug_info_avail_bak;
         }
 
         return true;
@@ -922,17 +921,6 @@ module.exports = {
 
             return maxTryTimesReached() ? errorMsg("设备唤起失败") : debugInfo("设备唤起成功");
         }
-
-        function setDisplayParams() {
-            [WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY] = (() => {
-                let {WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY} = getDisplayParams();
-                return [WIDTH, HEIGHT, USABLE_HEIGHT, cX, cY];
-            })();
-            if (!WIDTH || !HEIGHT) errorMsg("获取屏幕宽高数据失败");
-            debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
-            debugInfo("可用屏幕高度: " + USABLE_HEIGHT);
-            if (typeof cX !== "function" || typeof cY !== "function") return errorMsg("屏幕像素伸缩方法无效");
-        }
     },
 };
 
@@ -1028,8 +1016,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
             return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
@@ -1048,10 +1034,10 @@ function loadInternalModuleMonsterFunc() {
         if (typeof _if_split_line === "string") {
             if (_if_split_line.match(/dash/)) _split_line_style = "dash";
             if (_if_split_line.match(/both|up/)) {
-                if (_split_line_style !== __global__._monster_$_last_console_split_line_type) {
+                if (_split_line_style !== global._monster_$_last_console_split_line_type) {
                     _showSplitLine("", _split_line_style);
                 }
-                delete __global__._monster_$_last_console_split_line_type;
+                delete global._monster_$_last_console_split_line_type;
                 if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
                 else if (_if_split_line.match(/both/)) _if_split_line = 1;
                 else if (_if_split_line.match(/up/)) _if_split_line = 0;
@@ -1122,11 +1108,11 @@ function loadInternalModuleMonsterFunc() {
                 }
             }
             if (!show_split_line_extra_str.match(/\n/)) {
-                __global__._monster_$_last_console_split_line_type = _split_line_style || "solid";
+                global._monster_$_last_console_split_line_type = _split_line_style || "solid";
             }
             _showSplitLine(show_split_line_extra_str, _split_line_style);
         } else {
-            delete __global__._monster_$_last_console_split_line_type;
+            delete global._monster_$_last_console_split_line_type;
         }
         if (_throw_error_flag) {
             ui.post(function () {
@@ -1164,7 +1150,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function waitForAction(f, timeout_or_times, interval) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
         if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
         let _timeout = Infinity;
@@ -1187,8 +1172,6 @@ function loadInternalModuleMonsterFunc() {
         // tool function(s) //
 
         function _checkF(f) {
-            while (__global__._monster_$_global_waiting_signal) sleep(200);
-
             let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
             if (typeof f === "function") return f();
@@ -1415,14 +1398,16 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function tryRequestScreenCapture(params) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-        if (__global__._monster_$_request_screen_capture_flag) return true;
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
+
+        if ($flag.request_screen_capture) return true;
 
         sleep(200); // why are you always a naughty boy... how can i get along well with you...
 
         let _params = params || {};
 
-        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
+        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
         let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
@@ -1437,7 +1422,7 @@ function loadInternalModuleMonsterFunc() {
 
         _debugInfo("开始申请截图权限");
 
-        __global__._monster_$_request_screen_capture_flag = true;
+        $flag.request_screen_capture = true;
         _debugInfo("已存储截图权限申请标记");
 
         _debugInfo("已开启弹窗监测线程");
@@ -1470,12 +1455,23 @@ function loadInternalModuleMonsterFunc() {
                 _thread_prompt.interrupt();
                 return _debugInfo("截图权限申请结果: " + _req_result);
             }
-            if (!__global__._monster_$_debug_info_flag) {
-                __global__._monster_$_debug_info_flag = true;
+            if (!$flag.debug_info_avail) {
+                $flag.debug_info_avail = true;
                 _debugInfo("开发者测试模式已自动开启", 3);
             }
             if (_params.restart_this_engine_flag) {
                 _debugInfo("截图权限申请结果: 失败", 3);
+                try {
+                    if (android.os.Build.MANUFACTURER.toLowerCase().match(/xiaomi/)) {
+                        _debugInfo("__split_line__dash_");
+                        _debugInfo("检测到当前设备制造商为小米", 3);
+                        _debugInfo("可能需要给Auto.js以下权限:", 3);
+                        _debugInfo(">\"后台弹出界面\"", 3);
+                        _debugInfo("__split_line__dash_");
+                    }
+                } catch (e) {
+                    // nothing to do here
+                }
                 if (_restartThisEngine(_params.restart_this_engine_params)) return;
             }
             _messageAction("截图权限申请失败", 9, 1, 0, 1);
@@ -1680,28 +1676,30 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-        let global_flag = __global__._monster_$_debug_info_flag;
-        if (!global_flag && !forcible_flag) return;
-        if (global_flag === false || forcible_flag === false) return;
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+
+        let global_flag = $flag.debug_info_avail;
+        if (!global_flag && !forcible_flag) return;
+        if (global_flag === false || forcible_flag === false) return;
+
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-        if (typeof msg === "string" && msg.match(/^__split_line_/)) showDebugSplitLine();
+        if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
 
         let info_flag_str = (info_flag || "").toString();
-        let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
         let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
 
-        if (info_flag_line === "Up") _showSplitLine();
-        if (info_flag_line.match(/both|up/)) debugInfo("__split_line__", "", forcible_flag);
+        if (info_flag_str.match(/Up/)) _showSplitLine();
+        if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
 
         if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
         else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
 
-        if (info_flag_line === "both") debugInfo("__split_line__", "", forcible_flag);
+        if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
 
         // raw function(s) //
 
@@ -1736,7 +1734,7 @@ function loadInternalModuleMonsterFunc() {
 
         // tool function(s) //
 
-        function showDebugSplitLine() {
+        function setDebugSplitLine(msg) {
             let _msg = "";
             if (msg.match(/dash/)) {
                 for (let i = 0; i < 16; i += 1) _msg += "- ";
@@ -1744,20 +1742,34 @@ function loadInternalModuleMonsterFunc() {
             } else {
                 for (let i = 0; i < 32; i += 1) _msg += "-";
             }
-            msg = _msg;
+            return _msg;
         }
     }
 
-    function getDisplayParams() {
+    function getDisplayParams(params) {
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
+
+        let _params = params || {};
+
         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
         let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
         let [WIDTH, HEIGHT] = [];
         let display_info = {};
         if (_waitForAction(checkData, 3000, 500)) {
             display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
             display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
+
+            if (!$flag.display_params_got) {
+                _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
+                _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
+                $flag.display_params_got = true;
+            }
+
             return display_info;
         }
+        console.error("getDisplayParams()返回结果异常");
 
         // tool function(s) //
 
@@ -1824,6 +1836,10 @@ function loadInternalModuleMonsterFunc() {
             }
             return _check_time >= 0;
         }
+
+        function debugInfoRaw(msg, info_flag) {
+            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
     }
 
     function equalObjects(obj_a, obj_b) {
@@ -1887,8 +1903,6 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function captureErrScreen(key_name, log_level) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
         let _tryRequestScreenCapture = typeof tryRequestScreenCapture === "undefined" ? tryRequestScreenCaptureRaw : tryRequestScreenCapture;
 
@@ -1930,16 +1944,17 @@ function loadInternalModuleMonsterFunc() {
         }
 
         function tryRequestScreenCaptureRaw() {
-            if (!__global__._monster_$_request_screen_capture_flag) {
+            global["$flag"] = global["$flag"] || {};
+            let $flag = global["$flag"];
+            if (!$flag.request_screen_capture) {
                 images.requestScreenCapture();
                 sleep(300);
+                $flag.request_screen_capture = true;
             }
         }
     }
 
     function getSelector(params) {
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-
         let parent_params = params || {};
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
@@ -2040,13 +2055,13 @@ function loadInternalModuleMonsterFunc() {
                 function _getSelector(addition) {
                     let _mem_kw_prefix = "_MEM_KW_PREFIX_";
                     if (memory_keyword) {
-                        let _memory_selector = __global__[_mem_kw_prefix + memory_keyword];
+                        let _memory_selector = global[_mem_kw_prefix + memory_keyword];
                         if (_memory_selector) return _memory_selector;
                     }
                     let _kw_selector = _getSelectorFromLayout(addition);
                     if (memory_keyword && _kw_selector) {
                         _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
-                        __global__[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                        global[_mem_kw_prefix + memory_keyword] = _kw_selector;
                     }
                     return _kw_selector;
 
@@ -2251,11 +2266,9 @@ function loadInternalModuleMonsterFunc() {
         let _params = params || {};
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
 
-        __global__ = typeof __global__ === "undefined" ? this : __global__;
-        if (typeof __global__.device === "undefined") __global__.device = {};
+        if (typeof global.device === "undefined") global.device = {};
 
-
-        __global__.device.__proto__ = Object.assign((__global__.device.__proto__ || {}), {
+        global.device.__proto__ = Object.assign((global.device.__proto__ || {}), {
             /**
              * device.keepScreenOn()
              * @memberOf setDeviceProto
