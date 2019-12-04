@@ -1,8 +1,6 @@
 global["$impeded"] = (name) => {
     let _$flag = global["$flag"];
-    if (!_$flag) return;
-    if (_$flag.glob_e_trig_counter) {
-        let _debugInfo = global["debugInfo"] || (() => null);
+    if (_$flag && _$flag.glob_e_trig_counter) {
         if (name) {
             messageAction("检测到全局事件触发信号", 1, 0, 0, "up_dash");
             messageAction(name + "被迫阻塞", 1, 0, 0, "dash");
@@ -13,6 +11,7 @@ global["$impeded"] = (name) => {
             messageAction(name + "解除阻塞", 1, 0, 0, "dash");
         }
     }
+    return true;
 };
 module.exports = {
     parseAppName: parseAppName,
