@@ -1185,7 +1185,7 @@ let $view = {
                             timestamp: Infinity,
                         }));
                         if (tmp_selected_friends.length) setTimeout(function () {
-                            // parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
+                            parent_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                         }, 200);
                         let restore_btn = list_page_view.getParent()._text_restore.getParent();
                         equalObjects(
@@ -1395,7 +1395,7 @@ let $view = {
                             )
                         });
                         if (tmp_selected_apps.length) setTimeout(function () {
-                            parent_view._list_data.smoothScrollBy(0, -Math.pow(10, 5));
+                            parent_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                         }, 200);
                         let restore_btn = list_page_view.getParent()._text_restore.getParent();
                         let _sess = session_config[data_source_key_name];
@@ -2179,7 +2179,7 @@ let $view = {
                         interval: +diag_new_item.getItems().toArray()[1].split(": ")[1],
                     });
                     setTimeout(function () {
-                        parent_view._list_data.smoothScrollBy(0, Math.pow(10, 5));
+                        parent_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                     }, 200);
                     let restore_btn = session_params[data_source_key_name + "_btn_restore"];
                     equalObjects(session_config[data_source_key_name], storage_config[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
@@ -3942,8 +3942,8 @@ $view.addPage(["自收功能", "self_collect_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "self_collect_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4042,8 +4042,8 @@ $view.addPage(["主页能量球循环监测", "homepage_monitor_page"], function
         .add("switch", new Layout("总开关", {
             config_conj: "homepage_monitor_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4089,8 +4089,8 @@ $view.addPage(["主页能量球返检监控", "homepage_background_monitor_page"
         .add("switch", new Layout("总开关", {
             config_conj: "homepage_background_monitor_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4119,8 +4119,8 @@ $view.addPage(["收取功能", "friend_collect_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "friend_collect_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4389,8 +4389,8 @@ $view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], funct
         .add("button", new Layout("采集策略", "hint", {
             config_conj: "rank_list_samples_collect_strategy",
             map: {
-                "layout": "布局分析",
-                "image": "图像处理",
+                layout: "布局分析",
+                image: "图像处理",
             },
             newWindow: function () {
                 let map = this.map;
@@ -4495,8 +4495,8 @@ $view.addPage(["排行榜列表自动展开", "rank_list_auto_expand_page"], fun
         .add("switch", new Layout("总开关", {
             config_conj: "rank_list_auto_expand_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4554,8 +4554,8 @@ $view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "rank_list_review_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4572,8 +4572,8 @@ $view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
             config_conj: "rank_list_review_difference_switch",
             view_tag: "rank_list_review_difference_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -4589,8 +4589,8 @@ $view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
             config_conj: "rank_list_review_samples_clicked_switch",
             view_tag: "rank_list_review_samples_clicked_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -4606,8 +4606,8 @@ $view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
             config_conj: "rank_list_review_threshold_switch",
             view_tag: "rank_list_review_threshold_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -4641,8 +4641,8 @@ $view.addPage(["帮收功能", "help_collect_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "help_collect_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4902,8 +4902,8 @@ $view.addPage(["六球复查", "six_balls_review_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "six_balls_review_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -4956,8 +4956,8 @@ $view.addPage(["自动解锁", "auto_unlock_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "auto_unlock_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -5138,8 +5138,8 @@ $view.addPage(["自动解锁", "auto_unlock_page"], function () {
         .add("button", new Layout("滑动策略", "hint", {
             config_conj: "unlock_pattern_strategy",
             map: {
-                "segmental": "叠加路径", // gestures()
-                "solid": "连续路径", // gesture()
+                segmental: "叠加路径", // gestures()
+                solid: "连续路径", // gesture()
             },
             newWindow: function () {
                 let map = this.map;
@@ -5223,8 +5223,8 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "message_showing_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -5240,8 +5240,8 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
         .add("switch", new Layout("控制台消息", {
             config_conj: "console_log_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5256,7 +5256,7 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
             values: [true, false],
             config_conj: "console_log_details",
             listeners: {
-                "check": function (checked, view) {
+                check: function (checked, view) {
                     checked && $save.session(this.config_conj, this.values[this.title.indexOf(view.text)]);
                 },
             },
@@ -5272,8 +5272,8 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
             default_state: false,
             config_conj: "debug_info_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.weakOrStrongBySwitch(this, !state, -1);
                     },
@@ -5288,8 +5288,8 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
         .add("switch", new Layout("运行前提示", {
             config_conj: "prompt_before_running_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5362,8 +5362,8 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
         .add("switch", new Layout("运行结果展示", {
             config_conj: "result_showing_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5378,7 +5378,7 @@ $view.addPage(["消息提示", "message_showing_page"], function () {
             values: [true, false],
             config_conj: "floaty_result_switch",
             listeners: {
-                "check": function (checked, view) {
+                check: function (checked, view) {
                     let {text} = view;
                     checked && $save.session(this.config_conj, this.values[this.title.indexOf(text)]);
                     text === this.title[0] && $view.showOrHideBySwitch(this, checked, false, "split_line");
@@ -5426,8 +5426,8 @@ $view.addPage(["定时循环", "timers_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "timers_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -5516,8 +5516,8 @@ $view.addPage(["定时任务自动管理", "timers_self_manage_page"], function 
         .add("switch", new Layout("总开关", {
             config_conj: "timers_self_manage_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -5534,8 +5534,8 @@ $view.addPage(["定时任务自动管理", "timers_self_manage_page"], function 
             config_conj: "timers_countdown_check_own_switch",
             tag_name: "timers_countdown_check_own_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5610,8 +5610,8 @@ $view.addPage(["定时任务自动管理", "timers_self_manage_page"], function 
             config_conj: "timers_countdown_check_friends_switch",
             tag_name: "timers_countdown_check_friends_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5690,8 +5690,8 @@ $view.addPage(["定时任务自动管理", "timers_self_manage_page"], function 
             config_conj: "timers_uninterrupted_check_switch",
             view_tag: "timers_uninterrupted_check_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5716,8 +5716,8 @@ $view.addPage(["定时任务自动管理", "timers_self_manage_page"], function 
             config_conj: "timers_insurance_switch",
             view_tag: "timers_insurance_switch",
             listeners: {
-                "_checkbox_switch": {
-                    "check": function (state) {
+                _checkbox_switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state, false, "split_line");
                     },
@@ -5834,8 +5834,8 @@ $view.addPage(["定时任务控制面板", "timers_control_panel_page"], functio
             },
             list_checkbox: "gone",
             listeners: {
-                "_list_data": {
-                    "item_click": function (item, idx, item_view, list_view) {
+                _list_data: {
+                    item_click: function (item, idx, item_view, list_view) {
                         let {task, list_item_name_0} = item;
                         let [type, next_run_time] = [list_item_name_0, task.getNextTime()];
                         let type_code = $tool.restoreFromTimedTaskTypeStr(type);
@@ -5926,12 +5926,12 @@ $view.addPage(["定时任务控制面板", "timers_control_panel_page"], functio
                                 "下次运行: " + $tool.getTimeStrFromTimestamp(next_run_time, "time_str_full");
                         }
                     },
-                    "item_bind": function (item_view, item_holder) {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.setVisibility(8);
                     }
                 },
-                "ui": {
-                    "resume": function () {
+                ui: {
+                    resume: function () {
                         let {data_source_key_name, custom_data_source} = this;
                         $view.updateDataSource(
                             data_source_key_name, "re_init",
@@ -5953,9 +5953,9 @@ $view.addPage(["定时任务控制面板", "timers_control_panel_page"], functio
         if (modify_mode) type_str = type_code === 0 ? "disposable" : (type_code.length < 7 ? "weekly" : "daily");
 
         let task_type_map = {
-            "disposable": "一次性任务",
-            "daily": "每日任务",
-            "weekly": "每周任务",
+            disposable: "一次性任务",
+            daily: "每日任务",
+            weekly: "每周任务",
         };
 
         let diag_main = dialogs.builds([
@@ -6109,8 +6109,8 @@ $view.addPage(["延时接力管理", "timers_uninterrupted_check_sections_page"]
             data_source_key_name: "timers_uninterrupted_check_sections",
             list_checkbox: "visible",
             listeners: {
-                "_list_data": {
-                    "item_long_click": function (e, item, idx, item_view, list_view) {
+                _list_data: {
+                    item_long_click: function (e, item, idx, item_view, list_view) {
                         item_view._checkbox.checked && item_view._checkbox.click();
                         e.consumed = true;
                         let {data_source_key_name} = this;
@@ -6202,18 +6202,18 @@ $view.addPage(["延时接力管理", "timers_uninterrupted_check_sections_page"]
                             edit_item_diag.setItems(items);
                         }
                     },
-                    "item_click": function (item, idx, item_view, list_view) {
+                    item_click: function (item, idx, item_view, list_view) {
                         item_view._checkbox.click();
                     },
-                    "item_bind": function (item_view, item_holder) {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $view.commonItemBindCheckboxClickListener
                                 .bind(this)(checkbox_view, item_holder);
                         });
                     },
                 },
-                "_check_all": {
-                    "click": function (view) {
+                _check_all: {
+                    click: function (view) {
                         let {data_source_key_name} = this;
                         let aim_checked = view.checked;
                         let blacklist_len = session_params[data_source_key_name].length;
@@ -6271,8 +6271,8 @@ $view.addPage(["账户功能", "account_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "account_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -6503,8 +6503,8 @@ $view.addPage(["旧账户回切", "account_log_back_in_page"], function () {
         .add("switch", new Layout("总开关", {
             config_conj: "account_log_back_in_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -6562,13 +6562,13 @@ $view.addPage(["黑名单管理", "blacklist_page"], function () {
                 view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
             },
         }))
-        .add("page", new Layout("返水黑名单", "hint", {
-            next_page: "collect_blacklist_page",
-            updateOpr: function (view) {
-                let amount = session_config.blacklist_by_user.length;
-                view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
-            },
-        }))
+        // .add("page", new Layout("返水黑名单", "hint", {
+        //     next_page: "collect_blacklist_page",
+        //     updateOpr: function (view) {
+        //         let amount = session_config.blacklist_by_user.length;
+        //         view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
+        //     },
+        // }))
         .add("split_line")
         .add("subhead", new Layout("应用程序名单簿", {subhead_color: $defs.subhead_highlight_color}))
         .add("page", new Layout("前置应用黑名单", "hint", {
@@ -6611,8 +6611,8 @@ $view.addPage(["能量罩黑名单", "cover_blacklist_page"], function () {
             data_source_key_name: "blacklist_protect_cover",
             list_checkbox: "gone",
             listeners: {
-                "_list_data": {
-                    "item_bind": function (item_view, item_holder) {
+                _list_data: {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.setVisibility(8);
                     }
                 },
@@ -6630,8 +6630,8 @@ $view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function () 
             data_source_key_name: "blacklist_by_user",
             list_checkbox: "visible",
             listeners: {
-                "_list_data": {
-                    "item_long_click": function (e, item, idx, item_view, list_view) {
+                _list_data: {
+                    item_long_click: function (e, item, idx, item_view, list_view) {
                         item_view._checkbox.checked && item_view._checkbox.click();
                         e.consumed = true;
                         let {data_source_key_name} = this;
@@ -6721,18 +6721,18 @@ $view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function () 
                             edit_item_diag.setItems(items);
                         }
                     },
-                    "item_click": function (item, idx, item_view, list_view) {
+                    item_click: function (item, idx, item_view, list_view) {
                         item_view._checkbox.click();
                     },
-                    "item_bind": function (item_view, item_holder) {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $view.commonItemBindCheckboxClickListener
                                 .bind(this)(checkbox_view, item_holder);
                         });
                     },
                 },
-                "_check_all": {
-                    "click": function (view) {
+                _check_all: {
+                    click: function (view) {
                         let {data_source_key_name} = this;
                         let aim_checked = view.checked;
                         let blacklist_len = session_params[data_source_key_name].length;
@@ -6781,19 +6781,19 @@ $view.addPage(["前置应用黑名单", "foreground_app_blacklist_page"], functi
             data_source_key_name: "foreground_app_blacklist",
             list_checkbox: "visible",
             listeners: {
-                "_list_data": {
-                    "item_click": function (item, idx, item_view, list_view) {
+                _list_data: {
+                    item_click: function (item, idx, item_view, list_view) {
                         item_view._checkbox.click();
                     },
-                    "item_bind": function (item_view, item_holder) {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $view.commonItemBindCheckboxClickListener
                                 .bind(this)(checkbox_view, item_holder);
                         });
                     },
                 },
-                "_check_all": {
-                    "click": function (view) {
+                _check_all: {
+                    click: function (view) {
                         let {data_source_key_name} = this;
                         let aim_checked = view.checked;
                         let blacklist_len = session_params[data_source_key_name].length;
@@ -6943,8 +6943,8 @@ $view.addPage(["运行与安全", "script_security_page"], function () {
         .add("button", new Layout("支付宝应用启动跳板", "hint", {
             config_conj: "app_launch_springboard",
             map: {
-                "ON": "开启跳板",
-                "OFF": "关闭跳板",
+                ON: "开启跳板",
+                OFF: "关闭跳板",
             },
             newWindow: function () {
                 let map = this.map;
@@ -6992,8 +6992,8 @@ $view.addPage(["支付宝应用及页面保留", "kill_when_done_page"], functio
         .add("switch", new Layout("总开关", {
             config_conj: "kill_when_done_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -7010,7 +7010,7 @@ $view.addPage(["支付宝应用及页面保留", "kill_when_done_page"], functio
             values: [true, false],
             config_conj: "kill_when_done_intelligent",
             listeners: {
-                "check": function (checked, view) {
+                check: function (checked, view) {
                     let {text} = view;
                     checked && $save.session(this.config_conj, this.values[this.title.indexOf(text)]);
                     text === this.title[0] && $view.showOrHideBySwitch(this, checked, false, "split_line");
@@ -7030,7 +7030,7 @@ $view.addPage(["支付宝应用及页面保留", "kill_when_done_page"], functio
             values: [false, true],
             config_conj: "kill_when_done_keep_af_pages",
             listeners: {
-                "check": function (checked, view) {
+                check: function (checked, view) {
                     let {text} = view;
                     checked && $save.session(this.config_conj, this.values[this.title.indexOf(text)]);
                     text === this.title[0] && $view.showOrHideBySwitch(this, checked, false, "split_line");
@@ -7060,8 +7060,8 @@ $view.addPage(["通话状态监测", "phone_call_state_monitor_page"], function 
         .add("switch", new Layout("总开关", {
             config_conj: "phone_call_state_monitor_switch",
             listeners: {
-                "_switch": {
-                    "check": function (state) {
+                _switch: {
+                    check: function (state) {
                         $save.session(this.config_conj, !!state);
                         $view.showOrHideBySwitch(this, state);
                     },
@@ -7217,8 +7217,8 @@ $view.addPage(["项目备份还原", "local_project_backup_restore_page"], funct
                                             data_source_key_name: "server_releases_info",
                                             list_checkbox: "gone",
                                             listeners: {
-                                                "_list_data": {
-                                                    "item_click": function (item, idx, item_view, list_view) {
+                                                _list_data: {
+                                                    item_click: function (item, idx, item_view, list_view) {
                                                         let release_details = [];
                                                         let single_session_data = session_params.server_releases_info[idx] || {};
                                                         let map = {
@@ -7272,7 +7272,7 @@ $view.addPage(["项目备份还原", "local_project_backup_restore_page"], funct
                                                         });
                                                         diag.show();
                                                     },
-                                                    "item_bind": function (item_view, item_holder) {
+                                                    item_bind: function (item_view, item_holder) {
                                                         item_view._checkbox.setVisibility(8);
                                                     },
                                                 },
@@ -7329,12 +7329,12 @@ $view.addPage(["从本地还原项目", "restore_projects_from_local_page"], fun
                 };
             },
             listeners: {
-                "_list_data": {
-                    "item_long_click": function (e, item, idx, item_view, list_view) {
+                _list_data: {
+                    item_long_click: function (e, item, idx, item_view, list_view) {
                         e.consumed = true;
                         this.tool_box.deleteItem(null, idx);
                     },
-                    "item_click": function (item, idx, item_view, list_view) {
+                    item_click: function (item, idx, item_view, list_view) {
                         let {data_source_key_name, tool_box} = this;
                         let backup_details = [];
                         let single_session_data = session_config[data_source_key_name][idx] || {};
@@ -7376,7 +7376,7 @@ $view.addPage(["从本地还原项目", "restore_projects_from_local_page"], fun
                         diag.on("neutral", () => tool_box.deleteItem(diag, idx));
                         diag.show();
                     },
-                    "item_bind": function (item_view, item_holder) {
+                    item_bind: function (item_view, item_holder) {
                         item_view._checkbox.setVisibility(8);
                     },
                 },
