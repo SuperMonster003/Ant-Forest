@@ -75,23 +75,23 @@ module.exports = {
 function parseAppName(name, params) {
     if (!name) return {app_name: "", package_name: ""};
 
-    global._monster_$_app_name_cache = global._monster_$_app_name_cache || {};
-    global._monster_$_app_package_name_cache = global._monster_$_app_package_name_cache || {};
+    global["_$_app_name_cache"] = global["_$_app_name_cache"] || {};
+    global["_$_app_pkg_name_cache"] = global["_$_app_pkg_name_cache"] || {};
 
     params = params || {};
     let hard_refresh = params.hard_refresh || false;
 
     let checkCache = (cacheObj) => !hard_refresh && name in cacheObj ? cacheObj[name] : null;
 
-    let _app_name = checkCache(global._monster_$_app_name_cache) || !name.match(/.+\..+\./) && app.getPackageName(name) && name;
-    let _package_name = checkCache(global._monster_$_app_package_name_cache) || app.getAppName(name) && name;
+    let _app_name = checkCache(global["_$_app_name_cache"]) || !name.match(/.+\..+\./) && app.getPackageName(name) && name;
+    let _package_name = checkCache(global["_$_app_pkg_name_cache"]) || app.getAppName(name) && name;
 
     _app_name = _app_name || _package_name && app.getAppName(_package_name);
     _package_name = _package_name || _app_name && app.getPackageName(_app_name);
 
     return {
-        app_name: global._monster_$_app_name_cache[_package_name] = _app_name,
-        package_name: global._monster_$_app_package_name_cache[_app_name] = _package_name,
+        app_name: global["_$_app_name_cache"][_package_name] = _app_name,
+        package_name: global["_$_app_pkg_name_cache"][_app_name] = _package_name,
     };
 }
 
@@ -218,10 +218,7 @@ function getVerName(name, params) {
 function launchThisApp(trigger, params) {
     $impeded(arguments.callee.name);
 
-    if (typeof global._monster_$_first_time_run === "undefined") global._monster_$_first_time_run = 1;
-
     let _params = params || {};
-
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
@@ -232,6 +229,7 @@ function launchThisApp(trigger, params) {
     let _package_name = "";
     let _app_name = "";
     let _task_name = _params.task_name || "";
+    let _first_time_launch = true;
 
     _setAppName();
 
@@ -243,15 +241,17 @@ function launchThisApp(trigger, params) {
     let _condition_ready = _params.condition_ready;
     let _condition_launch = _params.condition_launch || (() => currentPackage() === _package_name);
     let _disturbance = _params.disturbance;
+    let _thread_disturbance = undefined;
     let _max_retry_times = _params.global_retry_times || 2;
     let _first_time_run_message_flag = typeof _params.first_time_run_message_flag === "undefined" ? true : _params.first_time_run_message_flag;
     let _max_retry_times_backup = _max_retry_times;
+
     while (_max_retry_times--) {
         let _max_launch_times = _params.launch_retry_times || 3;
         let _max_launch_times_backup = _max_launch_times;
         if (!_params.no_message_flag) {
             let _msg_launch = _task_name ? "重新开始\"" + _task_name + "\"任务" : "重新启动\"" + _app_name + "\"应用";
-            if (!global._monster_$_first_time_run) _messageAction(_msg_launch, null, 1);
+            if (!_first_time_launch) _messageAction(_msg_launch, null, 1);
             else _first_time_run_message_flag && _messageAction(_msg_launch.replace(/重新/g, ""), 1, 1, 0, "both");
         }
         while (_max_launch_times--) {
@@ -290,21 +290,19 @@ function launchThisApp(trigger, params) {
         }
         if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
 
-        global._monster_$_first_time_run = 0;
+        _first_time_launch = false;
         if (_condition_ready === null || _condition_ready === undefined) {
             _debugInfo("未设置启动完成条件参数");
             break;
         }
 
         _debugInfo("开始监测启动完成条件");
-        global._monster_$_launch_ready_monitor_signal = false; // in case that there is a thread who needs a signal to interrupt
 
-        let _thread_disturbance = undefined;
         if (_disturbance) {
             _debugInfo("检测到干扰排除器");
             _thread_disturbance = threads.start(function () {
-                return _disturbance();
-            }); // maybe a signal is needed here
+                while (sleep(1200) || true) _disturbance();
+            });
         }
 
         let max_ready_try_times = _params.ready_retry_times || 3;
@@ -320,14 +318,6 @@ function launchThisApp(trigger, params) {
             }
         }
 
-        global._monster_$_launch_ready_monitor_signal = true;
-        if (_thread_disturbance) {
-            if (!_waitForAction(() => !_thread_disturbance.isAlive(), 1000)) {
-                _debugInfo("强制解除干扰排除器");
-                _thread_disturbance.interrupt();
-            } else _debugInfo("干扰排除器已解除");
-        }
-
         if (max_ready_try_times >= 0) {
             _debugInfo("启动完成条件监测完毕");
             break;
@@ -335,8 +325,19 @@ function launchThisApp(trigger, params) {
         _debugInfo("尝试关闭\"" + _app_name + "\"应用: (" + (_max_retry_times_backup - _max_retry_times) + "\/" + _max_retry_times_backup + ")");
         _killThisApp(_package_name);
     }
+
+    if (_thread_disturbance) {
+        if (_thread_disturbance.isAlive()) {
+            _debugInfo("强制解除干扰排除器");
+            _thread_disturbance.interrupt();
+        } else {
+            _debugInfo("干扰排除器已解除");
+        }
+        _thread_disturbance = null;
+    }
     if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 9, 1, 0, 1);
     _debugInfo("\"" + (_task_name || _app_name) + "\"初始状态准备完毕");
+
     return true;
 
     // tool function(s) //
@@ -846,10 +847,10 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     if (typeof _if_split_line === "string") {
         if (_if_split_line.match(/dash/)) _split_line_style = "dash";
         if (_if_split_line.match(/both|up/)) {
-            if (_split_line_style !== global._monster_$_last_console_split_line_type) {
+            if (_split_line_style !== global["_$_last_cnsl_split_ln_type"]) {
                 _showSplitLine("", _split_line_style);
             }
-            delete global._monster_$_last_console_split_line_type;
+            delete global["_$_last_cnsl_split_ln_type"];
             if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
             else if (_if_split_line.match(/both/)) _if_split_line = 1;
             else if (_if_split_line.match(/up/)) _if_split_line = 0;
@@ -920,11 +921,11 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             }
         }
         if (!show_split_line_extra_str.match(/\n/)) {
-            global._monster_$_last_console_split_line_type = _split_line_style || "solid";
+            global["_$_last_cnsl_split_ln_type"] = _split_line_style || "solid";
         }
         _showSplitLine(show_split_line_extra_str, _split_line_style);
     } else {
-        delete global._monster_$_last_console_split_line_type;
+        delete global["_$_last_cnsl_split_ln_type"];
     }
     if (_throw_error_flag) {
         ui.post(function () {
@@ -1518,8 +1519,8 @@ function tryRequestScreenCapture(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
-        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
-        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "", type);
+        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), type, "kw_req_capt_no_longer_prompt");
+        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, type);
 
         if (_waitForAction(_kw_sure_btn, 5000)) {
             if (_waitForAction(_kw_no_longer_prompt, 1000)) {
@@ -2124,7 +2125,8 @@ function debugInfo(msg, info_flag, forcible_flag) {
  * -- scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
  * @example
  * let {WIDTH, HEIGHT, cX, cY, USABLE_WIDTH, USABLE_HEIGHT, screen_orientation, status_bar_height, navigation_bar_height, navigation_bar_height_computed, action_bar_default_height} = getDisplayParams();
- * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16/9);
+ * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16 / 9);
+ * console.log(W, H, cX(0.2), cY(0.45, "21:9"), cY(0.45, -1);
  * @return {*}
  */
 function getDisplayParams(params) {
@@ -2139,14 +2141,45 @@ function getDisplayParams(params) {
     let [WIDTH, HEIGHT] = [];
     let display_info = {};
     if (_waitForAction(checkData, 3000, 500)) {
-        display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
-        display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
+        let cX = (num) => {
+            let _unit = Math.abs(num) >= 1 ? WIDTH / 720 : WIDTH;
+            let _x = Math.round(num * _unit);
+            return Math.min(_x, WIDTH);
+        };
+        let cY = (num, aspect_ratio) => {
+            let ratio = aspect_ratio;
+            if (!~ratio) ratio = "16:9"; // -1
+            if (typeof ratio === "string" && ratio.match(/^\d+:\d+$/)) {
+                let _split = ratio.split(":");
+                ratio = _split[0] / _split[1];
+            }
+            ratio = ratio || HEIGHT / WIDTH;
+            ratio = ratio < 1 ? 1 / ratio : ratio;
+            let _h = WIDTH * ratio;
+            let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
+            let _y = Math.round(num * _unit);
+            return Math.min(_y, HEIGHT);
+        };
 
         if (!$flag.display_params_got) {
             _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
             _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
             $flag.display_params_got = true;
         }
+
+        Object.assign(global, {
+            W: WIDTH, WIDTH: WIDTH,
+            halfW: Math.round(WIDTH / 2),
+            uW: display_info.USABLE_WIDTH,
+            H: HEIGHT, HEIGHT: HEIGHT,
+            uH: display_info.USABLE_HEIGHT,
+            scrO: display_info.screen_orientation,
+            staH: display_info.status_bar_height,
+            navH: display_info.navigation_bar_height,
+            navHC: display_info.navigation_bar_height_computed,
+            actH: display_info.action_bar_default_height,
+            cX: cX, cY: cY,
+        });
 
         return display_info;
     }
@@ -2307,9 +2340,9 @@ function deepCloneObject(obj) {
  */
 function smoothScrollView(shifting, duration, pages_pool, base_view) {
     if (pages_pool.length < 2) return;
-    if (global._monster_$_page_scrolling_flag) return;
+    if (global["_$_page_scrolling"]) return;
 
-    global._monster_$_page_scrolling_flag = true;
+    global["_$_page_scrolling"] = true;
     let page_scrolling_flag = true;
 
     duration = duration || 180;
@@ -2374,7 +2407,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
         threads.start(function () {
             waitForAction(() => !page_scrolling_flag, 10000);
-            global._monster_$_page_scrolling_flag = false;
+            global["_$_page_scrolling"] = false;
         });
     } catch (e) {
         page_scrolling_flag = false;
@@ -2405,14 +2438,14 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
  * @param [duration=3000] {number} - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
-    global._monster_$_alert_title_info = global._monster_$_alert_title_info || {};
-    let alert_title_info = global._monster_$_alert_title_info;
+    global["_$_alert_title_info"] = global["_$_alert_title_info"] || {};
+    let alert_title_info = global["_$_alert_title_info"];
     alert_title_info[dialog] = alert_title_info[dialog] || {};
     alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
 
-    let ori_text = alert_title_info[dialog].ori_text || "",
-        ori_text_color = alert_title_info[dialog].ori_text_color || "",
-        ori_bg_color = alert_title_info[dialog].ori_bg_color || "";
+    let ori_text = alert_title_info[dialog].ori_text || "";
+    let ori_text_color = alert_title_info[dialog].ori_text_color || "";
+    let ori_bg_color = alert_title_info[dialog].ori_bg_color || "";
 
     let ori_title_view = dialog.getTitleView();
     if (!ori_text) {
@@ -2575,8 +2608,11 @@ function getSelector(params) {
     let parent_params = params || {};
     let classof = o => Object.prototype.toString.call(o).slice(8, -1);
     let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
-    let sel = selector();
-    sel.__proto__ = {
+    let sel = global["selector"]();
+    sel.__proto__ = sel.__proto__ || {};
+    Object.assign(sel.__proto__, {
+        kw_pool: {},
+        cache_pool: {},
         /**
          * Returns a selector (UiSelector) or node (UiObject) or some attribute
          * If no nodes (UiObjects) were found, returns null or "" or false
@@ -2586,7 +2622,7 @@ function getSelector(params) {
          * <br>
          *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
          *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-         * @param [memory_keyword {string|null}] - to mark this selector node; better use a keyword without conflict
+         * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
          * @param [result_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
          * <br>
          *     -- "txt": available text()/desc() value or empty string
@@ -2596,17 +2632,17 @@ function getSelector(params) {
          * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
          * @example
          * pickup("abc"); -- text/desc/id("abc").findOnce() or null; <br>
-         * pickup("abc", "my_alphabet", "node"); -- same as above; <br>
-         * pickup("abc", "my_alphabet", "sel"); -- text/desc/id("abc") or null -- selector <br>
-         * pickup(text("abc"), "my_alphabet"); -- text("abc").findOnce() or null <br>
-         * pickup(/^abc.+z/, "AtoZ", "sel_str"); -- id/text/desc or "" -- string <br>
-         * pickup("morning", "", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
-         * pickup(["morning", "p2c3"], "", "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
-         * pickup(["hello", "s3b"], "", "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
+         * pickup("abc", "node", "my_alphabet"); -- same as above; <br>
+         * pickup("abc", "sel", "my_alphabet"); -- text/desc/id("abc") or null -- selector <br>
+         * pickup(text("abc"), "node", "my_alphabet"); -- text("abc").findOnce() or null <br>
+         * pickup(/^abc.+z/, "sel_str", "AtoZ") -- id/text/desc or "" -- string <br>
+         * pickup("morning", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
+         * pickup(["morning", "p2c3"], "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
+         * pickup(["hello", "s3b"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
          * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
-         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "back_btn", "clickable"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
+         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
          */
-        pickup: (selector_body, memory_keyword, result_type, params) => {
+        pickup: (selector_body, result_type, mem_kw, params) => {
             let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
             let _params = Object.assign({}, parent_params, params);
             result_type = (result_type || "").toString();
@@ -2671,16 +2707,16 @@ function getSelector(params) {
 
             function _getSelector(addition) {
                 let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                if (memory_keyword) {
-                    let _memory_selector = global[_mem_kw_prefix + memory_keyword];
-                    if (_memory_selector) return _memory_selector;
+                if (mem_kw) {
+                    let _mem_sel = global[_mem_kw_prefix + mem_kw];
+                    if (_mem_sel) return _mem_sel;
                 }
-                let _kw_selector = _getSelectorFromLayout(addition);
-                if (memory_keyword && _kw_selector) {
-                    _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
-                    global[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                let _kw_sel = _getSelectorFromLayout(addition);
+                if (mem_kw && _kw_sel) {
+                    _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
+                    global[_mem_kw_prefix + mem_kw] = _kw_sel;
                 }
-                return _kw_selector;
+                return _kw_sel;
 
                 // tool function(s) //
 
@@ -2867,7 +2903,47 @@ function getSelector(params) {
                 }
             }
         },
-    };
+    });
+    Object.assign(sel.__proto__, {
+        add: function (key_name, sel_body, keyword) {
+            let _kw = typeof keyword === "string" ? keyword : key_name;
+            sel.kw_pool[key_name] = typeof sel_body === "function"
+                ? type => sel_body(type)
+                : type => sel.pickup(sel_body, type, _kw);
+            return sel;
+        },
+        get: function (key_name, type) {
+            let _picker = sel.kw_pool[key_name];
+            if (!_picker) return null;
+            if (type && type.toString().match(/cache/)) {
+                return sel.cache_pool[key_name] = _picker("node");
+            }
+            return _picker(type);
+        },
+        getAndCache: function (key_name, type) {
+            // only "node" type can be returned
+            return this.get(key_name, "save_cache");
+        },
+        cache: {
+            load: function (key_name, type) {
+                let _node = sel.cache_pool[key_name];
+                if (!_node) return null;
+                return sel.pickup(sel.cache_pool[key_name], type);
+            },
+            refresh: function (key_name) {
+                let _cache = sel.cache_pool[key_name];
+                _cache && _cache.refresh();
+            },
+            reset: function (key_name) {
+                delete sel.cache_pool[key_name];
+                return sel.getAndCache(key_name);
+            },
+            recycle: function (key_name) {
+                let _cache = sel.cache_pool[key_name];
+                _cache && _cache.recycle();
+            },
+        },
+    });
     // _debugInfo("选择器加入新方法");
     // Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
     return sel;
@@ -2977,10 +3053,8 @@ function phoneCallingState() {
  * timeRecorder("study"); timeRecorder("study", "load", "auto") - eg: "7分钟8.16秒" (means 7m 8.16s)
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
-    if (!global._monster_$_timestamp_records) {
-        global._monster_$_timestamp_records = {};
-    }
-    let records = global._monster_$_timestamp_records;
+    global["_$_ts_rec"] = global["_$_ts_rec"] || {};
+    let records = global["_$_ts_rec"];
     if (!operation || operation.toString().match(/save|put/)) {
         return records[keyword] = +new Date();
     }
@@ -3340,7 +3414,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
  * let sel = getSelector(); // @see getSelector() from MODULE_MONSTER_FUNC
- * baiduOcr(sel.pickup(/\xa0/, "", "nodes"), {
+ * baiduOcr(sel.pickup(/\xa0/, "nodes"), {
  *     fetch_times: 3,
  *     timeout: 12000
  * }); // [[], [], []] -- 3 groups of data
@@ -4021,16 +4095,19 @@ function setGlobalTypeChecker() {
             return x.length;
         },
         // `classof(x, "JavaObject");` also fine
-        __isJvO__: x => !!x["getClass"],
+        __isJvo__: x => !!x["getClass"],
+        get __checkJvoType__() {
+            return (x, regexp) => this.__isJvo__(x) && !!x.toString().match(regexp);
+        },
         get $$jvo() {
             return {
-                isJvO: x => this.__isJvO__(x),
-                ScriptEngine: x => this.__isJvO__(x) && !!x.toString().match(/^ScriptEngine/),
-                Thread: x => this.__isJvO__(x) && !!x.toString().match(/^Thread/),
-                UiObject: x => this.__isJvO__(x) && !!x.toString().match(/UiObject/),
-                UiObjects: x => this.__isJvO__(x) && !!x.toString().match(/UiObjectCollection/),
-                JsRawWin: x => this.__isJvO__(x) && !!x.toString().match(/JsRawWindow/),
-                ImageWrapper: x => this.__isJvO__(x) && !!x.toString().match(/ImageWrapper/),
+                isJvo: x => this.__isJvo__(x),
+                ScriptEngine: x => this.__checkJvoType__(x, /^ScriptEngine/),
+                Thread: x => this.__checkJvoType__(x, /^Thread/),
+                UiObject: x => this.__checkJvoType__(x, /UiObject/),
+                UiObjects: x => this.__checkJvoType__(x, /UiObjectCollection/),
+                JsRawWin: x => this.__checkJvoType__(x, /JsRawWindow/),
+                ImageWrapper: x => this.__checkJvoType__(x, /ImageWrapper/),
             };
         },
     });

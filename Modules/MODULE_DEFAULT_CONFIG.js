@@ -1,7 +1,7 @@
 module.exports = {
     af: {
         self_collect_switch: true, // i know the trick about the reason you wanna turn this switch off
-        app_launch_springboard: "ON", // sometimes alipay will not be launched without Auto.js running in the foreground
+        app_launch_springboard: "OFF", // sometimes alipay will not be launched without Auto.js running in the foreground
         account_switch: false, // if you are multi-account user, you may turn this on and specify a "main account" to switch
         account_log_back_in_switch: false, // if you are multi-account user, you may turn this on and specify a "main account" to switch
         account_log_back_in_max_continuous_times: 3, // with this value, switching back will not always happen infinitely
@@ -35,8 +35,6 @@ module.exports = {
         floaty_result_switch: true, // result will show in floaty way with "true value" or toast way with "false value"
         floaty_result_countdown: 4, // 2 <= x <= 10; countdown seconds before floaty window going dismissed
         rank_list_samples_collect_strategy: "layout", // "image" for image recolonization or "layout" for layout inspection
-        rank_list_auto_expand_switch: true, // rank list auto expanded by monitoring and clicking "list more" button
-        rank_list_auto_expand_length: 200, // 100 <= x <= 500; auto expanded thread interrupted if list items amount reached this limit
         rank_list_review_switch: true, // review rank list samples if one or more of conditions met
         rank_list_review_threshold_switch: true, // rank list review condition: min countdown threshold
         rank_list_review_threshold: 1, // 1 <= x <= 5; check if rank list min countdown is less than threshold
@@ -58,7 +56,6 @@ module.exports = {
         timers_insurance_switch: true, // just in case, as you know; timed task will be set on running and removed when script finished
         timers_insurance_interval: 5, // 1 <= x <= 10; timed task will be extended every 10 sec to avoid interval's consumption
         timers_insurance_max_continuous_times: 3, // 1 <= x <= 5; auto-insurance task will be dysfunctional with to many continuous attempts
-        max_retry_times_global: 2, // 0 <= x <= 5; max retry times when the script crushed; set 0 if you do not need to retry even once
         max_running_time_global: 45, // 5 <= x <= 90; max running time for a single script
         max_queue_time_global: 60, // 1 <= x <= 120; max queue time for every exclusive task if exclusive tasks ahead is running or queueing
         min_bomb_interval_global: 300, // 100 <= x <= 800; exclusive tasks with too small intervals will be taken as bomb tasks
