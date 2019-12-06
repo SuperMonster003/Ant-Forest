@@ -8,7 +8,7 @@ let ext = {
             let _regexp = /(Script)?InterruptedEx|script exiting/;
             if (!e.message.match(_regexp) && !no_err_msg) {
                 throw Error(e);
-            } else global["sleep"](4000);
+            }
         }
     },
 };

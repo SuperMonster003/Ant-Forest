@@ -1,12 +1,13 @@
 "ui";
 
-// not necessary [ˈsɛksi] and i know it
 let {
+    sess_cfg, sto_cfg, sess_par,
     $sto, $defs, $view, $save, $tool,
     threads, android, files, dialogs, toast, events,
     engines, activity, java, ui, exit, auto, timers,
 } = global;
 
+sess_cfg = sto_cfg = sess_par = {};
 $sto = $defs = $view = $save = $tool = {};
 
 // codes here should be updated manually when appending
@@ -202,7 +203,6 @@ let $init = {
 
         // some variables are not necessary to be announced as global ones explicitly
         Object.assign(global, {
-            sess_par: {},
             dialogs_pool: [],
             dynamic_views: [],
             sub_page_views: [],
@@ -251,7 +251,7 @@ let $init = {
                 if (global["_$_page_scrolling"]) return;
 
                 let _rolling = global.rolling_pages;
-                if (next_page_name === global.getLastRollingPage().page_label_name) return;
+                if (next_page_name === getLastRollingPage().page_label_name) return;
 
                 if (direction.match(/back|previous|last/)) {
                     smoothScrollView("full_right", null, _rolling);
@@ -2088,7 +2088,7 @@ let $init = {
                 );
             },
             checkPageState: function () {
-                let _last_rolling = global.getLastRollingPage();
+                let _last_rolling = getLastRollingPage();
                 _last_rolling = _last_rolling || (() => true);
                 return _last_rolling.checkPageState();
             },
@@ -2373,7 +2373,7 @@ let $init = {
                 // "SAVE" button in homepage may need some time to be effective
                 threads.starts(function () {
                     let btn_save = null;
-                    waitForAction(() => btn_save = sess_par.homepage_btn_save, 10000, 80);
+                    waitForAction(() => btn_save = sess_par["homepage_btn_save"], 10000, 80);
                     ui.post(() => $save.check() ? btn_save.switch_on() : btn_save.switch_off());
                 });
             },
@@ -3352,7 +3352,6 @@ let $init = {
         return $init;
     },
     config: function (reset_flag) {
-        let [sto_cfg, sess_cfg] = [];
         let mixedWithDefault = (add_o) => {
             return Object.assign(
                 {}, add_o,
@@ -3377,8 +3376,6 @@ let $init = {
             $sto.cfg.put("config", $sto.def.af);
             listener.emit("update_all");
         }
-
-        Object.assign(global, {sess_cfg: sess_cfg, sto_cfg: sess_cfg});
 
         return $init;
 
@@ -3500,8 +3497,9 @@ let {
     alertTitle, deepCloneObject, smoothScrollView,
     alertContent, waitForAction, getDisplayParams,
     classof, messageAction, waitForAndClickAction,
-    phoneCallingState, timedTaskTimeFlagConverter,
-    debugInfo, equalObjects, surroundWith,
+    phoneCallingState, surroundWith, timeRecorder,
+    timedTaskTimeFlagConverter,
+    debugInfo, equalObjects,
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 $init.global().config().listener();
@@ -3871,11 +3869,13 @@ $view.setHomePage($defs.homepage_title)
                 diag.setContent(ori_content + newest_server_version_name);
                 threads.starts(function () {
                     try {
+                        timeRecorder("check_update");
                         let regexp_version_name = /版本历史[^]+?v(\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/;
                         server_md_file_content = http.get(url_readme).body.string();
                         newest_server_version_name = "v" + server_md_file_content.match(regexp_version_name)[0].split("v")[1];
                     } catch (e) {
-                        newest_server_version_name = "检查超时";
+                        let _elapsed = timeRecorder("check_update", "load");
+                        newest_server_version_name = _elapsed > 999 ? "检查超时" : "检查失败";
                     } finally {
                         diag.setContent(ori_content + newest_server_version_name);
                         if (newest_server_version_name.match(/^v/) && isNewVer(newest_server_version_name, local_version)) {
