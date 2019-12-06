@@ -2123,6 +2123,8 @@ function debugInfo(msg, info_flag, forcible_flag) {
 /**
  * Returns display screen width and height data, and converter functions with different aspect ratios
  * -- scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
+ * @param [params] {object}
+ * @param [params.glob_assign=false] {boolean} -- set true to set the global assignment
  * @example
  * let {WIDTH, HEIGHT, cX, cY, USABLE_WIDTH, USABLE_HEIGHT, screen_orientation, status_bar_height, navigation_bar_height, navigation_bar_height_computed, action_bar_default_height} = getDisplayParams();
  * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16 / 9);
@@ -2138,13 +2140,13 @@ function getDisplayParams(params) {
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
     let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
-    let [WIDTH, HEIGHT] = [];
-    let display_info = {};
-    if (_waitForAction(checkData, 3000, 500)) {
+    let [_W, _H] = [];
+    let _disp = {};
+    if (_waitForAction(() => _disp = _getDispData(), 3000, 500)) {
         let cX = (num) => {
-            let _unit = Math.abs(num) >= 1 ? WIDTH / 720 : WIDTH;
+            let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
             let _x = Math.round(num * _unit);
-            return Math.min(_x, WIDTH);
+            return Math.min(_x, _W);
         };
         let cY = (num, aspect_ratio) => {
             let ratio = aspect_ratio;
@@ -2153,85 +2155,83 @@ function getDisplayParams(params) {
                 let _split = ratio.split(":");
                 ratio = _split[0] / _split[1];
             }
-            ratio = ratio || HEIGHT / WIDTH;
+            ratio = ratio || _H / _W;
             ratio = ratio < 1 ? 1 / ratio : ratio;
-            let _h = WIDTH * ratio;
+            let _h = _W * ratio;
             let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
             let _y = Math.round(num * _unit);
-            return Math.min(_y, HEIGHT);
+            return Math.min(_y, _H);
         };
 
         if (!$flag.display_params_got) {
-            _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
-            _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
+            _debugInfo("屏幕宽高: " + _W + " × " + _H);
+            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
             $flag.display_params_got = true;
         }
 
-        Object.assign(global, {
-            W: WIDTH, WIDTH: WIDTH,
-            halfW: Math.round(WIDTH / 2),
-            uW: display_info.USABLE_WIDTH,
-            H: HEIGHT, HEIGHT: HEIGHT,
-            uH: display_info.USABLE_HEIGHT,
-            scrO: display_info.screen_orientation,
-            staH: display_info.status_bar_height,
-            navH: display_info.navigation_bar_height,
-            navHC: display_info.navigation_bar_height_computed,
-            actH: display_info.action_bar_default_height,
+        _params.glob_assign && Object.assign(global, {
+            W: _W, WIDTH: _W,
+            halfW: Math.round(_W / 2),
+            uW: _disp.USABLE_WIDTH,
+            H: _H, HEIGHT: _H,
+            uH: _disp.USABLE_HEIGHT,
+            scrO: _disp.screen_orientation,
+            staH: _disp.status_bar_height,
+            navH: _disp.navigation_bar_height,
+            navHC: _disp.navigation_bar_height_computed,
+            actH: _disp.action_bar_default_height,
             cX: cX, cY: cY,
         });
 
-        return display_info;
+        return Object.assign(_disp, {cX: cX, cY: cY});
     }
     console.error("getDisplayParams()返回结果异常");
 
     // tool function(s) //
 
-    function checkData() {
+    function _getDispData() {
         try {
-            WIDTH = +_window_service_display.getWidth();
-            HEIGHT = +_window_service_display.getHeight();
-            if (!(WIDTH * HEIGHT)) throw Error();
+            _W = +_window_service_display.getWidth();
+            _H = +_window_service_display.getHeight();
+            if (!(_W * _H)) throw Error();
 
-            let ORIENTATION = +_window_service_display.getOrientation(); // left: 1, right: 3, portrait: 0 (or 2 ?)
-            let MAX = +_window_service_display.maximumSizeDimension;
+            // left: 1, right: 3, portrait: 0 (or 2 ?)
+            let _SCR_O = +_window_service_display.getOrientation();
+            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+            let _MAX = +_window_service_display.maximumSizeDimension;
 
-            let [USABLE_HEIGHT, USABLE_WIDTH] = [HEIGHT, WIDTH];
+            let [_UH, _UW] = [_H, _W];
+            let _getDataByDimenName = (name) => {
+                let resources = context.getResources();
+                let resource_id = resources.getIdentifier(name, "dimen", "android");
+                return resource_id > 0 ? resources.getDimensionPixelSize(resource_id) : NaN;
+            };
 
-            ORIENTATION in {0: true, 2: true} ? [USABLE_HEIGHT, HEIGHT] = [HEIGHT, MAX] : [USABLE_WIDTH, WIDTH] = [WIDTH, MAX];
+            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
 
-            return display_info = {
-                WIDTH: WIDTH,
-                USABLE_WIDTH: USABLE_WIDTH,
-                HEIGHT: HEIGHT,
-                USABLE_HEIGHT: USABLE_HEIGHT,
-                screen_orientation: ORIENTATION,
-                status_bar_height: getDataByDimenName("status_bar_height"),
-                navigation_bar_height: getDataByDimenName("navigation_bar_height"),
-                navigation_bar_height_computed: ORIENTATION in {0: true, 2: true} ? HEIGHT - USABLE_HEIGHT : WIDTH - USABLE_WIDTH,
-                action_bar_default_height: getDataByDimenName("action_bar_default_height"),
+            return {
+                WIDTH: _W,
+                USABLE_WIDTH: _UW,
+                HEIGHT: _H,
+                USABLE_HEIGHT: _UH,
+                screen_orientation: _SCR_O,
+                status_bar_height: _getDataByDimenName("status_bar_height"),
+                navigation_bar_height: _getDataByDimenName("navigation_bar_height"),
+                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
+                action_bar_default_height: _getDataByDimenName("action_bar_default_height"),
             };
         } catch (e) {
             try {
-                WIDTH = +device.width;
-                HEIGHT = +device.height;
-                if (!(WIDTH * HEIGHT)) throw Error();
-                return display_info = {
-                    WIDTH: WIDTH,
-                    HEIGHT: HEIGHT,
-                    USABLE_HEIGHT: ~~(HEIGHT * 0.9), // evaluated value
+                _W = +device.width;
+                _H = +device.height;
+                if (!(_W * _H)) throw Error();
+                return {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: ~~(_H * 0.9), // evaluated value
                 };
             } catch (e) {
-
             }
-        }
-
-        // tool function(s) //
-
-        function getDataByDimenName(name) {
-            let resources = context.getResources();
-            let resource_id = resources.getIdentifier(name, "dimen", "android");
-            return resource_id > 0 ? resources.getDimensionPixelSize(resource_id) : NaN;
         }
     }
 

@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified Dec 6, 2019
- * @version 1.9.10 Beta3
+ * @version 1.9.10 Beta4
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -130,7 +130,7 @@ let $init = {
     global: function () {
         setGlobalTypeChecker(); // `$$xxx()`
         setGlobalExtensions(); // EXT MODULES
-        getDisplayParams(); // and assign to global
+        getDisplayParams({glob_assign: true});
 
         // waitFor: script will continue running rather than stop
         // when accessibility service switched on by user
@@ -1890,7 +1890,7 @@ function antForest() {
             let total_init_data = $app.total_energy_init;
             debugInfo("初始能量: " + total_init_data + "g");
 
-            waitForAction([$sel.get("rl_ent"), () => $sel.get("af_home"), "or"], 12000)
+            waitForAction([() => $sel.get("rl_ent"), () => $sel.get("af_home"), "or"], 12000)
                 ? debugInfo("蚂蚁森林主页准备完毕")
                 : debugInfo("蚂蚁森林主页准备超时", 3);
 
@@ -4347,7 +4347,7 @@ function launchAFHomepage(params) {
         }) ? debugInfo("跳板启动成功") : debugInfo(["跳板启动失败", ">打开" + cur_autojs_name + "应用超时"], 3);
     }
     let launch_result = plans("launch_af_homepage", Object.assign({}, {exclude: "_test_"}, params));
-    if ($dev.screen_orientation !== 0) getDisplayParams();
+    if ($dev.screen_orientation !== 0) getDisplayParams({glob_assign: true});
     return launch_result;
 }
 
