@@ -1,14 +1,13 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 6, 2019
- * @version 1.9.10 Beta4
+ * @last_modified Dec 7, 2019
+ * @version 1.9.10 Beta5
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
  */
 
-// not necessary [ˈsɛksi] and i know it
 let {
     $sel, $app, $cfg, $sto, $dev, $flag, $acc,
     ui, app, sleep, dialogs, storages, android, exit,
@@ -27,14 +26,18 @@ let $init = {
             "EXT_DIALOGS", "EXT_TIMERS", "EXT_DEVICE",
             "EXT_APP", "EXT_IMAGES",
         ];
-        let {checkSdkAndAJVer} = require("./Modules/MODULE_MONSTER_FUNC");
+        // do not `require()` before `checkModulesMap()`
+        let checkSdkAndAJVer = () => {
+            let _mod = require("./Modules/MODULE_MONSTER_FUNC");
+            return _mod.checkSdkAndAJVer();
+        };
 
         checkAlipayPackage();
         checkAccessibility();
         checkModulesMap(_modules_map);
         checkSdkAndAJVer();
 
-        // `return this` wasn't adopted here
+        // `return this;` wasn't adopted here
         // considering a chaining source jump for IDE like WebStorm
         return $init;
 
@@ -91,7 +94,7 @@ let $init = {
                 line();
                 _str.split("|").forEach(s => msg(s, 4));
                 line();
-                toast("模块缺失");
+                toast("模块缺失或路径错误");
                 exit();
             }
         }
@@ -103,7 +106,7 @@ let $init = {
             if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
                 return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
             }
-            let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+            let _msg_level = +msg_level;
             toast_flag && toast(_msg);
             if (_msg_level === 0) return console.verbose(_msg) || true;
             if (_msg_level === 1) return console.log(_msg) || true;
@@ -2218,7 +2221,7 @@ function antForest() {
             // tool function(s) //
 
             function closeH5PageIfNeeded() {
-                let condition = () => $sel.get("af_title");
+                let condition = () => $sel.get("af_title") || $sel.get("rl_title");
                 if (condition()) {
                     debugInfo("检测到需要关闭的H5页面");
                     let max_try_times = 20;
@@ -2628,7 +2631,7 @@ function antForest() {
                             };
                             let checkHelpBallsInCurrentCapt = node => checkHelpBalls(node, screen_capture);
                             let checkHelpBalls = (node, capts) => {
-                                if (!classof(capts, "Array")) capts = [capts];
+                                if (!$$arr(capts)) capts = [capts];
                                 capts.forEach((capt) => {
                                     node.forEach(w => {
                                         let b = w.bounds();
@@ -3587,14 +3590,14 @@ function antForest() {
                 let reason_str = current_black_friend.reason;
                 messageAction(reasons[reason_str], 1, 0, 2);
                 let check_result = checkBlackTimestamp(current_black_friend.timestamp);
-                if (typeof check_result === "string") messageAction(check_result, 1, 0, 2);
+                $$str(check_result) && messageAction(check_result, 1, 0, 2);
                 split_line_flag && showSplitLine();
                 $app.logged_blist_names.push(name);
                 return $app.current_friend.console_logged = 1;
 
                 function checkBlackTimestamp(ts) {
-                    if (typeof ts === "undefined") return true;
-                    if (ts === Infinity) return true;
+                    if ($$und(ts)) return true;
+                    if ($$inf(ts)) return true;
 
                     let now = new Date();
                     let du_ts = ts - +now;
@@ -4744,9 +4747,13 @@ function exitNow() {
 }
 
 function encodeURIParams(prefix, params) {
-    let [_params, _data] = typeof prefix === "object" ? [prefix, ""] : [params, prefix.toString()];
-    Object.keys(_params).forEach(key => {
-        _data += (_data.match(/\?.+=/) ? "&" : "?") + key + "=" + (typeof _params[key] === "object" ? encodeURIParams(_params[key]) : encodeURI(_params[key]));
+    let [_params, _data] = $$comObj(prefix) ? [prefix, ""] : [params, prefix.toString()];
+    Object.keys(_params).forEach((key) => {
+        let _separator = _data.match(/\?.+=/) ? "&" : "?";
+        let _value = $$comObj(_params[key])
+            ? encodeURIParams(_params[key])
+            : encodeURI(_params[key]);
+        _data += _separator + key + "=" + _value;
     });
     return params ? _data : _data.slice(1);
 }
@@ -4766,7 +4773,7 @@ function accountNameConverter(str, opr_name) {
 
 function stabilizer(condition, init, condition_timeout, stable_timeout) {
     condition_timeout = condition_timeout || 3000;
-    let init_data = typeof init === "undefined" ? NaN : +init;
+    let init_data = $$und(init) ? NaN : +init;
     let _condition = () => {
         let result = +condition();
         init_data = isNaN(init_data) ? result : init_data;
@@ -4820,8 +4827,8 @@ function plans(operation_name, params) {
     let exclude_plan_names = params.exclude || [];
     let include_plan_names = params.include || filtered_plans_data.map(plan_data => plan_data[0]);
 
-    if (typeof exclude_plan_names === "string") exclude_plan_names = [exclude_plan_names];
-    if (typeof include_plan_names === "string") include_plan_names = [include_plan_names];
+    if ($$str(exclude_plan_names)) exclude_plan_names = [exclude_plan_names];
+    if ($$str(include_plan_names)) include_plan_names = [include_plan_names];
 
     filtered_plans_data = filtered_plans_data.filter(plan_data => {
         let plan_name = plan_data[0];
@@ -4877,8 +4884,8 @@ function plans(operation_name, params) {
                 for (let i = 0, len = keys_nec.length; i < len; i += 1) {
                     let key_nec = keys_nec[i];
                     let condition = conditions_necessary[key_nec];
-                    if (typeof condition === "function" && !condition() ||
-                        typeof condition === "object" && !condition.exists()
+                    if ($$func(condition) && !condition() ||
+                        $$comObj(condition) && !condition.exists()
                     ) return debugInfo(["启动必要条件不满足", ">" + key_nec]);
                 }
                 debugInfo("已满足全部启动必要条件");
@@ -4887,8 +4894,8 @@ function plans(operation_name, params) {
                 for (let i = 0, len = keys_opt.length; i < len; i += 1) {
                     let key_opt = keys_opt[i];
                     let condition = conditions_optional[key_opt];
-                    if (typeof condition === "function" && condition() ||
-                        typeof condition === "object" && condition.exists()
+                    if ($$func(condition) && condition() ||
+                        $$comObj(condition) && condition.exists()
                     ) return debugInfo(["已满足启动可选条件", ">" + key_opt]) || true;
                 }
                 debugInfo("需至少满足一个启动可选条件");
@@ -5138,7 +5145,7 @@ function checkIfUserLoggedIn(user_name, forcible_flag) {
             let sel_str = $sel.pickup(kw_abbr_name_with_star_chars, "sel_str");
             let abbr_names = [];
             selector()[sel_str + "Matches"](kw_abbr_name_with_star_chars).find().forEach(w => abbr_names.push(w[sel_str]()));
-            if (!classof(abbr_names, "Array")) abbr_names = [abbr_names];
+            if (!$$arr(abbr_names)) abbr_names = [abbr_names];
 
             for (let u = 0, len = abbr_names.length; u < len; u += 1) {
                 let abbr_name = abbr_names[u].toString();
@@ -5203,7 +5210,7 @@ function clickAbbrNameInUserList(abbr_name) {
 }
 
 function conditionChecker(c) {
-    if (!classof(c, "Object")) return debugInfo(["条件检查器参数不合法", ">" + classof(c)]) && false;
+    if (!$$obj(c)) return debugInfo(["条件检查器参数不合法", ">" + classof(c)]) && false;
 
     let {name, time, success, fail, wait, timeout_review} = c;
     debugInfo("开始" + (name || "") + "条件检查");
@@ -5255,7 +5262,7 @@ function conditionChecker(c) {
                     if (type === "wait") {
                         while (cond.cond()) sleep(300);
                     }
-                    if (typeof cond.feedback === "function") {
+                    if ($$func(cond.feedback)) {
                         debugInfo("检测到反馈方法");
                         cond.feedback();
                     }
@@ -5270,5 +5277,5 @@ function conditionChecker(c) {
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | af: ant forest | app: application | args: arguments | argv: argument values | avail: available | b: bottom; bounds | bak: backup | blist: blacklist | btn: button | cfg: configuration | cmd: command | cnsl: console | cnt: count | cond: condition | constr: constructor | ctd: countdown | ctx: context | cur: current | cwd: current working directory | cwp: current working path | d: dialog | def: default | desc: description | dev: device | diag: dialog | disp: display | du: duration | e: error; engine; event | ent: entrance | evt: event | excl: exclusive | exec: execution | ext: extension | fg: foreground | flg: flag | fri: friend | fs: functions | glob: global | ident: identification | idt: identification | idx: index | itv: interval | js: javascript | l: left | lmt: limit | ln: line | lsn: listen; listener | mod: module | msg: message | neg: negative | neu: neutral | num: number | o: object | opt: option | param: parameter | pkg: package | pos: position | pref: prefix | prv: privilege | que: queue | r: right | res: result | rl: rank list | rls: release | sav: save | scr: screen | sec: second | sel: selector | sgn: signal | src: source | stat: statistics | sto: storage | str: string | sw: switch | t: top | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title | u: unit | util: utility | v: value | rect: rectangle
+ * @abbr acc: account | accu: accumulated | af: ant forest | app: application | args: arguments | argv: argument values | avail: available | b: bottom; bounds | bak: backup | blist: blacklist | btn: button | cfg: configuration | cmd: command | cnsl: console | cnt: count | cond: condition | constr: constructor | ctd: countdown | ctx: context | cur: current | cwd: current working directory | cwp: current working path | d: dialog | def: default | desc: description | dev: device | diag: dialog | disp: display | du: duration | e: error; engine; event | ent: entrance | evt: event | excl: exclusive | exec: execution | ext: extension | fg: foreground | flg: flag | fri: friend | fs: functions | glob: global | ident: identification | idt: identification | idx: index | itv: interval | js: javascript | l: left | lmt: limit | ln: line | lsn: listen; listener | mod: module | msg: message | neg: negative | neu: neutral | num: number | o: object | opt: option | par: parameter | param: parameter | pkg: package | pos: position | pref: prefix | prv: privilege | que: queue | r: right | rect: rectangle | res: result | rl: rank list | rls: release | sav: save | scr: screen | sec: second | sel: selector | sgn: signal | src: source | stat: statistics | sto: storage | str: string | sw: switch | t: top | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title | u: unit | util: utility | v: value
  */
