@@ -216,7 +216,7 @@ let $init = {
             encrypt: new (require("./Modules/MODULE_PWMAP"))().pwmapEncrypt,
         });
 
-        getDisplayParams();
+        getDisplayParams({glob_assign: true});
 
         require("./Modules/EXT_TIMERS").load();
         require("./Modules/EXT_DIALOGS").load();
