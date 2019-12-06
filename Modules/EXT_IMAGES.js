@@ -77,8 +77,8 @@ function tryRequestScreenCapture(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
-        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
-        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "", type);
+        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), type, "kw_req_capt_no_longer_prompt");
+        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, type);
 
         if (_waitForAction(_kw_sure_btn, 5000)) {
             if (_waitForAction(_kw_no_longer_prompt, 1000)) {

@@ -1034,10 +1034,10 @@ function loadInternalModuleMonsterFunc() {
         if (typeof _if_split_line === "string") {
             if (_if_split_line.match(/dash/)) _split_line_style = "dash";
             if (_if_split_line.match(/both|up/)) {
-                if (_split_line_style !== global._monster_$_last_console_split_line_type) {
+                if (_split_line_style !== global["_$_last_cnsl_split_ln_type"]) {
                     _showSplitLine("", _split_line_style);
                 }
-                delete global._monster_$_last_console_split_line_type;
+                delete global["_$_last_cnsl_split_ln_type"];
                 if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
                 else if (_if_split_line.match(/both/)) _if_split_line = 1;
                 else if (_if_split_line.match(/up/)) _if_split_line = 0;
@@ -1108,11 +1108,11 @@ function loadInternalModuleMonsterFunc() {
                 }
             }
             if (!show_split_line_extra_str.match(/\n/)) {
-                global._monster_$_last_console_split_line_type = _split_line_style || "solid";
+                global["_$_last_cnsl_split_ln_type"] = _split_line_style || "solid";
             }
             _showSplitLine(show_split_line_extra_str, _split_line_style);
         } else {
-            delete global._monster_$_last_console_split_line_type;
+            delete global["_$_last_cnsl_split_ln_type"];
         }
         if (_throw_error_flag) {
             ui.post(function () {
@@ -1427,8 +1427,8 @@ function loadInternalModuleMonsterFunc() {
 
         _debugInfo("已开启弹窗监测线程");
         let _thread_prompt = threads.start(function () {
-            let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), "kw_req_capt_no_longer_prompt", type);
-            let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, "", type);
+            let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), type, "kw_req_capt_no_longer_prompt");
+            let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, type);
 
             if (_waitForAction(_kw_sure_btn, 5000)) {
                 if (_waitForAction(_kw_no_longer_prompt, 1000)) {
@@ -1969,7 +1969,7 @@ function loadInternalModuleMonsterFunc() {
              * <br>
              *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
              *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-             * @param [memory_keyword {string|null}] - to mark this selector node; better use a keyword without conflict
+             * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
              * @param [result_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
              * <br>
              *     -- "txt": available text()/desc() value or empty string
@@ -1979,15 +1979,15 @@ function loadInternalModuleMonsterFunc() {
              * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
              * @example
              * pickup("abc"); -- text/desc/id("abc").findOnce() or null; <br>
-             * pickup("abc", "my_alphabet", "node"); -- same as above; <br>
-             * pickup("abc", "my_alphabet", "sel"); -- text/desc/id("abc") or null -- selector <br>
-             * pickup(text("abc"), "my_alphabet"); -- text("abc").findOnce() or null <br>
-             * pickup(/^abc.+z/, "AtoZ", "sel_str"); -- id/text/desc or "" -- string <br>
-             * pickup("morning", "", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
-             * pickup(["morning", "p2c3"], "", "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
-             * pickup(["hello", "s3b"], "", "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
+             * pickup("abc", "node", "my_alphabet"); -- same as above; <br>
+             * pickup("abc", "sel", "my_alphabet"); -- text/desc/id("abc") or null -- selector <br>
+             * pickup(text("abc"), "node", "my_alphabet"); -- text("abc").findOnce() or null <br>
+             * pickup(/^abc.+z/, "sel_str", "AtoZ") -- id/text/desc or "" -- string <br>
+             * pickup("morning", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
+             * pickup(["morning", "p2c3"], "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
+             * pickup(["hello", "s3b"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
              * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
-             * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "back_btn", "clickable"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
+             * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
              */
             pickup: (selector_body, memory_keyword, result_type, params) => {
                 let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
