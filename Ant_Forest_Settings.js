@@ -216,7 +216,7 @@ let $init = {
             encrypt: new (require("./Modules/MODULE_PWMAP"))().pwmapEncrypt,
         });
 
-        getDisplayParams({glob_assign: true});
+        getDisplayParams({global_assign: true});
 
         require("./Modules/EXT_TIMERS").load();
         require("./Modules/EXT_DIALOGS").load();
@@ -2718,7 +2718,7 @@ let $init = {
                 }
             },
             restoreProjectFiles: function (source) {
-                delete sess_par.__signal_interrupt_update__;
+                delete sess_par.sgn_intrpt_update;
 
                 let mode = "local";
                 if (source.toString().match(/^http/)) mode = "server";
@@ -2756,7 +2756,7 @@ let $init = {
                     "恢复完成"
                 );
                 diag_restoring.on("positive", () => {
-                    sess_par.__signal_interrupt_update__ = true;
+                    sess_par.sgn_intrpt_update = true;
                     diag_restoring.dismiss();
                 });
                 diag_restoring.show();
@@ -2861,12 +2861,12 @@ let $init = {
                 // steps function(s) //
 
                 function downloadArchive() {
-                    delete sess_par.__signal_interrupt_update__;
+                    delete sess_par.sgn_intrpt_update;
                     parent_dialog && parent_dialog.dismiss();
 
                     diag_download.setStep(1);
                     diag_download.on("positive", () => {
-                        sess_par.__signal_interrupt_update__ = true;
+                        sess_par.sgn_intrpt_update = true;
                         diag_download.dismiss();
                     });
                     diag_download.show();
@@ -2992,7 +2992,7 @@ let $init = {
             zip: function (input_path, output_path, dialog) {
                 if (typeof global.sess_par === "undefined") global.sess_par = {};
 
-                delete sess_par.__signal_interrupt_update__;
+                delete sess_par.sgn_intrpt_update;
 
                 let {BufferedInputStream, File, FileInputStream, FileOutputStream} = java.io;
                 let {CRC32, CheckedOutputStream, ZipEntry, ZipOutputStream} = java.util.zip;
@@ -3110,7 +3110,7 @@ let $init = {
             unzip: function (input_path, output_path, include_zip_file_name, dialog) {
                 if (typeof global.sess_par === "undefined") global.sess_par = {};
 
-                delete sess_par.__signal_interrupt_update__;
+                delete sess_par.sgn_intrpt_update;
 
                 let {BufferedInputStream, BufferedOutputStream, File, FileOutputStream} = java.io;
                 let {ZipFile} = java.util.zip;
@@ -3170,8 +3170,8 @@ let $init = {
                         buffered_output_stream = new BufferedOutputStream(new FileOutputStream(entry_file));
                         buffered_input_stream = new BufferedInputStream(zip_input_file.getInputStream(entry_element));
                         while (~(read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len))) {
-                            if (sess_par.__signal_interrupt_update__) {
-                                sess_par.__signal_interrupt_update__ = false;
+                            if (sess_par.sgn_intrpt_update) {
+                                sess_par.sgn_intrpt_update = false;
                                 throw "用户终止";
                             }
                             buffered_output_stream.write(buffer_bytes, 0, read_bytes);
@@ -3192,7 +3192,7 @@ let $init = {
                 }
             },
             okHttpRequest: function (url, path, listener, params) {
-                delete sess_par.__signal_interrupt_update__;
+                delete sess_par.sgn_intrpt_update;
 
                 params = params || {};
                 let {extra_headers, dialog, dialogReceiver} = params;
@@ -3275,8 +3275,8 @@ let $init = {
                                 );
 
                                 while (~(len = input_stream.read(buffer))) {
-                                    if (sess_par.__signal_interrupt_update__) {
-                                        sess_par.__signal_interrupt_update__ = false;
+                                    if (sess_par.sgn_intrpt_update) {
+                                        sess_par.sgn_intrpt_update = false;
                                         files.remove(path);
                                         input_stream.close();
                                         throw("用户终止");
@@ -7054,7 +7054,7 @@ $view.addPage(["项目备份还原", "local_project_backup_restore_page"], funct
                     diag_remark.show();
                 });
                 diag.on("positive", () => {
-                    delete sess_par.__signal_interrupt_update__;
+                    delete sess_par.sgn_intrpt_update;
                     diag.dismiss();
                     let diag_backup = dialogs.builds(["正在备份", "此过程可能需要一些时间", 0, 0, "终止", 1], {
                         progress: {
@@ -7063,7 +7063,7 @@ $view.addPage(["项目备份还原", "local_project_backup_restore_page"], funct
                         },
                     });
                     diag_backup.on("positive", () => {
-                        sess_par.__signal_interrupt_update__ = true;
+                        sess_par.sgn_intrpt_update = true;
                         diag_backup.dismiss();
                     });
                     diag_backup.show();

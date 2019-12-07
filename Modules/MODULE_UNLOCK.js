@@ -1958,8 +1958,11 @@ function loadInternalModuleMonsterFunc() {
         let parent_params = params || {};
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
-        let sel = selector();
-        sel.__proto__ = {
+        let sel = global["selector"]();
+        sel.__proto__ = sel.__proto__ || {};
+        Object.assign(sel.__proto__, {
+            kw_pool: {},
+            cache_pool: {},
             /**
              * Returns a selector (UiSelector) or node (UiObject) or some attribute
              * If no nodes (UiObjects) were found, returns null or "" or false
@@ -1989,7 +1992,7 @@ function loadInternalModuleMonsterFunc() {
              * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
              * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
              */
-            pickup: (selector_body, memory_keyword, result_type, params) => {
+            pickup: (selector_body, result_type, mem_kw, params) => {
                 let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
                 let _params = Object.assign({}, parent_params, params);
                 result_type = (result_type || "").toString();
@@ -2054,16 +2057,16 @@ function loadInternalModuleMonsterFunc() {
 
                 function _getSelector(addition) {
                     let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                    if (memory_keyword) {
-                        let _memory_selector = global[_mem_kw_prefix + memory_keyword];
-                        if (_memory_selector) return _memory_selector;
+                    if (mem_kw) {
+                        let _mem_sel = global[_mem_kw_prefix + mem_kw];
+                        if (_mem_sel) return _mem_sel;
                     }
-                    let _kw_selector = _getSelectorFromLayout(addition);
-                    if (memory_keyword && _kw_selector) {
-                        _debugInfo(["选择器已记录", ">" + memory_keyword, ">" + _kw_selector]);
-                        global[_mem_kw_prefix + memory_keyword] = _kw_selector;
+                    let _kw_sel = _getSelectorFromLayout(addition);
+                    if (mem_kw && _kw_sel) {
+                        // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
+                        global[_mem_kw_prefix + mem_kw] = _kw_sel;
                     }
-                    return _kw_selector;
+                    return _kw_sel;
 
                     // tool function(s) //
 
@@ -2225,7 +2228,7 @@ function loadInternalModuleMonsterFunc() {
 
                     let child_idx_matched = compass.match(/c\d+/g);
 
-                    if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : null;
+                    if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : node;
 
                     let parents_len = parents.length;
                     for (let i = 0; i < parents_len; i += 1) {
@@ -2250,7 +2253,46 @@ function loadInternalModuleMonsterFunc() {
                     }
                 }
             },
-        };
+            add: function (key_name, sel_body, keyword) {
+                let _kw = typeof keyword === "string" ? keyword : key_name;
+                this.kw_pool[key_name] = typeof sel_body === "function"
+                    ? type => sel_body(type)
+                    : type => this.pickup(sel_body, type, _kw);
+                return this;
+            },
+            get: function (key_name, type) {
+                let _picker = this.kw_pool[key_name];
+                if (!_picker) return null;
+                if (type && type.toString().match(/cache/)) {
+                    return this.cache_pool[key_name] = _picker("node");
+                }
+                return _picker(type);
+            },
+            getAndCache: function (key_name) {
+                // only "node" type can be returned
+                return this.get(key_name, "save_cache");
+            },
+            cache: {
+                save: (key_name) => sel.getAndCache(key_name),
+                load: (key_name, type) => {
+                    let _node = sel.cache_pool[key_name];
+                    if (!_node) return null;
+                    return sel.pickup(sel.cache_pool[key_name], type);
+                },
+                refresh: (key_name) => {
+                    let _cache = sel.cache_pool[key_name];
+                    _cache && _cache.refresh();
+                },
+                reset: (key_name) => {
+                    delete sel.cache_pool[key_name];
+                    return sel.getAndCache(key_name);
+                },
+                recycle: (key_name) => {
+                    let _cache = sel.cache_pool[key_name];
+                    _cache && _cache.recycle();
+                },
+            },
+        });
         // _debugInfo("选择器加入新方法");
         // Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
         return sel;

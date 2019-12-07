@@ -327,12 +327,8 @@ function launchThisApp(trigger, params) {
     }
 
     if (_thread_disturbance) {
-        if (_thread_disturbance.isAlive()) {
-            _debugInfo("强制解除干扰排除器");
-            _thread_disturbance.interrupt();
-        } else {
-            _debugInfo("干扰排除器已解除");
-        }
+        _thread_disturbance.interrupt();
+        _debugInfo("干扰排除器已解除");
         _thread_disturbance = null;
     }
     if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 9, 1, 0, 1);
@@ -2124,7 +2120,7 @@ function debugInfo(msg, info_flag, forcible_flag) {
  * Returns display screen width and height data, and converter functions with different aspect ratios
  * -- scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
  * @param [params] {object}
- * @param [params.glob_assign=false] {boolean} -- set true to set the global assignment
+ * @param [params.global_assign=false] {boolean} -- set true to set the global assignment
  * @example
  * let {WIDTH, HEIGHT, cX, cY, USABLE_WIDTH, USABLE_HEIGHT, screen_orientation, status_bar_height, navigation_bar_height, navigation_bar_height_computed, action_bar_default_height} = getDisplayParams();
  * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16 / 9);
@@ -2169,7 +2165,7 @@ function getDisplayParams(params) {
             $flag.display_params_got = true;
         }
 
-        _params.glob_assign && Object.assign(global, {
+        _params.global_assign && Object.assign(global, {
             W: _W, WIDTH: _W,
             halfW: Math.round(_W / 2),
             uW: _disp.USABLE_WIDTH,
@@ -2713,7 +2709,7 @@ function getSelector(params) {
                 }
                 let _kw_sel = _getSelectorFromLayout(addition);
                 if (mem_kw && _kw_sel) {
-                    _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
+                    // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
                     global[_mem_kw_prefix + mem_kw] = _kw_sel;
                 }
                 return _kw_sel;
@@ -2903,42 +2899,41 @@ function getSelector(params) {
                 }
             }
         },
-    });
-    Object.assign(sel.__proto__, {
         add: function (key_name, sel_body, keyword) {
             let _kw = typeof keyword === "string" ? keyword : key_name;
-            sel.kw_pool[key_name] = typeof sel_body === "function"
+            this.kw_pool[key_name] = typeof sel_body === "function"
                 ? type => sel_body(type)
-                : type => sel.pickup(sel_body, type, _kw);
-            return sel;
+                : type => this.pickup(sel_body, type, _kw);
+            return this;
         },
         get: function (key_name, type) {
-            let _picker = sel.kw_pool[key_name];
+            let _picker = this.kw_pool[key_name];
             if (!_picker) return null;
             if (type && type.toString().match(/cache/)) {
-                return sel.cache_pool[key_name] = _picker("node");
+                return this.cache_pool[key_name] = _picker("node");
             }
             return _picker(type);
         },
-        getAndCache: function (key_name, type) {
+        getAndCache: function (key_name) {
             // only "node" type can be returned
             return this.get(key_name, "save_cache");
         },
         cache: {
-            load: function (key_name, type) {
+            save: (key_name) => sel.getAndCache(key_name),
+            load: (key_name, type) => {
                 let _node = sel.cache_pool[key_name];
                 if (!_node) return null;
                 return sel.pickup(sel.cache_pool[key_name], type);
             },
-            refresh: function (key_name) {
+            refresh: (key_name) => {
                 let _cache = sel.cache_pool[key_name];
                 _cache && _cache.refresh();
             },
-            reset: function (key_name) {
+            reset: (key_name) => {
                 delete sel.cache_pool[key_name];
                 return sel.getAndCache(key_name);
             },
-            recycle: function (key_name) {
+            recycle: (key_name) => {
                 let _cache = sel.cache_pool[key_name];
                 _cache && _cache.recycle();
             },
