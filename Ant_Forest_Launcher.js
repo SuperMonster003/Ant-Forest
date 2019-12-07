@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 7, 2019
- * @version 1.9.10 Beta5
+ * @last_modified Dec 8, 2019
+ * @version 1.9.10 Beta6
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -133,7 +133,7 @@ let $init = {
     global: function () {
         setGlobalTypeChecker(); // `$$xxx()`
         setGlobalExtensions(); // EXT MODULES
-        getDisplayParams({glob_assign: true});
+        getDisplayParams({global_assign: true});
 
         // waitFor: script will continue running rather than stop
         // when accessibility service switched on by user
@@ -259,6 +259,7 @@ let $init = {
                 task_name: surroundWith(_unESC("8682868168EE6797")),
                 rl_title: _unESC("2615FE0F0020597D53CB6392884C699C"),
                 local_pics_path: _local_pics_path,
+                rex_energy_amt: /^\s*\d+(\.\d+)?(k?g|t)\s*$/,
             };
         }
 
@@ -276,20 +277,20 @@ let $init = {
                             return {
                                 get: function () {
                                     // {%name%: {timestamp::, reason::}}
-                                    this.blist = $sto.af.get("blacklist", {});
+                                    this.blist_data = $sto.af.get("blacklist", {});
                                     return this;
                                 },
                                 clean: function () {
                                     this.deleted = [];
-                                    Object.keys(this.blist).forEach((name) => {
-                                        let _ts = this.blist[name].timestamp;
+                                    Object.keys(this.blist_data).forEach((name) => {
+                                        let _ts = this.blist_data[name].timestamp;
                                         let _expired = (ts) => {
-                                            if (parent.expired.trigger(ts)) {
+                                            if (parent._expired.trigger(ts)) {
                                                 this.deleted.push(name);
                                                 return true;
                                             }
                                         };
-                                        if (!_ts || _expired(_ts)) delete this.blist[name];
+                                        if (!_ts || _expired(_ts)) delete this.blist_data[name];
                                     });
                                     return this;
                                 },
@@ -303,14 +304,14 @@ let $init = {
                                     return this;
                                 },
                                 assign: function () {
-                                    parent.blist = this.blist;
+                                    parent.data = this.blist_data;
                                     return this;
                                 },
                             };
                         }
                     };
                 },
-                expired: {
+                _expired: {
                     trigger: function (ts) {
                         if ($$und(ts) || $$inf(ts)) return false;
 
@@ -335,10 +336,10 @@ let $init = {
                     }
                 },
                 get: function (name, def) {
-                    return name && this.blist[name] || def;
+                    return name && this.data[name] || def;
                 },
                 save: function () {
-                    $sto.af.put("blacklist", this.blist, "force");
+                    $sto.af.put("blacklist", this.data, "force");
                     return this;
                 },
                 has: function (name) {
@@ -346,7 +347,7 @@ let $init = {
                 },
                 add: function (data) {
                     if ($$obj(data)) {
-                        Object.assign(this.blist, data);
+                        Object.assign(this.data, data);
                         return this;
                     }
                     if ($$len(arguments, 3)) {
@@ -355,15 +356,15 @@ let $init = {
                             timestamp: arguments[1],
                             reason: arguments[2],
                         };
-                        Object.assign(this.blist, _data);
+                        Object.assign(this.data, _data);
                         return this;
                     }
                     messageAction("黑名单添加方法参数不合法", 9, 1, 0, "both");
                 },
+                data: {},
             };
 
-            let _blist = blist_setter.init().save();
-            return {blist: _blist};
+            return {blist: blist_setter.init().save()};
         }
 
         function appPageSetter() {
@@ -373,46 +374,48 @@ let $init = {
                      * @param rect {array} -- just an array[], rather than Java Rect
                      * @returns {UiObject}
                      */
-                    __getClickable__: function (rect) {
+                    _getClickable: function (rect) {
                         let _sel = selector();
                         rect = rect.map((x, i) => !~x ? i % 2 ? W : H : x);
                         return _sel.boundsInside.apply(_sel, rect).clickable().findOnce();
                     },
-                    __plans__: {
-                        back: (function () {
+                    _plans: {
+                        back: (() => {
                             let text = () => {
                                 return $sel.pickup(["返回", "c0", {clickable: true}])
                                     || $sel.pickup(["返回", {clickable: true}]);
                             };
                             let id = () => $sel.pickup(idMatches(/.*h5.+nav.back|.*back.button/));
-                            let bak = () => this.no_bak || this.__getClickable__([0, 0, cX(100), cY(200, -1)]);
+                            let bak = [0, 0, cX(100), cY(200, -1)];
 
                             return [text, id, bak];
-                        }).bind(this)(),
-                        close: (function () {
-                            let text = () => {
-                                return $sel.pickup(["关闭", "c0", {clickable: true}])
-                                    || $sel.pickup(["关闭", {clickable: true}]);
+                        })(),
+                        close: (() => {
+                            let text = function () {
+                                return $sel.pickup([/关闭|Close/, "c0", {clickable: true}])
+                                    || $sel.pickup([/关闭|Close/, {clickable: true}]);
                             };
                             let id = () => null; // so far
-                            let bak = () => this.no_bak || this.__getClickable__([cX(0.8), 0, -1, cY(200, -1)]);
+                            let bak = [cX(0.8), 0, -1, cY(200, -1)];
 
                             return [text, id, bak];
-                        }).bind(this)(),
+                        })(),
                     },
-                    __implement__: function (fs) {
+                    _implement: function (fs) {
                         for (let i = 0, len = fs.length; i < len; i += 1) {
-                            let _node = fs[i]();
-                            if (fs[i]()) return clickAction(_node, "widget");
+                            let _checker = fs[i];
+                            if ($$arr(_checker)) {
+                                _checker = () => this._getClickable(fs[i]);
+                            }
+                            let _node = _checker();
+                            if (_node) return clickAction(_node, "widget");
                         }
                     },
                     back: function (no_bak) {
-                        this.no_bak = no_bak;
-                        return this.__implement__(this.__plans__.back);
+                        return this._implement(this._plans.back, no_bak);
                     },
                     close: function (no_bak) {
-                        this.no_bak = no_bak;
-                        return this.__implement__(this.__plans__.close);
+                        return this._implement(this._plans.close, no_bak);
                     },
                     keyBack: n => keycode(4, n),
                 },
@@ -606,8 +609,6 @@ let $init = {
                     }
                 },
                 prompt: () => {
-                    let _sgn_move_on;
-                    let _sgn_confirm;
                     let _diag = promptDialogSetter();
                     let _action = actionSetter();
 
@@ -638,23 +639,26 @@ let $init = {
 
                     function actionSetter() {
                         return {
-                            posBtn: function (d) {
-                                let _box = d.isPromptCheckBoxChecked();
-                                $sto.af.put("config_prompted", _box);
-                                _sgn_move_on = _sgn_confirm = true;
+                            _commonAct: function (d) {
+                                let _box_checked = d.isPromptCheckBoxChecked();
                                 d.dismiss();
+                                $sto.af.put("config_prompted", _box_checked);
+                                this._sgn_move_on = true;
+                            },
+                            posBtn: function (d) {
+                                this._sgn_confirm = true;
+                                this._commonAct(d);
                             },
                             negBtn: function (d) {
-                                _sgn_move_on = true;
-                                d.dismiss();
+                                this._commonAct(d);
                             },
-                            wait: function (timeout) {
-                                if (!waitForAction(() => _sgn_move_on, timeout || 5 * 60000)) {
+                            wait: function () {
+                                if (!waitForAction(() => this._sgn_move_on, 300000)) {
                                     _diag.dismiss();
                                     messageAction("强制结束脚本", 4, 0, 0, "up");
                                     messageAction("等待参数调整对话框操作超时", 9, 1, 0, 1);
                                 }
-                                if (_sgn_confirm) {
+                                if (this._sgn_confirm) {
                                     runJsFile("Ant_Forest_Settings");
                                     exit();
                                 }
@@ -680,7 +684,6 @@ let $init = {
                     let _sec = +$cfg.prompt_before_running_countdown_seconds + 1;
                     let _diag = promptDialogSetter();
                     let _action = actionSetter();
-                    let _sgn_move_on;
                     let _thread_elapse = threads.starts(elapse);
 
                     _diag.show();
@@ -715,7 +718,7 @@ let $init = {
                     function actionSetter() {
                         return {
                             posBtn: function (d) {
-                                _sgn_move_on = true;
+                                this._sgn_move_on = true;
                                 this.pause(100);
                                 d.dismiss();
                             },
@@ -814,8 +817,8 @@ let $init = {
                                     _diag.setActionButton("positive", _pos);
                                 }, interval || 800);
                             },
-                            wait: function (timeout) {
-                                if (!waitForAction(() => _sgn_move_on, timeout || 5 * 60000)) {
+                            wait: function () {
+                                if (!waitForAction(() => this._sgn_move_on, 3000000)) {
                                     _diag.dismiss();
                                     _thread_elapse = _diag = null;
                                     messageAction("强制结束脚本", 4, 0, 0, "up");
@@ -881,73 +884,65 @@ let $init = {
                     if ($app.my_engine_argv.no_insurance_flag) {
                         return debugInfo(['跳过"意外保险"设置', '>检测到"无需保险"引擎参数']);
                     }
-                    let _accu = this.sto_accu = this.sto_accu + 1;
+                    let _accu = this._sto_accu = this._sto_accu + 1;
                     let _max = $cfg[keys.ins_accu_max];
                     if (_accu > _max) {
                         debugInfo([
                             "本次会话不再设置保险定时任务",
                             ">任务已达最大连续次数限制: " + _max
                         ]);
-                        this.clear();
+                        this.reset();
                         return false; // don't trigger
                     }
                     return true;
                 },
-                get sto_accu() {
+                get _sto_accu() {
                     return +$sto.af.get(keys.ins_accu, 0);
                 },
-                set sto_accu(v) {
+                set _sto_accu(v) {
                     $sto.af.put(keys.ins_accu, +v);
                 },
-                get sto_ids() {
+                get _sto_ids() {
                     let _all = $sto.af.get(keys.ins_tasks, []);
                     return _all.filter(id => timers.getTimedTask(id));
                 },
-                get next_task_time() {
+                get _next_task_time() {
                     return $app.ts + $cfg[keys.ins_itv] * 60000;
                 },
-                __removeTimedTask__: function () {
-                    let _ids = this.sto_ids;
-                    let _removed_id_str = "";
+                clean: function () {
+                    let _ids = this._sto_ids;
+                    let _str = "";
                     if (_ids.length) {
                         _ids.forEach(id => timers.removeTimedTask(id));
-                        _removed_id_str += "任务ID: ";
-                        _removed_id_str += _ids.length > 1
+                        _str += "任务ID: ";
+                        _str += _ids.length > 1
                             ? surroundWith(_ids.join(", "), "[ ", " ]")
                             : _ids[0];
                     }
-                    return _removed_id_str;
-                },
-                clear: function () {
-                    let _str = this.__removeTimedTask__();
                     _str && debugInfo(["已移除意外保险定时任务:", _str]);
-
-                    $sto.af.remove("insurance_tasks");
-                    $sto.af.put("insurance_tasks_continuous_times", 0);
-
+                    $sto.af.remove(keys.ins_tasks);
                     return this;
                 },
-                clean: function () {
-                    let _str = this.__removeTimedTask__();
-                    _str && debugInfo(["已移除旧意外保险定时任务:", _str]);
-
+                reset: function () {
+                    this.clean();
+                    this._sto_accu = 0;
                     return this;
                 },
                 deploy: function () {
                     this.task = timers.addDisposableTask({
                         path: $app.cwp,
-                        date: this.next_task_time,
+                        date: this._next_task_time,
                     });
 
-                    $sto.af.put(keys.ins_tasks, this.sto_ids.concat([this.task.id]));
+                    $sto.af.put(keys.ins_tasks, this._sto_ids.concat([this.task.id]));
                     debugInfo(["已设置意外保险定时任务:", "任务ID: " + this.task.id]);
 
                     return this;
                 },
                 monitor: function () {
-                    this.__thread__ = threads.starts(function () {
+                    this._thread = threads.starts(function () {
                         setInterval(() => {
-                            self.task.setMillis(self.next_task_time);
+                            self.task.setMillis(self._next_task_time);
                             timers.updateTimedTask(self.task);
                         }, 10000);
                     });
@@ -955,7 +950,7 @@ let $init = {
                     return this;
                 },
                 interrupt: function () {
-                    let _thr = this.__thread__;
+                    let _thr = this._thread;
                     _thr && _thr.interrupt();
 
                     return this;
@@ -1482,13 +1477,16 @@ $init.global().queue().delay().prompt().monitor().unlock().command();
         .add("af_home", /合种|背包|通知|攻略|任务|.*大树养成.*/)
         .add("rl_title", $app.rl_title)
         .add("rl_ent", /查看更多好友|View more friends/) // rank list entrance
+
+        // TODO to replace
+        .add("rl_end_ident", /.*没有更多.*/)
+
+        .add("wait_awhile", /.*稍等片刻.*/)
+        .add("reload_fst_page", "重新加载")
+        .add("close_btn", /关闭|Close/)
+        .add("user_nickname", [$app.rex_energy_amt, "p2c2c0c0"])
     ;
 
-    $app.kw_end_list_ident = type => $sel.pickup(/.*没有更多.*/, type, "kw_end_list_ident");
-    $app.kw_wait_for_awhile = type => $sel.pickup(/.*稍等片刻.*/, type, "kw_wait_for_awhile");
-    $app.kw_reload_forest_page_btn = type => $sel.pickup("重新加载", type, "kw_reload_forest_page_btn");
-    $app.kw_close_btn = type => $sel.pickup(/关闭|Close/, type, "kw_close_btn");
-    $app.kw_back_btn = type => $sel.pickup(["返回", "c0"], type) || $sel.pickup("返回", type);
     $app.kw_rank_list = () => {
         let ref = [
             [idMatches(/.*J_rank_list_append/), 0],
@@ -1507,7 +1505,6 @@ $init.global().queue().delay().prompt().monitor().unlock().command();
         return ref.sort((a, b) => b[1] - a[1])[0][0];
     };
     $app.kw_rank_list_more = type => $sel.pickup(idMatches(/.*J_rank_list_more/), type, "kw_rank_list_more");
-    $app.kw_rank_list_self = type => $sel.pickup(idMatches(/.*J_rank_list_self/), type, "kw_rank_list_self");
     $app.kw_login_btn = type => $sel.pickup(/登录|Log in|.*loginButton/, type, "kw_login_btn");
     $app.kw_login_by_code_btn = type => $sel.pickup(/密码登录|Log ?in with password/, type, "kw_login_by_code_btn");
     $app.kw_login_with_other_user = type => $sel.pickup(/换个账号登录|.*switchAccount/, type, "kw_login_with_other_user");
@@ -1615,7 +1612,7 @@ $init.global().queue().delay().prompt().monitor().unlock().command();
         // tool function(s) //
 
         function _getNode() {
-            let nodes = $sel.pickup($app.regexp_energy_amount, "nodes");
+            let nodes = $sel.pickup($app.rex_energy_amt, "nodes");
             let min_list_node_height = cY(256, -1);
 
             for (let i = nodes.length - 1; i >= 0; i -= 1) {
@@ -1671,7 +1668,6 @@ $init.global().queue().delay().prompt().monitor().unlock().command();
         init_log_page: $app.isAutojsLogPage(),
         init_settings_page: $app.isAutojsSettingsPage(),
     };
-    $app.regexp_energy_amount = /^\s*\d+(\.\d+)?(k?g|t)\s*$/;
 
     debugInfo("会话参数赋值完毕");
 
@@ -1803,9 +1799,7 @@ function antForest() {
 
             function getReady() {
                 let max_try_times_close_btn = 10;
-                let {kw_close_btn} = $app;
-                while (kw_close_btn() && max_try_times_close_btn--) {
-                    clickAction(kw_close_btn());
+                while ($app.page.close() && max_try_times_close_btn--) {
                     sleep(500);
                 }
                 let kw_homepage = className("TextView").idContains("tab_description");
@@ -2103,14 +2097,14 @@ function antForest() {
             }
 
             function getOwnEnergyAmount(buffer_flag) {
-                let regexp_energy_amount = /\d+g/;
+                let rex_energy_amt = /\d+g/;
                 if (buffer_flag) {
-                    let condition = () => $sel.pickup(regexp_energy_amount) && $sel.get("af_home");
+                    let condition = () => $sel.pickup(rex_energy_amt) && $sel.get("af_home");
                     if (!waitForAction(condition, 8000)) return -1;
                 }
                 let max_try_times = buffer_flag ? 10 : 1;
                 while (max_try_times--) {
-                    let amount = +$sel.pickup([regexp_energy_amount, {
+                    let amount = +$sel.pickup([rex_energy_amt, {
                         boundsInside: [cX(0.6), cY(0.1, -1), W - 2, cY(0.3, -1)],
                     }], "txt").match(/\d+/);
                     if (!isNaN(amount)) return amount;
@@ -2314,14 +2308,22 @@ function antForest() {
                 }
 
                 function getCurrentUserNickname() {
-                    if ($app.user_nickname) return debugInfo("无需重复获取当前账户昵称");
+                    if ($app.user_nickname) {
+                        return debugInfo("无需重复获取当前账户昵称");
+                    }
                     try {
-                        if ($app.kw_rank_list_self()) {
-                            $app.user_nickname = $sel.pickup([$app.kw_rank_list_self("sel"), "c0c2"], "txt");
-                        } else {
-                            $app.user_nickname = $sel.pickup([$app.regexp_energy_amount, "p2c2c0c0"], "txt");
+                        let _max = 5;
+                        let _gnsNickname = () => {
+                            let _get = $sel.get("user_nickname", "txt");
+                            return $app.user_nickname = _get;
+                        };
+                        while (_max-- && !_gnsNickname()) {
+                            sleep(120);
                         }
-                        $app.user_nickname ? debugInfo("已获取当前账户昵称字符串") : debugInfo("获取到无效的当前账户昵称");
+                        let _text = $app.user_nickname
+                            ? "已获取当前账户昵称字符串"
+                            : "获取到无效的当前账户昵称";
+                        debugInfo(_text);
                     } catch (e) {
                         debugInfo("获取当前账户昵称失败", 3);
                     }
@@ -2397,13 +2399,13 @@ function antForest() {
                     // tool function(s) //
 
                     function getScreenSamples() {
-                        let {regexp_energy_amount} = $app;
+                        let {rex_energy_amt} = $app;
                         let max_try_times = 10;
                         while (max_try_times--) {
-                            // let screen_samples = $sel.pickup(regexp_energy_amount, "nodes");
+                            // let screen_samples = $sel.pickup(rex_energy_amt, "nodes");
                             // $sel.pickup() may cost more time than the traditional way
-                            let nodes_text = textMatches(regexp_energy_amount).find();
-                            let nodes_desc = descMatches(regexp_energy_amount).find();
+                            let nodes_text = textMatches(rex_energy_amt).find();
+                            let nodes_desc = descMatches(rex_energy_amt).find();
                             let screen_samples = nodes_text.length >= nodes_desc.length ? nodes_text : nodes_desc;
                             screen_samples = screen_samples.map((node) => {
                                 return $sel.pickup([node, "p1c3"]) ? node : node.parent();
@@ -2414,7 +2416,11 @@ function antForest() {
 
                             for (let i = 1, len = screen_samples.length; i < len; i += 1) {
                                 let cur_node = screen_samples[i];
+                                if (!cur_node) continue;
+
                                 let pre_node = screen_samples[i - 1];
+                                if (!pre_node) continue;
+
                                 let cur_bounds = cur_node.bounds();
                                 let pre_bounds = pre_node.bounds();
 
@@ -2551,12 +2557,12 @@ function antForest() {
 
                 debugInfo("开启\"重新加载\"按钮监测线程");
                 let thread_monitor_retry_btn = threads.starts(function () {
-                    while (1) sleep(clickAction($app.kw_reload_forest_page_btn()) ? 3000 : 1000);
+                    while (1) sleep(clickAction($sel.get("reload_fst_page")) ? 3000 : 1000);
                 });
 
                 while (!$sel.pickup(/你收取TA|发消息/) && !className("ListView").exists() && max_safe_wait_time > 0) {
                     sleep(sleep_interval);
-                    max_safe_wait_time -= sleep_interval * ($app.kw_wait_for_awhile() ? 1 : 6);
+                    max_safe_wait_time -= sleep_interval * ($sel.get("wait_awhile") ? 1 : 6);
                 }
 
                 let wait_times_sec = (max_safe_wait_time_backup - max_safe_wait_time) / 1000;
@@ -2794,9 +2800,9 @@ function antForest() {
                         let kw_list_more = () => $sel.pickup("点击加载更多", "node", "kw_list_more_for_rank_list_page");
                         if (!waitForAction(kw_list_more, 2000, 80)) return;
 
-                        let safe_max_try_times = 50; // 10 sec at most
+                        let _max = 50; // 10 sec at most
                         let click_count = 0;
-                        while (!desc("没有更多").exists() && !text("没有更多").exists() && safe_max_try_times--) {
+                        while (!$sel.pickup("没有更多") && _max--) {
                             clickAction(kw_list_more(), "widget");
                             click_count++;
                             sleep(200);
@@ -2866,9 +2872,9 @@ function antForest() {
                             let time_str = date_str + time_str_clip;
 
                             let current_name = $app.current_friend.name;
-                            if (!(current_name in $app.blist)) $app.blist[current_name] = {};
-                            $app.blist[current_name].timestamp = getTimestamp(time_str) + 86400000;
-                            $app.blist[current_name].reason = "protect_cover";
+                            if (!(current_name in $app.blist.data)) $app.blist.data[current_name] = {};
+                            $app.blist.data[current_name].timestamp = getTimestamp(time_str) + 86400000;
+                            $app.blist.data[current_name].reason = "protect_cover";
                             blistMsg("add");
 
                             // tool function(s) //
@@ -3097,11 +3103,8 @@ function antForest() {
                     debugInfo("返回排行榜单次超时");
                 }
                 debugInfo(["返回排行榜失败", "尝试重启支付宝到排行榜页面"], 3);
-                restartAlipayToHeroList();
 
-                let {kw_rank_list_self} = $app;
-                let condition_rank_list_ready = () => kw_rank_list_self() && kw_rank_list_self().childCount();
-                if (!waitForAction(condition_rank_list_ready, 2000)) restartAlipayToHeroList(); // just in case
+                return restartAlipayToHeroList();
 
                 // tool function(s) //
 
@@ -3176,9 +3179,8 @@ function antForest() {
                         debugInfo("等待\"正在加载\"按钮消失超时", 3);
                     }
 
-                    let {kw_end_list_ident} = $app;
-                    if (kw_end_list_ident()) {
-                        let {left, top, right, bottom} = kw_end_list_ident("bounds") || {};
+                    if ($sel.get("rl_end_ident")) {
+                        let {left, top, right, bottom} = $sel.get("rl_end_ident", "bounds") || {};
                         if (bottom - top === $app.end_list_ident_height) {
                             list_end_signal = 1;
                             debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
@@ -3213,6 +3215,8 @@ function antForest() {
                 // tool function(s) //
 
                 function swipeOnce() {
+                    $impeded("排行榜滑动流程");
+
                     let swipe_time = $cfg.rank_list_swipe_time;
                     let swipe_distance_raw = $cfg.rank_list_swipe_distance;
                     let swipe_distance = swipe_distance_raw < 1 ? ~~(swipe_distance_raw * H) : swipe_distance_raw;
@@ -3235,9 +3239,9 @@ function antForest() {
                     debugInfo("上滑屏幕: " + calcSwipeDistance() + "px");
 
                     let calc_swipe_distance = calcSwipeDistance();
+                    let swipe_functional = false;
                     let swipeAndClickOutside = () => {
-                        $impeded("排行榜滑动流程");
-                        if (swipe(halfW, swipe_bottom, halfW, swipe_top, swipe_time)) {
+                        if ((swipe_functional = swipe(halfW, swipe_bottom, halfW, swipe_top, swipe_time))) {
                             // just to prevent screen from turning off;
                             // maybe this is not a good idea
                             clickAction([Math.pow(10, 7), Math.pow(10, 7)]); // not press()
@@ -3248,7 +3252,8 @@ function antForest() {
                         && calc_swipe_distance <= 0.9 * H
                         && swipeAndClickOutside()) {
                         return true;
-                    } else throw "滑动异常"; // TODO more actions needed
+                    }
+                    debugInfo("滑动方法返回值: " + swipe_functional);
                 }
 
                 function checkRankListCaptDifference() {
@@ -3413,6 +3418,8 @@ function antForest() {
                 let ripe_time = new Date(min_countdown_friends);
                 let remain_minute = Math.round((ripe_time - +now) / 60000);
 
+                if (remain_minute <= 0) return debugInfo("倒计时数据无效: " + remain_minute, 3);
+
                 debugInfo("好友能量最小倒计时: " + remain_minute + "分钟");
                 $app.min_countdown_friends = min_countdown_friends; // ripe timestamp
                 debugInfo("时间数据: " + getNextTimeStr(min_countdown_friends));
@@ -3425,7 +3432,7 @@ function antForest() {
             function getCloseBtnCenterCoord() {
                 if ($app.close_btn_coord) return;
 
-                let node = $app.kw_close_btn();
+                let node = $sel.get("close_btn");
                 if (node) {
                     let bounds = node.bounds();
                     let [x, y] = [bounds.centerX(), bounds.centerY()];
@@ -3445,25 +3452,19 @@ function antForest() {
                 let delay_swipe_time = 3000;
                 let delay_swipe_time_sec = ~~(delay_swipe_time / 1000);
                 delay_swipe_time = delay_swipe_time_sec * 1000;
-                let {kw_end_list_ident} = $app;
 
                 while (sleep(500) || true) {
-                    if ($app.slow_check_kw_end_list_ident_flag) {
-                        debugInfo("延迟列表底部条件检测: " + delay_swipe_time_sec + "秒");
-                        sleep(delay_swipe_time);
-                    }
-
                     $impeded("排行榜底部控件监测线程");
 
-                    if (!kw_end_list_ident()) continue;
+                    if (!$sel.get("rl_end_ident")) continue;
 
-                    let sel_str = kw_end_list_ident("sel_str");
-                    let {left, top, right, bottom} = kw_end_list_ident("bounds") || {};
+                    let sel_str = $sel.get("rl_end_ident", "sel_str");
+                    let {left, top, right, bottom} = $sel.get("rl_end_ident", "bounds") || {};
                     if (bottom - top > cX(0.08)) {
                         list_end_signal = 1;
                         debugInfo("列表底部条件满足");
                         debugInfo(">bounds: [" + left + ", " + top + ", " + right + ", " + bottom + "]");
-                        debugInfo(">" + sel_str + ": " + kw_end_list_ident(sel_str));
+                        debugInfo(">" + sel_str + ": " + $sel.get("rl_end_ident", sel_str));
                         let capt_img = images.captureCurrentScreen();
                         let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
                         if ($app.rank_list_bottom_template) {
@@ -3538,7 +3539,7 @@ function antForest() {
                 } else if (strategy === "layout") {
                     let current_friend_name = $app.current_friend.name;
                     $app.friend_drop_by_counter.increase(current_friend_name);
-                    if (current_friend_name in $app.blist) {
+                    if (current_friend_name in $app.blist.data) {
                         $app.friend_drop_by_counter.decrease(current_friend_name);
                         return blistMsg("exist", "split_line"); // true
                     } else clickRankListItemFunc();
@@ -3561,7 +3562,7 @@ function antForest() {
                         $app.current_friend.name_logged = 1;
                     }
 
-                    let is_in_blist = friend_nickname in $app.blist;
+                    let is_in_blist = friend_nickname in $app.blist.data;
                     if (is_in_blist) $app.friend_drop_by_counter.decrease(friend_nickname);
                     return is_in_blist;
                 }
@@ -3586,7 +3587,7 @@ function antForest() {
                 messageAction(messages[msg_str], 1, 0, 1);
                 msg_str === "exist" && messageAction("已跳过收取", 1, 0, 2);
 
-                let current_black_friend = $app.blist[name];
+                let current_black_friend = $app.blist.data[name];
                 let reason_str = current_black_friend.reason;
                 messageAction(reasons[reason_str], 1, 0, 2);
                 let check_result = checkBlackTimestamp(current_black_friend.timestamp);
@@ -3689,7 +3690,7 @@ function antForest() {
 
             addOrUpdateAutoTask(next_launch);
 
-            $app.monitor.insurance.interrupt().clean();
+            $app.monitor.insurance.interrupt().reset();
 
             // tool function(s) //
 
@@ -4350,7 +4351,7 @@ function launchAFHomepage(params) {
         }) ? debugInfo("跳板启动成功") : debugInfo(["跳板启动失败", ">打开" + cur_autojs_name + "应用超时"], 3);
     }
     let launch_result = plans("launch_af_homepage", Object.assign({}, {exclude: "_test_"}, params));
-    if ($dev.screen_orientation !== 0) getDisplayParams({glob_assign: true});
+    if ($dev.screen_orientation !== 0) getDisplayParams({global_assign: true});
     return launch_result;
 }
 
@@ -4470,7 +4471,6 @@ function loginMainUser(direct_login_flag) {
         let _acc_code = $acc.main.code;
         let _kw_home = $sel.get("alipay_home");
         let {
-            kw_close_btn,
             kw_login_with_other_user,
             kw_login_with_other_method,
             kw_login_with_other_method_in_init_page,
@@ -4694,7 +4694,7 @@ function loginMainUser(direct_login_flag) {
                         cond: _kw_home,
                     }, {
                         remark: "H5关闭按钮",
-                        cond: kw_close_btn,
+                        cond: $sel.get("close_btn"),
                     }],
                     fail: [{
                         remark: "失败提示",
@@ -4862,9 +4862,9 @@ function plans(operation_name, params) {
             no_message_flag: true,
             condition_launch: () => {
                 let condition_a = () => $app.cur_pkg === $app.package_name;
-                let condition_c = () => $sel.get("rl_ent") || $sel.get("af_home") || $app.kw_wait_for_awhile();
+                let condition_c = () => $sel.get("rl_ent") || $sel.get("af_home") || $sel.get("wait_awhile");
 
-                clickAction($app.kw_reload_forest_page_btn(), "widget");
+                clickAction($sel.get("reload_fst_page"), "widget");
                 clickAction($sel.pickup("打开", "node", "kw_confirm_launch_alipay"), "widget");
                 dismissPermissionDialogsIfNeeded();
 
@@ -4956,7 +4956,7 @@ function plans(operation_name, params) {
             condition_ready: () => {
                 // TODO "intent_with_params" only so far
                 let a1 = () => $sel.get("rl_title");
-                let a2 = () => $sel.pickup($app.regexp_energy_amount);
+                let a2 = () => $sel.pickup($app.rex_energy_amt);
                 let b = () => !$sel.pickup("查看更多好友") && $sel.pickup(/.*环保证书/);
                 return a1() && a2() || b();
             },
@@ -4985,9 +4985,7 @@ function plans(operation_name, params) {
                     launchAFHomepage();
                 } else if (kw_rank_list()) {
                     debugInfo(["检测到好友排行榜页面", "尝试关闭当前页面"]);
-                    $app.kw_back_btn()
-                        ? clickAction($app.kw_back_btn(), "widget")
-                        : keycode(4, "double");
+                    $app.page.back();
                 } else {
                     debugInfo(["未知页面", "尝试关闭当前页面"]);
                     keycode(4, "double");
@@ -5015,14 +5013,12 @@ function plans(operation_name, params) {
 }
 
 function launchAlipayHomepage(params) {
-    let {kw_back_btn, kw_close_btn} = $app;
-
     return launchThisApp($app.package_name, Object.assign({
         app_name: "支付宝",
         no_message_flag: true,
         condition_ready: () => {
             dismissPermissionDialogsIfNeeded();
-            clickAction(kw_back_btn() || kw_close_btn()) && sleep(500);
+            $app.page.back();
             return $sel.get("alipay_home");
         },
     }, params));
@@ -5161,7 +5157,6 @@ function checkIfUserLoggedIn(user_name, forcible_flag) {
 function clickAbbrNameInUserList(abbr_name) {
     let {
         main_user_abbr_name,
-        kw_close_btn,
         isInLoginPage,
     } = $app;
     abbr_name = abbr_name || main_user_abbr_name;
@@ -5184,7 +5179,7 @@ function clickAbbrNameInUserList(abbr_name) {
                 cond: () => $sel.get("alipay_home"),
             }, {
                 remark: "H5关闭按钮",
-                cond: kw_close_btn,
+                cond: $sel.get("close_btn"),
             }],
             fail: [{
                 remark: "出现登录页面",
@@ -5277,5 +5272,5 @@ function conditionChecker(c) {
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | af: ant forest | app: application | args: arguments | argv: argument values | avail: available | b: bottom; bounds | bak: backup | blist: blacklist | btn: button | cfg: configuration | cmd: command | cnsl: console | cnt: count | cond: condition | constr: constructor | ctd: countdown | ctx: context | cur: current | cwd: current working directory | cwp: current working path | d: dialog | def: default | desc: description | dev: device | diag: dialog | disp: display | du: duration | e: error; engine; event | ent: entrance | evt: event | excl: exclusive | exec: execution | ext: extension | fg: foreground | flg: flag | fri: friend | fs: functions | glob: global | ident: identification | idt: identification | idx: index | itv: interval | js: javascript | l: left | lmt: limit | ln: line | lsn: listen; listener | mod: module | msg: message | neg: negative | neu: neutral | num: number | o: object | opt: option | par: parameter | param: parameter | pkg: package | pos: position | pref: prefix | prv: privilege | que: queue | r: right | rect: rectangle | res: result | rl: rank list | rls: release | sav: save | scr: screen | sec: second | sel: selector | sgn: signal | src: source | stat: statistics | sto: storage | str: string | sw: switch | t: top | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title | u: unit | util: utility | v: value
+ * @abbr acc: account | accu: accumulated | af: ant forest | app: application | args: arguments | argv: argument values | avail: available | b: bottom; bounds | bak: backup | blist: blacklist | btn: button | cfg: configuration | cmd: command | cnsl: console | cnt: count | cond: condition | constr: constructor | ctd: countdown | ctx: context | cur: current | cwd: current working directory | cwp: current working path | d: dialog | def: default | desc: description | dev: device | diag: dialog | disp: display | du: duration | e: error; engine; event | ent: entrance | evt: event | excl: exclusive | exec: execution | ext: extension | fg: foreground | flg: flag | fri: friend | fs: functions | glob: global | ident: identification | idt: identification | idx: index | itv: interval | js: javascript | l: left | lmt: limit | ln: line | lsn: listen; listener | mod: module | msg: message | neg: negative | neu: neutral | num: number | o: object | opt: option | par: parameter | param: parameter | pkg: package | pos: position | pref: prefix | prv: privilege | que: queue | r: right | rect: rectangle | res: result | rl: rank list | rls: release | sav: save | scr: screen | sec: second | sel: selector | sgn: signal | src: source | stat: statistics | sto: storage | str: string | sw: switch | t: top | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title | u: unit | util: utility | v: value | fst: forest | gns: get and set | intrpt: interrupt
  */
