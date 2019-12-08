@@ -2790,21 +2790,26 @@ let $init = {
                 return str === "一次性" ? 0 : str;
             },
             refreshFriendsListByLaunchingAlipay: function (params) {
-                let {dialog_prompt, onTrigger, onResume} = params || {};
+                return dialogs.builds([
+                    "提示", "此功能暂未完成新版蚂蚁森林控件的适配\n预计于 v1.9.10 Beta8 完成功能恢复",
+                    0, 0, "返回", 1
+                ]).on("positive", d => d.dismiss()).show();
 
-                if (dialog_prompt) {
-                    dialogs.builds([
-                        "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
-                        0, "放弃", "开始刷新", 1
-                    ]).on("negative", diag => {
-                        diag.dismiss();
-                    }).on("positive", diag => {
-                        diag.dismiss();
-                        refreshNow();
-                    }).show();
-                } else {
-                    refreshNow();
-                }
+                // let {dialog_prompt, onTrigger, onResume} = params || {};
+
+                // if (dialog_prompt) {
+                //     dialogs.builds([
+                //         "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
+                //         0, "放弃", "开始刷新", 1
+                //     ]).on("negative", diag => {
+                //         diag.dismiss();
+                //     }).on("positive", diag => {
+                //         diag.dismiss();
+                //         refreshNow();
+                //     }).show();
+                // } else {
+                //     refreshNow();
+                // }
 
                 // tool function(s) //
 
