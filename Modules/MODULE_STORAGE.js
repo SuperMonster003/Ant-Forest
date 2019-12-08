@@ -50,7 +50,7 @@
             }
 
             let _both_type_o = classof(new_value, "Object") && classof(_old_data[key], "Object");
-            if (!forcible_flag && _both_type_o) {
+            if (!forcible_flag && _both_type_o && Object.keys(new_value).length) {
                 _tmp_data[key] = Object.assign(_old_data[key], new_value);
             } else {
                 _tmp_data[key] = new_value;

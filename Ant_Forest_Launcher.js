@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 8, 2019
- * @version 1.9.10 Beta6
+ * @last_modified Dec 9, 2019
+ * @version 1.9.10 Beta7
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -154,11 +154,12 @@ let $init = {
         $flag.debug_info_avail = $cfg.debug_info_switch && $cfg.message_showing_switch;
         $flag.no_msg_act_flag = !$cfg.message_showing_switch;
 
-        Object.assign($app, appEngineSetter());
-        Object.assign($app, appTaskSetter());
-        Object.assign($app, appParamsSetter());
-        Object.assign($app, appBlistSetter());
-        Object.assign($app, appPageSetter());
+        appSetter().setEngine().setTask().setParams().setBlist().setPage();
+
+        $acc.main = {
+            name: $cfg.main_account_info.account_name,
+            code: $cfg.main_account_info.account_code,
+        };
 
         debugInfo("开发者测试日志已启用", "both_dash_Up");
         debugInfo("Auto.js版本: " + $app.autojs_ver);
@@ -178,246 +179,460 @@ let $init = {
             require("./Modules/EXT_THREADS").load();
         }
 
-        function appEngineSetter() {
+        function appSetter() {
             return {
-                get my_engine() {
-                    return engines.myEngine();
-                },
-                get my_engine_id() {
-                    return this.my_engine.id;
-                },
-                get my_engine_argv() {
-                    return this.my_engine.execArgv || {};
-                },
-                get cwd() {
-                    // `files.cwd()` also fine
-                    return this.my_engine.cwd();
-                },
-                get init_fg_pkg() {
-                    return this.my_engine_argv.init_fg_pkg || currentPackage();
-                },
-                get init_scr_on() {
-                    return this.my_engine_argv.init_scr_on || $dev.is_screen_on;
-                },
-                get cwp() {
-                    let _cwp = this.my_engine.source.toString();
-                    let _defPath = () => this.cwd + "/Ant_Forest_Launcher.js";
-                    return _cwp.match(/\[remote]/) ? _defPath() : _cwp;
-                },
-                get cur_pkg() {
-                    return currentPackage();
-                },
-                get now() {
-                    return new Date();
-                },
-                get ts() {
-                    return +this.now; // {number} -- timestamp
-                },
-            };
-        }
+                setEngine: function () {
+                    let _my_engine = engines.myEngine();
+                    let _my_engine_argv = _my_engine.execArgv || {};
+                    let _getCwp = (e) => {
+                        let _cwp = e.source.toString();
+                        let _defPath = () => e.cwd() + "/Ant_Forest_Launcher.js";
+                        return _cwp.match(/\[remote]/) ? _defPath() : _cwp;
+                    };
 
-        function appTaskSetter() {
-            return {
-                setPostponedTask: function (duration, toast_flag) {
-                    $flag.task_deploying || threads.starts(function () {
-                        $flag.task_deploying = true;
-
-                        let _task_str = surroundWith("蚂蚁森林") + "任务";
-                        let _du_str = duration + "分钟";
-                        toast_flag === false || toast(_task_str + "推迟 " + _du_str);
-                        messageAction("推迟" + _task_str, 1, 0, 0, "up");
-                        messageAction("推迟时长: " + _du_str, 1, 0, 0, 1);
-
-                        let _ts = $app.ts + duration * 60000;
-                        let _task = timers.addDisposableTask({path: $app.cwp, date: _ts});
-                        let _type_suffix = $sto.af.get("fg_blist_hit_accu_times") ? "_auto" : "";
-                        $sto.af.put("next_auto_task", {
-                            task_id: _task.id,
-                            timestamp: _ts,
-                            type: "postponed" + _type_suffix,
-                        });
-
-                        ui.post(exit);
+                    Object.defineProperties($app, {
+                        my_engine: {value: _my_engine},
+                        my_engine_id: {value: _my_engine.id},
+                        my_engine_argv: {value: _my_engine_argv},
+                        cwd: {value: _my_engine.cwd()}, // `files.cwd()` also fine
+                        init_scr_on: {value: _my_engine_argv.init_scr_on || $dev.is_screen_on},
+                        init_fg_pkg: {value: _my_engine_argv.init_fg_pkg || currentPackage()},
+                        cwp: {value: _getCwp(_my_engine)},
+                        cur_pkg: {get: () => currentPackage()},
+                        now: {get: () => new Date()},
+                        ts: {get: () => +new Date()},
                     });
+
+                    return this;
                 },
-            }
-        }
+                setTask: function () {
+                    Object.defineProperties($app, {
+                        setPostponedTask: {
+                            value: function (duration, toast_flag) {
+                                $flag.task_deploying || threads.starts(function () {
+                                    $flag.task_deploying = true;
 
-        function appParamsSetter() {
-            $acc.main = {
-                name: $cfg.main_account_info.account_name,
-                code: $cfg.main_account_info.account_code,
-            };
+                                    let _task_str = surroundWith("蚂蚁森林") + "任务";
+                                    let _du_str = duration + "分钟";
+                                    toast_flag === false || toast(_task_str + "推迟 " + _du_str);
+                                    messageAction("推迟" + _task_str, 1, 0, 0, "up");
+                                    messageAction("推迟时长: " + _du_str, 1, 0, 0, 1);
 
-            // _unESC says, like me if you also like unicode games :)
-            let _unESC = s => unescape(s.replace(/(\w{4})/g, "%u$1"));
-            let _local_pics_path = files.getSdcardPath() + "/.local/Pics/";
+                                    let _ts = $app.ts + duration * 60000;
+                                    let _task = timers.addDisposableTask({path: $app.cwp, date: _ts});
+                                    let _type_suffix = $sto.af.get("fg_blist_hit_accu_times") ? "_auto" : "";
+                                    $sto.af.put("next_auto_task", {
+                                        task_id: _task.id,
+                                        timestamp: _ts,
+                                        type: "postponed" + _type_suffix,
+                                    });
 
-            files.createWithDirs(_local_pics_path);
+                                    ui.post(exit);
+                                });
+                            },
+                        },
+                    });
 
-            return {
-                task_name: surroundWith(_unESC("8682868168EE6797")),
-                rl_title: _unESC("2615FE0F0020597D53CB6392884C699C"),
-                local_pics_path: _local_pics_path,
-                rex_energy_amt: /^\s*\d+(\.\d+)?(k?g|t)\s*$/,
-            };
-        }
+                    return this;
+                },
+                setParams: function () {
+                    // _unESC says, like me if you also like unicode games :)
+                    let _unESC = s => unescape(s.replace(/(\w{4})/g, "%u$1"));
+                    let _local_pics_path = files.getSdcardPath() + "/.local/Pics/";
 
-        function appBlistSetter() {
-            let blist_setter = {
-                get init() {
-                    return () => {
-                        let parent = this;
-                        blistInitializer().get().clean().message().assign();
-                        return parent;
+                    files.createWithDirs(_local_pics_path);
+
+                    Object.defineProperties($app, {
+                        task_name: {value: surroundWith(_unESC("8682868168EE6797"))},
+                        rl_title: {value: _unESC("2615FE0F0020597D53CB6392884C699C")},
+                        local_pics_path: {value: _local_pics_path},
+                        rex_energy_amt: {value: /^\s*\d+(\.\d+)?(k?g|t)\s*$/},
+                    });
+
+                    // TODO refactoring needed here
+                    (function prologue() {
+                        $sel.add("alipay_home", [/首页|Homepage/, {boundsInside: [0, cY(0.7), W, H]}])
+                            .add("af_title", [/蚂蚁森林|Ant Forest/, {boundsInside: [0, 0, cX(0.4), cY(0.2)]}])
+                            .add("af_home", /合种|背包|通知|攻略|任务|.*大树养成.*/)
+                            .add("rl_title", $app.rl_title)
+                            .add("rl_ent", /查看更多好友|View more friends/) // rank list entrance
+
+                            // TODO to replace
+                            .add("rl_end_ident", /.*没有更多.*/)
+
+                            .add("wait_awhile", /.*稍等片刻.*/)
+                            .add("reload_fst_page", "重新加载")
+                            .add("close_btn", /关闭|Close/)
+                            .add("user_nickname", [$app.rex_energy_amt, "p2c2c0c0"])
+                        ;
+
+                        $app.kw_rank_list = () => {
+                            let ref = [
+                                [idMatches(/.*J_rank_list_append/), 0],
+                                [idMatches(/.*J_rank_list/), 0]
+                            ];
+                            for (let i = 0, len = ref.length; i < len; i += 1) {
+                                let arr = ref[i];
+                                let node = arr[0].findOnce();
+                                if (!node) continue;
+                                arr[1] = node.childCount();
+                                if (arr[1] > 5) {
+                                    if (i === 0) return ($app.kw_rank_list = () => idMatches(/.*J_rank_list_append/))();
+                                    if (i === 1) return ($app.kw_rank_list = () => idMatches(/.*J_rank_list/))();
+                                }
+                            }
+                            return ref.sort((a, b) => b[1] - a[1])[0][0];
+                        };
+                        $app.kw_rank_list_more = type => $sel.pickup(idMatches(/.*J_rank_list_more/), type, "kw_rank_list_more");
+                        $app.kw_login_btn = type => $sel.pickup(/登录|Log in|.*loginButton/, type, "kw_login_btn");
+                        $app.kw_login_by_code_btn = type => $sel.pickup(/密码登录|Log ?in with password/, type, "kw_login_by_code_btn");
+                        $app.kw_login_with_other_user = type => $sel.pickup(/换个账号登录|.*switchAccount/, type, "kw_login_with_other_user");
+                        $app.kw_login_with_other_method = type => {
+                            let memory_keyword = "kw_login_with_other_method";
+                            return $sel.pickup(/换个方式登录|Switch login method|.*switchLoginMethod/, type, memory_keyword);
+                        };
+                        $app.kw_login_with_other_method_in_init_page = type => {
+                            let memory_keyword = "kw_login_with_other_method_in_init_page";
+                            return $sel.pickup(/其他登录方式|Other accounts/, type, memory_keyword);
+                        };
+                        $app.kw_login_next_step_btn = type => $sel.pickup(/下一步|Next|.*nextButton/, type, "kw_login_next_step_btn");
+                        $app.kw_login_error_ensure_btn = type => $sel.pickup(idMatches(/.*ensure/), type, "kw_login_error_ensure_btn");
+                        $app.kw_input_label_account = type => $sel.pickup(/账号|Account/, type, "kw_input_label_account");
+                        $app.kw_input_label_code = type => $sel.pickup(/密码|Password/, type, "kw_input_label_code");
+                        $app.kw_user_logged_out = type => {
+                            let regexp_logged_out = new RegExp(".*(" +
+                                /在其他设备登录|logged +in +on +another/.source + "|" +
+                                /.*账号于.*通过.*登录.*|account +logged +on +to/.source +
+                                ").*");
+                            $sel.pickup(regexp_logged_out, type, "kw_user_logged_out");
+                        };
+                        $app.kw_login_with_new_user = type => $sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, type, "kw_login_with_new_user");
+                        $app.kw_switch_account_title = type => $sel.pickup(/账号切换|Accounts/, type, "kw_switch_account_title");
+                        $app.getLoginErrorMsg = () => {
+                            return $sel.pickup(id("com.alipay.mobile.antui:id/message"), "txt", "alipay_antui_msg")
+                                || $sel.pickup([$app.kw_login_error_ensure_btn(), "p2c0c0c0"], "txt");
+                        };
+                        $app.isInLoginPage = () => {
+                            return $app.kw_login_with_other_user()
+                                || $app.kw_input_label_account()
+                                || $app.kw_login_with_other_method_in_init_page();
+                        };
+                        $app.isInSwitchAccPage = () => $app.kw_login_with_new_user() || $app.kw_switch_account_title();
+                        $app.logged_blist_names = [];
+                        $app.homepage_intent = {
+                            app_id_rich: {
+                                action: "VIEW",
+                                data: encodeURIParams("alipays://platformapi/startapp", {
+                                    appId: 60000002,
+                                    appClearTop: "NO",
+                                    startMultApp: "YES",
+                                    // enableScrollBar: "NO",
+                                    // backBehavior: "auto",
+                                    defaultTitle: "",
+                                }),
+                            },
+                            app_id_plain: {
+                                action: "VIEW",
+                                data: encodeURIParams("alipays://platformapi/startapp", {
+                                    appId: 60000002,
+                                    // defaultTitle: "",
+                                }),
+                            },
+                            common_browser_rich: {
+                                action: "VIEW",
+                                data: encodeURIParams("alipays://platformapi/startapp", {
+                                    saId: 20000067,
+                                    url: "https://60000002.h5app.alipay.com/www/home.html",
+                                    __webview_options__: {
+                                        showOptionMenu: "YES",
+                                        startMultApp: "YES",
+                                        enableScrollBar: "NO",
+                                    },
+                                }),
+                            },
+                        };
+                        $app.rank_list_intent = {
+                            action: "VIEW",
+                            data: encodeURIParams("alipays://platformapi/startapp", {
+                                saId: 20000067,
+                                url: "https://60000002.h5app.alipay.com/www/listRank.html",
+                                __webview_options__: {
+                                    startMultApp: "YES",
+                                    showOptionMenu: "YES",
+                                    appClearTop: "NO",
+                                    enableScrollBar: "NO",
+                                    defaultTitle: $app.rl_title,
+                                    transparentTitle: "none",
+                                },
+                            }),
+                        };
+                        $app.rank_list_icon_collect = $sto.af.get("af_rank_list_icon_collect");
+                        $app.rank_list_icon_help = $sto.af.get("af_rank_list_icon_help");
+                        $app.rank_list_bottom_template_path = $cfg.rank_list_bottom_template_path;
+                        $app.rank_list_bottom_template = images.read($app.rank_list_bottom_template_path);
+                        $app.rank_list_capt_img = null;
+                        $app.rank_list_capt_diff_check_pool = [];
+                        $app.rankListNode = (opr) => {
+                            let {rank_list_node} = $app;
+                            if (opr === "recycle") {
+                                let result = true;
+                                if (rank_list_node) result = rank_list_node.recycle();
+                                $app.rank_list_node = null;
+                                return result;
+                            }
+                            if (opr === "refresh") {
+                                if (rank_list_node) {
+                                    rank_list_node.refresh();
+                                    return rank_list_node;
+                                }
+                            }
+                            return _getNode();
+
+                            // tool function(s) //
+
+                            function _getNode() {
+                                let nodes = $sel.pickup($app.rex_energy_amt, "nodes");
+                                let min_list_node_height = cY(256, -1);
+
+                                for (let i = nodes.length - 1; i >= 0; i -= 1) {
+                                    let node = nodes[i];
+                                    for (let j = 0; i < 6; j += 1) {
+                                        let _node = $sel.pickup([node, "p" + j]);
+                                        if (!_node) break;
+                                        let _bounds = _node.bounds();
+                                        if (!_bounds) break;
+                                        if (_bounds.height() >= min_list_node_height) {
+                                            return $app.rank_list_node = _node;
+                                        }
+                                    }
+                                }
+                                return null;
+                            }
+                        };
+                        $app.total_energy_collect_own = 0;
+                        $app.total_energy_collect_friends = 0;
+                        $app.rank_list_friend_max_invalid_drop_by_times = 5;
+                        $app.rank_list_capt_pool_diff_check_counter = 0;
+                        $app.kill_when_done_intelligent_kill = $cfg.kill_when_done_intelligent
+                            && ($app.init_fg_pkg !== $app.package_name);
+                        $app.friend_drop_by_counter = {
+                            get increase() {
+                                return (name) => {
+                                    global[name] = global[name] || 0;
+                                    if (global[name] >= $app.rank_list_friend_max_invalid_drop_by_times) {
+                                        debugInfo("发送停止排行榜样本停止复查信号");
+                                        return $app.rank_list_review_stop_signal = true;
+                                    }
+                                    if (!global[name]) global[name] = 1;
+                                    else global[name] += 1;
+                                };
+                            },
+                            get decrease() {
+                                return (name) => {
+                                    global[name] = global[name] || 0;
+                                    if (global[name] > 1) global[name] -= 1;
+                                    else global[name] = 0;
+                                };
+                            },
+                        };
+                        $app.isAutojsLogPage = () => checkAutojsTitle(/日志|Log/, "kw_autojs_log_page_title");
+                        $app.isAutojsSettingsPage = () => checkAutojsTitle(/设置|Settings?/, "kw_autojs_settings_page_title");
+                        $app.isAutojsHomepage = () => $sel.pickup(idMatches(/.*action_(log|search)/));
+                        $app.isAutojsForeground = () => $sel.pickup(["Navigate up", {className: "ImageButton"}], "node", "kw_autojs_back_btn")
+                            || $app.isAutojsHomepage() || $app.isAutojsLogPage()
+                            || $app.isAutojsSettingsPage() || $sel.pickup(idMatches(/.*md_\w+/));
+                        $app.init_autojs_state = {
+                            init_foreground: $app.isAutojsForeground(),
+                            init_homepage: $app.isAutojsHomepage(),
+                            init_log_page: $app.isAutojsLogPage(),
+                            init_settings_page: $app.isAutojsSettingsPage(),
+                        };
+
+                        debugInfo("会话参数赋值完毕");
+
+                        setMaxRunTime();
 
                         // tool function(s) //
 
-                        function blistInitializer() {
-                            return {
-                                get: function () {
-                                    // {%name%: {timestamp::, reason::}}
-                                    this.blist_data = $sto.af.get("blacklist", {});
-                                    return this;
-                                },
-                                clean: function () {
-                                    this.deleted = [];
-                                    Object.keys(this.blist_data).forEach((name) => {
-                                        let _ts = this.blist_data[name].timestamp;
-                                        let _expired = (ts) => {
-                                            if (parent._expired.trigger(ts)) {
-                                                this.deleted.push(name);
-                                                return true;
-                                            }
-                                        };
-                                        if (!_ts || _expired(_ts)) delete this.blist_data[name];
-                                    });
-                                    return this;
-                                },
-                                message: function () {
-                                    let _del_len = this.deleted.length;
-                                    if (_del_len && $flag.msg_details) {
-                                        messageAction("移除黑名单记录: " + _del_len + "项", 1, 0, 0, "both");
-                                        this.deleted.forEach(n => messageAction(n, 1, 0, 1));
-                                        showSplitLine();
-                                    }
-                                    return this;
-                                },
-                                assign: function () {
-                                    parent.data = this.blist_data;
-                                    return this;
-                                },
-                            };
-                        }
-                    };
-                },
-                _expired: {
-                    trigger: function (ts) {
-                        if ($$und(ts) || $$inf(ts)) return false;
+                        function setMaxRunTime() {
+                            let max = $cfg.max_running_time_global;
 
-                        let now = this.now = new Date();
-                        let du_ts = this.du_ts = ts - +now;
-                        if (du_ts <= 0) return true;
-                    },
-                    message: function () {
-                        if ($flag.msg_details) {
-                            let du_time_o = new Date(Date.parse(this.now.toDateString()) + this.du_ts);
-                            let padZero = num => ("0" + num).slice(-2);
-                            let dd = Math.floor(this.du_ts / 1000 / 3600 / 24);
-                            let hh = du_time_o.getHours();
-                            let mm = du_time_o.getMinutes();
-                            let ss = du_time_o.getSeconds();
-                            let dd_str = dd ? dd + "天" : "";
-                            let hh_str = hh ? padZero(hh) + "时" : "";
-                            let mm_str = hh || mm ? padZero(mm) + "分" : "";
-                            let ss_str = (hh || mm ? padZero(ss) : ss) + "秒";
-                            return dd_str + hh_str + mm_str + ss_str + "后解除";
+                            if (!max || !+max) return;
+
+                            threads.starts(function () {
+                                setTimeout(function () {
+                                    ui.post(() => messageAction("超时强制退出", 9, 1, 0, "both_n"));
+                                }, +max * 60000 + 3000);
+                            });
+                            debugInfo("单次运行最大超时设置完毕");
                         }
-                    }
-                },
-                get: function (name, def) {
-                    return name && this.data[name] || def;
-                },
-                save: function () {
-                    $sto.af.put("blacklist", this.data, "force");
+
+                        function checkAutojsTitle(regexp, memory_keyword) {
+                            $sel.pickup([regexp, {
+                                className: "TextView",
+                                boundsInside: [cX(0.12), cY(0.03, -1), cX(0.5), cY(0.12, -1)],
+                            }], memory_keyword)
+                        }
+                    })();
+
                     return this;
                 },
-                has: function (name) {
-                    return !!this.get(name);
-                },
-                add: function (data) {
-                    if ($$obj(data)) {
-                        Object.assign(this.data, data);
-                        return this;
-                    }
-                    if ($$len(arguments, 3)) {
-                        let _data = {};
-                        _data[arguments[0]] = {
-                            timestamp: arguments[1],
-                            reason: arguments[2],
-                        };
-                        Object.assign(this.data, _data);
-                        return this;
-                    }
-                    messageAction("黑名单添加方法参数不合法", 9, 1, 0, "both");
-                },
-                data: {},
-            };
+                setBlist: function () {
+                    $app.blist = {
+                        get init() {
+                            return () => {
+                                let blist_setter = this;
+                                blistInitializer().get().clean().message().assign();
+                                return blist_setter;
 
-            return {blist: blist_setter.init().save()};
-        }
+                                // tool function(s) //
 
-        function appPageSetter() {
-            return {
-                page: {
-                    /**
-                     * @param rect {array} -- just an array[], rather than Java Rect
-                     * @returns {UiObject}
-                     */
-                    _getClickable: function (rect) {
-                        let _sel = selector();
-                        rect = rect.map((x, i) => !~x ? i % 2 ? W : H : x);
-                        return _sel.boundsInside.apply(_sel, rect).clickable().findOnce();
-                    },
-                    _plans: {
-                        back: (() => {
-                            let text = () => {
-                                return $sel.pickup(["返回", "c0", {clickable: true}])
-                                    || $sel.pickup(["返回", {clickable: true}]);
+                                function blistInitializer() {
+                                    return {
+                                        get: function () {
+                                            // {%name%: {timestamp::, reason::}}
+                                            this.blist_data = $sto.af.get("blacklist", {});
+                                            return this;
+                                        },
+                                        clean: function () {
+                                            this.deleted = [];
+                                            Object.keys(this.blist_data).forEach((name) => {
+                                                let _ts = this.blist_data[name].timestamp;
+                                                let _expired = (ts) => {
+                                                    if (blist_setter._expired.trigger(ts)) {
+                                                        this.deleted.push(name);
+                                                        return true;
+                                                    }
+                                                };
+                                                if (!_ts || _expired(_ts)) delete this.blist_data[name];
+                                            });
+                                            return this;
+                                        },
+                                        message: function () {
+                                            let _del_len = this.deleted.length;
+                                            if (_del_len && $flag.msg_details) {
+                                                messageAction("移除黑名单记录: " + _del_len + "项", 1, 0, 0, "both");
+                                                this.deleted.forEach(n => messageAction(n, 1, 0, 1));
+                                                showSplitLine();
+                                            }
+                                            return this;
+                                        },
+                                        assign: function () {
+                                            blist_setter.data = this.blist_data;
+                                            return this;
+                                        },
+                                    };
+                                }
                             };
-                            let id = () => $sel.pickup(idMatches(/.*h5.+nav.back|.*back.button/));
-                            let bak = [0, 0, cX(100), cY(200, -1)];
+                        },
+                        _expired: {
+                            trigger: function (ts) {
+                                if ($$und(ts) || $$inf(ts)) return false;
 
-                            return [text, id, bak];
-                        })(),
-                        close: (() => {
-                            let text = function () {
-                                return $sel.pickup([/关闭|Close/, "c0", {clickable: true}])
-                                    || $sel.pickup([/关闭|Close/, {clickable: true}]);
-                            };
-                            let id = () => null; // so far
-                            let bak = [cX(0.8), 0, -1, cY(200, -1)];
-
-                            return [text, id, bak];
-                        })(),
-                    },
-                    _implement: function (fs) {
-                        for (let i = 0, len = fs.length; i < len; i += 1) {
-                            let _checker = fs[i];
-                            if ($$arr(_checker)) {
-                                _checker = () => this._getClickable(fs[i]);
+                                let now = this.now = new Date();
+                                let du_ts = this.du_ts = ts - +now;
+                                if (du_ts <= 0) return true;
+                            },
+                            message: function () {
+                                if ($flag.msg_details) {
+                                    let du_time_o = new Date(Date.parse(this.now.toDateString()) + this.du_ts);
+                                    let padZero = num => ("0" + num).slice(-2);
+                                    let dd = Math.floor(this.du_ts / 1000 / 3600 / 24);
+                                    let hh = du_time_o.getHours();
+                                    let mm = du_time_o.getMinutes();
+                                    let ss = du_time_o.getSeconds();
+                                    let dd_str = dd ? dd + "天" : "";
+                                    let hh_str = hh ? padZero(hh) + "时" : "";
+                                    let mm_str = hh || mm ? padZero(mm) + "分" : "";
+                                    let ss_str = (hh || mm ? padZero(ss) : ss) + "秒";
+                                    return dd_str + hh_str + mm_str + ss_str + "后解除";
+                                }
                             }
-                            let _node = _checker();
-                            if (_node) return clickAction(_node, "widget");
-                        }
-                    },
-                    back: function (no_bak) {
-                        return this._implement(this._plans.back, no_bak);
-                    },
-                    close: function (no_bak) {
-                        return this._implement(this._plans.close, no_bak);
-                    },
-                    keyBack: n => keycode(4, n),
+                        },
+                        get: function (name, def) {
+                            return name && this.data[name] || def;
+                        },
+                        save: function () {
+                            $sto.af.put("blacklist", this.data);
+                            return this;
+                        },
+                        has: function (name) {
+                            return !!this.get(name);
+                        },
+                        add: function (data) {
+                            if ($$obj(data)) {
+                                Object.assign(this.data, data);
+                                return this;
+                            }
+                            if ($$len(arguments, 3)) {
+                                let _data = {};
+                                _data[arguments[0]] = {
+                                    timestamp: arguments[1],
+                                    reason: arguments[2],
+                                };
+                                Object.assign(this.data, _data);
+                                return this;
+                            }
+                            messageAction("黑名单添加方法参数不合法", 9, 1, 0, "both");
+                        },
+                        data: {},
+                    }.init().save();
+
+                    return this;
+                },
+                setPage: function () {
+                    $app.page = {
+                        /**
+                         * @param rect {array} -- just an array[], rather than Java Rect
+                         * @returns {UiObject}
+                         */
+                        _getClickable: function (rect) {
+                            let _sel = selector();
+                            rect = rect.map((x, i) => !~x ? i % 2 ? W : H : x);
+                            return _sel.boundsInside.apply(_sel, rect).clickable().findOnce();
+                        },
+                        _plans: {
+                            back: (() => {
+                                let text = () => {
+                                    return $sel.pickup(["返回", "c0", {clickable: true}])
+                                        || $sel.pickup(["返回", {clickable: true}]);
+                                };
+                                let id = () => $sel.pickup(idMatches(/.*h5.+nav.back|.*back.button/));
+                                let bak = [0, 0, cX(100), cY(200, -1)];
+
+                                return [text, id, bak];
+                            })(),
+                            close: (() => {
+                                let text = function () {
+                                    return $sel.pickup([/关闭|Close/, "c0", {clickable: true}])
+                                        || $sel.pickup([/关闭|Close/, {clickable: true}]);
+                                };
+                                let id = () => null; // so far
+                                let bak = [cX(0.8), 0, -1, cY(200, -1)];
+
+                                return [text, id, bak];
+                            })(),
+                        },
+                        _implement: function (fs) {
+                            for (let i = 0, len = fs.length; i < len; i += 1) {
+                                let _checker = fs[i];
+                                if ($$arr(_checker)) {
+                                    _checker = () => this._getClickable(fs[i]);
+                                }
+                                let _node = _checker();
+                                if (_node) return clickAction(_node, "widget");
+                            }
+                        },
+                        back: function (no_bak) {
+                            return this._implement(this._plans.back, no_bak);
+                        },
+                        close: function (no_bak) {
+                            return this._implement(this._plans.close, no_bak);
+                        },
+                        keyBack: n => keycode(4, n),
+                    };
+
+                    return this;
                 },
             };
         }
@@ -468,9 +683,17 @@ let $init = {
         function queueSetter() {
             return {
                 get excl_tasks() {
-                    return engines.all().filter((e) => {
-                        return e.getTag(_excl_tag) && e.id < my_engine_id;
-                    });
+                    while (1) {
+                        try {
+                            return engines.all().filter((e) => {
+                                return e.getTag(_excl_tag) && e.id < my_engine_id;
+                            });
+                        } catch (e) {
+                            // FIXME ConcurrentModificationException
+                            // because there is `iterator()` in `bridges.toArray()` ?
+                            sleep(500);
+                        }
+                    }
                 },
                 get excl_tasks_len() {
                     return this.excl_tasks.length;
@@ -1284,13 +1507,13 @@ let $init = {
                         plans("launch_rank_list", {
                             task_name: "好友列表采集",
                             first_time_run_message_flag: false,
+                            condition_launch: () => true,
                             condition_ready: () => {
-                                let kw_rank_list = $app.kw_rank_list();
-                                try {
-                                    return kw_rank_list.exists() && kw_rank_list.findOnce().childCount();
-                                } catch (e) {
-                                    // nothing to do here
-                                }
+                                // TODO "intent_with_params" only so far
+                                let a1 = () => $sel.get("rl_title");
+                                let a2 = () => $sel.pickup($app.rex_energy_amt);
+                                let b = () => !$sel.pickup("查看更多好友") && $sel.pickup(/.*环保证书/);
+                                return a1() && a2() || b();
                             },
                             disturbance: () => {
                                 clickAction($sel.pickup("再试一次", "node", "kw_rank_list_try_again"));
@@ -1315,19 +1538,98 @@ let $init = {
                                 }
                             });
 
-                            // TODO another way needed
-                            let thread_expand_hero_list = threads.starts(function expandHeroListThread() {
-                                let kw_list_more = $app.kw_rank_list_more;
-                                let click_count = 0;
-                                while (!$sel.pickup("没有更多了")) {
-                                    clickAction(kw_list_more(), "widget");
-                                    click_count++;
-                                    sleep(200);
+                            let thread_swipe = threads.start(function () {
+                                while (!$flag.list_end_reached) {
+                                    swipe(cX(0.5), uH - 20, cX(0.5), cY(0.2), 150);
                                 }
-                                debugInfo(["排行榜展开完毕", ">点击\"查看更多\": " + click_count + "次"]);
+                            });
+
+                            // TODO experimental only
+                            let thread_expand_hero_list = threads.starts(function () {
+                                let aim = locatorSetter().locate();
+
+                                aim.waitForStrMatch();
+                                aim.waitForPosition();
+                                aim.transmitSignal();
+
+                                return true;
+
+                                // tool function(s) //
+
+                                function locatorSetter() {
+                                    return {
+                                        locate: function () {
+                                            debugInfo("开始定位排行榜可滚动控件");
+                                            $flag.rl_end_locating = true;
+
+                                            while (1) {
+                                                let _node = selector().scrollable().find()[0];
+                                                if (_node) {
+                                                    debugInfo("已定位并缓存排行榜可滚动控件");
+                                                    return aimSetter(_node);
+                                                }
+                                                sleep(300);
+                                            }
+                                        },
+                                    };
+                                }
+
+                                function aimSetter(cached) {
+                                    return {
+                                        waitForStrMatch: function () {
+                                            $flag.rl_end_str_matching = true;
+                                            debugInfo("开始监测列表底部控件描述文本");
+
+                                            while (1) {
+                                                try {
+                                                    let _last = cached;
+                                                    let _child_cnt;
+                                                    while ((_child_cnt = _last.childCount())) {
+                                                        _last = _last.child(_child_cnt - 1);
+                                                    }
+                                                    if ($sel.pickup(_last, "txt").match(/没有更多/)) {
+                                                        debugInfo("列表底部控件描述文本匹配");
+                                                        delete $flag.rl_end_str_matching;
+                                                        cached = _last;
+                                                        return true;
+                                                    }
+                                                    cached.refresh(); // boolean
+                                                } catch (e) {
+                                                    console.warn(e.message);
+                                                    sleep(500);
+                                                }
+                                            }
+                                        },
+                                        waitForPosition: function () {
+                                            $flag.rl_end_pos_matching = true;
+                                            debugInfo("开始监测列表底部控件屏幕高度");
+
+                                            while (1) {
+                                                try {
+                                                    let _h = $sel.pickup(cached, "bounds").height();
+                                                    if (_h > 20) break;
+                                                } catch (e) {
+
+                                                } finally {
+                                                    cached.refresh();
+                                                    sleep(200);
+                                                }
+                                            }
+
+                                            debugInfo("列表底部控件高度满足结束条件");
+                                            cached.recycle();
+                                            delete $flag.rl_end_pos_matching;
+                                        },
+                                        transmitSignal: function () {
+                                            debugInfo("发送排行榜停检信号");
+                                            $flag.list_end_reached = true;
+                                        },
+                                    };
+                                }
                             });
                             thread_expand_hero_list.join(5 * 60000); // 5 minutes at most
                             thread_expand_hero_list.interrupt();
+                            thread_swipe.interrupt();
 
                             let friend_list_data = getFriendsListData();
                             $sto.af.put("friends_list_data", friend_list_data);
@@ -1469,232 +1771,6 @@ let {
 } = require("./Modules/MODULE_MONSTER_FUNC");
 
 $init.global().queue().delay().prompt().monitor().unlock().command();
-
-// TODO refactoring needed here
-(function prologue() {
-    $sel.add("alipay_home", [/首页|Homepage/, {boundsInside: [0, cY(0.7), W, H]}])
-        .add("af_title", [/蚂蚁森林|Ant Forest/, {boundsInside: [0, 0, cX(0.4), cY(0.2)]}])
-        .add("af_home", /合种|背包|通知|攻略|任务|.*大树养成.*/)
-        .add("rl_title", $app.rl_title)
-        .add("rl_ent", /查看更多好友|View more friends/) // rank list entrance
-
-        // TODO to replace
-        .add("rl_end_ident", /.*没有更多.*/)
-
-        .add("wait_awhile", /.*稍等片刻.*/)
-        .add("reload_fst_page", "重新加载")
-        .add("close_btn", /关闭|Close/)
-        .add("user_nickname", [$app.rex_energy_amt, "p2c2c0c0"])
-    ;
-
-    $app.kw_rank_list = () => {
-        let ref = [
-            [idMatches(/.*J_rank_list_append/), 0],
-            [idMatches(/.*J_rank_list/), 0]
-        ];
-        for (let i = 0, len = ref.length; i < len; i += 1) {
-            let arr = ref[i];
-            let node = arr[0].findOnce();
-            if (!node) continue;
-            arr[1] = node.childCount();
-            if (arr[1] > 5) {
-                if (i === 0) return ($app.kw_rank_list = () => idMatches(/.*J_rank_list_append/))();
-                if (i === 1) return ($app.kw_rank_list = () => idMatches(/.*J_rank_list/))();
-            }
-        }
-        return ref.sort((a, b) => b[1] - a[1])[0][0];
-    };
-    $app.kw_rank_list_more = type => $sel.pickup(idMatches(/.*J_rank_list_more/), type, "kw_rank_list_more");
-    $app.kw_login_btn = type => $sel.pickup(/登录|Log in|.*loginButton/, type, "kw_login_btn");
-    $app.kw_login_by_code_btn = type => $sel.pickup(/密码登录|Log ?in with password/, type, "kw_login_by_code_btn");
-    $app.kw_login_with_other_user = type => $sel.pickup(/换个账号登录|.*switchAccount/, type, "kw_login_with_other_user");
-    $app.kw_login_with_other_method = type => {
-        let memory_keyword = "kw_login_with_other_method";
-        return $sel.pickup(/换个方式登录|Switch login method|.*switchLoginMethod/, type, memory_keyword);
-    };
-    $app.kw_login_with_other_method_in_init_page = type => {
-        let memory_keyword = "kw_login_with_other_method_in_init_page";
-        return $sel.pickup(/其他登录方式|Other accounts/, type, memory_keyword);
-    };
-    $app.kw_login_next_step_btn = type => $sel.pickup(/下一步|Next|.*nextButton/, type, "kw_login_next_step_btn");
-    $app.kw_login_error_ensure_btn = type => $sel.pickup(idMatches(/.*ensure/), type, "kw_login_error_ensure_btn");
-    $app.kw_input_label_account = type => $sel.pickup(/账号|Account/, type, "kw_input_label_account");
-    $app.kw_input_label_code = type => $sel.pickup(/密码|Password/, type, "kw_input_label_code");
-    $app.kw_user_logged_out = type => {
-        let regexp_logged_out = new RegExp(".*(" +
-            /在其他设备登录|logged +in +on +another/.source + "|" +
-            /.*账号于.*通过.*登录.*|account +logged +on +to/.source +
-            ").*");
-        $sel.pickup(regexp_logged_out, type, "kw_user_logged_out");
-    };
-    $app.kw_login_with_new_user = type => $sel.pickup(/换个新账号登录|[Aa]dd [Aa]ccount/, type, "kw_login_with_new_user");
-    $app.kw_switch_account_title = type => $sel.pickup(/账号切换|Accounts/, type, "kw_switch_account_title");
-    $app.getLoginErrorMsg = () => {
-        return $sel.pickup(id("com.alipay.mobile.antui:id/message"), "txt", "alipay_antui_msg")
-            || $sel.pickup([$app.kw_login_error_ensure_btn(), "p2c0c0c0"], "txt");
-    };
-    $app.isInLoginPage = () => {
-        return $app.kw_login_with_other_user()
-            || $app.kw_input_label_account()
-            || $app.kw_login_with_other_method_in_init_page();
-    };
-    $app.isInSwitchAccPage = () => $app.kw_login_with_new_user() || $app.kw_switch_account_title();
-    $app.logged_blist_names = [];
-    $app.homepage_intent = {
-        app_id_rich: {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                appId: 60000002,
-                appClearTop: "NO",
-                startMultApp: "YES",
-                // enableScrollBar: "NO",
-                // backBehavior: "auto",
-                defaultTitle: "",
-            }),
-        },
-        app_id_plain: {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                appId: 60000002,
-                // defaultTitle: "",
-            }),
-        },
-        common_browser_rich: {
-            action: "VIEW",
-            data: encodeURIParams("alipays://platformapi/startapp", {
-                saId: 20000067,
-                url: "https://60000002.h5app.alipay.com/www/home.html",
-                __webview_options__: {
-                    showOptionMenu: "YES",
-                    startMultApp: "YES",
-                    enableScrollBar: "NO",
-                },
-            }),
-        },
-    };
-    $app.rank_list_intent = {
-        action: "VIEW",
-        data: encodeURIParams("alipays://platformapi/startapp", {
-            saId: 20000067,
-            url: "https://60000002.h5app.alipay.com/www/listRank.html",
-            __webview_options__: {
-                startMultApp: "YES",
-                showOptionMenu: "YES",
-                appClearTop: "NO",
-                enableScrollBar: "NO",
-                defaultTitle: $app.rl_title,
-                transparentTitle: "none",
-            },
-        }),
-    };
-    $app.rank_list_icon_collect = $sto.af.get("af_rank_list_icon_collect");
-    $app.rank_list_icon_help = $sto.af.get("af_rank_list_icon_help");
-    $app.rank_list_bottom_template_path = $cfg.rank_list_bottom_template_path;
-    $app.rank_list_bottom_template = images.read($app.rank_list_bottom_template_path);
-    $app.rank_list_capt_img = null;
-    $app.rank_list_capt_diff_check_pool = [];
-    $app.rankListNode = (opr) => {
-        let {rank_list_node} = $app;
-        if (opr === "recycle") {
-            let result = true;
-            if (rank_list_node) result = rank_list_node.recycle();
-            $app.rank_list_node = null;
-            return result;
-        }
-        if (opr === "refresh") {
-            if (rank_list_node) {
-                rank_list_node.refresh();
-                return rank_list_node;
-            }
-        }
-        return _getNode();
-
-        // tool function(s) //
-
-        function _getNode() {
-            let nodes = $sel.pickup($app.rex_energy_amt, "nodes");
-            let min_list_node_height = cY(256, -1);
-
-            for (let i = nodes.length - 1; i >= 0; i -= 1) {
-                let node = nodes[i];
-                for (let j = 0; i < 6; j += 1) {
-                    let _node = $sel.pickup([node, "p" + j]);
-                    if (!_node) break;
-                    let _bounds = _node.bounds();
-                    if (!_bounds) break;
-                    if (_bounds.height() >= min_list_node_height) {
-                        return $app.rank_list_node = _node;
-                    }
-                }
-            }
-            return null;
-        }
-    };
-    $app.total_energy_collect_own = 0;
-    $app.total_energy_collect_friends = 0;
-    $app.rank_list_friend_max_invalid_drop_by_times = 5;
-    $app.rank_list_capt_pool_diff_check_counter = 0;
-    $app.kill_when_done_intelligent_kill = $cfg.kill_when_done_intelligent
-        && ($app.init_fg_pkg !== $app.package_name);
-    $app.friend_drop_by_counter = {
-        get increase() {
-            return (name) => {
-                global[name] = global[name] || 0;
-                if (global[name] >= $app.rank_list_friend_max_invalid_drop_by_times) {
-                    debugInfo("发送停止排行榜样本停止复查信号");
-                    return $app.rank_list_review_stop_signal = true;
-                }
-                if (!global[name]) global[name] = 1;
-                else global[name] += 1;
-            };
-        },
-        get decrease() {
-            return (name) => {
-                global[name] = global[name] || 0;
-                if (global[name] > 1) global[name] -= 1;
-                else global[name] = 0;
-            };
-        },
-    };
-    $app.isAutojsLogPage = () => checkAutojsTitle(/日志|Log/, "kw_autojs_log_page_title");
-    $app.isAutojsSettingsPage = () => checkAutojsTitle(/设置|Settings?/, "kw_autojs_settings_page_title");
-    $app.isAutojsHomepage = () => $sel.pickup(idMatches(/.*action_(log|search)/));
-    $app.isAutojsForeground = () => $sel.pickup(["Navigate up", {className: "ImageButton"}], "node", "kw_autojs_back_btn")
-        || $app.isAutojsHomepage() || $app.isAutojsLogPage()
-        || $app.isAutojsSettingsPage() || $sel.pickup(idMatches(/.*md_\w+/));
-    $app.init_autojs_state = {
-        init_foreground: $app.isAutojsForeground(),
-        init_homepage: $app.isAutojsHomepage(),
-        init_log_page: $app.isAutojsLogPage(),
-        init_settings_page: $app.isAutojsSettingsPage(),
-    };
-
-    debugInfo("会话参数赋值完毕");
-
-    setMaxRunTime();
-
-    // tool function(s) //
-
-    function setMaxRunTime() {
-        let max = $cfg.max_running_time_global;
-
-        if (!max || !+max) return;
-
-        threads.starts(function () {
-            setTimeout(function () {
-                ui.post(() => messageAction("超时强制退出", 9, 1, 0, "both_n"));
-            }, +max * 60000 + 3000);
-        });
-        debugInfo("单次运行最大超时设置完毕");
-    }
-
-    function checkAutojsTitle(regexp, memory_keyword) {
-        $sel.pickup([regexp, {
-            className: "TextView",
-            boundsInside: [cX(0.12), cY(0.03, -1), cX(0.5), cY(0.12, -1)],
-        }], memory_keyword)
-    }
-})();
 
 $af.homepage().rankList().epilogue();
 
