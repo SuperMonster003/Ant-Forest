@@ -34,7 +34,6 @@ module.exports = {
         result_showing_switch: true, // information will show in floaty way with true or toast way with false
         floaty_result_switch: true, // result will show in floaty way with "true value" or toast way with "false value"
         floaty_result_countdown: 4, // 2 <= x <= 10; countdown seconds before floaty window going dismissed
-        rank_list_samples_collect_strategy: "layout", // "image" for image recolonization or "layout" for layout inspection
         rank_list_review_switch: true, // review rank list samples if one or more of conditions met
         rank_list_review_threshold_switch: true, // rank list review condition: min countdown threshold
         rank_list_review_threshold: 1, // 1 <= x <= 5; check if rank list min countdown is less than threshold
@@ -50,7 +49,6 @@ module.exports = {
         timers_countdown_check_own_timed_task_ahead: 2, // 0 <= x <= 3; if you prefer an earlier timed task before own balls ripe
         timers_countdown_check_friends_switch: true, // whether to auto-calc next running timestamp and set a timed task
         timers_countdown_check_friends_timed_task_ahead: 1, // 0 <= x <= 5; if you prefer an earlier timed task before friends' balls ripe
-        // timers_countdown_check_screening: true, // if true was set, unnecessary tasks will not be executed
         timers_uninterrupted_check_switch: true, // whether to set a timed task in the future when there are no other tasks set
         timers_uninterrupted_check_sections: [{section: ["06:30", "00:00"], interval: 60}], // 1 <= x <= 600; multi sections available
         timers_insurance_switch: true, // just in case, as you know; timed task will be set on running and removed when script finished

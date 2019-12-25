@@ -34,15 +34,13 @@ let ext = {
     },
 };
 
-module.exports = {
+module.exports = Object.assign({
     load: () => Object.assign(global["device"].__proto__, ext),
-    keepOn: ext.keepOn,
-    cancelOn: ext.cancelOn,
-};
+}, ext);
 
 // tool function(s) //
 
-// updated: Dec 03, 2019
+// updated: Dec 3, 2019
 function debugInfo(msg, info_flag, forcible_flag) {
     global["$flag"] = global["$flag"] || {};
     let $flag = global["$flag"];
@@ -75,10 +73,10 @@ function debugInfo(msg, info_flag, forcible_flag) {
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return ~console.log(_split_line + _extra_str);
     }
@@ -105,10 +103,10 @@ function debugInfo(msg, info_flag, forcible_flag) {
     function setDebugSplitLine(msg) {
         let _msg = "";
         if (msg.match(/dash/)) {
-            for (let i = 0; i < 16; i += 1) _msg += "- ";
+            for (let i = 0; i < 17; i += 1) _msg += "- ";
             _msg += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _msg += "-";
+            for (let i = 0; i < 33; i += 1) _msg += "-";
         }
         return _msg;
     }

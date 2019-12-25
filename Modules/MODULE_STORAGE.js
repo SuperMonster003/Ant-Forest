@@ -11,7 +11,7 @@
 
     return storages;
 
-    // constructor //
+    // constructor(s) //
 
     function Storage(name) {
         let storage_dir = files.getSdcardPath() + "/.local/";

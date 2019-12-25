@@ -196,10 +196,10 @@ function pwmap () {
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return ~console.log(_split_line + _extra_str);
     }

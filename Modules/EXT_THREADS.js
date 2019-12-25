@@ -13,7 +13,6 @@ let ext = {
     },
 };
 
-module.exports = {
+module.exports = Object.assign({
     load: () => Object.assign(global["threads"], ext),
-    starts: ext.starts,
-};
+}, ext);
