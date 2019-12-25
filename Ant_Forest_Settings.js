@@ -1,14 +1,11 @@
 "ui";
 
 let {
-    sess_cfg, sto_cfg, sess_par,
     $sto, $defs, $view, $save, $tool,
+    sess_cfg, sto_cfg, sess_par,
     threads, android, files, dialogs, toast, events,
     engines, activity, java, ui, exit, auto, timers,
 } = global;
-
-sess_cfg = sto_cfg = sess_par = {};
-$sto = $defs = $view = $save = $tool = {};
 
 // codes here should be updated manually when appending
 // or removing views, and so should $defs
@@ -184,10 +181,10 @@ let $init = {
                 let _extra_str = extra_str || "";
                 let _split_line = "";
                 if (style === "dash") {
-                    for (let i = 0; i < 16; i += 1) _split_line += "- ";
+                    for (let i = 0; i < 17; i += 1) _split_line += "- ";
                     _split_line += "-";
                 } else {
-                    for (let i = 0; i < 32; i += 1) _split_line += "-";
+                    for (let i = 0; i < 33; i += 1) _split_line += "-";
                 }
                 return ~console.log(_split_line + _extra_str);
             }
@@ -222,6 +219,18 @@ let $init = {
         require("./Modules/EXT_DIALOGS").load();
         require("./Modules/EXT_THREADS").load();
 
+        // do not `$a = $b = $c = {};`
+        // they shouldn't be assigned
+        // the same address pointer
+        $sto = $sto || {};
+        $defs = $defs || {};
+        $view = $view || {};
+        $save = $save || {};
+        $tool = $tool || {};
+        sto_cfg = sto_cfg || {};
+        sess_cfg = sess_cfg || {};
+        sess_par = sess_par || {};
+
         let _sto = require("./Modules/MODULE_STORAGE");
         Object.assign($sto, {
             af: _sto.create("af"),
@@ -246,19 +255,18 @@ let $init = {
                 );
                 ui.statusBarColor(status_bar_color || "#03a6ef");
             },
-            addPage: (title, addFunc) => global.pages_buffer_obj[title[1]] = () => addFunc(title),
+            addPage: (title, addFunc) => pages_buffer_obj[title[1]] = () => addFunc(title),
             pageJump: function (direction, next_page_name) {
                 if (global["_$_page_scrolling"]) return;
 
-                let _rolling = global.rolling_pages;
                 if (next_page_name === getLastRollingPage().page_label_name) return;
 
                 if (direction.match(/back|previous|last/)) {
-                    smoothScrollView("full_right", null, _rolling);
-                    _rolling.pop();
+                    smoothScrollView("full_right", null, rolling_pages);
+                    rolling_pages.pop();
                 } else {
-                    _rolling.push(global.view_pages[next_page_name]);
-                    smoothScrollView("full_left", null, _rolling);
+                    rolling_pages.push(view_pages[next_page_name]);
+                    smoothScrollView("full_left", null, rolling_pages);
                 }
             },
             setHomePage: function (home_title, bg_color) {
@@ -277,7 +285,7 @@ let $init = {
                 _homepage.ready = function () {
                     ui.main.getParent().addView(_homepage);
                     _homepage._back_btn_area.setVisibility(8);
-                    global.rolling_pages[0] = _homepage; //// PENDING ////
+                    rolling_pages[0] = _homepage; //// PENDING ////
                 };
 
                 return _homepage;
@@ -449,7 +457,7 @@ let $init = {
                             };
                             item_view.restoreClickListener = () => item_view.setClickListener(() => {
                                 let next_page = view_options.next_page;
-                                if (next_page && global.view_pages[next_page]) $view.pageJump("next", next_page);
+                                if (next_page && view_pages[next_page]) $view.pageJump("next", next_page);
                             });
                             item_view.setClickListener();
                             item_view._chevron_btn.setVisibility(8);
@@ -489,7 +497,7 @@ let $init = {
                                 return item_view[key] = item_data;
                             }
                             if (key === "updateOpr") {
-                                global.dynamic_views.push(item_view);
+                                dynamic_views.push(item_view);
                                 return (item_view.updateOpr = () => item_data.bind(view_options)(item_view))();
                             }
                             item_view[key] = item_data.bind(item_view);
@@ -725,7 +733,7 @@ let $init = {
                         if (_label_name) {
                             sess_par["ready_signal_" + _label_name] = true;
                         } else {
-                            messageAction("页面标签不存在:", 3, 0, 0, "up");
+                            messageAction("页面标签不存在:", 3, 0, 0, -1);
                             messageAction(_title_name, 3, 0, 0, 1);
                         }
                         return page_view;
@@ -739,7 +747,7 @@ let $init = {
 
                     function checkPageLabel() {
                         if (_label_name) {
-                            global.view_pages[_label_name] = page_view;
+                            view_pages[_label_name] = page_view;
                             page_view.setTag(_label_name);
                             return _label_name;
                         }
@@ -932,7 +940,7 @@ let $init = {
                                                 let neutral_btn_text = diag.getActionButton("neutral");
                                                 if (neutral_btn_text) {
                                                     waitForAndClickAction(text(neutral_btn_text), 4000, 100, {
-                                                        click_strategy: "widget",
+                                                        click_strategy: "w",
                                                     });
                                                 }
                                             });
@@ -2311,7 +2319,7 @@ let $init = {
                 }
             },
             updateViewByLabel: function (view_label) {
-                ui.post(() => global.dynamic_views
+                ui.post(() => dynamic_views
                     .filter(view => view.view_label === view_label)
                     .forEach(view => view.updateOpr(view))
                 );
@@ -2448,7 +2456,7 @@ let $init = {
 
                 return pickup ? converters[pickup] : converters;
 
-                // constructor //
+                // constructor(s) //
 
                 function _ConverterFactory(step, units) {
                     if (typeof step === "object" /* Array */) {
@@ -2790,26 +2798,21 @@ let $init = {
                 return str === "一次性" ? 0 : str;
             },
             refreshFriendsListByLaunchingAlipay: function (params) {
-                return dialogs.builds([
-                    "提示", "此功能暂未完成新版蚂蚁森林控件的适配\n预计于 v1.9.10 Beta8 完成功能恢复",
-                    0, 0, "返回", 1
-                ]).on("positive", d => d.dismiss()).show();
+                let {dialog_prompt, onTrigger, onResume} = params || {};
 
-                // let {dialog_prompt, onTrigger, onResume} = params || {};
-
-                // if (dialog_prompt) {
-                //     dialogs.builds([
-                //         "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
-                //         0, "放弃", "开始刷新", 1
-                //     ]).on("negative", diag => {
-                //         diag.dismiss();
-                //     }).on("positive", diag => {
-                //         diag.dismiss();
-                //         refreshNow();
-                //     }).show();
-                // } else {
-                //     refreshNow();
-                // }
+                if (dialog_prompt) {
+                    dialogs.builds([
+                        "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
+                        0, "放弃", "开始刷新", 1
+                    ]).on("negative", diag => {
+                        diag.dismiss();
+                    }).on("positive", diag => {
+                        diag.dismiss();
+                        refreshNow();
+                    }).show();
+                } else {
+                    refreshNow();
+                }
 
                 // tool function(s) //
 
@@ -2819,13 +2822,13 @@ let $init = {
                     }
                     engines.execScriptFile("./Ant_Forest_Launcher.js", {
                         arguments: {
-                            cmd: "get_fri_list",
+                            cmd: "get_rank_list_names",
                             instant_run_flag: true,
                             no_insurance_flag: true,
                         },
                     });
                     threads.starts(function () {
-                        waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "widget"});
+                        waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "w"});
                     });
 
                     if (typeof onResume === "function") {
@@ -2995,7 +2998,7 @@ let $init = {
                 }
             },
             zip: function (input_path, output_path, dialog) {
-                if (typeof global.sess_par === "undefined") global.sess_par = {};
+                if (typeof sess_par === "undefined") sess_par = {};
 
                 delete sess_par.sgn_intrpt_update;
 
@@ -3113,8 +3116,6 @@ let $init = {
                 }
             },
             unzip: function (input_path, output_path, include_zip_file_name, dialog) {
-                if (typeof global.sess_par === "undefined") global.sess_par = {};
-
                 delete sess_par.sgn_intrpt_update;
 
                 let {BufferedInputStream, BufferedOutputStream, File, FileOutputStream} = java.io;
@@ -3426,7 +3427,7 @@ let $init = {
             }
 
             if ($view.checkPageState()) {
-                let _one_rolling = global.rolling_pages.length === 1;
+                let _one_rolling = rolling_pages.length === 1;
                 let _need_save = $save.check();
                 return _one_rolling ? _need_save ? quitConfirm() : quitNow() : $view.pageJump("back");
             }
@@ -3465,7 +3466,7 @@ let $init = {
         events.on("exit", () => {
             listener.removeAllListeners();
             threads.shutDownAll();
-            global.dialogs_pool.forEach((diag) => {
+            dialogs_pool.forEach((diag) => {
                 diag.dismiss();
                 diag = null;
             }).splice(0);
@@ -3486,7 +3487,7 @@ let $init = {
             }
         });
         _listener.addListener("update_all", () => {
-            global.dynamic_views.forEach(view => view.updateOpr(view));
+            dynamic_views.forEach(view => view.updateOpr(view));
         });
 
         Object.assign(global, {listener: _listener});
@@ -3647,12 +3648,12 @@ $view.setHomePage($defs.homepage_title)
                         return images.fromBase64(require("./Modules/MODULE_TREASURY_VAULT").image_base64_data[name]);
                     };
 
-                    let outlook_icon = getImageFromBase64("outlook_icon");
-                    let qq_icon = getImageFromBase64("qq_icon");
-                    let github_icon = getImageFromBase64("github_icon");
-                    let alipay_donation_qr_code = getImageFromBase64("alipay_donation_qr_code");
-                    let wechat_donation_qr_code = getImageFromBase64("wechat_donation_qr_code");
-                    let detective_avatar = getImageFromBase64("detective_avatar");
+                    let ic_outlook = getImageFromBase64("ic_outlook");
+                    let ic_qq = getImageFromBase64("ic_qq");
+                    let ic_github = getImageFromBase64("ic_github");
+                    let qr_alipay_dnt = getImageFromBase64("qr_alipay_dnt");
+                    let qr_wechat_dnt = getImageFromBase64("qr_wechat_dnt");
+                    let avt_detective = getImageFromBase64("avt_detective");
 
                     let local_avatar_path = (() => {
                         let path = files.getSdcardPath() + "/.local/Pics/";
@@ -3697,9 +3698,9 @@ $view.setHomePage($defs.homepage_title)
                         sess_par.avatar_recycle_opr_working_flag = true;
 
                         let recycle_opr = [
-                            ["avatar", () => local_avatar || detective_avatar, () => local_avatar_text],
-                            ["alipay", () => alipay_donation_qr_code, () => donation_text],
-                            ["wechat", () => wechat_donation_qr_code, () => donation_text]
+                            ["avatar", () => local_avatar || avt_detective, () => local_avatar_text],
+                            ["alipay", () => qr_alipay_dnt, () => donation_text],
+                            ["wechat", () => qr_wechat_dnt, () => donation_text]
                         ];
 
                         setAnimation("vanish");
@@ -3767,7 +3768,7 @@ $view.setHomePage($defs.homepage_title)
                         additional_view._avatar_desc.text(local_avatar_text = avatar_text_obj.coffee);
                     } else {
                         debugInfo("使用默认头像图片资源");
-                        additional_view._avatar.setSource(detective_avatar);
+                        additional_view._avatar.setSource(avt_detective);
                         additional_view._avatar_desc.text(local_avatar_text = avatar_text_obj.loading);
                     }
 
@@ -3819,7 +3820,7 @@ $view.setHomePage($defs.homepage_title)
                         }
                     });
 
-                    additional_view.qq.setSource(qq_icon);
+                    additional_view.qq.setSource(ic_qq);
                     additional_view.qq.on("click", () => {
                         app.startActivity({
                             action: "VIEW",
@@ -3828,9 +3829,9 @@ $view.setHomePage($defs.homepage_title)
                             ),
                         });
                     });
-                    additional_view.github.setSource(github_icon);
+                    additional_view.github.setSource(ic_github);
                     additional_view.github.on("click", () => app.openUrl("https://github.com/SuperMonster003"));
-                    additional_view.outlook.setSource(outlook_icon);
+                    additional_view.outlook.setSource(ic_outlook);
                     additional_view.outlook.on("click", () => {
                         app.startActivity({
                             action: "VIEW",
@@ -4326,39 +4327,30 @@ $view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], funct
         .add("button", new Layout("滑动间隔", "hint", {
             config_conj: "rank_list_swipe_interval",
             newWindow: function () {
-                let diag_strategy_image = dialogs.builds([
+                let _def = $sto.def.af[this.config_conj].toString();
+                dialogs.builds([
                     "设置排行榜页面滑动间隔", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|100<=x<=800,x∈N}"});
-                let _def = $sto.def.af[this.config_conj].toString();
-                diag_strategy_image.on("neutral", dialog => dialog.getInputEditText().setText(_def));
-                diag_strategy_image.on("negative", () => diag_strategy_image.dismiss());
-                diag_strategy_image.on("positive", dialog => {
-                    let input = diag_strategy_image.getInputEditText().getText().toString();
-                    if (input === "") return dialog.dismiss();
+                ], {
+                    inputHint: "{x|100<=x<=800,x∈N}",
+                }).on("neutral", (d) => {
+                    d.getInputEditText().setText(_def);
+                }).on("negative", (d) => {
+                    d.dismiss();
+                }).on("positive", d => {
+                    let input = d.getInputEditText().getText().toString();
+                    if (input === "") return d.dismiss();
                     let value = +input;
-                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 800 || value < 100) return alertTitle(dialog, "输入值范围不合法");
+                    if (isNaN(value)) return alertTitle(d, "输入值类型不合法");
+                    if (value > 800 || value < 100) return alertTitle(d, "输入值范围不合法");
                     $save.session(this.config_conj, ~~value);
-                    diag_strategy_image.dismiss();
-                });
-                let diag_strategy_layout = dialogs.builds([
-                    "设置排行榜页面滑动间隔", "采用\"布局分析\"策略时\n滑动间隔将由脚本自动获取动态最优值",
-                    0, 0, "返回", 1,
-                ]);
-                diag_strategy_layout.on("positive", () => diag_strategy_layout.dismiss());
-                sess_cfg.rank_list_samples_collect_strategy === "image"
-                    ? diag_strategy_image.show()
-                    : diag_strategy_layout.show();
+                    d.dismiss();
+                }).show();
             },
             updateOpr: function (view) {
-                let hint_text = "自动设置";
-                if (sess_cfg.rank_list_samples_collect_strategy === "image") {
-                    let conj = this.config_conj;
-                    let data = sess_cfg[conj] || $sto.def.af[conj];
-                    hint_text = data.toString() + " ms";
-                }
-                view._hint.text(hint_text);
+                let conj = this.config_conj;
+                let data = sess_cfg[conj] || $sto.def.af[conj];
+                view._hint.text(data.toString() + " ms");
             },
         }))
         .add("split_line")
@@ -4369,36 +4361,6 @@ $view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], funct
             updateOpr: function (view) {
                 view._hint.text(sess_cfg[this.config_conj] ? "已开启" : "已关闭");
                 $view.checkDependency(view, "timers_switch");
-            },
-        }))
-        .add("button", new Layout("采集策略", "hint", {
-            config_conj: "rank_list_samples_collect_strategy",
-            map: {
-                layout: "布局分析",
-                image: "图像处理",
-            },
-            newWindow: function () {
-                let map = this.map;
-                let map_keys = Object.keys(map);
-                let diag = dialogs.builds(["排行榜样本采集策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
-                    items: map_keys.slice().map(value => map[value]),
-                    itemsSelectMode: "single",
-                    itemsSelectedIndex: map_keys.indexOf((sess_cfg[this.config_conj] || $sto.def.af[this.config_conj]).toString()),
-                });
-                diag.on("neutral", () => {
-                    let diag_about = dialogs.builds(["关于采集策略", "about_rank_list_samples_collect_strategy", 0, 0, "关闭", 1]);
-                    diag_about.on("positive", () => diag_about.dismiss());
-                    diag_about.show();
-                });
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", () => {
-                    $save.session(this.config_conj, map_keys[diag.selectedIndex]);
-                    diag.dismiss();
-                });
-                diag.show();
-            },
-            updateOpr: function (view) {
-                view._hint.text(this.map[(sess_cfg[this.config_conj] || $sto.def.af[this.config_conj]).toString()]);
             },
         }))
         .add("button", new Layout("截图样本池差异检测阈值", "hint", {
@@ -4478,17 +4440,25 @@ $view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], funct
 $view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
     $view.setPage(arguments[0], null, {
         check_page_state: (view) => {
-            let samples = [
-                "rank_list_review_threshold_switch",
-                "rank_list_review_samples_clicked_switch",
-                "rank_list_review_difference_switch"
-            ];
-            if (!sess_cfg.rank_list_review_switch) return true;
-            let chk = tag_name => $view.findViewByTag(view, tag_name, 3)._checkbox_switch.checked;
-            for (let i = 0, len = samples.length; i < len; i += 1) {
-                if (chk(samples[i])) return true;
+            if (!sess_cfg.rank_list_review_switch) {
+                return true;
             }
-            dialogs.builds(["提示", "样本复查条件需至少选择一个", 0, 0, "返回"]).show();
+            let _samp = [
+                "threshold_switch",
+                "samples_clicked_switch",
+                "difference_switch",
+            ];
+            for (let i = 0, len = _samp.length; i < len; i += 1) {
+                let _tag = "rank_list_review_" + _samp[i];
+                let _view = $view.findViewByTag(view, _tag, 3);
+                if (_view._checkbox_switch.checked) {
+                    return true;
+                }
+            }
+            dialogs.builds([
+                "提示", "样本复查条件需至少选择一个",
+                0, 0, "返回", 1,
+            ]).on("positive", d => d.dismiss()).show();
         },
     })
         .add("switch", new Layout("总开关", {
@@ -6267,7 +6237,7 @@ $view.addPage(["账户功能", "account_page"], function () {
                                 let final_data = Object.assign({}, sess_cfg[this.config_conj] || {});
                                 if (account_name) {
                                     final_data.account_name = $tool.accountNameConverter(account_name, "encrypt");
-                                    if (account_code) final_data.account_code = global.encrypt(account_code);
+                                    if (account_code) final_data.account_code = encrypt(account_code);
                                     $save.session(this.config_conj, final_data);
                                     closeInfoInputPage();
                                 } else {
@@ -6346,13 +6316,13 @@ $view.addPage(["账户功能", "account_page"], function () {
                                         diag.dismiss();
                                         engines.execScriptFile("./Ant_Forest_Launcher.js", {
                                             arguments: {
-                                                cmd: "get_cur_acc_name",
+                                                cmd: "get_current_account_name",
                                                 instant_run_flag: true,
                                                 no_insurance_flag: true,
                                             },
                                         });
                                         threads.starts(function () {
-                                            waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "widget"});
+                                            waitForAndClickAction(text("打开"), 3500, 300, {click_strategy: "w"});
                                         });
                                         threads.starts(function () {
                                             waitForAction(() => currentPackage().match(/AlipayGphone/), 8000);
@@ -7316,7 +7286,7 @@ $view.addPage(["从服务器还原项目", "restore_projects_from_server_page"],
 
 $view.flushPagesBuffer();
 
-// constructor //
+// constructor(s) //
 
 function Layout(title, hint, params) {
     let _params = params || {};

@@ -12,15 +12,16 @@ let ext = {
         }
     },
     reclaim: reclaim,
-    captureCurrentScreen: () => {
-        let max_try_times = 10;
-        while (max_try_times--) {
+    capt: () => {
+        let _max = 10;
+        while (_max--) {
             try {
                 tryRequestScreenCapture();
-                let img = images.captureScreen();
-                let img_copy = images.copy(img); // prevent "img" from being auto-recycled
-                reclaim(img);
-                return img_copy;
+                let _img = images.captureScreen();
+                // prevent "_img" from being auto-recycled
+                let _copy = images.copy(_img);
+                reclaim(_img);
+                return _copy;
             } catch (e) {
                 sleep(240);
             }
@@ -31,29 +32,42 @@ let ext = {
         exit();
     },
 };
+ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
 module.exports = Object.assign({
     load: () => Object.assign(global["images"], ext),
 }, ext);
 
-// FIXME seems like this is not effective to avoid OOM
+// FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
 function reclaim() {
     for (let i = 0, len = arguments.length; i < len; i += 1) {
         let img = arguments[i];
         if (!img) continue;
         img.recycle();
-        img = null;
+        /*
+            `img = null;` is not necessary
+            as which only modified the point
+            of this reference typed argument
+         */
     }
 }
 
-// updated: Dec 03, 2109
+// updated: Dec 15, 2019
 function tryRequestScreenCapture(params) {
+    let _mon_path = "./MODULE_MONSTER_FUNC";
+    if (files.exists(_mon_path)) {
+        return require(_mon_path).tryRequestScreenCapture(params);
+    }
+
+
     global["$flag"] = global["$flag"] || {};
     let $flag = global["$flag"];
 
     if ($flag.request_screen_capture) return true;
 
-    sleep(200); // why are you always a naughty boy... how can i get along well with you...
+    // usually, images.captureScreen() needs some time
+    // to be effective, and 200 is not absolutely
+    sleep(200);
 
     let _params = params || {};
 
@@ -83,14 +97,14 @@ function tryRequestScreenCapture(params) {
         if (_waitForAction(_kw_sure_btn, 5000)) {
             if (_waitForAction(_kw_no_longer_prompt, 1000)) {
                 _debugInfo("勾选\"不再提示\"复选框");
-                _clickAction(_kw_no_longer_prompt(), "widget");
+                _clickAction(_kw_no_longer_prompt(), "w");
             }
             if (_waitForAction(_kw_sure_btn, 2000)) {
                 let _node = _kw_sure_btn();
                 let _btn_click_action_str = "点击\"" + _kw_sure_btn("txt") + "\"按钮";
 
                 _debugInfo(_btn_click_action_str);
-                _clickAction(_node, "widget");
+                _clickAction(_node, "w");
 
                 if (!_waitForAction(() => !_kw_sure_btn(), 1000)) {
                     _debugInfo("尝试click()方法再次" + _btn_click_action_str);

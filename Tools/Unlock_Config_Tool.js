@@ -34,14 +34,6 @@ require = function (path) {
 
 let dialogs = loadInternalModuleDialog(runtime, global);
 
-threads.starts = (f, error_msg_consume_flag) => {
-    try {
-        return threads.start(f);
-    } catch (e) {
-        if (!e.message.match(/script exiting/) && !error_msg_consume_flag) throw Error(e);
-    }
-};
-
 let {
     getDisplayParams,
     equalObjects,
@@ -119,7 +111,7 @@ let saveSession = (key, value, quiet_flag) => {
     }
     if (quiet_flag) return;
     updateAllValues();
-    threads.starts(function () {
+    threads.start(function () {
         let btn_save = null;
         waitForAction(() => btn_save = session_params["homepage_btn_save"], 10000, 80);
         ui.post(() => needSave() ? btn_save.switch_on() : btn_save.switch_off());
@@ -894,7 +886,7 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
     }
 }
 
-// constructor function(s) //
+// constructor(s) //
 
 function Layout(title, params) {
     params = params || {};
@@ -1304,33 +1296,43 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
+        global["$flag"] = global["$flag"] || {};
+        let $flag = global["$flag"];
+
+        if ($flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
             return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
         }
 
-        let _msg_level = typeof msg_level === "number" ? msg_level : -1;
+        let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
         let _if_toast = if_toast || false;
         let _if_arrow = if_arrow || false;
-        let _if_split_line = if_split_line || false;
+        let _if_spl_ln = if_split_line || false;
+        _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
 
         if (_if_toast) toast(_msg);
 
-        let _split_line_style = "solid";
-        if (typeof _if_split_line === "string") {
-            if (_if_split_line.match(/dash/)) _split_line_style = "dash";
-            if (_if_split_line.match(/both|up/)) {
-                if (_split_line_style !== global["_$_last_cnsl_split_ln_type"]) {
-                    _showSplitLine("", _split_line_style);
-                }
-                delete global["_$_last_cnsl_split_ln_type"];
-                if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
-                else if (_if_split_line.match(/both/)) _if_split_line = 1;
-                else if (_if_split_line.match(/up/)) _if_split_line = 0;
+        let _spl_ln_style = "solid";
+        let _saveLnStyle = () => $flag.last_cnsl_spl_ln_type = _spl_ln_style;
+        let _loadLnStyle = () => $flag.last_cnsl_spl_ln_type;
+        let _clearLnStyle = () => delete $flag.last_cnsl_spl_ln_type;
+        let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+
+        if (typeof _if_spl_ln === "string") {
+            if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+            if (_if_spl_ln.match(/both|up/)) {
+                if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
+                if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
+                else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
+                else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
             }
         }
+
+        _clearLnStyle();
 
         if (_if_arrow) {
             if (_if_arrow > 10) {
@@ -1342,73 +1344,74 @@ function loadInternalModuleMonsterFunc() {
         }
 
         let _exit_flag = false;
-        let _throw_error_flag = false;
-        switch (_msg_level) {
+        let _throw_flag = false;
+        switch (_msg_lv) {
             case 0:
             case "verbose":
             case "v":
-                _msg_level = 0;
+                _msg_lv = 0;
                 console.verbose(_msg);
                 break;
             case 1:
             case "log":
             case "l":
-                _msg_level = 1;
+                _msg_lv = 1;
                 console.log(_msg);
                 break;
             case 2:
             case "i":
             case "info":
-                _msg_level = 2;
+                _msg_lv = 2;
                 console.info(_msg);
                 break;
             case 3:
             case "warn":
             case "w":
-                _msg_level = 3;
+                _msg_lv = 3;
                 console.warn(_msg);
                 break;
             case 4:
             case "error":
             case "e":
-                _msg_level = 4;
+                _msg_lv = 4;
                 console.error(_msg);
                 break;
             case 8:
             case "x":
-                _msg_level = 4;
+                _msg_lv = 4;
                 console.error(_msg);
                 _exit_flag = true;
                 break;
             case 9:
             case "t":
-                _msg_level = 4;
+                _msg_lv = 4;
                 console.error(_msg);
-                _throw_error_flag = true;
+                _throw_flag = true;
         }
-        if (_if_split_line) {
-            let show_split_line_extra_str = "";
-            if (typeof _if_split_line === "string") {
-                if (_if_split_line.match(/dash/)) {
-                    show_split_line_extra_str = _if_split_line.match(/_n|n_/) ? "\n" : ""
+
+        if (_if_spl_ln) {
+            let _spl_ln_extra = "";
+            if (typeof _if_spl_ln === "string") {
+                if (_if_spl_ln.match(/dash/)) {
+                    _spl_ln_extra = _if_spl_ln.match(/_n|n_/) ? "\n" : ""
                 } else {
-                    show_split_line_extra_str = _if_split_line;
+                    _spl_ln_extra = _if_spl_ln;
                 }
             }
-            if (!show_split_line_extra_str.match(/\n/)) {
-                global["_$_last_cnsl_split_ln_type"] = _split_line_style || "solid";
-            }
-            _showSplitLine(show_split_line_extra_str, _split_line_style);
-        } else {
-            delete global["_$_last_cnsl_split_ln_type"];
+            if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+            _showSplitLine(_spl_ln_extra, _spl_ln_style);
         }
-        if (_throw_error_flag) {
+
+        if (_throw_flag) {
             ui.post(function () {
                 throw ("FORCE_STOP");
             });
             exit();
-        } else if (_exit_flag) exit();
-        return !(_msg_level in {3: 1, 4: 1});
+        }
+
+        if (_exit_flag) exit();
+
+        return !(_msg_lv in {3: 1, 4: 1});
 
         // raw function(s) //
 
@@ -1416,10 +1419,10 @@ function loadInternalModuleMonsterFunc() {
             let _extra_str = extra_str || "";
             let _split_line = "";
             if (style === "dash") {
-                for (let i = 0; i < 16; i += 1) _split_line += "- ";
+                for (let i = 0; i < 17; i += 1) _split_line += "- ";
                 _split_line += "-";
             } else {
-                for (let i = 0; i < 32; i += 1) _split_line += "-";
+                for (let i = 0; i < 33; i += 1) _split_line += "-";
             }
             return ~console.log(_split_line + _extra_str);
         }
@@ -1429,10 +1432,10 @@ function loadInternalModuleMonsterFunc() {
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return !!~console.log(_split_line + _extra_str);
     }
@@ -1632,10 +1635,10 @@ function loadInternalModuleMonsterFunc() {
             let _extra_str = extra_str || "";
             let _split_line = "";
             if (style === "dash") {
-                for (let i = 0; i < 16; i += 1) _split_line += "- ";
+                for (let i = 0; i < 17; i += 1) _split_line += "- ";
                 _split_line += "-";
             } else {
-                for (let i = 0; i < 32; i += 1) _split_line += "-";
+                for (let i = 0; i < 33; i += 1) _split_line += "-";
             }
             return ~console.log(_split_line + _extra_str);
         }
@@ -1662,10 +1665,10 @@ function loadInternalModuleMonsterFunc() {
         function setDebugSplitLine(msg) {
             let _msg = "";
             if (msg.match(/dash/)) {
-                for (let i = 0; i < 16; i += 1) _msg += "- ";
+                for (let i = 0; i < 17; i += 1) _msg += "- ";
                 _msg += "-";
             } else {
-                for (let i = 0; i < 32; i += 1) _msg += "-";
+                for (let i = 0; i < 33; i += 1) _msg += "-";
             }
             return _msg;
         }
@@ -2039,7 +2042,7 @@ function loadInternalModuleMonsterFunc() {
                         return null;
                     }
                     if (classof(node) === "Null") {
-                        _debugInfo("relativeNode的node参数为Null");
+                        // _debugInfo("relativeNode的node参数为Null");
                         return null;
                     }
                     if (node_str.match(/^Rect\(/)) {
@@ -2541,7 +2544,7 @@ function loadInternalModuleStorage() {
 
         return storages;
 
-        // constructor //
+        // constructor(s) //
 
         function Storage(name) {
             let storage_dir = files.getSdcardPath() + "/.local/";

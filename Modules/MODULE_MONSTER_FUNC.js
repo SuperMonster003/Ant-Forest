@@ -13,6 +13,7 @@ global["$impeded"] = (name) => {
     }
     return true;
 };
+
 module.exports = {
     parseAppName: parseAppName,
     getVerName: getVerName,
@@ -53,7 +54,6 @@ module.exports = {
     setIntervalBySetTimeout: setIntervalBySetTimeout,
     classof: classof,
     checkSdkAndAJVer: checkSdkAndAJVer,
-    setGlobalTypeChecker: setGlobalTypeChecker,
 };
 
 /**
@@ -218,142 +218,183 @@ function getVerName(name, params) {
 function launchThisApp(trigger, params) {
     $impeded(arguments.callee.name);
 
-    let _params = params || {};
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
+    let $$und = x => typeof x === "undefined";
+    let _messageAction = $$und(messageAction) ? messageActionRaw : messageAction;
+    let _debugInfo = (m, fg) => ($$und(debugInfo) ? debugInfoRaw : debugInfo)(m, fg, _par.debug_info_flag);
+    let _waitForAction = $$und(waitForAction) ? waitForActionRaw : waitForAction;
+    let _killThisApp = $$und(killThisApp) ? killThisAppRaw : killThisApp;
 
-    if (!trigger || !~["object", "string", "function"].indexOf(typeof trigger)) _messageAction("应用启动目标参数无效", 8, 1, 0, 1);
+    let _trig = trigger || 0;
 
-    let _package_name = "";
+    if (!~["object", "string", "function"].indexOf(typeof _trig)) {
+        _messageAction("应用启动目标参数无效", 8, 1, 0, 1);
+    }
+
+    let _par = params || {};
+    let _pkg_name = "";
     let _app_name = "";
-    let _task_name = _params.task_name || "";
-    let _first_time_launch = true;
+    let _task_name = _par.task_name || "";
+    let _1st_launch = true;
 
     _setAppName();
 
-    _package_name = _package_name || _params.package_name;
-    _app_name = _app_name || _params.app_name;
+    _pkg_name = _pkg_name || _par.package_name;
+    _app_name = _app_name || _par.app_name;
 
-    _debugInfo("启动目标参数类型: " + typeof trigger);
+    let _name = (_task_name || _app_name).replace(/^"+|"+$/g, "");
 
-    let _condition_ready = _params.condition_ready;
-    let _condition_launch = _params.condition_launch || (() => currentPackage() === _package_name);
-    let _disturbance = _params.disturbance;
-    let _thread_disturbance = undefined;
-    let _max_retry_times = _params.global_retry_times || 2;
-    let _first_time_run_message_flag = typeof _params.first_time_run_message_flag === "undefined" ? true : _params.first_time_run_message_flag;
-    let _max_retry_times_backup = _max_retry_times;
+    _debugInfo("启动目标名称: " + _name);
+    _debugInfo("启动参数类型: " + typeof _trig);
 
-    while (_max_retry_times--) {
-        let _max_launch_times = _params.launch_retry_times || 3;
-        let _max_launch_times_backup = _max_launch_times;
-        if (!_params.no_message_flag) {
-            let _msg_launch = _task_name ? "重新开始\"" + _task_name + "\"任务" : "重新启动\"" + _app_name + "\"应用";
-            if (!_first_time_launch) _messageAction(_msg_launch, null, 1);
-            else _first_time_run_message_flag && _messageAction(_msg_launch.replace(/重新/g, ""), 1, 1, 0, "both");
+    let _cond_ready = _par.condition_ready;
+    let _cond_launch = _par.condition_launch;
+    let _dist = _par.disturbance;
+    let _thd_dist;
+    let _max_retry = _par.global_retry_times || 2;
+    let _max_retry_b = _max_retry;
+    let _fg_1st_run_msg = _par.first_time_run_message_flag;
+
+    if (typeof _fg_1st_run_msg === "undefined") {
+        _fg_1st_run_msg = true;
+    }
+
+    if (!_cond_launch) {
+        _cond_launch = () => currentPackage() === _pkg_name;
+    }
+
+    if (_dist) {
+        _debugInfo("已开启干扰排除线程");
+        _thd_dist = threads.start(function () {
+            while (sleep(1200) || true) _dist();
+        });
+    }
+
+    while (_max_retry--) {
+        let _max_lch = _par.launch_retry_times || 3;
+        let _max_lch_b = _max_lch;
+
+        if (!_par.no_message_flag) {
+            let _msg = _task_name
+                ? "重新开始\"" + _task_name + "\"任务"
+                : "重新启动\"" + _app_name + "\"应用";
+            if (!_1st_launch) {
+                _messageAction(_msg, null, 1);
+            } else if (_fg_1st_run_msg) {
+                _messageAction(_msg.replace(/重新/g, ""), 1, 1, 0, "both");
+            }
         }
-        while (_max_launch_times--) {
-            if (typeof trigger === "object") {
+
+        while (_max_lch--) {
+            if (typeof _trig === "object") {
                 _debugInfo("加载intent参数启动应用");
-                app.startActivity(trigger);
-            } else if (typeof trigger === "string") {
+                app.startActivity(_trig);
+            } else if (typeof _trig === "string") {
                 _debugInfo("加载应用包名参数启动应用");
-                if (!app.launchPackage(_package_name)) {
+                if (!app.launchPackage(_pkg_name)) {
                     _debugInfo("加载应用名称参数启动应用");
                     app.launchApp(_app_name);
                 }
             } else {
                 _debugInfo("使用触发器方法启动应用");
-                trigger();
+                _trig();
             }
 
-            if (typeof getDisplayParams !== "undefined") {
-                let getCurrentScreenOr = () => getDisplayParams().screen_orientation;
-                let isLandscape = () => getCurrentScreenOr() in {1: true, 3: true};
-                let isPortrait = () => getCurrentScreenOr() in {0: true, 2: true};
-                let _screen_orientation = _params.screen_orientation;
-                if (_screen_orientation === -1 && isPortrait()) {
+            if (!$$und(getDisplayParams)) {
+                let _getOr = () => getDisplayParams().screen_orientation;
+                let _isHoriz = () => _getOr() in {1: true, 3: true};
+                let _isVert = () => _getOr() in {0: true, 2: true};
+                let _scr_or = _par.screen_orientation;
+                if (!~_scr_or && _isVert()) {
                     _debugInfo("需等待屏幕方向为横屏");
-                    _waitForAction(isLandscape, 3000, 80) ? _debugInfo("屏幕方向已就绪") : _messageAction("等待屏幕方向变化超时", 3);
-                } else if (_screen_orientation === 0 && isLandscape()) {
+                    _waitForAction(_isHoriz, 3000, 80)
+                        ? _debugInfo("屏幕方向已就绪")
+                        : _messageAction("等待屏幕方向变化超时", 3);
+                } else if (!_scr_or && _isHoriz()) {
                     _debugInfo("需等待屏幕方向为竖屏");
-                    _waitForAction(isPortrait, 3000, 80) ? _debugInfo("屏幕方向已就绪") : _messageAction("等待屏幕方向变化超时", 3);
+                    _waitForAction(_isVert, 3000, 80)
+                        ? _debugInfo("屏幕方向已就绪")
+                        : _messageAction("等待屏幕方向变化超时", 3);
                 }
             }
 
-            let _cond_succ_flag = _waitForAction(_condition_launch, 5000, 800);
-            _debugInfo("应用启动" + (_cond_succ_flag ? "成功" : "超时 (" + (_max_launch_times_backup - _max_launch_times) + "\/" + _max_launch_times_backup + ")"));
-            if (_cond_succ_flag) break;
-            else _debugInfo(">" + currentPackage());
+            let _succ = _waitForAction(_cond_launch, 5000, 800);
+            _debugInfo("应用启动" + (
+                _succ ? "成功" : "超时 (" + (_max_lch_b - _max_lch) + "\/" + _max_lch_b + ")"
+            ));
+            if (_succ) {
+                break;
+            }
+            _debugInfo(">" + currentPackage());
         }
-        if (_max_launch_times < 0) _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
 
-        _first_time_launch = false;
-        if (_condition_ready === null || _condition_ready === undefined) {
+        if (_max_lch < 0) {
+            _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
+        }
+
+        if (_cond_ready === null || $$und(_cond_ready)) {
             _debugInfo("未设置启动完成条件参数");
             break;
         }
 
+        _1st_launch = false;
         _debugInfo("开始监测启动完成条件");
 
-        if (_disturbance) {
-            _debugInfo("检测到干扰排除器");
-            _thread_disturbance = threads.start(function () {
-                while (sleep(1200) || true) _disturbance();
-            });
-        }
+        let _max_ready = _par.ready_retry_times || 3;
+        let _max_ready_b = _max_ready;
 
-        let max_ready_try_times = _params.ready_retry_times || 3;
-        let max_ready_try_times_backup = max_ready_try_times;
-        while (!_waitForAction(_condition_ready, 8000) && max_ready_try_times--) {
-            let try_count_info = "(" + (max_ready_try_times_backup - max_ready_try_times) + "\/" + max_ready_try_times_backup + ")";
-            if (typeof trigger === "object") {
-                _debugInfo("重新启动Activity " + try_count_info);
-                app.startActivity(trigger);
+        while (!_waitForAction(_cond_ready, 8000) && _max_ready--) {
+            let _ctr = "(" + (_max_ready_b - _max_ready) + "\/" + _max_ready_b + ")";
+            if (typeof _trig === "object") {
+                _debugInfo("重新启动Activity " + _ctr);
+                app.startActivity(_trig);
             } else {
-                _debugInfo("重新启动应用 " + try_count_info);
-                app.launchPackage(trigger);
+                _debugInfo("重新启动应用 " + _ctr);
+                app.launchPackage(_trig);
             }
         }
 
-        if (max_ready_try_times >= 0) {
+        if (_max_ready >= 0) {
             _debugInfo("启动完成条件监测完毕");
             break;
         }
-        _debugInfo("尝试关闭\"" + _app_name + "\"应用: (" + (_max_retry_times_backup - _max_retry_times) + "\/" + _max_retry_times_backup + ")");
-        _killThisApp(_package_name);
+
+        _debugInfo("尝试关闭\"" + _app_name + "\"应用: " +
+            "(" + (_max_retry_b - _max_retry) + "\/" + _max_retry_b + ")"
+        );
+        _killThisApp(_pkg_name);
     }
 
-    if (_thread_disturbance) {
-        _thread_disturbance.interrupt();
-        _debugInfo("干扰排除器已解除");
-        _thread_disturbance = null;
+    if (_thd_dist) {
+        _thd_dist.interrupt();
+        _debugInfo("干扰排除线程结束");
+        _thd_dist = null;
     }
-    if (_max_retry_times < 0) _messageAction("\"" + (_task_name || _app_name) + "\"初始状态准备失败", 9, 1, 0, 1);
-    _debugInfo("\"" + (_task_name || _app_name) + "\"初始状态准备完毕");
+
+    if (_max_retry < 0) {
+        _messageAction("\"" + _name + "\"初始状态准备失败", 9, 1, 0, 1);
+    }
+    _debugInfo("\"" + _name + "\"初始状态准备完毕");
 
     return true;
 
     // tool function(s) //
 
     function _setAppName() {
-        if (typeof trigger === "string") {
-            _app_name = !trigger.match(/.+\..+\./) && app.getPackageName(trigger) && trigger;
-            _package_name = app.getAppName(trigger) && trigger;
+        if (typeof _trig === "string") {
+            _app_name = !_trig.match(/.+\..+\./) && app.getPackageName(_trig) && _trig;
+            _pkg_name = app.getAppName(_trig) && _trig;
         } else {
-            _app_name = _params.app_name;
-            _package_name = _params.package_name;
-            if (!_package_name && typeof trigger === "object") {
-                _package_name = trigger.packageName || trigger.data && trigger.data.match(/^alipays/i) && "com.eg.android.AlipayGphone";
+            _app_name = _par.app_name;
+            _pkg_name = _par.package_name;
+            if (!_pkg_name && typeof _trig === "object") {
+                _pkg_name = _trig.packageName || _trig.data && _trig.data.match(/^alipays/i) && "com.eg.android.AlipayGphone";
             }
         }
-        _app_name = _app_name || _package_name && app.getAppName(_package_name);
-        _package_name = _package_name || _app_name && app.getPackageName(_app_name);
-        if (!_app_name && !_package_name) {
+        _app_name = _app_name || _pkg_name && app.getAppName(_pkg_name);
+        _pkg_name = _pkg_name || _app_name && app.getPackageName(_app_name);
+        if (!_app_name && !_pkg_name) {
             _messageAction("未找到应用", 4, 1);
-            _messageAction(trigger, 8, 0, 1, 1);
+            _messageAction(_trig, 8, 0, 1, 1);
         }
     }
 
@@ -799,7 +840,7 @@ function runJsFile(file_name) {
  *     -- 0|*DEFAULT* - nothing to show additionally <br>
  *     -- 1 - "------------" - 32-bit hyphen line <br>
  *     -- /dash/ - "- - - - - - " - 32-bit dash line <br>
- *     -- /up/ - show a line before message <br>
+ *     -- /up|-1/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
  * @param [params] {object} reserved
@@ -811,6 +852,7 @@ function runJsFile(file_name) {
  * messageAction("hello", 4, 1); <br>
  * messageAction("hello", 3, 1, 1); <br>
  * messageAction("hello", 3, 1, 1, 1); <br>
+ * messageAction("hello", 3, 1, 1, -1); <br>
  * messageAction("hello", 3, 1, 1, "up"); <br>
  * messageAction("hello", 3, 1, 1, "both"); <br>
  * messageAction("hello", 3, 1, 1, "dash"); <br>
@@ -830,28 +872,33 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
     }
 
-    let _msg_level = typeof msg_level === "number" ? msg_level : -1;
+    let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
     let _if_toast = if_toast || false;
     let _if_arrow = if_arrow || false;
-    let _if_split_line = if_split_line || false;
+    let _if_spl_ln = if_split_line || false;
+    _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
 
     if (_if_toast) toast(_msg);
 
-    let _split_line_style = "solid";
-    if (typeof _if_split_line === "string") {
-        if (_if_split_line.match(/dash/)) _split_line_style = "dash";
-        if (_if_split_line.match(/both|up/)) {
-            if (_split_line_style !== global["_$_last_cnsl_split_ln_type"]) {
-                _showSplitLine("", _split_line_style);
-            }
-            delete global["_$_last_cnsl_split_ln_type"];
-            if (_if_split_line.match(/_n|n_/)) _if_split_line = "\n";
-            else if (_if_split_line.match(/both/)) _if_split_line = 1;
-            else if (_if_split_line.match(/up/)) _if_split_line = 0;
+    let _spl_ln_style = "solid";
+    let _saveLnStyle = () => $flag.last_cnsl_spl_ln_type = _spl_ln_style;
+    let _loadLnStyle = () => $flag.last_cnsl_spl_ln_type;
+    let _clearLnStyle = () => delete $flag.last_cnsl_spl_ln_type;
+    let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+
+    if (typeof _if_spl_ln === "string") {
+        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+        if (_if_spl_ln.match(/both|up/)) {
+            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
+            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
+            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
+            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
         }
     }
+
+    _clearLnStyle();
 
     if (_if_arrow) {
         if (_if_arrow > 10) {
@@ -863,73 +910,74 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     }
 
     let _exit_flag = false;
-    let _throw_error_flag = false;
-    switch (_msg_level) {
+    let _throw_flag = false;
+    switch (_msg_lv) {
         case 0:
         case "verbose":
         case "v":
-            _msg_level = 0;
+            _msg_lv = 0;
             console.verbose(_msg);
             break;
         case 1:
         case "log":
         case "l":
-            _msg_level = 1;
+            _msg_lv = 1;
             console.log(_msg);
             break;
         case 2:
         case "i":
         case "info":
-            _msg_level = 2;
+            _msg_lv = 2;
             console.info(_msg);
             break;
         case 3:
         case "warn":
         case "w":
-            _msg_level = 3;
+            _msg_lv = 3;
             console.warn(_msg);
             break;
         case 4:
         case "error":
         case "e":
-            _msg_level = 4;
+            _msg_lv = 4;
             console.error(_msg);
             break;
         case 8:
         case "x":
-            _msg_level = 4;
+            _msg_lv = 4;
             console.error(_msg);
             _exit_flag = true;
             break;
         case 9:
         case "t":
-            _msg_level = 4;
+            _msg_lv = 4;
             console.error(_msg);
-            _throw_error_flag = true;
+            _throw_flag = true;
     }
-    if (_if_split_line) {
-        let show_split_line_extra_str = "";
-        if (typeof _if_split_line === "string") {
-            if (_if_split_line.match(/dash/)) {
-                show_split_line_extra_str = _if_split_line.match(/_n|n_/) ? "\n" : ""
+
+    if (_if_spl_ln) {
+        let _spl_ln_extra = "";
+        if (typeof _if_spl_ln === "string") {
+            if (_if_spl_ln.match(/dash/)) {
+                _spl_ln_extra = _if_spl_ln.match(/_n|n_/) ? "\n" : ""
             } else {
-                show_split_line_extra_str = _if_split_line;
+                _spl_ln_extra = _if_spl_ln;
             }
         }
-        if (!show_split_line_extra_str.match(/\n/)) {
-            global["_$_last_cnsl_split_ln_type"] = _split_line_style || "solid";
-        }
-        _showSplitLine(show_split_line_extra_str, _split_line_style);
-    } else {
-        delete global["_$_last_cnsl_split_ln_type"];
+        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+        _showSplitLine(_spl_ln_extra, _spl_ln_style);
     }
-    if (_throw_error_flag) {
+
+    if (_throw_flag) {
         ui.post(function () {
             throw ("FORCE_STOP");
         });
         exit();
-    } else if (_exit_flag) exit();
-    return !(_msg_level in {3: 1, 4: 1});
+    }
+
+    if (_exit_flag) exit();
+
+    return !(_msg_lv in {3: 1, 4: 1});
 
     // raw function(s) //
 
@@ -937,10 +985,10 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return ~console.log(_split_line + _extra_str);
     }
@@ -967,10 +1015,10 @@ function showSplitLine(extra_str, style, params) {
     let _extra_str = extra_str || "";
     let _split_line = "";
     if (style === "dash") {
-        for (let i = 0; i < 16; i += 1) _split_line += "- ";
+        for (let i = 0; i < 17; i += 1) _split_line += "- ";
         _split_line += "-";
     } else {
-        for (let i = 0; i < 32; i += 1) _split_line += "-";
+        for (let i = 0; i < 33; i += 1) _split_line += "-";
     }
     return !!~console.log(_split_line + _extra_str);
 }
@@ -1067,7 +1115,7 @@ function waitForAction(f, timeout_or_times, interval) {
 }
 
 /**
- * Click a certain uiobject or coordinate by click(), press() or uiobject.click()
+ * Click a certain UiObject or coordinate by click(), press() or UiObject.click()
  * @param {object|array} f - JavaObject or RectBounds or coordinates Array
  * <br>
  *     -- text("abc").desc("def") <br>
@@ -1076,9 +1124,9 @@ function waitForAction(f, timeout_or_times, interval) {
  *     -- [106, 39]
  * @param [strategy] - decide the way of click
  * <br>
- *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
- *     -- "press" - press(coord_A, coord_B, press_time); <br>
- *     -- "widget" - text("abc").click(); - not available for Bounds or CoordsArray
+ *     -- "click"|c|*DEFAULT* - click(coord_A, coord_B); <br>
+ *     -- "press|p" - press(coord_A, coord_B, press_time); <br>
+ *     -- "widget|w" - text("abc").click(); - not available for Bounds or CoordsArray
  * @param [params] {object|string}
  * @param [params.press_time] {number=1} - only effective for "press" strategy
  * @param [params.condition_success=()=>true] {string|function}
@@ -1202,7 +1250,7 @@ function clickAction(f, strategy, params) {
         _x += _padding.x;
         _y += _padding.y;
 
-        _strategy.match(/^m(atch)?$/) ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
+        _strategy.match(/^p(ress)?$/) ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
     }
 
     function _checkType(f) {
@@ -1491,7 +1539,9 @@ function tryRequestScreenCapture(params) {
 
     if ($flag.request_screen_capture) return true;
 
-    sleep(200); // why are you always a naughty boy... how can i get along well with you...
+    // usually, images.captureScreen() needs some time
+    // to be effective, and 200 is not absolutely
+    sleep(200);
 
     let _params = params || {};
 
@@ -1521,14 +1571,14 @@ function tryRequestScreenCapture(params) {
         if (_waitForAction(_kw_sure_btn, 5000)) {
             if (_waitForAction(_kw_no_longer_prompt, 1000)) {
                 _debugInfo("勾选\"不再提示\"复选框");
-                _clickAction(_kw_no_longer_prompt(), "widget");
+                _clickAction(_kw_no_longer_prompt(), "w");
             }
             if (_waitForAction(_kw_sure_btn, 2000)) {
                 let _node = _kw_sure_btn();
                 let _btn_click_action_str = "点击\"" + _kw_sure_btn("txt") + "\"按钮";
 
                 _debugInfo(_btn_click_action_str);
-                _clickAction(_node, "widget");
+                _clickAction(_node, "w");
 
                 if (!_waitForAction(() => !_kw_sure_btn(), 1000)) {
                     _debugInfo("尝试click()方法再次" + _btn_click_action_str);
@@ -2077,10 +2127,10 @@ function debugInfo(msg, info_flag, forcible_flag) {
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return ~console.log(_split_line + _extra_str);
     }
@@ -2107,10 +2157,10 @@ function debugInfo(msg, info_flag, forcible_flag) {
     function setDebugSplitLine(msg) {
         let _msg = "";
         if (msg.match(/dash/)) {
-            for (let i = 0; i < 16; i += 1) _msg += "- ";
+            for (let i = 0; i < 17; i += 1) _msg += "- ";
             _msg += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _msg += "-";
+            for (let i = 0; i < 33; i += 1) _msg += "-";
         }
         return _msg;
     }
@@ -2529,8 +2579,10 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
 
     waitForAction(() => _got_msg.length >= _amount, _timeout, 50);
 
-    events.recycle(); // to remove toast listener from "events" to make it available for next-time invoke
-    events.removeAllListeners("toast"); // or, events will exceed the max listeners limit with default 10
+    // FIXME this will make listeners (like key listeners) invalid
+    // FIXME and maybe recycle() is unnecessary to remove toast listener
+    // events.recycle(); // to remove toast listener from "events" to make it available for next-time invoke
+    events.removeAllListeners("toast"); // otherwise, events will exceed the max listeners limit with default 10
 
     return _got_msg;
 }
@@ -2635,6 +2687,7 @@ function getSelector(params) {
          * pickup("morning", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
          * pickup(["morning", "p2c3"], "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
          * pickup(["hello", "s3b"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
+         * pickup(["hello", "s+2"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%%indexInParent% + 2) -- ["txt"] <br>
          * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
          * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
          */
@@ -2812,7 +2865,7 @@ function getSelector(params) {
                     return null;
                 }
                 if (classof(node) === "Null") {
-                    _debugInfo("relativeNode的node参数为Null");
+                    // _debugInfo("relativeNode的node参数为Null");
                     return null;
                 }
                 if (node_str.match(/^Rect\(/)) {
@@ -3050,7 +3103,7 @@ function phoneCallingState() {
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     global["_$_ts_rec"] = global["_$_ts_rec"] || {};
     let records = global["_$_ts_rec"];
-    if (!operation || operation.toString().match(/save|put/)) {
+    if (!operation || operation.toString().match(/^(S|save|put)$/)) {
         return records[keyword] = +new Date();
     }
 
@@ -3070,15 +3123,14 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
         fixed = fixed || [2];
         forcible_fixed_num_flag = true;
 
-        let getSuffix = (unit_str) => {
-            return {
-                ms$ch: "毫秒", ms$en: "ms ",
-                sec$ch: "秒", sec$en: "s ",
-                min$ch: "分钟", min$en: "m ",
-                hour$ch: "小时", hour$en: "h ",
-                day$ch: "天", day$en: "d ",
-            }[unit_str + suffix];
-        };
+        let getSuffix = (unit_str) => ({
+            ms$ch: "毫秒", ms$en: "ms ",
+            sec$ch: "秒", sec$en: "s ",
+            min$ch: "分钟", min$en: "m ",
+            hour$ch: "小时", hour$en: "h ",
+            day$ch: "天", day$en: "d ",
+        })[unit_str + suffix];
+
         let base_unit = {
             ms: 1,
             get sec() {
@@ -3538,7 +3590,7 @@ function baiduOcr(src, params) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let getType = (o) => {
             let matched = o.toString().match(/\w+(?=@)/);
-            return matched ? matched[0] : null;
+            return matched ? matched[0] : "";
         };
         let nodeToImage = (node) => {
             let clipImg = bounds => images.clip(images.captureScreen(), bounds.left, bounds.top, bounds.width(), bounds.height());
@@ -3621,10 +3673,10 @@ function baiduOcr(src, params) {
         let _extra_str = extra_str || "";
         let _split_line = "";
         if (style === "dash") {
-            for (let i = 0; i < 16; i += 1) _split_line += "- ";
+            for (let i = 0; i < 17; i += 1) _split_line += "- ";
             _split_line += "-";
         } else {
-            for (let i = 0; i < 32; i += 1) _split_line += "-";
+            for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
         return ~console.log(_split_line + _extra_str);
     }
@@ -3833,7 +3885,7 @@ function checkSdkAndAJVer(params) {
                     events.onKeyDown("volume_down", function (event) {
                         _debugInfo("用户按下音量减键");
                         _debugInfo("尝试点击确定按钮");
-                        clickAction(textMatches(/OK|确定/), "widget");
+                        clickAction(textMatches(/OK|确定/), "w");
                         _messageAction("脚本已停止", 4, 1);
                         _messageAction("用户终止运行", 4, 0, 1);
                         exit();
@@ -3992,123 +4044,6 @@ function checkSdkAndAJVer(params) {
 }
 
 /**
- * Assign some type (or something else) checkers to global object (all started with "$$" symbol)
- * @example
- * $$bool(0.5 === "0.5"); // false
- * $$str("1991"); // true
- * $$und(coffee); // true -- means undefined
- * $$num(0); // true
- * $$num(20, "<", 28, "<=", Infinity); // true
- * $$num(20, "<", 28, ">=", 1, ">", -Infinity, "<=", -0, "=", +0); // true -- weird and i know
- * @return void
- */
-function setGlobalTypeChecker() {
-    let classof = function (source, check_value) {
-        let class_result = Object.prototype.toString.call(source).slice(8, -1);
-        return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
-    };
-
-    Object.assign(global, {
-        $$num: function (x) {
-            // do not use arrow function here
-            let _isNum = a => classof(a, "Number");
-            let _isStr = a => classof(a, "String");
-            let _len = arguments.length;
-            if (_len === 1) return _isNum(x);
-            let _calc = {
-                "<": (a, b) => a < b,
-                "<=": (a, b) => a <= b,
-                ">": (a, b) => a > b,
-                ">=": (a, b) => a >= b,
-                "=": (a, b) => a === b,
-            };
-            for (let i = 1; i < _len; i += 2) {
-                let _a = arguments[i - 1];
-                let _opr = arguments[i]; // operational symbol
-                let _b = arguments[i + 1];
-                if (!_isStr(_opr) || !_isNum(_b)) return;
-                if (!(_opr in _calc)) return;
-                if (!_calc[_opr](_a, _b)) return false;
-            }
-            return true;
-        },
-        $$str: x => classof(x, "String"),
-        $$bool: x => classof(x, "Boolean"),
-        // `classof(x, "Undefined")` also fine
-        $$und: x => x === void 0,
-        $$nul: x => classof(x, "Null"),
-        // introduced since ES6
-        $$sym: x => classof(x, "Symbol"),
-        // primitive (contains 6 types with Symbol)
-        get $$prim() {
-            return (x) => {
-                return this.$$num(x) || this.$$str(x) || this.$$bool(x)
-                    || this.$$nul(x) || this.$$und(x) || this.$$sym(x);
-            };
-        },
-        $$func: x => classof(x, "Function"),
-        // `Array.isArray(x);` fine or not ?
-        // i guess it will be fine as long as
-        // the global object is not Window (for a browser)
-        $$arr: x => classof(x, "Array"),
-        // Object only
-        $$obj: x => classof(x, "Object"),
-        // Null; Array; Object
-        $$comObj: x => typeof x === "object",
-        $$date: x => classof(x, "Date"),
-        $$regexp: x => classof(x, "RegExp"),
-        get $$nulOrUnd() {
-            return function (x) {
-                this.$$nul(x) || this.$$und(x)
-            }.bind(this);
-        },
-        $$fin: x => isFinite(x),
-        $$inf: x => !isFinite(x),
-        $$nan: x => isNaN(x),
-        get $$posNum() {
-            return x => this.$$num(x) && x > 0;
-        },
-        get $$natNum() {
-            return x => this.$$zehNum(x) && x >= 0;
-        },
-        get $$negNum() {
-            return x => this.$$num(x) && x < 0;
-        },
-        // `Number.isInteger(x)` since ES6
-        get $$zehNum() {
-            return x => this.$$num(x) && (x | 0) === x;
-        },
-        $$0: x => x === 0,
-        $$neg1: x => x === -1,
-        $$T: x => x === true,
-        $$F: x => x === false,
-        $$len: (x, n) => {
-            if (!classof(x, "Arguments") && !classof(x, "Array")) {
-                throw TypeError("Expected Array or Arguments rather than " + classof(x));
-            }
-            if (classof(n, "Number")) return x.length === n;
-            return x.length;
-        },
-        // `classof(x, "JavaObject");` also fine
-        __isJvo__: x => !!x["getClass"],
-        get __checkJvoType__() {
-            return (x, regexp) => this.__isJvo__(x) && !!x.toString().match(regexp);
-        },
-        get $$jvo() {
-            return {
-                isJvo: x => this.__isJvo__(x),
-                ScriptEngine: x => this.__checkJvoType__(x, /^ScriptEngine/),
-                Thread: x => this.__checkJvoType__(x, /^Thread/),
-                UiObject: x => this.__checkJvoType__(x, /UiObject/),
-                UiObjects: x => this.__checkJvoType__(x, /UiObjectCollection/),
-                JsRawWin: x => this.__checkJvoType__(x, /JsRawWindow/),
-                ImageWrapper: x => this.__checkJvoType__(x, /ImageWrapper/),
-            };
-        },
-    });
-}
-
-/**
  * Just for dismissing warning hints by IDE like WebStorm
  * May be helpful for developer who runs codes at Auto.js
  * And this function doesn't need to export in general
@@ -4129,21 +4064,21 @@ function dismissIDEWarnings() {
         selectedIndices: $$arr,
         getSelectedIndices: () => $$arr,
         items: $$arr,
+        isCancelled: () => $$bool,
+        getInputEditText: () => $$str,
     }, dialogs);
     Object.assign(engines.__proto__, {
-        myEngine: () => {
-            return {
-                source: {
-                    toString: () => $$str,
-                },
-                forceStop: () => $$und,
-                setTag: (str, obj) => $$und,
-                getTag: str => $$obj,
-                cwd: () => $$str,
-                id: $$num,
-                execArgv: $$obj,
-            };
-        },
+        myEngine: () => ({
+            source: {
+                toString: () => $$str,
+            },
+            forceStop: () => $$und,
+            setTag: (str, obj) => $$und,
+            getTag: str => $$obj,
+            cwd: () => $$str,
+            id: $$num,
+            execArgv: $$obj,
+        }),
         all: () => $$arr,
         stopAllAndToast: () => $$und,
     }, engines);
@@ -4151,12 +4086,26 @@ function dismissIDEWarnings() {
         removeAllKeyDownListeners: str => this,
         observeKey: () => $$und,
         onKeyDown: (str, obj) => this,
+        onKeyUp: (str, obj) => this,
+        onceKeyDown: (str, obj) => this,
+        onceKeyUp: (str, obj) => this,
+        getAction: () => $$num,
+        getX: () => $$num,
+        getY: () => $$num,
+        getEventTime: () => $$num,
+        getDownTime: () => $$num,
     }, events);
     Object.assign(threads.__proto__, {
         start: runnable => $$jvo.Thread,
         interrupt: () => $$und,
         isAlive: () => $$bool,
         shutDownAll: () => $$und,
+        join: num => $$und,
+        atomic: num => $$jvo.AtomicLong,
+        AtomicLong: {
+            incrementAndGet: () => $$num,
+            compareAndSet: (long1, long2) => $$bool,
+        }
     }, threads);
     Object.assign($sel.__proto__, {
         findOnce: UiObject => $$jvo.UiObject,
@@ -4165,6 +4114,15 @@ function dismissIDEWarnings() {
         setText: str => $$bool,
         parent: () => $$jvo.UiObject,
         clickable: () => $$bool,
+        scrollable: bool => $$jvo.UiGlobSel,
+        idContains: bool => $$jvo.UiGlobSel,
+        indexInParent: () => $$jvo.UiObject,
+        bounds: () => ({
+            width: () => $$num,
+            height: () => $$num,
+            centerX: () => $$num,
+            centerY: () => $$num,
+        }),
     }, $sel);
     Object.assign(floaty.__proto__, {
         rawWindow: xml => $$jvo.JsRawWin,
@@ -4173,6 +4131,7 @@ function dismissIDEWarnings() {
         closeAll: () => $$und,
         getWidth: () => $$num,
         setTouchable: bool => $$und,
+        setOnTouchListener: func => $$und,
     }, floaty);
     Object.assign(colors.__proto__, {
         parseColor: str => $$num,
@@ -4183,7 +4142,15 @@ function dismissIDEWarnings() {
         copy: image => $$jvo.ImageWrapper,
         captureScreen: path => $$jvo.ImageWrapper,
         requestScreenCapture: bool => $$bool,
+        findImage: (img, templ, opt) => $$jvo.ImageWrapper,
+        findColor: (img, color, opt) => $$jvo.Point,
+        pixel: (img, x, y) => $$num,
+        findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
+        detectsColor: (img, color, x, y, threshold, algorithm) => $$bool,
     }, images);
+    Object.assign(colors.__proto__, {
+        isSimilar: (c1, c2, threshold, algorithm) => $$bool,
+    });
     Object.assign(files.__proto__, {
         getSdcardPath: () => $$str,
         cwd: () => $$str,
@@ -4197,13 +4164,67 @@ function dismissIDEWarnings() {
     }, auto);
     Object.assign(app.__proto__, {
         launchPackage: str => $$bool,
+        launchApp: str => $$bool,
         getAppName: str => $$str,
         startActivity: obj__str => $$und
     }, app);
     Object.assign(device.__proto__, {
         isScreenOn: () => $$bool,
+        brand: "$$str",
     }, device);
     Object.assign(console.__proto__, {
         verbose: str => $$und,
+    });
+    Object.assign(android.__proto__, {
+        provider: {
+            Settings: {
+                System: {
+                    getInt: (context_resolver, str, num) => $$num,
+                    putInt: (context_resolver, str, num) => $$bool,
+                    canWrite: () => null,
+                },
+                Global: {
+                    getInt: (context_resolver, str, num) => $$num,
+                    putInt: (context_resolver, str, num) => $$bool,
+                },
+                Secure: {
+                    getInt: (context_resolver, str, num) => $$num,
+                    putInt: (context_resolver, str, num) => $$bool,
+                },
+            },
+        },
+        view: {
+            MotionEvent: {
+                ACTION_DOWN: "$$num",
+                ACTION_UP: "$$num",
+                ACTION_MOVE: "$$num",
+            },
+        },
+        content: {
+            Intent: function () {
+                this.FLAG_ACTIVITY_NEW_TASK = "$$num";
+                this.setClassName = (pkg_nm, class_nm) => "Intent";
+                this.putExtra = (str, arr) => "Intent";
+                this.addCategory = (str) => "Intent";
+                this.setAction = (str) => "Intent";
+                this.setFlags = (num) => "Intent";
+                this.setDataAndType = (Uri, str) => "Intent";
+                this.setType = (str) => "Intent";
+                this.addFlags = (num) => "Intent";
+                this.extras = "$$arr";
+                this.category = "$$arr";
+            },
+        }
+    });
+    Object.assign(context.__proto__, {
+        getContentResolver: () => "ContentResolver",
+        getPackageManager: function () {
+            return {
+                queryIntentActivities: (Intent, num) => "queryIntentActivities",
+            };
+        },
+    });
+    Object.assign(timers.__proto__, {
+        setMillis: num => $$und,
     })
 }
