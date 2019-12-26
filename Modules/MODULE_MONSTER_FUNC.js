@@ -1536,12 +1536,7 @@ function refreshObjects(strategy, params) {
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
-    let $flag = global["$flag"];
-    if ($flag) {
-        $flag = global["$flag"] = {};
-    }
-
-    if ($flag.request_screen_capture) {
+    if (global["_$_request_screen_capture"]) {
         return true;
     }
 
@@ -1570,7 +1565,7 @@ function tryRequestScreenCapture(params) {
 
     _debugInfo("开始申请截图权限");
 
-    $flag.request_screen_capture = true;
+    global["_$_request_screen_capture"] = true;
     _debugInfo("已存储截图权限申请标记");
 
     _debugInfo("已开启弹窗监测线程");
@@ -2655,12 +2650,10 @@ function captureErrScreen(key_name, log_level) {
     }
 
     function tryRequestScreenCaptureRaw() {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
-        if (!$flag.request_screen_capture) {
+        if (!global["_$_request_screen_capture"]) {
             images.requestScreenCapture();
             sleep(300);
-            $flag.request_screen_capture = true;
+            global["_$_request_screen_capture"] = true;
         }
     }
 }
@@ -3659,12 +3652,10 @@ function baiduOcr(src, params) {
     // raw function(s) //
 
     function tryRequestScreenCaptureRaw() {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
-        if (!$flag.request_screen_capture) {
+        if (!global["_$_request_screen_capture"]) {
             images.requestScreenCapture();
             sleep(300);
-            $flag.request_screen_capture = true;
+            global["_$_request_screen_capture"] = true;
         }
     }
 
