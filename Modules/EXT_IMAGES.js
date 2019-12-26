@@ -59,15 +59,14 @@ function tryRequestScreenCapture(params) {
         return require(_mon_path).tryRequestScreenCapture(params);
     }
 
-
     global["$flag"] = global["$flag"] || {};
     let $flag = global["$flag"];
 
     if ($flag.request_screen_capture) return true;
 
     // usually, images.captureScreen() needs some time
-    // to be effective, and 200 is not absolutely
-    sleep(200);
+    // to be effective, and 300 is not absolutely
+    sleep(300);
 
     let _params = params || {};
 

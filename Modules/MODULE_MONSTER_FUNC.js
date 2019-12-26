@@ -1384,6 +1384,8 @@ function clickAction(f, strategy, params) {
  * @return {boolean} - waitForAction(...) && clickAction(...)
  */
 function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
+    if (!f) return false;
+
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
@@ -1534,29 +1536,37 @@ function refreshObjects(strategy, params) {
  * @return {boolean}
  */
 function tryRequestScreenCapture(params) {
-    global["$flag"] = global["$flag"] || {};
     let $flag = global["$flag"];
+    if ($flag) {
+        $flag = global["$flag"] = {};
+    }
 
-    if ($flag.request_screen_capture) return true;
+    if ($flag.request_screen_capture) {
+        return true;
+    }
 
-    // usually, images.captureScreen() needs some time
-    // to be effective, and 200 is not absolutely
-    sleep(200);
-
-    let _params = params || {};
-
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+    let _par = params || {};
+    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(m, fg, _par.debug_info_flag);
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
     let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
+    let _$sel = _getSelector();
+    let _$und = o => typeof o === "undefined";
 
-    let sel = _getSelector();
-
-    _params.restart_this_engine_flag = typeof _params.restart_this_engine_flag === "undefined" ? true : !!_params.restart_this_engine_flag;
-    _params.restart_this_engine_params = _params.restart_this_engine_params || {};
-    _params.restart_this_engine_params.max_restart_engine_times = _params.restart_this_engine_params.max_restart_engine_times || 3;
+    if (_$und(_par.restart_this_engine_flag)) {
+        _par.restart_this_engine_flag = true;
+    } else {
+        let _self = _par.restart_this_engine_flag;
+        _par.restart_this_engine_flag = !!_self;
+    }
+    if (!_par.restart_this_engine_params) {
+        _par.restart_this_engine_params = {};
+    }
+    if (!_par.restart_this_engine_params.max_restart_engine_times) {
+        _par.restart_this_engine_params.max_restart_engine_times = 3;
+    }
 
     _debugInfo("开始申请截图权限");
 
@@ -1565,23 +1575,25 @@ function tryRequestScreenCapture(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
-        let _kw_no_longer_prompt = type => sel.pickup(id("com.android.systemui:id/remember"), type, "kw_req_capt_no_longer_prompt");
-        let _kw_sure_btn = type => sel.pickup(/START NOW|立即开始|允许/, type);
+        let _kw_remember = id("com.android.systemui:id/remember");
+        let _sel_remember = () => _$sel.pickup(_kw_remember);
+        let _rex_sure = /START NOW|立即开始|允许/;
+        let _sel_sure = type => _$sel.pickup(_rex_sure, type);
 
-        if (_waitForAction(_kw_sure_btn, 5000)) {
-            if (_waitForAction(_kw_no_longer_prompt, 1000)) {
+        if (_waitForAction(_sel_sure, 5000)) {
+            if (_waitForAction(_sel_remember, 1000)) {
                 _debugInfo("勾选\"不再提示\"复选框");
-                _clickAction(_kw_no_longer_prompt(), "w");
+                _clickAction(_sel_remember(), "w");
             }
-            if (_waitForAction(_kw_sure_btn, 2000)) {
-                let _node = _kw_sure_btn();
-                let _btn_click_action_str = "点击\"" + _kw_sure_btn("txt") + "\"按钮";
+            if (_waitForAction(_sel_sure, 2000)) {
+                let _node = _sel_sure();
+                let _act_msg = "点击\"" + _sel_sure("txt") + "\"按钮";
 
-                _debugInfo(_btn_click_action_str);
+                _debugInfo(_act_msg);
                 _clickAction(_node, "w");
 
-                if (!_waitForAction(() => !_kw_sure_btn(), 1000)) {
-                    _debugInfo("尝试click()方法再次" + _btn_click_action_str);
+                if (!_waitForAction(() => !_sel_sure(), 1000)) {
+                    _debugInfo("尝试click()方法再次" + _act_msg);
                     _clickAction(_node, "click");
                 }
             }
@@ -1589,7 +1601,7 @@ function tryRequestScreenCapture(params) {
     });
 
     let _thread_monitor = threads.start(function () {
-        if (_waitForAction(() => !!_req_result, 2000, 500)) {
+        if (_waitForAction(() => !!_req_result, 3600, 300)) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
@@ -1597,10 +1609,11 @@ function tryRequestScreenCapture(params) {
             $flag.debug_info_avail = true;
             _debugInfo("开发者测试模式已自动开启", 3);
         }
-        if (_params.restart_this_engine_flag) {
+        if (_par.restart_this_engine_flag) {
             _debugInfo("截图权限申请结果: 失败", 3);
             try {
-                if (android.os.Build.MANUFACTURER.toLowerCase().match(/xiaomi/)) {
+                let _m = android.os.Build.MANUFACTURER.toLowerCase();
+                if (_m.match(/xiaomi/)) {
                     _debugInfo("__split_line__dash_");
                     _debugInfo("检测到当前设备制造商为小米", 3);
                     _debugInfo("可能需要给Auto.js以下权限:", 3);
@@ -1610,16 +1623,23 @@ function tryRequestScreenCapture(params) {
             } catch (e) {
                 // nothing to do here
             }
-            if (_restartThisEngine(_params.restart_this_engine_params)) return;
+            if (_restartThisEngine(_par.restart_this_engine_params)) {
+                return;
+            }
         }
         _messageAction("截图权限申请失败", 9, 1, 0, 1);
     });
 
-    let _req_result = images.requestScreenCapture(false);
-    sleep(300);
+    // just in case
+    sleep(360);
 
-    _thread_monitor.join(2400);
-    _thread_monitor.interrupt();
+    let _req_result = images.requestScreenCapture(false);
+
+    // usually, images.captureScreen() needs some time
+    // to be effective, and 300 is not absolutely
+    sleep(360);
+
+    _thread_monitor.join();
     return _req_result;
 
     // raw function(s) //
