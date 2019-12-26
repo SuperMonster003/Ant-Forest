@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 25, 2019
- * @version 1.9.10 Beta8
+ * @last_modified Dec 26, 2019
+ * @version 1.9.10 Beta9
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1149,15 +1149,24 @@ let $init = {
                                 return $app.page._plansLauncher("rl", _plans, _shared_opt);
                             },
                             backTo: function () {
-                                let _rl = $app.page.rl;
-
-                                if (_rl.isInPage()) return true;
+                                if (this.isInPage()) {
+                                    return true;
+                                }
 
                                 let _max = 3;
+                                let _this = this;
                                 while (_max--) {
-                                    $app.page.back();
-                                    if (waitForAction(_rl.isInPage, 2000)) {
+                                    keycode(4);
+                                    sleep(360);
+
+                                    if (waitForAction(() => _this.isInPage(), 2000)) {
+                                        sleep(240);
                                         return true;
+                                    }
+                                    if ($app.page.alipay.isInPage()) {
+                                        debugInfo("当前页面为支付宝首页");
+                                        debugInfo("重新跳转至排行榜页面");
+                                        return _this.launch();
                                     }
                                     debugInfo("返回排行榜单次超时");
                                 }
@@ -1169,30 +1178,27 @@ let $init = {
                                 $af.fri.launch();
                             },
                             isInPage: function () {
-                                let _rl = $app.page.rl;
-                                let _ident = _rl.page_ident;
-                                return _ident && _checkRlPageIdent() || _checkTitleSel();
-
-                                // tool function(s) //
-
-                                function _checkTitleSel() {
-                                    let _node = null;
-                                    let _sel = () => _node = $sel.get("rl_title");
-
-                                    return _sel() ? _rl.savePageIdent(_node) : null;
-                                }
-
-                                function _checkRlPageIdent() {
-                                    let _ident = _rl.page_ident;
-                                    if (images.isRecycled(_ident)) {
-                                        if (_checkTitleSel()) {
-                                            _ident = _rl.savePageIdent(); // re-capture
-                                            return true;
-                                        }
-                                        return false;
+                                let _ident = this.page_ident;
+                                let _saveIdent = function () {
+                                    let _sel = $sel.get("rl_title");
+                                    if (_sel) {
+                                        this.page_ident = this.savePageIdent(_sel);
+                                        return true;
                                     }
-                                    return images.findImage(_rl.capt(), _ident);
+                                }.bind(this);
+
+                                if (_ident) {
+                                    if (images.isRecycled(_ident)) {
+                                        return _saveIdent();
+                                    } else {
+                                        if (_ident.getHeight()) {
+                                            images.save(_ident, "./Test/" + +new Date() + ".png");
+                                            return images.findImage(this.capt(), _ident);
+                                        }
+                                        delete this.page_ident;
+                                    }
                                 }
+                                return _saveIdent();
                             },
                             capt: function () {
                                 images.reclaim(this._capt);
