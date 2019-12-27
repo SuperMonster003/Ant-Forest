@@ -52,26 +52,31 @@ function reclaim() {
     }
 }
 
-// updated: Dec 15, 2019
+// updated: Dec 27, 2019
 function tryRequestScreenCapture(params) {
-    let _mon_path = "./MODULE_MONSTER_FUNC";
-    if (files.exists(_mon_path)) {
-        return require(_mon_path).tryRequestScreenCapture(params);
-    }
+    let _key = "_$_request_screen_capture";
+    let _$und = x => typeof x === "undefined";
+    let _$isJvo = x => !!x["getClass"];
+    let _fg = global[_key];
 
-    if (global["_$_request_screen_capture"]) {
-        return true;
+    if (_$und(_fg)) {
+        global[_key] = threads.atomic(1);
+    } else if (_$isJvo(_fg)) {
+        if (_fg) return true;
+        _fg.incrementAndGet();
     }
 
     let _par = params || {};
     let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(m, fg, _par.debug_info_flag);
+
+    _debugInfo("开始申请截图权限");
+
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
     let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
     let _$sel = _getSelector();
-    let _$und = o => typeof o === "undefined";
 
     if (_$und(_par.restart_this_engine_flag)) {
         _par.restart_this_engine_flag = true;
@@ -85,11 +90,6 @@ function tryRequestScreenCapture(params) {
     if (!_par.restart_this_engine_params.max_restart_engine_times) {
         _par.restart_this_engine_params.max_restart_engine_times = 3;
     }
-
-    _debugInfo("开始申请截图权限");
-
-    global["_$_request_screen_capture"] = true;
-    _debugInfo("已存储截图权限申请标记");
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
@@ -129,6 +129,7 @@ function tryRequestScreenCapture(params) {
         }
         if (_par.restart_this_engine_flag) {
             _debugInfo("截图权限申请结果: 失败", 3);
+            alert("截图权限申请失败"); //// TEST ////
             try {
                 let _m = android.os.Build.MANUFACTURER.toLowerCase();
                 if (_m.match(/xiaomi/)) {
@@ -152,13 +153,12 @@ function tryRequestScreenCapture(params) {
     sleep(360);
 
     let _req_result = images.requestScreenCapture(false);
-
-    // usually, images.captureScreen() needs some time
-    // to be effective, and 300 is not absolutely
-    sleep(360);
-
     _thread_monitor.join();
-    return _req_result;
+
+    if (_req_result) {
+        return true;
+    }
+    _fg.decrementAndGet();
 
     // raw function(s) //
 
@@ -250,6 +250,75 @@ function tryRequestScreenCapture(params) {
         });
         _my_engine.forceStop();
     }
+}
 
+// updated: Dec 27, 2019
+function restartThisEngine(params) {
+    let _params = params || {};
 
+    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+
+    let _my_engine = engines.myEngine();
+    let _my_engine_id = _my_engine.id;
+
+    let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+    let _max_restart_engine_times_params = _params.max_restart_engine_times;
+    let _max_restart_engine_times;
+    let _instant_run_flag = !!_params.instant_run_flag;
+    if (typeof _max_restart_engine_times_argv === "undefined") {
+        if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+        else _max_restart_engine_times = _max_restart_engine_times_params;
+    } else _max_restart_engine_times = _max_restart_engine_times_argv;
+
+    _max_restart_engine_times = +_max_restart_engine_times;
+    let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
+
+    if (!_max_restart_engine_times) {
+        _messageAction("引擎重启已拒绝", 3);
+        return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
+    }
+
+    _debugInfo("重启当前引擎任务");
+    _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
+    _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
+    let _file_name = _params.new_file || _my_engine.source.toString();
+    if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+
+    let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+    _debugInfo("运行新引擎任务:\n" + _file_path);
+    engines.execScriptFile(_file_path, {
+        arguments: Object.assign({}, _params, {
+            max_restart_engine_times: _max_restart_engine_times - 1,
+            max_restart_engine_times_backup: _max_restart_engine_times_backup,
+            instant_run_flag: _instant_run_flag,
+        }),
+    });
+    _debugInfo("强制停止旧引擎任务");
+    // _my_engine.forceStop();
+    engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+    return true;
+
+    // raw function(s) //
+
+    function messageActionRaw(msg, msg_level, toast_flag) {
+        let _msg = msg || " ";
+        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
+            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        }
+        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
+        toast_flag && toast(_msg);
+        if (_msg_level === 0) return console.verbose(_msg) || true;
+        if (_msg_level === 1) return console.log(_msg) || true;
+        if (_msg_level === 2) return console.info(_msg) || true;
+        if (_msg_level === 3) return console.warn(_msg) || false;
+        if (_msg_level >= 4) {
+            console.error(_msg);
+            _msg_level >= 8 && exit();
+        }
+    }
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
 }
