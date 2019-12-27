@@ -2,7 +2,7 @@
  * @overview alipay ant forest energy intelligent collection script
  *
  * @last_modified Dec 27, 2019
- * @version 1.9.10 Beta11
+ * @version 1.9.10 Beta12
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1149,19 +1149,18 @@ let $init = {
                                 return $app.page._plansLauncher("rl", _plans, _shared_opt);
                             },
                             backTo: function () {
-                                if (this.isInPage()) {
-                                    return true;
-                                }
-
+                                let _isIn = () => $flag.rl_in_page;
                                 let _max = 3;
                                 let _this = this;
                                 while (_max--) {
+                                    sleep(240);
                                     keycode(4);
-                                    sleep(360);
-
-                                    if (waitForAction(() => _this.isInPage(), 2000)) {
-                                        sleep(240);
-                                        return true;
+                                    debugInfo("模拟返回键返回排行榜页面");
+                                    if (waitForAction(_isIn, 2400, 80)) {
+                                        if (!waitForAction(() => !_isIn(), 240, 80)) {
+                                            debugInfo("返回排行榜成功");
+                                            return true;
+                                        }
                                     }
                                     if ($app.page.alipay.isInPage()) {
                                         debugInfo("当前页面为支付宝首页");
@@ -1178,48 +1177,15 @@ let $init = {
                                 $af.fri.launch();
                             },
                             isInPage: function () {
-                                let _ident = this.page_ident;
-                                let _saveIdent = function () {
-                                    let _sel = $sel.get("rl_title");
-                                    if (_sel) {
-                                        this.page_ident = this.savePageIdent(_sel);
-                                        return true;
-                                    }
-                                }.bind(this);
-
-                                if (_ident) {
-                                    if (images.isRecycled(_ident)) {
-                                        return _saveIdent();
-                                    } else {
-                                        if (_ident.getHeight()) {
-                                            return images.findImage(this.capt(), _ident);
-                                        }
-                                        delete this.page_ident;
-                                    }
+                                let _fg = $flag.rl_in_page;
+                                if (!$$und(_fg)) {
+                                    return _fg;
                                 }
-                                return _saveIdent();
+                                return $sel.get("rl_title");
                             },
                             capt: function () {
                                 images.reclaim(this._capt);
                                 return this.capt_img = images.capt();
-                            },
-                            savePageIdent: function (node) {
-                                let _cached_coord = this.cached_pg_idt_coord;
-
-                                if (!_cached_coord && !node) {
-                                    messageAction("无法采集排行榜页面标识样本", 4, 1, 0, -1);
-                                    messageAction("缺少必要的采集参量", 9, 1, 1, 1);
-                                }
-
-                                let _scr_capt = this.capt();
-                                let _b = node => node.bounds();
-                                let _coord = node
-                                    ? [0, _b(node).top, W - 3, _b(node).height()]
-                                    : _cached_coord;
-                                let _par = [_scr_capt].concat(_coord);
-
-                                this.cached_pg_idt_coord = _coord;
-                                return this.page_ident = images.clip.apply({}, _par);
                             },
                         },
                         fri: {
@@ -3196,6 +3162,15 @@ let $init = {
                         _click() && sleep(2000);
                     }
                 }),
+                rl_in_page: new Monitor("排行榜页面", function () {
+                    let _n = "rl_title";
+                    let _t = "bounds"; // type
+                    while (1) {
+                        $sel.cache.refresh(_n);
+                        $flag.rl_in_page = $sel.cache.load(_n, _t);
+                        sleep(120);
+                    }
+                })
             };
 
             // constructor(s) //
@@ -4175,6 +4150,7 @@ let $af = {
                     },
                     launch: () => {
                         $app.page.rl.launch();
+                        $app.monitor.rl_in_page.start();
                         $app.monitor.rl_bottom.start();
 
                         return fri;
