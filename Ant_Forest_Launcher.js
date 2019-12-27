@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 26, 2019
- * @version 1.9.10 Beta10
+ * @last_modified Dec 27, 2019
+ * @version 1.9.10 Beta11
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1192,7 +1192,6 @@ let $init = {
                                         return _saveIdent();
                                     } else {
                                         if (_ident.getHeight()) {
-                                            images.save(_ident, "./Test/" + +new Date() + ".png");
                                             return images.findImage(this.capt(), _ident);
                                         }
                                         delete this.page_ident;

@@ -1410,19 +1410,29 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function tryRequestScreenCapture(params) {
-        if (global["_$_request_screen_capture"]) {
-            return true;
+        let _key = "_$_request_screen_capture";
+        let _$und = x => typeof x === "undefined";
+        let _$isJvo = x => !!x["getClass"];
+        let _fg = global[_key];
+
+        if (_$und(_fg)) {
+            global[_key] = threads.atomic(1);
+        } else if (_$isJvo(_fg)) {
+            if (_fg) return true;
+            _fg.incrementAndGet();
         }
 
         let _par = params || {};
         let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(m, fg, _par.debug_info_flag);
+
+        _debugInfo("开始申请截图权限");
+
         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
         let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
         let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
         let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
         let _$sel = _getSelector();
-        let _$und = o => typeof o === "undefined";
 
         if (_$und(_par.restart_this_engine_flag)) {
             _par.restart_this_engine_flag = true;
@@ -1436,11 +1446,6 @@ function loadInternalModuleMonsterFunc() {
         if (!_par.restart_this_engine_params.max_restart_engine_times) {
             _par.restart_this_engine_params.max_restart_engine_times = 3;
         }
-
-        _debugInfo("开始申请截图权限");
-
-        global["_$_request_screen_capture"] = true;
-        _debugInfo("已存储截图权限申请标记");
 
         _debugInfo("已开启弹窗监测线程");
         let _thread_prompt = threads.start(function () {
@@ -1503,13 +1508,12 @@ function loadInternalModuleMonsterFunc() {
         sleep(360);
 
         let _req_result = images.requestScreenCapture(false);
-
-        // usually, images.captureScreen() needs some time
-        // to be effective, and 300 is not absolutely
-        sleep(360);
-
         _thread_monitor.join();
-        return _req_result;
+
+        if (_req_result) {
+            return true;
+        }
+        _fg.decrementAndGet();
 
         // raw function(s) //
 
