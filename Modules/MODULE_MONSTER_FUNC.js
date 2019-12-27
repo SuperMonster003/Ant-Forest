@@ -2995,9 +2995,10 @@ function getSelector(params) {
                 if (!_node) return null;
                 return sel.pickup(sel.cache_pool[key_name], type);
             },
-            refresh: (key_name) => {
+            refresh: function (key_name) {
                 let _cache = sel.cache_pool[key_name];
                 _cache && _cache.refresh();
+                this.save(key_name);
             },
             reset: (key_name) => {
                 delete sel.cache_pool[key_name];
