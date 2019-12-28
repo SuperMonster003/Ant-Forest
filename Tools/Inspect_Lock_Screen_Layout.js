@@ -7,13 +7,12 @@ try {
 updateMethodRequire();
 
 let {
-    tryRequestScreenCapture,
     waitForAction,
     messageAction,
     keycode,
 } = require("../Modules/MODULE_MONSTER_FUNC");
 
-tryRequestScreenCapture();
+require("../Modules/EXT_IMAGES").load().permit();
 
 let WIDTH = device.width;
 let HEIGHT = device.height;

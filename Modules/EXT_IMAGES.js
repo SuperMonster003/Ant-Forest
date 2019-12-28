@@ -11,16 +11,16 @@ let ext = {
             return !!e.message.match(/has been recycled/);
         }
     },
-    reclaim: reclaim,
+    reclaim: _reclaim,
     capt: () => {
         let _max = 10;
         while (_max--) {
             try {
-                tryRequestScreenCapture();
+                _permitCapt();
                 let _img = images.captureScreen();
                 // prevent "_img" from being auto-recycled
                 let _copy = images.copy(_img);
-                reclaim(_img);
+                _reclaim(_img);
                 return _copy;
             } catch (e) {
                 sleep(240);
@@ -31,6 +31,9 @@ let ext = {
         toast(_msg);
         exit();
     },
+    tryRequestScreenCapture: _permitCapt, // legacy
+    permitCapt: _permitCapt,
+    permit: _permitCapt,
 };
 ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
@@ -38,32 +41,32 @@ module.exports = Object.assign({
     load: () => Object.assign(global["images"], ext),
 }, ext);
 
-// FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
-function reclaim() {
-    for (let i = 0, len = arguments.length; i < len; i += 1) {
-        let img = arguments[i];
-        if (!img) continue;
-        img.recycle();
-        /*
-            `img = null;` is not necessary
-            as which only modified the point
-            of this reference typed argument
-         */
-    }
-}
-
-// updated: Dec 27, 2019
-function tryRequestScreenCapture(params) {
-    let _key = "_$_request_screen_capture";
+/**
+ * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
+ * During this operation, permission prompt window will be confirmed (with checkbox checked if possible) automatically with effort
+ * @param [params] {object}
+ * @param [params.debug_info_flag] {boolean}
+ * @param [params.restart_this_engine_flag=false] {boolean}
+ * @param [params.restart_this_engine_params] {object}
+ * @param [params.restart_this_engine_params.new_file] {string} - new engine task name with or without path or file extension name
+ * <br>
+ *     -- *DEFAULT* - old engine task <br>
+ *     -- new file - like "hello.js", "../hello.js" or "hello"
+ * @param [params.restart_this_engine_params.debug_info_flag] {boolean}
+ * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number} - max restart times for avoiding infinite recursion
+ * @return {boolean}
+ */
+function _permitCapt(params) {
     let _$und = x => typeof x === "undefined";
-    let _$isJvo = x => !!x["getClass"];
+    let _$isJvo = x => x && !!x["getClass"];
+    let _key = "_$_request_screen_capture";
     let _fg = global[_key];
 
-    if (_$und(_fg)) {
-        global[_key] = threads.atomic(1);
-    } else if (_$isJvo(_fg)) {
+    if (_$isJvo(_fg)) {
         if (_fg) return true;
         _fg.incrementAndGet();
+    } else {
+        global[_key] = threads.atomic(1);
     }
 
     let _par = params || {};
@@ -129,7 +132,6 @@ function tryRequestScreenCapture(params) {
         }
         if (_par.restart_this_engine_flag) {
             _debugInfo("截图权限申请结果: 失败", 3);
-            alert("截图权限申请失败"); //// TEST ////
             try {
                 let _m = android.os.Build.MANUFACTURER.toLowerCase();
                 if (_m.match(/xiaomi/)) {
@@ -249,6 +251,20 @@ function tryRequestScreenCapture(params) {
             },
         });
         _my_engine.forceStop();
+    }
+}
+
+// FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
+function _reclaim() {
+    for (let i = 0, len = arguments.length; i < len; i += 1) {
+        let img = arguments[i];
+        if (!img) continue;
+        img.recycle();
+        /*
+            `img = null;` is not necessary
+            as which only modified the point
+            of this reference typed argument
+         */
     }
 }
 
