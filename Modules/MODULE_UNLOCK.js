@@ -1738,7 +1738,9 @@ function loadInternalModuleMonsterFunc() {
     function captureErrScreen(key_name, log_level) {
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-        permitCapt();
+        let _$und = o => typeof o === "undefined";
+        let _capt = _$und(images.permit) ? permitCapt : images.permit;
+        _capt();
 
         let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
 

@@ -14,6 +14,13 @@ global["$impeded"] = (name) => {
     return true;
 };
 
+let {
+    ui, currentPackage, android, id, click, selector,
+    floaty, colors, toast, files, idMatches, engines,
+    events, timers, swipe, sleep, exit, app, threads,
+    images, device, auto, dialogs, context, http,
+} = global;
+
 module.exports = {
     parseAppName: parseAppName,
     getVerName: getVerName,
@@ -2401,7 +2408,9 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
 function captureErrScreen(key_name, log_level) {
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    permitCapt();
+    let _$und = o => typeof o === "undefined";
+    let _capt = _$und(images.permit) ? permitCapt : images.permit;
+    _capt();
 
     let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
 
@@ -3270,12 +3279,12 @@ function timedTaskTimeFlagConverter(timeFlag) {
 /**
  * Fetching data by calling OCR API from Baidu
  * @param src {Array|ImageWrapper|UiObject|UiObjectCollection} -- will be converted into ImageWrapper(s)
- * @param [params] {object}
- * @param [params.no_toast_msg_flag=false] {boolean}
- * @param [params.fetch_times=1] {boolean}
- * @param [params.fetch_interval=100] {number}
- * @param [params.debug_info_flag=false] {boolean}
- * @param [params.timeout=60000] {number} -- no less than 5000
+ * @param [par] {object}
+ * @param [par.no_toast_msg_flag=false] {boolean}
+ * @param [par.fetch_times=1] {boolean}
+ * @param [par.fetch_interval=100] {number}
+ * @param [par.debug_info_flag=false] {boolean}
+ * @param [par.timeout=60000] {number} -- no less than 5000
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
  * let sel = getSelector(); // @see getSelector() from MODULE_MONSTER_FUNC
@@ -3284,37 +3293,36 @@ function timedTaskTimeFlagConverter(timeFlag) {
  *     timeout: 12000
  * }); // [[], [], []] -- 3 groups of data
  */
-function baiduOcr(src, params) {
+function baiduOcr(src, par) {
     if (!src) return [];
 
-    params = params || {};
+    par = par || {};
 
-    let timeout = params.timeout || 60000;
-    if (!+timeout || timeout < 5000) timeout = 5000;
-    let timed_out_timestamp = +new Date() + timeout;
+    let _tt = par.timeout || 60000;
+    if (!+_tt || _tt < 5000) _tt = 5000;
+    let _tt_ts = +new Date() + _tt;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _debugInfo = (_msg) => {
-        if (!params.debug_info_flag) return null;
+        if (!par.debug_info_flag) return null;
         return (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", true);
     };
 
-    let function_start_msg = "使用baiduOcr获取数据";
-    _debugInfo(function_start_msg);
-    if (!params.no_toast_msg_flag) toast(function_start_msg);
+    let _msg = "使用baiduOcr获取数据";
+    _debugInfo(_msg);
+    if (!par.no_toast_msg_flag) toast(_msg);
 
-    let access_token = "";
-    let max_try_times_acc_token = 10;
-
-    let thread_access_token = threads.start(function () {
-        while (max_try_times_acc_token--) {
+    let _token = "";
+    let _max_token = 10;
+    let _thd_token = threads.start(function () {
+        while (_max_token--) {
             try {
-                let access_token_url = "https://aip.baidubce.com/oauth/2.0/token" +
+                let _url = "https://aip.baidubce.com/oauth/2.0/token" +
                     "?grant_type=client_credentials" +
                     "&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE" +
                     "&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj";
-                access_token = http.get(access_token_url).body.json().access_token;
+                _token = http.get(_url).body.json()["access_token"];
                 _debugInfo("access_token准备完毕");
                 break;
             } catch (e) {
@@ -3322,80 +3330,98 @@ function baiduOcr(src, params) {
             }
         }
     });
-
-    thread_access_token.join(timeout);
-
-    if (max_try_times_acc_token < 0) {
-        _messageAction("baiduOcr获取access_token失败", 3, +!params.no_toast_msg_flag, 0, "both_dash");
+    _thd_token.join(_tt);
+    if (_max_token < 0) {
+        _messageAction("baiduOcr获取access_token失败", 3, +!par.no_toast_msg_flag, 0, "both_dash");
+        return [];
+    }
+    if (_thd_token.isAlive()) {
+        let _msg = "baiduOcr获取access_token超时";
+        let _toast = +!par.no_toast_msg_flag;
+        _messageAction(_msg, 3, _toast, 0, "both_dash");
         return [];
     }
 
-    if (thread_access_token.isAlive()) {
-        _messageAction("baiduOcr获取access_token超时", 3, +!params.no_toast_msg_flag, 0, "both_dash");
-        return [];
-    }
+    let _$und = o => typeof o === "undefined";
+    let _capt = _$und(images.permit) ? permitCapt : images.permit;
+    _capt();
 
-    let url = "https://aip.baidubce.com/rest/2.0/ocr/v1/general_basic" +
-        "?access_token=" + access_token;
-
-    permitCapt();
-
-    let fetch_times = params.fetch_times || 1;
-    let fetch_times_backup = fetch_times;
-    let fetch_interval = params.fetch_interval || 300;
-    let results = [];
-    let threads_pool = [];
-    let allThreadsDead = () => {
-        for (let i = 0, len = threads_pool.length; i < len; i += 1) {
-            if (threads_pool[i].isAlive()) return;
+    let _max = par.fetch_times || 1;
+    let _max_b = _max;
+    let _itv = par.fetch_interval || 300;
+    let _res = [];
+    let _thds = [];
+    let _allDead = () => {
+        for (let i = 0, len = _thds.length; i < len; i += 1) {
+            if (_thds[i].isAlive()) return;
         }
         return true;
     };
 
-    while (fetch_times--) {
-        threads_pool.push(threads.start(function () {
+    while (_max--) {
+        _thds.push(threads.start(function () {
             let img = stitchImages(src);
             if (!img) return [];
-            let current_times = fetch_times_backup - fetch_times;
-            _debugInfo("stitched_image" + (fetch_times_backup > 1 ? "[" + current_times + "]" : "") + "准备完毕");
 
-            let post_obj = {
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                },
-                image: images.toBase64(img), // images.read(img_file) for local file
-                image_type: "BASE64",
-            };
-
-            img.recycle();
-            img = null;
+            let _cur = _max_b - _max;
+            let _img_str = "stitched_image";
+            let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
+            _debugInfo(_img_str + _suffix + "准备完毕");
 
             try {
-                let fetched = JSON.parse(http.post(url, post_obj).body.string()).words_result.map(val => val.words);
-                _debugInfo("数据" + (fetch_times_backup > 1 ? "[" + current_times + "]" : "") + "获取成功");
-                results.push(fetched); // result array
+                let _url = "https://aip.baidubce.com" +
+                    "/rest/2.0/ocr/v1/general_basic" +
+                    "?access_token=" + _token;
+                let _opt = {
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    image: images.toBase64(img), // images.read(img_file) for local file
+                    image_type: "BASE64",
+                };
+                let _response = http.post(_url, _opt).body.string();
+                let _words = JSON.parse(_response)["words_result"];
+                let _words_res = _words.map(val => val["words"]);
+                let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
+                _debugInfo("数据" + _suffix + "获取成功");
+
+                img.recycle();
+                img = null;
+
+                _res.push(_words_res);
             } catch (e) {
-                if (e.message && e.message.match(/InterruptedIOException/)) return;
-                throw (e);
+                if (!e.message.match(/InterruptedIOException/)) {
+                    throw (e);
+                }
             }
         }));
-        sleep(fetch_interval);
+        sleep(_itv);
     }
-    let thread_timeout_monitor = threads.start(function () {
+
+    threads.start(function () {
         while (sleep(500) || true) {
-            if (allThreadsDead()) return;
-            if (+new Date() >= timed_out_timestamp) {
-                threads_pool.forEach(thr => thr.interrupt());
-                _messageAction("baiduOcr获取数据超时", 3, +!params.no_toast_msg_flag, 0, "up_dash");
-                if (results.length) _messageAction("已获取的数据可能不完整", 3);
+            if (_allDead()) break;
+            if (+new Date() >= _tt_ts) {
+                _thds.forEach(thd => thd.interrupt());
+
+                let _msg = "baiduOcr获取数据超时";
+                let _toast = +!par.no_toast_msg_flag;
+                _messageAction(_msg, 3, _toast, 0, "up_dash");
+
+                if (_res.length) {
+                    _messageAction("已获取的数据可能不完整", 3);
+                }
                 _showSplitLine("", "dash");
             }
         }
     });
+
     while (sleep(500) || true) {
-        if (allThreadsDead()) {
-            if (!params.no_toast_msg_flag && results.length) toast("baiduOcr获取数据完毕");
-            return fetch_times_backup === 1 ? results[0] : results;
+        if (_allDead()) {
+            if (!par.no_toast_msg_flag && _res.length) {
+                toast("baiduOcr获取数据完毕");
+            }
+            return _max_b === 1 ? _res[0] : _res;
         }
     }
 
@@ -3451,8 +3477,6 @@ function baiduOcr(src, params) {
         return stitchImg(imgs);
     }
 
-    // raw function(s) //
-
     function permitCapt() {
         let _$isJvo = x => x && !!x["getClass"];
         let _key = "_$_request_screen_capture";
@@ -3475,6 +3499,8 @@ function baiduOcr(src, params) {
         sleep(300);
         return true;
     }
+
+    // raw function(s) //
 
     function messageActionRaw(msg, msg_level, toast_flag) {
         let _msg = msg || " ";
@@ -3877,7 +3903,7 @@ function checkSdkAndAJVer(params) {
  * And this function doesn't need to export in general
  */
 function dismissIDEWarnings() {
-    $sel = typeof $sel === "undefined" ? {} : $sel;
+    if (typeof $sel === "undefined") $sel = {};
 
     Object.assign(dialogs.__proto__, {
         getItems: () => $$arr,
@@ -3885,16 +3911,16 @@ function dismissIDEWarnings() {
         getActionButton: btn_name => $$str(btn_name),
         setContent: str => $$und(str),
         setActionButton: (btn_name, str) => $$und(btn_name, str),
-        promptCheckBoxChecked: $$bool,
+        promptCheckBoxChecked: "$$bool",
         isPromptCheckBoxChecked: () => $$bool,
-        selectedIndex: $$num,
+        selectedIndex: "$$num",
         getSelectedIndex: () => $$num,
-        selectedIndices: $$arr,
+        selectedIndices: [],
         getSelectedIndices: () => $$arr,
-        items: $$arr,
+        items: [],
         isCancelled: () => $$bool,
         getInputEditText: () => $$str,
-    }, dialogs);
+    });
     Object.assign(engines.__proto__, {
         myEngine: () => ({
             source: {
@@ -3909,7 +3935,7 @@ function dismissIDEWarnings() {
         }),
         all: () => $$arr,
         stopAllAndToast: () => $$und,
-    }, engines);
+    });
     Object.assign(events.__proto__, {
         removeAllKeyDownListeners: str => this,
         observeKey: () => $$und,
@@ -3922,7 +3948,7 @@ function dismissIDEWarnings() {
         getY: () => $$num,
         getEventTime: () => $$num,
         getDownTime: () => $$num,
-    }, events);
+    });
     Object.assign(threads.__proto__, {
         start: runnable => $$jvo.Thread,
         interrupt: () => $$und,
@@ -3935,7 +3961,7 @@ function dismissIDEWarnings() {
             decrementAndGet: () => $$num,
             compareAndSet: (long1, long2) => $$bool,
         }
-    }, threads);
+    });
     Object.assign($sel.__proto__, {
         findOnce: UiObject => $$jvo.UiObject,
         childCount: () => $$num,
@@ -3952,7 +3978,7 @@ function dismissIDEWarnings() {
             centerX: () => $$num,
             centerY: () => $$num,
         }),
-    }, $sel);
+    });
     Object.assign(floaty.__proto__, {
         rawWindow: xml => $$jvo.JsRawWin,
         setBackgroundColor: num => $$und,
@@ -3961,22 +3987,35 @@ function dismissIDEWarnings() {
         getWidth: () => $$num,
         setTouchable: bool => $$und,
         setOnTouchListener: func => $$und,
-    }, floaty);
+    });
     Object.assign(colors.__proto__, {
         parseColor: str => $$num,
-    }, colors);
+    });
     Object.assign(images.__proto__, {
-        getHeight: () => $$num,
-        recycle: () => $$und,
+        read: str => $$jvo.ImageWrapper,
+        load: str => $$jvo.ImageWrapper,
         copy: image => $$jvo.ImageWrapper,
-        captureScreen: path => $$jvo.ImageWrapper,
+        save: (image, path, format, quality) => "$$bool",
+        fromBase64: str => $$jvo.ImageWrapper,
+        toBase64: (img, format, quality) => "$$str",
+        fromBytes: str => $$jvo.ImageWrapper,
+        toBytes: (img, format, quality) => [],
+        clip: (img, x, y, w, h) => $$jvo.ImageWrapper,
+        resize: (img, size, interpolation) => $$jvo.ImageWrapper,
+        scale: (img, fx, fy, interpolation) => $$jvo.ImageWrapper,
+        rotate: (img, degree, x, y) => $$jvo.ImageWrapper,
+        concat: (img1, img2, direction) => $$jvo.ImageWrapper,
         requestScreenCapture: bool => $$bool,
-        findImage: (img, templ, opt) => $$jvo.ImageWrapper,
+        captureScreen: path => $$jvo.ImageWrapper,
+        recycle: () => $$und,
+        findImage: (img, tpl, opt) => $$jvo.ImageWrapper,
         findColor: (img, color, opt) => $$jvo.Point,
         pixel: (img, x, y) => $$num,
         findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
         detectsColor: (img, color, x, y, threshold, algorithm) => $$bool,
-    }, images);
+        getWidth: () => $$num,
+        getHeight: () => $$num,
+    });
     Object.assign(colors.__proto__, {
         isSimilar: (c1, c2, threshold, algorithm) => $$bool,
     });
@@ -3988,21 +4027,21 @@ function dismissIDEWarnings() {
         path: str => $$str,
         exists: str => $$bool,
         removeDir: str => $$bool,
-    }, files);
+    });
     Object.assign(auto.__proto__, {
         waitFor: () => $$und,
-    }, auto);
+    });
     Object.assign(app.__proto__, {
         launchPackage: str => $$bool,
         launchApp: str => $$bool,
         getAppName: str => $$str,
         startActivity: obj__str => $$und
-    }, app);
+    });
     Object.assign(device.__proto__, {
         isScreenOn: () => $$bool,
         keepScreenOn: num => $$und,
         brand: "$$str",
-    }, device);
+    });
     Object.assign(console.__proto__, {
         verbose: str => $$und,
     });
@@ -4036,14 +4075,14 @@ function dismissIDEWarnings() {
                 this.FLAG_ACTIVITY_NEW_TASK = "$$num";
                 this.setClassName = (pkg_nm, class_nm) => "Intent";
                 this.putExtra = (str, arr) => "Intent";
-                this.addCategory = (str) => "Intent";
-                this.setAction = (str) => "Intent";
-                this.setFlags = (num) => "Intent";
+                this.addCategory = str => "Intent";
+                this.setAction = str => "Intent";
+                this.setFlags = num => "Intent";
                 this.setDataAndType = (Uri, str) => "Intent";
-                this.setType = (str) => "Intent";
-                this.addFlags = (num) => "Intent";
-                this.extras = "$$arr";
-                this.category = "$$arr";
+                this.setType = str => "Intent";
+                this.addFlags = num => "Intent";
+                this.extras = [];
+                this.category = [];
             },
         }
     });
@@ -4057,5 +4096,27 @@ function dismissIDEWarnings() {
     });
     Object.assign(timers.__proto__, {
         setMillis: num => $$und,
+    });
+    Object.assign(http.__proto__, {
+        post: function (url, data, options, callback) {
+            return {
+                statusCode: "$$num",
+                statusMessage: "$$str",
+                headers: {},
+                body: {
+                    bytes: () => [],
+                    string: () => "$$str",
+                    json: () => {
+                    },
+                    contentType: "$$str",
+                },
+            };
+        },
+        __okhttp__: {
+            client: () => "okhttp3.OkHttpClient",
+        },
+        client: function () {
+            return this.__okhttp__.client();
+        }
     })
 }

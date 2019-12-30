@@ -126,9 +126,11 @@ function _permitCapt(params) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
-        if (!$flag.debug_info_avail) {
-            $flag.debug_info_avail = true;
-            _debugInfo("开发者测试模式已自动开启", 3);
+        if (typeof $flag !== "undefined") {
+            if (!$flag.debug_info_avail) {
+                $flag.debug_info_avail = true;
+                _debugInfo("开发者测试模式已自动开启", 3);
+            }
         }
         if (_par.restart_this_engine_flag) {
             _debugInfo("截图权限申请结果: 失败", 3);
@@ -150,9 +152,6 @@ function _permitCapt(params) {
         }
         _messageAction("截图权限申请失败", 9, 1, 0, 1);
     });
-
-    // just in case
-    sleep(360);
 
     let _req_result = images.requestScreenCapture(false);
     _thread_monitor.join();
