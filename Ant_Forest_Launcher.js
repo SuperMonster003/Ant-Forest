@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Dec 28, 2019
- * @version 1.9.10 Beta13
+ * @last_modified Dec 30, 2019
+ * @version 1.9.10 Beta14
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -1138,6 +1138,10 @@ let $init = {
                             set capt_img(img) {
                                 this._capt = img;
                             },
+                            capt: function () {
+                                images.reclaim(this._capt);
+                                return this.capt_img = images.capt();
+                            },
                             launch: function (plans_arr, shared_opt) {
                                 // TODO split from alipay spring board
                                 $app.page.autojs.spring_board.employ();
@@ -1182,10 +1186,6 @@ let $init = {
                                     return _fg;
                                 }
                                 return $sel.get("rl_title");
-                            },
-                            capt: function () {
-                                images.reclaim(this._capt);
-                                return this.capt_img = images.capt();
                             },
                         },
                         fri: {
@@ -3506,6 +3506,7 @@ let $af = {
                 ready: () => {
                     let _ = readySetter();
 
+                    _.captReady();
                     _.displayReady();
                     _.languageReady();
                     _.mainAccReady();
@@ -3514,6 +3515,15 @@ let $af = {
 
                     function readySetter() {
                         return {
+                            captReady: function () {
+                                // CAUTION:
+                                // images.capt() contains images.permitCapt()
+                                // however, which is not recommended to be used
+                                // into a Java Thread at the first time
+                                // as capture permission will be forcibly interrupted
+                                // with this thread killed in a short time (about 300ms)
+                                images.permitCapt();
+                            },
                             displayReady: function () {
                                 if ($dev.screen_orientation !== 0) {
                                     getDisplayParams({global_assign: true});
@@ -4152,6 +4162,10 @@ let $af = {
                         $app.page.rl.launch();
                         $app.monitor.rl_in_page.start();
                         $app.monitor.rl_bottom.start();
+
+                        // make rl ready in case that the list
+                        // doesn't respond to the click action
+                        sleep(500);
 
                         return fri;
                     },
@@ -5108,64 +5122,14 @@ let $af = {
                             }
                         }
 
-                        // TODO ...
                         function _swipe() {
-                            swipeOnce();
-
-                            sleep($cfg.rank_list_swipe_interval);
-
-                            $app.page.rl.capt();
-
-                            if (!checkRankListCaptDifference()) {
-                                let kw_loading = type => $sel.pickup(/正在加载.*/, type, "kw_loading");
-                                if (kw_loading()) {
-                                    let max_keep_waiting_time = 2 * 60000; // 2 min
-                                    debugInfo(["检测到\"正在加载\"按钮", "等待按钮消失 (最多" + max_keep_waiting_time + "分钟)"]);
-                                    if (waitForAction(() => !kw_loading(), max_keep_waiting_time, 1000)) {
-                                        delete $flag.rl_bottom_rch;
-                                        return debugInfo(["排行榜停检信号撤销", ">\"正在加载\"按钮已消失"]);
-                                    }
-                                    debugInfo("等待\"正在加载\"按钮消失超时", 3);
-                                }
-
-                                if ($sel.get("rl_end_ident")) {
-                                    let {left, top, right, bottom} = $sel.get("rl_end_ident", "bounds") || {};
-                                    if (bottom - top === $app.end_list_ident_height) {
-                                        $flag.rl_bottom_rch = true;
-                                        debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
-                                        let capt_img = images.capt();
-                                        let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
-                                        if ($app.rank_list_bottom_template) {
-                                            images.reclaim($app.rank_list_bottom_template);
-                                            $app.rank_list_bottom_template = null;
-                                        }
-                                        images.save(
-                                            $app.rank_list_bottom_template = images.copy(btn_clip),
-                                            $app.rank_list_bottom_template_path)
-                                        ;
-                                        images.reclaim(capt_img, btn_clip);
-                                        capt_img = btn_clip = null;
-                                        return debugInfo("列表底部控件图片模板已更新");
-                                    } else {
-                                        $app.end_list_ident_height = bottom - top;
-                                        $app.forcible_swipe_check_flag = true;
-                                    }
-                                }
-
-                                if (waitForAction(() => $sel.pickup(/.*打瞌睡.*/), 2, 1000)) {
-                                    waitForAndClickAction($sel.pickup("再试一次"), 15000, 500, {click_strategy: "w"});
-                                    delete $flag.rl_bottom_rch;
-                                    return debugInfo(["排行榜停检信号撤销", ">检测到\"服务器打瞌睡\"页面"]);
-                                }
-                            }
-
-                            if (checkRankListBottomTemplate() || checkInvitationBtnColor()) {
-                                $flag.rl_bottom_rch = true;
-                            }
+                            _swipeUp();
+                            _chkCaptDiff();
+                            _chkRlBottom();
 
                             // tool function(s) //
 
-                            function swipeOnce() {
+                            function _swipeUp() {
                                 $impeded("排行榜滑动流程");
 
                                 let swipe_time = $cfg.rank_list_swipe_time;
@@ -5196,119 +5160,178 @@ let $af = {
                                         return true;
                                     }
                                 };
+
                                 if (calc_swipe_distance >= 0.4 * H
                                     && calc_swipe_distance <= 0.9 * H
                                     && swipeAndClickOutside()) {
-                                    return true;
+                                } else {
+                                    debugInfo("滑动方法返回值: " + swipe_functional);
                                 }
-                                debugInfo("滑动方法返回值: " + swipe_functional);
+
+                                sleep($cfg.rank_list_swipe_interval);
+
+                                return swipe_functional;
                             }
 
-                            function checkRankListCaptDifference() {
-                                let pool = $app.rank_list_capt_diff_check_pool;
-
-                                for (let i = 0; i < pool.length; i += 1) {
-                                    if (images.isRecycled(pool[i])) pool.splice(i--, 1);
-                                }
-
-                                if (!poolDiffThresholdReached()) {
-                                    pool.push(images.copy($app.page.rl.capt_img));
-                                    if ($app.forcible_swipe_check_flag) {
-                                        return $app.forcible_swipe_check_flag = false;
-                                    }
-                                    let counter = $app.rank_list_capt_pool_diff_check_counter;
-                                    return counter % 4 || !counter;
-                                }
-
-                                // tool function(s) //
-
-                                function poolDiffThresholdReached() {
-                                    let pool_len = pool.length;
-                                    if (!pool_len) return;
-
-                                    while (pool_len > 1) {
-                                        images.reclaim(pool[0]);
-                                        pool[0] = null;
-                                        pool.splice(0, 1);
-                                        pool_len = pool.length;
+                            function _chkCaptDiff() {
+                                if (_isDiff()) {
+                                    let kw_loading = type => $sel.pickup(/正在加载.*/, type, "kw_loading");
+                                    if (kw_loading()) {
+                                        let max_keep_waiting_time = 2 * 60000; // 2 min
+                                        debugInfo(["检测到\"正在加载\"按钮", "等待按钮消失 (最多" + max_keep_waiting_time + "分钟)"]);
+                                        if (waitForAction(() => !kw_loading(), max_keep_waiting_time, 1000)) {
+                                            delete $flag.rl_bottom_rch;
+                                            return debugInfo(["排行榜停检信号撤销", ">\"正在加载\"按钮已消失"]);
+                                        }
+                                        debugInfo("等待\"正在加载\"按钮消失超时", 3);
                                     }
 
-                                    let similar_captures = false;
-
-                                    try {
-                                        similar_captures = images.findImage($app.page.rl.capt_img, pool[pool_len - 1]);
-                                    } catch (e) {
-                                        // debugInfo(["放弃排行榜截图样本差异检测", ">单次检测失败", ">" + e.message], 3);
-                                    }
-
-                                    let check_threshold = $cfg.rank_list_capt_pool_diff_check_threshold;
-                                    if (similar_captures) {
-                                        let counter = $app.rank_list_capt_pool_diff_check_counter += 1;
-                                        debugInfo(["排行榜截图样本池差异检测:", "检测未通过: (" + counter + "\/" + check_threshold + ")"]);
-                                        if (counter >= check_threshold) {
+                                    if ($sel.get("rl_end_ident")) {
+                                        let {left, top, right, bottom} = $sel.get("rl_end_ident", "bounds") || {};
+                                        if (bottom - top === $app.end_list_ident_height) {
                                             $flag.rl_bottom_rch = true;
-                                            debugInfo(["发送排行榜停检信号", ">已达截图样本池差异检测阈值"]);
+                                            debugInfo(["发送排行榜停检信号", ">已匹配列表底部控件"]);
+                                            let capt_img = images.capt();
+                                            let btn_clip = images.clip(capt_img, left, top, right - left - 3, bottom - top - 3);
+                                            if ($app.rank_list_bottom_template) {
+                                                images.reclaim($app.rank_list_bottom_template);
+                                                $app.rank_list_bottom_template = null;
+                                            }
+                                            images.save(
+                                                $app.rank_list_bottom_template = images.copy(btn_clip),
+                                                $app.rank_list_bottom_template_path)
+                                            ;
+                                            images.reclaim(capt_img, btn_clip);
+                                            capt_img = btn_clip = null;
+                                            return debugInfo("列表底部控件图片模板已更新");
+                                        } else {
+                                            $app.end_list_ident_height = bottom - top;
+                                            $app.forcible_swipe_check_flag = true;
+                                        }
+                                    }
+
+                                    if (waitForAction(() => $sel.pickup(/.*打瞌睡.*/), 2, 1000)) {
+                                        waitForAndClickAction($sel.pickup("再试一次"), 15000, 500, {click_strategy: "w"});
+                                        delete $flag.rl_bottom_rch;
+                                        return debugInfo(["排行榜停检信号撤销", ">检测到\"服务器打瞌睡\"页面"]);
+                                    }
+                                }
+
+                                function _isDiff() {
+                                    $app.page.rl.capt();
+
+                                    let pool = $app.rank_list_capt_diff_check_pool;
+
+                                    for (let i = 0; i < pool.length; i += 1) {
+                                        if (images.isRecycled(pool[i])) pool.splice(i--, 1);
+                                    }
+
+                                    if (!poolDiffThresholdReached()) {
+                                        pool.push(images.copy($app.page.rl.capt_img));
+                                        if ($app.forcible_swipe_check_flag) {
+                                            $app.forcible_swipe_check_flag = false;
                                             return true;
                                         }
-                                    } else {
-                                        // debugInfo("排行榜截图样本池差异检测通过");
-                                        $app.rank_list_capt_pool_diff_check_counter = 0;
+                                        let _ctr = $app.rank_list_capt_pool_diff_check_counter;
+                                        return _ctr && !(_ctr % 4);
+                                    }
+
+                                    // tool function(s) //
+
+                                    function poolDiffThresholdReached() {
+                                        let pool_len = pool.length;
+                                        if (!pool_len) return;
+
+                                        while (pool_len > 1) {
+                                            images.reclaim(pool[0]);
+                                            pool[0] = null;
+                                            pool.splice(0, 1);
+                                            pool_len = pool.length;
+                                        }
+
+                                        let similar_captures = false;
+
+                                        try {
+                                            similar_captures = images.findImage($app.page.rl.capt_img, pool[pool_len - 1]);
+                                        } catch (e) {
+                                            // debugInfo(["放弃排行榜截图样本差异检测", ">单次检测失败", ">" + e.message], 3);
+                                        }
+
+                                        let check_threshold = $cfg.rank_list_capt_pool_diff_check_threshold;
+                                        if (similar_captures) {
+                                            let counter = $app.rank_list_capt_pool_diff_check_counter += 1;
+                                            debugInfo(["排行榜截图样本池差异检测:", "检测未通过: (" + counter + "\/" + check_threshold + ")"]);
+                                            if (counter >= check_threshold) {
+                                                $flag.rl_bottom_rch = true;
+                                                debugInfo(["发送排行榜停检信号", ">已达截图样本池差异检测阈值"]);
+                                                return true;
+                                            }
+                                        } else {
+                                            // debugInfo("排行榜截图样本池差异检测通过");
+                                            $app.rank_list_capt_pool_diff_check_counter = 0;
+                                        }
                                     }
                                 }
                             }
 
-                            function checkRankListBottomTemplate() {
-                                let bottom_template = $app.rank_list_bottom_template;
-                                if (bottom_template) {
-                                    let template_height = bottom_template.height;
-                                    if (template_height < cX(0.04) || template_height > cX(0.18)) {
-                                        files.remove($app.rank_list_bottom_template_path);
-                                        delete $app.rank_list_bottom_template;
-                                        debugInfo(["列表底部控件图片模板已清除", ">图片模板高度值异常: " + template_height], 3);
-                                        $app.monitor.rl_bottom.start();
-                                    } else {
-                                        let _mch = images.findImage($app.page.rl.capt_img, bottom_template, {level: 1});
-                                        if (_mch) {
-                                            $app.monitor.rl_bottom.interrupt();
-                                            debugInfo(["列表底部条件满足", ">已匹配列表底部控件图片模板"]);
-                                            return true;
+                            function _chkRlBottom() {
+                                if (rlBtmTpl() || rlInvtBtn()) {
+                                    $flag.rl_bottom_rch = true;
+                                }
+
+                                function rlBtmTpl() {
+                                    let bottom_template = $app.rank_list_bottom_template;
+                                    if (bottom_template) {
+                                        let template_height = bottom_template.height;
+                                        if (template_height < cX(0.04) || template_height > cX(0.18)) {
+                                            files.remove($app.rank_list_bottom_template_path);
+                                            delete $app.rank_list_bottom_template;
+                                            debugInfo(["列表底部控件图片模板已清除", ">图片模板高度值异常: " + template_height], 3);
+                                            $app.monitor.rl_bottom.start();
+                                        } else {
+                                            let _mch = images.findImage($app.page.rl.capt_img, bottom_template, {level: 1});
+                                            if (_mch) {
+                                                $app.monitor.rl_bottom.interrupt();
+                                                debugInfo(["列表底部条件满足", ">已匹配列表底部控件图片模板"]);
+                                                return true;
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            function checkInvitationBtnColor() {
-                                let color = "#30bf6c";
-                                let multi_color = $app.check_invitation_btn_multi_colors || getCheckInvitationBtnMultiColors();
+                                function rlInvtBtn() {
+                                    let color = "#30bf6c";
+                                    let multi_color = $app.check_invitation_btn_multi_colors || getCheckInvitationBtnMultiColors();
 
-                                if (images.findMultiColors(
-                                    $app.page.rl.capt_img, color, multi_color,
-                                    {region: [cX(0.82), cY(0.62), cX(0.17), cY(0.37)], threshold: 10}
-                                )) {
-                                    debugInfo(["列表底部条件满足", ">指定区域匹配颜色成功", ">邀请按钮色值: " + color]);
-                                    return true;
-                                }
+                                    if (images.findMultiColors(
+                                        $app.page.rl.capt_img, color, multi_color,
+                                        {region: [cX(0.82), cY(0.62), cX(0.17), cY(0.37)], threshold: 10}
+                                    )) {
+                                        debugInfo(["列表底部条件满足", ">指定区域匹配颜色成功", ">邀请按钮色值: " + color]);
+                                        return true;
+                                    }
 
-                                // tool function(s) //
+                                    // tool function(s) //
 
-                                function getCheckInvitationBtnMultiColors() {
-                                    return $app.check_invitation_btn_multi_colors = [
-                                        // color matrix:
-                                        //   c   c c c   w
-                                        // [ *   2 _ 4   _ ] -- 0 (cX)
-                                        // [ 0   _ 3 _   6 ] -- 45 (cX)
-                                        // [ _   2 _ 4   6 ] -- 90 (cX)
-                                        // c: color; w: white (-1)
-                                        // 2: 18; 4: 36; 6: 54; ... (cY)
-                                        [0, cY(18, -1), color],
-                                        [0, cY(36, -1), color],
-                                        [cX(45), 0, color],
-                                        [cX(45), cY(27, -1), color],
-                                        [cX(45), cY(54, -1), -1],
-                                        [cX(90), cY(18, -1), color],
-                                        [cX(90), cY(36, -1), color],
-                                        [cX(90), cY(54, -1), -1],
-                                    ];
+                                    function getCheckInvitationBtnMultiColors() {
+                                        return $app.check_invitation_btn_multi_colors = [
+                                            // color matrix:
+                                            //   c   c c c   w
+                                            // [ *   2 _ 4   _ ] -- 0 (cX)
+                                            // [ 0   _ 3 _   6 ] -- 45 (cX)
+                                            // [ _   2 _ 4   6 ] -- 90 (cX)
+                                            // c: color; w: white (-1)
+                                            // 2: 18; 4: 36; 6: 54; ... (cY)
+                                            [0, cY(18, -1), color],
+                                            [0, cY(36, -1), color],
+                                            [cX(45), 0, color],
+                                            [cX(45), cY(27, -1), color],
+                                            [cX(45), cY(54, -1), -1],
+                                            [cX(90), cY(18, -1), color],
+                                            [cX(90), cY(36, -1), color],
+                                            [cX(90), cY(54, -1), -1],
+                                        ];
+                                    }
                                 }
                             }
                         }
@@ -5966,5 +5989,5 @@ $af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | amt: amount | accu: accumulated | af: ant forest | app: application | args: arguments | argv: argument values | avail: available | avt: avatar | b: bottom; bounds; backup | bak: backup | blist: blacklist | btn: button | cfg: configuration | chk: check | cmd: command | cnsl: console | cnt: count | cond: condition | constr: constructor | ctd: countdown | ctx: context | cur: current | cwd: current working directory | cwp: current working path | d: dialog | dec: decode | def: default | desc: description | dev: device | diag: dialog | dis: dismiss | disp: display | du: duration | e: error; engine; event | enc: encode | ent: entrance | evt: event | excl: exclusive | exec: execution | ext: extension | fg: foreground | flg: flag | forc: force; forcible; forcibly | fri: friend | fs: functions | fst: forest | glob: global | gns: get and set | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | intrp: interrupt | itv: interval | js: javascript | l: left | lbl: label | lmt: limit | ln: line | lsn: listen; listener | mod: module | msg: message | mthd: method | neg: negative | neu: neutral | num: number | o: object | opr: operation | opt: option; optional | oth: other | par: parameter | param: parameter | pg: page | pkg: package | pos: position | pref: prefix | prv: privilege | que: queue | r: right | rect: rectangle | res: result | rl: rank list | rls: release | sav: save | scr: screen | sec: second | sel: selector | sgn: signal | src: source | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | sw: switch | sym: symbol | t: top; time | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title; timeout | u: unit | usr: user | util: utility | v: value | nec: necessary | cfm: confirm | ens: ensure | agn: again | ls: list | thrd: threshold | ele: element | egy: energy | eball(s): energy ball(s) | emount: energy amount | buf: buffer | thd(s): thread(s) | sect: section | grn: green | org: orange | monit: monitor | ic: increase | dc: decrease | ctr: counter | rch: reach; reached | frst: forest | cf: comparision (latin: conferatur) | smp: sample | len: length | c: compass; coordination(s) | n: name; nickname | exc: exception | lv: level | i: intent; increment | col: color | dys: dysfunctional | act: action; activity | dnt: donation | mon: monitor | clp: clip | gt: greater than | cvr: cover | rsn: reason | lch: launch | or: orientation | vert: vertical | horiz: horizontal | cnt: count | nball(s): normal ball(s) | prog: progress | arci: archive(d) | oball(s): orange ball(s) | gdball(s): golden ball(s) | itball(s): initialized ball(s) | rev: review | p: press | mch: matched | nm: name | stab: stable | excpt: exception
+ * @abbr acc: account | accu: accumulated | act: action; activity | af: ant forest | agn: again | amt: amount | app: application | arci: archive(d) | args: arguments | argv: argument values | avail: available | avt: avatar | b: bottom; bounds; backup | bak: backup | blist: blacklist | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | clp: clip | cmd: command | cnsl: console | cnt: count | col: color | cond: condition | constr: constructor | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | d: dialog | dc: decrease | dec: decode | def: default | desc: description | dev: device | diag: dialog | diff: difference | dis: dismiss | disp: display | dnt: donation | du: duration | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enc: encode | ens: ensure | ent: entrance | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | ext: extension | fg: foreground; flag | flg: flag | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | intrp: interrupt | invt: invitation | itball(s): initialized ball(s) | itv: interval | js: javascript | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press | par: parameter | param: parameter | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | que: queue | r: right | rch: reach; reached | rect: rectangle | res: result | rev: review | rl: rank list | rls: release | rsn: reason | sav: save | scr: screen | sec: second | sect: section | sel: selector | sgn: signal | smp: sample | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | sw: switch | sym: symbol | t: top; time | thd(s): thread(s) | thrd: threshold | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title; timeout | u: unit | usr: user | util: utility | v: value | vert: vertical
  */
