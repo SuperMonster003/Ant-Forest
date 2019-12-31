@@ -7,7 +7,7 @@ module.exports = {
         account_log_back_in_max_continuous_times: 3, // with this value, switching back will not always happen infinitely
         main_account_info: {}, // stores information of the "main account" user
         max_own_forest_balls_ready_time: 800, // 200 <= x <= 2000, safe: 500; max check time for ant forest homepage balls being ready
-        energy_balls_click_interval: 30, // 10 <= x <= 150; as the saying goes, "Haste makes waste"
+        balls_click_interval: 120, // 10 <= x <= 500; as the saying goes, "Haste makes waste"
         homepage_monitor_switch: true, // set true value if you need continuously check your own energy balls
         homepage_monitor_threshold: 2, // 1 <= x <= 3; continuously check your own energy balls if min countdown is within threshold
         homepage_background_monitor_switch: false, // return to homepage and monitor if own energy min countdown is less than some threshold

@@ -57,12 +57,12 @@ module.exports = Object.assign({
  * @return {boolean}
  */
 function _permitCapt(params) {
-    let _$und = x => typeof x === "undefined";
-    let _$isJvo = x => x && !!x["getClass"];
+    let _$$und = x => typeof x === "undefined";
+    let _$$isJvo = x => x && !!x["getClass"];
     let _key = "_$_request_screen_capture";
     let _fg = global[_key];
 
-    if (_$isJvo(_fg)) {
+    if (_$$isJvo(_fg)) {
         if (_fg) return true;
         _fg.incrementAndGet();
     } else {
@@ -79,9 +79,9 @@ function _permitCapt(params) {
     let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
     let _restartThisEngine = typeof restartThisEngine === "undefined" ? restartThisEngineRaw : restartThisEngine;
     let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
-    let _$sel = _getSelector();
+    let _$$sel = _getSelector();
 
-    if (_$und(_par.restart_this_engine_flag)) {
+    if (_$$und(_par.restart_this_engine_flag)) {
         _par.restart_this_engine_flag = true;
     } else {
         let _self = _par.restart_this_engine_flag;
@@ -97,9 +97,9 @@ function _permitCapt(params) {
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
         let _kw_remember = id("com.android.systemui:id/remember");
-        let _sel_remember = () => _$sel.pickup(_kw_remember);
+        let _sel_remember = () => _$$sel.pickup(_kw_remember);
         let _rex_sure = /START NOW|立即开始|允许/;
-        let _sel_sure = type => _$sel.pickup(_rex_sure, type);
+        let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
 
         if (_waitForAction(_sel_sure, 5000)) {
             if (_waitForAction(_sel_remember, 1000)) {
@@ -126,9 +126,9 @@ function _permitCapt(params) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
-        if (typeof $flag !== "undefined") {
-            if (!$flag.debug_info_avail) {
-                $flag.debug_info_avail = true;
+        if (typeof $$flag !== "undefined") {
+            if (!$$flag.debug_info_avail) {
+                $$flag.debug_info_avail = true;
                 _debugInfo("开发者测试模式已自动开启", 3);
             }
         }

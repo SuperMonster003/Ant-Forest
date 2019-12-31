@@ -42,13 +42,13 @@ module.exports = Object.assign({
 
 // updated: Dec 3, 2019
 function debugInfo(msg, info_flag, forcible_flag) {
-    global["$flag"] = global["$flag"] || {};
-    let $flag = global["$flag"];
+    global["$$flag"] = global["$$flag"] || {};
+    let $$flag = global["$$flag"];
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let global_flag = $flag.debug_info_avail;
+    let global_flag = $$flag.debug_info_avail;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
 
