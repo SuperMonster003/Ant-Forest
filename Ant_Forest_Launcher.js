@@ -5571,14 +5571,16 @@ let $$af = {
 
                                 function _btmTpl() {
                                     let _tpl = $$app.page.rl.btm_tpl.img;
+                                    if (!_tpl) {
+                                        return;
+                                    }
+
                                     let _h = _tpl.height;
                                     let _min = cX(0.04);
                                     let _max = cX(0.18);
                                     let _hh = $$num(_min, "<=", _h, "<=", _max);
 
-                                    if (_tpl) {
-                                        return _hh ? _match() : _clear();
-                                    }
+                                    return _hh ? _match() : _clear();
 
                                     // tool function(s) //
 
