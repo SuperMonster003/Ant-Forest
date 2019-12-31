@@ -1296,10 +1296,10 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
-        if ($flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+        if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -1317,9 +1317,9 @@ function loadInternalModuleMonsterFunc() {
         if (_if_toast) toast(_msg);
 
         let _spl_ln_style = "solid";
-        let _saveLnStyle = () => $flag.last_cnsl_spl_ln_type = _spl_ln_style;
-        let _loadLnStyle = () => $flag.last_cnsl_spl_ln_type;
-        let _clearLnStyle = () => delete $flag.last_cnsl_spl_ln_type;
+        let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
+        let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
+        let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
         if (typeof _if_spl_ln === "string") {
@@ -1603,13 +1603,13 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-        let global_flag = $flag.debug_info_avail;
+        let global_flag = $$flag.debug_info_avail;
         if (!global_flag && !forcible_flag) return;
         if (global_flag === false || forcible_flag === false) return;
 
@@ -1675,8 +1675,8 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function getDisplayParams(params) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
         let _params = params || {};
 
@@ -1689,10 +1689,10 @@ function loadInternalModuleMonsterFunc() {
             display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
             display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
 
-            if (!$flag.display_params_got) {
+            if (!$$flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
                 _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
-                $flag.display_params_got = true;
+                $$flag.display_params_got = true;
             }
 
             return display_info;

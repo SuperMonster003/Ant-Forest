@@ -1,5 +1,5 @@
-let _$und = o => typeof o === "undefined";
-let _$func = f => typeof f === "function";
+let _$$und = o => typeof o === "undefined";
+let _$$func = f => typeof f === "function";
 
 let Intent = android.content.Intent;
 let parseIntentFlag = function (flag) {
@@ -9,10 +9,10 @@ let parseIntentFlag = function (flag) {
     return flag;
 };
 
-if (_$und(app.launch)) {
-    app.launch = app.launchPackage;
+if (_$$und(app.launch)) {
+    app.launch = pkg => app.launchPackage(pkg);
 }
-if (!_$func(app.parseUri)) {
+if (!_$$func(app.parseUri)) {
     app.parseUri = function (uri) {
         if (uri.startsWith("file://")) {
             return app.getUriForFile(uri);
@@ -20,7 +20,7 @@ if (!_$func(app.parseUri)) {
         return android.net.Uri.parse(uri);
     };
 }
-if (!_$func(app.getUriForFile)) {
+if (!_$$func(app.getUriForFile)) {
     app.getUriForFile = function (path) {
         if (path.startsWith("file://")) {
             path = path.substring(7);
@@ -33,7 +33,7 @@ if (!_$func(app.getUriForFile)) {
             app.fileProviderAuthority, file);
     };
 }
-if (!_$func(app.intent)) {
+if (!_$$func(app.intent)) {
     app.intent = function (i) {
         let intent = new Intent();
         if (i.className && i.packageName) {
@@ -82,7 +82,7 @@ if (!_$func(app.intent)) {
         return intent;
     };
 }
-if (!_$func(app.startActivity)) {
+if (!_$$func(app.startActivity)) {
     app.startActivity = function (i) {
         if (typeof (i) == "string") {
             if (runtime.getProperty("class." + i)) {
@@ -105,7 +105,7 @@ if (!_$func(app.startActivity)) {
 
     };
 }
-if (!_$func(app.intentToShell)) {
+if (!_$$func(app.intentToShell)) {
     app.intentToShell = function (i) {
         let cmd = "";
 

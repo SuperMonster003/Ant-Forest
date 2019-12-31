@@ -99,12 +99,12 @@ module.exports = {
     isUnlocked: isUnlocked,
     isLocked: () => !isUnlocked(),
     unlock: function (force_debug_info_flag) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
         if (force_debug_info_flag || force_debug_info_flag === false) {
-            $flag.debug_info_avail_bak = $flag.debug_info_avail;
-            $flag.debug_info_avail = !!force_debug_info_flag;
+            $$flag.debug_info_avail_bak = $$flag.debug_info_avail;
+            $$flag.debug_info_avail = !!force_debug_info_flag;
         }
         let dash_line = "__split_line_dash__";
         debugInfo([dash_line, "尝试自动解锁", dash_line]);
@@ -131,8 +131,8 @@ module.exports = {
         debugInfo([dash_line, "自动解锁完毕", dash_line]);
 
         if (force_debug_info_flag || force_debug_info_flag === false) {
-            $flag.debug_info_avail = $flag.debug_info_avail_bak;
-            delete $flag.debug_info_avail_bak;
+            $$flag.debug_info_avail = $$flag.debug_info_avail_bak;
+            delete $$flag.debug_info_avail_bak;
         }
 
         return true;
@@ -1016,10 +1016,10 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
-        if ($flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+        if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -1037,9 +1037,9 @@ function loadInternalModuleMonsterFunc() {
         if (_if_toast) toast(_msg);
 
         let _spl_ln_style = "solid";
-        let _saveLnStyle = () => $flag.last_cnsl_spl_ln_type = _spl_ln_style;
-        let _loadLnStyle = () => $flag.last_cnsl_spl_ln_type;
-        let _clearLnStyle = () => delete $flag.last_cnsl_spl_ln_type;
+        let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
+        let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
+        let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
         if (typeof _if_spl_ln === "string") {
@@ -1224,7 +1224,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function clickAction(f, strategy, params) {
-        $impeded(arguments.callee.name);
+        $$impeded(arguments.callee.name);
 
         if (typeof f === "undefined" || f === null) return false;
 
@@ -1509,13 +1509,13 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-        let global_flag = $flag.debug_info_avail;
+        let global_flag = $$flag.debug_info_avail;
         if (!global_flag && !forcible_flag) return;
         if (global_flag === false || forcible_flag === false) return;
 
@@ -1580,8 +1580,8 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function getDisplayParams(params) {
-        global["$flag"] = global["$flag"] || {};
-        let $flag = global["$flag"];
+        global["$$flag"] = global["$$flag"] || {};
+        let $$flag = global["$$flag"];
 
         let _params = params || {};
 
@@ -1594,10 +1594,10 @@ function loadInternalModuleMonsterFunc() {
             display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
             display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
 
-            if (!$flag.display_params_got) {
+            if (!$$flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
                 _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
-                $flag.display_params_got = true;
+                $$flag.display_params_got = true;
             }
 
             return display_info;
@@ -1738,8 +1738,8 @@ function loadInternalModuleMonsterFunc() {
     function captureErrScreen(key_name, log_level) {
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-        let _$und = o => typeof o === "undefined";
-        let _capt = _$und(images.permit) ? permitCapt : images.permit;
+        let _$$und = o => typeof o === "undefined";
+        let _capt = _$$und(images.permit) ? permitCapt : images.permit;
         _capt();
 
         let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
@@ -1778,7 +1778,7 @@ function loadInternalModuleMonsterFunc() {
         }
 
         function permitCapt() {
-            let _$isJvo = x => x && !!x["getClass"];
+            let _$$isJvo = x => x && !!x["getClass"];
             let _key = "_$_request_screen_capture";
             let _fg = global[_key];
             let _cwd = engines.myEngine().cwd();
@@ -1788,7 +1788,7 @@ function loadInternalModuleMonsterFunc() {
                 return require(_path).permit();
             }
 
-            if (_$isJvo(_fg)) {
+            if (_$$isJvo(_fg)) {
                 if (_fg) return true;
                 _fg.incrementAndGet();
             } else {

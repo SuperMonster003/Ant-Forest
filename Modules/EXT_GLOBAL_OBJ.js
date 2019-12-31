@@ -139,6 +139,8 @@ let ext = {
         };
 
         Object.assign(global, {
+            $$1: x => x === 1,
+            $$2: x => x === 2,
             $$num: function (x) {
                 // do not use arrow function here
                 let _isNum = a => classof(a, "Number");
@@ -190,11 +192,9 @@ let ext = {
             // introduced since ES6
             $$sym: x => classof(x, "Symbol"),
             // primitive (contains 6 types with Symbol)
-            get $$prim() {
-                return (x) => {
-                    return this.$$num(x) || this.$$str(x) || this.$$bool(x)
-                        || this.$$nul(x) || this.$$und(x) || this.$$sym(x);
-                };
+            $$prim: function (x) {
+                return this.$$num(x) || this.$$str(x) || this.$$bool(x)
+                    || this.$$nul(x) || this.$$und(x) || this.$$sym(x);
             },
             $$func: x => classof(x, "Function"),
             // `Array.isArray(x);` fine or not ?
@@ -210,26 +210,30 @@ let ext = {
             $$date: x => classof(x, "Date"),
             $$regexp: x => classof(x, "RegExp"),
             $$rex: x => classof(x, "RegExp"),
-            get $$nulOrUnd() {
-                return function (x) {
-                    this.$$nul(x) || this.$$und(x)
-                }.bind(this);
+            $$nulOrUnd: function (x) {
+                return this.$$nul(x) || this.$$und(x);
             },
             $$fin: x => isFinite(x),
             $$inf: x => !isFinite(x),
             $$nan: x => isNaN(x),
-            get $$posNum() {
-                return x => this.$$num(x) && x > 0;
+            $$posNum: function (x) {
+                return this.$$num(x) && x > 0;
             },
-            get $$natNum() {
-                return x => this.$$zehNum(x) && x >= 0;
+            $$noPosNum: function (x) {
+                return this.$$num(x) && x <= 0;
             },
-            get $$negNum() {
-                return x => this.$$num(x) && x < 0;
+            $$natNum: function (x) {
+                return this.$$zehNum(x) && x >= 0;
+            },
+            $$negNum: function (x) {
+                return this.$$num(x) && x < 0;
+            },
+            $$noNegNum: function (x) {
+                return this.$$num(x) && x >= 0;
             },
             // `Number.isInteger(x)` since ES6
-            get $$zehNum() {
-                return x => this.$$num(x) && (x | 0) === x;
+            $$zehNum: function (x) {
+                return this.$$num(x) && (x | 0) === x;
             },
             $$0: x => x === 0,
             // `!~x` is also cool
@@ -245,12 +249,12 @@ let ext = {
             },
             // `classof(x, "JavaObject");` also fine
             __isJvo__: x => !!x["getClass"],
-            get _checkJvoType() {
-                return (x, rex) => this.__isJvo__(x) && !!x.toString().match(rex);
+            _checkJvoType: function (x, rex) {
+                return this.__isJvo__(x) && !!x.toString().match(rex);
             },
-            get _checkJvoClass() {
-                let _classMatch = (x, rex) => x.getClass().toString().match(rex);
-                return (x, rex) => this.__isJvo__(x) && _classMatch(x, rex);
+            _checkJvoClass: function (x, rex) {
+                let _classMatch = (x, rex) => x["getClass"].toString().match(rex);
+                return this.__isJvo__(x) && _classMatch(x, rex);
             },
             get $$jvo() {
                 return {

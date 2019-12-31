@@ -1,11 +1,11 @@
-global["$impeded"] = (name) => {
-    let _$flag = global["$flag"];
-    if (_$flag && _$flag.glob_e_trig_counter) {
+global["$$impeded"] = (name) => {
+    let _$$flag = global["$$flag"];
+    if (_$$flag && _$$flag.glob_e_trig_counter) {
         if (name) {
             messageAction("检测到全局事件触发信号", 1, 0, 0, "up_dash");
             messageAction(name + "被迫阻塞", 1, 0, 0, "dash");
         }
-        while (_$flag.glob_e_trig_counter) sleep(200);
+        while (_$$flag.glob_e_trig_counter) sleep(200);
         if (name) {
             messageAction("全局事件触发信号全部解除", 1, 0, 0, "up_dash");
             messageAction(name + "解除阻塞", 1, 0, 0, "dash");
@@ -222,7 +222,7 @@ function getVerName(name, params) {
  * @return {boolean}
  */
 function launchThisApp(trigger, params) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     let $$und = x => typeof x === "undefined";
     let _messageAction = $$und(messageAction) ? messageActionRaw : messageAction;
@@ -482,7 +482,7 @@ function launchThisApp(trigger, params) {
  * @return {boolean}
  */
 function killThisApp(name, params) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     let _params = params || {};
 
@@ -868,10 +868,10 @@ function runJsFile(file_name) {
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    global["$flag"] = global["$flag"] || {};
-    let $flag = global["$flag"];
+    global["$$flag"] = global["$$flag"] || {};
+    let $$flag = global["$$flag"];
 
-    if ($flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+    if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -889,9 +889,9 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     if (_if_toast) toast(_msg);
 
     let _spl_ln_style = "solid";
-    let _saveLnStyle = () => $flag.last_cnsl_spl_ln_type = _spl_ln_style;
-    let _loadLnStyle = () => $flag.last_cnsl_spl_ln_type;
-    let _clearLnStyle = () => delete $flag.last_cnsl_spl_ln_type;
+    let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
+    let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
+    let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
     if (typeof _if_spl_ln === "string") {
@@ -1056,7 +1056,7 @@ function showSplitLine(extra_str, style, params) {
  * @return {boolean} - if not timed out
  */
 function waitForAction(f, timeout_or_times, interval) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
@@ -1169,7 +1169,7 @@ function waitForAction(f, timeout_or_times, interval) {
  * @return {boolean} if reached max check time;
  */
 function clickAction(f, strategy, params) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     if (typeof f === "undefined" || f === null) return false;
 
@@ -1559,7 +1559,7 @@ function refreshObjects(strategy, params) {
  * @returns {boolean} - if timed out or max swipe times reached
  */
 function swipeAndShow(f, params) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     let _params = params || {};
     let _swipe_interval = _params.swipe_interval || 150;
@@ -1798,7 +1798,7 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
  * @return {boolean}
  */
 function keycode(keycode_name, params_str) {
-    $impeded(arguments.callee.name);
+    $$impeded(arguments.callee.name);
 
     params_str = params_str || "";
 
@@ -1908,13 +1908,13 @@ function keycode(keycode_name, params_str) {
  * @param [forcible_flag] {boolean} - forcibly enable with true value
  */
 function debugInfo(msg, info_flag, forcible_flag) {
-    global["$flag"] = global["$flag"] || {};
-    let $flag = global["$flag"];
+    global["$$flag"] = global["$$flag"] || {};
+    let $$flag = global["$$flag"];
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let global_flag = $flag.debug_info_avail;
+    let global_flag = $$flag.debug_info_avail;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
 
@@ -1990,8 +1990,8 @@ function debugInfo(msg, info_flag, forcible_flag) {
  * @return {*}
  */
 function getDisplayParams(params) {
-    global["$flag"] = global["$flag"] || {};
-    let $flag = global["$flag"];
+    global["$$flag"] = global["$$flag"] || {};
+    let $$flag = global["$$flag"];
 
     let _params = params || {};
 
@@ -2021,10 +2021,10 @@ function getDisplayParams(params) {
             return Math.min(_y, _H);
         };
 
-        if (!$flag.display_params_got) {
+        if (!$$flag.display_params_got) {
             _debugInfo("屏幕宽高: " + _W + " × " + _H);
             _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $flag.display_params_got = true;
+            $$flag.display_params_got = true;
         }
 
         _params.global_assign && Object.assign(global, {
@@ -2408,8 +2408,8 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
 function captureErrScreen(key_name, log_level) {
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let _$und = o => typeof o === "undefined";
-    let _capt = _$und(images.permit) ? permitCapt : images.permit;
+    let _$$und = o => typeof o === "undefined";
+    let _capt = _$$und(images.permit) ? permitCapt : images.permit;
     _capt();
 
     let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
@@ -2448,7 +2448,7 @@ function captureErrScreen(key_name, log_level) {
     }
 
     function permitCapt() {
-        let _$isJvo = x => x && !!x["getClass"];
+        let _$$isJvo = x => x && !!x["getClass"];
         let _key = "_$_request_screen_capture";
         let _fg = global[_key];
         let _cwd = engines.myEngine().cwd();
@@ -2458,7 +2458,7 @@ function captureErrScreen(key_name, log_level) {
             return require(_path).permit();
         }
 
-        if (_$isJvo(_fg)) {
+        if (_$$isJvo(_fg)) {
             if (_fg) return true;
             _fg.incrementAndGet();
         } else {
@@ -2916,7 +2916,7 @@ function phoneCallingState() {
  * load time gap: "load", "get", any other true value <br>
  * @param [divisor=1] {number|"auto"} - "auto" for picking up a result intelligently
  * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
- * @param [suffix=""|"$ch"] {string} - "$en" or "$ch" is available when %divisor% is set "auto"
+ * @param [suffix=""|"$$ch"] {string} - "$$en" or "$$ch" is available when %divisor% is set "auto"
  * @param [override_timestamp] {number|Date}
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
@@ -2924,7 +2924,7 @@ function phoneCallingState() {
  * timeRecorder("collect", "save"); timeRecorder("collect", "load", 1000, 2, "s") - eg: "12.40s"
  * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
  * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
- * timeRecorder("go_to_bed"); timeRecorder("go_to_bed", "load", "auto", null, "$en") - eg: "7h 8.16m"
+ * timeRecorder("go_to_bed"); timeRecorder("go_to_bed", "load", "auto", null, "$$en") - eg: "7h 8.16m"
  * timeRecorder("study"); timeRecorder("study", "load", "auto") - eg: "7分钟8.16秒" (means 7m 8.16s)
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
@@ -2946,16 +2946,16 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
         suffix = suffix || "";
         result = result / divisor;
     } else {
-        suffix = suffix || "$ch";
+        suffix = suffix || "$$ch";
         fixed = fixed || [2];
         forcible_fixed_num_flag = true;
 
         let getSuffix = (unit_str) => ({
-            ms$ch: "毫秒", ms$en: "ms ",
-            sec$ch: "秒", sec$en: "s ",
-            min$ch: "分钟", min$en: "m ",
-            hour$ch: "小时", hour$en: "h ",
-            day$ch: "天", day$en: "d ",
+            ms$$ch: "毫秒", ms$$en: "ms ",
+            sec$$ch: "秒", sec$$en: "s ",
+            min$$ch: "分钟", min$$en: "m ",
+            hour$$ch: "小时", hour$$en: "h ",
+            day$$ch: "天", day$$en: "d ",
         })[unit_str + suffix];
 
         let base_unit = {
@@ -3342,8 +3342,8 @@ function baiduOcr(src, par) {
         return [];
     }
 
-    let _$und = o => typeof o === "undefined";
-    let _capt = _$und(images.permit) ? permitCapt : images.permit;
+    let _$$und = o => typeof o === "undefined";
+    let _capt = _$$und(images.permit) ? permitCapt : images.permit;
     _capt();
 
     let _max = par.fetch_times || 1;
@@ -3478,7 +3478,7 @@ function baiduOcr(src, par) {
     }
 
     function permitCapt() {
-        let _$isJvo = x => x && !!x["getClass"];
+        let _$$isJvo = x => x && !!x["getClass"];
         let _key = "_$_request_screen_capture";
         let _fg = global[_key];
         let _cwd = engines.myEngine().cwd();
@@ -3488,7 +3488,7 @@ function baiduOcr(src, par) {
             return require(_path).permit();
         }
 
-        if (_$isJvo(_fg)) {
+        if (_$$isJvo(_fg)) {
             if (_fg) return true;
             _fg.incrementAndGet();
         } else {
@@ -3576,20 +3576,20 @@ function classof(source, check_value) {
  * @param [params.debug_info_flag] {boolean}
  */
 function checkSdkAndAJVer(params) {
-    global["$app"] = global["$app"] || {};
-    let $app = global["$app"];
+    global["$$app"] = global["$$app"] || {};
+    let $$app = global["$$app"];
 
     let _params = params || {};
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
 
-    let cur_autojs_pkg = $app.cur_autojs_pkg = context.packageName;
-    $app.cur_autojs_name = "Auto.js" + (cur_autojs_pkg.match(/pro/) ? " Pro" : "");
+    let cur_autojs_pkg = $$app.cur_autojs_pkg = context.packageName;
+    $$app.cur_autojs_name = "Auto.js" + (cur_autojs_pkg.match(/pro/) ? " Pro" : "");
 
     let current_autojs_version = getVerName(cur_autojs_pkg) || 0;
-    $app.autojs_ver = current_autojs_version;
-    $app.project_ver = (() => {
+    $$app.autojs_ver = current_autojs_version;
+    $$app.project_ver = (() => {
         try {
             return "v" + files.read("./Ant_Forest_Launcher.js").match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
         } catch (e) {
@@ -3648,7 +3648,7 @@ function checkSdkAndAJVer(params) {
     function checkSdk() {
         // let sdk_ver = +shell("getprop ro.build.version.sdk").result;
         let sdk_ver = android.os.Build.VERSION.SDK_INT;
-        $app.sdk_ver = sdk_ver;
+        $$app.sdk_ver = sdk_ver;
         if (sdk_ver >= 24) return true;
         _messageAction("脚本无法继续", 4, 0, 0, "up");
         _messageAction("安卓系统版本低于7.0", 8, 1, 1, "\n");
@@ -3903,7 +3903,7 @@ function checkSdkAndAJVer(params) {
  * And this function doesn't need to export in general
  */
 function dismissIDEWarnings() {
-    if (typeof $sel === "undefined") $sel = {};
+    if (typeof $$sel === "undefined") $$sel = {};
 
     Object.assign(dialogs.__proto__, {
         getItems: () => $$arr,
@@ -3962,7 +3962,7 @@ function dismissIDEWarnings() {
             compareAndSet: (long1, long2) => $$bool,
         }
     });
-    Object.assign($sel.__proto__, {
+    Object.assign($$sel.__proto__, {
         findOnce: UiObject => $$jvo.UiObject,
         childCount: () => $$num,
         children: () => $$jvo.UiObjects,
@@ -4049,15 +4049,18 @@ function dismissIDEWarnings() {
         provider: {
             Settings: {
                 System: {
+                    SCREEN_OFF_TIMEOUT: "$$str",
                     getInt: (context_resolver, str, num) => $$num,
                     putInt: (context_resolver, str, num) => $$bool,
                     canWrite: () => null,
                 },
                 Global: {
+                    STAY_ON_WHILE_PLUGGED_IN: "$$str",
                     getInt: (context_resolver, str, num) => $$num,
                     putInt: (context_resolver, str, num) => $$bool,
                 },
                 Secure: {
+                    DEVELOPMENT_SETTINGS_ENABLED: "$$str",
                     getInt: (context_resolver, str, num) => $$num,
                     putInt: (context_resolver, str, num) => $$bool,
                 },
