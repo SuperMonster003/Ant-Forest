@@ -156,8 +156,12 @@ function getVerName(name, params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function parseAppNameRaw(name) {
@@ -423,8 +427,12 @@ function launchThisApp(trigger, params) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -606,8 +614,12 @@ function killThisApp(name, params) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -799,8 +811,12 @@ function restartThisEngine(params) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
 
@@ -1507,8 +1523,12 @@ function refreshObjects(strategy, params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -2465,7 +2485,7 @@ function captureErrScreen(key_name, log_level) {
             global[_key] = threads.atomic(1);
         }
 
-        images.requestScreenCapture();
+        images.requestScreenCapture(false);
         sleep(300);
         return true;
     }
@@ -2825,8 +2845,12 @@ function getSelector(params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
 
@@ -3164,8 +3188,12 @@ function clickActionsPipeline(pipeline, options) {
         return str + target + str;
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
 
@@ -3217,8 +3245,12 @@ function setDeviceProto(params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
 
@@ -3495,7 +3527,7 @@ function baiduOcr(src, par) {
             global[_key] = threads.atomic(1);
         }
 
-        images.requestScreenCapture();
+        images.requestScreenCapture(false);
         sleep(300);
         return true;
     }
@@ -3519,8 +3551,12 @@ function baiduOcr(src, par) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function showSplitLineRaw(extra_str, style) {
@@ -3892,8 +3928,12 @@ function checkSdkAndAJVer(params) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
 
@@ -3904,6 +3944,7 @@ function checkSdkAndAJVer(params) {
  */
 function dismissIDEWarnings() {
     if (typeof $$sel === "undefined") $$sel = {};
+    let {Integer} = java.lang; // TODO java.__proto__
 
     Object.assign(dialogs.__proto__, {
         getItems: () => $$arr,
@@ -3911,34 +3952,34 @@ function dismissIDEWarnings() {
         getActionButton: btn_name => $$str(btn_name),
         setContent: str => $$und(str),
         setActionButton: (btn_name, str) => $$und(btn_name, str),
-        promptCheckBoxChecked: "$$bool",
-        isPromptCheckBoxChecked: () => $$bool,
-        selectedIndex: "$$num",
+        promptCheckBoxChecked: Boolean,
+        isPromptCheckBoxChecked: () => Boolean,
+        selectedIndex: Integer,
         getSelectedIndex: () => $$num,
         selectedIndices: [],
         getSelectedIndices: () => $$arr,
         items: [],
-        isCancelled: () => $$bool,
-        getInputEditText: () => $$str,
+        isCancelled: () => Boolean,
+        getInputEditText: () => String,
     });
     Object.assign(engines.__proto__, {
         myEngine: () => ({
             source: {
-                toString: () => $$str,
+                toString: () => String,
             },
-            forceStop: () => $$und,
-            setTag: (str, obj) => $$und,
+            forceStop: () => void 0,
+            setTag: (str, obj) => void 0,
             getTag: str => $$obj,
-            cwd: () => $$str,
+            cwd: () => String,
             id: $$num,
             execArgv: $$obj,
         }),
         all: () => $$arr,
-        stopAllAndToast: () => $$und,
+        stopAllAndToast: () => void 0,
     });
     Object.assign(events.__proto__, {
         removeAllKeyDownListeners: str => this,
-        observeKey: () => $$und,
+        observeKey: () => void 0,
         onKeyDown: (str, obj) => this,
         onKeyUp: (str, obj) => this,
         onceKeyDown: (str, obj) => this,
@@ -3951,24 +3992,24 @@ function dismissIDEWarnings() {
     });
     Object.assign(threads.__proto__, {
         start: runnable => $$jvo.Thread,
-        interrupt: () => $$und,
-        isAlive: () => $$bool,
-        shutDownAll: () => $$und,
-        join: num => $$und,
+        interrupt: () => void 0,
+        isAlive: () => Boolean,
+        shutDownAll: () => void 0,
+        join: num => void 0,
         atomic: num => $$jvo.AtomicLong,
         AtomicLong: {
             incrementAndGet: () => $$num,
             decrementAndGet: () => $$num,
-            compareAndSet: (long1, long2) => $$bool,
+            compareAndSet: (long1, long2) => Boolean,
         }
     });
     Object.assign($$sel.__proto__, {
         findOnce: UiObject => $$jvo.UiObject,
         childCount: () => $$num,
         children: () => $$jvo.UiObjects,
-        setText: str => $$bool,
+        setText: str => Boolean,
         parent: () => $$jvo.UiObject,
-        clickable: () => $$bool,
+        clickable: () => Boolean,
         scrollable: bool => $$jvo.UiGlobSel,
         idContains: bool => $$jvo.UiGlobSel,
         indexInParent: () => $$jvo.UiObject,
@@ -3981,12 +4022,12 @@ function dismissIDEWarnings() {
     });
     Object.assign(floaty.__proto__, {
         rawWindow: xml => $$jvo.JsRawWin,
-        setBackgroundColor: num => $$und,
-        setSize: (num1, num2) => $$und,
-        closeAll: () => $$und,
+        setBackgroundColor: num => void 0,
+        setSize: (num1, num2) => void 0,
+        closeAll: () => void 0,
         getWidth: () => $$num,
-        setTouchable: bool => $$und,
-        setOnTouchListener: func => $$und,
+        setTouchable: bool => void 0,
+        setOnTouchListener: func => void 0,
     });
     Object.assign(colors.__proto__, {
         parseColor: str => $$num,
@@ -3995,9 +4036,9 @@ function dismissIDEWarnings() {
         read: str => $$jvo.ImageWrapper,
         load: str => $$jvo.ImageWrapper,
         copy: image => $$jvo.ImageWrapper,
-        save: (image, path, format, quality) => "$$bool",
+        save: (image, path, format, quality) => Boolean,
         fromBase64: str => $$jvo.ImageWrapper,
-        toBase64: (img, format, quality) => "$$str",
+        toBase64: (img, format, quality) => String,
         fromBytes: str => $$jvo.ImageWrapper,
         toBytes: (img, format, quality) => [],
         clip: (img, x, y, w, h) => $$jvo.ImageWrapper,
@@ -4005,92 +4046,106 @@ function dismissIDEWarnings() {
         scale: (img, fx, fy, interpolation) => $$jvo.ImageWrapper,
         rotate: (img, degree, x, y) => $$jvo.ImageWrapper,
         concat: (img1, img2, direction) => $$jvo.ImageWrapper,
-        requestScreenCapture: bool => $$bool,
+        requestScreenCapture: bool => Boolean,
         captureScreen: path => $$jvo.ImageWrapper,
-        recycle: () => $$und,
+        recycle: () => void 0,
         findImage: (img, tpl, opt) => $$jvo.ImageWrapper,
         findColor: (img, color, opt) => $$jvo.Point,
         pixel: (img, x, y) => $$num,
         findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
-        detectsColor: (img, color, x, y, threshold, algorithm) => $$bool,
-        getWidth: () => $$num,
-        getHeight: () => $$num,
+        detectsColor: (img, color, x, y, threshold, algorithm) => Boolean,
+        getWidth: () => $$num, // TODO this doesn't belong to images
+        getHeight: () => $$num, // TODO this doesn't belong to images
     });
     Object.assign(colors.__proto__, {
-        isSimilar: (c1, c2, threshold, algorithm) => $$bool,
+        isSimilar: (c1, c2, threshold, algorithm) => Boolean,
     });
     Object.assign(files.__proto__, {
-        getSdcardPath: () => $$str,
-        cwd: () => $$str,
-        createWithDirs: str => $$bool,
-        remove: str => $$bool,
-        path: str => $$str,
-        exists: str => $$bool,
-        removeDir: str => $$bool,
+        getSdcardPath: () => String,
+        cwd: () => String,
+        createWithDirs: str => Boolean,
+        remove: str => Boolean,
+        path: str => String,
+        exists: str => Boolean,
+        removeDir: str => Boolean,
     });
     Object.assign(auto.__proto__, {
-        waitFor: () => $$und,
+        waitFor: () => void 0,
     });
     Object.assign(app.__proto__, {
-        launchPackage: str => $$bool,
-        launchApp: str => $$bool,
-        getAppName: str => $$str,
-        startActivity: obj__str => $$und
+        launchPackage: str => Boolean,
+        launchApp: str => Boolean,
+        getAppName: str => String,
+        startActivity: obj$str => void 0,
+        viewFile: str => void 0,
     });
     Object.assign(device.__proto__, {
-        isScreenOn: () => $$bool,
-        keepScreenOn: num => $$und,
-        brand: "$$str",
+        isScreenOn: () => Boolean,
+        keepScreenOn: num => void 0,
+        brand: String,
     });
     Object.assign(console.__proto__, {
-        verbose: str => $$und,
+        verbose: str => void 0,
     });
     Object.assign(android.__proto__, {
         provider: {
             Settings: {
                 System: {
-                    SCREEN_OFF_TIMEOUT: "$$str",
-                    getInt: (context_resolver, str, num) => $$num,
-                    putInt: (context_resolver, str, num) => $$bool,
+                    SCREEN_OFF_TIMEOUT: String,
+                    getInt: (context_resolver, str, num) => Integer,
+                    putInt: (context_resolver, str, num) => Boolean,
                     canWrite: () => null,
                 },
                 Global: {
-                    STAY_ON_WHILE_PLUGGED_IN: "$$str",
-                    getInt: (context_resolver, str, num) => $$num,
-                    putInt: (context_resolver, str, num) => $$bool,
+                    STAY_ON_WHILE_PLUGGED_IN: String,
+                    getInt: (context_resolver, str, num) => Integer,
+                    putInt: (context_resolver, str, num) => Boolean,
                 },
                 Secure: {
-                    DEVELOPMENT_SETTINGS_ENABLED: "$$str",
-                    getInt: (context_resolver, str, num) => $$num,
-                    putInt: (context_resolver, str, num) => $$bool,
+                    DEVELOPMENT_SETTINGS_ENABLED: String,
+                    getInt: (context_resolver, str, num) => Integer,
+                    putInt: (context_resolver, str, num) => Boolean,
                 },
             },
         },
         view: {
             MotionEvent: {
-                ACTION_DOWN: "$$num",
-                ACTION_UP: "$$num",
-                ACTION_MOVE: "$$num",
+                ACTION_DOWN: Integer,
+                ACTION_UP: Integer,
+                ACTION_MOVE: Integer,
+            },
+            ViewParent: function (Layout) {
+
             },
         },
         content: {
             Intent: function () {
                 this.FLAG_ACTIVITY_NEW_TASK = "$$num";
-                this.setClassName = (pkg_nm, class_nm) => "Intent";
-                this.putExtra = (str, arr) => "Intent";
-                this.addCategory = str => "Intent";
-                this.setAction = str => "Intent";
-                this.setFlags = num => "Intent";
-                this.setDataAndType = (Uri, str) => "Intent";
-                this.setType = str => "Intent";
-                this.addFlags = num => "Intent";
+                this.setClassName = (pkg_nm, class_nm) => android.content.Intent;
+                this.putExtra = (str, arr) => android.content.Intent;
+                this.addCategory = str => android.content.Intent;
+                this.setAction = str => android.content.Intent;
+                this.setFlags = num => android.content.Intent;
+                this.setDataAndType = (Uri, str) => android.content.Intent;
+                this.setType = str => android.content.Intent;
+                this.addFlags = num => android.content.Intent;
                 this.extras = [];
                 this.category = [];
             },
-        }
+        },
+        widget: {
+            LinearLayout: function (ctx) {
+                this.addView = View => void 0;
+                this.getParent = () => android.view.ViewParent;
+            },
+            CheckBox: function (ctx) {
+                this.setChecked = bool => void 0;
+            }
+        },
     });
     Object.assign(context.__proto__, {
         getContentResolver: () => "ContentResolver",
+        getPackageName: () => String,
         getPackageManager: function () {
             return {
                 queryIntentActivities: (Intent, num) => "queryIntentActivities",
@@ -4098,20 +4153,20 @@ function dismissIDEWarnings() {
         },
     });
     Object.assign(timers.__proto__, {
-        setMillis: num => $$und,
+        setMillis: num => void 0,
     });
     Object.assign(http.__proto__, {
         post: function (url, data, options, callback) {
             return {
-                statusCode: "$$num",
-                statusMessage: "$$str",
+                statusCode: Integer,
+                statusMessage: String,
                 headers: {},
                 body: {
                     bytes: () => [],
-                    string: () => "$$str",
+                    string: () => String,
                     json: () => {
                     },
-                    contentType: "$$str",
+                    contentType: String,
                 },
             };
         },

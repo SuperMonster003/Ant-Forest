@@ -263,8 +263,12 @@ function getVerName(name, params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function parseAppNameRaw(name) {

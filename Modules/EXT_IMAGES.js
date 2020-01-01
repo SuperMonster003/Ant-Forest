@@ -180,8 +180,12 @@ function _permitCapt(params) {
         return sel;
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -333,7 +337,11 @@ function restartThisEngine(params) {
         }
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, info_flg) {
+        if (info_flg) {
+            let _s = msg || "";
+            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+            console.verbose(_s);
+        }
     }
 }
