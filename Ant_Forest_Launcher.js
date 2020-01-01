@@ -1,8 +1,8 @@
 /**
  * @overview alipay ant forest energy intelligent collection script
  *
- * @last_modified Jan 1, 2020
- * @version 1.9.10
+ * @last_modified Jan 2, 2020
+ * @version 1.9.11
  * @author SuperMonster003
  *
  * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
@@ -10,11 +10,11 @@
 
 let {
     $$sel, $$app, $$cfg, $$sto, $$dev, $$flag, $$acc,
-    ui, currentPackage, storages, android, className,
+    images, device, auto, selector, context, dialogs,
     floaty, colors, toast, files, idMatches, engines,
     events, timers, swipe, sleep, exit, app, threads,
-    images, device, auto, dialogs, selector, context,
-    id, click, setText,
+    ui, android, className, currentPackage, storages,
+    id, setText, click,
 } = global;
 
 let $$init = {
@@ -848,7 +848,7 @@ let $$init = {
                                                 let _inPage = () => _rl.isInPage();
                                                 let _loading = () => $$sel.pickup(/加载中.*/);
                                                 let _cA = () => !_loading();
-                                                let _cB = () => !waitForAction(_loading, 320, 80);
+                                                let _cB = () => !waitForAction(_loading, 360, 120);
                                                 let _listLoaded = () => _cA() && _cB();
 
                                                 return _inPage() && _listLoaded();
@@ -3280,13 +3280,13 @@ let $$init = {
                     while (sleep(500) || true) {
                         $$impeded("排行榜底部监测线程");
 
-                        if (!$$sel.get("rl_end_idt")) {
+                        let _key = "rl_end_idt";
+                        if (!$$sel.getAndCache(_key)) {
                             continue;
                         }
 
-                        let _key = "rl_end_idt";
-                        let _sel_str = $$sel.get(_key, "sel_str");
-                        let _bd = $$sel.get(_key, "bounds") || {};
+                        let _sel_str = $$sel.cache.load(_key, "sel_str");
+                        let _bd = $$sel.cache.load(_key, "bounds");
                         let _l = _bd.left;
                         let _t = _bd.top;
                         let _r = _bd.right;
@@ -3300,7 +3300,7 @@ let $$init = {
 
                         let _bd_arr = [_l, _t, _r, _b];
                         let _bd_str = _bd_arr.join(", ");
-                        let _sel_body = $$sel.get(_key, _sel_str);
+                        let _sel_body = $$sel.cache.load(_key, _sel_str);
                         debugInfo("列表底部条件满足");
                         debugInfo(">bounds: [" + _bd_str + "]");
                         debugInfo(">" + _sel_str + ": " + _sel_body);
@@ -3336,7 +3336,7 @@ let $$init = {
                     let _n = "rl_title"; // name
                     let _t = "bounds"; // type
                     while (1) {
-                        $$sel.cache.refresh(_n);
+                        $$sel.cache.refresh(_n); // contains save()
                         $$flag.rl_in_page = $$sel.cache.load(_n, _t);
                         sleep(120);
                     }
@@ -4390,6 +4390,11 @@ let $$af = {
                         $$app.page.rl.launch();
                         $$app.monitor.rl_in_page.start();
                         $$app.monitor.rl_bottom.start();
+
+                        // make rl ready in case that the list
+                        // doesn't respond to the click action
+                        // or misses aims available to operate
+                        sleep(360);
 
                         return fri;
                     },
@@ -6442,5 +6447,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | act: action; activity | af: ant forest | agn: again | ahd: ahead | amt: amount | app: application | arci: archive(d) | args: arguments | argv: argument values | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | col: color | cond: condition | constr: constructor | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | d: dialog | dat: data | dc: decrease | dec: decode; decrypt | def: default | desc: description | dev: device; development | diag: dialog | diff: difference | dis: dismiss | disp: display | dist: distance | dn: down | dnt: donation | du: duration | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press | par: parameter | param: parameter | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded | rect: rectangle | res: result | reso: resolve; resolver | rev: review | rl: rank list | rls: release | rmng: remaining | rsn: reason | rst: reset | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector | set: settings | sgn: signal | smp: sample | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | u: unit | unexp: unexpected | unintrp: uninterrupted | usr: user | util: utility | v: value | val: value | vert: vertical | win: window
+ * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | col: color | cond: condition | constr: constructor | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | d: dialog | dat: data | dc: decrease | dec: decode; decrypt | def: default | desc: description | dev: device; development | diag: dialog | diff: difference | dis: dismiss | disp: display | dist: distance | dn: down | dnt: donation | ds: data source | du: duration | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded | rect: rectangle | res: result | reso: resolve; resolver | rev: review | rl: rank list | rls: release | rmng: remaining | rsn: reason | rst: reset | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector | set: settings | sgn: signal | smp: sample | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | usr: user | util: utility | v: value | val: value | vert: vertical | win: window
  */

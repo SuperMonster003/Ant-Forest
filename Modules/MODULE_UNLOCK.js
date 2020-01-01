@@ -1010,8 +1010,12 @@ function loadInternalModuleMonsterFunc() {
             }
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
@@ -1670,8 +1674,12 @@ function loadInternalModuleMonsterFunc() {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
@@ -1795,7 +1803,7 @@ function loadInternalModuleMonsterFunc() {
                 global[_key] = threads.atomic(1);
             }
 
-            images.requestScreenCapture();
+            images.requestScreenCapture(false);
             sleep(300);
             return true;
         }
@@ -2146,8 +2154,12 @@ function loadInternalModuleMonsterFunc() {
 
         // raw function(s) //
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
@@ -2193,8 +2205,12 @@ function loadInternalModuleMonsterFunc() {
 
         // raw function(s) //
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 

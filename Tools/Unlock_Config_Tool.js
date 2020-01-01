@@ -12,7 +12,9 @@ auto(); // auto.waitFor() was abandoned here, as it may cause problems sometimes
  */
 
 // set up the device screen in a portrait orientation
-activity.setRequestedOrientation(android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+let _ActInfo = android.content.pm.ActivityInfo;
+let _SCR_OR_VERT = _ActInfo.SCREEN_ORIENTATION_PORTRAIT;
+activity.setRequestedOrientation(_SCR_OR_VERT);
 
 let _require = require.bind(global); // copy global.require(){}
 
@@ -1765,8 +1767,12 @@ function loadInternalModuleMonsterFunc() {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
@@ -2175,8 +2181,12 @@ function loadInternalModuleMonsterFunc() {
 
         // raw function(s) //
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
@@ -2222,8 +2232,12 @@ function loadInternalModuleMonsterFunc() {
 
         // raw function(s) //
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, info_flg) {
+            if (info_flg) {
+                let _s = msg || "";
+                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                console.verbose(_s);
+            }
         }
     }
 
