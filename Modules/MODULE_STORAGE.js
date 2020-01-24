@@ -1,99 +1,128 @@
-﻿module.exports = (function () {
-    let storages = {};
-
-    storages.create = function (name) {
-        return new Storage(name);
-    };
-
-    storages.remove = function (name) {
-        this.create(name).clear();
-    };
-
-    return storages;
-
-    // constructor(s) //
-
-    function Storage(name) {
-        let storage_dir = files.getSdcardPath() + "/.local/";
-        let file = createFile(storage_dir);
-        let opened = files.open(file);
-        let readFile = () => files.read(file);
-
-        this.contains = contains;
-        this.get = get;
-        this.put = put;
-        this.remove = remove;
-        this.clear = clear;
-
-        function createFile(dir) {
-            let file = dir + name + ".nfe";
-            files.createWithDirs(file);
-            return file;
-        }
-
-        function contains(key) {
-            let read = readFile();
-            if (!read) return false;
-            return key in JSON.parse(read);
-        }
-
-        function put(key, new_value, forcible_flag) {
-            if (typeof new_value === "undefined") throw new TypeError("\"put\" value can't be undefined");
-            let _read = readFile();
-            let _old_data = {};
-            let _tmp_data = {};
-
-            try {
-                _old_data = JSON.parse(_read, (k, v) => v === "Infinity" ? Infinity : v);
-            } catch (e) {
-                console.warn(e.message);
-            }
-
-            let _both_type_o = classof(new_value, "Object") && classof(_old_data[key], "Object");
-            if (!forcible_flag && _both_type_o && Object.keys(new_value).length) {
-                _tmp_data[key] = Object.assign(_old_data[key], new_value);
-            } else {
-                _tmp_data[key] = new_value;
-            }
-            Object.assign(_old_data, _tmp_data);
-            files.write(file, JSON.stringify(_old_data, (k, v) => v === Infinity ? "Infinity" : v));
-            opened.close();
-        }
-
-        function get(key, value) {
-            let read = readFile();
-            if (!read) return value;
-            try {
-                let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
-                return key in obj ? obj[key] : value;
-            } catch (e) {
-                console.warn(e.message);
-                return value;
-            }
-        }
-
-        function remove(key) {
-            let read = readFile();
-            if (!read) return;
-            let obj = JSON.parse(read);
-            if (!(key in obj)) return;
-            delete obj[key];
-            files.write(file, JSON.stringify(obj));
-            opened.close();
-        }
-
-        function clear() {
-            files.remove(file);
-        }
-
-        function classof(source, check_value) {
-            let class_result = Object.prototype.toString.call(source).slice(8, -1);
-            return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
-        }
-    }
-})();
-
-/**
- * @description set values into or get values from files in "/sdcard/.local" folder
- * @author {@link https://github.com/SuperMonster003}
+﻿/**
+ * @description
+ * set values into or get values from
+ * files in "/sdcard/.local" folder
+ *
+ * @since Jan 21, 2020
+ * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
+
+module.exports = {
+    create: function (name) {
+        return new Storage(name);
+    },
+    remove: function (name) {
+        this.create(name).clear();
+    },
+};
+
+// constructor(s) //
+
+function Storage(name) {
+    let _path = files.getSdcardPath() + "/.local/";
+    let _file = _create(_path);
+    let _opened = files.open(_file);
+    let _readFile = () => files.read(_file);
+
+    this.contains = _contains;
+    this.get = _get;
+    this.put = _put;
+    this.remove = _remove;
+    this.clear = _clear;
+
+    // tool function(s) //
+
+    function _create(dir) {
+        let _f = dir + name + ".nfe";
+        files.createWithDirs(_f);
+        return _f;
+    }
+
+    function _contains(key) {
+        let _f = _readFile();
+        if (!_f) {
+            return false;
+        }
+        return key in JSON.parse(_f);
+    }
+
+    function _put(key, new_val, forc) {
+        if (typeof new_val === "undefined") {
+            let _m = '"put" value can\'t be undefined';
+            throw new TypeError(_m);
+        }
+        let _read = _readFile();
+        let _old_data = {};
+        let _tmp_data = {};
+
+        try {
+            _old_data = JSON.parse(_read, (k, v) => {
+                return v === Infinity ? "Infinity" : v;
+            });
+        } catch (e) {
+            console.warn(e.message);
+        }
+
+        let _cA = _classof(new_val, "Object");
+        let _cB = _classof(_old_data[key], "Object");
+        let _both_type_o = _cA && _cB;
+        let _keyLen = () => Object.keys(new_val).length;
+
+        if (!forc && _both_type_o && _keyLen()) {
+            _tmp_data[key] = Object.assign(
+                _old_data[key], new_val
+            );
+        } else {
+            _tmp_data[key] = new_val;
+        }
+
+        Object.assign(_old_data, _tmp_data);
+        files.write(_file, JSON.stringify(
+            _old_data, (k, v) => {
+                return v === Infinity ? "Infinity" : v;
+            })
+        );
+        _opened.close();
+    }
+
+    function _get(key, value) {
+        let _f = _readFile();
+        if (!_f) {
+            return value;
+        }
+        try {
+            let _o = JSON.parse(_f, (k, v) => {
+                return v === Infinity ? "Infinity" : v;
+            });
+            if (_o && key in _o) {
+                return _o[key];
+            }
+        } catch (e) {
+            console.warn(e.message);
+        }
+        return value;
+    }
+
+    function _remove(key) {
+        let _f = _readFile();
+        if (!_f) {
+            return;
+        }
+        let _o = JSON.parse(_f);
+        if (!(key in _o)) {
+            return;
+        }
+        delete _o[key];
+        files.write(_file, JSON.stringify(_o));
+        _opened.close();
+    }
+
+    function _clear() {
+        files.remove(_file);
+    }
+
+    function _classof(src, chk) {
+        let _s = Object.prototype.toString.call(src).slice(8, -1);
+        return chk ? _s.toUpperCase() === chk.toUpperCase() : _s;
+    }
+}

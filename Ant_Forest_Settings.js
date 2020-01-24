@@ -56,29 +56,33 @@ let $$cfg = {
             {version_name: "项目版本", width: 0.5},
             {
                 timestamp: "项目备份时间", sort: -1, stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTimestamp(data, "time_str"),
+                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 }
             },
         ],
         server_releases_info: [
             {tag_name: "项目标签", width: 0.5},
-            {created_at: "创建时间 (UTC时间)", sort: -1},
+            {
+                published_at: "项目发布时间", sort: -1, stringTransform: {
+                    forward: data => $$tool.getTimeStrFromTs(new Date(data), "time_str_full"),
+                },
+            },
         ],
         blacklist_by_user: [
             {name: "支付宝好友昵称", width: 0.58},
             {
                 timestamp: "黑名单自动解除", sort: 1, stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTimestamp(data, "time_str_remove"),
+                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
                     backward: t => $$tool.restoreFromTimestamp(t),
-                }
+                },
             },
         ],
         blacklist_protect_cover: [
             {name: "支付宝好友昵称", width: 0.58},
             {
                 timestamp: "黑名单自动解除", sort: 1, stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTimestamp(data, "time_str_remove"),
+                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 }
             },
@@ -115,7 +119,7 @@ let $$cfg = {
             },
             {
                 next_run_time: "下次运行", sort: 1, stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTimestamp(data, "time_str_full"),
+                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 },
             }
@@ -151,7 +155,7 @@ let $$init = {
                 messageActionRaw("脚本无法继续", 4);
                 messageActionRaw("以下模块缺失或路径错误\n", 4);
                 for (let i = 0; i < wanted_len; i += 1) {
-                    messageActionRaw("-> \"./Modules/" + wanted[i] + ".js\"" + (i === wanted_len - 1 ? "\n" : ""), 4);
+                    messageActionRaw('-> "./Modules/' + wanted[i] + '.js"' + (i === wanted_len - 1 ? '\n' : ''), 4);
                 }
                 messageActionRaw("请检查或重新放置模块", 4);
                 showSplitLineRaw();
@@ -160,21 +164,35 @@ let $$init = {
 
             // raw function(s) //
 
-            function messageActionRaw(msg, msg_level, toast_flag) {
-                let _msg = msg || " ";
-                if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-                    return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+            function messageActionRaw(msg, lv, if_toast) {
+                let _s = msg || " ";
+                if (lv && lv.toString().match(/^t(itle)?$/)) {
+                    let _par = ["[ " + msg + " ]", 1, if_toast];
+                    return messageActionRaw.apply({}, _par);
                 }
-                let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-                toast_flag && toast(_msg);
-                if (_msg_level === 0) return console.verbose(_msg) || true;
-                if (_msg_level === 1) return console.log(_msg) || true;
-                if (_msg_level === 2) return console.info(_msg) || true;
-                if (_msg_level === 3) return console.warn(_msg) || false;
-                if (_msg_level >= 4) {
-                    console.error(_msg);
-                    _msg_level >= 8 && exit();
+                let _lv = +lv;
+                if (if_toast) {
+                    toast(_s);
                 }
+                if (_lv >= 3) {
+                    if (_lv >= 4) {
+                        console.error(_s);
+                        if (_lv >= 8) {
+                            exit();
+                        }
+                    } else {
+                        console.warn(_s);
+                    }
+                    return;
+                }
+                if (_lv === 0) {
+                    console.verbose(_s);
+                } else if (_lv === 1) {
+                    console.log(_s);
+                } else if (_lv === 2) {
+                    console.info(_s);
+                }
+                return true;
             }
 
             function showSplitLineRaw(extra_str, style) {
@@ -215,7 +233,7 @@ let $$init = {
             rolling_pages: [],
             encrypt: (input) => {
                 let _mod = require("./Modules/MODULE_PWMAP");
-                return new _mod().pwmapEncrypt(input);
+                return _mod.encrypt(input);
             },
             getLastRollingPage: function () {
                 let _rolling = this.rolling_pages;
@@ -398,13 +416,45 @@ let $$init = {
 
                         let hint = opt.hint;
                         if (hint) {
-                            let hint_view = ui.inflate(
-                                <horizontal>
-                                    <text id="_hint" textColor="#888888" textSize="13sp"/>
-                                    <text id="_hint_color_indicator" visibility="gone" textColor="#888888" textSize="13sp"/>
-                                </horizontal>);
-                            typeof hint === "string" && hint_view._hint.text(hint);
-                            item_view._content.addView(hint_view);
+                            let _hint_view = ui.inflate(
+                                <horizontal id="_hints">
+                                    <horizontal>
+                                        <text id="_hint" textSize="13sp"/>
+                                    </horizontal>
+                                </horizontal>
+                            );
+                            let _getHintView = (text) => {
+                                let _view = ui.inflate(
+                                    <horizontal>
+                                        <text id="_sub_hint" textSize="13sp"/>
+                                    </horizontal>
+                                );
+                                let _col = text.match(/#[\da-fA-F]{6,}/);
+                                let _hint = _view["_sub_hint"];
+                                if (_col) {
+                                    _hint.setText("\u25D1"); // "◑"
+                                    _hint.setTextColor(colors.parseColor(_col[0]));
+                                } else {
+                                    _hint.setText(text);
+                                    _hint.setTextColor(colors.parseColor("#888888"));
+                                }
+                                return _view;
+                            };
+
+                            item_view.setHints = function () {
+                                let _arg_len = arguments.length;
+                                let _views = [];
+                                for (let i = 0; i < _arg_len; i += 1) {
+                                    _views[i] = _getHintView.call({}, arguments[i]);
+                                }
+                                _hint_view["_hints"].removeAllViews();
+                                _views.forEach(v => _hint_view["_hints"].addView(v));
+                            };
+
+                            if (typeof hint === "string") {
+                                _hint_view._hint.setText(hint);
+                            }
+                            item_view._content.addView(_hint_view);
                         }
 
                         if (type === "radio") {
@@ -884,7 +934,7 @@ let $$init = {
                                         blacklist_backup.forEach((o) => {
                                             items.push(
                                                 "好友昵称: " + o.name,
-                                                "解除时间: " + $$tool.getTimeStrFromTimestamp(o.timestamp, "time_str_remove"),
+                                                "解除时间: " + $$tool.getTimeStrFromTs(o.timestamp, "time_str_remove"),
                                                 split_line
                                             );
                                         });
@@ -953,29 +1003,32 @@ let $$init = {
                             btn_view.switch_off();
                         }],
                         ["add_circle", "NEW", "ON", (btn_view) => {
-                            let tmp_selected_friends = [];
-                            let blacklist_selected_friends = [];
+                            let tmp_sel_fri = [];
+                            let blist_sel_fr = [];
                             let list_page_view = $$view.findViewByTag(p_view, "list_page_view");
 
-                            sess_cfg[data_source_key_name].forEach(o => blacklist_selected_friends.push(o.name));
+                            sess_cfg[data_source_key_name].forEach(o => blist_sel_fr.push(o.name));
 
                             let diag = dialogs.builds([
-                                "添加新数据", "从好友列表中选择并添加好友\n或检索选择好友",
-                                ["从列表中选择", "hint_btn_bright_color"], ["检索选择", "hint_btn_bright_color"], "确认添加", 1,
+                                "添加新数据",
+                                "从好友列表中选择并添加好友\n或检索选择好友",
+                                ["从列表中选择", "hint_btn_bright_color"],
+                                ["检索选择", "hint_btn_bright_color"],
+                                "确认添加", 1,
                             ], {items: [" "]});
                             diag.on("neutral", () => {
-                                let diag_add_from_list = dialogs.builds([
+                                let _diag_add_from_lst = dialogs.builds([
                                     "列表选择好友", "",
                                     ["刷新列表", "hint_btn_bright_color"], 0, "确认选择", 1,
                                 ], {
                                     items: ["列表为空"],
                                     itemsSelectMode: "multi",
                                 });
-                                diag_add_from_list.on("neutral", () => {
+                                _diag_add_from_lst.on("neutral", () => {
                                     $$tool.refreshFriendsListByLaunchingAlipay({
                                         dialog_prompt: true,
                                         onTrigger: function () {
-                                            diag_add_from_list.dismiss();
+                                            _diag_add_from_lst.dismiss();
                                             diag.dismiss();
                                         },
                                         onResume: function () {
@@ -991,40 +1044,44 @@ let $$init = {
                                         },
                                     });
                                 });
-                                diag_add_from_list.on("positive", () => {
+                                _diag_add_from_lst.on("positive", () => {
                                     refreshDiag();
-                                    diag_add_from_list.dismiss();
+                                    _diag_add_from_lst.dismiss();
                                 });
-                                diag_add_from_list.on("multi_choice", (items, indices_damaged_, dialog) => {
+                                _diag_add_from_lst.on("multi_choice", (items, indices_damaged_, dialog) => {
                                     if (items.length === 1 && items[0] === "列表为空") return;
-                                    if (items) items.forEach(name => tmp_selected_friends.push(name.split(". ")[1]));
+                                    if (items) items.forEach(name => tmp_sel_fri.push(name.split(". ")[1]));
                                 });
-                                diag_add_from_list.show();
+                                _diag_add_from_lst.show();
 
                                 refreshAddFromListDiag();
 
                                 // tool function(s) //
 
                                 function refreshAddFromListDiag() {
-                                    let items = [];
-                                    let friends_list = $$sto.af.get("friends_list_data", {});
-                                    if (friends_list.list_data) {
-                                        friends_list.list_data.forEach(o => {
-                                            let nickname = o.nickname;
-                                            if (!~blacklist_selected_friends.indexOf(nickname) && !~tmp_selected_friends.indexOf(nickname)) {
-                                                items.push(o.rank_num + ". " + nickname);
+                                    let _items = [];
+                                    let _fri_lst = $$sto.af.get("friends_list_data", {});
+                                    if (_fri_lst.list_data) {
+                                        _fri_lst.list_data.forEach(o => {
+                                            let _nick = o.nickname;
+                                            let _cA = !blist_sel_fr.includes(_nick);
+                                            let _cB = !tmp_sel_fri.includes(_nick);
+                                            if (_cA && _cB) {
+                                                _items.push(o.rank_num + ". " + _nick);
                                             }
                                         });
                                     }
-                                    let items_len = items.length;
-                                    items = items_len ? items : ["列表为空"];
-                                    diag_add_from_list.setItems(items);
-                                    let friends_list_timestamp = friends_list.timestamp;
-                                    if (friends_list_timestamp === Infinity) friends_list_timestamp = -1;
-                                    sess_par.last_friend_list_refresh_timestamp = friends_list_timestamp;
-                                    diag_add_from_list.setContent(
-                                        "上次刷新: " + $$tool.getTimeStrFromTimestamp(friends_list_timestamp, "time_str") + "\n"
-                                        + "当前可添加的好友总数: " + items_len
+                                    let _i_len = _items.length;
+                                    _items = _i_len ? _items : ["列表为空"];
+                                    _diag_add_from_lst.setItems(_items);
+                                    let _fri_lst_ts = _fri_lst.timestamp;
+                                    if ($$inf(_fri_lst_ts)) {
+                                        _fri_lst_ts = -1;
+                                    }
+                                    _diag_add_from_lst.setContent(
+                                        "上次刷新: " +
+                                        $$tool.getTimeStrFromTs(_fri_lst_ts, "time_str") +
+                                        "\n当前可添加的好友总数: " + _i_len
                                     );
                                 }
                             });
@@ -1044,7 +1101,7 @@ let $$init = {
                                         });
                                     },
                                     list_item_listener: (item, closeListPage) => {
-                                        let excluded_data_arrays = [blacklist_selected_friends, tmp_selected_friends];
+                                        let excluded_data_arrays = [blist_sel_fr, tmp_sel_fri];
 
                                         for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
                                             if (~excluded_data_arrays[i].indexOf(item)) {
@@ -1054,18 +1111,18 @@ let $$init = {
                                         closeListPage(item);
                                     },
                                     onFinish: (result) => {
-                                        result && tmp_selected_friends.push(result);
+                                        result && tmp_sel_fri.push(result);
                                         diag.show();
                                         refreshDiag();
                                     }
                                 });
                             });
                             diag.on("positive", () => {
-                                tmp_selected_friends.forEach(name => $$view.updateDataSource(data_source_key_name, "update_unshift", {
+                                tmp_sel_fri.forEach(name => $$view.updateDataSource(data_source_key_name, "update_unshift", {
                                     name: name,
                                     timestamp: Infinity,
                                 }));
-                                if (tmp_selected_friends.length) setTimeout(function () {
+                                if (tmp_sel_fri.length) setTimeout(function () {
                                     p_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                                 }, 200);
                                 let restore_btn = list_page_view.getParent()._text_restore.getParent();
@@ -1082,7 +1139,7 @@ let $$init = {
                                 let delete_confirm_diag = dialogs.builds(["确认移除此项吗", "", 0, "返回", "确认", 1]);
                                 delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
                                 delete_confirm_diag.on("positive", () => {
-                                    tmp_selected_friends.splice(idx, 1);
+                                    tmp_sel_fri.splice(idx, 1);
                                     refreshDiag();
                                     delete_confirm_diag.dismiss();
                                 });
@@ -1095,8 +1152,8 @@ let $$init = {
                             // tool function(s) //
 
                             function refreshDiag() {
-                                let tmp_items_len = tmp_selected_friends.length;
-                                let tmp_items = tmp_items_len ? tmp_selected_friends : ["\xa0"];
+                                let tmp_items_len = tmp_sel_fri.length;
+                                let tmp_items = tmp_items_len ? tmp_sel_fri : ["\xa0"];
                                 diag.setItems(tmp_items);
                                 let content_info = tmp_items_len ? ("当前选择区好友总数: " + tmp_items_len) : "从好友列表中选择并添加好友\n或手动输入好友昵称";
                                 diag.setContent(content_info);
@@ -1811,7 +1868,7 @@ let $$init = {
                     } else time_picker_view.confirm_btn.on("click", () => closeTimePickerPage("picker_view"));
                 }
 
-                function closeTimePickerPage(return_value) {
+                function closeTimePickerPage(ret) {
                     if (typeof sess_par !== "undefined") {
                         delete sess_par.back_btn_consumed;
                         delete sess_par.back_btn_consumed_func;
@@ -1824,8 +1881,8 @@ let $$init = {
                         if (child_view.findViewWithTag("fullscreen_time_picker")) parent.removeView(child_view);
                     }
 
-                    if (params.onFinish && typeof return_value !== "undefined") {
-                        params.onFinish(return_value === "picker_view" ? time_picker_view.time_str.getText().toString() : return_value);
+                    if (params.onFinish && typeof ret !== "undefined") {
+                        params.onFinish(ret === "picker_view" ? time_picker_view.time_str.getText().toString() : ret);
                     }
                 }
             },
@@ -1935,7 +1992,7 @@ let $$init = {
                         if (!_data_source.length && empty_list_prompt) {
                             empty_list_prompt = false;
                             dialogs.builds([
-                                "空列表提示", "当前列表为空\n可能需要点击\"刷新\"按钮\n刷新后列表将自动更新",
+                                "空列表提示", '当前列表为空\n可能需要点击"刷新"按钮\n刷新后列表将自动更新',
                                 0, 0, "确定", 1
                             ]).on("positive", diag => diag.dismiss()).show();
                         }
@@ -2085,9 +2142,9 @@ let $$init = {
                                             if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
                                         },
                                     },
-                                    onFinish: (return_value) => {
+                                    onFinish: (ret) => {
                                         _diag.show();
-                                        return_value && refreshItems(list_item_prefix, return_value);
+                                        ret && refreshItems(list_item_prefix, ret);
                                     },
                                 });
                             }
@@ -2272,7 +2329,10 @@ let $$init = {
                             _ori_ds.sort((a, b) => {
                                 let _a = a[_head_name];
                                 let _b = b[_head_name];
-                                return _sort > 0 ? _a > _b : _a < _b;
+                                if (_sort > 0) {
+                                    return _a > _b ? 1 : -1;
+                                }
+                                return _a < _b ? 1 : -1;
                             });
                             break;
                         }
@@ -2368,7 +2428,7 @@ let $$init = {
                     .forEach(view => view.updateOpr(view))
                 );
             },
-            showOrHideBySwitch: function (view, state, hide_when_checked, nearest_end_view_tag_name) {
+            showOrHideBySwitch: function (view, state, hide_when_checked, nearest_end_tag) {
                 hide_when_checked = !!hide_when_checked; // boolean
                 state = !!state; // boolean
 
@@ -2382,7 +2442,9 @@ let $$init = {
 
                 while (++myself_index < child_count) {
                     let child_view = parent.getChildAt(myself_index);
-                    if (nearest_end_view_tag_name && child_view.findViewWithTag(nearest_end_view_tag_name)) break;
+                    if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
+                        break;
+                    }
                     state === hide_when_checked ? hide(child_view) : reveal(child_view);
                 }
 
@@ -2413,6 +2475,77 @@ let $$init = {
                         radio_view.setTextColor(colors.parseColor(state ? "#000000" : "#b0bec5"));
                     }
                 });
+            },
+            diag: {
+                colorSetter: function () {
+                    let _rex_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
+                    let _lim_255 = _rex_255.source;
+                    let _rex_str = "^(rgb)?[\\( ]?" +
+                        _lim_255 + "[, ]+" + _lim_255 + "[, ]+" + _lim_255
+                        + "\\)?$";
+                    let _rex_rgb_col = new RegExp(_rex_str, "i");
+                    let _rex_hex_col = /^#?[A-F0-9]{6}$/i;
+                    let _cur_col = "";
+                    let _diag = dialogs.builds([
+                        this.title, this.config_conj,
+                        ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                    ], {inputHint: "rgb(RR,GG,BB) | #RRGGBB"});
+                    _diag.on("neutral", d => {
+                        let _text = $$sto.def.af[this.config_conj].toString();
+                        d.getInputEditText().setText(_text);
+                    });
+                    _diag.on("negative", d => d.dismiss());
+                    _diag.on("positive", d => {
+                        let _get_text = d.getInputEditText().getText().toString();
+                        if (_get_text !== "") {
+                            if (!_cur_col) {
+                                return alertTitle(d, "输入的颜色值无法识别");
+                            }
+                            let _col_val = "#" + colors.toStr(_cur_col).slice(3);
+                            $$save.session(this.config_conj, _col_val);
+                        }
+                        _diag.dismiss();
+                    });
+                    _diag.on("input_change", (d, ipt) => {
+                        let _col = "";
+                        try {
+                            if (ipt.match(_rex_hex_col)) {
+                                _col = colors.parseColor("#" + ipt.slice(-6));
+                            } else if (ipt.match(_rex_rgb_col)) {
+                                let nums = ipt.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                                _col = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                            }
+                            d.getTitleView().setTextColor(_col || -570425344);
+                            d.getContentView().setTextColor(_col || -1979711488);
+                            d.getTitleView().setBackgroundColor(_col ? -570425344 : -1);
+                        } catch (e) {
+                        }
+                        _cur_col = _col;
+                    });
+                    _diag.show();
+                },
+            },
+            hint: {
+                colorSetter: function (view) {
+                    let _sess_val = sess_cfg[this.config_conj];
+                    if (classof(_sess_val, "Array")) {
+                        let _len = _sess_val.length;
+                        if (_len) {
+                            let _par = ["共" + _len + "组色值  [ "];
+                            _sess_val.forEach((arr, idx) => {
+                                idx && _par.push(" , ");
+                                arr.forEach(col => _par.push(col));
+                            });
+                            _par.push(" ]");
+                            view.setHints.apply({}, _par);
+                        } else {
+                            view.setHints("无数据");
+                        }
+                    } else {
+                        let _col = _sess_val.toString();
+                        view.setHints("#", _col.slice(1) + " ", _col);
+                    }
+                },
             },
         };
 
@@ -2570,7 +2703,7 @@ let $$init = {
                     return "v0.0.0";
                 }
             },
-            getTimeStrFromTimestamp: function (time_param, format_str) {
+            getTimeStrFromTs: function (time_param, format_str) {
                 let timestamp = +time_param;
                 let time_str = "";
                 let time_str_remove = "";
@@ -2586,7 +2719,7 @@ let $$init = {
                     let dd = padZero(time.getDate());
                     let hh = padZero(time.getHours());
                     let mm = padZero(time.getMinutes());
-                    time_str = yy + "\/" + MM + "\/" + dd + " " + hh + ":" + mm;
+                    time_str = yy + "/" + MM + "/" + dd + " " + hh + ":" + mm;
                 }
 
                 return {
@@ -2846,7 +2979,7 @@ let $$init = {
 
                 if (dialog_prompt) {
                     dialogs.builds([
-                        "刷新好友列表提示", "即将尝试打开\"支付宝\"\n自动获取最新的好友列表信息\n在此期间请勿操作设备",
+                        "刷新好友列表提示", '即将尝试打开"支付宝"\n自动获取最新的好友列表信息\n在此期间请勿操作设备',
                         0, "放弃", "开始刷新", 1
                     ]).on("negative", diag => {
                         diag.dismiss();
@@ -2880,7 +3013,7 @@ let $$init = {
                     }
 
                     setTimeout(function () {
-                        toast("即将打开\"支付宝\"刷新好友列表");
+                        toast('即将打开"支付宝"刷新好友列表');
                     }, 500);
                 }
             },
@@ -3016,7 +3149,7 @@ let $$init = {
                         let version_infos = file_content.split(regexp_version_name);
                         version_names.forEach((name, idx) => {
                             info["v" + name.split("v")[1]] = version_infos[idx + 1]
-                                .replace(/ ?_\[`(issue )?#(\d+)`]\(http.+?\)_ ?/g, "[$2]") // issues
+                                .replace(/ ?_\[`(issue )?#(\d+)`](\(http.+?\))?_ ?/g, "[$2]") // issues
                                 .replace(regexp_remove_info, "")
                                 .replace(/(\[(\d+)])+/g, $0 => " " + $0.split(/]\[/).join(",").replace(/\d+/g, $0 => "#" + $0))
                                 .replace(/(\s*\n\s*){2,}/g, "\n");
@@ -3439,6 +3572,10 @@ let $$init = {
             require("./Modules/EXT_DIALOGS").load();
             require("./Modules/EXT_THREADS").load();
             require("./Modules/EXT_GLOBAL_OBJ").load();
+
+            colors.toStr = function () {
+                return colors.toString.apply(colors, arguments);
+            };
         }
 
         function setGlobalDollarVars() {
@@ -3876,7 +4013,7 @@ $$view.setHomePage($$defs.homepage_title)
                             let _lmt = () => _ctr > _max;
 
                             while (!_lmt()) {
-                                let _s = " (" + _ctr + "\/" + _max + ")";
+                                let _s = " (" + _ctr + "/" + _max + ")";
                                 debugInfo(_ctr
                                     ? "重试获取网络头像图片资源" + _s
                                     : "尝试获取网络头像图片资源"
@@ -3982,14 +4119,13 @@ $$view.setHomePage($$defs.homepage_title)
                 _checking = true;
                 _show_his_only = false;
                 _new_svr_ver = "检查中...";
-                let _url = "https://github.com/SuperMonster003/Auto.js_Projects/raw/Ant_Forest/README.md";
                 let _ori_cnt = dialogs.getContentText(_diag).replace(/([^]+服务器端版本: ).*/, "$1");
                 _diag.setContent(_ori_cnt + _new_svr_ver);
                 threads.starts(function () {
                     try {
                         timeRecorder("check_update");
+                        _svr_md = _getSvrMdByBlob();
                         let _rex_ver = /版本历史[^]+?v(\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/;
-                        _svr_md = http.get(_url).body.string();
                         _new_svr_ver = "v" + _svr_md.match(_rex_ver)[0].split("v")[1];
                     } catch (e) {
                         console.verbose(e); //// TEST ////
@@ -4032,6 +4168,86 @@ $$view.setHomePage($$defs.homepage_title)
                         }
                     }
                 });
+
+                // tool function(s) //
+
+                function _getSvrMdByRaw() {
+                    try {
+                        let _url = "https://github.com/SuperMonster003" +
+                            "/Auto.js_Projects/raw/Ant_Forest/README.md";
+                        return http.get(_url).body.string();
+                    } catch (e) {
+                        // java.net.ConnectException:
+                        // Failed to connect to raw.githubusercontent.com
+                    }
+                }
+
+                function _getSvrMdByBlob() {
+                    let _url_str = "https://github.com/SuperMonster003/" +
+                        "Auto.js_Projects/blob/Ant_Forest/README.md";
+                    let _response_str = _getRespByHttpCxn();
+
+                    return _response_str.match(/版本历史[^]+article/)[0]
+                        .replace(/<path .+?\/path>/g, "")
+                        .replace(
+                            /<a .+?(<code>((issue )?#\d+)<\/code>)?<\/a>/g,
+                            ($0, $1, $2) => $2 ? "_[`" + $2 + "`]_" : ""
+                        )
+                        .replace(/<svg .+?\/svg>/g, "")
+                        .replace(/<link>.+/g, "")
+                        .replace(/<h1>/g, "# ")
+                        .replace(/<h6>/g, "###### ")
+                        .replace(/<\/?(li|ul|del|em|h\d)>/g, "")
+                        .replace(/<code>/g, "* `")
+                        .replace(/<\/code>/g, "`")
+                        .replace(/\s*<\/articl.*/, "");
+
+                    // tool function(s) //
+
+                    function _getRespByHttp() {
+                        return http.get(_url_str, {
+                            headers: {
+                                "User-Agent": "Mozilla/5.0 " +
+                                    "(Windows NT 10.0; Win64; x64; rv:72.0) " +
+                                    "Gecko/20100101 Firefox/72.0",
+                            },
+                        }).body.string();
+                    }
+
+                    function _getRespByHttpCxn() {
+                        let {URL, HttpURLConnection} = java.net;
+                        let {InputStreamReader, BufferedReader} = java.io;
+                        let {StringBuilder} = java.lang;
+
+                        let _reader = null;
+
+                        let _url = new URL(_url_str);
+                        let _cxn = _url.openConnection();
+                        _cxn.setRequestMethod("GET");
+                        _cxn.setConnectTimeout(15000);
+                        _cxn.setReadTimeout(15000);
+                        _cxn.connect();
+
+                        let _resp_code = _cxn.getResponseCode();
+                        if (_resp_code !== HttpURLConnection["HTTP_OK"]) {
+                            throw Error("请求失败: " + _resp_code);
+                        }
+                        let _is = _cxn.getInputStream();
+                        _reader = new BufferedReader(
+                            new InputStreamReader(_is)
+                        );
+                        let _resp = new StringBuilder();
+                        let _line = null;
+                        let _readLine = () => {
+                            _line = _reader.readLine();
+                            return _line !== null;
+                        };
+                        while (_readLine()) {
+                            _resp.append(_line).append("\r\n");
+                        }
+                        return _resp.toString();
+                    }
+                }
             }
         },
         updateOpr: function (view) {
@@ -4059,7 +4275,7 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("主页能量球设置", {subhead_color: "#bf360c"}))
+        .add("subhead", new Layout("主页能量球通用设置", {subhead_color: "#bf360c"}))
         .add("page", new Layout("循环监测", "hint", {
             config_conj: "homepage_monitor_switch",
             next_page: "homepage_monitor_page",
@@ -4139,6 +4355,56 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
                 view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
             },
         }))
+        .add("subhead", new Layout("浇水回赠能量球(金色球)设置", {subhead_color: "#bf360c"}))
+        .add("button", new Layout("最大连续检查次数", "hint", {
+            config_conj: "homepage_water_ball_check_limit",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "最大连续检查次数", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|0<=x<=300,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 300 || value < 0) return alertTitle(dialog, "输入值范围不合法");
+                    $$save.session(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let _cfg_val = sess_cfg[this.config_conj];
+                view._hint.text(_cfg_val ? _cfg_val.toString() : "无限制");
+            },
+        }))
+        .add("button", new Layout("最大色相值(无蓝分量)", "hint", {
+            config_conj: "homepage_water_ball_max_hue_b0",
+            newWindow: function () {
+                let diag = dialogs.builds([
+                    "最大色相值(无蓝分量)", this.config_conj,
+                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
+                ], {inputHint: "{x|12<=x<=52,x∈N}"});
+                diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", dialog => {
+                    let input = diag.getInputEditText().getText().toString();
+                    if (input === "") return dialog.dismiss();
+                    let value = +input;
+                    if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
+                    if (value > 52 || value < 12) return alertTitle(dialog, "输入值范围不合法");
+                    $$save.session(this.config_conj, ~~value);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                view._hint.text(sess_cfg[this.config_conj].toString() + "°");
+            },
+        }))
         .ready();
 });
 $$view.addPage(["主页能量球循环监测", "homepage_monitor_page"], function () {
@@ -4185,7 +4451,7 @@ $$view.addPage(["主页能量球循环监测", "homepage_monitor_page"], functio
             },
         }))
         .add("split_line")
-        .add("info", new Layout("\"自收功能\"与\"定时循环\"共用此页面配置"))
+        .add("info", new Layout('"自收功能"与"定时循环"共用此页面配置'))
         .ready();
 });
 $$view.addPage(["主页能量球返检监控", "homepage_background_monitor_page"], function () {
@@ -4269,48 +4535,10 @@ $$view.addPage(["收取功能", "friend_collect_page"], function () {
         .add("button", new Layout("收取图标颜色色值", "hint", {
             config_conj: "friend_collect_icon_color",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
-                let _lim255 = regexp_num_0_to_255.source;
-                let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
-                let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
-                let current_color = undefined;
-                let diag = dialogs.builds([
-                    "收取图标颜色色值", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "rgb(RR,GG,BB) | #RRGGBB"});
-                diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    if (diag.getInputEditText().getText().toString() !== "") {
-                        if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
-                        $$save.session(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
-                    }
-                    diag.dismiss();
-                });
-                diag.on("input_change", (dialog, input) => {
-                    let color = "";
-                    try {
-                        if (input.match(regexp_hex_color)) {
-                            color = colors.parseColor("#" + input.slice(-6));
-                        } else if (input.match(regexp_rgb_color)) {
-                            let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
-                            color = colors.rgb(+nums[0], +nums[1], +nums[2]);
-                        }
-                        dialog.getTitleView().setTextColor(color || -570425344);
-                        dialog.getContentView().setTextColor(color || -1979711488);
-                        dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
-                    } catch (e) {
-                    }
-                    current_color = color;
-                });
-                diag.show();
+                $$view.diag.colorSetter.bind(this)();
             },
             updateOpr: function (view) {
-                let color_str = sess_cfg[this.config_conj].toString();
-                view._hint.text(color_str);
-                view._hint_color_indicator.text(" \u25D1");
-                view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
-                view._hint_color_indicator.setVisibility(0);
+                $$view.hint.colorSetter.bind(this)(view);
             },
         }))
         .add("button", new Layout("收取图标颜色阈值", "hint", {
@@ -4420,7 +4648,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
                 let diag = dialogs.builds([
                     "设置排行榜页面滑动时长", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "{x|50<=x<=500,x∈N}"});
+                ], {inputHint: "{x|100<=x<=800,x∈N}"});
                 diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
                 diag.on("negative", () => diag.dismiss());
                 diag.on("positive", dialog => {
@@ -4428,7 +4656,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
                     if (input === "") return dialog.dismiss();
                     let value = +input;
                     if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                    if (value > 500 || value < 50) return alertTitle(dialog, "输入值范围不合法");
+                    if (value > 800 || value < 100) return alertTitle(dialog, "输入值范围不合法");
                     $$save.session(this.config_conj, ~~value);
                     diag.dismiss();
                 });
@@ -4661,7 +4889,7 @@ $$view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
             },
         }))
         .add("split_line")
-        .add("info", new Layout("\"收取\/帮收功能\"与\"定时循环\"共用此页面配置"))
+        .add("info", new Layout('"收取/帮收功能"与"定时循环"共用此页面配置'))
         .ready();
 });
 $$view.addPage(["帮收功能", "help_collect_page"], function () {
@@ -4732,8 +4960,8 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
                             },
                         },
                     },
-                    onFinish: (return_value) => {
-                        let section = return_value === "全天" ? [] : $$tool.timeStrToSection(return_value);
+                    onFinish: (ret) => {
+                        let section = ret === "全天" ? [] : $$tool.timeStrToSection(ret);
                         if (section[0] === section[1]) section = $$sto.def.af[this.config_conj];
                         $$save.session(this.config_conj, section);
                     },
@@ -4760,48 +4988,10 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
         .add("button", new Layout("帮收图标颜色色值", "hint", {
             config_conj: "help_collect_icon_color",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
-                let _lim255 = regexp_num_0_to_255.source;
-                let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
-                let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
-                let current_color = undefined;
-                let diag = dialogs.builds([
-                    "帮收图标颜色色值", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "rgb(RR,GG,BB) | #RRGGBB"});
-                diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    if (diag.getInputEditText().getText().toString() !== "") {
-                        if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
-                        $$save.session(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
-                    }
-                    diag.dismiss();
-                });
-                diag.on("input_change", (dialog, input) => {
-                    let color = "";
-                    try {
-                        if (input.match(regexp_hex_color)) {
-                            color = colors.parseColor("#" + input.slice(-6));
-                        } else if (input.match(regexp_rgb_color)) {
-                            let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
-                            color = colors.rgb(+nums[0], +nums[1], +nums[2]);
-                        }
-                        dialog.getTitleView().setTextColor(color || -570425344);
-                        dialog.getContentView().setTextColor(color || -1979711488);
-                        dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
-                    } catch (e) {
-                    }
-                    current_color = color;
-                });
-                diag.show();
+                $$view.diag.colorSetter.bind(this)();
             },
             updateOpr: function (view) {
-                let color_str = sess_cfg[this.config_conj].toString();
-                view._hint.text(color_str);
-                view._hint_color_indicator.text(" \u25D1");
-                view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
-                view._hint_color_indicator.setVisibility(0);
+                $$view.hint.colorSetter.bind(this)(view);
             },
         }))
         .add("button", new Layout("帮收图标颜色阈值", "hint", {
@@ -4829,54 +5019,23 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
             },
         }))
         .add("button", new Layout("帮收能量球颜色色值", "hint", {
-            config_conj: "help_collect_balls_color",
+            config_conj: "help_collect_ball_color",
             newWindow: function () {
-                let regexp_num_0_to_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
-                let _lim255 = regexp_num_0_to_255.source;
-                let regexp_rgb_color = new RegExp("^(rgb)?[\\( ]?" + _lim255 + "[, ]+" + _lim255 + "[, ]+" + _lim255 + "\\)?$", "i");
-                let regexp_hex_color = /^#?[A-F0-9]{6}$/i;
-                let current_color = undefined;
-                let diag = dialogs.builds([
-                    "帮收能量球颜色色值", this.config_conj,
-                    ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
-                ], {inputHint: "rgb(RR,GG,BB) | #RRGGBB"});
-                diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
-                diag.on("negative", () => diag.dismiss());
-                diag.on("positive", dialog => {
-                    if (diag.getInputEditText().getText().toString() !== "") {
-                        if (!current_color) return alertTitle(dialog, "输入的颜色值无法识别");
-                        $$save.session(this.config_conj, "#" + colors.toString(current_color).toLowerCase().slice(3));
-                    }
-                    diag.dismiss();
-                });
-                diag.on("input_change", (dialog, input) => {
-                    let color = "";
-                    try {
-                        if (input.match(regexp_hex_color)) {
-                            color = colors.parseColor("#" + input.slice(-6));
-                        } else if (input.match(regexp_rgb_color)) {
-                            let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
-                            color = colors.rgb(+nums[0], +nums[1], +nums[2]);
-                        }
-                        dialog.getTitleView().setTextColor(color || -570425344);
-                        dialog.getContentView().setTextColor(color || -1979711488);
-                        dialog.getTitleView().setBackgroundColor(color ? -570425344 : -1);
-                    } catch (e) {
-                    }
-                    current_color = color;
-                });
-                diag.show();
+                // $$view.diag.colorSetter.bind(this)();
+                dialogs.builds([
+                    "开发未完成",
+                    "修改色值组配置暂未完成开发\n" +
+                    "请关注后续版本更新\n" +
+                    "或自行修改代码实现配置更改",
+                    0, 0, "返回"
+                ]).show();
             },
             updateOpr: function (view) {
-                let color_str = sess_cfg[this.config_conj].toString();
-                view._hint.text(color_str);
-                view._hint_color_indicator.text(" \u25D1");
-                view._hint_color_indicator.setTextColor(colors.parseColor(color_str));
-                view._hint_color_indicator.setVisibility(0);
+                $$view.hint.colorSetter.bind(this)(view);
             },
         }))
         .add("button", new Layout("帮收能量球颜色阈值", "hint", {
-            config_conj: "help_collect_balls_threshold",
+            config_conj: "help_collect_ball_threshold",
             newWindow: function () {
                 let diag = dialogs.builds([
                     "帮收能量球颜色检测阈值", this.config_conj,
@@ -4900,7 +5059,7 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
             },
         }))
         .add("button", new Layout("帮收能量球样本采集密度", "hint", {
-            config_conj: "help_collect_balls_intensity",
+            config_conj: "help_collect_ball_intensity",
             newWindow: function () {
                 let diag = dialogs.builds([
                     "帮收能量球样本采集密度", this.config_conj,
@@ -5846,7 +6005,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
 
                 all_tasks.forEach(task => data_source.push({
                     task: task,
-                    type: preprocessDataSourceType(timedTaskTimeFlagConverter(task.getTimeFlag()), task.id),
+                    type: _getType(timedTaskTimeFlagConverter(task.getTimeFlag()), task.id),
                     next_run_time: task.getNextTime(),
                 }));
 
@@ -5854,7 +6013,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
 
                 // tool function(s) //
 
-                function preprocessDataSourceType(arr, id) {
+                function _getType(arr, id) {
                     if (arr.length) return arr;
                     let type_info = {
                         min_countdown: "最小倒计时",
@@ -5964,7 +6123,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                             return "任务ID: " + task_id + "\n\n" +
                                 "任务类型: " + (is_weekly_type ? "每周" : type) + "任务" + "\n\n" +
                                 (is_weekly_type ? "任务周期: " + type.match(/\d/g).join(", ") + "\n\n" : "") +
-                                "下次运行: " + $$tool.getTimeStrFromTimestamp(next_run_time, "time_str_full");
+                                "下次运行: " + $$tool.getTimeStrFromTs(next_run_time, "time_str_full");
                         }
                     },
                     item_bind: function (item_view, item_holder) {
@@ -6078,7 +6237,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         },
                     },
                 },
-                onFinish: (return_value) => {
+                onFinish: (ret) => {
                     let new_task = update() || add();
 
                     if (diag_before_modifying && 0) {
@@ -6089,7 +6248,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                                 type_str === "weekly" ? "任务周期: " + $$tool.getTimedTaskTypeStr(
                                     timedTaskTimeFlagConverter(new_task.getTimeFlag())
                                 ).match(/\d/g).join(", ") + "\n\n" : ""
-                            ) + "下次运行: " + $$tool.getTimeStrFromTimestamp(return_value, "time_str_full")
+                            ) + "下次运行: " + $$tool.getTimeStrFromTs(ret, "time_str_full")
                         );
                     }
                     ui.emitter.emit("resume"); // to fresh data list; maybe not a good way
@@ -6098,7 +6257,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
 
                     function trimTimestamp(time, string_flag) {
                         let d = new Date(time);
-                        if (string_flag) return $$tool.getTimeStrFromTimestamp(time).match(/\d+:\d+/)[0];
+                        if (string_flag) return $$tool.getTimeStrFromTs(time).match(/\d+:\d+/)[0];
                         return time - +new Date(d.getFullYear(), d.getMonth(), d.getDate())
                     }
 
@@ -6107,12 +6266,12 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         if (!current_task) return;
 
                         if (type_str === "disposable") {
-                            current_task.setMillis(return_value);
+                            current_task.setMillis(ret);
                         } else if (type_str === "daily") {
-                            current_task.setMillis(trimTimestamp(return_value));
+                            current_task.setMillis(trimTimestamp(ret));
                         } else if (type_str === "weekly") {
-                            current_task.setMillis(trimTimestamp(return_value.timestamp));
-                            current_task.setTimeFlag(timedTaskTimeFlagConverter(return_value.days_of_week));
+                            current_task.setMillis(trimTimestamp(ret.timestamp));
+                            current_task.setTimeFlag(timedTaskTimeFlagConverter(ret.days_of_week));
                         } else return;
 
                         timers.updateTimedTask(current_task);
@@ -6123,16 +6282,16 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         let path = files.cwd() + "/Ant_Forest_Launcher.js";
                         if (type_str === "disposable") timers.addDisposableTask({
                             path: path,
-                            date: return_value,
+                            date: ret,
                         });
                         else if (type_str === "daily") timers.addDailyTask({
                             path: path,
-                            time: trimTimestamp(return_value, true),
+                            time: trimTimestamp(ret, true),
                         });
                         else if (type_str === "weekly") timers.addWeeklyTask({
                             path: path,
-                            time: trimTimestamp(return_value.timestamp, true),
-                            daysOfWeek: return_value.days_of_week,
+                            time: trimTimestamp(ret.timestamp, true),
+                            daysOfWeek: ret.days_of_week,
                         });
                     }
                 },
@@ -6195,9 +6354,9 @@ $$view.addPage(["延时接力管理", "timers_uninterrupted_check_sections_page"
                                             if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
                                         },
                                     },
-                                    onFinish: (return_value) => {
+                                    onFinish: (ret) => {
                                         edit_item_diag.show();
-                                        return_value && refreshItems(list_item_prefix, return_value);
+                                        ret && refreshItems(list_item_prefix, ret);
                                     },
                                 });
                             }
@@ -6283,7 +6442,7 @@ $$view.addPage(["延时接力管理", "timers_uninterrupted_check_sections_page"
         .add("info", new Layout("/*dynamic_info*/", {
             updateOpr: function (view) {
                 let amount = sess_cfg.timers_uninterrupted_check_sections.length;
-                view._info_text.setText(amount ? "时间区间的\"+1\"表示次日时间" : "点击添加按钮可添加区间");
+                view._info_text.setText(amount ? '时间区间的"+1"表示次日时间' : '点击添加按钮可添加区间');
             },
         }))
         .add("info", new Layout("长按列表项可编辑项目 点击标题可排序", {
@@ -6374,7 +6533,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
                                 } else {
                                     if (final_data.account_code) {
                                         let diag_confirm = dialogs.builds([
-                                            "提示", "未设置账户时\n已存在的密码数据将被销毁\n主账户信息恢复为\"未设置\"状态\n确定继续吗",
+                                            "提示", '未设置账户时\n已存在的密码数据将被销毁\n主账户信息恢复为"未设置"状态\n确定继续吗',
                                             0, "返回", "确定", 1
                                         ]);
                                         diag_confirm.on("negative", () => diag_confirm.dismiss());
@@ -6413,7 +6572,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
                                     diag.on("negative", () => diag.dismiss());
                                     diag.on("positive", () => {
                                         let diag_confirm = dialogs.builds([
-                                            "确认销毁吗", "此操作本次会话无法撤销\n销毁后需在首页\"保存\"生效",
+                                            "确认销毁吗", '此操作本次会话无法撤销\n销毁后需在首页"保存"生效',
                                             0, "放弃", ["确认", "caution_btn_color"], 1
                                         ]);
                                         diag_confirm.on("negative", () => diag_confirm.dismiss());
@@ -6443,7 +6602,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
                                     diag.on("positive", () => {
                                         let storage_key_name = "collected_current_account_name";
                                         $$sto.af.remove(storage_key_name);
-                                        toast("即将打开\"支付宝\"采集当前账户名");
+                                        toast('即将打开"支付宝"采集当前账户名');
                                         diag.dismiss();
                                         engines.execScriptFile("./Ant_Forest_Launcher.js", {
                                             arguments: {
@@ -6479,7 +6638,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
                                                         toast("已自动填入账户名");
                                                     } else {
                                                         let diag = dialogs.builds([
-                                                            "提示", "自动填入账户名失败\n账户名已复制到剪切板\n可手动粘贴至\"账户\"输入框内",
+                                                            "提示", '自动填入账户名失败\n账户名已复制到剪切板\n可手动粘贴至"账户"输入框内',
                                                             0, 0, "返回", 1
                                                         ]);
                                                         diag.on("negative", () => diag.dismiss());
@@ -6732,9 +6891,9 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                                             },
                                         },
                                     },
-                                    onFinish: (return_value) => {
+                                    onFinish: (ret) => {
                                         edit_item_diag.show();
-                                        refreshItems(list_item_prefix, $$tool.getTimeStrFromTimestamp(return_value, "time_str_remove"));
+                                        refreshItems(list_item_prefix, $$tool.getTimeStrFromTs(ret, "time_str_remove"));
                                     },
                                 });
                             }
@@ -6866,7 +7025,7 @@ $$view.addPage(["前置应用黑名单", "foreground_app_blacklist_page"], funct
                 view._info_text.setText(amount ? "点击标题可排序" : "点击添加按钮可添加应用");
             },
         }))
-        .add("info", new Layout("\"有效\"标签表示应用是否存在于设备中", {
+        .add("info", new Layout('"有效"标签表示应用是否存在于设备中', {
             updateOpr: function (view) {
                 let amount = sess_cfg.foreground_app_blacklist.length;
                 view.setVisibility(amount ? 0 : 8);
@@ -7210,7 +7369,10 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                     let max_try_times = 5;
                     while (max_try_times--) {
                         try {
-                            let res = http.get("https://api.github.com/repos/SuperMonster003/Auto.js_Projects/releases");
+                            let res = http.get(
+                                "https://api.github.com/repos/SuperMonster003/" +
+                                "Auto.js_Projects/releases"
+                            );
                             sess_par.server_releases_info = res.body.json(); // array
                             let amount = sess_par.server_releases_info.length;
                             if (!amount) {
@@ -7238,7 +7400,7 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                                                         let map = {
                                                             name: "标题",
                                                             tag_name: "标签",
-                                                            created_at: "创建",
+                                                            published_at: "发布",
                                                             body: "版本更新内容描述",
                                                         };
                                                         Object.keys(map).forEach(key => {
@@ -7293,6 +7455,7 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                                             },
                                         }))
                                         .add("info", new Layout("点击列表项可查看并还原项目"))
+                                        .ready()
                                     ;
                                 });
                             }
@@ -7362,7 +7525,7 @@ $$view.addPage(["从本地还原项目", "restore_projects_from_local_page"], fu
                             if (!(key in single_session_data)) return;
                             let label_name = map[key];
                             let value = single_session_data[key];
-                            if (key === "timestamp") value = $$tool.getTimeStrFromTimestamp(value, "time_str");
+                            if (key === "timestamp") value = $$tool.getTimeStrFromTs(value, "time_str");
                             value && backup_details.push(label_name + ": " + value);
                         });
                         backup_details = backup_details.join("\n\n");

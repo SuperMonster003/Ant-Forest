@@ -1,11 +1,11 @@
 /**
- * @overview alipay ant forest energy intelligent collection script
+ * @description alipay ant forest intelligent collection script
  *
- * @last_modified Jan 2, 2020
- * @version 1.9.11
- * @author SuperMonster003
+ * @since Jan 19, 2020
+ * @version 1.9.12
+ * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
- * @tutorial {@link https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest}
+ * @see {@link https://github.com/SuperMonster003/Ant_Forest}
  */
 
 let {
@@ -65,8 +65,9 @@ let $$init = {
 
         function checkModulesMap() {
             let _map = [
-                "MODULE_MONSTER_FUNC", "MODULE_DEFAULT_CONFIG",
-                "MODULE_PWMAP", "MODULE_UNLOCK", "MODULE_STORAGE",
+                "MODULE_MONSTER_FUNC", "MODULE_STORAGE",
+                "MODULE_DEFAULT_CONFIG", "MODULE_PWMAP",
+                "MODULE_TREASURY_VAULT", "MODULE_UNLOCK",
                 "EXT_DIALOGS", "EXT_TIMERS", "EXT_DEVICE",
                 "EXT_APP", "EXT_IMAGES",
             ];
@@ -106,21 +107,35 @@ let $$init = {
 
         // raw function(s) //
 
-        function messageActionRaw(msg, msg_level, toast_flag) {
-            let _msg = msg || " ";
-            if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+        function messageActionRaw(msg, lv, if_toast) {
+            let _s = msg || " ";
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                let _par = ["[ " + msg + " ]", 1, if_toast];
+                return messageActionRaw.apply({}, _par);
             }
-            let _msg_level = +msg_level;
-            toast_flag && toast(_msg);
-            if (_msg_level === 0) return console.verbose(_msg) || true;
-            if (_msg_level === 1) return console.log(_msg) || true;
-            if (_msg_level === 2) return console.info(_msg) || true;
-            if (_msg_level === 3) return console.warn(_msg) || false;
-            if (_msg_level >= 4) {
-                console.error(_msg);
-                _msg_level >= 8 && exit();
+            let _lv = +lv;
+            if (if_toast) {
+                toast(_s);
             }
+            if (_lv >= 3) {
+                if (_lv >= 4) {
+                    console.error(_s);
+                    if (_lv >= 8) {
+                        exit();
+                    }
+                } else {
+                    console.warn(_s);
+                }
+                return;
+            }
+            if (_lv === 0) {
+                console.verbose(_s);
+            } else if (_lv === 1) {
+                console.log(_s);
+            } else if (_lv === 2) {
+                console.info(_s);
+            }
+            return true;
         }
 
         function showSplitLineRaw(extra_str, style) {
@@ -150,15 +165,19 @@ let $$init = {
         let _mod_sto = require("./Modules/MODULE_STORAGE");
         $$sto.af = _mod_sto.create("af");
         $$sto.af_cfg = _mod_sto.create("af_cfg");
+        $$sto.treas = require("./Modules/MODULE_TREASURY_VAULT");
 
         $$sel = getSelector();
 
         let _default_af = require("./Modules/MODULE_DEFAULT_CONFIG").af || {};
         Object.assign($$cfg, _default_af, $$sto.af_cfg.get("config", {}));
 
-        $$flag.msg_details = $$cfg.console_log_details || $$cfg.debug_info_switch;
-        $$flag.debug_info_avail = $$cfg.debug_info_switch && $$cfg.message_showing_switch;
-        $$flag.no_msg_act_flag = !$$cfg.message_showing_switch;
+        let _cnsl_detail = $$cfg.console_log_details;
+        let _dbg_info_sw = $$cfg.debug_info_switch;
+        let _msg_show_sw = $$cfg.message_showing_switch;
+        $$flag.msg_details = _cnsl_detail || _dbg_info_sw;
+        $$flag.debug_info_avail = _dbg_info_sw && _msg_show_sw;
+        $$flag.no_msg_act_flag = !_msg_show_sw;
 
         appSetter().setEngine().setTask().setParams().setBlist().setTools().init();
 
@@ -201,7 +220,7 @@ let $$init = {
                 messageAct: function () {
                     return $$flag.msg_details
                         ? messageAction.apply({}, Object.values(arguments))
-                        : (m, lv) => !~[3, 4].indexOf(lv);
+                        : (m, lv) => ![3, 4].includes(lv);
                 },
                 observeToastMessage: observeToastMessage,
                 phoneCallingState: phoneCallingState,
@@ -274,32 +293,41 @@ let $$init = {
                     return _setter;
                 },
                 setTask: function () {
-                    Object.defineProperties($$app, {
-                        setPostponedTask: {
-                            value: function (duration, toast_flag) {
-                                $$flag.task_deploying || threads.starts(function () {
-                                    $$flag.task_deploying = true;
+                    $$app.setPostponedTask = (du, if_toast) => {
+                        if ($$flag.task_deploying) {
+                            return;
+                        }
+                        threads.starts(function () {
+                            $$flag.task_deploying = true;
 
-                                    let _task_str = surroundWith($$app.task_name) + "任务";
-                                    let _du_str = duration + "分钟";
-                                    toast_flag === false || toast(_task_str + "推迟 " + _du_str);
-                                    messageAction("推迟" + _task_str, 1, 0, 0, -1);
-                                    messageAction("推迟时长: " + _du_str, 1, 0, 0, 1);
+                            let _task_s = $$app.task_name + "任务";
+                            let _du_s = du + "分钟";
 
-                                    let _ts = $$app.ts + duration * 60000;
-                                    let _task = timers.addDisposableTask({path: $$app.cwp, date: _ts});
-                                    let _type_suffix = $$sto.af.get("fg_blist_ctr") ? "_auto" : "";
-                                    $$sto.af.put("next_auto_task", {
-                                        task_id: _task.id,
-                                        timestamp: _ts,
-                                        type: "postponed" + _type_suffix,
-                                    });
+                            if (!$$F(if_toast)) {
+                                toast(_task_s + "推迟 " + _du_s);
+                            }
 
-                                    ui.post(exit);
-                                });
-                            },
-                        },
-                    });
+                            messageAction("推迟" + _task_s, 1, 0, 0, -1);
+                            messageAction("推迟时长: " + _du_s, 1, 0, 0, 1);
+
+                            let _ts = $$app.ts + du * 60000;
+                            let _par = {path: $$app.cwp, date: _ts};
+                            let _task = timers.addDisposableTask(_par);
+
+                            let _suff = "";
+                            if ($$sto.af.get("fg_blist_ctr")) {
+                                _suff = "_auto";
+                            }
+
+                            $$sto.af.put("next_auto_task", {
+                                task_id: _task.id,
+                                timestamp: _ts,
+                                type: "postponed" + _suff,
+                            });
+
+                            ui.post(exit);
+                        });
+                    };
 
                     return _setter;
                 },
@@ -369,13 +397,10 @@ let $$init = {
                                 packageName: "com.eg.android.AlipayGphone",
                             },
                         },
-                        fri_drop_by: {},
-                    });
-                    void Object.defineProperties($$app.fri_drop_by, {
-                        _pool: {value: []},
-                        _max: {value: 5},
-                        ic: {
-                            get: () => function (name) {
+                        fri_drop_by: {
+                            _pool: [],
+                            _max: 5,
+                            ic: function (name) {
                                 let _ctr = this._pool[name] || 0;
                                 if (_ctr === this._max) {
                                     debugInfo("发送排行榜复查停止信号");
@@ -384,9 +409,7 @@ let $$init = {
                                 }
                                 this._pool[name] = ++_ctr;
                             },
-                        },
-                        dc: {
-                            get: () => function (name) {
+                            dc: function (name) {
                                 let _ctr = this._pool[name] || 0;
                                 this._pool[name] = _ctr > 1 ? --_ctr : 0;
                             },
@@ -461,7 +484,9 @@ let $$init = {
                     $$app.blist = {
                         _expired: {
                             trigger: function (ts) {
-                                if ($$und(ts) || $$inf(ts)) return false;
+                                if ($$und(ts) || $$inf(ts)) {
+                                    return false;
+                                }
 
                                 let _now = this.now = new Date(); // Date{}
                                 let _du_ts = this.du_ts = ts - +_now;
@@ -469,7 +494,9 @@ let $$init = {
                                 return _du_ts <= 0;
                             },
                             message: function () {
-                                if (!$$flag.msg_details) return;
+                                if (!$$flag.msg_details) {
+                                    return;
+                                }
 
                                 let _date_str = this.now.toDateString();
                                 let _date_ts = Date.parse(_date_str); // num
@@ -561,16 +588,17 @@ let $$init = {
                             // tool function(s) //
 
                             function blistInitializer() {
+                                let _blist_data = {};
                                 return {
                                     get: function () {
                                         // {%name%: {timestamp::, reason::}}
-                                        this.blist_data = $$sto.af.get("blacklist", {});
+                                        _blist_data = $$sto.af.get("blacklist", {});
                                         return this;
                                     },
                                     clean: function () {
                                         this.deleted = [];
-                                        Object.keys(this.blist_data).forEach((name) => {
-                                            let _ts = this.blist_data[name].timestamp;
+                                        Object.keys(_blist_data).forEach((name) => {
+                                            let _ts = _blist_data[name].timestamp;
                                             let _expired = (ts) => {
                                                 if (_blist_setter._expired.trigger(ts)) {
                                                     this.deleted.push(name);
@@ -578,7 +606,7 @@ let $$init = {
                                                 }
                                             };
                                             if (!_ts || _expired(_ts)) {
-                                                delete this.blist_data[name];
+                                                delete _blist_data[name];
                                             }
                                         });
                                         return this;
@@ -594,7 +622,7 @@ let $$init = {
                                         return this;
                                     },
                                     assign: function () {
-                                        _blist_setter.data = this.blist_data;
+                                        _blist_setter.data = _blist_data;
                                         return this;
                                     },
                                 };
@@ -603,12 +631,12 @@ let $$init = {
                     }.init().save();
                     $$app.cover_capt = {
                         pool: [],
-                        _limit: 3,
+                        limit: 3,
                         get len() {
                             return this.pool.length;
                         },
                         get filled_up() {
-                            return this.len >= this._limit;
+                            return this.len >= this.limit;
                         },
                         add: function (capt) {
                             capt = capt || images.capt();
@@ -620,13 +648,15 @@ let $$init = {
                         reclaimLast: function () {
                             let _last = this.pool.pop();
                             let _img_name = images.getName(_last);
-                            debugInfo("能量罩采集样本已达阈值: " + this._limit);
+                            debugInfo("能量罩采集样本已达阈值: " + this.limit);
                             debugInfo(">移除并回收最旧样本: " + _img_name);
                             images.reclaim(_last);
                             _last = null;
                         },
                         reclaimAll: function () {
-                            if (!this.len) return;
+                            if (!this.len) {
+                                return;
+                            }
 
                             debugInfo("回收全部能量罩采集样本");
                             this.pool.forEach(capt => {
@@ -716,7 +746,9 @@ let $$init = {
                                                 // tool function(s) //
 
                                                 function _necessary() {
-                                                    if ($$flag.launch_necessary) return true;
+                                                    if ($$flag.launch_necessary) {
+                                                        return true;
+                                                    }
 
                                                     if (!$$bool($$flag.launch_necessary)) {
                                                         debugInfo("等待启动必要条件");
@@ -806,7 +838,9 @@ let $$init = {
                                             let _sel_inp_box = () => $$sel.pickup(_kw_inp_box);
                                             let _sel_search_aim = () => _node_search_aim = $$sel.get("af");
 
-                                            if (!waitForAction(_sel_inp_box, 5000, 80)) return;
+                                            if (!waitForAction(_sel_inp_box, 5000, 80)) {
+                                                return;
+                                            }
 
                                             setText(_text);
                                             waitForAction(() => $$sel.pickup(_text), 3000, 80); // just in case
@@ -823,7 +857,9 @@ let $$init = {
                                             let _b = _node_search_aim.bounds();
 
                                             while (_max--) {
-                                                if (_node_search_aim.clickable()) break;
+                                                if (_node_search_aim.clickable()) {
+                                                    break;
+                                                }
                                                 _node_search_aim = _node_search_aim.parent();
                                             }
 
@@ -876,7 +912,9 @@ let $$init = {
                                         function _locateBtn() {
                                             let _max = 8;
                                             while (_max--) {
-                                                if (waitForAction(_sel_rl_ent, 1500)) return true;
+                                                if (waitForAction(_sel_rl_ent, 1500)) {
+                                                    return true;
+                                                }
                                                 if ($$sel.get("alipay_home")) {
                                                     debugInfo(["检测到支付宝主页页面", "尝试进入蚂蚁森林主页"]);
                                                     $$app.page.af.home();
@@ -889,10 +927,10 @@ let $$init = {
                                                 }
                                             }
                                             if (_max >= 0) {
-                                                debugInfo("定位到\"查看更多好友\"按钮");
+                                                debugInfo('定位到"查看更多好友"按钮');
                                                 return true;
                                             }
-                                            messageAction("定位\"查看更多好友\"超时", 3, 1, 0, 1);
+                                            messageAction('定位"查看更多好友"超时', 3, 1, 0, 1);
                                         }
 
                                         function _launch() {
@@ -910,7 +948,7 @@ let $$init = {
                                             }
 
                                             function swipeClick() {
-                                                debugInfo("备份方案点击\"查看更多好友\"");
+                                                debugInfo('备份方案点击"查看更多好友"');
 
                                                 return swipeAndShow(_node_rl_ent, {
                                                     swipe_time: 200,
@@ -938,11 +976,15 @@ let $$init = {
                             for (let i = 0, len = fs.length; i < len; i += 1) {
                                 let _checker = fs[i];
                                 if ($$arr(_checker)) {
-                                    if (no_bak) continue;
+                                    if (no_bak) {
+                                        continue;
+                                    }
                                     _checker = () => this._getClickable(fs[i]);
                                 }
                                 let _node = _checker();
-                                if (_node) return clickAction(_node, "w");
+                                if (_node) {
+                                    return clickAction(_node, "w");
+                                }
                             }
                         },
                         _plansLauncher: function (aim, plans_arr, shared_opt) {
@@ -963,7 +1005,9 @@ let $$init = {
                                 let _params = $$str(_ele) ? {} : _ele[_key];
                                 Object.assign(_params, _share);
 
-                                if (_func.bind(_aim)(_params)) return true;
+                                if (_func.bind(_aim)(_params)) {
+                                    return true;
+                                }
                             }
                         },
                         autojs: {
@@ -988,7 +1032,9 @@ let $$init = {
                             spring_board: {
                                 on: () => $$cfg.app_launch_springboard === "ON",
                                 employ: function () {
-                                    if (!this.on()) return false;
+                                    if (!this.on()) {
+                                        return false;
+                                    }
 
                                     debugInfo("开始部署启动跳板");
 
@@ -1009,8 +1055,9 @@ let $$init = {
                                     debugInfo(">打开" + _aj_name + "应用超时", 3);
                                 },
                                 remove: function () {
-                                    if (!this.on()) return;
-
+                                    if (!this.on()) {
+                                        return;
+                                    }
                                     if (!$$flag.alipay_closed) {
                                         return debugInfo(["跳过启动跳板移除操作", ">支付宝未关闭"]);
                                     }
@@ -1055,11 +1102,16 @@ let $$init = {
                                             init_settings, init_fg,
                                         } = $$app.init_autojs_state;
 
-                                        if (!init_fg) return _remove(_isFg, _back2);
-
+                                        if (!init_fg) {
+                                            return _remove(_isFg, _back2);
+                                        }
                                         if (!init_home) {
-                                            if (init_log) return _restore("console");
-                                            if (init_settings) return _restore("settings");
+                                            if (init_log) {
+                                                return _restore("console");
+                                            }
+                                            if (init_settings) {
+                                                return _restore("settings");
+                                            }
                                             return _remove(_isHome, _back2);
                                         }
 
@@ -1087,7 +1139,9 @@ let $$init = {
                                 let _pkg = $$app.pkg_name;
                                 let _res = killThisApp(_pkg, {shell_acceptable: true});
 
-                                if (!_res) return debugInfo("支付宝关闭超时", 3);
+                                if (!_res) {
+                                    return debugInfo("支付宝关闭超时", 3);
+                                }
 
                                 debugInfo("支付宝关闭完毕");
                                 return $$flag.alipay_closed = true;
@@ -1180,7 +1234,9 @@ let $$init = {
                                 },
                                 isDiff: function () {
                                     let _pool = this.data;
-                                    if (_pool.length - 2) return true;
+                                    if (_pool.length !== 2) {
+                                        return true;
+                                    }
                                     return !images.findImage.apply({}, _pool);
                                 }
                             },
@@ -1265,7 +1321,9 @@ let $$init = {
 
                                 let _balls_len = 0;
                                 let _ballsReady = () => {
-                                    return _balls_len = $$af.eballs().length;
+                                    return _balls_len = $$af.eballs(
+                                        "all", false
+                                    ).length;
                                 };
                                 if (waitForAction(_ballsReady, 1897.83, 80)) {
                                     debugInfo(["能量球准备完毕", "共计: " + _balls_len + "个"]);
@@ -1415,12 +1473,15 @@ let $$init = {
                     return _setter;
                 },
                 init: function () {
-                    $$app.init_autojs_state = {
-                        init_fg: $$app.page.autojs.is_fg,
-                        init_home: $$app.page.autojs.is_home,
-                        init_log: $$app.page.autojs.is_log,
-                        init_settings: $$app.page.autojs.is_settings,
-                    };
+                    let _aj = $$app.page.autojs;
+                    if (_aj.spring_board.on()) {
+                        $$app.init_autojs_state = {
+                            init_fg: _aj.is_fg,
+                            init_home: _aj.is_home,
+                            init_log: _aj.is_log,
+                            init_settings: _aj.is_settings,
+                        };
+                    }
 
                     return _setter;
                 }
@@ -1450,7 +1511,7 @@ let $$init = {
                                 },
                             },
                             launch: function (plans_arr) {
-                                debugInfo("打开\"账号切换\"页面");
+                                debugInfo('打开"账号切换"页面');
 
                                 // TODO if (!plans_arr) loadFromConfig
                                 plans_arr = plans_arr || ["intent", "pipeline"];
@@ -1466,7 +1527,7 @@ let $$init = {
                                     }
                                     debugInfo(_task_name + "失败");
                                 }
-                                return messageAction("进入\"账号切换\"页面失败", 4, 1, 0, "both_dash");
+                                return messageAction('进入"账号切换"页面失败', 4, 1, 0, "both_dash");
                             },
                             parse: function (name_str) {
                                 if (!this.isInPage()) {
@@ -1508,7 +1569,9 @@ let $$init = {
                                 return $$acc.isInSwAccPg();
                             },
                             makeInPage: function (force) {
-                                if (!force && this.isInPage()) return true;
+                                if (!force && this.isInPage()) {
+                                    return true;
+                                }
                                 return this.launch();
                             },
                             getAbbrFromList: function (name_str) {
@@ -1516,7 +1579,9 @@ let $$init = {
                             },
                         },
                         _codec: function (str, opr) {
-                            if (!str) return "";
+                            if (!str) {
+                                return "";
+                            }
                             opr = opr || "dec";
                             let _arr = str.toString().split("");
                             _arr.forEach((value, idx) => {
@@ -1585,35 +1650,50 @@ let $$init = {
                             name_str = name_str.toString();
                             abbr = abbr.toString();
 
-                            if (!name_str || !abbr) return false;
+                            if (!name_str || !abbr) {
+                                return false;
+                            }
 
                             let [i, j, k] = [0, name_str.length - 1, abbr.length - 1];
                             let _same = (p, q) => name_str[p] === abbr[q];
                             let _isAbbrStar = q => abbr[q] === "*";
 
                             for (; i <= j; i += 1) {
-                                if (_same(i, i)) continue;
-                                if (!_isAbbrStar(i)) return false;
-                                break;
+                                if (!_same(i, i)) {
+                                    if (_isAbbrStar(i)) {
+                                        break;
+                                    }
+                                    return false;
+                                }
                             }
 
-                            if (i > j) return true;
+                            if (i > j) {
+                                return true;
+                            }
 
                             for (; j > i, k > i; j -= 1, k -= 1) {
-                                if (_same(j, k)) continue;
-                                if (!_isAbbrStar(k)) return false;
-                                break;
+                                if (!_same(j, k)) {
+                                    if (_isAbbrStar(k)) {
+                                        break;
+                                    }
+                                    return false;
+                                }
                             }
 
                             return !!abbr.slice(i, k + 1).match(/^\*+$/);
                         },
                         /**
                          * @param usr_inf {object}
-                         * @param [usr_inf.abbr] {string} -- abbr username
-                         * @param [usr_inf.name] {string} -- full username without encryption
-                         * @param [usr_inf.name_raw] {string} -- encrypted username
-                         * @param [usr_inf.code_raw] {string} -- encrypted code
-                         * @param [usr_inf.direct] {boolean} -- directly login (skipping account list check)
+                         * @param [usr_inf.abbr] {string}
+                         * -- abbr username
+                         * @param [usr_inf.name] {string}
+                         * -- full username without encryption
+                         * @param [usr_inf.name_raw] {string}
+                         * -- encrypted username
+                         * @param [usr_inf.code_raw] {string}
+                         * -- encrypted code
+                         * @param [usr_inf.direct] {boolean}
+                         * -- directly login (no account list check)
                          */
                         login: function (usr_inf) {
                             return _ready() && _parse() && _login();
@@ -1686,7 +1766,9 @@ let $$init = {
                                     }
 
                                     function _loginAndCheck() {
-                                        if (_loggedIn()) return true;
+                                        if (_loggedIn()) {
+                                            return true;
+                                        }
 
                                         let _conds = {
                                             name: "列表快捷切换账户",
@@ -1717,8 +1799,12 @@ let $$init = {
                                             clickAction($$sel.pickup([_this.abbr, "p5"]), "w");
 
                                             debugInfo("开始监测账户切换结果");
-                                            if (!_condChecker(_conds)) return false;
-                                            if (_loggedIn()) return true;
+                                            if (!_condChecker(_conds)) {
+                                                return false;
+                                            }
+                                            if (_loggedIn()) {
+                                                return true;
+                                            }
                                         }
                                     }
                                 }
@@ -1732,7 +1818,9 @@ let $$init = {
                                     // tool function(s) //
 
                                     function _ready() {
-                                        if (!$$str(_this.name)) return;
+                                        if (!$$str(_this.name)) {
+                                            return;
+                                        }
 
                                         let _cond = () => {
                                             let _ok = $$sel.pickup(/好的|OK/);
@@ -1766,10 +1854,10 @@ let $$init = {
                                             waitForAction(() => _a() || _m() || _lb(), 3000);
 
                                             if (_acc) {
-                                                debugInfo("点击\"换个账号登录\"按钮");
+                                                debugInfo('点击"换个账号登录"按钮');
                                                 clickAction(_acc, "w");
                                             } else if (_mthd) {
-                                                debugInfo("点击\"其他登录方式\"按钮");
+                                                debugInfo('点击"其他登录方式"按钮');
                                                 clickAction(_mthd, "w");
                                             }
 
@@ -1805,14 +1893,14 @@ let $$init = {
 
                                                 while (_max--) {
                                                     if (waitForAction(_sel_lbl_acc, 1500)) {
-                                                        debugInfo("找到\"账号\"输入项控件");
+                                                        debugInfo('找到"账号"输入项控件');
                                                         let _node = $$sel.pickup([_node_lbl_acc, "p2c1"]);
                                                         let _res = false;
                                                         if (_node) {
-                                                            debugInfo("布局树查找可编辑\"账号\"控件成功");
+                                                            debugInfo('布局树查找可编辑"账号"控件成功');
                                                             _res = _node.setText(name);
                                                         } else {
-                                                            debugInfo("布局树查找可编辑\"账号\"控件失败", 3);
+                                                            debugInfo('布局树查找可编辑"账号"控件失败', 3);
                                                             debugInfo("尝试使用通用可编辑控件", 3);
                                                             let _edit = className("EditText").findOnce();
                                                             _res = _edit && _edit.setText(name);
@@ -1826,7 +1914,9 @@ let $$init = {
                                                         messageAction("尝试盲输", 3, 0, 0, "dash");
                                                         setText(0, name);
                                                     }
-                                                    if (_cA() && _cB()) break;
+                                                    if (_cA() && _cB()) {
+                                                        break;
+                                                    }
                                                 }
 
                                                 if (_max >= 0) {
@@ -1844,15 +1934,15 @@ let $$init = {
                                                 // tool function(s) //
 
                                                 function _require() {
-                                                    let _str_a = "无需点击\"下一步\"按钮";
+                                                    let _str_a = '无需点击"下一步"按钮';
 
                                                     if (_lbl_code()) {
-                                                        let _str_b = ">存在\"密码\"输入项控件";
+                                                        let _str_b = '>存在"密码"输入项控件';
                                                         return debugInfo([_str_a, _str_b]);
                                                     }
 
                                                     if ($$sel.get("login_btn")) {
-                                                        let _str_b = ">存在\"登录\"按钮控件";
+                                                        let _str_b = '>存在"登录"按钮控件';
                                                         return debugInfo([_str_a, _str_b]);
                                                     }
 
@@ -1885,7 +1975,7 @@ let $$init = {
                                                         let _max = 3;
                                                         while (_max--) {
                                                             if (waitForAction(_lbl_code, 1500)) {
-                                                                debugInfo("找到\"密码\"输入项控件");
+                                                                debugInfo('找到"密码"输入项控件');
                                                                 return true;
                                                             }
                                                             if (_err_ens() || _try_agn()) {
@@ -1894,15 +1984,15 @@ let $$init = {
                                                                 messageAction(_err, 8, 0, 1, 1);
                                                             }
                                                             if (_oth_mthd()) {
-                                                                debugInfo("点击\"换个方式登录\"按钮");
+                                                                debugInfo('点击"换个方式登录"按钮');
                                                                 clickAction(_oth_mthd(), "w");
                                                                 if (!waitForAction(_by_code, 2000)) {
-                                                                    let _str = "未找到\"密码登录\"按钮";
+                                                                    let _str = '未找到"密码登录"按钮';
                                                                     return messageAction(
                                                                         _str, 4, 1, 0, "both_dash"
                                                                     );
                                                                 }
-                                                                debugInfo("点击\"密码登录\"按钮");
+                                                                debugInfo('点击"密码登录"按钮');
                                                                 clickAction(_by_code().parent(), "w");
                                                             }
                                                         }
@@ -1925,7 +2015,7 @@ let $$init = {
                                                 debugInfo("尝试自动输入密码");
 
                                                 let _mod = require("./Modules/MODULE_PWMAP");
-                                                let _dec = new _mod().pwmapDecrypt;
+                                                let _dec = _mod.decrypt;
                                                 let _pref = '布局树查找可编辑"密码"控件';
                                                 let _sel = $$sel.pickup([_lbl_code(), "p2c1"]);
                                                 if (_sel && _sel.setText(_dec(code_raw))) {
@@ -1940,7 +2030,7 @@ let $$init = {
                                                     debugInfo("通用可编辑控件输入" + _suffix, _lv);
                                                 }
 
-                                                debugInfo("点击\"登录\"按钮");
+                                                debugInfo('点击"登录"按钮');
                                                 if (!clickAction($$sel.get("login_btn"), "w")) {
                                                     let _s = '输入密码后点击"登录"失败';
                                                     return messageAction(_s, 4, 1, 0, "both_dash");
@@ -1978,8 +2068,8 @@ let $$init = {
                                                             return {
                                                                 dialog: () => {
                                                                     debugInfo([
-                                                                        "等待用户响应\"需要密码\"对话框",
-                                                                        ">最大超时时间: " + _user_tt + "分钟"
+                                                                        '等待用户响应"需要密码"对话框',
+                                                                        '>最大超时时间: ' + _user_tt + '分钟'
                                                                     ]);
 
                                                                     let _cA = () => _d.isCancelled();
@@ -1998,7 +2088,7 @@ let $$init = {
                                                                 },
                                                                 button: () => {
                                                                     debugInfo([
-                                                                        "等待用户点击\"登录\"按钮",
+                                                                        '等待用户点击"登录"按钮',
                                                                         ">最大超时时间: " + _btn_tt + "分钟"
                                                                     ]);
 
@@ -2079,7 +2169,9 @@ let $$init = {
                                             timeout_review: [{
                                                 remark: "强制账号列表检查",
                                                 cond: () => {
-                                                    if ($$acc.isLoggedIn(_this.name)) return true;
+                                                    if ($$acc.isLoggedIn(_this.name)) {
+                                                        return true;
+                                                    }
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("切换主账户超时", 9, 1, 1, 1);
                                                 },
@@ -2140,7 +2232,9 @@ let $$init = {
                                         // tool function(s) //
 
                                         function _meetCond(cond_arr, type) {
-                                            if (!cond_arr) return;
+                                            if (!cond_arr) {
+                                                return;
+                                            }
 
                                             let _type_map = {
                                                 "success": "成功",
@@ -2277,7 +2371,7 @@ let $$init = {
                             capt: function () {
                                 let _b = null;
 
-                                waitForAction(() => _b = _getAvtPos(), 3000, 100);
+                                waitForAction(() => _b = _getAvtPos(), 8000, 100);
 
                                 if (!_b || $$emptyObj(_b)) {
                                     messageAction("无法获取当前头像样本", 3);
@@ -2285,6 +2379,10 @@ let $$init = {
                                 }
 
                                 let [l, t, w, h] = [_b.left, _b.top, _b.width(), _b.height()];
+                                if (!w || !h) {
+                                    messageAction("无法继续匹配当前头像样本", 3);
+                                    return messageAction("森林主页头像控件数据无效", 3, 1);
+                                }
                                 // chop: here means chopped
                                 let _sqrt2 = Math.SQRT2;
                                 let [w_chop, h_chop] = [w / _sqrt2, h / _sqrt2];
@@ -2307,15 +2405,15 @@ let $$init = {
                                 // tool function(s) //
 
                                 function _getAvtPos() {
-                                    let _stg = {
-                                        kw_my_tree_plant_plan: t => $$sel.pickup("我的大树养成记录", t),
-                                        kw_user_energy: t => $$sel.pickup([idMatches(/.*user.+nergy/), "p2c0"], t),
-                                        kw_plant_tree_btn: t => $$sel.pickup(["种树", {className: "Button"}, "p1c0"], t),
-                                        kw_home_panel: t => $$sel.pickup([idMatches(/.*home.*panel/), "c0c0c0"], t),
-                                    };
-                                    let _keys = Object.keys(_stg);
-                                    for (let i = 0, len = _keys.length; i < len; i += 1) {
-                                        let _node = _stg[_keys[i]]();
+                                    let _smp = [
+                                        "我的大树养成记录",
+                                        [idMatches(/.*us.r.+e.+gy/), "p2c0"],
+                                        ["种树", {className: "Button"}, "p1c0"],
+                                        [idMatches(/.*home.*panel/), "c0c0c0"],
+                                    ];
+                                    let _len = _smp.length;
+                                    for (let i = 0; i < _len; i += 1) {
+                                        let _node = $$sel.pickup(_smp[i]);
                                         if (_node) {
                                             debugInfo("森林主页头像控件定位成功");
                                             return _node.bounds();
@@ -2336,8 +2434,12 @@ let $$init = {
                             },
                         },
                         _avail: function () {
-                            if (!$$acc.switch) return debugInfo("账户功能未开启");
-                            if (!this.name_raw) return debugInfo("主账户用户名未设置");
+                            if (!$$acc.switch) {
+                                return debugInfo("账户功能未开启");
+                            }
+                            if (!this.name_raw) {
+                                return debugInfo("主账户用户名未设置");
+                            }
                             return true;
                         },
                         name_raw: $$cfg.main_account_info.account_name,
@@ -2346,8 +2448,12 @@ let $$init = {
                             return $$acc.isMatchAbbr(name_str, $$acc.decode(this.name_raw));
                         },
                         login: function (par) {
-                            if (!this._avail()) return;
-                            if (this._avatar.check()) return true;
+                            if (!this._avail()) {
+                                return;
+                            }
+                            if (this._avatar.check()) {
+                                return true;
+                            }
 
                             if (_loginMain.bind(this)()) {
                                 $$app.page.af.home();
@@ -2440,8 +2546,8 @@ let $$init = {
                     return this.excl_tasks_len;
                 },
                 queue: function () {
-                    timeRecorder("script_queue");
-                    timeRecorder("script_queue_total");
+                    timeRecorder("sc_q"); // script queue
+                    timeRecorder("sc_q_total");
 
                     let _init_que_len = this.excl_tasks_len;
                     let _que_len = _init_que_len;
@@ -2460,16 +2566,17 @@ let $$init = {
                             _max_queue_time = _sto_max_que_time * _que_len;
                             debugInfo("最大排队: " + _init_max_que_time + "->" + _max_queue_time + "分钟");
                             _init_max_que_time = _max_queue_time;
-                            timeRecorder("script_queue", "save"); // refresh
+                            timeRecorder("sc_q", "save"); // refresh
                         }
-                        if (timeRecorder("script_queue", "L", 60000) >= _max_queue_time) {
+                        if (timeRecorder("sc_q", "L", 60000) >= _max_queue_time) {
                             this.excl_tasks.forEach(e => e.forceStop());
                             debugInfo(["强制停止队前所有排他性任务", ">" + "已达最大排队等待时间"]);
                         }
                         sleep(Math.rand([500, 1500]));
                     }
 
-                    debugInfo("任务排队用时: " + timeRecorder("script_queue_total", "L", "auto"), "Up");
+                    let _et = timeRecorder("sc_q_total", "L", "auto");
+                    debugInfo("任务排队用时: " + _et, "Up");
                 },
             };
         }
@@ -2490,7 +2597,9 @@ let $$init = {
                     // tool function(s) //
 
                     function _screenOn() {
-                        if ($$dev.is_screen_on) return true;
+                        if ($$dev.is_screen_on) {
+                            return true;
+                        }
                         debugInfo(["跳过前置应用黑名单检测", ">屏幕未亮起"]);
                     }
 
@@ -2580,8 +2689,8 @@ let $$init = {
                         let _btnMsg = (btn_name) => {
                             let _btn = _diag_prompt.getActionButton(btn_name);
                             let _box = _diag_prompt.isPromptCheckBoxChecked();
-                            debugInfo("用户" + (_box ? "已" : "没有") + "勾选\"不再提示\"");
-                            debugInfo("用户点击\"" + _btn + "\"按钮");
+                            debugInfo('用户' + (_box ? '已' : '没有') + '勾选"不再提示"');
+                            debugInfo('用户点击"' + _btn + '"按钮');
                             return true;
                         };
                         let _diag_prompt = dialogs.builds([
@@ -2631,10 +2740,10 @@ let $$init = {
         function _preRunSetter() {
             return {
                 trigger: () => {
-                    let _skip = "跳过\"运行前提示\"";
-                    let _instant = ">检测到\"立即运行\"引擎参数";
+                    let _skip = '跳过"运行前提示"';
+                    let _instant = '>检测到"立即运行"引擎参数';
                     if (!$$cfg.prompt_before_running_switch) {
-                        return debugInfo("\"运行前提示\"未开启");
+                        return debugInfo('"运行前提示"未开启');
                     }
                     if (!$$dev.is_screen_on) {
                         return debugInfo([_skip, ">屏幕未亮起"]);
@@ -2662,7 +2771,7 @@ let $$init = {
                         let _btnMsg = (btn_name) => {
                             let _btn = _diag_prompt.getActionButton(btn_name);
                             let _regexp = / *\[ *\d+ *] */;
-                            debugInfo("用户点击\"" + _btn.replace(_regexp, "") + "\"按钮");
+                            debugInfo('用户点击"' + _btn.replace(_regexp, "") + '"按钮');
                             return true;
                         };
                         let _diag_prompt = dialogs.builds([
@@ -2984,10 +3093,12 @@ let $$init = {
                     // constructor(s) //
 
                     /**
-                     * @param [desc] {string} -- will show in console as the monitor name
-                     * @param [limit=Infinity] {string|number} --
+                     * @param [desc] {string}
+                     * -- will show in console as the monitor name
+                     * @param [limit=Infinity] {string|number}
                      * @param params {object}
-                     * @param [params.switching] {*} -- with string type, monitor may be disabled according to $$cfg
+                     * @param [params.switching] {boolean|string}
+                     * -- monitor may be disabled according to $$cfg
                      * @param params.trigger {function}
                      * @param [params.onTrigger] {function}
                      * @param params.onRelease {function}
@@ -3018,12 +3129,21 @@ let $$init = {
                                             return _pref + " (最多" + _suffix + ")";
                                         };
 
-                                        if ($$inf(_lmt)) return _pref;
-                                        if (_lmt < 1000) return _tpl("毫秒");
-                                        if ((_lmt /= 1000) < 60) return _tpl("秒");
-                                        if ((_lmt /= 60) < 60) return _tpl("分钟");
-                                        if ((_lmt /= 60) < 24) return _tpl("小时");
-
+                                        if ($$inf(_lmt)) {
+                                            return _pref;
+                                        }
+                                        if (_lmt < 1000) {
+                                            return _tpl("毫秒");
+                                        }
+                                        if ((_lmt /= 1000) < 60) {
+                                            return _tpl("秒");
+                                        }
+                                        if ((_lmt /= 60) < 60) {
+                                            return _tpl("分钟");
+                                        }
+                                        if ((_lmt /= 60) < 24) {
+                                            return _tpl("小时");
+                                        }
                                         return _lmt /= 24 && _tpl("天");
                                     };
 
@@ -3083,16 +3203,28 @@ let $$init = {
                                 if (!lmt || lmt <= 0) lmt = Infinity; // endless monitoring
                                 return lmt;
                             }
-                            if (lmt.match(/h((ou)?rs?)?/)) return lmt.match(/\d+/)[0] * 3600000;
-                            if (lmt.match(/m(in(utes?))?/)) return lmt.match(/\d+/)[0] * 60000;
-                            if (lmt.match(/s(ec(conds?))?/)) return lmt.match(/\d+/)[0] * 1000;
-                            if (lmt.match(/m(illi)?s(ec(conds?))?/)) return lmt.match(/\d+/)[0] * 1;
+                            if (lmt.match(/h((ou)?rs?)?/)) {
+                                return lmt.match(/\d+/)[0] * 3600000;
+                            }
+                            if (lmt.match(/m(in(utes?))?/)) {
+                                return lmt.match(/\d+/)[0] * 60000;
+                            }
+                            if (lmt.match(/s(ec(conds?))?/)) {
+                                return lmt.match(/\d+/)[0] * 1000;
+                            }
+                            if (lmt.match(/m(illi)?s(ec(conds?))?/)) {
+                                return lmt.match(/\d+/)[0] * 1;
+                            }
                             return Infinity;
                         }
 
                         function _handleSwitch(sw) {
-                            if ($$bool(sw)) return sw;
-                            if ($$str(sw)) return $$cfg[sw];
+                            if ($$bool(sw)) {
+                                return sw;
+                            }
+                            if ($$str(sw)) {
+                                return $$cfg[sw];
+                            }
                             return true;
                         }
                     }
@@ -3122,7 +3254,9 @@ let $$init = {
 
                                     function getCurState() {
                                         let _cur_state = _self.cur_state;
-                                        if (!$$und(_cur_state)) return _cur_state;
+                                        if (!$$und(_cur_state)) {
+                                            return _cur_state;
+                                        }
 
                                         // won't write into storage
                                         _cur_state = phoneCallingState();
@@ -3214,8 +3348,12 @@ let $$init = {
 
                         delete $$flag.acc_logged_out;
                         while (1) {
-                            if ($$sel.getAndCache("acc_logged_out")) break;
-                            if ($$acc.isInLoginPg()) break;
+                            if ($$sel.getAndCache("acc_logged_out")) {
+                                break;
+                            }
+                            if ($$acc.isInLoginPg()) {
+                                break;
+                            }
                             sleep(500);
                         }
                         $$flag.acc_logged_out = true;
@@ -3267,7 +3405,9 @@ let $$init = {
                                 let _cC = () => _cC1() && _cC2();
                                 let _res = _cA() && _cC() || _cB() && _cC();
 
-                                if (!_res) return debugInfo("关闭遮罩层失败", 3);
+                                if (!_res) {
+                                    return debugInfo("关闭遮罩层失败", 3);
+                                }
 
                                 let _et = timeRecorder("_mask_layer", "L", "auto");
                                 debugInfo(["关闭遮罩层成功", "遮罩层关闭用时: " + _et]);
@@ -3348,15 +3488,18 @@ let $$init = {
             function Monitor(name, thr_f) {
                 let _thd = $$app["_threads_" + name];
                 this.start = () => {
-                    if (_thd && _thd.isAlive()) return _thd;
+                    if (_thd && _thd.isAlive()) {
+                        return _thd;
+                    }
                     _thd = null;
                     debugInfo("开启" + name + "监测线程");
                     return _thd = threads.starts(thr_f);
                 };
                 this.interrupt = () => {
-                    if (!_thd) return;
-                    debugInfo("结束" + name + "监测线程");
-                    return _thd.interrupt();
+                    if (_thd) {
+                        debugInfo("结束" + name + "监测线程");
+                        return _thd.interrupt();
+                    }
                 };
                 this.isAlive = () => _thd && _thd.isAlive();
                 this.join = t => _thd && _thd.join(t);
@@ -3369,7 +3512,11 @@ let $$init = {
             messageAction("屏幕关闭且自动解锁功能未开启", 9, 1, 1, 1);
         }
 
-        $$dev.isLocked() ? $$dev.unlock() : debugInfo("无需解锁");
+        if ($$dev.isUnlocked() && $$dev.is_screen_on) {
+            debugInfo("无需解锁");
+        } else {
+            $$dev.unlock();
+        }
         $$flag.dev_unlocked = true;
 
         return $$init;
@@ -3478,7 +3625,9 @@ let $$init = {
                                                 while (1) {
                                                     try {
                                                         let _h = $$sel.pickup(cached, "bounds").height();
-                                                        if (_h > 20) break;
+                                                        if (_h > 20) {
+                                                            break;
+                                                        }
                                                     } catch (e) {
                                                         // height() of null
                                                     } finally {
@@ -3640,7 +3789,9 @@ let $$init = {
                 },
                 trigger: function () {
                     let _cmd = this.cmd;
-                    if (!_cmd) return;
+                    if (!_cmd) {
+                        return;
+                    }
                     if (!(_cmd in this.cmd_list)) {
                         messageAction("脚本无法继续", 4, 0, 0, -1);
                         messageAction("未知的传递指令参数:", 4, 1, 1);
@@ -3683,22 +3834,93 @@ let $$af = {
                         emount_t_own: 0, // t: total
                         emount_c_own: 0, // c: collected
                         emount_c_fri: 0,
-                        eballs: (type) => {
+                        eballs: (type, if_wball, nodes) => {
                             let _type = type || "all";
-                            let _nor = "\xa0";
-                            let _ripe = "收集能量\\d+克";
-                            let _all = _nor + "|" + _ripe;
-                            let _rex_s = {nor: _nor, ripe: _ripe, all: _all};
-                            let _kw = new RegExp(_rex_s[_type]);
-                            let _par = {className: "Button"};
-                            let _nodes = $$sel.pickup([_kw, _par], "nodes");
+                            let _nodes = nodes ? nodes : _pickup();
+                            let _only_wb = _type === "water";
+                            let _need_wb = false;
+                            if (_type !== "ripe") {
+                                _need_wb = $$und(if_wball) ? true : !!if_wball;
+                            }
 
-                            return _nodes.filter((w) => {
-                                let _b = w && w.bounds();
-                                let _cL = _b.left >= cX(0.08);
-                                let _cR = _b.right <= cX(0.92);
-                                return _b && _cL && _cR;
-                            })
+                            return _nodes.filter(_bndArea).filter(_wball);
+
+                            // tool function(s) //
+
+                            function _pickup() {
+                                let _nor = "\xa0";
+                                let _ripe = "收集能量\\d+克";
+                                let _all = _nor + "|" + _ripe;
+                                let _rex_s = {
+                                    nor: _nor, water: _nor,
+                                    ripe: _ripe, all: _all,
+                                };
+                                _rex_s.normal = _nor;
+                                let _kw = new RegExp(_rex_s[_type]);
+                                let _par = {className: "Button"};
+                                return $$sel.pickup([_kw, _par], "nodes");
+                            }
+
+                            // filter(s) //
+
+                            function _bndArea(w) {
+                                let _bnd = w && w.bounds();
+                                let _cL = _bnd.left >= cX(0.08);
+                                let _cR = _bnd.right <= cX(0.92);
+
+                                return _bnd && _cL && _cR;
+                            }
+
+                            function _wball(w) {
+                                if (_need_wb && !_only_wb) {
+                                    return true;
+                                }
+
+                                let _is_wb = _chkWball();
+                                return _only_wb ? _is_wb : !_is_wb;
+
+                                // tool function(s) //
+
+                                function _chkWball() {
+                                    let _bnd = w && w.bounds();
+                                    if (!_bnd) {
+                                        return false;
+                                    }
+                                    let _capt = images.capt();
+                                    let _w = _bnd.width();
+                                    let _h = _bnd.height();
+                                    let _ctx = _bnd.left + _w / 2;
+                                    let _cty = _bnd.top + _h / 2;
+                                    let _ref = Math.trunc(_w / 5);
+                                    let _x_min = _ctx - _ref;
+                                    let _x_max = _ctx + _ref;
+                                    let _x_step = 2;
+                                    let _hue_max = $$cfg.homepage_water_ball_max_hue_b0;
+                                    let _res = false;
+
+                                    for (let x = _x_min; x < _x_max; x += _x_step) {
+                                        let _col = images.pixel(_capt, x, _cty);
+                                        let _red = colors.red(_col);
+                                        let _green = colors.green(_col);
+                                        let _hue = 120 - (_red / _green) * 60;
+                                        // hue value in HSB mode without blue component
+                                        if ($$fin(_hue) && _hue < _hue_max) {
+                                            // let _ref = +_val.toFixed(2) + "";
+                                            // let _pt = "(" + _x + ", " + _y + ")";
+                                            // debugInfo("排除好友森林浇水回赠能量球");
+                                            // debugInfo(">参照值: " + _ref);
+                                            // debugInfo(">中心点: " + _pt);
+                                            _res = true;
+                                            break;
+                                        }
+                                    }
+
+                                    images.reclaim(_capt);
+                                    _capt = null;
+
+                                    return _res;
+                                }
+                            }
                         },
                     });
                 },
@@ -3846,7 +4068,9 @@ let $$af = {
                                 boundsInside: [cX(0.6), 0, W, cY(0.24, -1)],
                             }], "txt").match(/\d+/);
                             _amt = $$arr(_amt) ? +_amt[0] : _amt;
-                            if ($$num(_amt) || !--_max) break;
+                            if ($$num(_amt) || !--_max) {
+                                break;
+                            }
                             sleep(200);
                         }
                         return _max < 0 ? -1 : _amt;
@@ -3909,6 +4133,7 @@ let $$af = {
                         function _check() {
                             _chkRipeBalls();
                             _chkCountdown();
+                            _chkWaterBalls();
 
                             // tool function(s) //
 
@@ -3917,13 +4142,15 @@ let $$af = {
                                 let _nodes = null; // ripe balls nodes
                                 let _getNum = () => _num = _getNodes().length;
                                 let _getNodes = () => _nodes = $$af.eballs("ripe");
-                                let _noRipe = () => $$num(_getNum(), 0);
+                                let _noRipe = () => $$0(_getNum());
 
-                                if (!_getNum()) return;
+                                if (!_getNum()) {
+                                    return;
+                                }
 
                                 let _max = 8;
                                 let _itv = $$cfg.balls_click_interval;
-                                let _par = {press_time: 120};
+                                let _par = {press_time: 80};
 
                                 do {
                                     debugInfo("点击自己成熟能量球: " + _num + "个");
@@ -3934,20 +4161,27 @@ let $$af = {
                                 } while (--_max && !waitForAction(_noRipe, 2400, 100));
 
                                 if (_max >= 0) {
-                                    let _t = $$af.emount_t_own; // total
-                                    let _getEm = own._getEmount; // emount
-
-                                    $$af.emount_c_own += $$app.tool.stabilizer(_getEm, _t) - _t;
-                                    $$af.emount_t_own += $$af.emount_c_own;
-
-                                    return true;
+                                    return _stableEmount();
                                 }
                             }
 
-                            function _chkCountdown() {
-                                if (!_trigger()) return;
+                            function _stableEmount() {
+                                let _t = $$af.emount_t_own;
+                                let _getEm = own._getEmount;
+                                let _i = $$app.tool.stabilizer(_getEm, _t) - _t;
 
-                                while (_check()) _monitor();
+                                $$af.emount_c_own += _i;
+                                $$af.emount_t_own += _i;
+
+                                return true;
+                            }
+
+                            function _chkCountdown() {
+                                if (_trigger()) {
+                                    while (_check()) {
+                                        _monitor();
+                                    }
+                                }
 
                                 // tool function(s) //
 
@@ -3969,33 +4203,39 @@ let $$af = {
                                 function _check() {
                                     debugInfo("开始检测自己能量球最小倒计时");
 
-                                    let _raw_balls = $$af.balls_nodes.filter((node) => {
-                                        return !!$$sel.pickup(node, "txt").match(/\xa0/);
-                                    });
-                                    let _len = _raw_balls.length;
-                                    if (!_len) return debugInfo("未发现未成熟的能量球");
-
+                                    let _nor_balls = $$af.eballs(
+                                        "nor", false, $$af.balls_nodes
+                                    );
+                                    let _len = _nor_balls.length;
+                                    if (!_len) {
+                                        return debugInfo("未发现未成熟的能量球");
+                                    }
                                     debugInfo("找到自己未成熟能量球: " + _len + "个");
 
                                     let _t_spot = timeRecorder("ctd_own");
                                     let _min_ctd_own = Math.mini(_getCtdData());
 
                                     if (!$$posNum(_min_ctd_own) || $$inf(_min_ctd_own)) {
+                                        $$af.min_ctd_own = Infinity;
                                         return debugInfo("自己能量最小倒计时数据无效", 3);
                                     }
 
                                     let _par = ["ctd_own", "L", 60000, 0, "", _min_ctd_own];
                                     let _remain = +timeRecorder.apply({}, _par);
-                                    $$af.min_ctd_own = _min_ctd_own; // ripe timestamp
+                                    $$af.min_ctd_own = _min_ctd_own;
 
                                     debugInfo("自己能量最小倒计时: " + _remain + "分钟");
                                     debugInfo("时间: " + $$app.tool.timeStr(_min_ctd_own));
-                                    debugInfo("自己能量球最小倒计时检测完毕");
 
                                     let _cA = $$cfg.homepage_monitor_switch;
                                     let _cB = _remain <= $$af.thrd_monit_own;
-
-                                    return _cA && _cB; // if _monitor() is needed
+                                    if (_cA && _cB) {
+                                        debugInfo("触发成熟能量球监测条件");
+                                        $$af.balls_nodes = $$af.eballs();
+                                        return true;
+                                    }
+                                    debugInfo("自己能量球最小倒计时检测完毕");
+                                    delete $$af.balls_nodes;
 
                                     // tool function(s) //
 
@@ -4050,13 +4290,16 @@ let $$af = {
                                         function _thdOcr() {
                                             debugInfo("已开启倒计时数据OCR识别线程");
 
-                                            let [_capt, _stitched] = [null, null];
+                                            let _capt = null;
+                                            let _stitched = null;
 
-                                            let _raw_data = baiduOcr([_raw_balls, _stitch()], {
-                                                fetch_times: 3,
-                                                fetch_interval: 500,
-                                                no_toast_msg_flag: true,
-                                            }).map((data) => {
+                                            let _raw_data = baiduOcr(
+                                                [_nor_balls, _stitch()], {
+                                                    fetch_times: 3,
+                                                    fetch_interval: 500,
+                                                    no_toast_msg_flag: true,
+                                                }
+                                            ).map((data) => {
                                                 // eg: [["11:29"], ["11:25", "07:03", "3"], [""]]
                                                 // --> [["11:29"], ["11:25", "07:03"], []]
                                                 return data.filter(s => !!s.match(/\d{2}:\d{2}/));
@@ -4075,12 +4318,14 @@ let $$af = {
                                             _capt = _stitched = null;
 
                                             if (!_raw_data.length) {
-                                                return debugInfo("OCR识别线程未能获取有效数据");
+                                                debugInfo("OCR识别线程未能获取有效数据");
+                                                return;
                                             }
                                             debugInfo("OCR识别线程已获取有效数据");
 
                                             if (_ctd_data.length) {
-                                                return debugInfo(["数据未被采纳", ">倒计时数据非空"]);
+                                                debugInfo(["数据未被采纳", ">倒计时数据非空"]);
+                                                return;
                                             }
                                             debugInfo("OCR识别线程数据已采纳");
 
@@ -4091,10 +4336,12 @@ let $$af = {
                                             // to stitch af home balls image
                                             function _stitch() {
                                                 _capt = images.capt();
-                                                _stitched = _nodeToImg(_raw_balls[0]);
+                                                _stitched = _nodeToImg(_nor_balls[0]);
 
-                                                _raw_balls.forEach((w, idx) => {
-                                                    if (!idx) return;
+                                                _nor_balls.forEach((w, idx) => {
+                                                    if (!idx) {
+                                                        return;
+                                                    }
                                                     let _par = [_stitched, _nodeToImg(w), "BOTTOM"];
                                                     _stitched = images.concat.apply(images, _par);
                                                 });
@@ -4118,8 +4365,8 @@ let $$af = {
                                             let _data = [];
                                             let _par = [$$app.pkg_name, /才能收取/, 480];
 
-                                            _raw_balls.forEach((node) => {
-                                                clickAction(node, "p");
+                                            _nor_balls.forEach((nod) => {
+                                                clickAction(nod, "p", {press_time: 12});
                                                 let _d = observeToastMessage.apply({}, _par);
                                                 _data = _data.concat(_d);
                                             });
@@ -4142,23 +4389,72 @@ let $$af = {
                                     let _tt = _thrd * 60000 + 3000;
                                     let _old_em = $$af.emount_c_own;
 
-                                    device.keepOn(_tt);
                                     toast("Non-stop checking time");
                                     debugInfo("开始监测自己能量");
                                     timeRecorder("monitor_own");
 
+                                    device.keepOn(_tt);
                                     while (timeRecorder("monitor_own", "L") < _tt) {
-                                        if (_chkRipeBalls()) break;
+                                        if (_chkRipeBalls()) {
+                                            break;
+                                        }
                                         sleep(180);
                                     }
+                                    device.cancelOn();
 
                                     let _em = $$af.emount_c_own - _old_em;
                                     let _et = timeRecorder("monitor_own", "L", "auto");
-                                    device.cancelOn();
                                     toast("Checking completed");
                                     debugInfo("自己能量监测完毕");
                                     debugInfo("本次监测收取结果: " + _em + "g");
                                     debugInfo("监测用时: " + _et);
+                                }
+                            }
+
+                            function _chkWaterBalls() {
+                                debugInfo("开始检测浇水回赠能量球");
+
+                                let _lmt = $$cfg.homepage_water_ball_check_limit;
+                                let _o = {lmt: _lmt || Infinity};
+
+                                while (_trig()) {
+                                    _fetch();
+                                }
+
+                                if (_o.ctr) {
+                                    let _pref = "收取浇水回赠能量球: ";
+                                    debugInfo(_pref + _o.ctr + "个");
+                                } else {
+                                    debugInfo("未发现浇水回赠能量球");
+                                }
+
+                                debugInfo("浇水回赠能量球检测完毕");
+
+                                // tool function(s) //
+
+                                function _trig() {
+                                    if (_o.lmt--) {
+                                        _o.nodes = $$af.eballs("water");
+                                        return _o.nodes.length;
+                                    }
+                                    let _sA = "中断主页浇水回赠能量球检测";
+                                    let _sB = "已达最大检查次数限制";
+                                    messageAction(_sA, 3, 0, 0, -1);
+                                    messageAction(_sB, 3, 0, 1, 1);
+                                }
+
+                                function _fetch() {
+                                    let _nodes = _o.nodes;
+                                    let _itv = $$cfg.balls_click_interval;
+                                    let _par = {press_time: 80};
+                                    let _ctr = _o.ctr || 0;
+                                    _nodes.forEach((w) => {
+                                        clickAction(w.bounds(), "p", _par);
+                                        _ctr += 1;
+                                        sleep(_itv);
+                                    });
+                                    _o.ctr = _ctr;
+                                    _stableEmount();
                                 }
                             }
                         }
@@ -4171,9 +4467,11 @@ let $$af = {
                             debugInfo([_em_str, "自己能量检查完毕"]);
                         }
                     },
-                    awake: () => {
-                        let _thrd = $$af.thrd_bg_monit_own;
-                        if (!_thrd) return;
+                    awake: (thrd) => {
+                        let _thrd = thrd || $$af.thrd_bg_monit_own;
+                        if (!_thrd) {
+                            return;
+                        }
 
                         let _ctd_ts = $$af.min_ctd_own;
                         let _thrd_ts = _thrd * 60000 + 3000;
@@ -4197,18 +4495,16 @@ let $$af = {
 
                         let _rex = new RegExp("\\d+\u2019");
                         let _nodes = $$sel.pickup(_rex, "nodes");
-                        let _smp = {};
+
                         let _len = _nodes.length;
+                        debugInfo("捕获好友能量倒计时数据: " + _len + "项");
 
-                        _parseNodes();
-                        _checkExcpt();
-
-                        return fri.rl_samples = _smp;
+                        return _parseNodes();
 
                         // tool function(s) //
 
                         function _parseNodes() {
-                            debugInfo("捕获好友能量倒计时数据: " + _len + "个");
+                            let _smp = {};
 
                             _nodes.forEach((w) => {
                                 let _mm = +$$sel.pickup(w, "txt").match(/\d+/)[0];
@@ -4217,17 +4513,11 @@ let $$af = {
                                     _smp[_nick] = $$app.ts + _mm * 60000;
                                 }
                             });
-                        }
 
-                        function _checkExcpt() {
                             let _avail = Object.keys(_smp).length;
-                            let _diff = _len - _avail;
-                            if (_diff) {
-                                let _mA = "好友能量倒计时数据异常: ";
-                                let _mB = _diff + "项";
-                                let _lv = _avail ? 3 : 4;
-                                messageAction(_mA + _mB, _lv, 0, 0, "both");
-                            }
+                            debugInfo("解析好友有效倒计时数据: " + _avail + "项");
+
+                            return fri.rl_samples = _smp;
                         }
                     },
                     _getMinCtd: () => {
@@ -4236,7 +4526,9 @@ let $$af = {
                         let _nicks = Object.keys(_smp);
                         let _len = _nicks.length;
 
-                        if (!_len) return;
+                        if (!_len) {
+                            return;
+                        }
 
                         let _min_ctd = Math.mini(Object.values(_smp));
                         let _mm = Math.round((_min_ctd - _now) / 60000);
@@ -4347,7 +4639,6 @@ let $$af = {
 
                             function _getNickname() {
                                 if (!$$und($$app.user_nickname)) {
-                                    debugInfo("无需重复获取当前账户昵称"); //// TEST ////
                                     return $$app.user_nickname;
                                 }
 
@@ -4391,10 +4682,10 @@ let $$af = {
                         $$app.monitor.rl_in_page.start();
                         $$app.monitor.rl_bottom.start();
 
-                        // make rl ready in case that the list
-                        // doesn't respond to the click action
-                        // or misses aims available to operate
-                        sleep(360);
+                        /* // make rl ready in case that the list */
+                        /* // doesn't respond to the click action */
+                        /* // or misses aims available to operate */
+                        // sleep(360);
 
                         return fri;
                     },
@@ -4405,14 +4696,22 @@ let $$af = {
                         // TODO max_not_targeted_swipe_times
                         let _max = 200;
                         let _max_b = _max; // bak
-                        let _halt = own.awake;
-                        let _review = fri.review;
-                        let _reboot = fri.reboot;
+                        let _awake = thrd => own.awake(thrd);
+                        let _review = () => fri.review();
+                        let _reboot = () => fri.reboot();
+
+                        _rl.pool.add();
 
                         while (1) {
-                            if (_scan()) void _deal();
-                            if (_halt()) return _reboot();
-                            if (_quit()) break;
+                            if (_scan()) {
+                                void _gather();
+                            }
+                            if (_awake()) {
+                                return _reboot();
+                            }
+                            if (_quit()) {
+                                break;
+                            }
                             _swipe();
                         }
 
@@ -4423,7 +4722,7 @@ let $$af = {
                         function _scan() {
                             let _col_pick = $$cfg.friend_collect_icon_color;
                             let _col_help = $$cfg.help_collect_icon_color;
-                            let _getTar = ident => _prop[ident].check() || [];
+
                             let _prop = {
                                 pick: {
                                     color: _col_pick,
@@ -4448,7 +4747,7 @@ let $$af = {
                                     })(),
                                     check: function () {
                                         if (fri.trig_pick) {
-                                            return _prop._chkByMultCol.bind(this)("chk_h");
+                                            return _prop._chkByImgTpl.bind(this)();
                                         }
                                         if (!$$flag.dys_pick) {
                                             let _sA = "不再采集收取目标样本";
@@ -4474,64 +4773,109 @@ let $$af = {
                                         }
                                     },
                                 },
-                                _chkByMultCol: function (chk_h) {
-                                    let _l = cX(0.9);
-                                    let _t = 0;
-                                    let _color = this.color;
-                                    let _col_thrd = this.col_thrd || 10;
-                                    let _mult_col = this.mult_col;
-                                    let _capt = $$app.page.rl.capt_img;
-                                    let _tar = [];
-
-                                    while (_t < H) {
-                                        let _matched = _check();
-                                        if (!_matched) break;
-
-                                        let _y = _matched.y;
-                                        _t = _y + cY(76, -1);
-
-                                        _chkHeight(_y) && _tar.unshift({
-                                            icon_matched_x: _matched.x,
-                                            icon_matched_y: _y,
-                                            list_item_click_y: _y + cY(16, -1),
-                                        });
-                                    }
-                                    return _tar;
-
-                                    // tool function(s) //
-
-                                    function _check() {
-                                        let _matched = images.findMultiColors(
-                                            _capt, _color, _mult_col, {
-                                                region: [_l, _t, W - _l, H - _t],
-                                                threshold: _col_thrd,
-                                            }
-                                        );
-                                        if (_matched) return {
-                                            x: _matched.x,
-                                            y: _matched.y,
-                                        };
-                                    }
-
-                                    function _chkHeight(y) {
-                                        if (!chk_h) return true;
-
-                                        let _x = cX(0.993);
-                                        let _y = y + cY(11, -1);
-                                        let _ref = images.pixel(_capt, _x, _y);
-
-                                        return colors.isSimilar(_ref, _color, _col_thrd);
-                                    }
-                                },
+                                _chkByMultCol: _chkByMultCol,
+                                _chkByImgTpl: _chkByImgTpl,
                             };
+
+                            timeRecorder("rl_swipe");
 
                             _tar = [_getTar("pick"), _getTar("help")];
 
                             return Math.sum(_tar.map(x => x.length));
+
+                            // tool function(s) //
+
+                            function _chkByMultCol() {
+                                let _l = cX(0.9);
+                                let _t = 0;
+                                let _color = this.color;
+                                let _col_thrd = this.col_thrd || 10;
+                                let _mult_col = this.mult_col;
+                                let _capt = $$app.page.rl.capt_img;
+                                let _tar = [];
+
+                                while (_t < H) {
+                                    let _matched = _check();
+                                    if (!_matched) {
+                                        break;
+                                    }
+
+                                    let _y = _matched.y;
+                                    _t = _y + cY(76, -1);
+
+                                    _tar.unshift({
+                                        icon_matched_x: _matched.x,
+                                        icon_matched_y: _y,
+                                        list_item_click_y: _y + cY(16, -1),
+                                    });
+                                }
+                                return _tar;
+
+                                // tool function(s) //
+
+                                function _check() {
+                                    let _matched = images.findMultiColors(
+                                        _capt, _color, _mult_col, {
+                                            region: [_l, _t, W - _l, H - _t],
+                                            threshold: _col_thrd,
+                                        }
+                                    );
+                                    if (_matched) {
+                                        return {
+                                            x: _matched.x,
+                                            y: _matched.y,
+                                        };
+                                    }
+                                }
+                            }
+
+                            function _chkByImgTpl() {
+                                let _ic = _getIcon();
+                                let _capt = $$app.page.rl.capt_img;
+                                let _res = images.matchTpl(_capt, _ic, {
+                                    name: "ic_fetch",
+                                    max: 20,
+                                    range: [28, 30],
+                                    threshold_attempt: 0.94,
+                                    region_attempt: [cX(0.8), 0, cX(0.2) - 1, uH - 1],
+                                    threshold_result: 0.94,
+                                });
+                                let _tar = [];
+                                if (_res) {
+                                    _res.points.forEach((pt) => {
+                                        _tar.unshift({
+                                            icon_matched_x: pt.x,
+                                            icon_matched_y: pt.y,
+                                            list_item_click_y: pt.y,
+                                        });
+                                    });
+                                }
+                                return _tar;
+
+                                // tool function(s) //
+
+                                function _getIcon() {
+                                    if ($$sto.ic_fetch) {
+                                        return $$sto.ic_fetch;
+                                    }
+                                    let _base64 = $$sto.treas.image_base64_data;
+                                    let _ic = _base64.ic_fetch;
+                                    return $$sto.ic_fetch = images.fromBase64(_ic);
+                                }
+                            }
+
+                            function _getTar(ident) {
+                                let _res = _prop[ident].check() || [];
+                                return _res.sort((o_a, o_b) => {
+                                    let _y_a = o_a.icon_matched_y;
+                                    let _y_b = o_b.icon_matched_y;
+                                    return _y_b < _y_a ? -1 : 1;
+                                });
+                            }
                         }
 
-                        function _deal() {
-                            _safe("reset");
+                        function _gather() {
+                            _lmt("reset");
                             _pick(_tar[0]);
                             _help(_tar[1]);
 
@@ -4551,7 +4895,7 @@ let $$af = {
                                 let _nextItem = () => _item = tar.pop();
 
                                 while (_nextItem()) {
-                                    _click();
+                                    _enter();
                                     _intro();
                                     _check();
                                     _back();
@@ -4560,8 +4904,11 @@ let $$af = {
 
                                 // tool function(s) //
 
-                                function _click() {
-                                    clickAction([halfW, _item.list_item_click_y], "p");
+                                function _enter() {
+                                    clickAction(
+                                        [halfW, _item.list_item_click_y], "p",
+                                        {press_time: 80}
+                                    );
 
                                     if ($$flag.six_review) {
                                         debugInfo("复查当前好友", "both");
@@ -4570,8 +4917,9 @@ let $$af = {
                                         debugInfo("点击" + idt + "目标");
                                     }
 
-                                    // TODO waitForAction... pool is different
-                                    sleep(500); // avoid touching widgets in rank list
+                                    // TODO cond: pool diff
+                                    // avoid touching widgets in rank list
+                                    sleep(500);
 
                                     return true;
                                 }
@@ -4581,7 +4929,7 @@ let $$af = {
                                     let _sel = () => {
                                         return _nick = $$sel.get("fri_frst_tt", "txt");
                                     };
-                                    if (waitForAction(_sel, 20000)) {
+                                    if (waitForAction(_sel, 20000, 80)) {
                                         _nick = _nick.replace(/的蚂蚁森林$/, "");
                                         $$app.fri_drop_by.ic(_nick);
                                         messageAct($$af.nick = _nick, "t");
@@ -4607,15 +4955,14 @@ let $$af = {
                                     }
 
                                     function _ready() {
-                                        let _res = $$app.page.fri.getReady();
+                                        let _balls_len = $$app.page.fri.getReady();
 
-                                        fri.itballs_len = _res;
+                                        fri.init_balls_len = _balls_len;
                                         fri.oballs = {};
 
                                         delete $$flag.pick_off_duty;
-                                        delete $$flag.help_off_duty;
 
-                                        return _res;
+                                        return _balls_len;
                                     }
 
                                     function _monitor() {
@@ -4626,15 +4973,19 @@ let $$af = {
                                         debugInfo("已开启能量球监测线程");
                                         timeRecorder("eball_monit");
 
-                                        let _col = $$cfg.help_collect_balls_color;
-                                        let _thrd = $$cfg.help_collect_balls_threshold;
+                                        let _col_arr = $$cfg.help_collect_ball_color;
+                                        let _thrd = $$cfg.help_collect_ball_threshold;
 
-                                        let _tt_ref = $$cfg.help_collect_balls_intensity;
+                                        let _tt_ref = $$cfg.help_collect_ball_intensity;
                                         let _tt = _tt_ref * 160 - 920;
                                         debugInfo("能量球监测采集密度: " + _tt + "毫秒");
 
                                         let _capt = null;
-                                        let _capture = () => _capt = images.capt();
+                                        let _capture = (t) => {
+                                            _capt = images.capt();
+                                            sleep(t || 0);
+                                            return _capt;
+                                        };
                                         let _reclaim = () => {
                                             images.reclaim(_capt);
                                             _capt = null;
@@ -4646,45 +4997,121 @@ let $$af = {
                                         // tool function(s) //
 
                                         function _fillUpCvrCapt() {
-                                            let _max = 4;
+                                            let _cc = $$app.cover_capt;
+                                            let _max = _cc.limit + 1;
                                             while (_max--) {
-                                                $$app.cover_capt.add(_capture());
-                                                if ($$app.cover_capt.filled_up) {
+                                                _cc.add(_capture());
+                                                sleep(120);
+                                                if (!_cc.len || _cc.filled_up) {
                                                     return;
                                                 }
-                                                sleep(120);
                                             }
                                         }
 
                                         function _analyseOballs() {
+                                            if (!fri.trig_help) {
+                                                return;
+                                            }
                                             while (1) {
-                                                _capture();
-                                                if (_analyse()) break;
-                                                if (_achieve()) break;
+                                                if (_analyse()) {
+                                                    break;
+                                                }
+                                                if (_achieve()) {
+                                                    break;
+                                                }
                                             }
                                             _reclaim();
 
                                             // tool function(s) //
 
                                             function _analyse() {
-                                                if (fri.trig_help) {
-                                                    let _nballs = null;
-                                                    let _sel = () => _nballs = $$af.eballs("nor");
-                                                    let _selLen = () => _sel().length > 0;
-                                                    let _intrp = (str) => {
-                                                        debugInfo(["采集中断", ">" + str]);
-                                                        return true;
-                                                    };
+                                                let _nodes = $$af.eballs("nor", false);
+                                                let _len = _nodes.length;
+                                                let _intrp = (str) => {
+                                                    debugInfo(["采集中断", ">" + str]);
+                                                    return true;
+                                                };
 
-                                                    if (!waitForAction(_selLen, 1500, 100)) {
-                                                        return _intrp("指定时间内未发现普通能量球");
+                                                if (!_len) {
+                                                    return _intrp("未发现普通能量球");
+                                                }
+
+                                                if (_len === fri.oballs_len) {
+                                                    return _intrp("橙色球状态已全部采集完毕");
+                                                }
+
+                                                _chkInCvr();
+                                                _chkInScr();
+
+                                                // tool function(s) //
+
+                                                function _chkInCvr() {
+                                                    let _cvr_fg = _analyseOballs.chk_in_cvr;
+                                                    if (!_cvr_fg) {
+                                                        debugInfo("采集能量罩样本中的橙色球");
+                                                        _parseTpl($$app.cover_capt.pool);
+                                                        debugInfo("能量罩样本橙色球采集完毕");
+                                                        debugInfo("采集结果数量: " + fri.oballs_len);
+                                                        $$app.cover_capt.reclaimAll();
+                                                        _analyseOballs.chk_in_cvr = true;
                                                     }
+                                                }
 
-                                                    if (_nballs.length === fri.oballs_len) {
-                                                        return _intrp("橙色球状态已全部采集完毕");
+                                                function _chkInScr() {
+                                                    let _capt = images.capt();
+                                                    _parseTpl(_capt);
+                                                    images.reclaim(_capt);
+                                                    _capt = null;
+                                                }
+
+                                                function _parseTpl(capt) {
+                                                    if (!$$arr(capt)) {
+                                                        return _match(capt);
                                                     }
+                                                    let _len = capt.length;
+                                                    if (_len <= 1) {
+                                                        return _match(capt[0]);
+                                                    }
+                                                    _match(capt[0]);
+                                                    _match(capt[_len - 1]);
 
-                                                    _chkInCvr(_nballs) || _chkInScr(_nballs);
+                                                    // tool function(s) //
+
+                                                    function _match(capt) {
+                                                        _nodes.forEach((nod) => {
+                                                            let _bnd = _getBndByColArr(nod);
+                                                            if (!_bnd) {
+                                                                return;
+                                                            }
+
+                                                            let _x = _bnd.centerX();
+                                                            if (_x in fri.oballs) {
+                                                                return;
+                                                            }
+
+                                                            let _y = _bnd.centerY();
+                                                            fri.oballs[_x] = [_x, _y];
+                                                            let _c = "(" + _x + ", " + _y + ")";
+                                                            debugInfo("记录橙色球坐标: " + _c);
+                                                        });
+
+                                                        // tool function(s) //
+
+                                                        function _getBndByColArr(nod) {
+                                                            let _bnd = null;
+                                                            let _find = (nod, col) => {
+                                                                return _bnd = images.findColorInBounds(
+                                                                    capt, nod, col, _thrd
+                                                                );
+                                                            };
+                                                            let _len = _col_arr.length;
+                                                            for (let i = 0; i < _len; i += 1) {
+                                                                if (_find(nod, _col_arr[i])) {
+                                                                    return _bnd;
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
 
@@ -4694,64 +5121,16 @@ let $$af = {
                                                 );
                                                 return _prog.slice(0, -1) >= 95;
                                             }
-
-                                            function _chkInCvr(node) {
-                                                // lazy function
-                                                debugInfo("采集能量罩样本中的橙色球");
-                                                _matchColor(node, $$app.cover_capt.pool);
-                                                debugInfo("能量罩样本橙色球采集完毕");
-                                                debugInfo("采集结果数量: " + fri.oballs_len);
-                                                return (_chkInCvr = () => !1)();
-                                            }
-
-                                            function _chkInScr(node) {
-                                                return _matchColor(node, _capt);
-                                            }
-
-                                            function _matchColor(node, capt) {
-                                                if (!$$arr(capt)) {
-                                                    return _matchCol(capt);
-                                                }
-                                                capt.forEach(_matchCol);
-
-                                                // tool function(s) /
-
-                                                function _matchCol(capt) {
-                                                    node.forEach(w => {
-                                                        let _b = w.bounds();
-                                                        let _t = _b.top;
-                                                        if (_t in fri.oballs) {
-                                                            return;
-                                                        }
-
-                                                        let _w = _b.width();
-                                                        let _h = _b.height();
-                                                        let _par = {
-                                                            region: [_b.left, _t, _w, _h],
-                                                            threshold: _thrd,
-                                                        };
-                                                        if (images.findColor(capt, _col, _par)) {
-                                                            let _x = _b.centerX();
-                                                            let _y = _b.centerY();
-                                                            fri.oballs[_t] = [_x, _y];
-                                                            let _c = "(" + _x + ", " + _y + ")";
-                                                            debugInfo("记录橙色球坐标: " + _c);
-                                                        }
-                                                    });
-                                                }
-                                            }
                                         }
                                     }
 
                                     function _cover() {
                                         let _covered = false;
                                         let _detect = () => $$app.cover_capt.detect();
-                                        let _reclaim = () => $$app.cover_capt.reclaimAll();
                                         let _dismiss = () => debugInfo("颜色识别无保护罩");
 
                                         _ready();
                                         _detect() ? _handle() : _dismiss();
-                                        _reclaim();
 
                                         return _covered;
 
@@ -4768,7 +5147,9 @@ let $$af = {
 
                                                 let _max = 10;
                                                 while (!$$app.cover_capt.len && _max--) {
-                                                    if (!_thd_eball_monit.isAlive()) break;
+                                                    if (!_thd_eball_monit.isAlive()) {
+                                                        break;
+                                                    }
                                                     sleep(100);
                                                 }
                                             }
@@ -4779,13 +5160,13 @@ let $$af = {
                                                     debugInfo("使用能量球监测线程数据");
                                                     debugInfo("能量罩样本数量: " + _len);
                                                 }
-                                                if (_len < 3) _fillUp();
+                                                $$app.cover_capt.filled_up || _fillUp();
 
                                                 // tool function(s) //
 
                                                 function _fillUp() {
                                                     debugInfo("能量罩样本数量不足");
-                                                    let _max = 10;
+                                                    let _max = 12;
                                                     while (1) {
                                                         if (!_thd_eball_monit.isAlive()) {
                                                             debugInfo(["能量球监测线程已停止", "现场采集能量罩样本数据"]);
@@ -4983,12 +5364,11 @@ let $$af = {
                                                 _clickAndCnt("help", fri.oballs);
                                                 return true;
                                             }
-                                            $$flag.help_off_duty = true;
                                             debugInfo("没有可帮收的能量球");
                                         }
 
                                         function _sixRev() {
-                                            if (fri.itballs_len === 6) {
+                                            if (fri.init_balls_len >= 6) {
                                                 if (!$$cfg.six_balls_review_switch) {
                                                     return debugInfo("六球复查未开启");
                                                 }
@@ -5011,8 +5391,10 @@ let $$af = {
                                     }
 
                                     function _clickAndCnt(act, data) {
+                                        _item.avail_clicked = true;
+
                                         let _itv = $$cfg.balls_click_interval;
-                                        let _par_p_t = {press_time: 120};
+                                        let _par_p_t = {press_time: 80};
                                         let _config = {
                                             pick: {
                                                 name: "收取",
@@ -5037,7 +5419,6 @@ let $$af = {
                                                         sleep(_itv);
                                                     });
                                                     debugInfo("点击帮收能量球: " + _pts.length + "个");
-                                                    $$flag.help_off_duty = true;
                                                 },
                                                 pk_par: ["你给TA助力", 10],
                                             },
@@ -5045,7 +5426,6 @@ let $$af = {
 
                                         let _cfg = _config[act];
                                         let _name = _cfg.name;
-                                        let _click = () => _cfg.click();
 
                                         let _ctr = threads.atomic(0);
                                         let _res = threads.atomic(-1);
@@ -5053,11 +5433,13 @@ let $$af = {
                                         let _thds = {
                                             thd: [_thdPk, _thdFeed],
                                             start: function () {
-                                                this.thd.forEach((thd, i, arr) => arr[i] = threads.start(thd));
+                                                this.thd.forEach((thd, i, arr) => {
+                                                    arr[i] = threads.start(thd);
+                                                });
                                             },
                                             isAllDead() {
                                                 let _len = this.thd.length;
-                                                for (let i = 0; i < _len; i++) {
+                                                for (let i = 0; i < _len; i += 1) {
                                                     let _thd = this.thd[i];
                                                     if (_thd && _thd.isAlive()) {
                                                         return false;
@@ -5073,10 +5455,6 @@ let $$af = {
                                                     }
                                                 });
                                             },
-                                            offDuty: () => {
-                                                let _fg = () => $$flag[act + "_off_duty"];
-                                                return waitForAction(_fg, 2000, 50);
-                                            },
                                             ready: (o) => {
                                                 let _nm = o.nm;
                                                 let _init = o.get();
@@ -5089,10 +5467,11 @@ let $$af = {
                                                 }
                                                 o.init = _init;
 
-                                                if (!_thds.offDuty()) {
-                                                    return debugInfo(_name + "操作未就绪");
+                                                let _fg = () => $$flag.pick_off_duty;
+                                                if (waitForAction(_fg, 2000, 50)) {
+                                                    return true;
                                                 }
-                                                return true;
+                                                debugInfo(_name + "操作未就绪");
                                             },
                                             stable: (o) => {
                                                 let _nm = o.nm;
@@ -5128,20 +5507,24 @@ let $$af = {
                                                     let _msg = "统计工具数据初始化失败";
                                                     return messageAction(_msg, 3);
                                                 }
-                                                if (_ctr.get()) {
-                                                    let _len = _thds.length;
-                                                    let _cond = () => _ctr.get() === _len;
-                                                    return waitForAction(_cond, 240, 50);
+                                                let _n = _ctr.get();
+                                                let _len = _thds.thd.length;
+                                                if (_n) {
+                                                    return _n === _len;
                                                 }
                                                 sleep(50);
                                             }
+                                        }
+
+                                        function _click() {
+                                            _cfg.click();
                                         }
 
                                         function _stat() {
                                             $$flag.rl_valid_click = true;
                                             $$app.fri_drop_by.dc($$af.nick);
 
-                                            let _cond = () => _thds.isAllDead();
+                                            let _cond = () => ~_res.get();
                                             waitForAction(_cond, 2400, 80);
                                             _thds.killAll();
 
@@ -5151,7 +5534,7 @@ let $$af = {
                                             let _msg = _act + ": " + _sum + "g";
                                             let _is_pick = act === "pick";
 
-                                            if (_sum < 0) {
+                                            if (!~_sum) {
                                                 let _msg = _act + ": 统计数据无效";
                                                 return messageAct(_msg, 0, 0, 1);
                                             }
@@ -5205,7 +5588,9 @@ let $$af = {
                                                         return NaN;
                                                     }
                                                     let _mch = _txt.match(/\d+/);
-                                                    if (_mch) return +_mch[0];
+                                                    if (_mch) {
+                                                        return +_mch[0];
+                                                    }
                                                 }
                                                 return NaN;
                                             }
@@ -5298,8 +5683,12 @@ let $$af = {
                                                         let _c = "c" + _i + "c0";
                                                         let _n = $$sel.pickup([_node_lst, _c]);
                                                         if (_n) {
-                                                            if (_str(_n, "c0") !== _nick) break;
-                                                            if (!_str(_n, "c1").match(_rex)) break;
+                                                            if (_str(_n, "c0") !== _nick) {
+                                                                break;
+                                                            }
+                                                            if (!_str(_n, "c1").match(_rex)) {
+                                                                break;
+                                                            }
                                                         }
                                                     }
 
@@ -5315,9 +5704,12 @@ let $$af = {
                                 }
 
                                 function _coda() {
-                                    // TODO ...
-                                    // messageAct("无能量球可操作", 1, 0, 1, 1);
-                                    showSplitLine();
+                                    if (!_item.avail_clicked) {
+                                        messageAct("无能量球可操作", 1, 0, 1, 1);
+                                        delete _item.avail_clicked;
+                                    } else {
+                                        showSplitLine();
+                                    }
 
                                     delete $$af.nick;
                                     $$app.cover_capt.clear();
@@ -5326,7 +5718,7 @@ let $$af = {
                                     // tool function(s) //
 
                                     function _review() {
-                                        _click();
+                                        _enter();
                                         _intro();
                                         _check();
                                         _back();
@@ -5340,13 +5732,13 @@ let $$af = {
                                 debugInfo("检测到排行榜停检信号");
                                 return true;
                             }
-                            if (!_safe()) {
+                            if (!_lmt()) {
                                 debugInfo("无目标滑动次数已达上限");
                                 return true;
                             }
                         }
 
-                        function _safe(reset) {
+                        function _lmt(reset) {
                             if (!reset) {
                                 return _max--;
                             }
@@ -5356,6 +5748,11 @@ let $$af = {
                         function _fin() {
                             _minCtdFriReady();
 
+                            let _thrd = $$af.thrd_monit_own;
+                            let _thrd_bg = $$af.thrd_bg_monit_own;
+                            if (_thrd > _thrd_bg && _awake(_thrd)) {
+                                return _reboot();
+                            }
                             return debugInfo("好友能量检查完毕");
 
                             // tool function(s) //
@@ -5366,6 +5763,7 @@ let $$af = {
                                 let _swB = $$cfg.timers_self_manage_switch;
                                 let _swC = $$cfg.timers_countdown_check_friends_switch;
                                 let _cond = _swA && _swB && _swC;
+
                                 if (!_cond) {
                                     $$af.min_ctd_fri = Infinity;
                                 } else if ($$inf($$af.min_ctd_fri)) {
@@ -5384,15 +5782,25 @@ let $$af = {
                             function _swipeUp() {
                                 $$impeded("排行榜滑动流程");
 
-                                let _du = $$cfg.rank_list_swipe_time;
+                                let _et = timeRecorder("rl_swipe", "L") || 0;
                                 let _itv = $$cfg.rank_list_swipe_interval;
 
+                                let _du = $$cfg.rank_list_swipe_time;
+                                if (_du < 100) {
+                                    _du = 100;
+                                } else if (_du > 800) {
+                                    _du = 800;
+                                }
+
                                 let _dist = $$cfg.rank_list_swipe_distance;
-                                if (_dist < 1) _dist = Math.trunc(_dist * H);
+                                if (_dist < 1) {
+                                    _dist = Math.trunc(_dist * H);
+                                }
 
                                 let _t = Math.trunc((uH - _dist) / 2);
-                                if (_t <= 0) _autoAdjust();
-
+                                if (_t <= 0) {
+                                    _autoAdjust();
+                                }
                                 let _b = uH - _t;
 
                                 _swipe();
@@ -5419,7 +5827,7 @@ let $$af = {
                                 }
 
                                 function _swipe() {
-                                    if (swipe(halfW, _b, halfW, _t, _du)) {
+                                    if (swipe(cX(0.7), _b, cX(0.3), _t, _du)) {
                                         // just to prevent screen from turning off
                                         // maybe this is not a good idea
                                         click(99999, 99999);
@@ -5427,7 +5835,7 @@ let $$af = {
                                         let _msg = "swipe()方法返回false值";
                                         messageAction(_msg, 3, 0, 0, "both_dash");
                                     }
-                                    sleep(_itv);
+                                    sleep(Math.max(0, _itv - _et));
                                 }
                             }
 
@@ -5458,7 +5866,7 @@ let $$af = {
                                         let _max = $$cfg.rank_list_capt_pool_diff_check_threshold;
                                         let _sA = "排行榜截图样本池差异检测:";
                                         let _sB1 = "检测未通过: (";
-                                        let _sB2 = ++_ctr + "\/" + _max + ")";
+                                        let _sB2 = ++_ctr + "/" + _max + ")";
                                         debugInfo([_sA, _sB1 + _sB2]);
 
                                         if (_ctr >= _max) {
@@ -5518,8 +5926,12 @@ let $$af = {
                                         let _bd = _node.bounds();
                                         let _l = _bd.left;
                                         let _t = _bd.top;
-                                        let _h = _bd.height();
                                         let _w = _bd.width();
+                                        let _h = _bd.height();
+
+                                        if (_h <= 3) {
+                                            return;
+                                        }
 
                                         if (_rl.btm_h !== _h) {
                                             _rl.btm_h = _h;
@@ -5550,7 +5962,7 @@ let $$af = {
                                     }
 
                                     function _chkDozing() {
-                                        let _sel = () => () => $$sel.pickup(/.*打瞌睡.*/);
+                                        let _sel = () => $$sel.pickup(/.*打瞌睡.*/);
                                         if (!waitForAction(_sel, 2, 360)) {
                                             return;
                                         }
@@ -5812,10 +6224,14 @@ let $$af = {
                 function _update() {
                     let _sto_nxt = $$sto.af.get("next_auto_task", {});
                     let _sto_id = _sto_nxt.task_id;
-                    if (!_sto_id) return;
+                    if (!_sto_id) {
+                        return;
+                    }
 
                     let _sto_task = timers.getTimedTask(_sto_id);
-                    if (!_sto_task) return;
+                    if (!_sto_task) {
+                        return;
+                    }
 
                     return _updateTask();
 
@@ -6447,5 +6863,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | col: color | cond: condition | constr: constructor | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | d: dialog | dat: data | dc: decrease | dec: decode; decrypt | def: default | desc: description | dev: device; development | diag: dialog | diff: difference | dis: dismiss | disp: display | dist: distance | dn: down | dnt: donation | ds: data source | du: duration | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded | rect: rectangle | res: result | reso: resolve; resolver | rev: review | rl: rank list | rls: release | rmng: remaining | rsn: reason | rst: reset | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector | set: settings | sgn: signal | smp: sample | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | usr: user | util: utility | v: value | val: value | vert: vertical | win: window
+ * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
  */

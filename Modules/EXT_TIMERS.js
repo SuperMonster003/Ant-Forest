@@ -193,22 +193,40 @@ function waitForAction(f, timeout_or_times, interval) {
             }
             return _logic_flag === "all";
         } else if (typeof f === "function") return f();
-        else _messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 8, 1, 1, 1);
+        else _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
     }
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageAction("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        _msg_level === 1 && log(_msg) || _msg_level === 2 && console.info(_msg) ||
-        _msg_level === 3 && console.warn(_msg) || _msg_level >= 4 && console.error(_msg);
-        _msg_level >= 8 && exit();
-        return !(_msg_level in {3: 1, 4: 1});
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
+        }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     // tool function(s) //
@@ -230,11 +248,12 @@ function waitForAction(f, timeout_or_times, interval) {
     }
 }
 
+// updated at Jan 21, 2020
 function getVerName(name, params) {
-    let _params = params;
+    let _par = params || {};
 
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
 
     name = _handleName(name);
     let _package_name = _parseAppName(name).package_name;

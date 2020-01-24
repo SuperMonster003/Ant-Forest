@@ -81,21 +81,35 @@ function debugInfo(msg, info_flag, forcible_flag) {
         return ~console.log(_split_line + _extra_str);
     }
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     // tool function(s) //
