@@ -1,133 +1,19 @@
 let ext = {
-    Math: () => Object.assign(Math.__proto__, {
-        rand: (range, fix) => {
-            if (!range) {
-                return Math.fix(Math.random(), fix);
-            }
-
-            let _min, _max;
-            let _diff = () => _max - _min;
-
-            if (range instanceof Array) {
-                [_min, _max] = range.sort();
-            } else {
-                [_min, _max] = [0, range];
-            }
-
-            let _rand = Math.random() * _diff() + _min;
-            return Math.fix(_rand, fix);
-        },
-        /**
-         * @returns {string|number}
-         */
-        fix: (num, fix) => {
-            if (typeof fix === "undefined") return num;
-            let _fixed = num.toFixed(fix);
-            if (typeof fix === "number") return _fixed;
-            return +_fixed;
-        },
-        sum: function (arr, fix) {
-            let _arr = [];
-            let _fix;
-
-            if (Array.isArray(arr)) {
-                _arr = _parseArr(arr);
-                _fix = fix;
-            } else {
-                _arr = _parseArr(arguments);
-            }
-
-            let _len = arr.length;
-            let _sum = _len && _arr.reduce((a, b) => +a + +b);
-
-            return Math.fix(_sum, _fix);
-
-            // tool function(s) //
-
-            function _parseArr(arr) {
-                let _plain = [];
-                let _len = (arr || []).length;
-
-                for (let i = 0; i < _len; i += 1) {
-                    let _e = arr[i];
-                    if (Array.isArray(_e)) {
-                        let _parsed = _parseArr(_e);
-                        _plain = _plain.concat(_parsed);
-                    } else {
-                        _plain.push(_e);
-                    }
-                }
-
-                return _plain;
-            }
-        },
-        avg: (arr, fix) => {
-            let _avg = Math.sum(arr) / arr.length;
-            return Math.fix(_avg, fix);
-        },
-        /**
-         * @desc variance
-         */
-        var: (arr, fix) => {
-            let _len = arr.length;
-            let _avg = Math.avg(arr);
-            let _tmp = 0;
-            for (let i = 0; i < _len; i += 1) {
-                _tmp += Math.pow((arr[i] - _avg), 2);
-            }
-            return Math.fix(_tmp / _len, fix);
-        },
-        /**
-         * @desc Standard Deviation
-         */
-        std: (arr, fix) => Math.sqrt(Math.var(arr, fix)),
-        /**
-         * @fix {string|number|array} str: confer (comparison)
-         * @desc Coefficient of Variation
-         */
-        cv: (arr, fix) => {
-            let cf = null;
-            if (typeof fix === "string") {
-                cf = fix;
-                fix = undefined;
-            }
-            let _cv = Math.std(arr, fix) / Math.avg(arr, fix);
-            if (cf) return _cv <= +cf;
-            return Math.fix(_cv, fix);
-        },
-        maxi: (arr, fix) => {
-            let _max = Math.max.apply({}, arr);
-            return Math.fix(_max, fix);
-        },
-        mini: (arr, fix) => {
-            let _min = Math.min.apply({}, arr);
-            return Math.fix(_min, fix);
-        },
-    }),
-    String: () => {
-        if (!String["toTitleCase"]) {
-            String.prototype.toTitleCase = function () {
-                let _str = this.toString();
-                if (!_str) return "";
-                return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
-            }
-        }
-    },
     /**
      * Assign some checkers to global object (all started with "$$)
      * @example
      * $$bool(0.5 === "0.5"); // false
      * $$str("1991"); // true
-     * $$und(coffee); // true -- means undefined
+     * $$und(coffee); // true -- undefined
      * $$num(0); // true
      * $$num(20, "<", 28, "<=", Infinity); // true
-     * $$num(20, "<", 28, ">=", 1, ">", -Infinity, "<=", -0, "=", +0); // true -- weird and i know
+     * $$num(20, "<", 28, ">=", 1, ">", -Infinity, "<=", -0, "=", +0); // true
      * @return void
      */
     Dollars: function () {
-        let classof = function (source, check_value) {
-            let class_result = Object.prototype.toString.call(source).slice(8, -1);
-            return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+        let classof = (src, chk) => {
+            let _s = Object.prototype.toString.call(src).slice(8, -1);
+            return chk ? _s.toUpperCase() === chk.toUpperCase() : _s;
         };
         let keysLen = (o, n) => Object.keys(o).length === n;
         let compare = {
@@ -272,6 +158,15 @@ let ext = {
             },
         });
     },
+    String: () => {
+        if (!String["toTitleCase"]) {
+            String.prototype.toTitleCase = function () {
+                let _str = this.toString();
+                if (!_str) return "";
+                return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
+            };
+        }
+    },
     Object: () => {
         if (!Object["values"]) {
             Object.prototype.values = function (o) {
@@ -285,9 +180,123 @@ let ext = {
                     }
                 }
                 return value;
-            }
+            };
         }
     },
+    Array: () => {
+        if (!Array["includes"]) {
+            Array.prototype.includes = function (x, i) {
+                return this.slice(i).some((v) => {
+                    return isNaN(x) ? isNaN(v) : x === v;
+                });
+            };
+        }
+    },
+    Math: () => Object.assign(Math.__proto__, {
+        rand: (range, fix) => {
+            if (!range) {
+                return Math.fix(Math.random(), fix);
+            }
+
+            let _min, _max;
+            let _diff = () => _max - _min;
+
+            if (range instanceof Array) {
+                [_min, _max] = range.sort();
+            } else {
+                [_min, _max] = [0, range];
+            }
+
+            let _rand = Math.random() * _diff() + _min;
+            return Math.fix(_rand, fix);
+        },
+        /**
+         * @returns {string|number}
+         */
+        fix: (num, fix) => {
+            if (typeof fix === "undefined") return num;
+            let _fixed = num.toFixed(fix);
+            if (typeof fix === "number") return _fixed;
+            return +_fixed;
+        },
+        sum: function (arr, fix) {
+            let _arr = [];
+            let _fix;
+
+            if (Array.isArray(arr)) {
+                _arr = _parseArr(arr);
+                _fix = fix;
+            } else {
+                _arr = _parseArr(arguments);
+            }
+
+            let _len = arr.length;
+            let _sum = _len && _arr.reduce((a, b) => +a + +b);
+
+            return Math.fix(_sum, _fix);
+
+            // tool function(s) //
+
+            function _parseArr(arr) {
+                let _plain = [];
+                let _len = (arr || []).length;
+
+                for (let i = 0; i < _len; i += 1) {
+                    let _e = arr[i];
+                    if (Array.isArray(_e)) {
+                        let _parsed = _parseArr(_e);
+                        _plain = _plain.concat(_parsed);
+                    } else {
+                        _plain.push(_e);
+                    }
+                }
+
+                return _plain;
+            }
+        },
+        avg: (arr, fix) => {
+            let _avg = Math.sum(arr) / arr.length;
+            return Math.fix(_avg, fix);
+        },
+        /**
+         * @desc variance
+         */
+        var: (arr, fix) => {
+            let _len = arr.length;
+            let _avg = Math.avg(arr);
+            let _tmp = 0;
+            for (let i = 0; i < _len; i += 1) {
+                _tmp += Math.pow((arr[i] - _avg), 2);
+            }
+            return Math.fix(_tmp / _len, fix);
+        },
+        /**
+         * @desc Standard Deviation
+         */
+        std: (arr, fix) => Math.sqrt(Math.var(arr, fix)),
+        /**
+         * @fix {string|number|array} str: confer (comparison)
+         * @desc Coefficient of Variation
+         */
+        cv: (arr, fix) => {
+            let cf = null;
+            if (typeof fix === "string") {
+                cf = fix;
+                fix = undefined;
+            }
+            let _cv = Math.std(arr, fix) / Math.avg(arr, fix);
+            if (cf) return _cv <= +cf;
+            return Math.fix(_cv, fix);
+        },
+        maxi: (arr, fix) => {
+            let _max = Math.max.apply({}, arr);
+            return Math.fix(_max, fix);
+        },
+        mini: (arr, fix) => {
+            let _min = Math.min.apply({}, arr);
+            return Math.fix(_min, fix);
+        },
+    }),
 };
 
 module.exports = {

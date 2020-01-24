@@ -37,7 +37,7 @@ function updateMethodRequire() {
 
 function showHelperDialog() {
     let diag = dialogs.builds([
-        "关于\"修改系统设置\"权限", getAboutModifyingSysSettingsStr(),
+        '关于"修改系统设置"权限', getAboutModifyingSysSettingsStr(),
         "适用场景", "退出", "跳转设置页面", 1
     ]);
     diag.on("neutral", () => {
@@ -61,21 +61,21 @@ function showHelperDialog() {
         return "当Auto.js拥有该权限时\n" +
             "可以通过代码修改系统设置的参数值\n" +
             "如亮度设置/音量设置/屏幕超时等\n\n" +
-            "如\"蚂蚁森林\"项目的关屏策略之一\n" +
+            '如"蚂蚁森林"项目的关屏策略之一\n' +
             "就是利用此权限实现关屏的\n" +
-            "详情可点击\"适用场景\"\n\n" +
-            "点击\"跳转设置页面\"\n" +
+            '详情可点击"适用场景"\n\n' +
+            '点击"跳转设置页面"\n' +
             "可跳转到权限设置页面\n" +
             "用户可自行决定打开或关闭\n" +
-            "Auto.js的\"修改系统设置\"权限\n" +
+            'Auto.js的"修改系统设置"权限\n' +
             "页面跳转后此对话框将自动关闭";
     }
 
     function getSuitableSituationStr() {
         return "1. 利用修改屏幕超时实现关屏\n\n" +
-            "通常在\"屏幕\"或\"显示\"设置中\n" +
-            "包含\"屏幕超时时间\"的设置\n" +
-            "如\"1分钟\"表示在设备没有接收到\n" +
+            '通常在"屏幕"或"显示"设置中\n' +
+            '包含"屏幕超时时间"的设置\n' +
+            '如"1分钟"表示在设备没有接收到\n' +
             "屏幕触碰事件或按键响应事件后\n" +
             "屏幕将自动关闭\n" +
             "使用代码将此值修改为最小值后\n" +

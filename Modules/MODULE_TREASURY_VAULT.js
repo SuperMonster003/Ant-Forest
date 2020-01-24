@@ -4,9 +4,9 @@ module.exports = {
             "运行前建议进行一些个性化参数调整\n" +
             "需要现在打开配置页面吗\n" +
             "\n" +
-            "点击\"跳过\"将使用默认配置\n" +
+            '点击"跳过"将使用默认配置\n' +
             "以后可随时运行此脚本进行参数调整\n" +
-            "-> \"Ant_Forest_Settings.js\"",
+            '-> "Ant_Forest_Settings.js"',
         restore_all_settings: // 还原初始设置
             "此操作无法撤销\n" +
             "如需保留此次会话内容请先保存\n\n" +
@@ -53,7 +53,7 @@ module.exports = {
         before_use_main_account: // 主账户功能使用提示
             "此功能涉及到用户隐私数据\n" +
             "请用户注意账户和密码安全\n" +
-            "建议稍后自行点击\"帮助\"按钮\n" +
+            '建议稍后自行点击"帮助"按钮\n' +
             "查看并了解相关信息及注意事项",
         account_info_hint: // 信息录入提示
             "信息录入方式:\n\n" +
@@ -79,7 +79,7 @@ module.exports = {
             "1. 密码非必填项\n" +
             "且因安全等原因不建议填入\n" +
             "关于密码存储方式相关内容\n" +
-            "可点击\"密码存储方式\"按钮查看\n" +
+            '可点击"密码存储方式"按钮查看\n' +
             "2. 自动切换或登录在遇到问题时\n" +
             "脚本将自动终止\n" +
             "包括但不限于密码错误\/网络不稳定\/" +
@@ -90,11 +90,11 @@ module.exports = {
             "均会保持原密码不变\n" +
             "输入新内容可覆盖旧密码\n" +
             "如若删除本地已存储的密码\n" +
-            "可将\"账户\"内容删除留空\n" +
-            "或使用\"信息销毁\"功能",
+            '可将"账户"内容删除留空\n' +
+            '或使用"信息销毁"功能',
         how_password_stores: // 密码存储方式
             "用户输入的密码数据\n" +
-            "使用\"MODULE_PWMAP\"模块进行加密\n" +
+            '使用"MODULE_PWMAP"模块进行加密\n' +
             "然后存储在本地相应文件中\n\n" +
             "* 加密的原理是随机字符映射\n" +
             "-- 因此难以避免别有用心之人\n" +
@@ -111,15 +111,15 @@ module.exports = {
             "确定要销毁主账户信息吗",
         get_account_name_from_alipay: // 从支付宝录入信息
             "可从支付宝应用获取当前账户名\n" +
-            "并自动填入本页\"账户\"输入框\n\n" +
+            '并自动填入本页"账户"输入框\n\n' +
             "若出现当前未登录任何账户\n" +
             "或脚本运行错误等其他意外情况\n" +
             "将可能导致获取账户名失败\n\n" +
-            "点击\"开始获取\"按钮开始操作",
+            '点击"开始获取"按钮开始操作',
         login_password_needed: // 123
             "请在支付宝密码输入框中\n" +
             "手动填写密码\n" +
-            "然后点击\"登录\"按钮\n" +
+            '然后点击"登录"按钮\n' +
             "登陆成功后脚本将自动继续运行\n\n" +
             "脚本不会记录或存储密码\n" +
             "如有疑问或疑虑\n" +
@@ -129,8 +129,8 @@ module.exports = {
             "计数器达最大次数时将不再回切\n" +
             "且计数器将自动清零\n\n" +
             "* 设置 0 值可不限制回切次数\n" +
-            "* 详细情况参阅\"帮助与支持\"\n" +
-            "-- 位于\"账户功能\"主页",
+            '* 详细情况参阅"帮助与支持"\n' +
+            '-- 位于"账户功能"主页',
         balls_click_interval: // 能量球点击间隔
             "当可点击的能量球数量超过 1 时\n" +
             "此设置值影响能量球之间的点击间隔\n\n" +
@@ -160,8 +160,8 @@ module.exports = {
             "则返回森林主页开始监控能量球\n" +
             "收取完毕后\n" +
             "将继续进入好友排行榜完成操作\n\n" +
-            "* 此功能不受\"循环监测\"开关影响\n" +
-            "-- 除非\"自收功能\"关闭\n" +
+            '* 此功能不受"循环监测"开关影响\n' +
+            '-- 除非"自收功能"关闭\n' +
             "* 返检阈值为 1 min 且不可更改",
         friend_collect_icon_color: // 收取图标颜色色值
             "排行榜识别绿色手形图标的参照色值\n\n" +
@@ -177,14 +177,14 @@ module.exports = {
             "#43a047",
         help_collect_icon_threshold: // 帮收图标颜色检测阈值
             "排行榜识别橙色爱心图标的参照色值检测阈值",
-        help_collect_balls_color: // 帮收能量球颜色色值
+        help_collect_ball_color: // 帮收能量球颜色色值
             "好友森林识别橙色能量球的参照色值\n\n" +
             "示例:\n" +
             "rgb(67,160,71)\n" +
             "#43a047",
-        help_collect_balls_threshold: // 帮收能量球颜色检测阈值
+        help_collect_ball_threshold: // 帮收能量球颜色检测阈值
             "好友森林识别橙色能量球的参照色值检测阈值",
-        help_collect_balls_intensity: // 帮收能量球样本采集密度
+        help_collect_ball_intensity: // 帮收能量球样本采集密度
             "好友森林橙色能量球图片样本采集密度",
         unlock_code: // 设置锁屏解锁密码
             "密码长度不小于 3 位\n" +
@@ -192,7 +192,7 @@ module.exports = {
             "若采用图案解锁方式\n" +
             "总点阵数大于 9 需使用逗号分隔\n" +
             "图案解锁密码将自动简化\n" +
-            "详情点击\"查看示例\"",
+            '详情点击"查看示例"',
         unlock_code_demo: // 锁屏密码示例
             "滑动即可解锁: (留空)\n\n" +
             "PIN 解锁: 1001\n\n" +
@@ -218,13 +218,13 @@ module.exports = {
             "严重降低设备的安全性 " +
             "甚至导致隐私泄露或财产损失 请谨慎使用\n\n" +
             "如欲了解设备遗失对策\n" +
-            "请点击\"了解详情\"\n\n" +
+            '请点击"了解详情"\n\n' +
             "确定要继续吗",
         about_lost_device_solution: // 关于设备遗失对策
             "一旦设备遗失或被盗\n" +
             "可通过以下方式\n" +
             "将可能的损失降到最低\n\n" +
-            "* 利用\"查找我的设备\"功能\n\n" +
+            '* 利用"查找我的设备"功能\n\n' +
             "如若遗失安卓手机/平板电脑/手表等\n" +
             "可以寻找/锁定/清空该设备\n" +
             "详情参阅:\n" +
@@ -271,19 +271,19 @@ module.exports = {
             "缺点:\n" +
             "1. 极易发生拐点偏移现象\n" +
             "2. 拐点数及分布极大影响成功率\n\n" +
-            "* 不同策略对应不同\"滑动时长\"参数\n" +
-            "* 推荐优先使用\"叠加路径\"策略\n" +
+            '* 不同策略对应不同"滑动时长"参数\n' +
+            '* 推荐优先使用"叠加路径"策略\n' +
             "-- 当出现路径断开现象时\n" +
-            "-- 可尝试\"连续路径\"策略",
+            '-- 可尝试"连续路径"策略',
         unlock_pattern_swipe_time_segmental: // 设置图案解锁滑动时长 - 叠加路径策略
             "此参数表示两拐点间滑动时长\n" +
             "并非表示滑动总时间\n" +
             "总时间=(拐点数+1)×此参数\n" +
-            "如\"1379\"包含两个拐点\n" +
+            '如"1379"包含两个拐点\n' +
             "参数给定为120ms\n" +
             "则总时长=(2+1)×120ms\n" +
             "即360ms\n" +
-            "如\"12369\"有一个拐点\n" +
+            '如"12369"有一个拐点\n' +
             "因此结果为240ms\n\n" +
             "* 通常无需自行设置\n" +
             "-- 脚本会自动尝试增量赋值\n" +
@@ -310,12 +310,12 @@ module.exports = {
             "* Floaty方式会伴随全屏遮罩层\n" +
             "-- 点击遮罩层可立即结束结果展示",
         timers_prefer_auto_unlock: // 定时任务建议开启自动解锁
-            "检测到\"自动解锁\"功能未开启\n\n" +
+            '检测到"自动解锁"功能未开启\n\n' +
             "多数情况下定时任务启动需配合\n" +
-            "\"自动解锁\"功能才能完成\n" +
+            '"自动解锁"功能才能完成\n' +
             "[ 亮屏 - 解锁 - 执行脚本 ]\n" +
             "等一系列操作\n\n" +
-            "建议开启并设置\"自动解锁\"功能",
+            '建议开启并设置"自动解锁"功能',
         timers_countdown_check_timed_task_ahead: // 定时任务提前运行
             "此设置值用于将下次定时任务\n" +
             "运行时间提前 n 分钟\n\n" +
@@ -360,7 +360,7 @@ module.exports = {
             "机制简介:\n\n" +
             "1. 主页最小倒计时机制\n" +
             "脚本计算出能量成熟最小倒计时\n" +
-            "并根据\"定时任务提前运行\"参数\n" +
+            '并根据"定时任务提前运行"参数\n' +
             "得到一个定时时间\n" +
             "如果排行榜最小倒计时机制开启\n" +
             "将会用同样的方法得到定时时间\n" +
@@ -371,14 +371,14 @@ module.exports = {
             "另外若主页没有能量球\n" +
             "而且排行榜也没有倒计时数据\n" +
             "则将无法统计出定时时间\n" +
-            "此时将激活\"延时接力机制\"\n\n" +
+            '此时将激活"延时接力机制"\n\n' +
             "3. 延时接力机制\n" +
             "如上所述\n" +
             "此机制仅在倒计时机制全部关闭" +
             "或倒计时机制未能统计定时时间时被激活\n" +
             "延时接力机制数据格式为:\n" +
             "[ 开始时间, 结束时间, 间隔 ]\n\n" +
-            "示例: [ \"06:30\", \"00:00\", 60 ]\n" +
+            '示例: [ "06:30", "00:00", 60 ]\n' +
             "a. 现在时刻 14:26\n" +
             "下次运行延时 60 分钟间隔\n" +
             "14:26 + 60 -> 15:26\n" +
@@ -394,16 +394,16 @@ module.exports = {
             "-- 设置数据时无需考虑间隔取整\n" +
             "-- 当右边界时间小于左边界时\n" +
             "-- 将视右边界时间为次日时间\n" +
-            "-- 如 [ \"19:50\", \"03:00\", 8 ]\n" +
+            '-- 如 [ "19:50", "03:00", 8 ]\n' +
             "* 仅在没有最小倒计时数据时\n" +
             "-- 此机制才有存在意义\n" +
             "-- 若开启了最小倒计时机制\n" +
             "-- 通常无需在能量成熟密集时间\n" +
             "-- 设置延时接力数据\n" +
-            "-- 如 [ \"07:00\", \"07:30\", 1 ]\n" +
+            '-- 如 [ "07:00", "07:30", 1 ]\n' +
             "-- 这样的设置是没有必要的\n\n" +
             "4. 意外保险机制\n" +
-            "假设\"保险任务运行间隔\"设置值为 5\n" +
+            '假设"保险任务运行间隔"设置值为 5\n' +
             "脚本运行开始后\n" +
             "将自动设置一个 5 分钟定时任务\n" +
             "当脚本异常停止或被终止时\n" +
@@ -415,17 +415,17 @@ module.exports = {
             "-- 还是延时接力机制\n" +
             "-- 均在脚本即将结束之前设定\n" +
             "-- 若在此之前脚本异常终止\n" +
-            "-- 则会出现定时任务\"断档\"\n" +
+            '-- 则会出现定时任务"断档"\n' +
             "-- 这正是此机制存在的主要意义\n" +
             "* 若脚本长时间运行还未正常结束\n" +
             "-- 5 分钟的定时任务将被激活\n" +
             "-- 并在任务列表排队等待执行\n" +
-            "-- 此时定时任务依然出现\"断档\"\n" +
+            '-- 此时定时任务依然出现"断档"\n' +
             "-- 因此脚本在后台每 10 秒钟\n" +
             "-- 会自动延期保险任务\n" +
-            "-- 保证保险任务不会被\"消耗\"\n" +
+            '-- 保证保险任务不会被"消耗"\n' +
             "* 保险任务连续执行次数\n" +
-            "-- 受到\"最大连续保险次数\"约束\n" +
+            '-- 受到"最大连续保险次数"约束\n' +
             "-- 达到此限制时将不再设置保险任务\n" +
             "-- 避免保险任务导致脚本无限循环\n",
         max_running_time_global: // 脚本单次运行最大时间
@@ -469,7 +469,7 @@ module.exports = {
             "-- 杀死应用需要 Root 权限\n" +
             "-- 无 Root 权限将尝试最小化应用\n" +
             "-- 最小化原理并非模拟 Home 键\n" +
-            "* \"智能保留\"的智能化程度十分有限",
+            '* "智能保留"的智能化程度十分有限',
         backup_to_local: // 备份项目至本地
             "此功能将项目相关文件打包保存在本地\n" +
             "可在还原页面恢复或删除已存在的备份",
@@ -498,8 +498,8 @@ module.exports = {
             "排行榜滑动前后截图样本相同时\n" +
             "脚本认为滑动无效 并进行无效次数统计 " +
             "当连续无效次数达到阈值时 将放弃滑动并结束好友能量检查\n\n" +
-            "达阈值时 脚本会判断\"服务器打瞌睡\"页面及\"正在加载\"按钮 " +
-            "根据实际情况点击\"再试一次\"或等待\"正在加载\"按钮消失 (最大等待2分钟)\n\n" +
+            '达阈值时 脚本会判断"服务器打瞌睡"页面及"正在加载"按钮 ' +
+            '根据实际情况点击"再试一次"或等待"正在加载"按钮消失 (最大等待2分钟)\n\n' +
             "* 此设置主要避免因意外情况导致当前页面不在排行榜页面时的无限滑动\n" +
             "* 截图样本相同指: 相似度极高",
         about_rank_list_review: // 关于排行榜样本复查
@@ -558,10 +558,10 @@ module.exports = {
             "此配置将导致脚本无法正常运行\n\n" +
             "确定要使用当前输入值吗",
         rank_list_bottom_template_hint_base: // 排行榜底部控件图片模板基础提示
-            "排行榜\"没有更多了\"控件的图片模板\n" +
+            '排行榜"没有更多了"控件的图片模板\n' +
             "此模板用于排行榜底部判断\n\n",
         rank_list_bottom_template_hint_exists: // 排行榜底部控件图片模板存在附加提示
-            "正常模板应包含\"没有更多了\"字样\n" +
+            '正常模板应包含"没有更多了"字样\n' +
             "查看模板后若发现图片模板存在异常\n" +
             "可选择删除模板\n" +
             "模板删除后\n" +
@@ -616,6 +616,8 @@ module.exports = {
         ic_outlook: _icOutlook(),
         ic_qq: _icQq(),
         ic_github: _icGithub(),
+        ic_fetch: _icFetch(),
+        ic_oball: _icOball(),
         avt_detective: _avtDetective(),
         qr_alipay_dnt: _qrAlipayDnt(),
         qr_wechat_dnt: _qrWechatDnt(),
@@ -634,6 +636,14 @@ function _icQq() {
 
 function _icGithub() {
     return "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";
+}
+
+function _icFetch() {
+    return "iVBORw0KGgoAAAANSUhEUgAAAB8AAAAVCAYAAAC+NTVfAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAAHYYAAB2GAV2iE4EAAAP7SURBVEhLrZZLbBtFGMf/6/UjtuNXHT/qPFQnoQ2IIgoigLhwohx5XLiiigsSEvdWlS/cgAOFA+oFKtFLJS4pCFVQASq0gaI0cerETRzHceLYaeza8SOx17tmvmHtxPaGtGl/kuXZmdn5vvmeK5y++HHjGXc/zr7xAdxWB7Qo17bx92oEJ32jrT11RcbkShhjnmBrLry+gIDdy8efXLuISHYNUYMMmc90I+rfGQ8JpTKWskk8338CFmOPurSLUTTAY3Vhaj0Kl9mOHr0ROkEHt8WB2cwiE+j579nqxFohg0GXH8fcAYSTc5CrNeTFhnpSO6Ll7fHQlq4BuVDAwkYcT/uHYe+xqsu7kAIkeDa9CG/vEeh1Ip8TmdBkPg2fzc0VcJptKFYr6Hd4UaiUEEstYdMAaIkXHW+9HJIEgBRQtoqIZpbwbGBUUwG6sUlnwOJmEl7bES6M9pELyGL0TL9sOc+fAw4PbiWmUaxLKAvd4nXqPyps8R7zz+JmCp9dv8QOKKgr7fjsbhy196GwXVJnwM0dYwqREgTdmixDe0/4jsGxj9Nbwom9Cnx940rrsE7o8J16tbVOFtGLes3948HnYFcAS4OZt4M24QQpsGxQcDtxFxMzv6qz3axvbeLOWlR9AkbcA1yJTihDXL122BpdoqALSjocl0TQ/4Aswsk2FQUFaT3w/cwviGVX1a3tPOUZgknPIukAKA33M7145sP3Q6f8Iwgy/9ggwFypwlVTUCcr1WXkSjm8NnyKB9Je6JYU4Q9DcaeMqfjdrqgXGgx1zIvJaj6DqeQ8bi5PI5lNQ1IUnD19Bq8w3x2WRC6Fc1e/xLRSQZ5ZtUmb8L2QIpPLYVyb/5MVnzG89+Kb6sqjQ4F47uoF3NxYRpzFUxNBkusNSov/g14+aM9BXJqcwJWpnzFrZgVNnRMNrwZCVpOFF4T96PT3YegxmvBXIgyDJPNyS+YWja+Phv6JzWDh/gqcVttDB9Gj0scKkc/hRjwdh7EqIccUEGvvvhQqsdKay9/HncQssqU8Rr1Dmjn7uAw5/RjuG0CE1QcqudyeFIHU+ublbUxE/sD5H77CrfgMf+FJYzGa1ZHaWGhAPqDiTw2mWiljjmlHVhjzB3n3ehKsFTbwOesb8WIWSb28K7wJdbgs88cOi/BUJok51kKpP5PPHgfK9U+vf4t4LoMYS7cak9MlvEnTCjvFLf5RYGK3H2BKHCbloiy/v/jtMqIP0lww9Q9iX+EEWYGisiHVsbByD9MpFijbZdjNvZr9XguKnQu/X+ampriiGzcRBr/5SLPCdUIt8agiwsYqhIel5Ih7EC8MjuFk/3HeYrX4KXID393+EeusWsa6vuWAfwG2sLBBZNIRMQAAAABJRU5ErkJggg==";
+}
+
+function _icOball() {
+    return "iVBORw0KGgoAAAANSUhEUgAAAB4AAAANCAYAAAC+ct6XAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAAHYYAAB2GAV2iE4EAAAHsSURBVDhPlZQ9SBxBGIbfmT2vMCJyV8gVCrnkChELI2gTQRObqyImpWkCdiFIChuvuEIbKwXtJCDaWCimic2ZICjkCg0Y0qjxhxRJQOUgghy7O5P9ZmfvZ13P2weWnW+G+Z75Z+bSKykKvxBJT4OnnuM+7P0V2Dvz4IlOFYvfP2A8fQvjyaiKayGOtmBtToK3tAHFuT5pH+ZkGKyDNUn96KNyGMhF/Zj5aVJG0lN6TC40MnH8BfLyJ1j8ESJDL4GGbt3qYn9fV3+ja0T9S5jfYOXWSn3548FbK2ltZsDEvz+SNbXqKrdSHOV0VMa/nDQ4f0JvG/zw1JCzleXJyeu/4JVSNdMAKUEJKTERRkpQTurjQU6uywpa3lpQYmt3IZTUw5+7SlwPYm+5NHOiHmkQ1eLmhC6U4T2vEX33FQ1vPoLFHqo6b9lDSX25GR1xXVabbn54oSMXknpQu7UxDnl1qmvqRw284jxx/6bTQ1KFcz08VPvwbGnm9UI5/YeY2/lFHbrQwTEGJ3TkeFdn1Ew9wsqDXkRyGpmBB1lpFcHbe3W1I2/tUInF8WfgpgB5ngdP9oNFm1Q7/SnG9YWz7CeqLoggKd0KebINI/t+LCsOnJfGJ2fxJNAYgzzbvVueeuaIzwLld0npVhgdafwHjN9RMXzRZ5sAAAAASUVORK5CYII=";
 }
 
 function _avtDetective() {

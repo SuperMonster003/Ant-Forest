@@ -49,7 +49,13 @@ let operation_hint_manual = operation_hint.replace(/屏幕 \[自动关闭]/, "[�
 
 let diag = dialogs.build({
     title: operation_title,
-    content: keycode_power_bug ? operation_hint_manual + "\n\n* * * * * *\n此设备不支持自动关屏\n需点击\"开始\"按钮后30秒内手动关屏\n* * * * * *" : operation_hint,
+    content: keycode_power_bug
+        ? operation_hint_manual +
+        '\n\n* * * * * *\n' +
+        '此设备不支持自动关屏\n' +
+        '需点击"开始"按钮后30秒内手动关屏' +
+        '\n* * * * * *'
+        : operation_hint,
     positive: "开始",
     negative: "放弃",
     autoDismiss: false,
@@ -127,7 +133,7 @@ diag.on("positive", () => {
 
         let diag_ok = dialogs.build({
             title: "布局抓取完毕",
-            content: "请将\"" + path_base + "\"目录下的文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n" +
+            content: '请将"' + path_base + '"目录下的文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n' +
                 "发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n" +
                 "如有请 [不要提交] 或 [修改后提交]\n\n" +
                 "文件路径已复制到剪贴板中\n" +

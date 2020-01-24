@@ -48,7 +48,6 @@ module.exports = {
     observeToastMessage: observeToastMessage,
     captureErrScreen: captureErrScreen,
     getSelector: getSelector,
-    selExists: selExists,
     surroundWith: surroundWith,
     phoneCallingState: phoneCallingState,
     timeRecorder: timeRecorder,
@@ -62,11 +61,7 @@ module.exports = {
     checkSdkAndAJVer: checkSdkAndAJVer,
 };
 
-/**
- * @type {{setDeviceProto: *, debugInfo: *, alertContent: *, alertTitle: *, equalObjects: *, timedTaskTimeFlagConverter: *, parseAppName: *, waitForAction: *, messageAction: *, selExists: *, baiduOcr: *, clickActionsPipeline: *, runJsFile: *, setIntervalBySetTimeout: *, surroundWith: *, keycode: *, restartThisEngine: *, timeRecorder: *, swipeAndShow: *, waitForAndClickAction: *, getVerName: *, getDisplayParams: *, refreshObjects: *, checkSdkAndAJVer: *, launchThisApp: *, restartThisApp: *, showSplitLine: *, deepCloneObject: *, classof: *, killThisApp: *, phoneCallingState: *, swipeAndShowAndClickAction: *, getSelector: *, captureErrScreen: *, smoothScrollView: *, observeToastMessage: *, vibrateDevice: *, clickAction: *}}
- */
-
-// global function(s) //
+// tool function(s) //
 
 /**
  * Returns both app name and app package name with either one input
@@ -74,7 +69,7 @@ module.exports = {
  * @param [params] {object}
  * @param [params.hard_refresh=false] {boolean} - get app information from global cache by default
  * @example
- * parseAppName("Alipay"); <br>
+ * parseAppName("Alipay");
  * parseAppName("com.eg.android.AlipayGphone");
  * @return {{app_name: string, package_name: string}}
  */
@@ -113,21 +108,28 @@ function parseAppName(name, params) {
  * @param [params] {object}
  * @param [params.debug_info_flag] {boolean}
  * @example
- * getVerName("Alipay"); -- app name <br>
- * getVerName("self"); -- shortcut <br>
- * getVerName("autojs"); -- shortcut <br>
- * getVerName("autojs pro"); -- shortcut <br>
- * getVerName("Auto.js"); -- app name <br>
- * getVerName("org.autojs.autojs"); -- app package name <br>
- * getVerName("current autojs"); -- shortcut
+ * // app name
+ * getVerName("Alipay");
+ * // shortcut
+ * getVerName("self");
+ * // shortcut
+ * getVerName("autojs");
+ * // shortcut
+ * getVerName("autojs pro");
+ * // app name
+ * getVerName("Auto.js");
+ * // app package name
+ * getVerName("org.autojs.autojs");
+ * // shortcut
+ * getVerName("current autojs");
  * @param name
  * @return {null|string}
  */
 function getVerName(name, params) {
-    let _params = params || {};
+    let _par = params || {};
 
     let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
 
     name = _handleName(name);
     let _package_name = _parseAppName(name).package_name;
@@ -204,13 +206,13 @@ function getVerName(name, params) {
  * @param [params.ready_retry_times=5] {number}
  * @param [params.screen_orientation] {number} -- if specific screen direction needed to run this app; portrait: 0, landscape: -1
  * @example
- * launchThisApp("com.eg.android.AlipayGphone"); <br>
+ * launchThisApp("com.eg.android.AlipayGphone");
  * launchThisApp("com.eg.android.AlipayGphone", {
  *    task_name: "\u652F\u4ED8\u5B9D\u6D4B\u8BD5",
  *    // first_time_run_message_flag: true,
  *    // no_message_flag: false,
  *    debug_info_flag: "forcible",
- * }); <br>
+ * });
  * launchThisApp({
  *     action: "VIEW",
  *     data: "alipays://platformapi/startapp?appId=60000002&appClearTop=false&startMultApp=YES",
@@ -285,8 +287,8 @@ function launchThisApp(trigger, params) {
 
         if (!_par.no_message_flag) {
             let _msg = _task_name
-                ? "重新开始\"" + _task_name + "\"任务"
-                : "重新启动\"" + _app_name + "\"应用";
+                ? '重新开始"' + _task_name + '"任务'
+                : '重新启动"' + _app_name + '"应用';
             if (!_1st_launch) {
                 _messageAction(_msg, null, 1);
             } else if (_fg_1st_run_msg) {
@@ -329,7 +331,7 @@ function launchThisApp(trigger, params) {
 
             let _succ = _waitForAction(_cond_launch, 5000, 800);
             _debugInfo("应用启动" + (
-                _succ ? "成功" : "超时 (" + (_max_lch_b - _max_lch) + "\/" + _max_lch_b + ")"
+                _succ ? "成功" : "超时 (" + (_max_lch_b - _max_lch) + "/" + _max_lch_b + ")"
             ));
             if (_succ) {
                 break;
@@ -338,7 +340,7 @@ function launchThisApp(trigger, params) {
         }
 
         if (_max_lch < 0) {
-            _messageAction("打开\"" + _app_name + "\"失败", 9, 1, 0, 1);
+            _messageAction('打开"' + _app_name + '"失败', 9, 1, 0, 1);
         }
 
         if (_cond_ready === null || $$und(_cond_ready)) {
@@ -353,7 +355,7 @@ function launchThisApp(trigger, params) {
         let _max_ready_b = _max_ready;
 
         while (!_waitForAction(_cond_ready, 8000) && _max_ready--) {
-            let _ctr = "(" + (_max_ready_b - _max_ready) + "\/" + _max_ready_b + ")";
+            let _ctr = "(" + (_max_ready_b - _max_ready) + "/" + _max_ready_b + ")";
             if (typeof _trig === "object") {
                 _debugInfo("重新启动Activity " + _ctr);
                 app.startActivity(_trig);
@@ -368,8 +370,8 @@ function launchThisApp(trigger, params) {
             break;
         }
 
-        _debugInfo("尝试关闭\"" + _app_name + "\"应用: " +
-            "(" + (_max_retry_b - _max_retry) + "\/" + _max_retry_b + ")"
+        _debugInfo('尝试关闭"' + _app_name + '"应用: ' +
+            "(" + (_max_retry_b - _max_retry) + "/" + _max_retry_b + ")"
         );
         _killThisApp(_pkg_name);
     }
@@ -381,9 +383,9 @@ function launchThisApp(trigger, params) {
     }
 
     if (_max_retry < 0) {
-        _messageAction("\"" + _name + "\"初始状态准备失败", 9, 1, 0, 1);
+        _messageAction('"' + _name + '"初始状态准备失败', 9, 1, 0, 1);
     }
-    _debugInfo("\"" + _name + "\"初始状态准备完毕");
+    _debugInfo('"' + _name + '"初始状态准备完毕');
 
     return true;
 
@@ -410,21 +412,35 @@ function launchThisApp(trigger, params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function debugInfoRaw(msg, info_flg) {
@@ -481,7 +497,7 @@ function launchThisApp(trigger, params) {
  * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
  * @param [params.debug_info_flag] {boolean}
  * @example
- * killThisApp("Alipay"); <br>
+ * killThisApp("Alipay");
  * killThisApp("com.eg.android.AlipayGphone", {
  *    shell_acceptable: false,
  *    debug_info_flag: "forcible",
@@ -527,7 +543,7 @@ function killThisApp(name, params) {
         try {
             _shell_result = !shell("am force-stop " + _package_name, true).code;
         } catch (e) {
-            _debugInfo("shell()方法强制关闭\"" + _app_name + "\"失败");
+            _debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
         }
     } else _debugInfo("参数不接受shell()方法");
 
@@ -536,16 +552,16 @@ function killThisApp(name, params) {
             return _tryMinimizeApp();
         } else {
             _debugInfo("参数不接受模拟返回方法");
-            _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
+            _messageAction('关闭"' + _app_name + '"失败', 4, 1);
             return _messageAction("无可用的应用关闭方式", 4, 0, 1);
         }
     }
 
     if (_waitForAction(_condition_success, _shell_max_wait_time)) {
-        _debugInfo("shell()方法强制关闭\"" + _app_name + "\"成功");
+        _debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
         return _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒") || true;
     } else {
-        _messageAction("关闭\"" + _app_name + "\"失败", 4, 1);
+        _messageAction('关闭"' + _app_name + '"失败', 4, 1);
         _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒");
         return _messageAction("关闭时间已达最大超时", 4, 0, 1);
     }
@@ -597,21 +613,35 @@ function killThisApp(name, params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function debugInfoRaw(msg, info_flg) {
@@ -688,8 +718,6 @@ function killThisApp(name, params) {
  * @param [params.global_retry_times=2] {number} - for launching
  * @param [params.launch_retry_times=3] {number} - for launching
  * @param [params.ready_retry_times=5] {number} - for launching
- * @example
- *
  * @return {boolean}
  */
 function restartThisApp(intent_or_name, params) {
@@ -794,21 +822,35 @@ function restartThisEngine(params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function debugInfoRaw(msg, info_flg) {
@@ -824,7 +866,7 @@ function restartThisEngine(params) {
  * Run a javascript file via activity by current running Auto.js
  * @param file_name {string} - file name with or without path or file extension name
  * @example
- * runJsFile("file"); <br>
+ * runJsFile("file");
  * runJsFile("../folder/time.js");
  */
 function runJsFile(file_name) {
@@ -867,19 +909,19 @@ function runJsFile(file_name) {
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
  * @param [params] {object} reserved
  * @example
- * messageAction("hello"); // nothing will be printed in console <br>
- * messageAction("hello", 1); <br>
- * messageAction("hello", 2); <br>
- * messageAction("hello", 3, 1); <br>
- * messageAction("hello", 4, 1); <br>
- * messageAction("hello", 3, 1, 1); <br>
- * messageAction("hello", 3, 1, 1, 1); <br>
- * messageAction("hello", 3, 1, 1, -1); <br>
- * messageAction("hello", 3, 1, 1, "up"); <br>
- * messageAction("hello", 3, 1, 1, "both"); <br>
- * messageAction("hello", 3, 1, 1, "dash"); <br>
- * messageAction("ERROR", 8, 1, 0, "both_n"); <br>
- * messageAction("ERROR", 9, 1, 2, "dash_n"); <br>
+ * messageAction("hello"); // nothing will be printed in console
+ * messageAction("hello", 1);
+ * messageAction("hello", 2);
+ * messageAction("hello", 3, 1);
+ * messageAction("hello", 4, 1);
+ * messageAction("hello", 3, 1, 1);
+ * messageAction("hello", 3, 1, 1, 1);
+ * messageAction("hello", 3, 1, 1, -1);
+ * messageAction("hello", 3, 1, 1, "up");
+ * messageAction("hello", 3, 1, 1, "both");
+ * messageAction("hello", 3, 1, 1, "dash");
+ * messageAction("ERROR", 8, 1, 0, "both_n");
+ * messageAction("ERROR", 9, 1, 2, "dash_n");
  * messageAction("only toast", null, 1);
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
@@ -924,7 +966,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
 
     if (_if_arrow) {
         if (_if_arrow > 10) {
-            console.warn("-> \"if_arrow\"参数大于10");
+            console.warn('-> "if_arrow"参数大于10');
             _if_arrow = 10;
         }
         _msg = "> " + _msg;
@@ -1028,8 +1070,8 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
  *     -- "dash" - "- - - - - " - 32 bytes
  * @param [params] {object} - reserved
  * @example
- * showSplitLine(); <br>
- * showSplitLine("\n"); <br>
+ * showSplitLine();
+ * showSplitLine("\n");
  * showSplitLine("", "dash");
  * @return {boolean} - always true
  */
@@ -1062,8 +1104,8 @@ function showSplitLine(extra_str, style, params) {
  *     -- less than 100 - take as times
  * @param [interval=200] {number}
  * @example
- * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80); <br>
- * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2000, 50); <br>
+ * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80);
+ * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2000, 50);
  * let kw_settings = text("Settings");
  * let condition = () => kw_settings.exists();
  * // waitForAction(kw_settings, 1000);
@@ -1113,26 +1155,40 @@ function waitForAction(f, timeout_or_times, interval) {
             return _logic_flag === "all";
         }
 
-        _messageAction("\"waitForAction\"传入f参数不合法\n\n" + f.toString() + "\n", 8, 1, 1, 1);
+        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
     }
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 }
 
@@ -1170,12 +1226,12 @@ function waitForAction(f, timeout_or_times, interval) {
  *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
  * @see waitForAction
  * @example
- * text("Settings").find().forEach(w => clickAction(w)); <br>
- * text("Settings").find().forEach(w => clickAction(w.bounds())); <br>
+ * text("Settings").find().forEach(w => clickAction(w));
+ * text("Settings").find().forEach(w => clickAction(w.bounds()));
  * clickAction(text("Settings"), "widget", {
  *     condition_success: "disappeared in place",
  *     max_check_times: 5,
- * }); <br>
+ * });
  * clickAction(text("Settings"), "press", {
  *     // padding: ["x", +15],
  *     // padding: ["y", -7],
@@ -1338,21 +1394,35 @@ function clickAction(f, strategy, params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1422,21 +1492,35 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1811,10 +1895,16 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
  *     - /no_err(or)?_(message|msg)/ - don't print error message when keycode() failed <br>
  *     - /double/ - simulate keycode twice with tiny interval
  * @example
- * keycode(3); // keycode("home"); // keycode("KEYCODE_HOME"); <br>
- * keycode(4, "force_shell|no_err_msg"); // keycode("back", "force_shell|no_err_msg"); <br>
- * keycode("KEYCODE_POWER", "no_error_message"); // keycode(26, "no_err_msg"); <br>
- * keycode("recent"); // keycode("recent_apps"); // keycode("KEYCODE_APP_SWITCH");
+ * // keycode("home");
+ * // keycode("KEYCODE_HOME");
+ * keycode(3);
+ * // keycode("back", "force_shell|no_err_msg");
+ * keycode(4, "force_shell|no_err_msg");
+ * // keycode(26, "no_err_msg");
+ * keycode("KEYCODE_POWER", "no_error_message");
+ * // keycode("recent_apps");
+ * // keycode("KEYCODE_APP_SWITCH");
+ * keycode("recent");
  * @return {boolean}
  */
 function keycode(keycode_name, params_str) {
@@ -1837,7 +1927,9 @@ function keycode(keycode_name, params_str) {
         };
         for (let _key in _key_check) {
             if (_key_check.hasOwnProperty(_key)) {
-                if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) return _key_check[_key]();
+                if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) {
+                    return _key_check[_key]();
+                }
             }
         }
         return shellInputKeyEvent(keycode_name);
@@ -1967,21 +2059,35 @@ function debugInfo(msg, info_flag, forcible_flag) {
         return ~console.log(_split_line + _extra_str);
     }
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     // tool function(s) //
@@ -2004,7 +2110,15 @@ function debugInfo(msg, info_flag, forcible_flag) {
  * @param [params] {object}
  * @param [params.global_assign=false] {boolean} -- set true to set the global assignment
  * @example
- * let {WIDTH, HEIGHT, cX, cY, USABLE_WIDTH, USABLE_HEIGHT, screen_orientation, status_bar_height, navigation_bar_height, navigation_bar_height_computed, action_bar_default_height} = getDisplayParams();
+ * let {
+ *   WIDTH, HEIGHT, cX, cY,
+ *   USABLE_WIDTH, USABLE_HEIGHT,
+ *   screen_orientation,
+ *   status_bar_height,
+ *   navigation_bar_height,
+ *   navigation_bar_height_computed,
+ *   action_bar_default_height,
+ * } = getDisplayParams();
  * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 16 / 9);
  * console.log(W, H, cX(0.2), cY(0.45, "21:9"), cY(0.45, -1);
  * @return {*}
@@ -2450,21 +2564,35 @@ function captureErrScreen(key_name, log_level) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function permitCapt() {
@@ -2493,18 +2621,19 @@ function captureErrScreen(key_name, log_level) {
 
 /**
  * Returns a UiSelector with additional function(s) bound to its __proto__
- * @member {pickup}
- * @param [params]
- * @param [params.debug_info_flag] {boolean} - to control the usability of debugInfo()
+ * @param [options]
+ * @param [options.debug_info_flag] {boolean}
  * @returns {UiSelector} - with additional function(s)
  */
-function getSelector(params) {
-    let parent_params = params || {};
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", parent_params.debug_info_flag);
-    let sel = global["selector"]();
-    sel.__proto__ = sel.__proto__ || {};
-    Object.assign(sel.__proto__, {
+function getSelector(options) {
+    let _opt = options || {};
+    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _debugInfo = _msg => (
+        typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+    )(_msg, "", _opt.debug_info_flag);
+    let _sel = global["selector"]();
+    _sel.__proto__ = _sel.__proto__ || {};
+    Object.assign(_sel.__proto__, {
         kw_pool: {},
         cache_pool: {},
         /**
@@ -2512,64 +2641,90 @@ function getSelector(params) {
          * If no nodes (UiObjects) were found, returns null or "" or false
          * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
          * @memberOf getSelector
-         * @param selector_body {string|RegExp|array} - selector body will be converted into array type
+         * @param sel_body {string|RegExp|array} - selector body will be converted into array type
          * <br>
          *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
          *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
          * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
-         * @param [result_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+         * @param [res_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
          * <br>
          *     -- "txt": available text()/desc() value or empty string
-         * @param [params] {object}
-         * @param [params.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-         * @param [params.debug_info_flag] {boolean}
+         * @param [par] {object}
+         * @param [par.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
+         * @param [par.debug_info_flag] {boolean}
          * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
          * @example
-         * pickup("abc"); -- text/desc/id("abc").findOnce() or null; <br>
-         * pickup("abc", "node", "my_alphabet"); -- same as above; <br>
-         * pickup("abc", "sel", "my_alphabet"); -- text/desc/id("abc") or null -- selector <br>
-         * pickup(text("abc"), "node", "my_alphabet"); -- text("abc").findOnce() or null <br>
-         * pickup(/^abc.+z/, "sel_str", "AtoZ") -- id/text/desc or "" -- string <br>
-         * pickup("morning", "exists"); -- text/desc/id("morning").exists() -- boolean <br>
-         * pickup(["morning", "p2c3"], "id"); -- text/desc/id("morning").findOnce().parent().parent().child(3).id() <br>
-         * pickup(["hello", "s3b"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%childCount% - 3) -- ["txt"] <br>
-         * pickup(["hello", "s+2"], "txt"); -- text/desc/id("hello").findOnce().parent().child(%%indexInParent% + 2) -- ["txt"] <br>
-         * pickup(["hello", {className: "Button"}]); -- text/desc/id("hello").className("Button").findOnce() <br>
-         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn"); -- desc("a").className("Button").boundsInside(0, 0, 720, 1000).findOnce().parent().child(%indexInParent% + 1).clickable() -- boolean <br>
+         * // text/desc/id("abc").findOnce();
+         * // UiObject
+         * pickup("abc");
+         * // same as above
+         * pickup("abc", "node", "my_alphabet");
+         * // text/desc/id("abc");
+         * // UiSelector
+         * pickup("abc", "sel", "my_alphabet");
+         * // text("abc").findOnce()
+         * pickup(text("abc"), "node", "my_alphabet");
+         * // id/text/desc and so forth -- string
+         * pickup(/^abc.+z/, "sel_str", "AtoZ")
+         * // text/desc/id("morning").exists() -- boolean
+         * pickup("morning", "exists");
+         * // text/desc/id("morning").findOnce().parent().parent().child(3).id()
+         * pickup(["morning", "p2c3"], "id");
+         * // text/desc/id("hello").findOnce().parent().child(%childCount% - 3)["txt"]
+         * pickup(["hello", "s3b"], "txt");
+         * // text/desc/id("hello").findOnce().parent().child(%%indexInParent% + 2)["txt"]
+         * pickup(["hello", "s+2"], "txt");
+         * // text/desc/id("hello").className("Button").findOnce()
+         * pickup(["hello", {className: "Button"}]);
+         * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
+         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
          */
-        pickup: (selector_body, result_type, mem_kw, params) => {
-            let sel_body = classof(selector_body) === "Array" ? selector_body.slice() : [selector_body];
-            let _params = Object.assign({}, parent_params, params);
-            result_type = (result_type || "").toString();
-            let _result_type = result_type;
+        pickup: (sel_body, res_type, mem_kw, par) => {
+            let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
+            let _params = Object.assign({}, _opt, par);
+            let _res_type = (res_type || "").toString();
 
-            if (!result_type || result_type.match(/^n(ode)?$/)) _result_type = "node";
-            else if (result_type.match(/^s(el(ector)?)?$/)) _result_type = "selector";
-            else if (result_type.match(/^e(xist(s)?)?$/)) _result_type = "exists";
-            else if (result_type.match(/^t(xt)?$/)) _result_type = "txt";
-            else if (result_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) _result_type = "selector_string";
+            if (!_res_type || _res_type.match(/^n(ode)?$/)) {
+                _res_type = "node";
+            } else if (_res_type.match(/^s(el(ector)?)?$/)) {
+                _res_type = "selector";
+            } else if (_res_type.match(/^e(xist(s)?)?$/)) {
+                _res_type = "exists";
+            } else if (_res_type.match(/^t(xt)?$/)) {
+                _res_type = "txt";
+            } else if (_res_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) {
+                _res_type = "selector_string";
+            }
 
-            if (typeof sel_body[1] === "string") sel_body.splice(1, 0, "");
+            if (typeof _sel_body[1] === "string") {
+                _sel_body.splice(1, 0, "");
+            }
 
-            let _body = sel_body[0];
-            let _additional_sel = sel_body[1];
-            let _compass = sel_body[2];
+            let _body = _sel_body[0];
+            let _additional_sel = _sel_body[1];
+            let _compass = _sel_body[2];
 
             let _kw = _getSelector(_additional_sel);
             let _node = null;
             let _nodes = [];
             if (_kw && _kw.toString().match(/UiObject/)) {
                 _node = _kw;
-                if (_result_type === "nodes") _nodes = [_kw];
+                if (_res_type === "nodes") {
+                    _nodes = [_kw];
+                }
                 _kw = null;
             } else {
                 _node = _kw ? _kw.findOnce() : null;
-                if (_result_type === "nodes") _nodes = _kw ? _kw.find() : [];
+                if (_res_type === "nodes") {
+                    _nodes = _kw ? _kw.find() : [];
+                }
             }
 
-            if (_compass) _node = _relativeNode([_kw || _node, _compass]);
+            if (_compass) {
+                _node = _relativeNode([_kw || _node, _compass]);
+            }
 
-            let _result = {
+            let _res = {
                 selector: _kw,
                 node: _node,
                 nodes: _nodes,
@@ -2584,14 +2739,18 @@ function getSelector(params) {
                 }
             };
 
-            if (_result_type in _result) return _result[_result_type];
+            if (_res_type in _res) {
+                return _res[_res_type];
+            }
 
             try {
-                if (!_node) return null;
-                return _node[_result_type]();
+                if (!_node) {
+                    return null;
+                }
+                return _node[_res_type]();
             } catch (e) {
                 try {
-                    return _node[_result_type];
+                    return _node[_res_type];
                 } catch (e) {
                     debugInfo(e, 3);
                     return null;
@@ -2604,9 +2763,11 @@ function getSelector(params) {
                 let _mem_kw_prefix = "_MEM_KW_PREFIX_";
                 if (mem_kw) {
                     let _mem_sel = global[_mem_kw_prefix + mem_kw];
-                    if (_mem_sel) return _mem_sel;
+                    if (_mem_sel) {
+                        return _mem_sel;
+                    }
                 }
-                let _kw_sel = _getSelectorFromLayout(addition);
+                let _kw_sel = _getSelFromLayout(addition);
                 if (mem_kw && _kw_sel) {
                     // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
                     global[_mem_kw_prefix + mem_kw] = _kw_sel;
@@ -2615,70 +2776,80 @@ function getSelector(params) {
 
                 // tool function(s) //
 
-                function _getSelectorFromLayout(addition) {
+                function _getSelFromLayout(addition) {
                     let _prefer = _params.selector_prefer;
-                    let _body_class = classof(_body);
+                    let _body_class = _classof(_body);
 
                     if (_body_class === "JavaObject") {
                         if (_body.toString().match(/UiObject/)) {
                             addition && _debugInfo("UiObject无法使用额外选择器", 3);
                             return _body;
                         }
-                        return checkSelectors(_body);
+                        return _chkSels(_body);
                     }
 
                     if (typeof _body === "string") {
                         return _prefer === "text"
-                            ? checkSelectors(text(_body), desc(_body), id(_body))
-                            : checkSelectors(desc(_body), text(_body), id(_body));
+                            ? _chkSels(text(_body), desc(_body), id(_body))
+                            : _chkSels(desc(_body), text(_body), id(_body));
                     }
 
                     if (_body_class === "RegExp") {
                         return _prefer === "text"
-                            ? checkSelectors(textMatches(_body), descMatches(_body), idMatches(_body))
-                            : checkSelectors(descMatches(_body), textMatches(_body), idMatches(_body));
+                            ? _chkSels(textMatches(_body), descMatches(_body), idMatches(_body))
+                            : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
                     }
 
                     // tool function(s) //
 
-                    function checkSelectors(selectors) {
-                        let sel_multi = selectors;
-                        if (classof(sel_multi) !== "Array") {
-                            sel_multi = [];
-                            for (let i = 0, len = arguments.length; i < len; i += 1) sel_multi[i] = arguments[i];
+                    function _chkSels(selectors) {
+                        let _sels = selectors;
+                        let _arg_len = arguments.length;
+                        if (_classof(_sels) !== "Array") {
+                            _sels = [];
+                            for (let i = 0; i < _arg_len; i += 1) {
+                                _sels[i] = arguments[i];
+                            }
                         }
-                        for (let i = 0, len = sel_multi.length; i < len; i += 1) {
-                            let result = checkSelector(sel_multi[i]);
-                            if (result) return result;
+                        let _sels_len = _sels.length;
+                        for (let i = 0; i < _sels_len; i += 1) {
+                            let _res = _chkSel(_sels[i]);
+                            if (_res) {
+                                return _res;
+                            }
                         }
                         return null;
 
                         // tool function(s) //
 
-                        function checkSelector(single_sel) {
-                            if (classof(addition) === "Array") {
-                                let o = {};
-                                o[addition[0]] = addition[1];
-                                addition = o;
+                        function _chkSel(sel) {
+                            if (_classof(addition) === "Array") {
+                                let _o = {};
+                                _o[addition[0]] = addition[1];
+                                addition = _o;
                             }
-                            if (classof(addition) === "Object") {
-                                let keys = Object.keys(addition);
-                                for (let i = 0, len = keys.length; i < len; i += 1) {
-                                    let key = keys[i];
-                                    if (!single_sel[key]) {
-                                        _debugInfo(["无效的additional_selector属性值:", key], 3);
+                            if (_classof(addition) === "Object") {
+                                let _keys = Object.keys(addition);
+                                let _k_len = _keys.length;
+                                for (let i = 0; i < _k_len; i += 1) {
+                                    let _k = _keys[i];
+                                    if (!sel[_k]) {
+                                        let _m = "无效的additional_selector属性值:";
+                                        _debugInfo([_m, _k], 3);
                                         return null;
                                     }
-                                    let value = addition[key];
+                                    let _val = addition[_k];
                                     try {
-                                        single_sel = single_sel[key].apply(single_sel, classof(value) === "Array" ? value : [value]);
+                                        let _arg = _classof(_val) === "Array" ? _val : [_val];
+                                        sel = sel[_k].apply(sel, _arg);
                                     } catch (e) {
-                                        _debugInfo(["无效的additional_selector选择器:", key], 3);
+                                        let _m = "无效的additional_selector选择器:";
+                                        _debugInfo([_m, _k], 3);
                                         return null;
                                     }
                                 }
                             }
-                            return single_sel.exists() ? single_sel : null;
+                            return sel.exists() ? sel : null;
                         }
                     }
                 }
@@ -2686,45 +2857,58 @@ function getSelector(params) {
 
             /**
              * Returns a relative node (UiObject) by compass string
-             * @param node_information {array|*} - [node, compass]
+             * @param nod_info {array|*} - [node, compass]
              * @returns {null|UiObject}
              * @example
-             * relativeNode([text("Alipay"), "pp"]); -- text("Alipay").findOnce().parent().parent(); <br>
-             * relativeNode([text("Alipay").findOnce(), "p2"]); -- text("Alipay").findOnce().parent().parent(); -- same as above <br>
-             * relativeNode([id("abc"), "p3c2"]); -- id("abc").findOnce().parent().parent().parent().child(2); <br>
-             * relativeNode([id("abc"), "s5"/"s5p"]); -- id("abc").findOnce().parent().child(5); -- returns an absolute sibling <br>
-             * relativeNode([id("abc"), "s5n"]); -- id("abc").findOnce().parent().child(%childCount% - 5); -- abs sibling <br>
-             * relativeNode([id("abc"), "s+3"]); -- id("abc").findOnce().parent().child(%indexInParent()% + 3); -- rel sibling <br>
-             * relativeNode([id("abc"), "s-2"]); -- id("abc").findOnce().parent().child(%indexInParent()% - 2); -- rel sibling <br>
+             * // text("Alipay").findOnce().parent().parent();
+             * relativeNode([text("Alipay"), "pp"]);
+             * // text("Alipay").findOnce().parent().parent();
+             * relativeNode([text("Alipay").findOnce(), "p2"]);
+             * // id("abc").findOnce().parent().parent().parent().child(2);
+             * relativeNode([id("abc"), "p3c2"]);
+             * // id("abc").findOnce().parent().child(5);
+             * // returns an absolute sibling
+             * relativeNode([id("abc"), "s5"/"s5p"]);
+             * // id("abc").findOnce().parent().child(%childCount% - 5);
+             * // abs sibling
+             * relativeNode([id("abc"), "s5n"]);
+             * // id("abc").findOnce().parent().child(%indexInParent()% + 3);
+             * // rel sibling
+             * relativeNode([id("abc"), "s+3"]);
+             * // id("abc").findOnce().parent().child(%indexInParent()% - 2);
+             * // rel sibling
+             * relativeNode([id("abc"), "s-2"]);
              */
-            function _relativeNode(node_information) {
+            function _relativeNode(nod_info) {
                 let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-                let node_info = classof(node_information) === "Array" ? node_information.slice() : [node_information];
+                let _nod_inf = classof(nod_info) === "Array"
+                    ? nod_info.slice()
+                    : [nod_info];
 
-                let node = node_info[0];
-                let node_class = classof(node);
-                let node_str = (node || "").toString();
+                let _nod = _nod_inf[0];
+                let _node_class = classof(_nod);
+                let _node_str = (_nod || "").toString();
 
-                if (typeof node === "undefined") {
+                if (typeof _nod === "undefined") {
                     _debugInfo("relativeNode的node参数为Undefined");
                     return null;
                 }
-                if (classof(node) === "Null") {
+                if (classof(_nod) === "Null") {
                     // _debugInfo("relativeNode的node参数为Null");
                     return null;
                 }
-                if (node_str.match(/^Rect\(/)) {
+                if (_node_str.match(/^Rect\(/)) {
                     // _debugInfo("relativeNode的node参数为Rect()");
                     return null;
                 }
-                if (node_class === "JavaObject") {
-                    if (node_str.match(/UiObject/)) {
+                if (_node_class === "JavaObject") {
+                    if (_node_str.match(/UiObject/)) {
                         // _debugInfo("relativeNode的node参数为UiObject");
                     } else {
                         // _debugInfo("relativeNode的node参数为UiSelector");
-                        node = node.findOnce();
-                        if (!node) {
+                        _nod = _nod.findOnce();
+                        if (!_nod) {
                             // _debugInfo("UiSelector查找后返回Null");
                             return null;
                         }
@@ -2734,114 +2918,132 @@ function getSelector(params) {
                     return null;
                 }
 
-                let compass = node_info[1];
+                let _compass = _nod_inf[1];
 
-                if (!compass) {
+                if (!_compass) {
                     // _debugInfo("relativeNode的罗盘参数为空");
-                    return node;
+                    return _nod;
                 }
 
-                compass = compass.toString();
+                _compass = _compass.toString();
 
                 try {
-                    if (compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
-                        let relative_matched = compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/); // backwards / negative
-                        let absolute_matched = compass.match(/s\d+([fp](?!\d+))?/); // forwards / positive
-                        if (relative_matched) {
-                            let rel_amount = parseInt(relative_matched[0].match(/[+\-]?\d+/)[0]);
-                            let child_count = node.parent().childCount();
-                            let current_idx = node.indexInParent();
-                            node = relative_matched[0].match(/\d+[bn]/)
-                                ? node.parent().child(child_count - Math.abs(rel_amount))
-                                : node.parent().child(current_idx + rel_amount);
-                        } else if (absolute_matched) {
-                            node = node.parent().child(parseInt(absolute_matched[0].match(/\d+/)[0]));
+                    if (_compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
+                        // backwards|negative
+                        let _rel_mch = _compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/);
+                        // forwards|positive
+                        let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
+                        if (_rel_mch) {
+                            let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
+                            let _child_cnt = _nod.parent().childCount();
+                            let _cur_idx = _nod.indexInParent();
+                            _nod = _rel_mch[0].match(/\d+[bn]/)
+                                ? _nod.parent().child(_child_cnt - Math.abs(_rel_amt))
+                                : _nod.parent().child(_cur_idx + _rel_amt);
+                        } else if (_abs_mch) {
+                            _nod = _nod.parent().child(
+                                parseInt(_abs_mch[0].match(/\d+/)[0])
+                            );
                         }
-                        compass = compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
-                        if (!compass) return node;
+                        _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
+                        if (!_compass) {
+                            return _nod;
+                        }
                     }
                 } catch (e) {
                     return null;
                 }
 
-                let parents = compass.replace(/([Pp])(\d+)/g, ($0, $1, $2) => {
-                    let str = "";
-                    $2 = parseInt($2);
-                    for (let i = 0; i < $2; i += 1) str += "p";
-                    return str;
-                }).match(/p*/)[0]; // may be ""
+                let _parents = _compass.replace(
+                    /([Pp])(\d+)/g, ($0, $1, $2) => {
+                        let _str = "";
+                        let _max = parseInt($2);
+                        for (let i = 0; i < _max; i += 1) {
+                            _str += "p";
+                        }
+                        return _str;
+                    }
+                ).match(/p*/)[0]; // may be ""
 
-                let child_idx_matched = compass.match(/c\d+/g);
-
-                if (!parents) return child_idx_matched ? getChildNode(child_idx_matched) : node;
-
-                let parents_len = parents.length;
-                for (let i = 0; i < parents_len; i += 1) {
-                    if (!(node = node.parent())) return null;
-                }
-                return child_idx_matched ? getChildNode(child_idx_matched) : node;
-
-                // tool function(s) //
-
-                function getChildNode(arr) {
-                    if (!arr || classof(arr) !== "Array") return null;
-                    for (let i = 0, len = arr.length; i < len; i += 1) {
-                        if (!node.childCount()) return null;
-                        try {
-                            node = node.child(+arr[i].match(/\d+/));
-                            if (!node) return null;
-                        } catch (e) {
+                if (_parents) {
+                    let _len = _parents.length;
+                    for (let i = 0; i < _len; i += 1) {
+                        if (!(_nod = _nod.parent())) {
                             return null;
                         }
                     }
-                    return node;
+                }
+
+                let _mch = _compass.match(/c\d+/g);
+                return _mch ? _childNode(_mch) : _nod;
+
+                // tool function(s) //
+
+                function _childNode(arr) {
+                    if (!arr || classof(arr) !== "Array") {
+                        return null;
+                    }
+                    let _len = arr.length;
+                    for (let i = 0; i < _len; i += 1) {
+                        if (_nod.childCount()) {
+                            try {
+                                let _idx = +arr[i].match(/\d+/);
+                                _nod = _nod.child(_idx);
+                            } catch (e) {
+
+                            }
+                        }
+                    }
+                    return _nod || null;
                 }
             }
         },
-        add: function (key_name, sel_body, keyword) {
-            let _kw = typeof keyword === "string" ? keyword : key_name;
-            this.kw_pool[key_name] = typeof sel_body === "function"
+        add: function (key, sel_body, kw) {
+            let _kw = typeof kw === "string" ? kw : key;
+            this.kw_pool[key] = typeof sel_body === "function"
                 ? type => sel_body(type)
                 : type => this.pickup(sel_body, type, _kw);
             return this;
         },
-        get: function (key_name, type) {
-            let _picker = this.kw_pool[key_name];
-            if (!_picker) return null;
+        get: function (key, type) {
+            let _picker = this.kw_pool[key];
+            if (!_picker) {
+                return null;
+            }
             if (type && type.toString().match(/cache/)) {
-                return this.cache_pool[key_name] = _picker("node");
+                return this.cache_pool[key] = _picker("node");
             }
             return _picker(type);
         },
-        getAndCache: function (key_name) {
+        getAndCache: function (key) {
             // only "node" type can be returned
-            return this.get(key_name, "save_cache");
+            return this.get(key, "save_cache");
         },
         cache: {
-            save: (key_name) => sel.getAndCache(key_name),
-            load: (key_name, type) => {
-                let _node = sel.cache_pool[key_name];
-                if (!_node) return null;
-                return sel.pickup(sel.cache_pool[key_name], type);
+            save: (key) => _sel.getAndCache(key),
+            load: (key, type) => {
+                let _node = _sel.cache_pool[key];
+                if (!_node) {
+                    return null;
+                }
+                return _sel.pickup(_sel.cache_pool[key], type);
             },
-            refresh: function (key_name) {
-                let _cache = sel.cache_pool[key_name];
+            refresh: function (key) {
+                let _cache = _sel.cache_pool[key];
                 _cache && _cache.refresh();
-                this.save(key_name);
+                this.save(key);
             },
-            reset: (key_name) => {
-                delete sel.cache_pool[key_name];
-                return sel.getAndCache(key_name);
+            reset: (key) => {
+                delete _sel.cache_pool[key];
+                return _sel.getAndCache(key);
             },
-            recycle: (key_name) => {
-                let _cache = sel.cache_pool[key_name];
+            recycle: (key) => {
+                let _cache = _sel.cache_pool[key];
                 _cache && _cache.recycle();
             },
         },
     });
-    // _debugInfo("选择器加入新方法");
-    // Object.keys(sel.__proto__).forEach(key => _debugInfo(">" + key + "()"));
-    return sel;
+    return _sel;
 
     // raw function(s) //
 
@@ -2855,60 +3057,14 @@ function getSelector(params) {
 }
 
 /**
- * Returns if all (or one) of selectors exist(s) (or functions return(s) a true value)
- * @param conditions... {JavaObject|function|string}
- * @example
- * selExists(
- *     textMatches(/.+abc.*$/), // RegExp selector
- *     desc("123"), // unique selector
- *     () => id("my_id").find().size() >= 3, // function with condition(s) (usually is(are) related to selector(s))
- *     "or" // logic restriction string: "or" or "one"
- * );
- * selExists(
- *     textMatches(/.+abc.*$/),
- *     desc("123"),
- *     () => id("my_id").find().size() >= 3,
- *     "and" // logic restriction string: "and" or "all", and can be omitted as default
- * );
- * @returns {boolean}
- */
-function selExists(conditions) {
-    let args = arguments;
-    let i = 0;
-    let len = args.length;
-    if (!len) return false;
-    let logic = "and";
-    let last_arg = args[len - 1];
-    if (typeof last_arg === "string") {
-        len -= 1;
-        if (!len) return false;
-        if (last_arg.match(/^(or|one)$/)) logic = "or";
-        else if (last_arg.match(/^(and|all)$/)) logic = "and";
-    }
-
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    for (; i < len; i += 1) {
-        let arg = args[i];
-        let cond = () => null;
-        if (classof(arg) === "JavaObject") cond = () => arg.exists();
-        else if (typeof arg === "function") cond = arg;
-        let result = cond();
-        if (logic === "or" && result) return true;
-        if (logic === "and" && !result) return false;
-    }
-    // return logic === "or" && false || logic === "and" && true;
-    return logic === "and";
-}
-
-/**
  * Returns a new string with a certain mark surrounded
  * @param target {*} - will be converted to String format
  * @param [mark_left='"'] {*} - will be converted to String format
  * @param [mark_right=mark_left] {*} - will be converted to String format
  * @example
- * surroundedBy("ABC") - "ABC"
- * surroundedBy("ABC", "#") - #ABC#
- * surroundedBy([1, 2].join("+"), "{", "}") - {1+2}
+ * surroundedBy("ABC") // "ABC"
+ * surroundedBy("ABC", "#") // "#ABC#"
+ * surroundedBy([1, 2].join("+"), "{", "}") // {1+2}
  * @returns {string}
  */
 function surroundWith(target, mark_left, mark_right) {
@@ -2944,12 +3100,29 @@ function phoneCallingState() {
  * @param [override_timestamp] {number|Date}
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
- * timeRecorder("running", "put"); timeRecorder("running", "get") - eg: 1565080123796
- * timeRecorder("collect", "save"); timeRecorder("collect", "load", 1000, 2, "s") - eg: "12.40s"
- * timeRecorder("waiting", 0); timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours") - eg: "18 hours"
- * timeRecorder("try_peeking"); timeRecorder("try_peeking", "time_gap", 1000, [7]) - eg: 10.331 (not "10.3310000")
- * timeRecorder("go_to_bed"); timeRecorder("go_to_bed", "load", "auto", null, "$$en") - eg: "7h 8.16m"
- * timeRecorder("study"); timeRecorder("study", "load", "auto") - eg: "7分钟8.16秒" (means 7m 8.16s)
+ * // result eg: 1565080123796
+ * timeRecorder("running", "put");
+ * timeRecorder("running", "get");
+ * //
+ * // result eg: "12.40s"
+ * timeRecorder("collect", "save");
+ * timeRecorder("collect", "load", 1000, 2, "s");
+ * //
+ * // result eg: 18 hours"
+ * timeRecorder("waiting", 0);
+ * timeRecorder("waiting", 1, 3.6 * Math.pow(10, 6), 0, " hours");
+ * //
+ * // result eg: 10.331 (not "10.3310000")
+ * timeRecorder("try_peeking");
+ * timeRecorder("try_peeking", "time_gap", 1000, [7]);
+ * //
+ * // result eg: "7h 8.16m"
+ * timeRecorder("go_to_bed");
+ * timeRecorder("go_to_bed", "L", "auto", null, "$$en");
+ * //
+ * // result eg: "7分钟8.16秒" (meaning 7m 8.16s)
+ * timeRecorder("study");
+ * timeRecorder("study", "L", "auto");
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     global["_$_ts_rec"] = global["_$_ts_rec"] || {};
@@ -3049,8 +3222,13 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
     if (forcible_fixed_num_flag) result = +result;
     suffix = suffix.toString().replace(/ *$/g, "");
 
-    if (!prefix) return result + suffix;
-    return prefix + (result ? result + suffix : "");
+    let _res;
+    if (!prefix) {
+        _res = result + suffix;
+    } else {
+        _res = prefix + (result ? result + suffix : "");
+    }
+    return _res === "NaN" ? NaN : _res;
 }
 
 /**
@@ -3151,21 +3329,35 @@ function clickActionsPipeline(pipeline, options) {
         return true;
     }
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -3184,7 +3376,7 @@ function clickActionsPipeline(pipeline, options) {
 
     function surroundWithRaw(target, str) {
         if (!target) return "";
-        str = str || "\"";
+        str = str || '"';
         return str + target + str;
     }
 
@@ -3259,9 +3451,12 @@ function setDeviceProto(params) {
  * @param pattern {number|array} - vibrate pattern -- odd: delay time; even: vibrate time -- nums less than 10 will be multiplied by 1000
  * @param [repeat=1] {number} -- repeat times -- times less than 1 or without number type will be reset to 1
  * @example
- * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2]); --  a pattern and default repeat times (one time) <br>
- * vibrateDevice(0, 0.1, 0.3, 0.1, 0.3, 0.2); -- pattern could be spread with one-time repeat <br>
- * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2); -- repeat twice
+ * // a pattern and default repeat times (one time)
+ * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2]);
+ * // pattern could be spread with one-time repeat
+ * vibrateDevice(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+ * // repeat twice
+ * vibrateDevice([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2);
  */
 function vibrateDevice(pattern, repeat) {
     let _repeat = repeat;
@@ -3290,15 +3485,19 @@ function vibrateDevice(pattern, repeat) {
  * @param timeFlag {number|string} -- often a number (or number string) from 0 - 127
  * @returns {number[]|number}
  * @example
- * timedTaskTimeFlagConverter(59); // [0,1,2,4,5] -- Sun, Mon, Tue, Thu, Fri <br>
- * timedTaskTimeFlagConverter(127); // [0,1,2,3,4,5,6] -- everyday <br>
- * timedTaskTimeFlagConverter([0,1,2,3,4,5,6]); // 127 -- to timeFlag number
- * timedTaskTimeFlagConverter(0); // [] -- disposable <br>
+ * // [0,1,2,4,5] -- Sun, Mon, Tue, Thu, Fri
+ * timedTaskTimeFlagConverter(59);
+ * // [0,1,2,3,4,5,6] -- everyday
+ * timedTaskTimeFlagConverter(127);
+ * // 127 -- timeFlag {number}
+ * timedTaskTimeFlagConverter([0,1,2,3,4,5,6]);
+ * // [] -- disposable
+ * timedTaskTimeFlagConverter(0);
  */
 function timedTaskTimeFlagConverter(timeFlag) {
     if (typeof timeFlag === "object") {
         return parseInt(Array(7).join(" ").split(" ")
-            .map((value, idx) => ~timeFlag.indexOf(idx) ? 1 : 0)
+            .map((value, idx) => ~timeFlag.indexOf(idx.toString()) ? 1 : 0)
             .reverse().join(""), 2) || 0;
     } else if (!isNaN(+timeFlag)) {
         let info = (+timeFlag).toString(2).split("").reverse().join("");
@@ -3319,11 +3518,13 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * @param [par.timeout=60000] {number} -- no less than 5000
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
- * let sel = getSelector(); // @see getSelector() from MODULE_MONSTER_FUNC
+ * // @see "MODULE_MONSTER_FUNC.js"
+ * let sel = getSelector();
+ * // [[], [], []] -- 3 groups of data
  * baiduOcr(sel.pickup(/\xa0/, "nodes"), {
  *     fetch_times: 3,
  *     timeout: 12000
- * }); // [[], [], []] -- 3 groups of data
+ * });
  */
 function baiduOcr(src, par) {
     if (!src) return [];
@@ -3534,21 +3735,35 @@ function baiduOcr(src, par) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function debugInfoRaw(msg, info_flg) {
@@ -3579,9 +3794,10 @@ function baiduOcr(src, par) {
  * @param [interval=200] {number}
  * @param [timeout] {number|function} -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
  * @example
+ * // print "hello" every 1 second for 5 (or 4 sometimes) times
  * setIntervalBySetTimeout(() => {
  *     console.log("hello");
- * }, 1000, 5000); // print "hello" every 1 second for 5 (or 4 sometimes) times
+ * }, 1000, 5000);
  */
 function setIntervalBySetTimeout(func, interval, timeout) {
     interval = interval || 200;
@@ -3911,21 +4127,35 @@ function checkSdkAndAJVer(params) {
 
     // raw function(s) //
 
-    function messageActionRaw(msg, msg_level, toast_flag) {
-        let _msg = msg || " ";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, toast_flag);
+    function messageActionRaw(msg, lv, if_toast) {
+        let _s = msg || " ";
+        if (lv && lv.toString().match(/^t(itle)?$/)) {
+            let _par = ["[ " + msg + " ]", 1, if_toast];
+            return messageActionRaw.apply({}, _par);
         }
-        let _msg_level = typeof +msg_level === "number" ? +msg_level : -1;
-        toast_flag && toast(_msg);
-        if (_msg_level === 0) return console.verbose(_msg) || true;
-        if (_msg_level === 1) return console.log(_msg) || true;
-        if (_msg_level === 2) return console.info(_msg) || true;
-        if (_msg_level === 3) return console.warn(_msg) || false;
-        if (_msg_level >= 4) {
-            console.error(_msg);
-            _msg_level >= 8 && exit();
+        let _lv = +lv;
+        if (if_toast) {
+            toast(_s);
         }
+        if (_lv >= 3) {
+            if (_lv >= 4) {
+                console.error(_s);
+                if (_lv >= 8) {
+                    exit();
+                }
+            } else {
+                console.warn(_s);
+            }
+            return;
+        }
+        if (_lv === 0) {
+            console.verbose(_s);
+        } else if (_lv === 1) {
+            console.log(_s);
+        } else if (_lv === 2) {
+            console.info(_s);
+        }
+        return true;
     }
 
     function debugInfoRaw(msg, info_flg) {
@@ -3948,7 +4178,8 @@ function dismissIDEWarnings() {
 
     Object.assign(dialogs.__proto__, {
         getItems: () => $$arr,
-        getContentView: () => new Object({getText: () => $$obj}),
+        getContentView: () => new View(),
+        getTitleView: () => new View(),
         getActionButton: btn_name => $$str(btn_name),
         setContent: str => $$und(str),
         setActionButton: (btn_name, str) => $$und(btn_name, str),
@@ -4029,9 +4260,6 @@ function dismissIDEWarnings() {
         setTouchable: bool => void 0,
         setOnTouchListener: func => void 0,
     });
-    Object.assign(colors.__proto__, {
-        parseColor: str => $$num,
-    });
     Object.assign(images.__proto__, {
         read: str => $$jvo.ImageWrapper,
         load: str => $$jvo.ImageWrapper,
@@ -4053,12 +4281,20 @@ function dismissIDEWarnings() {
         findColor: (img, color, opt) => $$jvo.Point,
         pixel: (img, x, y) => $$num,
         findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
+        findColorInRegion: (img, color, x, y, w, h, thrd) => $$jvo.Point,
         detectsColor: (img, color, x, y, threshold, algorithm) => Boolean,
+        matchTemplate: (img, tpl, opt) => "MatchingResult",
         getWidth: () => $$num, // TODO this doesn't belong to images
         getHeight: () => $$num, // TODO this doesn't belong to images
     });
     Object.assign(colors.__proto__, {
         isSimilar: (c1, c2, threshold, algorithm) => Boolean,
+        parseColor: str => $$num,
+        red: (str_$_num) => $$num,
+        green: (str_$_num) => $$num,
+        blue: (str_$_num) => $$num,
+        toString: (num) => $$str,
+        rgb: (num1, num2, num3) => $$num,
     });
     Object.assign(files.__proto__, {
         getSdcardPath: () => String,
@@ -4177,4 +4413,18 @@ function dismissIDEWarnings() {
             return this.__okhttp__.client();
         }
     })
+
+    // constructor(s) //
+
+    function View() {
+        this.getText = () => $$obj;
+        this.setTextColor = (num) => $$und;
+        this.setVisibility = (num) => $$und;
+        this.removeAllViews = () => $$und;
+        this.setClickable = (bool) => $$und;
+        this.getChildCount = () => $$num;
+        this.getChildAt = (num) => this;
+        this.indexOfChild = (View) => $$num;
+        this.findViewWithTag = (str) => this;
+    }
 }

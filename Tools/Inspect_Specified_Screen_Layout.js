@@ -4,7 +4,7 @@ let {
 } = require("../Modules/MODULE_MONSTER_FUNC");
 
 threads.start(function () {
-    toast("请在目标页面按\"音量减\"键");
+    toast('请在目标页面按"音量减"键');
     events.observeKey();
     events.onKeyDown("volume_down", function (event) {
         (function showCurrentScreenLayoutInfo() {
