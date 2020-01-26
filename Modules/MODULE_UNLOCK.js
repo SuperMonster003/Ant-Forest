@@ -28,6 +28,7 @@ module.exports = _exports();
  */
 function _exports() {
     _overrideRequire();
+    _makeSureImpeded();
 
     let messageAction = _chkF("messageAction");
     let waitForAction = _chkF("waitForAction");
@@ -1851,6 +1852,12 @@ function _exports() {
                 }
             }
         };
+    }
+
+    function _makeSureImpeded() {
+        if (typeof global["$$impeded"] === "undefined") {
+            global["$$impeded"] = () => void 0;
+        }
     }
 
     function _chkF(s) {

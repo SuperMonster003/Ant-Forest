@@ -4412,7 +4412,7 @@ function dismissIDEWarnings() {
         client: function () {
             return this.__okhttp__.client();
         }
-    })
+    });
 
     // constructor(s) //
 
