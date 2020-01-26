@@ -2691,15 +2691,16 @@ let $$init = {
                             let _box = _diag_prompt.isPromptCheckBoxChecked();
                             debugInfo('用户' + (_box ? '已' : '没有') + '勾选"不再提示"');
                             debugInfo('用户点击"' + _btn + '"按钮');
-                            return true;
                         };
                         let _diag_prompt = dialogs.builds([
                             "参数调整提示", "settings_never_launched",
                             0, "跳过", "现在配置", 1, 1
                         ]).on("negative", (d_self) => {
-                            _btnMsg("negative") && _action.negBtn(d_self);
+                            _btnMsg("negative");
+                            _action.negBtn(d_self);
                         }).on("positive", (d_self) => {
-                            _btnMsg("positive") && _action.posBtn(d_self);
+                            _btnMsg("positive");
+                            _action.posBtn(d_self);
                         });
 
                         return dialogs.disableBack(_diag_prompt);
@@ -2707,21 +2708,22 @@ let $$init = {
 
                     function actionSetter() {
                         return {
-                            _commonAct: function (d) {
-                                let _box_checked = d.isPromptCheckBoxChecked();
+                            _commonAct: function (d, flg) {
                                 d.dismiss();
-                                $$sto.af.put("config_prompted", _box_checked);
+                                let _box = d.isPromptCheckBoxChecked();
+                                $$sto.af.put("config_prompted", flg || _box);
                                 this._sgn_move_on = true;
                             },
                             posBtn: function (d) {
                                 this._sgn_confirm = true;
-                                this._commonAct(d);
+                                this._commonAct(d, true);
                             },
                             negBtn: function (d) {
                                 this._commonAct(d);
                             },
                             wait: function () {
-                                if (!waitForAction(() => this._sgn_move_on, 300000)) {
+                                let _this = this;
+                                if (!waitForAction(() => _this._sgn_move_on, 300000)) {
                                     _diag.dismiss();
                                     messageAction("强制结束脚本", 4, 0, 0, -1);
                                     messageAction("等待参数调整对话框操作超时", 9, 1, 0, 1);
@@ -2772,7 +2774,6 @@ let $$init = {
                             let _btn = _diag_prompt.getActionButton(btn_name);
                             let _regexp = / *\[ *\d+ *] */;
                             debugInfo('用户点击"' + _btn.replace(_regexp, "") + '"按钮');
-                            return true;
                         };
                         let _diag_prompt = dialogs.builds([
                             "运行提示", "\n即将在 " + _sec + " 秒内运行" + $$app.task_name + "任务\n",
@@ -2781,11 +2782,14 @@ let $$init = {
                             ["立即开始  [ " + _sec + " ]", "attraction_btn_color"],
                             1,
                         ]).on("positive", (d) => {
-                            _btnMsg("positive") && _action.posBtn(d);
+                            _btnMsg("positive");
+                            _action.posBtn(d);
                         }).on("negative", (d) => {
-                            _btnMsg("negative") && _action.negBtn(d);
+                            _btnMsg("negative");
+                            _action.negBtn(d);
                         }).on("neutral", (d) => {
-                            _btnMsg("neutral") && _action.neuBtn(d);
+                            _btnMsg("neutral");
+                            _action.neuBtn(d);
                         });
 
                         return dialogs.disableBack(_diag_prompt, () => _action.pause(100));
@@ -6330,74 +6334,30 @@ let $$af = {
                     // tool function(s) //
 
                     function _floatyResAsync() {
-                        let _ctd = $$cfg.floaty_result_countdown;
-                        let _tt = _ctd * 1000;
+                        debugInfo("开始绘制Floaty");
 
                         $$flag.floaty_fin = 0;
                         $$flag.floaty_err = 1;
+                        $$flag.floaty_usr_touch = false;
 
-                        debugInfo("发送Floaty消息等待信号");
+                        let _ctd = $$cfg.floaty_result_countdown;
+                        let _tt = _ctd * 1000;
                         debugInfo("时间参数: " + _tt);
 
-                        let _hints = _getHints();
-                        let _hint_len = _hints.length;
-
-                        debugInfo("开始绘制Floaty");
-
-                        let _usr_touch = false;
-                        let _win_cvr = floaty.rawWindow(
+                        let _cvr_win = floaty.rawWindow(
                             <frame id="cover" gravity="center" bg="#7f000000"/>
                         );
+                        // prevent touch event from being
+                        // transferred to the view beneath
+                        _cvr_win.setTouchable(true);
+                        _cvr_win.setSize(-1, -1);
+                        _cvr_win["cover"].on("click", _onClick);
+                        _cvr_win["cover"].setOnTouchListener(_onTouch);
 
-                        _win_cvr["cover"].on("click", _onClick);
-                        _win_cvr["cover"].setOnTouchListener(_onTouch);
+                        let _h = _getHeights();
+                        let _lyt = _getLayouts();
 
-                        // prevent touch event
-                        // transferring to the view beneath
-                        _win_cvr.setTouchable(true);
-                        _win_cvr.setSize(-1, -1);
-
-                        let _base_h = cY(0.66);
-                        let _msg_h = cY(80, -1);
-                        let _hint_h = _msg_h * 0.7;
-                        let _tt_h = _hint_h;
-
-                        // color stripe
-                        let _col_h = _msg_h * 0.2;
-
-                        let _msg_lyt =
-                            <frame gravity="center">
-                                <text id="text" gravity="center"
-                                      bg="#cc000000" color="#ccffffff"
-                                      size="24" padding="10 2"
-                                />
-                            </frame>;
-
-                        let _tt_lyt =
-                            <frame gravity="center">
-                                <text id="text" gravity="center"
-                                      bg="#cc000000" color="#ccffffff"
-                                      size="14" text=""
-                                />
-                            </frame>;
-
-                        let _col_lyt =
-                            <frame gravity="center">
-                                <text id="text" gravity="center"
-                                      bg="#ffffff" color="#ffffff"
-                                      size="24" padding="10 2"
-                                />
-                            </frame>;
-
-                        let _hint_lyt =
-                            <frame gravity="center">
-                                <text id="text" gravity="center"
-                                      bg="#cc000000" color="#ccffffff"
-                                      size="14"
-                                />
-                            </frame>;
-
-                        let _msg_win = floaty.rawWindow(_msg_lyt);
+                        let _msg_win = floaty.rawWindow(_lyt.msg);
 
                         ui.run(() => {
                             let _sum = (_e_own + _e_fri).toString();
@@ -6417,19 +6377,22 @@ let $$af = {
                             }
                         });
 
+                        let _hints = _getHints();
+                        let _hint_len = _hints.length;
+
                         let _wA = _msg_win.getWidth();
                         let _wB = cX(0.54);
                         let _wC = cX(0.25) * _hint_len;
                         let _min_w = Math.max(_wA, _wB, _wC);
                         let _l_pos = (W - _min_w) / 2;
 
-                        _msg_win.setPosition(_l_pos, _base_h);
-                        _msg_win.setSize(_min_w, _msg_h);
+                        _msg_win.setPosition(_l_pos, _h.base);
+                        _msg_win.setSize(_min_w, _h.msg);
 
-                        let _hint_t_pos = _base_h - _col_h - _hint_h;
-                        let _col_up_t_pos = _base_h - _col_h;
-                        let _col_dn_t_pos = _base_h + _msg_h;
-                        let _tt_t_pos = _base_h + _msg_h + _col_h;
+                        let _hint_t_pos = _h.base - _h.col - _h.hint;
+                        let _col_up_t_pos = _h.base - _h.col;
+                        let _col_dn_t_pos = _h.base + _h.msg;
+                        let _tt_t_pos = _h.base + _h.msg + _h.col;
                         let _avg_w = Math.trunc(_min_w / _hint_len);
                         let _col_o = {
                             "YOU": "#7dae17",
@@ -6448,30 +6411,30 @@ let $$af = {
                             let _cur_w = _min_w - (_hint_len - 1) * _avg_w;
                             if (i !== _hint_len - 1) _cur_w = _avg_w;
 
-                            let _col_dn_win = floaty.rawWindow(_col_lyt);
+                            let _col_dn_win = floaty.rawWindow(_lyt.col);
                             _col_dn_win.setSize(1, 0);
                             _col_dn_win.text.setBackgroundColor(_stripe_bg);
                             _col_dn_win.setPosition(_cur_l_pos, _col_dn_t_pos);
 
-                            let _col_up_win = floaty.rawWindow(_col_lyt);
+                            let _col_up_win = floaty.rawWindow(_lyt.col);
                             _col_up_win.setSize(1, 0);
                             _col_up_win.text.setBackgroundColor(_stripe_bg);
                             _col_up_win.setPosition(_cur_l_pos, _col_up_t_pos);
 
-                            let _hint_win = floaty.rawWindow(_hint_lyt);
+                            let _hint_win = floaty.rawWindow(_lyt.hint);
                             _hint_win.setSize(1, 0);
                             _hint_win.text.setText(_cur_hint);
                             _hint_win.setPosition(_cur_l_pos, _hint_t_pos);
 
-                            _col_dn_win.setSize(_cur_w, _col_h);
-                            _col_up_win.setSize(_cur_w, _col_h);
-                            _hint_win.setSize(_cur_w, _hint_h);
+                            _col_dn_win.setSize(_cur_w, _h.col);
+                            _col_up_win.setSize(_cur_w, _h.col);
+                            _hint_win.setSize(_cur_w, _h.hint);
                         }
 
-                        let _tt_win = floaty.rawWindow(_tt_lyt);
+                        let _tt_win = floaty.rawWindow(_lyt.tt);
                         _tt_win.setSize(1, 0);
                         _tt_win.setPosition(_l_pos, _tt_t_pos);
-                        _tt_win.setSize(_min_w, _tt_h);
+                        _tt_win.setSize(_min_w, _h.tt);
 
                         _setFloTt(_ctd);
 
@@ -6561,6 +6524,48 @@ let $$af = {
                             return _res;
                         }
 
+                        function _getLayouts() {
+                            return {
+                                msg: <frame gravity="center">
+                                    <text id="text" gravity="center"
+                                          bg="#cc000000" color="#ccffffff"
+                                          size="24" padding="10 2"
+                                    />
+                                </frame>,
+                                tt: <frame gravity="center">
+                                    <text id="text" gravity="center"
+                                          bg="#cc000000" color="#ccffffff"
+                                          size="14" text=""
+                                    />
+                                </frame>,
+                                col: <frame gravity="center">
+                                    <text id="text" gravity="center"
+                                          bg="#ffffff" color="#ffffff"
+                                          size="24" padding="10 2"
+                                    />
+                                </frame>,
+                                hint: <frame gravity="center">
+                                    <text id="text" gravity="center"
+                                          bg="#cc000000" color="#ccffffff"
+                                          size="14"
+                                    />
+                                </frame>,
+                            };
+                        }
+
+                        function _getHeights() {
+                            let _base_h = cY(0.66);
+                            let _msg_h = cY(80, -1);
+                            let _hint_h = _msg_h * 0.7;
+                            return {
+                                base: _base_h,
+                                msg: _msg_h,
+                                hint: _hint_h,
+                                tt: _hint_h,
+                                col: _msg_h * 0.2, // color stripe
+                            };
+                        }
+
                         function _setFloTt(ctd) {
                             ui.run(function () {
                                 try {
@@ -6576,7 +6581,7 @@ let $$af = {
                         // listener(s) //
 
                         function _onClick() {
-                            if (_usr_touch) {
+                            if ($$flag.floaty_usr_touch) {
                                 $$flag.floaty_fin = 1;
                                 $$flag.floaty_err = 0;
                                 let _sA = "触发遮罩层触摸事件";
@@ -6593,7 +6598,7 @@ let $$af = {
                         }
 
                         function _onTouch(view, e) {
-                            if (!_usr_touch) {
+                            if (!$$flag.floaty_usr_touch) {
                                 let _ME = android.view.MotionEvent;
                                 let _DN = _ME.ACTION_DOWN;
                                 let _UP = _ME.ACTION_UP;
@@ -6602,15 +6607,15 @@ let $$af = {
 
                                 if (_ACT === _DN) {
                                     let _thrd = cY(0.12, -1);
-                                    _usr_touch = e.getY() > _thrd;
+                                    $$flag.floaty_usr_touch = e.getY() > _thrd;
                                 }
                                 if (_ACT === _MV) {
-                                    _usr_touch = true;
+                                    $$flag.floaty_usr_touch = true;
                                 }
                                 if (_ACT === _UP) {
                                     let _e_t = e.getEventTime();
                                     let _dn_t = e.getDownTime();
-                                    _usr_touch = _e_t - _dn_t > 200;
+                                    $$flag.floaty_usr_touch = _e_t - _dn_t > 200;
                                 }
                             }
                             // event will not be consumed
