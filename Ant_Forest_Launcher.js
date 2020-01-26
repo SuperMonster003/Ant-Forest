@@ -6554,16 +6554,16 @@ let $$af = {
                         }
 
                         function _getHeights() {
-                            let _o = {
-                                base: cY(0.66),
-                                msg: cY(80, -1),
+                            let _base_h = cY(0.66);
+                            let _msg_h = cY(80, -1);
+                            let _hint_h = _msg_h * 0.7;
+                            return {
+                                base: _base_h,
+                                msg: _msg_h,
+                                hint: _hint_h,
+                                tt: _hint_h,
+                                col: _msg_h * 0.2, // color stripe
                             };
-                            Object.assign(_o, {
-                                hint: _o.msg * 0.7,
-                                tt: _o.hint,
-                                col: _o.msg * 0.2, // color stripe
-                            });
-                            return _o;
                         }
 
                         function _setFloTt(ctd) {
