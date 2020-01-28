@@ -1893,6 +1893,7 @@ function _exports() {
         }
 
         exit();
+        sleep(3600);
     }
 
     function _isScrOn() {
@@ -2822,7 +2823,7 @@ function _exports() {
                                     }
                                     sleep(240);
                                 }
-                                return _err("无可用的PIN解锁参考控件");
+                                return _err("预置的PIN解锁方案全部无效");
 
                                 // tool function(s) //
 
@@ -2837,16 +2838,14 @@ function _exports() {
                                     // given in getNumsBySingleDesc()
                                     let _nums = "123456789".split("");
                                     let _len = _nums.length;
+                                    let _ctr = 9;
                                     for (let i = 0; i < _len; i += 1) {
                                         let _kw = f(_nums[i]);
                                         if (!_kw.exists()) {
-                                            _err([
-                                                "PIN解锁方案失败",
-                                                "未能通过全部控件检测"
-                                            ]);
+                                            _ctr -= 1;
                                         }
                                     }
-                                    return true;
+                                    return _ctr > 6;
                                 }
                             }
                         }
