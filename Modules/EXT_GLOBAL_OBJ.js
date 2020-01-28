@@ -101,7 +101,7 @@ let ext = {
             },
             $$fin: x => isFinite(x),
             $$inf: x => !isFinite(x),
-            $$nan: x => isNaN(x),
+            $$nan: x => typeof x === "number" && isNaN(x),
             $$posNum: function (x) {
                 return this.$$num(x) && x > 0;
             },
@@ -186,8 +186,9 @@ let ext = {
     Array: () => {
         if (!Array["includes"]) {
             Array.prototype.includes = function (x, i) {
+                let $_num = x => typeof x === "number";
                 return this.slice(i).some((v) => {
-                    return isNaN(x) ? isNaN(v) : x === v;
+                    return $_num(x) && isNaN(x) ? isNaN(v) : x === v;
                 });
             };
         }

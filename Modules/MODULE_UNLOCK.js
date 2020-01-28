@@ -55,9 +55,10 @@ function _exports() {
     let $_arr = x => classof(x, "Array");
     let $_jvo = x => classof(x, "JavaObject");
     let $_sel = getSelector();
-    let $_flag = $_und(global["$$flag"]) ? {} : $$flag;
+    if ($_und(global["$$flag"])) {
+        global["$$flag"] = {};
+    }
     let $_unlk = _unlkSetter();
-
     let _intro = device.brand + " " + device.product + " " + device.release;
     let _code = _getCode();
     let _clean_code = _code.split(/\D+/).join("").split("");
@@ -69,7 +70,7 @@ function _exports() {
 
     return {
         is_screen_on: $_unlk.init_scr,
-        isUnlocked: _isUnlk,
+        isUnlocked: () => _isUnlk(),
         isLocked: () => !_isUnlk(),
         unlock: _unlock,
     };
@@ -1905,7 +1906,6 @@ function _exports() {
 
     function _wakeUp() {
         if (!_isScrOn()) {
-            keycode(26);
             device.keepScreenOn(120 * 1000); // 2 min
         }
     }
@@ -3031,7 +3031,7 @@ function _exports() {
     }
 
     function _unlock(forc_debug) {
-        _overrideImpeded();
+        _backupImpeded();
 
         let _dash = "__split_line_dash__";
         let _debug = forc_debug || $_F(forc_debug);
@@ -3054,20 +3054,18 @@ function _exports() {
         // tool function(s) //
 
         function _debugPrologue() {
-            debugInfo([_dash, "尝试自动解锁", _dash]);
-
             if (_debug) {
-                $_flag.debug_info_avail_bak = $_flag.debug_info_avail;
-                $_flag.debug_info_avail = !!forc_debug;
+                $$flag.debug_info_avail_bak = $$flag.debug_info_avail;
+                $$flag.debug_info_avail = !!forc_debug;
             }
+            debugInfo([_dash, "尝试自动解锁", _dash]);
         }
 
         function _debugEpilogue() {
             debugInfo([_dash, "自动解锁完毕", _dash]);
-
             if (_debug) {
-                $_flag.debug_info_avail = $_flag.debug_info_avail_bak;
-                delete $_flag.debug_info_avail_bak;
+                $$flag.debug_info_avail = $$flag.debug_info_avail_bak;
+                delete $$flag.debug_info_avail_bak;
             }
         }
 
@@ -3122,12 +3120,11 @@ function _exports() {
             }
         }
 
-        function _overrideImpeded() {
+        function _backupImpeded() {
             if (typeof global["$$impeded"] === "function") {
                 // copy global.$$impeded
                 global["impededBak"] = $$impeded.bind(global);
             }
-            return global["$$impeded"] = () => true;
         }
 
         function _restoreImpededIFN() {
