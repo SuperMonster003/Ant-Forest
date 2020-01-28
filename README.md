@@ -85,6 +85,16 @@
 ******
 ### 版本历史
 ******
+# v1.9.13
+###### 2020/01/29
+* `修复` 黑名单功能内部逻辑错误与配置关联错误 _[`issue #250`](https://github.com/SuperMonster003/Auto.js_Projects/issues/250)_  
+* `修复` 图形配置工具黑名单数据加载越界的问题 _[`issue #250`](https://github.com/SuperMonster003/Auto.js_Projects/issues/250)_  
+* `修复` 图形配置工具黑名单列表数据排序异常  
+* `修复` Array.prototype.includes对NaN类型的判断错误  
+* `修复` 解锁模块的强制debugInfo标志参数无效的问题  
+* `修复` 解锁模块缺失全局阻塞方法导致解锁中断的问题 _[`issue #251`](https://github.com/SuperMonster003/Auto.js_Projects/issues/251)_ _[`#252`](https://github.com/SuperMonster003/Auto.js_Projects/issues/252)_  
+* `优化` 解锁模块唤醒屏幕功能去除兼容性较差的keycode方法 _[`issue #251`](https://github.com/SuperMonster003/Auto.js_Projects/issues/251)_  
+
 # v1.9.12
 ###### 2020/01/24 - 代码重构 谨慎升级
 * `新增` 主页浇水回赠能量球(金色球)自动收取功能 _[`issue #193`](https://github.com/SuperMonster003/Auto.js_Projects/issues/193)_ _[`#239`](https://github.com/SuperMonster003/Auto.js_Projects/issues/239)_  

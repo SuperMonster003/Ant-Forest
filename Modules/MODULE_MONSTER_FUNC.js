@@ -4177,6 +4177,7 @@ function dismissIDEWarnings() {
     let {Integer} = java.lang; // TODO java.__proto__
 
     Object.assign(dialogs.__proto__, {
+        setItems: arr => $$und,
         getItems: () => $$arr,
         getContentView: () => new View(),
         getTitleView: () => new View(),

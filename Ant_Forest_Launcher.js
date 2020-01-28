@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Jan 19, 2020
- * @version 1.9.12
+ * @since Jan 29, 2020
+ * @version 1.9.13
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -517,7 +517,7 @@ let $$init = {
                                 return _d_str + _h_str + _m_str + _s_str + "后解除";
                             }
                         },
-                        _showMsg: function (type, nick) {
+                        _showMsg: function (type, data) {
                             let _this = this;
 
                             if (type === "add") {
@@ -532,10 +532,8 @@ let $$init = {
                                 "by_user": "用户自行设置",
                             };
 
-                            let _nick = nick || $$af.nick;
-                            let _black = $$app.blist.data[_nick];
-                            let _rsn = _rsn_o[_black.reason];
-                            let _str = _getExpiredStr(_black.timestamp);
+                            let _rsn = _rsn_o[data.reason];
+                            let _str = _getExpiredStr(data.timestamp);
 
                             messageAction(_rsn, 1, 0, 2);
                             $$str(_str) && messageAct(_str, 1, 0, 2);
@@ -549,37 +547,46 @@ let $$init = {
                             }
                         },
                         get: function (name, ref) {
-                            let _res = name && this.data[name];
-                            _res && this._showMsg("exists", name);
-                            return _res || ref;
+                            if (!name) {
+                                return ref;
+                            }
+                            let _len = this.data.length;
+                            for (let i = 0; i < _len; i += 1) {
+                                if (name === this.data[i].name) {
+                                    this._showMsg("exists", this.data[i]);
+                                    return true;
+                                }
+                            }
+                            return ref;
                         },
                         save: function () {
                             $$sto.af.put("blacklist", this.data);
                             return this;
                         },
-                        add: function (data) {
-                            let _nick;
-
-                            if ($$obj(data)) {
-                                _nick = Object.keys(data)[0];
-                                Object.assign(this.data, data);
-                            } else if ($$len(arguments, 3)) {
-                                let _data = {};
-                                let _args = arguments;
-                                _nick = _args[0];
-                                _data[_nick] = {
-                                    timestamp: _args[1],
-                                    reason: _args[2],
+                        add: function (data_par) {
+                            if ($$len(arguments, 3)) {
+                                data_par = {
+                                    name: arguments[0],
+                                    timestamp: arguments[1],
+                                    reason: arguments[2],
                                 };
-                                Object.assign(this.data, _data);
-                            } else {
-                                messageAction("黑名单添加方法参数不合法", 9, 1, 0, "both");
                             }
-
-                            this._showMsg("add", _nick);
+                            let _nick = data_par.name;
+                            let _len = this.data.length;
+                            for (let i = 0; i < _len; i += 1) {
+                                let _o = this.data[i];
+                                let _name = _o.name;
+                                let _rsn = _o.reason;
+                                if (_nick === _name && _rsn === "protect_cover") {
+                                    delete this.data[i];
+                                    break;
+                                }
+                            }
+                            this.data.push(data_par);
+                            this._showMsg("add", data_par);
                             return this;
                         },
-                        data: {},
+                        data: [],
                         init: function () {
                             let _blist_setter = this;
                             blistInitializer().get().clean().message().assign();
@@ -588,27 +595,38 @@ let $$init = {
                             // tool function(s) //
 
                             function blistInitializer() {
-                                let _blist_data = {};
+                                let _blist_data = [];
                                 return {
                                     get: function () {
-                                        // {%name%: {timestamp::, reason::}}
-                                        _blist_data = $$sto.af.get("blacklist", {});
+                                        // legacy: {%name%: {timestamp::, reason::}}
+                                        // modern: [{name::, reason::, timestamp::}]
+                                        _blist_data = $$sto.af.get("blacklist", []);
+                                        if ($$obj(_blist_data)) {
+                                            let _data = [];
+                                            Object.keys(_blist_data).forEach((name) => {
+                                                _data.push(Object.assign(
+                                                    {name: name}, _blist_data[name]
+                                                ));
+                                            });
+                                            _blist_data = _data;
+                                        }
                                         return this;
                                     },
                                     clean: function () {
                                         this.deleted = [];
-                                        Object.keys(_blist_data).forEach((name) => {
-                                            let _ts = _blist_data[name].timestamp;
-                                            let _expired = (ts) => {
-                                                if (_blist_setter._expired.trigger(ts)) {
-                                                    this.deleted.push(name);
-                                                    return true;
-                                                }
-                                            };
+                                        let _expired = (ts) => {
+                                            return _blist_setter._expired.trigger(ts);
+                                        };
+                                        for (let i = 0; i < _blist_data.length; i += 1) {
+                                            let _o = _blist_data[i];
+                                            let _name = _o.name;
+                                            let _ts = _o.timestamp;
+
                                             if (!_ts || _expired(_ts)) {
-                                                delete _blist_data[name];
+                                                this.deleted.push(_name);
+                                                _blist_data.splice(i--, 1);
                                             }
-                                        });
+                                        }
                                         return this;
                                     },
                                     message: function () {
@@ -617,7 +635,6 @@ let $$init = {
                                             let _msg = "移除黑名单记录: " + _len + "项";
                                             messageAct(_msg, 1, 0, 0, "both");
                                             this.deleted.forEach(n => messageAct(n, 1, 0, 1));
-                                            showSplitLine();
                                         }
                                         return this;
                                     },
@@ -657,7 +674,6 @@ let $$init = {
                             if (!this.len) {
                                 return;
                             }
-
                             debugInfo("回收全部能量罩采集样本");
                             this.pool.forEach(capt => {
                                 let _img_name = images.getName(capt);
@@ -6868,5 +6884,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
+ * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
  */

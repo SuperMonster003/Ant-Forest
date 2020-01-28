@@ -55,7 +55,9 @@ let $$cfg = {
         project_backup_info: [
             {version_name: "项目版本", width: 0.5},
             {
-                timestamp: "项目备份时间", sort: -1, stringTransform: {
+                timestamp: "项目备份时间",
+                sort: {flag: -1, head_name: "timestamp"},
+                stringTransform: {
                     forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 }
@@ -64,7 +66,9 @@ let $$cfg = {
         server_releases_info: [
             {tag_name: "项目标签", width: 0.5},
             {
-                published_at: "项目发布时间", sort: -1, stringTransform: {
+                published_at: "项目发布时间",
+                sort: {flag: -1, head_name: "published_at"},
+                stringTransform: {
                     forward: data => $$tool.getTimeStrFromTs(new Date(data), "time_str_full"),
                 },
             },
@@ -72,7 +76,9 @@ let $$cfg = {
         blacklist_by_user: [
             {name: "支付宝好友昵称", width: 0.58},
             {
-                timestamp: "黑名单自动解除", sort: 1, stringTransform: {
+                timestamp: "黑名单自动解除",
+                sort: {flag: 1, head_name: "timestamp"},
+                stringTransform: {
                     forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 },
@@ -81,15 +87,20 @@ let $$cfg = {
         blacklist_protect_cover: [
             {name: "支付宝好友昵称", width: 0.58},
             {
-                timestamp: "黑名单自动解除", sort: 1, stringTransform: {
+                timestamp: "黑名单自动解除",
+                sort: {flag: 1, head_name: "timestamp"},
+                stringTransform: {
                     forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 }
             },
         ],
         foreground_app_blacklist: [
-            {app_combined_name: "应用名称 (含包名)", width: 0.85, sort: 1},
             {
+                app_combined_name: "应用名称 (含包名)",
+                sort: {flag: 1, head_name: "app_combined_name"},
+                width: 0.85,
+            }, {
                 available: "有效", gravity: "center", stringTransform: {
                     forward: function () {
                         let {app_combined_name} = this;
@@ -102,7 +113,9 @@ let $$cfg = {
         ],
         timers_uninterrupted_check_sections: [
             {
-                section: "时间区间", width: 0.58, sort: 1, stringTransform: {
+                section: "时间区间", width: 0.58,
+                sort: {flag: 1, head_name: "section"},
+                stringTransform: {
                     forward: arr => $$tool.timeSectionToStr(arr),
                     backward: str => $$tool.timeStrToSection(str),
                 }
@@ -118,7 +131,9 @@ let $$cfg = {
                 },
             },
             {
-                next_run_time: "下次运行", sort: 1, stringTransform: {
+                next_run_time: "下次运行",
+                sort: {flag: 1, head_name: "next_run_time"},
+                stringTransform: {
                     forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
                     backward: t => $$tool.restoreFromTimestamp(t),
                 },
@@ -645,7 +660,7 @@ let $$init = {
                                 sess_par["list_width_" + idx] = w ? cX(w) + "px" : -2;
                             });
                             sess_par.list_checkbox = options.list_checkbox;
-                            let data_source_key_name = options.data_source_key_name || "unknown_key_name"; // just a key name
+                            let ds_k = options.data_source_key_name || "unknown_key_name"; // just a key name
                             let getListItemName = (num) => {
                                 if (list_head[num]) {
                                     return Object.keys(list_head[num])[0];
@@ -706,12 +721,12 @@ let $$init = {
                             );
 
                             $$view.updateDataSource(
-                                data_source_key_name, "init", options.custom_data_source
+                                ds_k, "init", options.custom_data_source
                             );
                             list_view._check_all.setVisibility(
                                 android.view.View[options.list_checkbox.toUpperCase()]
                             );
-                            list_view._list_data.setDataSource(sess_par[data_source_key_name]);
+                            list_view._list_data.setDataSource(sess_par[ds_k]);
                             list_view._list_title_bg.attr("bg", list_title_bg_color);
                             list_view.setTag("list_page_view");
                             list_head.forEach((title_obj, idx) => {
@@ -724,37 +739,54 @@ let $$init = {
 
                                 list_title_view.setText(title_obj[data_key_name]);
                                 list_title_view.on("click", () => {
-                                    if (!sess_par[data_source_key_name][0]) return;
-                                    sess_par["list_sort_flag_" + data_key_name] = sess_par["list_sort_flag_" + data_key_name]
-                                        || (sess_par[data_source_key_name][0] < sess_par[data_source_key_name][1] ? 1 : -1);
+                                    if (!sess_par[ds_k][0]) {
+                                        return;
+                                    }
 
-                                    let session_data = sess_par[data_source_key_name];
-                                    session_data = session_data.map((value, idx) => [idx, value]); // to attach indices
-                                    session_data.sort((a, b) => {
-                                        if (sess_par["list_sort_flag_" + data_key_name] > 0) {
-                                            return a[1][a[1][data_key_name]] > b[1][b[1][data_key_name]];
-                                        } else return a[1][a[1][data_key_name]] < b[1][b[1][data_key_name]];
+                                    let _sort_k = "list_sort_flag_" + data_key_name;
+                                    if ($$und(sess_par[_sort_k])) {
+                                        let [a, b] = sess_par[ds_k];
+                                        if (a === b) {
+                                            sess_par[_sort_k] = 0;
+                                        }
+                                        sess_par[_sort_k] = a < b ? 1 : -1;
+                                    }
+
+                                    let _sess_data = sess_par[ds_k].map((v, idx) => [idx, v]);
+                                    _sess_data.sort((a, b) => {
+                                        let _a = a[1][a[1][data_key_name]];
+                                        let _b = b[1][b[1][data_key_name]];
+                                        if (_a === _b) {
+                                            return 0;
+                                        }
+                                        if (sess_par[_sort_k] > 0) {
+                                            return _a > _b ? 1 : -1;
+                                        }
+                                        return _a < _b ? 1 : -1;
                                     });
-                                    let indices_table = {};
-                                    session_data = session_data.map((value, idx) => {
-                                        indices_table[value[0]] = idx;
-                                        return value[1];
+                                    let _indices = {};
+                                    _sess_data = _sess_data.map((v, i) => {
+                                        _indices[v[0]] = i;
+                                        return v[1];
                                     });
-                                    let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                                    sess_par[deleted_items_idx] = sess_par[deleted_items_idx] || {};
-                                    let tmp_deleted_items_idx = {};
-                                    Object.keys(sess_par[deleted_items_idx]).forEach(ori_idx_key => {
-                                        tmp_deleted_items_idx[indices_table[ori_idx_key]] = sess_par[deleted_items_idx][ori_idx_key];
+                                    let _del_idx_k = ds_k + "_deleted_items_idx";
+                                    sess_par[_del_idx_k] = sess_par[_del_idx_k] || {};
+                                    let _tmp_del_idx = {};
+                                    Object.keys(sess_par[_del_idx_k]).forEach((ori_idx_key) => {
+                                        _tmp_del_idx[_indices[ori_idx_key]] = sess_par[_del_idx_k][ori_idx_key];
                                     });
-                                    sess_par[deleted_items_idx] = deepCloneObject(tmp_deleted_items_idx);
-                                    sess_par[data_source_key_name].splice(0);
-                                    session_data.forEach(value => sess_par[data_source_key_name].push(value));
-                                    sess_par["list_sort_flag_" + data_key_name] *= -1;
+                                    sess_par[_del_idx_k] = deepCloneObject(_tmp_del_idx);
+                                    sess_par[ds_k].splice(0);
+                                    _sess_data.forEach(v => sess_par[ds_k].push(v));
+                                    sess_par[_sort_k] *= -1;
                                     // updateDataSource(data_source_key_name, "rewrite");
                                 });
 
-                                if (idx === 0) list_view["_check_all"].getParent().addView(list_title_view);
-                                else list_view["_list_title_bg"].addView(list_title_view);
+                                if ($$0(idx)) {
+                                    list_view["_check_all"].getParent().addView(list_title_view);
+                                } else {
+                                    list_view["_list_title_bg"].addView(list_title_view);
+                                }
 
                                 list_title_view.attr("gravity", "left|center");
                                 list_title_view.attr("layout_gravity", "left|center");
@@ -903,14 +935,14 @@ let $$init = {
                     }
                 }
             },
-            setListPageButtons: function (p_view, data_source_key_name) {
+            setListPageButtons: function (p_view, ds_k) {
                 let scenario = {
                     blacklist_by_user: sceBlacklistByUser,
                     foreground_app_blacklist: sceForeAppBlacklist,
-                }[data_source_key_name]();
+                }[ds_k]();
                 return $$view.setButtons.apply(
                     $$view.setButtons,
-                    [p_view, data_source_key_name].concat(scenario)
+                    [p_view, ds_k].concat(scenario)
                 );
 
                 // scenario function(s) //
@@ -918,105 +950,120 @@ let $$init = {
                 function sceBlacklistByUser() {
                     return [
                         ["restore", "RESTORE", "OFF", (btn_view) => {
-                            let blacklist_backup = sto_cfg[data_source_key_name];
-                            if (equalObjects(sess_cfg[data_source_key_name], blacklist_backup)) return;
-                            let diag = dialogs.builds([
+                            let _blist_bak = sto_cfg[ds_k];
+                            if (equalObjects(sess_cfg[ds_k], _blist_bak)) {
+                                return;
+                            }
+                            let _diag = dialogs.builds([
                                 "恢复列表数据", "restore_original_list_data",
                                 ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
                             ]);
-                            diag.on("neutral", () => {
-                                let diag_restore_list = dialogs.builds(["查看恢复列表", "", 0, 0, "返回", 1], {
-                                    content: "共计 " + blacklist_backup.length + " 项",
-                                    items: (function () {
-                                        let split_line = "";
-                                        for (let i = 0; i < 18; i += 1) split_line += "- ";
-                                        let items = [split_line];
-                                        blacklist_backup.forEach((o) => {
-                                            items.push(
+                            _diag.on("neutral", () => {
+                                dialogs.builds([
+                                    "查看恢复列表", "", 0, 0, "返回", 1
+                                ], {
+                                    content: "共计 " + _blist_bak.length + " 项",
+                                    items: (() => {
+                                        let _split_ln = "";
+                                        for (let i = 0; i < 18; i += 1) {
+                                            _split_ln += "- ";
+                                        }
+                                        let _items = [_split_ln];
+                                        _blist_bak.forEach((o) => {
+                                            let _time_str = $$tool.getTimeStrFromTs(
+                                                o.timestamp, "time_str_remove"
+                                            );
+                                            _items.push(
                                                 "好友昵称: " + o.name,
-                                                "解除时间: " + $$tool.getTimeStrFromTs(o.timestamp, "time_str_remove"),
-                                                split_line
+                                                "解除时间: " + _time_str,
+                                                _split_ln
                                             );
                                         });
-                                        return items.length > 1 ? items : ["列表为空"];
+                                        return _items.length > 1 ? _items : ["列表为空"];
                                     })(),
-                                });
-                                diag_restore_list.on("positive", () => diag_restore_list.dismiss());
-                                diag_restore_list.show();
+                                }).on("positive", (d) => {
+                                    d.dismiss();
+                                }).show();
                             });
-                            diag.on("negative", () => diag.dismiss());
-                            diag.on("positive", () => {
-                                diag.dismiss();
-                                $$view.updateDataSource(data_source_key_name, "splice", 0);
+                            _diag.on("negative", d => d.dismiss());
+                            _diag.on("positive", (d) => {
+                                d.dismiss();
+                                $$view.updateDataSource(ds_k, "splice", 0);
 
-                                let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                                let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                                sess_par[deleted_items_idx] = {};
-                                sess_par[deleted_items_idx_count] = 0;
-                                let remove_btn = p_view._text_remove.getParent();
-                                remove_btn.switch_off();
+                                let _del_idx_k = ds_k + "_deleted_items_idx";
+                                let _del_ctr_k = ds_k + "_deleted_items_idx_count";
+                                sess_par[_del_idx_k] = {};
+                                sess_par[_del_ctr_k] = 0;
+                                let _rm_btn = p_view._text_remove.getParent();
+                                _rm_btn.switch_off();
                                 btn_view.switch_off();
-                                blacklist_backup.forEach(value => $$view.updateDataSource(data_source_key_name, "update", value));
+                                _blist_bak.forEach(value => {
+                                    $$view.updateDataSource(ds_k, "update", value);
+                                });
 
-                                let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
+                                let _page_view = $$view.findViewByTag(
+                                    p_view, "list_page_view"
+                                ).getParent();
                                 _page_view._check_all.setChecked(true);
                                 _page_view._check_all.setChecked(false);
                             });
-                            diag.show();
+                            _diag.show();
                         }],
                         ["delete_forever", "REMOVE", "OFF", (btn_view) => {
-                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
-                            if (!sess_par[deleted_items_idx_count]) return;
+                            let _del_idx_k = ds_k + "_deleted_items_idx";
+                            let _del_ctr_k = ds_k + "_deleted_items_idx_count";
+                            if (!sess_par[_del_ctr_k]) {
+                                return;
+                            }
 
-                            let thread_items_stable = threads.starts(function () {
-                                let old_count = undefined;
-                                while (sess_par[deleted_items_idx_count] !== old_count) {
-                                    old_count = sess_par[deleted_items_idx_count];
+                            let _thd_items_stable = threads.starts(function () {
+                                let _ctr_old = undefined;
+                                while (sess_par[_del_ctr_k] !== _ctr_old) {
+                                    _ctr_old = sess_par[_del_ctr_k];
                                     sleep(50);
                                 }
                             });
-                            thread_items_stable.join(800);
+                            _thd_items_stable.join(800);
 
-                            let deleted_items_idx_keys = Object.keys(sess_par[deleted_items_idx]);
-                            deleted_items_idx_keys
+                            let _del_idx_keys = Object.keys(sess_par[_del_idx_k]);
+                            _del_idx_keys
                                 .sort((a, b) => +a < +b ? 1 : -1)
                                 .forEach((idx) => {
-                                    if (sess_par[deleted_items_idx][idx]) {
-                                        sess_par[data_source_key_name].splice(idx, 1);
+                                    if (sess_par[_del_idx_k][idx]) {
+                                        sess_par[ds_k].splice(idx, 1);
                                     }
                                 });
-                            $$view.updateDataSource(data_source_key_name, "rewrite");
-                            sess_par[deleted_items_idx] = {};
-                            sess_par[deleted_items_idx_count] = 0;
+                            $$view.updateDataSource(ds_k, "rewrite");
+                            sess_par[_del_idx_k] = {};
+                            sess_par[_del_ctr_k] = 0;
 
-                            let restore_btn = p_view._text_restore.getParent();
-                            if (!equalObjects(sess_cfg[data_source_key_name], sto_cfg[data_source_key_name])) {
-                                restore_btn.switch_on();
-                            } else {
-                                restore_btn.switch_off();
-                            }
+                            let _restore_btn = p_view._text_restore.getParent();
+                            equalObjects(sess_cfg[ds_k], sto_cfg[ds_k])
+                                ? _restore_btn.switch_off()
+                                : _restore_btn.switch_on();
 
-                            let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
+                            let _page_view = $$view.findViewByTag(
+                                p_view, "list_page_view"
+                            ).getParent();
                             _page_view._check_all.setChecked(true);
                             _page_view._check_all.setChecked(false);
                             btn_view.switch_off();
                         }],
                         ["add_circle", "NEW", "ON", (btn_view) => {
-                            let tmp_sel_fri = [];
-                            let blist_sel_fr = [];
-                            let list_page_view = $$view.findViewByTag(p_view, "list_page_view");
+                            let _tmp_sel_fri = [];
+                            let _blist_sel_fri = [];
+                            let _lst_pg_view = $$view.findViewByTag(p_view, "list_page_view");
 
-                            sess_cfg[data_source_key_name].forEach(o => blist_sel_fr.push(o.name));
+                            sess_cfg[ds_k].forEach(o => _blist_sel_fri.push(o.name));
 
-                            let diag = dialogs.builds([
+                            let _diag = dialogs.builds([
                                 "添加新数据",
                                 "从好友列表中选择并添加好友\n或检索选择好友",
                                 ["从列表中选择", "hint_btn_bright_color"],
                                 ["检索选择", "hint_btn_bright_color"],
                                 "确认添加", 1,
                             ], {items: [" "]});
-                            diag.on("neutral", () => {
+                            _diag.on("neutral", () => {
                                 let _diag_add_from_lst = dialogs.builds([
                                     "列表选择好友", "",
                                     ["刷新列表", "hint_btn_bright_color"], 0, "确认选择", 1,
@@ -1025,18 +1072,18 @@ let $$init = {
                                     itemsSelectMode: "multi",
                                 });
                                 _diag_add_from_lst.on("neutral", () => {
-                                    $$tool.refreshFriendsListByLaunchingAlipay({
+                                    $$tool.refreshFriLstByLaunchAlipay({
                                         dialog_prompt: true,
                                         onTrigger: function () {
                                             _diag_add_from_lst.dismiss();
-                                            diag.dismiss();
+                                            _diag.dismiss();
                                         },
                                         onResume: function () {
-                                            diag.show();
+                                            _diag.show();
                                             threads.starts(function () {
-                                                let neutral_btn_text = diag.getActionButton("neutral");
-                                                if (neutral_btn_text) {
-                                                    waitForAndClickAction(text(neutral_btn_text), 4000, 100, {
+                                                let _btn_text = _diag.getActionButton("neutral");
+                                                if (_btn_text) {
+                                                    waitForAndClickAction(text(_btn_text), 4000, 100, {
                                                         click_strategy: "w",
                                                     });
                                                 }
@@ -1049,23 +1096,29 @@ let $$init = {
                                     _diag_add_from_lst.dismiss();
                                 });
                                 _diag_add_from_lst.on("multi_choice", (items, indices_damaged_, dialog) => {
-                                    if (items.length === 1 && items[0] === "列表为空") return;
-                                    if (items) items.forEach(name => tmp_sel_fri.push(name.split(". ")[1]));
+                                    if (items.length === 1 && items[0] === "列表为空") {
+                                        return;
+                                    }
+                                    if (items) {
+                                        items.forEach((name) => {
+                                            _tmp_sel_fri.push(name.split(". ")[1]);
+                                        });
+                                    }
                                 });
                                 _diag_add_from_lst.show();
 
-                                refreshAddFromListDiag();
+                                _refreshAddFromLstDiag();
 
                                 // tool function(s) //
 
-                                function refreshAddFromListDiag() {
+                                function _refreshAddFromLstDiag() {
                                     let _items = [];
                                     let _fri_lst = $$sto.af.get("friends_list_data", {});
                                     if (_fri_lst.list_data) {
                                         _fri_lst.list_data.forEach(o => {
                                             let _nick = o.nickname;
-                                            let _cA = !blist_sel_fr.includes(_nick);
-                                            let _cB = !tmp_sel_fri.includes(_nick);
+                                            let _cA = !_blist_sel_fri.includes(_nick);
+                                            let _cB = !_tmp_sel_fri.includes(_nick);
                                             if (_cA && _cB) {
                                                 _items.push(o.rank_num + ". " + _nick);
                                             }
@@ -1085,23 +1138,23 @@ let $$init = {
                                     );
                                 }
                             });
-                            diag.on("negative", () => {
-                                diag.dismiss();
+                            _diag.on("negative", () => {
+                                _diag.dismiss();
                                 $$view.setListItemsSearchAndSelectView((() => {
                                     let {list_data} = $$sto.af.get("friends_list_data", {list_data: []});
                                     return list_data.map(o => o.nickname);
                                 }), {
                                     empty_list_prompt: true,
-                                    refresh_btn_listener: (data_source_updater, data_source_src) => {
-                                        $$tool.refreshFriendsListByLaunchingAlipay({
+                                    refresh_btn_listener: (ds_updater, ds_src) => {
+                                        $$tool.refreshFriLstByLaunchAlipay({
                                             dialog_prompt: true,
                                             onResume: function () {
-                                                data_source_updater(data_source_src());
+                                                ds_updater(ds_src());
                                             },
                                         });
                                     },
                                     list_item_listener: (item, closeListPage) => {
-                                        let excluded_data_arrays = [blist_sel_fr, tmp_sel_fri];
+                                        let excluded_data_arrays = [_blist_sel_fri, _tmp_sel_fri];
 
                                         for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
                                             if (~excluded_data_arrays[i].indexOf(item)) {
@@ -1111,52 +1164,56 @@ let $$init = {
                                         closeListPage(item);
                                     },
                                     onFinish: (result) => {
-                                        result && tmp_sel_fri.push(result);
-                                        diag.show();
+                                        result && _tmp_sel_fri.push(result);
+                                        _diag.show();
                                         refreshDiag();
                                     }
                                 });
                             });
-                            diag.on("positive", () => {
-                                tmp_sel_fri.forEach(name => $$view.updateDataSource(data_source_key_name, "update_unshift", {
+                            _diag.on("positive", () => {
+                                _tmp_sel_fri.forEach(name => $$view.updateDataSource(ds_k, "update_unshift", {
                                     name: name,
                                     timestamp: Infinity,
                                 }));
-                                if (tmp_sel_fri.length) setTimeout(function () {
+                                if (_tmp_sel_fri.length) setTimeout(function () {
                                     p_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                                 }, 200);
-                                let restore_btn = list_page_view.getParent()._text_restore.getParent();
-                                equalObjects(
-                                    sess_cfg[data_source_key_name],
-                                    sto_cfg[data_source_key_name]
-                                ) ? restore_btn.switch_off() : restore_btn.switch_on();
-                                $$save.session(data_source_key_name, sess_cfg[data_source_key_name]);
-                                diag.dismiss();
+                                let _restore_btn = _lst_pg_view.getParent()._text_restore.getParent();
+                                equalObjects(sess_cfg[ds_k], sto_cfg[ds_k])
+                                    ? _restore_btn.switch_off()
+                                    : _restore_btn.switch_on();
+                                $$save.session(ds_k, sess_cfg[ds_k]);
+                                _diag.dismiss();
                             });
-                            diag.on("item_select", (idx, item, dialog) => {
-                                let diag_items = diag.getItems().toArray();
-                                if (diag_items.length === 1 && diag_items[0] === "\xa0") return;
-                                let delete_confirm_diag = dialogs.builds(["确认移除此项吗", "", 0, "返回", "确认", 1]);
-                                delete_confirm_diag.on("negative", () => delete_confirm_diag.dismiss());
-                                delete_confirm_diag.on("positive", () => {
-                                    tmp_sel_fri.splice(idx, 1);
+                            _diag.on("item_select", (idx, item, dialog) => {
+                                let _diag_items = _diag.getItems().toArray();
+                                if (_diag_items.length === 1 && _diag_items[0] === "\xa0") {
+                                    return;
+                                }
+                                dialogs.builds([
+                                    "确认移除此项吗", "", 0, "返回", "确认", 1
+                                ]).on("negative", (d) => {
+                                    d.dismiss();
+                                }).on("positive", (d) => {
+                                    _tmp_sel_fri.splice(idx, 1);
                                     refreshDiag();
-                                    delete_confirm_diag.dismiss();
-                                });
-                                delete_confirm_diag.show();
+                                    d.dismiss();
+                                }).show();
                             });
-                            diag.show();
+                            _diag.show();
 
                             refreshDiag();
 
                             // tool function(s) //
 
                             function refreshDiag() {
-                                let tmp_items_len = tmp_sel_fri.length;
-                                let tmp_items = tmp_items_len ? tmp_sel_fri : ["\xa0"];
-                                diag.setItems(tmp_items);
-                                let content_info = tmp_items_len ? ("当前选择区好友总数: " + tmp_items_len) : "从好友列表中选择并添加好友\n或手动输入好友昵称";
-                                diag.setContent(content_info);
+                                let _tmp_items_len = _tmp_sel_fri.length;
+                                let _tmp_items = _tmp_items_len ? _tmp_sel_fri : ["\xa0"];
+                                _diag.setItems(_tmp_items);
+                                let _cnt_info = _tmp_items_len
+                                    ? "当前选择区好友总数: " + _tmp_items_len
+                                    : "从好友列表中选择并添加好友\n或手动输入好友昵称";
+                                _diag.setContent(_cnt_info);
                             }
                         }]
                     ];
@@ -1165,8 +1222,8 @@ let $$init = {
                 function sceForeAppBlacklist() {
                     return [
                         ["restore", "RESTORE", "OFF", (btn_view) => {
-                            let blacklist_backup = sto_cfg[data_source_key_name];
-                            if (equalObjects(sess_cfg[data_source_key_name], blacklist_backup)) return;
+                            let blacklist_backup = sto_cfg[ds_k];
+                            if (equalObjects(sess_cfg[ds_k], blacklist_backup)) return;
                             let diag = dialogs.builds([
                                 "恢复列表数据", "restore_original_list_data",
                                 ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
@@ -1186,16 +1243,16 @@ let $$init = {
                             diag.on("negative", () => diag.dismiss());
                             diag.on("positive", () => {
                                 diag.dismiss();
-                                $$view.updateDataSource(data_source_key_name, "splice", 0);
+                                $$view.updateDataSource(ds_k, "splice", 0);
 
-                                let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                                let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                                let deleted_items_idx = ds_k + "_deleted_items_idx";
+                                let deleted_items_idx_count = ds_k + "_deleted_items_idx_count";
                                 sess_par[deleted_items_idx] = {};
                                 sess_par[deleted_items_idx_count] = 0;
                                 let remove_btn = p_view._text_remove.getParent();
                                 remove_btn.switch_off();
                                 btn_view.switch_off();
-                                blacklist_backup.forEach(value => $$view.updateDataSource(data_source_key_name, "update", value));
+                                blacklist_backup.forEach(value => $$view.updateDataSource(ds_k, "update", value));
                                 let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
                                 _page_view._check_all.setChecked(true);
                                 _page_view._check_all.setChecked(false);
@@ -1203,8 +1260,8 @@ let $$init = {
                             diag.show();
                         }],
                         ["delete_forever", "REMOVE", "OFF", (btn_view) => {
-                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                            let deleted_items_idx = ds_k + "_deleted_items_idx";
+                            let deleted_items_idx_count = ds_k + "_deleted_items_idx_count";
                             if (!sess_par[deleted_items_idx_count]) return;
 
                             let thread_items_stable = threads.starts(function () {
@@ -1221,16 +1278,16 @@ let $$init = {
                                 .sort((a, b) => +a < +b ? 1 : -1)
                                 .forEach((idx) => {
                                     if (sess_par[deleted_items_idx][idx]) {
-                                        sess_par[data_source_key_name].splice(idx, 1);
+                                        sess_par[ds_k].splice(idx, 1);
                                     }
                                 });
-                            $$view.updateDataSource(data_source_key_name, "rewrite");
+                            $$view.updateDataSource(ds_k, "rewrite");
                             sess_par[deleted_items_idx] = {};
                             sess_par[deleted_items_idx_count] = 0;
 
                             let restore_btn = p_view._text_restore.getParent();
-                            let _sess = sess_cfg[data_source_key_name];
-                            let _sto = sto_cfg[data_source_key_name];
+                            let _sess = sess_cfg[ds_k];
+                            let _sto = sto_cfg[ds_k];
                             equalObjects(_sess, _sto) ? restore_btn.switch_off() : restore_btn.switch_on();
 
                             let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
@@ -1243,7 +1300,7 @@ let $$init = {
                             let blacklist_selected_apps = [];
                             let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
 
-                            let _sess = sess_cfg[data_source_key_name];
+                            let _sess = sess_cfg[ds_k];
                             _sess.forEach(o => blacklist_selected_apps.push(o.app_combined_name));
 
                             let diag = dialogs.builds([
@@ -1328,7 +1385,7 @@ let $$init = {
                             diag.on("positive", () => {
                                 tmp_selected_apps.forEach((name) => {
                                     $$view.updateDataSource(
-                                        data_source_key_name,
+                                        ds_k,
                                         "update_unshift",
                                         {app_combined_name: name}
                                     )
@@ -1337,10 +1394,10 @@ let $$init = {
                                     p_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                                 }, 200);
                                 let restore_btn = _page_view._text_restore.getParent();
-                                let _sess = sess_cfg[data_source_key_name];
-                                let _sto = sto_cfg[data_source_key_name];
+                                let _sess = sess_cfg[ds_k];
+                                let _sto = sto_cfg[ds_k];
                                 equalObjects(_sess, _sto) ? restore_btn.switch_off() : restore_btn.switch_on();
-                                $$save.session(data_source_key_name, _sess);
+                                $$save.session(ds_k, _sess);
                                 diag.dismiss();
                             });
                             diag.on("item_select", (idx, item, dialog) => {
@@ -2319,21 +2376,25 @@ let $$init = {
             updateDataSource: function (ds_k, opr, data, quiet, no_rewrite) {
                 let _lst_h = $$cfg.list_heads;
                 if (opr.match(/init/)) {
-                    let _lst_h_len = _lst_h[ds_k].length;
+                    let _h_o_arr = _lst_h[ds_k];
+                    let _h_o_len = _h_o_arr.length;
                     let _ori_ds = data || sess_cfg[ds_k] || sess_par[ds_k];
                     _ori_ds = $$func(_ori_ds) ? _ori_ds() : _ori_ds;
-                    for (let i = 0; i < _lst_h_len; i += 1) {
-                        let _sort = _lst_h[ds_k][i].sort;
+                    for (let i = 0; i < _h_o_len; i += 1) {
+                        let _h_o = _h_o_arr[i];
+                        let _sort = _h_o.sort;
                         if (_sort) {
-                            let _head_name = Object.keys(_lst_h[ds_k][i])[0];
-                            _ori_ds.sort((a, b) => {
-                                let _a = a[_head_name];
-                                let _b = b[_head_name];
-                                if (_sort > 0) {
-                                    return _a > _b ? 1 : -1;
+                            let _h_name = _sort.head_name;
+                            let _factor = _sort.flag > 0 ? 1 : -1;
+                            let _sorter = (a, b) => {
+                                let _a = a[_h_name];
+                                let _b = b[_h_name];
+                                if (_a === _b) {
+                                    return 0;
                                 }
-                                return _a < _b ? 1 : -1;
-                            });
+                                return _a > _b ? _factor : -_factor;
+                            };
+                            _ori_ds.sort(_sorter);
                             break;
                         }
                     }
@@ -2586,23 +2647,24 @@ let $$init = {
                 }
 
                 function writeBlacklist() {
-                    let blacklist = {};
-                    let blacklist_by_user = sess_cfg_mixed.blacklist_by_user;
-                    blacklist_by_user.forEach(o => {
-                        blacklist[o.name] = {
+                    let _blist = [];
+                    let _blist_usr = sess_cfg_mixed.blacklist_by_user;
+                    _blist_usr.forEach((o) => {
+                        _blist.push({
+                            name: o.name,
                             reason: "by_user",
                             timestamp: o.timestamp,
-                        }
+                        });
                     });
-                    let blacklist_protect_cover = sess_cfg_mixed.blacklist_protect_cover;
-                    blacklist_protect_cover.forEach(o => {
-                        let name = o.name;
-                        blacklist[name] = blacklist[name] || {
+                    let _blist_cvr = sess_cfg_mixed.blacklist_protect_cover;
+                    _blist_cvr.forEach((o) => {
+                        _blist.push({
+                            name: o.name,
                             reason: "protect_cover",
                             timestamp: o.timestamp,
-                        }
+                        });
                     });
-                    $$sto.af.put("blacklist", blacklist);
+                    $$sto.af.put("blacklist", _blist);
                     delete sess_cfg_mixed.blacklist_protect_cover;
                     delete sess_cfg_mixed.blacklist_by_user;
                 }
@@ -2974,7 +3036,7 @@ let $$init = {
                 if (str.match(/每周/)) return str.split(/\D/).filter(x => x !== "").map(x => +x === 7 ? 0 : +x).sort();
                 return str === "一次性" ? 0 : str;
             },
-            refreshFriendsListByLaunchingAlipay: function (params) {
+            refreshFriLstByLaunchAlipay: function (params) {
                 let {dialog_prompt, onTrigger, onResume} = params || {};
 
                 if (dialog_prompt) {
@@ -3628,23 +3690,40 @@ let $$init = {
         }
 
         function isolatedBlacklist() {
-            let blacklist = $$sto.af.get("blacklist", {});
-            let blacklist_protect_cover = [];
-            let blacklist_by_user = [];
-            for (let name in blacklist) {
-                if (blacklist.hasOwnProperty(name)) {
-                    let {timestamp, reason} = blacklist[name];
-                    let info = {name: name, timestamp: timestamp};
-                    if (reason === "protect_cover") blacklist_protect_cover.push(info);
-                    if (reason === "by_user") blacklist_by_user.push(info);
+            let _blist = $$sto.af.get("blacklist", []);
+            let _blist_cvr = [];
+            let _blist_usr = [];
+            if (classof(_blist, "Object")) {
+                for (let name in _blist) {
+                    if (_blist.hasOwnProperty(name)) {
+                        let {reason, timestamp} = _blist[name];
+                        let _o = {name: name, timestamp: timestamp};
+                        if (reason === "protect_cover") {
+                            _blist_cvr.push(_o);
+                        }
+                        if (reason === "by_user") {
+                            _blist_usr.push(_o);
+                        }
+                    }
+                }
+            } else if (classof(_blist, "Array")) {
+                for (let o of _blist) {
+                    let {name, reason, timestamp} = o;
+                    let _o = {name: name, timestamp: timestamp};
+                    if (reason === "protect_cover") {
+                        _blist_cvr.push(_o);
+                    }
+                    if (reason === "by_user") {
+                        _blist_usr.push(_o);
+                    }
                 }
             }
-            let result = {
-                blacklist_protect_cover: blacklist_protect_cover,
-                blacklist_by_user: blacklist_by_user,
+            let _res = {
+                blacklist_protect_cover: _blist_cvr,
+                blacklist_by_user: _blist_usr,
             };
-            Object.assign(sess_par, result);
-            return result;
+            Object.assign(sess_par, _res);
+            return _res;
         }
     },
     listener: function () {
