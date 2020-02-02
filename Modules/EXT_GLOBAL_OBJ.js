@@ -166,6 +166,31 @@ let ext = {
                 return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
             };
         }
+        if (!String["trimStrat"]) {
+            String.prototype.trimStart = function () {
+                return this.replace(/^\s*/, "");
+            };
+        }
+        if (!String["trimEnd"]) {
+            String.prototype.trimEnd = function () {
+                return this.replace(/\s*$/, "");
+            };
+        }
+        if (!String["trimLeft"]) {
+            String.prototype.trimLeft = function () {
+                return this.trimStart();
+            };
+        }
+        if (!String["trimRight"]) {
+            String.prototype.trimRight = function () {
+                return this.trimEnd();
+            };
+        }
+        if (!String["trimBoth"]) {
+            String.prototype.trimBoth = function () {
+                return this.trimStart().trimEnd();
+            };
+        }
     },
     Object: () => {
         if (!Object["values"]) {
@@ -182,6 +207,30 @@ let ext = {
                 return value;
             };
         }
+        if (!Object["keysArr"]) {
+            Object.prototype.keysArr = function () {
+                return Object.keys(this);
+            };
+        }
+        if (!Object["valuesArr"]) {
+            Object.prototype.valuesArr = function () {
+                if (typeof Object.values === "function") {
+                    return Object.values(this);
+                }
+                let values = [];
+                for (let key in this) {
+                    if (this.hasOwnProperty(key)) {
+                        values.push(this[key]);
+                    }
+                }
+                return values;
+            };
+        }
+        if (!Object["len"]) {
+            Object.prototype.len = function () {
+                return Object.keys(this).length;
+            };
+        }
     },
     Array: () => {
         if (!Array["includes"]) {
@@ -190,6 +239,33 @@ let ext = {
                 return this.slice(i).some((v) => {
                     return $_num(x) && isNaN(x) ? isNaN(v) : x === v;
                 });
+            };
+        }
+    },
+    Number: () => {
+        if (!Number["restrict"]) {
+            Number.prototype.restrict = function () {
+                let _this = +this;
+                let _args = Array.prototype.slice.call(arguments)
+                    .sort((a, b) => {
+                        if (+a === +b) {
+                            return 0;
+                        }
+                        return +b < +a ? 1 : -1;
+                    });
+                let _len = _args.length;
+                if (!_len) {
+                    return _this;
+                }
+                let _min = +_args[0];
+                let _max = +_args[_len - 1];
+                if (_this < _min) {
+                    return _min;
+                }
+                if (_this > _max) {
+                    return _max;
+                }
+                return _this;
             };
         }
     },

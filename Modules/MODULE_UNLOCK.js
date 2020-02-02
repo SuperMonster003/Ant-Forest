@@ -1905,21 +1905,50 @@ function _exports() {
         return !_kg_man.isKeyguardLocked();
     }
 
-    function _wakeUp() {
-        if (!_isScrOn()) {
-            device.keepScreenOn(120 * 1000); // 2 min
+    function _wakeUpIFN() {
+        if (_isScrOn()) {
+            return;
+        }
+
+        let _max = 4; // 6 sec
+        let _ctr = 0;
+
+        while (!_lmt()) {
+            let _s = " (" + _ctr + "/" + _max + ")";
+            debugInfo(_ctr
+                ? "重试唤起设备" + _s
+                : "尝试唤起设备"
+            );
+            device.wakeUpIfNeeded();
+            if (waitForAction(_isScrOn, 1500)) {
+                // keep screen on for 2 min
+                device.keepScreenOn(120 * 1000);
+                break;
+            }
+            _ctr += 1;
+        }
+
+        debugInfo("设备唤起成功");
+
+        // tool function(s) //
+
+        function _lmt() {
+            if (_ctr > _max) {
+                return _err("设备唤起失败");
+            }
         }
     }
 
     function _unlkSetter() {
-        let _as = "com\\.android\\.systemui:id\\/";
-        let _ak = "com\\.android\\.keyguard:id\\/";
-        let _sk = "com\\.smartisanos\\.keyguard:id\\/";
+        let _as = "com\\.android\\.systemui:id/";
+        let _ak = "com\\.android\\.keyguard:id/";
+        let _sk = "com\\.smartisanos\\.keyguard:id/";
 
         return {
             init_scr: _isScrOn(),
             prev_cntr: {
                 chk: function () {
+                    _wakeUpIFN();
                     _disturbance();
 
                     let _common = idMatches(_as +
@@ -2036,9 +2065,8 @@ function _exports() {
 
                     function _dismiss() {
                         let _this = $_unlk.prev_cntr;
-                        let _hW = cX(0.5);
                         let _par = [];
-                        _pts.forEach(y => _par.push([_hW, cY(y)]));
+                        _pts.forEach(y => _par.push([halfW, cY(y)]));
 
                         let _max = 30;
                         let _ctr = 0;
@@ -2049,8 +2077,8 @@ function _exports() {
                                 ? "重试消除解锁页面提示层" + _s
                                 : "尝试消除解锁页面提示层"
                             );
-                            debugInfo("使用滑动时间参数: " + _time);
-                            debugInfo(">来源: " + (
+                            debugInfo("滑动时长: " + _time + "毫秒");
+                            debugInfo("参数来源: " + (
                                 _from_sto ? "本地存储" : "自动计算"
                             ));
 
@@ -2102,6 +2130,9 @@ function _exports() {
                             debugInfo("存储滑动时长参数: " + _time);
                         }
 
+                        if (!(_time in _t_pool)) {
+                            _t_pool[_time] = 0;
+                        }
                         let _new_ctr = ++_t_pool[_time];
                         _sto.put("config", {continuous_swipe: _t_pool});
                         debugInfo("存储连续成功滑动次数: " + _new_ctr);
@@ -2129,12 +2160,24 @@ function _exports() {
                 chk: function () {
                     let _this = this;
 
+                    if (!_isScrOn()) {
+                        debugInfo("跳过解锁控件检测");
+                        debugInfo(">屏幕未亮起");
+                        return;
+                    }
                     return _pattern()
                         || _password()
                         || _pin()
-                        || _specials();
+                        || _specials()
+                        || _unmatched();
 
                     // tool function(s) //
+
+                    function _unmatched() {
+                        if (!_isUnlk()) {
+                            debugInfo("未匹配到可用的解锁控件");
+                        }
+                    }
 
                     function _trigger(sel, stg) {
                         _this.sel = sel;
@@ -2164,6 +2207,10 @@ function _exports() {
 
                         function _stg() {
                             let _stg = _cfg.unlock_pattern_strategy;
+                            let _stg_map = {
+                                segmental: "叠加路径",
+                                solid: "连续路径",
+                            };
                             let _key = "unlock_pattern_swipe_time_" + _stg;
                             let _time = _cfg[_key]; // swipe time
 
@@ -2176,7 +2223,8 @@ function _exports() {
                                     ? "重试图案密码解锁" + _s
                                     : "尝试图案密码解锁"
                                 );
-                                debugInfo("滑动时长参数: " + _time);
+                                debugInfo("滑动时长: " + _time + "毫秒");
+                                debugInfo("滑动策略: " + _stg_map[_stg]);
 
                                 let _pts = _getPts();
                                 let _act = {
@@ -2591,7 +2639,7 @@ function _exports() {
                             "lockPattern"
                         );
                         let _oppo = idMatches(_as +
-                            "keyguard_pin_view"
+                            "(coloros.)?keyguard.pin.(six.)?view"
                         );
 
                         if (_common.exists()) {
@@ -3068,38 +3116,6 @@ function _exports() {
             }
         }
 
-        function _wakeUpIFN() {
-            if (_isScrOn()) {
-                return;
-            }
-
-            let _max = 6; // 3 sec
-            let _ctr = 0;
-
-            while (!_lmt()) {
-                let _s = " (" + _ctr + "/" + _max + ")";
-                debugInfo(_ctr
-                    ? "重试唤起设备" + _s
-                    : "尝试唤起设备"
-                );
-                _wakeUp();
-                if (waitForAction(_isScrOn, 500, 100)) {
-                    break;
-                }
-                _ctr += 1;
-            }
-
-            debugInfo("设备唤起成功");
-
-            // tool function(s) //
-
-            function _lmt() {
-                if (_ctr > _max) {
-                    return _err("设备唤起失败");
-                }
-            }
-        }
-
         function _lmtRch() {
             if ($_und(_unlock._ctr)) {
                 _unlock._ctr = 0;
@@ -3111,7 +3127,7 @@ function _exports() {
             let _max = _unlock._max;
             let _ctr = _unlock._ctr++;
             if (_ctr > _max) {
-                return _err("无法判断当前解锁条件");
+                return _err("解锁尝试次数已达上限");
             }
             if (_ctr) {
                 let _s = " (" + _ctr + "/" + _max + ")";

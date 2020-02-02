@@ -521,7 +521,7 @@ let $$init = {
                                 });
                             });
                         } else if (type.match(/^page/)) {
-                            let page_view = ui.inflate(
+                            let _page_enter_view = ui.inflate(
                                 <vertical id="_chevron_btn">
                                     <img src="@drawable/ic_chevron_right_black_48dp"
                                          bg="?selectableItemBackgroundBorderless"
@@ -529,7 +529,7 @@ let $$init = {
                                     />
                                 </vertical>
                             );
-                            item_view._item_area.addView(page_view);
+                            item_view._item_area.addView(_page_enter_view);
                             opt.view = item_view;
                             item_view.setClickListener = (listener) => {
                                 if (!listener) listener = () => null;
@@ -568,6 +568,7 @@ let $$init = {
 
                         item_view.setNextPage = (page) => opt.next_page = page;
                         item_view.getNextPage = () => opt.next_page;
+                        item_view.page_view = page_view;
 
                         if (opt.view_tag) {
                             item_view.setTag(opt.view_tag);
@@ -2489,53 +2490,85 @@ let $$init = {
                     .forEach(view => view.updateOpr(view))
                 );
             },
-            showOrHideBySwitch: function (view, state, hide_when_checked, nearest_end_tag) {
-                hide_when_checked = !!hide_when_checked; // boolean
-                state = !!state; // boolean
-
-                let switch_state_key_name = view.config_conj + "_switch_states";
-                if (!sess_par[switch_state_key_name]) sess_par[switch_state_key_name] = [];
-
-                let myself = view.view;
-                let parent = myself.getParent();
-                let myself_index = parent.indexOfChild(myself);
-                let child_count = parent.getChildCount();
-
-                while (++myself_index < child_count) {
-                    let child_view = parent.getChildAt(myself_index);
-                    if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
-                        break;
-                    }
-                    state === hide_when_checked ? hide(child_view) : reveal(child_view);
-                }
+            showOrHideBySwitch: function (o, state, hide_when_checked, nearest_end_tag) {
+                let _lbl = o.view.page_view.page_label_name;
+                setIntervalBySetTimeout(_act, 80, _ready);
 
                 // tool function(s) //
 
-                function hide(view) {
-                    sess_par[switch_state_key_name].push(view.visibility);
-                    view.setVisibility(8);
+                function _act() {
+                    ui.post(() => {
+                        hide_when_checked = !!hide_when_checked; // boolean
+                        state = !!state; // boolean
+
+                        let switch_state_key_name = o.config_conj + "_switch_states";
+                        if (!sess_par[switch_state_key_name]) sess_par[switch_state_key_name] = [];
+
+                        let myself = o.view;
+                        let parent = myself.getParent();
+                        let myself_index = parent.indexOfChild(myself);
+                        let child_count = parent.getChildCount();
+
+                        while (++myself_index < child_count) {
+                            let child_view = parent.getChildAt(myself_index);
+                            if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
+                                break;
+                            }
+                            state === hide_when_checked ? hide(child_view) : reveal(child_view);
+                        }
+
+                        // tool function(s) //
+
+                        function hide(view) {
+                            sess_par[switch_state_key_name].push(view.visibility);
+                            view.setVisibility(8);
+                        }
+
+                        function reveal(view) {
+                            if (!sess_par[switch_state_key_name].length) return;
+                            view.setVisibility(sess_par[switch_state_key_name].shift());
+                        }
+                    });
                 }
 
-                function reveal(view) {
-                    if (!sess_par[switch_state_key_name].length) return;
-                    view.setVisibility(sess_par[switch_state_key_name].shift());
+                function _ready() {
+                    if (!_lbl) {
+                        return true;
+                    }
+                    return sess_par["ready_signal_" + _lbl];
                 }
             },
-            weakOrStrongBySwitch: function (view, state, view_index_padding) {
-                if (!classof(view_index_padding, "Array")) {
-                    view_index_padding = [view_index_padding || 1];
+            weakOrStrongBySwitch: function (o, state, view_index_padding) {
+                let _lbl = o.view.page_view.page_label_name;
+                setIntervalBySetTimeout(_act, 80, _ready);
+
+                // tool function(s) //
+
+                function _act() {
+                    ui.post(() => {
+                        if (!classof(view_index_padding, "Array")) {
+                            view_index_padding = [view_index_padding || 1];
+                        }
+                        let myself = o.view;
+                        let parent = myself.getParent();
+                        let current_child_index = parent.indexOfChild(myself);
+                        view_index_padding.forEach(padding => {
+                            let radio_group_view = parent.getChildAt(current_child_index + padding).getChildAt(0);
+                            for (let i = 0, len = radio_group_view.getChildCount(); i < len; i += 1) {
+                                let radio_view = radio_group_view.getChildAt(i);
+                                radio_view.setClickable(state);
+                                radio_view.setTextColor(colors.parseColor(state ? "#000000" : "#b0bec5"));
+                            }
+                        });
+                    });
                 }
-                let myself = view.view;
-                let parent = myself.getParent();
-                let current_child_index = parent.indexOfChild(myself);
-                view_index_padding.forEach(padding => {
-                    let radio_group_view = parent.getChildAt(current_child_index + padding).getChildAt(0);
-                    for (let i = 0, len = radio_group_view.getChildCount(); i < len; i += 1) {
-                        let radio_view = radio_group_view.getChildAt(i);
-                        radio_view.setClickable(state);
-                        radio_view.setTextColor(colors.parseColor(state ? "#000000" : "#b0bec5"));
+
+                function _ready() {
+                    if (!_lbl) {
+                        return true;
                     }
-                });
+                    return sess_par["ready_signal_" + _lbl];
+                }
             },
             diag: {
                 colorSetter: function () {
@@ -3606,8 +3639,8 @@ let $$init = {
                 alertContent, waitForAction, getDisplayParams,
                 classof, messageAction, waitForAndClickAction,
                 phoneCallingState, surroundWith, timeRecorder,
-                timedTaskTimeFlagConverter,
-                debugInfo, equalObjects,
+                timedTaskTimeFlagConverter, debugInfo,
+                setIntervalBySetTimeout, equalObjects,
             } = require("./Modules/MODULE_MONSTER_FUNC");
 
             Object.assign(global, {
@@ -3625,6 +3658,7 @@ let $$init = {
                 smoothScrollView: smoothScrollView,
                 getDisplayParams: getDisplayParams,
                 phoneCallingState: phoneCallingState,
+                setIntervalBySetTimeout: setIntervalBySetTimeout,
                 timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
             });
         }

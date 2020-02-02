@@ -4233,7 +4233,8 @@ function dismissIDEWarnings() {
             incrementAndGet: () => $$num,
             decrementAndGet: () => $$num,
             compareAndSet: (long1, long2) => Boolean,
-        }
+        },
+        getKeyCode: () => $$num,
     });
     Object.assign($$sel.__proto__, {
         findOnce: UiObject => $$jvo.UiObject,
@@ -4320,6 +4321,8 @@ function dismissIDEWarnings() {
         isScreenOn: () => Boolean,
         keepScreenOn: num => void 0,
         brand: String,
+        wakeUp: () => void 0,
+        wakeUpIfNeeded: () => void 0,
     });
     Object.assign(console.__proto__, {
         verbose: str => void 0,
@@ -4353,6 +4356,12 @@ function dismissIDEWarnings() {
             },
             ViewParent: function (Layout) {
 
+            },
+            KeyEvent: {
+                ACTION_DOWN: Integer,
+                ACTION_UP: Integer,
+                ACTION_MOVE: Integer,
+                keyCodeToString: num => $$str,
             },
         },
         content: {

@@ -85,6 +85,15 @@
 ******
 ### 版本历史
 ******
+# v1.9.14
+###### 2020/02/02
+* `修复` 主账户头像匹配失败后脚本无法继续的问题  
+* `修复` 图形配置工具开关初始化状态为关闭时未能隐藏子控件的问题  
+* `修复` 解锁模块密码布局控件逻辑错误导致流程提前终止的问题 _[`issue #252`](https://github.com/SuperMonster003/Auto.js_Projects/issues/252)_  
+* `优化` 好友森林页面返回排行榜判断逻辑  
+* `优化` 黑名单检测采用先trim后匹配的方式 _[`issue #250`](https://github.com/SuperMonster003/Auto.js_Projects/issues/250)_  
+* `优化` 解锁模块适配部分OPPO设备 (ColorOS系统/PIN方案) _[`issue #251`](https://github.com/SuperMonster003/Auto.js_Projects/issues/251#issuecomment-580312460)_  
+
 # v1.9.13
 ###### 2020/01/29
 * `修复` 黑名单功能内部逻辑错误与配置关联错误 _[`issue #250`](https://github.com/SuperMonster003/Auto.js_Projects/issues/250)_  
