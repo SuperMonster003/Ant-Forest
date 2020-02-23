@@ -158,6 +158,38 @@ let ext = {
             },
         });
     },
+    Override: function () {
+        Object.assign(global, {
+            toast: function (msg, if_long, if_force) {
+                let _msg = msg ? msg.toString() : "";
+                let _if_long = (() => {
+                    if (typeof if_long === "number") {
+                        return +!!if_long;
+                    }
+                    if (typeof if_long === "string") {
+                        return +!!(if_long.toUpperCase().match(/^L(ONG)?$/));
+                    }
+                    if (typeof if_long === "boolean") {
+                        return +if_long;
+                    }
+                    return 0;
+                })();
+                let _s_handler = new android.os.Handler(
+                    android.os.Looper.getMainLooper()
+                );
+                _s_handler.post(function () {
+                    if (if_force && global["_toast_"]) {
+                        global["_toast_"].cancel();
+                        global["_toast_"] = null;
+                    }
+                    global["_toast_"] = android.widget.Toast.makeText(
+                        context, _msg, _if_long
+                    );
+                    global["_toast_"].show();
+                });
+            },
+        });
+    },
     String: () => {
         if (!String["toTitleCase"]) {
             String.prototype.toTitleCase = function () {
@@ -166,7 +198,7 @@ let ext = {
                 return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
             };
         }
-        if (!String["trimStrat"]) {
+        if (!String["trimStart"]) {
             String.prototype.trimStart = function () {
                 return this.replace(/^\s*/, "");
             };
@@ -376,29 +408,29 @@ let ext = {
     }),
 };
 
-module.exports = {
-    load: function () {
-        let _args_len = arguments.length;
-        let _keys = [];
+module.exports.load = function () {
+    let _args_len = arguments.length;
+    let _keys = [];
 
-        if (!_args_len) {
-            _keys = Object.keys(ext);
-        } else {
-            for (let i = 0; i < _args_len; i += 1) {
-                _keys.push(arguments[i]);
-            }
+    if (!_args_len) {
+        _keys = Object.keys(ext);
+    } else {
+        for (let i = 0; i < _args_len; i += 1) {
+            _keys.push(arguments[i]);
         }
+    }
 
-        let _keys_len = _keys.length;
-        let _toTitleCase = str => {
-            let _head = str[0].toUpperCase();
-            let _body = str.slice(1).toLowerCase();
-            return _head + _body;
-        };
+    let _keys_len = _keys.length;
+    let _toTitleCase = str => {
+        let _head = str[0].toUpperCase();
+        let _body = str.slice(1).toLowerCase();
+        return _head + _body;
+    };
 
-        for (let i = 0; i < _keys_len; i += 1) {
-            let _key = _toTitleCase(_keys[i]);
-            if (_key in ext) ext[_key]();
+    for (let i = 0; i < _keys_len; i += 1) {
+        let _key = _toTitleCase(_keys[i]);
+        if (_key in ext) {
+            ext[_key]();
         }
-    },
+    }
 };

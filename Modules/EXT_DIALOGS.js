@@ -288,6 +288,5 @@ let ext = {
     getContentText: d => d.getContentView().getText().toString(),
 };
 
-module.exports = Object.assign({
-    load: () => Object.assign(global["dialogs"], ext),
-}, ext);
+module.exports = ext;
+module.exports.load = () => Object.assign(global["dialogs"], ext);

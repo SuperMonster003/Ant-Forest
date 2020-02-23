@@ -1,13 +1,12 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Feb 2, 2020
- * @version 1.9.14
+ * @since Feb 23, 2020
+ * @version 1.9.15
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
  */
-
 let {
     $$sel, $$app, $$cfg, $$sto, $$dev, $$flag, $$acc,
     images, device, auto, selector, context, dialogs,
@@ -71,7 +70,7 @@ let $$init = {
                 line();
                 _str.split("|").forEach(s => msg(s, 4));
                 line();
-                toast("模块缺失或路径错误");
+                toast("模块缺失或路径错误", "Long");
                 exit();
             }
         }
@@ -100,7 +99,7 @@ let $$init = {
                     "e. 再次尝试运行本项目"
                 ).split("|").forEach(s => msg(s, 4));
                 line();
-                toast("无障碍服务方法无法使用");
+                toast("无障碍服务方法无法使用", "Long");
                 exit();
             }
         }
@@ -154,7 +153,8 @@ let $$init = {
         setGlobalFunctions(); // MONSTER MODULE
         setGlobalExtensions(); // EXT MODULES
         setGlobalDollarVars(); // `$$xxx`
-        getDisplayParams({global_assign: true});
+
+        $$dev.getDisplay(true);
 
         // waitFor: script will continue running rather than stop
         // when accessibility service switched on by user
@@ -196,12 +196,11 @@ let $$init = {
             // any better ideas ?
 
             let {
-                getDisplayParams, classof, setIntervalBySetTimeout, keycode,
-                equalObjects, getSelector, waitForAndClickAction, runJsFile,
-                debugInfo, killThisApp, vibrateDevice, clickActionsPipeline,
-                clickAction, phoneCallingState, swipeAndShow, showSplitLine,
+                clickAction, swipeAndShow, setIntervalBySetTimeout, keycode,
+                getSelector, equalObjects, waitForAndClickAction, runJsFile,
+                messageAction, debugInfo, killThisApp, clickActionsPipeline,
                 waitForAction, baiduOcr, launchThisApp, observeToastMessage,
-                messageAction, timeRecorder, surroundWith,
+                showSplitLine, classof, timeRecorder, surroundWith,
             } = require("./Modules/MODULE_MONSTER_FUNC");
 
             Object.assign(global, {
@@ -211,7 +210,6 @@ let $$init = {
                 clickActionsPipeline: clickActionsPipeline,
                 debugInfo: debugInfo,
                 equalObjects: equalObjects,
-                getDisplayParams: getDisplayParams,
                 getSelector: getSelector,
                 keycode: keycode,
                 killThisApp: killThisApp,
@@ -223,14 +221,12 @@ let $$init = {
                         : (m, lv) => ![3, 4].includes(lv);
                 },
                 observeToastMessage: observeToastMessage,
-                phoneCallingState: phoneCallingState,
                 runJsFile: runJsFile,
                 setIntervalBySetTimeout: setIntervalBySetTimeout,
                 showSplitLine: showSplitLine,
                 surroundWith: surroundWith,
                 swipeAndShow: swipeAndShow,
                 timeRecorder: timeRecorder,
-                vibrateDevice: vibrateDevice,
                 waitForAction: waitForAction,
                 waitForAndClickAction: waitForAndClickAction,
             });
@@ -254,9 +250,9 @@ let $$init = {
             $$app = $$app || {};
             $$cfg = $$cfg || {};
             $$sto = $$sto || {};
-            $$dev = $$dev || {};
             $$flag = $$flag || {};
             $$acc = $$acc || {};
+            $$dev = device || {};
         }
 
         function appSetter() {
@@ -1399,36 +1395,29 @@ let $$init = {
                             let _date = _parseDate(time || new Date());
                             let _pad = num => ("0" + num).slice(-2);
 
-                            let _Y = _date.getFullYear();
-                            let _y = _Y.toString().slice(-2);
-                            let _M = _pad(_date.getMonth() + 1);
-                            let _d = _pad(_date.getDate());
-                            let _h = _pad(_date.getHours());
-                            let _m = _pad(_date.getMinutes());
-                            let _s = _pad(_date.getSeconds());
+                            let _yyyy = _date.getFullYear();
+                            let _yy = _yyyy.toString().slice(-2);
+                            let _M = _date.getMonth() + 1;
+                            let _MM = _pad(_M);
+                            let _d = _date.getDate();
+                            let _dd = _pad(_d);
+                            let _h = _date.getHours();
+                            let _hh = _pad(_h);
+                            let _m = _date.getMinutes();
+                            let _mm = _pad(_m);
+                            let _s = _date.getSeconds();
+                            let _ss = _pad(_s);
 
                             let _o = {
-                                Y: _Y, M: _M, d: _d, y: _y,
-                                s: _s, m: _m, h: _h,
+                                yyyy: _yyyy, yy: _yy,
+                                MM: _MM, M: _M,
+                                dd: _dd, d: _d,
+                                hh: _hh, h: _h,
+                                mm: _mm, m: _m,
+                                ss: _ss, s: _s,
                             };
 
-                            let _hm = _h + ":" + _m;
-                            let _ms = _m + ":" + _s;
-                            let _hms = _hm + ":" + _s;
-
-                            let _YM = _Y + "/" + _M;
-                            let _yM = _y + "/" + _M;
-                            let _Md = _M + _d;
-                            let _YMd = _YM + "/" + _d;
-                            let _yMd = _yM + "/" + _d;
-
-                            Object.assign(_o, {
-                                hm: _hm, ms: _ms, hms: _hms,
-                                YM: _YM, Md: _Md, YMd: _YMd,
-                                yM: _yM, yMd: _yMd,
-                            });
-
-                            return _parseFormat(format || "YMd hms");
+                            return _parseFormat(format || "yyyy/MM/dd hh:mm:ss");
 
                             // tool function(s) //
 
@@ -1450,14 +1439,17 @@ let $$init = {
                                 let _res = "";
 
                                 while (str.length) {
-                                    let _key = "";
-                                    while ((_key + str[0]) in _o) {
-                                        _key += str[0];
-                                        str = str.slice(1);
+                                    let _max = 4;
+                                    while (_max) {
+                                        let a = str.slice(0, _max);
+                                        if (a in _o) {
+                                            _res += _o[a];
+                                            str = str.slice(_max);
+                                            break;
+                                        }
+                                        _max -= 1;
                                     }
-                                    if (_key) {
-                                        _res += _o[_key];
-                                    } else {
+                                    if (!_max) {
                                         _res += str[0];
                                         str = str.slice(1);
                                     }
@@ -2077,7 +2069,7 @@ let $$init = {
 
                                             function _manIpt() {
                                                 debugInfo("需要手动输入密码");
-                                                vibrateDevice(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+                                                $$dev.vibrates(0, 0.1, 0.3, 0.1, 0.3, 0.2);
 
                                                 let _user_tt = 2; // min
                                                 let _btn_tt = 2; // min
@@ -2085,7 +2077,7 @@ let $$init = {
 
                                                 let _max = ~~(_user_tt + _btn_tt) * 60000;
                                                 $$flag.glob_e_scr_paused = true;
-                                                device.keepOn(_max);
+                                                $$dev.keepOn(_max);
 
                                                 threads.starts(function () {
                                                     let _d = dialogs.builds([
@@ -2116,7 +2108,7 @@ let $$init = {
                                                                     let _cond = () => _cA() && _cB();
 
                                                                     if (!waitForAction(_cond, _user_tt * 60000)) {
-                                                                        device.cancelOn();
+                                                                        $$dev.cancelOn();
                                                                         _d.dismiss();
                                                                         let _s = "需要密码时等待用户响应超时";
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
@@ -2140,7 +2132,7 @@ let $$init = {
                                                                     let _cond = () => _cA() && _cB();
 
                                                                     if (!waitForAction(_cond, _btn_tt * 60000)) {
-                                                                        device.cancelOn();
+                                                                        $$dev.cancelOn();
                                                                         _d.dismiss(); // just in case
                                                                         let _s = '等待"登录"按钮消失超时';
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
@@ -2162,7 +2154,7 @@ let $$init = {
                                                 // turning off immediately
                                                 click(99999, 99999);
                                                 delete $$flag.glob_e_scr_paused;
-                                                device.cancelOn();
+                                                $$dev.cancelOn();
 
                                                 return true;
                                             }
@@ -2191,7 +2183,7 @@ let $$init = {
                                                 remark: "失败提示",
                                                 cond: _err_ens,
                                                 feedback: () => {
-                                                    device.cancelOn();
+                                                    $$dev.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
                                                     messageAction("失败提示信息:" + _err_msg(), 9, 0, 1, 1);
@@ -2203,7 +2195,7 @@ let $$init = {
                                                     let _fail_pref = "失败提示信息: ";
                                                     let _fail_main = $$sel.pickup(/.*mainTip/, "txt");
                                                     let _fail_msg = _fail_pref + _fail_main;
-                                                    device.cancelOn();
+                                                    $$dev.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
                                                     messageAction(_fail_msg, 9, 0, 1, 1);
@@ -2238,9 +2230,9 @@ let $$init = {
                                     let _t = time || 1;
                                     if (_t < 100) _t *= 60000;
 
-                                    device.keepOn(_t + 5 * 60000);
+                                    $$dev.keepOn(_t + 5 * 60000);
                                     let _res = _checker();
-                                    device.cancelOn();
+                                    $$dev.cancelOn();
                                     return _res;
 
                                     // tool function(s) //
@@ -2403,11 +2395,13 @@ let $$init = {
                                 function _check(img) {
                                     let _capt = this.capt();
                                     if (_capt) {
-                                        let _matched = images.findImage(_capt, img, {level: 1});
+                                        let _mch = images.findImage(_capt, img, {level: 1});
                                         images.reclaim(_capt);
                                         _capt = null;
-                                        if (_matched) this._capt_cached = _capt;
-                                        return _matched;
+                                        if (_mch) {
+                                            this._capt_cached = _capt;
+                                        }
+                                        return _mch;
                                     }
                                 }
                             },
@@ -2423,8 +2417,9 @@ let $$init = {
 
                                 let [l, t, w, h] = [_b.left, _b.top, _b.width(), _b.height()];
                                 if (w < 3 || h < 3) {
-                                    messageAction("无法继续匹配当前头像样本", 3);
-                                    return messageAction("森林主页头像控件数据无效", 3, 1);
+                                    messageAction("无法继续匹配当前头像样本", 3, 0, 0, "dash_up");
+                                    messageAction("森林主页头像控件数据无效", 3, 0, 1, "dash");
+                                    return;
                                 }
                                 // chop: here means chopped
                                 let _sqrt2 = Math.SQRT2;
@@ -3122,12 +3117,14 @@ let $$init = {
 
                     threads.starts(function () {
                         events.observeKey();
+                        events.setKeyInterceptionEnabled("volume_up", true);
                         events.onceKeyDown("volume_up", function (e) {
                             messageAction("强制停止所有脚本", 4, 0, 0, -1);
                             messageAction("触发按键: 音量加/VOL+", 4, 0, 1);
                             messageAction(_keyMsg(e), 4, 0, 1, 1);
                             engines.stopAllAndToast();
                         });
+                        events.setKeyInterceptionEnabled("volume_down", true);
                         events.onceKeyDown("volume_down", function (e) {
                             messageAction("强制停止当前脚本", 3, 1, 0, -1);
                             messageAction("触发按键: 音量减/VOL-", 3, 0, 1);
@@ -3179,7 +3176,7 @@ let $$init = {
 
                         this.valid = function () {
                             let _name = _desc + "事件监测";
-                            debugInfo(_sw ? "开启" + _name : _name + "未开启");
+                            debugInfo(_sw ? _name + "已开启" : _name + "未开启");
                             return _sw;
                         };
                         this.monitor = function () {
@@ -3299,7 +3296,7 @@ let $$init = {
                     function constrParamsSetter() {
                         return {
                             phone: {
-                                switch: "phone_call_state_monitor_switch",
+                                switching: "phone_call_state_monitor_switch",
                                 trigger: function () {
                                     let _self = {
                                         state_key: "phone_call_state_idle_value",
@@ -3313,7 +3310,7 @@ let $$init = {
                                             $$sto.af_cfg.put("config", _dat);
                                         },
                                     };
-                                    return phoneCallingState() !== getCurState();
+                                    return $$dev.getCallState() !== getCurState();
 
                                     // tool function(s) //
 
@@ -3324,7 +3321,7 @@ let $$init = {
                                         }
 
                                         // won't write into storage
-                                        _cur_state = phoneCallingState();
+                                        _cur_state = $$dev.getCallState();
 
                                         let _sto = _stoSetter();
                                         return $$und(_sto.filled_up) ? _sto.fillIn() : _sto.reap();
@@ -3358,7 +3355,7 @@ let $$init = {
                                                     }
                                                 },
                                                 fillIn: function () {
-                                                    if ($$und(_cur_state)) _cur_state = phoneCallingState();
+                                                    if ($$und(_cur_state)) _cur_state = $$dev.getCallState();
                                                     this.states = _cur_state;
                                                     debugInfo([
                                                         "已存储通话状态数据",
@@ -3389,7 +3386,7 @@ let $$init = {
                                 trigger: () => {
                                     return $$flag.dev_unlocked
                                         && !$$flag.glob_e_scr_paused
-                                        && !device.isScreenOn();
+                                        && !$$dev.isScreenOn();
                                 },
                                 onTrigger: () => {
                                     if ($$flag.glob_e_scr_privilege) {
@@ -3544,6 +3541,16 @@ let $$init = {
                         $$sel.cache.refresh(_n); // contains save()
                         $$flag.rl_in_page = $$sel.cache.load(_n, _t);
                         sleep(120);
+                    }
+                }),
+                tree_rainbow: new Monitor("彩虹对话框", function () {
+                    let _kw = idMatches(/.*J.rainbow.close.*/);
+                    while (1) {
+                        let _node = _kw.findOnce();
+                        if (_node && _node.click()) {
+                            debugInfo("关闭主页彩虹对话框");
+                        }
+                        sleep(240);
                     }
                 })
             };
@@ -4019,8 +4026,8 @@ let $$af = {
                                 images.permitCapt();
                             },
                             displayReady: function () {
-                                if ($$dev.screen_orientation !== 0) {
-                                    getDisplayParams({global_assign: true});
+                                if (!$$0($$dev.screen_orientation)) {
+                                    $$dev.getDisplay(true);
                                 }
                             },
                             languageReady: function () {
@@ -4203,11 +4210,17 @@ let $$af = {
                         }
 
                         function _check() {
+                            _prologue();
                             _chkRipeBalls();
                             _chkCountdown();
                             _chkWaterBalls();
+                            _epilogue();
 
                             // tool function(s) //
+
+                            function _prologue() {
+                                $$app.monitor.tree_rainbow.start();
+                            }
 
                             function _chkRipeBalls() {
                                 let _num = 0; // ripe balls length
@@ -4465,14 +4478,14 @@ let $$af = {
                                     debugInfo("开始监测自己能量");
                                     timeRecorder("monitor_own");
 
-                                    device.keepOn(_tt);
+                                    $$dev.keepOn(_tt);
                                     while (timeRecorder("monitor_own", "L") < _tt) {
                                         if (_chkRipeBalls()) {
                                             break;
                                         }
                                         sleep(180);
                                     }
-                                    device.cancelOn();
+                                    $$dev.cancelOn();
 
                                     let _em = $$af.emount_c_own - _old_em;
                                     let _et = timeRecorder("monitor_own", "L", "auto");
@@ -4528,6 +4541,10 @@ let $$af = {
                                     _o.ctr = _ctr;
                                     _stableEmount();
                                 }
+                            }
+
+                            function _epilogue() {
+                                $$app.monitor.tree_rainbow.interrupt();
                             }
                         }
 
@@ -4655,7 +4672,7 @@ let $$af = {
                                 _s1 = _s1.replace(/\d{2}(?=:)/, $0 => +$0 + 24);
                             }
 
-                            let _now_str = $$app.tool.timeStr($$app.now, "hm");
+                            let _now_str = $$app.tool.timeStr($$app.now, "hh:mm");
                             let _res = $$str(_s0, "<=", _now_str, "<", _s1);
 
                             if (!_res && !$$flag.help_sect_hinted) {
@@ -6662,26 +6679,23 @@ let $$af = {
                         function _onTouch(view, e) {
                             if (!$$flag.floaty_usr_touch) {
                                 let _ME = android.view.MotionEvent;
-                                let _DN = _ME.ACTION_DOWN;
-                                let _UP = _ME.ACTION_UP;
-                                let _MV = _ME.ACTION_MOVE;
                                 let _ACT = e.getAction();
 
-                                if (_ACT === _DN) {
+                                if (_ACT === _ME.ACTION_DOWN) {
                                     let _thrd = cY(0.12, -1);
                                     $$flag.floaty_usr_touch = e.getY() > _thrd;
                                 }
-                                if (_ACT === _MV) {
+                                if (_ACT === _ME.ACTION_MOVE) {
                                     $$flag.floaty_usr_touch = true;
                                 }
-                                if (_ACT === _UP) {
+                                if (_ACT === _ME.ACTION_UP) {
                                     let _e_t = e.getEventTime();
                                     let _dn_t = e.getDownTime();
                                     $$flag.floaty_usr_touch = _e_t - _dn_t > 200;
                                 }
                             }
                             // event will not be consumed
-                            // then be involved by onClickListener
+                            // instead of being involved by onClickListener
                             return false;
                         }
                     }
@@ -6750,9 +6764,10 @@ let $$af = {
             }
 
             let _err = e => messageAction(e.message, 4, 0, 1, 1);
-            let _res = res => res
-                ? debugInfo("关闭屏幕成功")
-                : debugInfo("关闭屏幕失败", 3);
+            let _res = res => (res
+                    ? debugInfo("关闭屏幕成功")
+                    : debugInfo("关闭屏幕失败", 3)
+            );
 
             return Promise.resolve()
                 .then(_scrOffBySetAsync)
@@ -6785,7 +6800,7 @@ let $$af = {
                 function _bugModel() {
                     // poor guy, don't cry... [:sweat_smile:]
                     let _bug = [/[Mm]eizu/];
-                    let _brand = device.brand;
+                    let _brand = $$dev.brand;
                     let _len = _bug.length;
                     for (let i = 0; i < _len; i += 1) {
                         if (_brand.match(_bug[i])) {
@@ -6807,11 +6822,17 @@ let $$af = {
                 let _DEV_SET_ENABL = Secure.DEVELOPMENT_SETTINGS_ENABLED;
                 let _STAY_ON_PLUG = Global.STAY_ON_WHILE_PLUGGED_IN;
                 let _ctx_reso = context.getContentResolver();
+                let _tt_k = "SCREEN_OFF_TIMEOUT";
+                let _stay_on_k = "STAY_ON_WHILE_PLUGGED_IN";
                 let _setScrOffTt = (t) => {
-                    System.putInt(_ctx_reso, _SCR_OFF_TT, t || 1);
+                    let _t = t || 0;
+                    debugInfo(_tt_k + ": " + _t);
+                    System.putInt(_ctx_reso, _SCR_OFF_TT, _t);
                 };
                 let _setStayOnStat = (stat) => {
-                    Global.putInt(_ctx_reso, _STAY_ON_PLUG, stat || 0);
+                    let _stat = stat || 0;
+                    debugInfo(_stay_on_k + ": " + _stat);
+                    Global.putInt(_ctx_reso, _STAY_ON_PLUG, _stat);
                 };
                 let _res = false;
 
@@ -6824,12 +6845,13 @@ let $$af = {
                     let _sB = '>需要"修改系统设置"权限';
                     let _sC = ">可使用以下工具获得帮助支持:";
                     let _sD = ">" + _path;
-                    debugInfo([_sA, _sB, _sC, _sD]);
+                    debugInfo([_sA, _sB, _sC, _sD], 3);
+                    toast("关闭屏幕失败\n" + _sB.slice(1), "Long");
                     return false;
                 }
 
                 return Promise.resolve()
-                    .then(() => _setScrOffPar(1))
+                    .then(() => _setScrOffPar())
                     .then(() => _monScrStatAsync())
                     .then(() => _restoreScrPar())
                     .catch(e => messageAction(e, 4));
@@ -6837,40 +6859,89 @@ let $$af = {
                 // tool function(s) //
 
                 function _setScrOffPar(time) {
-                    let _stay_on_k = "STAY_ON_WHILE_PLUGGED_IN";
-                    let _tt_k = "SCREEN_OFF_TIMEOUT";
-
                     timeRecorder("set_provider");
+                    _toastProcess();
+                    _setPar();
+                    _setIntrpLsners();
 
-                    let _cur_dev_enabl = Secure.getInt(_ctx_reso, _DEV_SET_ENABL, 0);
-                    let _cur_stay_on = Global.getInt(_ctx_reso, _STAY_ON_PLUG, 0);
-                    if (_cur_dev_enabl && _cur_stay_on) {
-                        _sto.put(_stay_on_k, _cur_stay_on);
-                        _setStayOnStat(0);
-                    }
+                    // tool function(s) //
 
-                    let _cur_tt = System.getInt(_ctx_reso, _SCR_OFF_TT, 0);
-                    if (_cur_tt > 2000) {
+                    function _setPar() {
+                        let _cur_tt = System.getInt(_ctx_reso, _SCR_OFF_TT, 0);
+                        _sto.remove(_tt_k);
                         _sto.put(_tt_k, _cur_tt);
+                        _setScrOffTt(time);
+
+                        let _cur_dev_enabl = Secure.getInt(_ctx_reso, _DEV_SET_ENABL, 0);
+                        let _cur_stay_on = Global.getInt(_ctx_reso, _STAY_ON_PLUG, 0);
+                        let _aim_stay_on = 0;
+                        _sto.remove(_stay_on_k);
+                        if (_cur_dev_enabl && _cur_stay_on && _cur_stay_on !== _aim_stay_on) {
+                            _sto.put(_stay_on_k, _cur_stay_on);
+                            _setStayOnStat(_aim_stay_on);
+                        }
                     }
 
-                    _setScrOffTt(time);
+                    function _toastProcess() {
+                        toast(
+                            "正在尝试关闭屏幕...\n" +
+                            "请勿操作屏幕或按键...\n" +
+                            "此过程可能需要数十秒...", "Long"
+                        );
+                    }
+
+                    function _setIntrpLsners() {
+                        !function _scrTouch() {
+                            let _cvr_win = floaty.rawWindow(
+                                <frame id="cover" gravity="center"/>
+                            );
+                            // prevent touch event from being
+                            // transferred to the view beneath
+                            _cvr_win.setTouchable(true);
+                            _cvr_win.setSize(-1, -1);
+                            _cvr_win["cover"].setOnTouchListener(function (view, e) {
+                                $$flag.scr_off_intrp_by_usr = true;
+
+                                let _s = ["中止屏幕关闭", "检测到屏幕触碰"];
+                                toast(_s.join("\n"), "Long", "Force");
+                                debugInfo("__split_line__");
+                                debugInfo(_s);
+                                debugInfo("__split_line__");
+
+                                _cvr_win.close();
+                                return false;
+                            });
+                        }();
+
+                        !function _keyPress() {
+                            events.observeKey();
+                            events.on("key_down", function (key_code, e) {
+                                $$flag.scr_off_intrp_by_usr = true;
+
+                                let _s = [
+                                    "中止屏幕关闭",
+                                    "检测到按键行为",
+                                    "键值: " + key_code
+                                ];
+                                toast(_s.join("\n"), "Long", "Force");
+                                debugInfo("__split_line__");
+                                debugInfo(_s);
+                                debugInfo("__split_line__");
+                            });
+                        }();
+                    }
                 }
 
                 function _restoreScrPar() {
                     debugInfo("恢复修改前的设置参数:");
 
-                    let _stay_on_k = "STAY_ON_WHILE_PLUGGED_IN";
-                    let _stay_on = _sto.get(_stay_on_k, 0);
-                    if (_stay_on) {
-                        _setStayOnStat(_stay_on);
-                        debugInfo(_stay_on_k + ": " + _stay_on);
-                    }
-
-                    let _tt_k = "SCREEN_OFF_TIMEOUT";
                     let _tt = _sto.get(_tt_k, 60000);
                     _setScrOffTt(_tt);
-                    debugInfo(_tt_k + ": " + _tt);
+
+                    let _stay_on = _sto.get(_stay_on_k);
+                    if (!$$und(_stay_on)) {
+                        _setStayOnStat(_stay_on);
+                    }
 
                     storages.remove("scr_off_by_set");
 
@@ -6888,7 +6959,11 @@ let $$af = {
 
                     function _tmo() {
                         let _ts = timeRecorder("set_provider", "L");
-                        return _ts > 20000;
+                        return _ts > 40000;
+                    }
+
+                    function _usrIntrp() {
+                        return $$flag.scr_off_intrp_by_usr;
                     }
 
                     function _setReso(reso) {
@@ -6903,17 +6978,20 @@ let $$af = {
                             debugInfo([_sA, _sB, _sC, _sD, _sE]);
                             reso(false);
                         }
+                        if (_usrIntrp()) {
+                            reso(false);
+                        }
                     }
 
                     function _condition(reso) {
-                        if (!device.isScreenOn()) {
+                        if (!$$dev.isScreenOn()) {
                             let _et = timeRecorder("set_provider", "L", "auto");
                             debugInfo("策略执行成功");
                             debugInfo("用时: " + _et);
                             reso(_res = true);
                             return true;
                         }
-                        return !!_tmo();
+                        return _tmo() || _usrIntrp();
                     }
                 }
             }
@@ -6930,5 +7008,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn: listen; listener | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
+ * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
  */

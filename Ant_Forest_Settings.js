@@ -3,8 +3,9 @@
 let {
     sess_cfg, sto_cfg, sess_par,
     $$sto, $$defs, $$view, $$save, $$tool,
-    threads, android, files, dialogs, toast, events,
-    engines, activity, java, ui, exit, auto, timers,
+    threads, android, files, dialogs, toast,
+    engines, activity, java, ui, exit, auto,
+    events, timers, http,
 } = global;
 
 // codes here should be updated manually when appending
@@ -227,7 +228,8 @@ let $$init = {
         setGlobalFunctions(); // MONSTER MODULE
         setGlobalExtensions(); // EXT MODULES
         setGlobalDollarVars(); // `$$xxx` / `sess`
-        getDisplayParams({global_assign: true});
+
+        device.getDisplay(true);
 
         // script will not go on without a normal state of accessibility service
         // auto.waitFor() was abandoned here, as it may cause problems sometimes
@@ -1835,7 +1837,7 @@ let $$init = {
                                     return "  [ " + parsed.map(x => x === 0 ? 7 : x).sort().join(", ") + " ]";
                                 }
                             },
-                            timestamp: () => +new Date(yy(), MM(), dd(), hh(), mm()),
+                            timestamp: () => +new Date(+yy(), +MM(), +dd(), +hh(), +mm()),
                             daysOfWeek: parseDaysOfWeek,
                         };
 
@@ -3614,7 +3616,9 @@ let $$init = {
                 let to_match_str = "下载项目数据包";
                 if (content_text.match(to_match_str)) {
                     let replaced_str = surroundWith(
-                        $$tool.getConverter("bytes")(content_len, "B", {show_space: true}), "  [ ", " ]"
+                        $$tool.getConverter().bytes(
+                            content_len, "B", {show_space: true}
+                        ), "  [ ", " ]"
                     );
                     content_view.setText(content_text.replace(to_match_str, to_match_str + replaced_str));
                 }
@@ -3636,11 +3640,11 @@ let $$init = {
 
             let {
                 alertTitle, deepCloneObject, smoothScrollView,
-                alertContent, waitForAction, getDisplayParams,
+                timedTaskTimeFlagConverter, timeRecorder,
+                setIntervalBySetTimeout,
+                equalObjects, debugInfo,
+                alertContent, waitForAction, surroundWith,
                 classof, messageAction, waitForAndClickAction,
-                phoneCallingState, surroundWith, timeRecorder,
-                timedTaskTimeFlagConverter, debugInfo,
-                setIntervalBySetTimeout, equalObjects,
             } = require("./Modules/MODULE_MONSTER_FUNC");
 
             Object.assign(global, {
@@ -3656,14 +3660,13 @@ let $$init = {
                 waitForAction: waitForAction,
                 messageAction: messageAction,
                 smoothScrollView: smoothScrollView,
-                getDisplayParams: getDisplayParams,
-                phoneCallingState: phoneCallingState,
                 setIntervalBySetTimeout: setIntervalBySetTimeout,
                 timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
             });
         }
 
         function setGlobalExtensions() {
+            require("./Modules/EXT_DEVICE").load();
             require("./Modules/EXT_TIMERS").load();
             require("./Modules/EXT_DIALOGS").load();
             require("./Modules/EXT_THREADS").load();
@@ -4178,7 +4181,9 @@ $$view.setHomePage($$defs.homepage_title)
 
                     _add_view.qq.setSource(_ic_qq);
                     _add_view.qq.on("click", () => {
-                        let _rawA = "mqqwpa%3A%2F%2Fim%2Fchat%3Fchat_type%3Dwpa%26uin%3D";
+                        let _rawA = "mqqwpa" + "%3A" + "%2F" + "%2F" +
+                            "im" + "%2F" + "chat" + "%3F" + "chat_type" + "%3D" +
+                            "wpa" + "%26" + "uin" + "%3D";
                         let _rawB = 0x36e63859.toString();
                         app.startActivity({
                             action: "VIEW",
@@ -4191,10 +4196,10 @@ $$view.setHomePage($$defs.homepage_title)
                     });
                     _add_view.outlook.setSource(_ic_outlook);
                     _add_view.outlook.on("click", () => {
-                        let _rawA = "mailto%3A%2F%2Ftencent_";
+                        let _rawA = "mailto" + "%3A" + "%2F" + "%2F" + "tencent_";
                         let _rawB = 0x36e63859.toString();
                         let _s = String.fromCharCode(0x2e);
-                        let _rawC = "%40outlook" + _s + "com";
+                        let _rawC = "%40" + "outlook" + _s + "com";
                         app.startActivity({
                             action: "VIEW",
                             data: decodeURIComponent(_rawA + _rawB + _rawC),
@@ -5277,14 +5282,19 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                     inputHint: "密码将以密文形式存储在本地",
                 });
                 diag.on("neutral", () => {
-                    let diag_demo = dialogs.builds(["锁屏密码示例", "unlock_code_demo", ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1]);
-                    diag_demo.on("neutral", () => {
-                        let diag_simp = dialogs.builds(["图案解锁密码简化", "about_pattern_simplification", 0, 0, "关闭", 1]);
-                        diag_simp.on("positive", () => diag_simp.dismiss());
-                        diag_simp.show();
-                    });
-                    diag_demo.on("positive", () => diag_demo.dismiss());
-                    diag_demo.show();
+                    dialogs.builds([
+                        "锁屏密码示例", "unlock_code_demo",
+                        ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1
+                    ]).on("neutral", () => {
+                        dialogs.builds([
+                            "图案解锁密码简化", "about_pattern_simplification",
+                            0, 0, "关闭", 1
+                        ]).on("positive", (d) => {
+                            d.dismiss();
+                        }).show();
+                    }).on("positive", (d) => {
+                        d.dismiss();
+                    }).show();
                 });
                 diag.on("negative", () => diag.dismiss());
                 diag.on("positive", () => {
@@ -7367,7 +7377,7 @@ $$view.addPage(["通话状态监测", "phone_call_state_monitor_page"], function
                     "通话空闲状态值", this.config_conj,
                     ["获取空闲值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|x∈N*}"});
-                diag.on("neutral", () => diag.getInputEditText().setText(phoneCallingState().toString()));
+                diag.on("neutral", () => diag.getInputEditText().setText(device.getCallState().toString()));
                 diag.on("negative", () => diag.dismiss());
                 diag.on("positive", dialog => {
                     let input = diag.getInputEditText().getText().toString();
@@ -7375,7 +7385,7 @@ $$view.addPage(["通话状态监测", "phone_call_state_monitor_page"], function
                     let value = +input;
                     if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
                     value = ~~value;
-                    if (value !== phoneCallingState()) {
+                    if (value !== device.getCallState()) {
                         let diag_confirm = dialogs.builds([
                             ["小心", "#880e4f"], ["phone_call_state_idle_value_warn", "#ad1457"],
                             0, "放弃", ["确定", "caution_btn_color"], 1,

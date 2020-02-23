@@ -56,14 +56,14 @@ let ext = {
     getIntentTask: function (id) {
         return TimedTaskManager.getIntentTask(id);
     },
-    get removeIntentTask () {
+    get removeIntentTask() {
         return function (id) {
             if (!id && isNaN(+id)) return;
             let task = this.getIntentTask(id);
             return task && removeTask(task);
         };
     },
-    get removeTimedTask ()  {
+    get removeTimedTask() {
         return function (id) {
             if (!id && isNaN(+id)) return;
             let task = this.getTimedTask(id);
@@ -112,9 +112,8 @@ let ext = {
     },
 };
 
-module.exports = Object.assign({
-    load: () => Object.assign(global["timers"], ext),
-}, ext);
+module.exports = ext;
+module.exports.load = () => Object.assign(global["timers"], ext);
 
 // tool function(s) //
 

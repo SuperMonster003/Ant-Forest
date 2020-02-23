@@ -40,7 +40,6 @@ require = function (path) {
 let dialogs = loadInternalModuleDialog(runtime, global);
 
 let {
-    getDisplayParams,
     equalObjects,
     deepCloneObject,
     alertTitle,
@@ -53,7 +52,10 @@ let session_params = {};
 let view_pages = {};
 let dynamic_views = [];
 
-let {WIDTH, cX} = getDisplayParams();
+let {WIDTH, cX} = (() => {
+    let _mod = require("../Modules/EXT_DEVICE");
+    return _mod ? _mod.getDisplay() : _getDisplay();
+})();
 
 let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
     || (require("../Modules/MODULE_UNLOCK") || {}).DEFAULT
@@ -415,7 +417,7 @@ ui.emitter.on("back_pressed", e => {
 events.on("exit", () => {
     listener.removeAllListeners();
     threads.shutDownAll();
-    global.dialogs_pool && global.dialogs_pool.forEach((diag) => {
+    global["dialogs_pool"].forEach((diag) => {
         diag.dismiss();
         diag = null;
     });
@@ -973,7 +975,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
             return;
         }
         return eval(dialogs.rawInput(title, prefill), callback ? callback : null);
-    }
+    };
 
     dialogs.prompt = dialogs.rawInput;
 
@@ -987,7 +989,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
             });
         }
         return rtDialogs().alert(title, prefill, callback ? callback : null);
-    }
+    };
 
     dialogs.confirm = function (title, prefill, callback) {
         prefill = prefill || "";
@@ -999,7 +1001,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
             });
         }
         return rtDialogs().confirm(title, prefill, callback ? callback : null);
-    }
+    };
 
     dialogs.select = function (title, items, callback) {
         if (items instanceof Array) {
@@ -1013,7 +1015,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
             return rtDialogs().select(title, items, callback ? callback : null);
         }
         return rtDialogs().select(title, [].slice.call(arguments, 1), null);
-    }
+    };
 
     dialogs.singleChoice = function (title, items, index, callback) {
         index = index || 0;
@@ -1025,7 +1027,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
             });
         }
         return rtDialogs().singleChoice(title, index, items, callback ? callback : null);
-    }
+    };
 
     dialogs.multiChoice = function (title, items, index, callback) {
         index = index || [];
@@ -1043,7 +1045,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
         }
         return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, null));
 
-    }
+    };
 
     var propertySetters = {
         "title": null,
@@ -1114,7 +1116,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
         }
 
         let final_dialog = dialogs.build(Object.assign({}, common_o, o));
-        global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
+        global["dialogs_pool"] = (global["dialogs_pool"] || []).concat([final_dialog]);
         return final_dialog;
     };
 
@@ -1186,7 +1188,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
     }
 
     function wrapNonNullString(str) {
-        if (str == null || str == undefined) {
+        if (str == null) {
             return "";
         }
         return str;
@@ -1244,7 +1246,6 @@ function loadInternalModuleDialog(__runtime__, scope) {
 // updated at Jan 21, 2020
 function loadInternalModuleMonsterFunc() {
     return {
-        getDisplayParams: getDisplayParams,
         equalObjects: equalObjects,
         deepCloneObject: deepCloneObject,
         alertTitle: alertTitle,
@@ -1706,106 +1707,6 @@ function loadInternalModuleMonsterFunc() {
                 for (let i = 0; i < 33; i += 1) _msg += "-";
             }
             return _msg;
-        }
-    }
-
-    function getDisplayParams(params) {
-        global["$$flag"] = global["$$flag"] || {};
-        let $$flag = global["$$flag"];
-
-        let _params = params || {};
-
-        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
-        let _window_service_display = context.getSystemService(context.WINDOW_SERVICE).getDefaultDisplay();
-        let [WIDTH, HEIGHT] = [];
-        let display_info = {};
-        if (_waitForAction(checkData, 3000, 500)) {
-            display_info.cX = (num) => Math.min(Math.round(num * WIDTH / (Math.abs(num) >= 1 ? 720 : 1)), WIDTH);
-            display_info.cY = (num, aspect_ratio) => Math.min(Math.round(num * WIDTH * (Math.pow(aspect_ratio, aspect_ratio > 1 ? 1 : -1) || (HEIGHT / WIDTH)) / (Math.abs(num) >= 1 ? 1280 : 1)), HEIGHT);
-
-            if (!$$flag.display_params_got) {
-                _debugInfo("屏幕宽高: " + WIDTH + " × " + HEIGHT);
-                _debugInfo("可用屏幕高度: " + display_info.USABLE_HEIGHT);
-                $$flag.display_params_got = true;
-            }
-
-            return display_info;
-        }
-        console.error("getDisplayParams()返回结果异常");
-
-        // tool function(s) //
-
-        function checkData() {
-            try {
-                WIDTH = +_window_service_display.getWidth();
-                HEIGHT = +_window_service_display.getHeight();
-                if (!(WIDTH * HEIGHT)) throw Error();
-
-                let ORIENTATION = +_window_service_display.getOrientation(); // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let MAX = +_window_service_display.maximumSizeDimension;
-
-                let [USABLE_HEIGHT, USABLE_WIDTH] = [HEIGHT, WIDTH];
-
-                ORIENTATION in {0: true, 2: true} ? [USABLE_HEIGHT, HEIGHT] = [HEIGHT, MAX] : [USABLE_WIDTH, WIDTH] = [WIDTH, MAX];
-
-                return display_info = {
-                    WIDTH: WIDTH,
-                    USABLE_WIDTH: USABLE_WIDTH,
-                    HEIGHT: HEIGHT,
-                    USABLE_HEIGHT: USABLE_HEIGHT,
-                    screen_orientation: ORIENTATION,
-                    status_bar_height: getDataByDimenName("status_bar_height"),
-                    navigation_bar_height: getDataByDimenName("navigation_bar_height"),
-                    navigation_bar_height_computed: ORIENTATION in {0: true, 2: true} ? HEIGHT - USABLE_HEIGHT : WIDTH - USABLE_WIDTH,
-                    action_bar_default_height: getDataByDimenName("action_bar_default_height"),
-                };
-            } catch (e) {
-                try {
-                    WIDTH = +device.width;
-                    HEIGHT = +device.height;
-                    if (!(WIDTH * HEIGHT)) throw Error();
-                    return display_info = {
-                        WIDTH: WIDTH,
-                        HEIGHT: HEIGHT,
-                        USABLE_HEIGHT: ~~(HEIGHT * 0.9), // evaluated value
-                    };
-                } catch (e) {
-
-                }
-            }
-
-            // tool function(s) //
-
-            function getDataByDimenName(name) {
-                let resources = context.getResources();
-                let resource_id = resources.getIdentifier(name, "dimen", "android");
-                return resource_id > 0 ? resources.getDimensionPixelSize(resource_id) : NaN;
-            }
-        }
-
-        // raw function(s) //
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
-            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function debugInfoRaw(msg, info_flg) {
-            if (info_flg) {
-                let _s = msg || "";
-                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                console.verbose(_s);
-            }
         }
     }
 
@@ -2286,57 +2187,6 @@ function loadInternalModuleMonsterFunc() {
             },
         });
         return _sel;
-
-        // raw function(s) //
-
-        function debugInfoRaw(msg, info_flg) {
-            if (info_flg) {
-                let _s = msg || "";
-                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                console.verbose(_s);
-            }
-        }
-    }
-
-    function setDeviceProto(params) {
-        let _params = params || {};
-        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _params.debug_info_flag);
-
-        if (typeof global.device === "undefined") global.device = {};
-
-        global.device.__proto__ = Object.assign((global.device.__proto__ || {}), {
-            /**
-             * device.keepScreenOn()
-             * @memberOf setDeviceProto
-             * @param [duration] {number} could be minute (less than 100) or second -- 5 and 300000 both for 5 min
-             * @param [params] {object}
-             * @param [params.debug_info_flag] {boolean}
-             */
-            keepOn: function (duration, params) {
-                params = params || {};
-                duration = duration || 5;
-                if (duration < 100) duration *= 60000;
-                device.keepScreenOn(duration);
-                if (params.debug_info_flag !== false) {
-                    _debugInfo("已设置屏幕常亮");
-                    _debugInfo(">最大超时时间: " + +(duration / 60000).toFixed(2) + "分钟");
-                }
-            },
-            /**
-             * device.cancelKeepingAwake()
-             * @memberOf setDeviceProto
-             * @param [params] {object}
-             * @param [params.debug_info_flag] {boolean}
-             */
-            cancelOn: function (params) {
-                // click(Math.pow(10, 7), Math.pow(10, 7));
-                params = params || {};
-                device.cancelKeepingAwake();
-                if (params.debug_info_flag !== false) {
-                    _debugInfo("屏幕常亮已取消");
-                }
-            },
-        });
 
         // raw function(s) //
 
@@ -2831,4 +2681,161 @@ function loadInternalModuleStorage() {
             }
         }
     })();
+}
+
+// updated at Feb 5, 2020
+function _getDisplay(global_assign, params) {
+    let $$flag = global["$$flag"];
+    if (!$$flag) {
+        $$flag = global["$$flag"] = {};
+    }
+
+    let _par;
+    let _glob_asg;
+    if (typeof global_assign === "boolean") {
+        _par = params || {};
+        _glob_asg = global_assign;
+    } else {
+        _par = global_assign || {};
+        _glob_asg = _par.global_assign;
+    }
+
+    let _waitForAction = typeof waitForAction === "undefined"
+        ? waitForActionRaw
+        : waitForAction;
+    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
+        ? debugInfoRaw
+        : debugInfo)(m, fg, _par.debug_info_flag);
+    let $_str = x => typeof x === "string";
+
+    let _W, _H;
+    let _disp = {};
+    let _win_srv = context.getSystemService(context.WINDOW_SERVICE);
+    let _win_srv_disp = _win_srv.getDefaultDisplay();
+
+    if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+        return console.error("device.getDisplay()返回结果异常");
+    }
+    _showDisp();
+    _assignGlob();
+    return Object.assign(_disp, {cX: _cX, cY: _cY});
+
+    // tool function(s) //
+
+    function _cX(num) {
+        let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
+        let _x = Math.round(num * _unit);
+        return Math.min(_x, _W);
+    }
+
+    function _cY(num, aspect_ratio) {
+        let _ratio = aspect_ratio;
+        if (!~_ratio) _ratio = "16:9"; // -1
+        if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
+            let _split = _ratio.split(":");
+            _ratio = _split[0] / _split[1];
+        }
+        _ratio = _ratio || _H / _W;
+        _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
+        let _h = _W * _ratio;
+        let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
+        let _y = Math.round(num * _unit);
+        return Math.min(_y, _H);
+    }
+
+    function _showDisp() {
+        if (!$$flag.display_params_got) {
+            _debugInfo("屏幕宽高: " + _W + " × " + _H);
+            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
+            $$flag.display_params_got = true;
+        }
+    }
+
+    function _getDisp() {
+        try {
+            _W = +_win_srv_disp.getWidth();
+            _H = +_win_srv_disp.getHeight();
+            if (!(_W * _H)) {
+                throw Error();
+            }
+
+            // left: 1, right: 3, portrait: 0 (or 2 ?)
+            let _SCR_O = +_win_srv_disp.getOrientation();
+            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+            let _MAX = +_win_srv_disp.maximumSizeDimension;
+
+            let [_UH, _UW] = [_H, _W];
+            let _dimen = (name) => {
+                let resources = context.getResources();
+                let resource_id = resources.getIdentifier(name, "dimen", "android");
+                if (resource_id > 0) {
+                    return resources.getDimensionPixelSize(resource_id);
+                }
+                return NaN;
+            };
+
+            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
+
+            return {
+                WIDTH: _W,
+                USABLE_WIDTH: _UW,
+                HEIGHT: _H,
+                USABLE_HEIGHT: _UH,
+                screen_orientation: _SCR_O,
+                status_bar_height: _dimen("status_bar_height"),
+                navigation_bar_height: _dimen("navigation_bar_height"),
+                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
+                action_bar_default_height: _dimen("action_bar_default_height"),
+            };
+        } catch (e) {
+            try {
+                _W = +device.width;
+                _H = +device.height;
+                return _W && _H && {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                };
+            } catch (e) {
+            }
+        }
+    }
+
+    function _assignGlob() {
+        if (_glob_asg) {
+            Object.assign(global, {
+                W: _W, WIDTH: _W,
+                halfW: Math.round(_W / 2),
+                uW: _disp.USABLE_WIDTH,
+                H: _H, HEIGHT: _H,
+                uH: _disp.USABLE_HEIGHT,
+                scrO: _disp.screen_orientation,
+                staH: _disp.status_bar_height,
+                navH: _disp.navigation_bar_height,
+                navHC: _disp.navigation_bar_height_computed,
+                actH: _disp.action_bar_default_height,
+                cX: _cX, cY: _cY,
+            });
+        }
+    }
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
+
+    function debugInfoRaw(msg, info_flag) {
+        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
 }
