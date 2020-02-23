@@ -223,6 +223,5 @@ let ext = {
     }
 };
 
-module.exports = Object.assign({
-    load: () => Object.assign(global["app"], ext),
-}, ext);
+module.exports = ext;
+module.exports.load = () => Object.assign(global["app"], ext);

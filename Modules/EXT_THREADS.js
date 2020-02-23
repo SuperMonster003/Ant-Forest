@@ -13,6 +13,5 @@ let ext = {
     },
 };
 
-module.exports = Object.assign({
-    load: () => Object.assign(global["threads"], ext),
-}, ext);
+module.exports = ext;
+module.exports.load = () => Object.assign(global["threads"], ext);
