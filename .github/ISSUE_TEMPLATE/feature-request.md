@@ -1,8 +1,8 @@
 ---
-name: Feature Request
+name: 功能建议
 about: 项目的功能建议/改进/期望/强化
-title: ''
-labels: ''
+title: '功能建议: xxx'
+labels: 'Enhancement :hammer_and_wrench: 建议'
 assignees: ''
 
 ---
