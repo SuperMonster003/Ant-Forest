@@ -2635,7 +2635,7 @@
                             "numeric_inputview"
                         );
                         let _emui = descMatches("" +
-                            "[Pp][Ii][Nn] ?码区域"
+                            "[Pp][Ii][Nn] ?.*" //支持系统语言为英文的emui 10.1
                         );
                         let _meizu = idMatches(_as +
                             "lockPattern"
