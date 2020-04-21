@@ -2,10 +2,10 @@
 
 let {
     sess_cfg, sto_cfg, sess_par,
-    $$sto, $$defs, $$view, $$save, $$tool,
-    threads, android, files, dialogs, toast,
-    engines, activity, java, ui, exit, auto,
-    events, timers, http,
+    $$sto, $$defs, $$view, $$save, $$tool, $$db,
+    threads, android, files, dialogs, toast, events,
+    engines, activity, java, ui, exit, auto, timers,
+    http,
 } = global;
 
 // codes here should be updated manually when appending
@@ -38,6 +38,7 @@ let $$cfg = {
         account_page: {
             account_log_back_in_page: null,
         },
+        stat_page: null,
         blacklist_page: {
             cover_blacklist_page: null,
             collect_blacklist_page: null,
@@ -53,93 +54,89 @@ let $$cfg = {
         },
     },
     list_heads: {
-        project_backup_info: [
-            {version_name: "项目版本", width: 0.5},
-            {
-                timestamp: "项目备份时间",
-                sort: {flag: -1, head_name: "timestamp"},
-                stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
-                    backward: t => $$tool.restoreFromTimestamp(t),
-                }
-            },
-        ],
-        server_releases_info: [
-            {tag_name: "项目标签", width: 0.5},
-            {
-                published_at: "项目发布时间",
-                sort: {flag: -1, head_name: "published_at"},
-                stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTs(new Date(data), "time_str_full"),
-                },
-            },
-        ],
-        blacklist_by_user: [
-            {name: "支付宝好友昵称", width: 0.58},
-            {
-                timestamp: "黑名单自动解除",
-                sort: {flag: 1, head_name: "timestamp"},
-                stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
-                    backward: t => $$tool.restoreFromTimestamp(t),
-                },
-            },
-        ],
-        blacklist_protect_cover: [
-            {name: "支付宝好友昵称", width: 0.58},
-            {
-                timestamp: "黑名单自动解除",
-                sort: {flag: 1, head_name: "timestamp"},
-                stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
-                    backward: t => $$tool.restoreFromTimestamp(t),
-                }
-            },
-        ],
-        foreground_app_blacklist: [
-            {
-                app_combined_name: "应用名称 (含包名)",
-                sort: {flag: 1, head_name: "app_combined_name"},
-                width: 0.85,
-            }, {
-                available: "有效", gravity: "center", stringTransform: {
-                    forward: function () {
-                        let {app_combined_name} = this;
-                        let pkg_name = app_combined_name.split("\n")[1];
-                        return app.getAppName(pkg_name) ? "\u2713" : "\u2717";
-                    },
-                    backward: "__keep__",
-                }
+        project_backup_info: [{
+            version_name: "项目版本", width: 0.5
+        }, {
+            timestamp: "项目备份时间",
+            sort: {flag: -1, head_name: "timestamp"},
+            stringTransform: {
+                forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
+                backward: t => $$tool.restoreFromTimestamp(t),
             }
-        ],
-        timers_uninterrupted_check_sections: [
-            {
-                section: "时间区间", width: 0.58,
-                sort: {flag: 1, head_name: "section"},
-                stringTransform: {
-                    forward: arr => $$tool.timeSectionToStr(arr),
-                    backward: str => $$tool.timeStrToSection(str),
-                }
+        }],
+        server_releases_info: [{
+            tag_name: "项目标签", width: 0.5
+        }, {
+            published_at: "项目发布时间",
+            sort: {flag: -1, head_name: "published_at"},
+            stringTransform: {
+                forward: data => $$tool.getTimeStrFromTs(new Date(data), "time_str_full"),
             },
-            {interval: "间隔 (分)"},
-        ],
-        timed_tasks: [
-            {
-                type: "任务类型", width: 0.47, stringTransform: {
-                    // []: daily; number[]: weekly; 0: disposable
-                    forward: arr => $$tool.getTimedTaskTypeStr(arr),
-                    backward: str => $$tool.restoreFromTimedTaskTypeStr(str),
-                },
+        }],
+        blacklist_by_user: [{
+            name: "支付宝好友昵称", width: 0.58
+        }, {
+            timestamp: "黑名单自动解除",
+            sort: {flag: 1, head_name: "timestamp"},
+            stringTransform: {
+                forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
+                backward: t => $$tool.restoreFromTimestamp(t),
             },
-            {
-                next_run_time: "下次运行",
-                sort: {flag: 1, head_name: "next_run_time"},
-                stringTransform: {
-                    forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
-                    backward: t => $$tool.restoreFromTimestamp(t),
-                },
+        }],
+        blacklist_protect_cover: [{
+            name: "支付宝好友昵称", width: 0.58
+        }, {
+            timestamp: "黑名单自动解除",
+            sort: {flag: 1, head_name: "timestamp"},
+            stringTransform: {
+                forward: data => $$tool.getTimeStrFromTs(data, "time_str_remove"),
+                backward: t => $$tool.restoreFromTimestamp(t),
             }
-        ],
+        }],
+        foreground_app_blacklist: [{
+            app_combined_name: "应用名称 (含包名)",
+            sort: {flag: 1, head_name: "app_combined_name"},
+            width: 0.85,
+        }, {
+            available: "有效", gravity: "center", stringTransform: {
+                forward: function () {
+                    let {app_combined_name} = this;
+                    let pkg_name = app_combined_name.split("\n")[1];
+                    return app.getAppName(pkg_name) ? "\u2713" : "\u2717";
+                },
+                backward: "__keep__",
+            }
+        }],
+        timers_uninterrupted_check_sections: [{
+            section: "时间区间", width: 0.58,
+            sort: {flag: 1, head_name: "section"},
+            stringTransform: {
+                forward: arr => $$tool.timeSectionToStr(arr),
+                backward: str => $$tool.timeStrToSection(str),
+            }
+        }, {
+            interval: "间隔 (分)"
+        }],
+        timed_tasks: [{
+            type: "任务类型", width: 0.47, stringTransform: {
+                // []: daily; number[]: weekly; 0: disposable
+                forward: arr => $$tool.getTimedTaskTypeStr(arr),
+                backward: str => $$tool.restoreFromTimedTaskTypeStr(str),
+            },
+        }, {
+            next_run_time: "下次运行",
+            sort: {flag: 1, head_name: "next_run_time"},
+            stringTransform: {
+                forward: data => $$tool.getTimeStrFromTs(data, "time_str_full"),
+                backward: t => $$tool.restoreFromTimestamp(t),
+            },
+        }],
+        stat_list: [{
+            name: "用户昵称", width: 0.72,
+        }, {
+            pick: "收取量统计",
+            sort: {flag: -1, head_name: "pick", type: "number"},
+        }],
     },
 };
 
@@ -358,12 +355,13 @@ let $$init = {
                 // tool function(s) //
 
                 function setTitleBarView() {
+                    // noinspection HtmlUnknownTarget
                     let _title_bar_view = ui.inflate(
                         <linear id="_title_bg" clickable="true">
                             <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
                                 <img src="@drawable/ic_chevron_left_black_48dp"
                                      bg="?selectableItemBackgroundBorderless"
-                                     h="31" tint="#ffffff" layout_gravity="center"
+                                     h="31" tint="#ffffff" layout_gravity="center" alt=""
                                 />
                             </vertical>
                             <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
@@ -523,11 +521,12 @@ let $$init = {
                                 });
                             });
                         } else if (type.match(/^page/)) {
+                            // noinspection HtmlUnknownTarget
                             let _page_enter_view = ui.inflate(
                                 <vertical id="_chevron_btn">
                                     <img src="@drawable/ic_chevron_right_black_48dp"
                                          bg="?selectableItemBackgroundBorderless"
-                                         tint="#999999" h="31" paddingLeft="10"
+                                         tint="#999999" h="31" paddingLeft="10" alt=""
                                     />
                                 </vertical>
                             );
@@ -554,9 +553,13 @@ let $$init = {
                                 }
                             }, 100);
                         } else if (type === "button") {
+                            // noinspection HtmlUnknownTarget
                             let help_view = ui.inflate(
                                 <vertical id="_info_icon" visibility="gone">
-                                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless" tint="#888888"/>
+                                    <img src="@drawable/ic_info_outline_black_48dp"
+                                         bg="?selectableItemBackgroundBorderless"
+                                         h="22" tint="#888888" alt=""
+                                    />
                                 </vertical>
                             );
                             item_view._item_area.addView(help_view);
@@ -634,10 +637,14 @@ let $$init = {
                             let info_color = options.info_color || $$defs.info_color;
                             sess_par.info_color = info_color;
 
+                            // noinspection HtmlUnknownTarget
                             let new_view = ui.inflate(
                                 <horizontal>
                                     <linear padding="15 10 0 0">
-                                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0" tint="{{sess_par.info_color}}"/>
+                                        <img src="@drawable/ic_info_outline_black_48dp"
+                                             h="17" w="17" margin="0 1 4 0"
+                                             tint="{{sess_par.info_color}}" alt=""
+                                        />
                                         <text id="_info_text" textSize="13"/>
                                     </linear>
                                 </horizontal>
@@ -757,8 +764,12 @@ let $$init = {
 
                                     let _sess_data = sess_par[ds_k].map((v, idx) => [idx, v]);
                                     _sess_data.sort((a, b) => {
+                                        let _is_num = (title_obj.sort || {}).type === "number";
                                         let _a = a[1][a[1][data_key_name]];
                                         let _b = b[1][b[1][data_key_name]];
+                                        if (_is_num) {
+                                            [_a, _b] = [+_a, +_b];
+                                        }
                                         if (_a === _b) {
                                             return 0;
                                         }
@@ -837,13 +848,14 @@ let $$init = {
                             let update = (source) => new_view._text.setText((title ? title + ": " : "") + source.toString() + (unit ? " " + unit : ""));
 
                             update(init);
-                            new_view._seekbar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener({
-                                onProgressChanged: function (v, progress, fromUser) {
-                                    let result = progress + min;
-                                    update(result);
-                                    $$save.session(config_conj, result);
-                                },
-                            }));
+                            new_view._seekbar.setOnSeekBarChangeListener(
+                                new android.widget.SeekBar.OnSeekBarChangeListener({
+                                    onProgressChanged: function (v, progress, fromUser) {
+                                        let result = progress + min;
+                                        update(result);
+                                        $$save.session(config_conj, result);
+                                    },
+                                }));
 
                             return new_view;
                         }
@@ -922,12 +934,13 @@ let $$init = {
                     // tool function(s) //
 
                     function buttonView() {
+                        // noinspection HtmlUnknownTarget
                         return ui.inflate(
                             <vertical margin="13 0" id="btn" layout_gravity="right" gravity="right">
                                 <img id="{{sess_par.btn_icon_id}}"
                                      src="@drawable/{{sess_par.button_icon_file_name}}"
                                      bg="?selectableItemBackgroundBorderless"
-                                     h="31" margin="0 7 0 0" layout_gravity="center"
+                                     h="31" margin="0 7 0 0" layout_gravity="center" alt=""
                                 />
                                 <text id="{{sess_par.btn_text_id}}"
                                       text="{{sess_par.button_text}}" textSize="10" textStyle="bold"
@@ -1000,7 +1013,7 @@ let $$init = {
                                 let _rm_btn = p_view._text_remove.getParent();
                                 _rm_btn.switch_off();
                                 btn_view.switch_off();
-                                _blist_bak.forEach(value => {
+                                _blist_bak.forEach((value) => {
                                     $$view.updateDataSource(ds_k, "update", value);
                                 });
 
@@ -2082,11 +2095,11 @@ let $$init = {
                     typeof onFinish === "function" && onFinish(result);
                 }
             },
-            setTimersUninterruptedCheckAreasPageButtons: function (p_view, data_source_key_name) {
-                return $$view.setButtons(p_view, data_source_key_name,
+            setTimersUninterruptedCheckAreasPageButtons: function (p_view, ds_k) {
+                return $$view.setButtons(p_view, ds_k,
                     ["restore", "RESTORE", "OFF", (btn_view) => {
-                        let list_data_backup = sto_cfg[data_source_key_name];
-                        if (equalObjects(sess_cfg[data_source_key_name], list_data_backup)) return;
+                        let list_data_backup = sto_cfg[ds_k];
+                        if (equalObjects(sess_cfg[ds_k], list_data_backup)) return;
                         let diag = dialogs.builds([
                             "恢复列表数据", "restore_original_list_data",
                             ["查看恢复列表", "hint_btn_bright_color"], "返回", "确定", 1,
@@ -2112,16 +2125,16 @@ let $$init = {
                         diag.on("negative", () => diag.dismiss());
                         diag.on("positive", () => {
                             diag.dismiss();
-                            $$view.updateDataSource(data_source_key_name, "splice", 0);
+                            $$view.updateDataSource(ds_k, "splice", 0);
 
-                            let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                            let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                            let deleted_items_idx = ds_k + "_deleted_items_idx";
+                            let deleted_items_idx_count = ds_k + "_deleted_items_idx_count";
                             sess_par[deleted_items_idx] = {};
                             sess_par[deleted_items_idx_count] = 0;
                             let remove_btn = p_view._text_remove.getParent();
                             remove_btn.switch_off();
                             btn_view.switch_off();
-                            list_data_backup.forEach(value => $$view.updateDataSource(data_source_key_name, "update", value));
+                            list_data_backup.forEach(value => $$view.updateDataSource(ds_k, "update", value));
                             let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
                             _page_view._check_all.setChecked(true);
                             _page_view._check_all.setChecked(false);
@@ -2129,8 +2142,8 @@ let $$init = {
                         diag.show();
                     }],
                     ["delete_forever", "REMOVE", "OFF", (btn_view) => {
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        let deleted_items_idx = ds_k + "_deleted_items_idx";
+                        let deleted_items_idx_count = ds_k + "_deleted_items_idx_count";
 
                         if (!sess_par[deleted_items_idx_count]) return;
 
@@ -2144,13 +2157,13 @@ let $$init = {
                         thread_items_stable.join(800);
 
                         let deleted_items_idx_keys = Object.keys(sess_par[deleted_items_idx]);
-                        deleted_items_idx_keys.sort((a, b) => +a < +b ? 1 : -1).forEach(idx => sess_par[deleted_items_idx][idx] && sess_par[data_source_key_name].splice(idx, 1));
-                        $$view.updateDataSource(data_source_key_name, "rewrite");
+                        deleted_items_idx_keys.sort((a, b) => +a < +b ? 1 : -1).forEach(idx => sess_par[deleted_items_idx][idx] && sess_par[ds_k].splice(idx, 1));
+                        $$view.updateDataSource(ds_k, "rewrite");
                         sess_par[deleted_items_idx] = {};
                         sess_par[deleted_items_idx_count] = 0;
 
                         let restore_btn = p_view._text_restore.getParent();
-                        if (!equalObjects(sess_cfg[data_source_key_name], sto_cfg[data_source_key_name])) restore_btn.switch_on();
+                        if (!equalObjects(sess_cfg[ds_k], sto_cfg[ds_k])) restore_btn.switch_on();
                         else restore_btn.switch_off();
                         let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
                         _page_view._check_all.setChecked(true);
@@ -2167,22 +2180,22 @@ let $$init = {
 
                         _diag.on("positive", () => {
                             let sectionStringTransform = () => {
-                                let arr = $$cfg.list_heads[data_source_key_name];
+                                let arr = $$cfg.list_heads[ds_k];
                                 for (let i = 0, len = arr.length; i < len; i += 1) {
                                     let o = arr[i];
                                     if ("section" in o) return o.stringTransform;
                                 }
                             };
-                            $$view.updateDataSource(data_source_key_name, "update", {
+                            $$view.updateDataSource(ds_k, "update", {
                                 section: sectionStringTransform().backward(_diag.getItems().toArray()[0].split(": ")[1]),
                                 interval: +_diag.getItems().toArray()[1].split(": ")[1],
                             });
                             setTimeout(function () {
                                 p_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
                             }, 200);
-                            let restore_btn = sess_par[data_source_key_name + "_btn_restore"];
-                            equalObjects(sess_cfg[data_source_key_name], sto_cfg[data_source_key_name]) ? restore_btn.switch_off() : restore_btn.switch_on();
-                            $$save.session(data_source_key_name, sess_cfg[data_source_key_name]);
+                            let restore_btn = sess_par[ds_k + "_btn_restore"];
+                            equalObjects(sess_cfg[ds_k], sto_cfg[ds_k]) ? restore_btn.switch_off() : restore_btn.switch_on();
+                            $$save.session(ds_k, sess_cfg[ds_k]);
                             _diag.dismiss();
                         });
                         _diag.on("negative", () => _diag.dismiss());
@@ -2248,6 +2261,215 @@ let $$init = {
                             let items = [];
                             Object.keys(value_obj).forEach(key => items.push(key + ": " + value_obj[key]));
                             _diag.setItems(items);
+                        }
+                    }]
+                );
+            },
+            setStatPageButtons: function (p_view, ds_k) {
+                return $$view.setButtons(p_view, ds_k,
+                    ["loop", "FRI_LS", "ON", (btn_view) => {
+                        $$tool.refreshFriLstByLaunchAlipay({
+                            dialog_prompt: true,
+                            onResume: function () {
+                                $$view.statListDataSource("SET");
+                            }
+                        });
+                    }], ["filter_list", "FILTER", "ON", (btn_view) => {
+                        let _ds_k = "stat_list_show_zero";
+                        let _show_zero = sess_par[_ds_k];
+                        let _sess_sel_idx = $$und(_show_zero) ? sess_cfg[_ds_k] : _show_zero;
+                        dialogs.builds([
+                            "收取值筛选", "",
+                            ["设为默认值", "hint_btn_bright_color"], "返回", "确定", 1
+                        ], {
+                            items: _getItems($$sto.cfg.get("config", {})[_ds_k]),
+                            itemsSelectMode: "single",
+                            itemsSelectedIndex: _sess_sel_idx,
+                        }).on("neutral", (d) => {
+                            let _sel_i = d.getSelectedIndex();
+                            let _dat = {};
+                            _dat[_ds_k] = _sel_i;
+                            $$sto.cfg.put("config", _dat);
+                            d.setItems(_getItems(_sel_i));
+                        }).on("negative", (d) => {
+                            d.dismiss();
+                        }).on("positive", (d) => {
+                            sess_par.stat_list_show_zero = d.getSelectedIndex();
+                            $$view.statListDataSource("SET");
+                            d.dismiss();
+                        }).show();
+
+                        // tool function(s) //
+
+                        function _getItems(idx) {
+                            return [
+                                "显示全部收取值",
+                                "不显示零收取值",
+                                "仅显示零收取值"
+                            ].map((v, i) => {
+                                return v + (i === idx ? " (默认值)" : "");
+                            });
+                        }
+                    }], ["date_range", "RANGE", "ON", (btn_view) => {
+                        let _ds_k = "stat_list_date_range";
+                        let _range = sess_par[_ds_k];
+                        let _sess_sel_idx = $$und(_range) ? sess_cfg[_ds_k] : _range;
+                        let _positive_func = (d) => _posDefault(d);
+                        let _diag = dialogs.builds([
+                            "日期统计范围", "",
+                            ["设为默认值", "hint_btn_bright_color"], "返回", "确定", 1
+                        ], {
+                            items: _getItems({def: $$sto.cfg.get("config", {})[_ds_k]}),
+                            itemsSelectMode: "single",
+                            itemsSelectedIndex: _sess_sel_idx,
+                        }).on("neutral", (d) => {
+                            let _sel_i = d.getSelectedIndex();
+                            if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
+                                _sel_i = 0;
+                            }
+                            let _dat = {};
+                            _dat[_ds_k] = _sel_i;
+                            $$sto.cfg.put("config", _dat);
+                            d.setItems(_getItems({def: _sel_i}));
+                        }).on("negative", (d) => {
+                            _thd.interrupt();
+                            d.dismiss();
+                        }).on("positive", (d) => {
+                            _positive_func(d);
+                        }).show();
+
+                        let _thd = threads.start(function () {
+                            while (1) {
+                                if (_diag.getSelectedIndex() === 1) {
+                                    if (_diag.getActionButton("positive") === "确定") {
+                                        _diag.setActionButton("positive", "设置范围");
+                                        _diag.setActionButton("neutral", null);
+                                        _positive_func = _posSetRange;
+                                    }
+                                } else {
+                                    if (_diag.getActionButton("positive") === "设置范围") {
+                                        _diag.setActionButton("positive", "确定");
+                                        _diag.setActionButton("neutral", "设为默认值");
+                                        _positive_func = _posDefault;
+                                    }
+                                }
+                                sleep(120);
+                            }
+                        });
+
+                        // tool function(s) //
+
+                        function _getItems(opt) {
+                            let _opt = opt || {};
+                            let _def_idx = _opt.def;
+                            let _sess_idx = _opt.sel;
+
+                            let _now = new Date();
+                            let _yy = _now.getFullYear();
+                            let _mm = _now.getMonth();
+                            let _dd = _now.getDate();
+                            let _day = _now.getDay() || 7;
+                            let _pad = x => x < 10 ? "0" + x : x;
+                            let _today_ts = +new Date(_yy, _mm, _dd);
+                            let _today_ts_10 = Math.trunc(_today_ts / 1000);
+                            let _1day_ts_10 = 24 * 3600;
+                            let _1day_ts = _1day_ts_10 * 1000;
+                            let _today_max_ts_10 = _today_ts_10 + _1day_ts_10 - 1;
+                            let _items = [
+                                (() => {
+                                    let _du = _today_ts + _1day_ts - sess_par.list_data_min_ts;
+                                    let _days = Math.ceil(_du / _1day_ts);
+                                    _days = $$inf(_days) ? 0 : _days;
+                                    return {
+                                        item: "全部 (共" + _days + "天)",
+                                        range: [0, _today_max_ts_10],
+                                    };
+                                })(), {
+                                    item: "自定义范围",
+                                }, {
+                                    item: "今天 (" + _pad(_mm + 1) + "/" + _pad(_dd) + ")",
+                                    range: [_today_ts_10, _today_max_ts_10],
+                                }, (() => {
+                                    let _date = new Date(+_now - _1day_ts);
+                                    let _mm = _date.getMonth();
+                                    let _dd = _date.getDate();
+                                    return {
+                                        item: "昨天 (" + _pad(_mm + 1) + "/" + _pad(_dd) + ")",
+                                        range: [_today_ts_10 - _1day_ts_10, _today_ts_10 - 1],
+                                    };
+                                })(), {
+                                    item: "本周 (共" + _day + "天)",
+                                    range: [_today_ts_10 - _1day_ts_10 * (_day - 1), _today_max_ts_10],
+                                }, (() => {
+                                    let _date = new Date(+_now - _1day_ts * 6);
+                                    let _mm = _date.getMonth();
+                                    let _dd = _date.getDate();
+                                    return {
+                                        item: "近7天 (自" + _pad(_mm + 1) + "/" + _pad(_dd) + "至今)",
+                                        range: [_today_ts_10 - _1day_ts_10 * 6, _today_max_ts_10],
+                                    };
+                                })(), {
+                                    item: "本月 (共" + _pad(_dd) + "天)",
+                                    range: [_today_ts_10 - _1day_ts_10 * (_dd - 1), _today_max_ts_10],
+                                }, (() => {
+                                    let _date = new Date(+_now - _1day_ts * 29);
+                                    let _mm = _date.getMonth();
+                                    let _dd = _date.getDate();
+                                    return {
+                                        item: "近30天 (自" + _pad(_mm + 1) + "/" + _pad(_dd) + "至今)",
+                                        range: [_today_ts_10 - _1day_ts_10 * 29, _today_max_ts_10],
+                                    };
+                                })()
+                            ];
+                            if (!$$und(_def_idx)) {
+                                return _items.map((o, i) => {
+                                    let v = o.item;
+                                    if (i === _def_idx) {
+                                        return v + " (默认值)";
+                                    }
+                                    return v;
+                                });
+                            }
+                            if (!$$und(_sess_idx)) {
+                                return _items[_sess_idx].range;
+                            }
+                        }
+
+                        function _posSetRange(d) {
+                            d.dismiss();
+                            let _sess_range = sess_par.stat_list_date_range_data || [0, 1e10 - 1];
+                            $$view.setTimePickerView({
+                                picker_views: [
+                                    {type: "date", text: "设置开始日期", init: _sess_range[0] * 1000},
+                                    {type: "date", text: "设置结束日期", init: _sess_range[1] * 1000},
+                                ],
+                                buttons: {
+                                    back_btn: {
+                                        onClickListener: (getTimeInfoFromPicker, closeTimePickerPage) => {
+                                            d.show();
+                                            closeTimePickerPage();
+                                        },
+                                    },
+                                },
+                                onFinish: (ret) => {
+                                    sess_par.stat_list_date_range = d.getSelectedIndex();
+                                    sess_par.stat_list_date_range_data = $$tool.timeStrToSection(ret).map((str, idx) => {
+                                        let [yy, mm, dd] = str.split(/\D+/);
+                                        return Math.trunc(+new Date(yy, mm - 1, dd) / 1000) + (idx ? 86399 : 0);
+                                    });
+                                    $$view.statListDataSource("SET");
+                                    _thd.interrupt();
+                                },
+                            });
+                        }
+
+                        function _posDefault(d) {
+                            let _idx = d.getSelectedIndex();
+                            sess_par.stat_list_date_range = _idx;
+                            sess_par.stat_list_date_range_data = _getItems({sel: _idx});
+                            $$view.statListDataSource("SET");
+                            _thd.interrupt();
+                            d.dismiss();
                         }
                     }]
                 );
@@ -2388,10 +2610,12 @@ let $$init = {
                         let _sort = _h_o.sort;
                         if (_sort) {
                             let _h_name = _sort.head_name;
+                            let _type = _sort.type || "alphabet";
                             let _factor = _sort.flag > 0 ? 1 : -1;
                             let _sorter = (a, b) => {
-                                let _a = a[_h_name];
-                                let _b = b[_h_name];
+                                let _cvt = x => _type === "number" ? +x : x;
+                                let _a = _cvt(a[_h_name]);
+                                let _b = _cvt(b[_h_name]);
                                 if (_a === _b) {
                                     return 0;
                                 }
@@ -2572,6 +2796,101 @@ let $$init = {
                     return sess_par["ready_signal_" + _lbl];
                 }
             },
+            statListDataSource: function (act) {
+                let _range = sess_par.stat_list_date_range_data || [];
+                let _ts_a = _range[0] || 0;
+                let _ts_b = _range[1] || 1e10 - 1;
+                let _ts = _ts_a + " and " + _ts_b;
+
+                let _ds_k = "stat_list_show_zero";
+                let _zero = sess_par[_ds_k];
+                _zero = $$und(_zero) ? sess_cfg[_ds_k] : _zero;
+                let [_show_zero, _show_other] = [0, 1];
+                if ($$2(_zero)) {
+                    [_show_zero, _show_other] = [1, 0];
+                } else if ($$0(_zero)) {
+                    _show_zero = 1;
+                }
+
+                let _db_data = $$db.rawQryData(
+                    "select name, sum(pick) as pick, timestamp as ts " +
+                    "from ant_forest " +
+                    "where timestamp between " + _ts + " " +
+                    (_show_zero ? "" : "and pick <> 0 ") +
+                    "group by name"
+                );
+
+                if ($$und(sess_par.list_data_min_ts)) {
+                    sess_par.list_data_min_ts = Infinity;
+                    _db_data.forEach((o) => {
+                        let _ts = o.ts;
+                        if (_ts < sess_par.list_data_min_ts) {
+                            sess_par.list_data_min_ts = _ts;
+                        }
+                    });
+                    sess_par.list_data_min_ts *= 1000;
+                }
+
+                _show_other && _db_data.unshift({
+                    name: "%SUM%",
+                    pick: (() => {
+                        if (_db_data.length > 1) {
+                            return _db_data.reduce((a, b) => (
+                                ($$num(a) ? a : +a.pick) + +b.pick
+                            ));
+                        }
+                        if (_db_data.length === 1) {
+                            return +_db_data[0].pick;
+                        }
+                        return 0;
+                    })(),
+                });
+
+                let _db_nickname = _db_data.map(o => o.name);
+                if (_show_zero) {
+                    let _fri_lst = $$sto.af.get("friends_list_data", {});
+                    if (_fri_lst.list_data) {
+                        _fri_lst.list_data.forEach(o => {
+                            let _nick = o.nickname;
+                            if (!~_db_nickname.indexOf(_nick)) {
+                                _db_data.push({name: _nick, pick: 0});
+                            }
+                        });
+                    }
+                }
+
+                if (!_show_other) {
+                    _db_data = _db_data.filter(v => $$0(+v.pick));
+                }
+
+                if ($$2(_zero)) {
+                    _db_data.sort((a, b) => {
+                        let [_a, _b] = [a.name, b.name];
+                        if (_a === _b) {
+                            return 0;
+                        }
+                        return _a > _b ? 1 : -1;
+                    });
+                } else {
+                    _db_data.sort((a, b) => {
+                        let [_a, _b] = [+a.pick, +b.pick];
+                        if (_a === _b) {
+                            return 0;
+                        }
+                        return _a < _b ? 1 : -1;
+                    });
+                }
+
+                if (act === "GET") {
+                    return _db_data;
+                }
+
+                let _ds_k_ls = "stat_list";
+                sess_par[_ds_k_ls].splice(0);
+                $$view.updateDataSource(
+                    _ds_k_ls, "update", _db_data, null, "no_rewrite"
+                );
+            },
             diag: {
                 colorSetter: function () {
                     let _rex_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
@@ -2734,7 +3053,7 @@ let $$init = {
 
                 function _ConverterFactory(step, units) {
                     if (typeof step === "object" /* Array */) {
-                        step.sort((a, b) => a > b ? -1 : 1);
+                        step.sort((a, b) => a < b ? 1 : -1);
                         this.step = step[0];
                         this.potential_step = step[1];
                     } else {
@@ -2765,7 +3084,7 @@ let $$init = {
                             accumulated_step *= unit;
                             unit = units[++i];
                         } else if (typeof unit === "object" /* Array */) {
-                            let _steps = unit.sort((a, b) => a > b ? -1 : 1);
+                            let _steps = unit.sort((a, b) => a < b ? 1 : -1);
                             tmp_potential_value = accumulated_step * _steps[1];
                             accumulated_step *= _steps[0];
                             unit = units[++i];
@@ -3240,13 +3559,14 @@ let $$init = {
                             + "|" + /.*`灵感`.*/.source // lines with inspiration label
                             + "|" + /\(http.+?\)/.source // URL content (not the whole line)
                             + "|" + /\[\/\/]:.+\(\n*.+?\n*\)/.source // markdown comments
+                            + "|" + /\s*<br>/.source // line breaks
                             , "g" // global flag
                         );
                         let version_names = file_content.match(regexp_version_name);
                         let version_infos = file_content.split(regexp_version_name);
                         version_names.forEach((name, idx) => {
                             info["v" + name.split("v")[1]] = version_infos[idx + 1]
-                                .replace(/ ?_\[`(issue )?#(\d+)`](\(http.+?\))?_ ?/g, "[$2]") // issues
+                                .replace(/ ?_\[`(issue |pr )?#(\d+)`](\(http.+?\))?_ ?/g, "[$2]") // issue|pr
                                 .replace(regexp_remove_info, "")
                                 .replace(/(\[(\d+)])+/g, $0 => " " + $0.split(/]\[/).join(",").replace(/\d+/g, $0 => "#" + $0))
                                 .replace(/(\s*\n\s*){2,}/g, "\n");
@@ -3631,6 +3951,18 @@ let $$init = {
             },
         };
 
+        $$db = (function () {
+            let _path = files.getSdcardPath() + "/.local/ant_forest.db";
+            let _tbl = "ant_forest";
+            let _SQLiteDatabaseFactory = require("./Modules/MODULE_DATABASE");
+            return new _SQLiteDatabaseFactory(_path, _tbl, [
+                {name: "name", not_null: true},
+                {name: "timestamp", type: "integer", primary_key: true},
+                {name: "pick", type: "integer"},
+                {name: "help", type: "integer"}
+            ]);
+        })();
+
         return $$init;
 
         // tool function(s) //
@@ -3686,6 +4018,7 @@ let $$init = {
             $$view = $$view || {};
             $$save = $$save || {};
             $$tool = $$tool || {};
+            $$db = $$db || {};
             sto_cfg = sto_cfg || {};
             sess_cfg = sess_cfg || {};
             sess_par = sess_par || {};
@@ -3817,7 +4150,7 @@ let $$init = {
         events.on("exit", () => {
             listener.removeAllListeners();
             threads.shutDownAll();
-            dialogs_pool.forEach((diag) => {
+            dialogs_pool.map((diag) => {
                 diag.dismiss();
                 diag = null;
             }).splice(0);
@@ -3904,12 +4237,9 @@ $$view.setHomePage($$defs.homepage_title)
             view._hint.text(sess_cfg[this.config_conj] ? "已开启" : "已关闭");
         },
     }))
-    .add("page", new Layout("黑名单管理", {
-        next_page: "blacklist_page",
-    }))
-    .add("page", new Layout("运行与安全", {
-        next_page: "script_security_page",
-    }))
+    .add("page", new Layout("数据统计", {next_page: "stat_page"}))
+    .add("page", new Layout("黑名单管理", {next_page: "blacklist_page"}))
+    .add("page", new Layout("运行与安全", {next_page: "script_security_page"}))
     .add("subhead", new Layout("备份与还原"))
     .add("button", new Layout("还原初始设置", {
         newWindow: () => {
@@ -3944,9 +4274,7 @@ $$view.setHomePage($$defs.homepage_title)
             diag.show();
         },
     }))
-    .add("page", new Layout("项目备份还原", {
-        next_page: "local_project_backup_restore_page",
-    }))
+    .add("page", new Layout("项目备份还原", {next_page: "local_project_backup_restore_page"}))
     .add("subhead", new Layout("关于"))
     .add("button", new Layout("关于脚本及开发者", {
         hint: "正在读取中...",
@@ -4308,7 +4636,7 @@ $$view.setHomePage($$defs.homepage_title)
                     return _response_str.match(/版本历史[^]+article/)[0]
                         .replace(/<path .+?\/path>/g, "")
                         .replace(
-                            /<a .+?(<code>((issue )?#\d+)<\/code>)?<\/a>/g,
+                            /<a .+?(<code>((issue |pr )?#\d+)<\/code>)?<\/a>/g,
                             ($0, $1, $2) => $2 ? "_[`" + $2 + "`]_" : ""
                         )
                         .replace(/<svg .+?\/svg>/g, "")
@@ -4437,7 +4765,7 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
             config_conj: "max_own_forest_balls_ready_time",
             newWindow: function () {
                 let diag = dialogs.builds([
-                    "主页能量球最大准备时间", this.config_conj,
+                    "主页控件最大准备时间", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|200<=x<=2000,x∈N}"});
                 diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
@@ -4473,12 +4801,12 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
                 view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
             },
         }))
-        .add("subhead", new Layout("浇水回赠能量球(金色球)设置", {subhead_color: "#bf360c"}))
+        .add("subhead", new Layout("主页金色球设置", {subhead_color: "#bf360c"}))
         .add("button", new Layout("最大连续检查次数", "hint", {
             config_conj: "homepage_water_ball_check_limit",
             newWindow: function () {
                 let diag = dialogs.builds([
-                    "最大连续检查次数", this.config_conj,
+                    "金色球最大连续检查次数", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|0<=x<=300,x∈N}"});
                 diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
@@ -4499,11 +4827,11 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
                 view._hint.text(_cfg_val ? _cfg_val.toString() : "无限制");
             },
         }))
-        .add("button", new Layout("最大色相值(无蓝分量)", "hint", {
+        .add("button", new Layout("最大色相值 (无蓝分量)", "hint", {
             config_conj: "homepage_water_ball_max_hue_b0",
             newWindow: function () {
                 let diag = dialogs.builds([
-                    "最大色相值(无蓝分量)", this.config_conj,
+                    "最大色相值 (无蓝分量)", this.config_conj,
                     ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
                 ], {inputHint: "{x|12<=x<=52,x∈N}"});
                 diag.on("neutral", () => diag.getInputEditText().setText($$sto.def.af[this.config_conj].toString()));
@@ -6025,13 +6353,21 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                 view._checkbox_switch.setChecked(session_conf);
             },
         }))
-        .add("page", new Layout("管理时间区间", "hint", {
+        .add("page", new Layout("时间区间管理", "hint", {
             config_conj: "timers_uninterrupted_check_sections",
             next_page: "timers_uninterrupted_check_sections_page",
             updateOpr: function (view) {
-                let areas = sess_cfg[this.config_conj];
-                let areas_len = areas ? areas.length : 0;
-                view._hint.text(areas_len ? "包含区间: " + areas_len + " 组" : "未设置");
+                let _areas = sess_cfg[this.config_conj];
+                let _len = _areas ? _areas.length : 0;
+                let _hint = "未设置";
+                if (_len > 1) {
+                    _hint = "包含区间: " + _len + " 组";
+                } else if (_len === 1) {
+                    let _sect = $$tool.timeSectionToStr(_areas[0].section);
+                    let _itv = _areas[0].interval;
+                    _hint = _sect + "  [ " + _itv + " min ]";
+                }
+                view._hint.text(_hint);
             },
         }))
         .add("split_line")
@@ -6099,6 +6435,92 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
             },
             updateOpr: function (view) {
                 view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+            },
+        }))
+        .add("split_line")
+        .add("subhead", new Layout("自动管理功能有效时段", {subhead_color: $$defs.subhead_highlight_color}))
+        .add("button", new Layout("有效时段管理", "hint", {
+            config_conj: "timers_auto_task_sections",
+            newWindow: function () {
+                let _this = this;
+                let _tmp_areas = sess_cfg[_this.config_conj].slice();
+                let _diag = dialogs
+                    .builds([
+                        "有效时段管理", "",
+                        "添加时段", "放弃", "确认", 1
+                    ], {
+                        items: ["\xa0"],
+                    })
+                    .on("neutral", (d) => {
+                        d.dismiss();
+                        $$view.setTimePickerView({
+                            picker_views: [
+                                {type: "time", text: "设置开始时间"},
+                                {type: "time", text: "设置结束时间"},
+                            ],
+                            time_str: {
+                                suffix: (getStrFunc) => {
+                                    if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
+                                },
+                            },
+                            onFinish: (ret) => {
+                                d.show();
+                                if (ret) {
+                                    _tmp_areas.push($$tool.timeStrToSection(ret));
+                                    _refreshItems();
+                                }
+                            },
+                        });
+                    })
+                    .on("negative", (d) => {
+                        _tmp_areas.splice(0);
+                        _tmp_areas = null;
+                        d.dismiss();
+                    })
+                    .on("positive", (d) => {
+                        $$save.session(this.config_conj, _tmp_areas);
+                        d.dismiss();
+                    })
+                    .on("item_select", (idx, list_item, dialog) => {
+                        dialogs
+                            .builds([
+                                "提示", "确定删除此时段吗",
+                                0, "放弃", ["删除", "warn_btn_color"], 1,
+                            ])
+                            .on("negative", (d) => {
+                                d.dismiss();
+                            })
+                            .on("positive", (d) => {
+                                _tmp_areas.splice(idx, 1);
+                                _refreshItems();
+                                d.dismiss();
+                            })
+                            .show();
+                    })
+                    .show();
+
+                _refreshItems();
+
+                // tool function(s) //
+
+                function _refreshItems() {
+                    let _cnt = _tmp_areas.length
+                        ? "所有时段取并集\n点击时段可删除"
+                        : "点击\"添加时段\"按钮添加新时段";
+                    _diag.setItems(_tmp_areas.map($$tool.timeSectionToStr));
+                    _diag.setContent(_cnt);
+                }
+            },
+            updateOpr: function (view) {
+                let _areas = sess_cfg[this.config_conj];
+                let _len = _areas ? _areas.length : 0;
+                let _hint = "未设置 (全天有效)";
+                if (_len > 1) {
+                    _hint = "包含时段: " + _len + " 组";
+                } else if (_len === 1) {
+                    _hint = $$tool.timeSectionToStr(_areas[0]);
+                }
+                view._hint.text(_hint);
             },
         }))
         .add("split_line")
@@ -6422,7 +6844,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
         }
     }
 });
-$$view.addPage(["延时接力管理", "timers_uninterrupted_check_sections_page"], function () {
+$$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"], function () {
     $$view.setPage(arguments[0], (p_view) => {
         let data_source_key_name = "timers_uninterrupted_check_sections";
         $$view.setTimersUninterruptedCheckAreasPageButtons(p_view, data_source_key_name);
@@ -6821,6 +7243,26 @@ $$view.addPage(["账户功能", "account_page"], function () {
         }))
         .ready();
 });
+$$view.addPage(["数据统计", "stat_page"], function () {
+    $$view.setPage(arguments[0], (p_view) => {
+        let _ds_k = "stat_list";
+        $$view.setStatPageButtons(p_view, _ds_k);
+    }, {no_scroll_view: true})
+        .add("list", new Layout("/*数据统计列表*/", {
+            list_head: "stat_list",
+            data_source_key_name: "stat_list",
+            custom_data_source: $$view.statListDataSource("GET"),
+            list_checkbox: "gone",
+            listeners: {
+                _list_data: {
+                    item_bind: function (item_view, item_holder) {
+                        item_view._checkbox.setVisibility(8);
+                    },
+                },
+            },
+        }))
+        .ready();
+});
 $$view.addPage(["旧账户回切", "account_log_back_in_page"], function () {
     $$view.setPage(arguments[0])
         .add("switch", new Layout("总开关", {
@@ -6920,7 +7362,7 @@ $$view.addPage(["黑名单管理", "blacklist_page"], function () {
         .add("subhead", new Layout("帮助与支持"))
         .add("button", new Layout("了解详情", {
             newWindow: function () {
-                let diag = dialogs.builds(["关于黑白名单管理", "about_blacklist", 0, 0, "关闭", 1]); //// PENDING ////
+                let diag = dialogs.builds(["关于黑名单管理", "about_blacklist", 0, 0, "关闭", 1]); //// PENDING ////
                 diag.on("positive", () => diag.dismiss());
                 diag.show();
             },

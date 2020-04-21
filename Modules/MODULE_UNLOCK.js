@@ -1,9 +1,7 @@
 /**
  * @description
- * module for unlocking device
- * by widget capturing with Auto.js <br>
- * a graphic config tool (Unlock_Config_Tool.js)
- * is available for customizing
+ * module for unlocking device by analyzing UI components with Auto.js <br>
+ * a graphic config tool (Unlock_Config_Tool.js) is available for customizing
  *
  * @example
  * require("./MODULE_UNLOCK").unlock();
@@ -12,7 +10,7 @@
  * // forcibly disable debugInfo() for not showing debug logs in console
  * require("./MODULE_UNLOCK").unlock(false);
  *
- * @since Jan 6, 2020
+ * @since Apr 16, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -27,12 +25,21 @@
 !function () {
     _overrideRequire();
     _makeSureImpeded();
+    _addObjectValues();
     _activeDeviceObj();
 
+    let $_und = x => typeof x === "undefined";
+    let $_F = x => x === false;
+    let $_nul = x => x === null;
+    let $_func = x => typeof x === "function";
+    let $_num = x => typeof x === "number";
+    let $_str = x => typeof x === "string";
+
+    let waitForAction = _chkF("waitForAction", 3);
+    let keycode = _chkF("keycode", 1);
+    let clickAction = _chkF("clickAction", 2);
+
     let messageAction = _chkF("messageAction");
-    let waitForAction = _chkF("waitForAction");
-    let keycode = _chkF("keycode");
-    let clickAction = _chkF("clickAction");
     let debugInfo = _chkF("debugInfo");
     let captureErrScreen = _chkF("captureErrScreen");
     let getSelector = _chkF("getSelector");
@@ -42,12 +49,6 @@
     let _def = require("./MODULE_DEFAULT_CONFIG").unlock;
     let _cfg = Object.assign({}, _def, _sto.get("config", {}));
 
-    let $_F = x => x === false;
-    let $_und = x => typeof x === "undefined";
-    let $_nul = x => x === null;
-    let $_func = x => typeof x === "function";
-    let $_num = x => typeof x === "number";
-    let $_str = x => typeof x === "string";
     let $_rex = x => classof(x, "RegExp");
     let $_arr = x => classof(x, "Array");
     let $_jvo = x => classof(x, "JavaObject");
@@ -158,7 +159,7 @@
                     // even though not showing up above
                     // monster function(s) //
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                         global["$$flag"] = global["$$flag"] || {};
                         let $$flag = global["$$flag"];
@@ -292,7 +293,7 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function showSplitLine(extra_str, style, params) {
                         let _extra_str = extra_str || "";
                         let _split_line = "";
@@ -305,9 +306,10 @@
                         return !!~console.log(_split_line + _extra_str);
                     }
 
-                    // updated at Jan 6, 2020
-                    function waitForAction(f, timeout_or_times, interval) {
-                        $$impeded(arguments.callee.name);
+                    // updated at Mar 1, 2020
+                    function waitForAction(f, timeout_or_times, interval, params) {
+                        let _par = params || {};
+                        _par.no_impeded || $$impeded(arguments.callee.name);
 
                         if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
 
@@ -385,14 +387,14 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function clickAction(f, strategy, params) {
-                        $$impeded(arguments.callee.name);
+                        let _par = params || {};
+                        _par.no_impeded || $$impeded(arguments.callee.name);
 
                         if (typeof f === "undefined" || f === null) return false;
 
                         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                        let _params = params || {};
 
                         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
                         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
@@ -401,16 +403,16 @@
                          * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
                          */
                         let _type = _checkType(f);
-                        let _padding = _checkPadding(_params.padding);
+                        let _padding = _checkPadding(_par.padding);
                         if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
                         let _strategy = (strategy || "click").toString();
                         let _widget_id = 0;
                         let _widget_parent_id = 0;
 
-                        let _condition_success = _params.condition_success;
+                        let _condition_success = _par.condition_success;
 
-                        let _check_time_once = _params.check_time_once || 500;
-                        let _max_check_times = _params.max_check_times || 0;
+                        let _check_time_once = _par.check_time_once || 500;
+                        let _max_check_times = _par.max_check_times || 0;
                         if (!_max_check_times && _condition_success) _max_check_times = 3;
 
                         if (typeof _condition_success === "string" && _condition_success.match(/disappear/)) {
@@ -474,7 +476,7 @@
                             _x += _padding.x;
                             _y += _padding.y;
 
-                            _strategy.match(/^p(ress)?$/) ? press(_x, _y, _params.press_time || 1) : click(_x, _y);
+                            _strategy.match(/^p(ress)?$/) ? press(_x, _y, _par.press_time || 1) : click(_x, _y);
                         }
 
                         function _checkType(f) {
@@ -526,7 +528,7 @@
                                 if (_type === "UiSelector") {
                                     let _node = f.findOnce();
                                     if (!_node) return true;
-                                    return _params.condition_success.match(/in.?place/) ? _node.toString().match(/@\w+/)[0].slice(1) !== _widget_id : !_node;
+                                    return _par.condition_success.match(/in.?place/) ? _node.toString().match(/@\w+/)[0].slice(1) !== _widget_id : !_node;
                                 } else if (_type === "UiObject") {
                                     let _node_parent = f.parent();
                                     if (!_node_parent) return true;
@@ -586,18 +588,21 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
-                    function keycode(keycode_name, params_str) {
-                        $$impeded(arguments.callee.name);
-
-                        params_str = params_str || "";
+                    // updated at Mar 1, 2020
+                    function keycode(code, params) {
+                        let _par = params || {};
+                        _par.no_impeded || $$impeded(arguments.callee.name);
 
                         let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
 
-                        if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
-                        let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
-                        let first_result = simulateKey();
-                        return params_str.match(/double/) ? simulateKey() : first_result;
+                        if (_par.force_shell) {
+                            return keyEvent(code);
+                        }
+                        let _tidy_code = code.toString().toLowerCase()
+                            .replace(/^keycode_|s$/, "")
+                            .replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
+                        let _1st_res = simulateKey();
+                        return _par.double ? simulateKey() : _1st_res;
 
                         // tool function(s) //
 
@@ -607,7 +612,7 @@
                             };
                             for (let _key in _key_check) {
                                 if (_key_check.hasOwnProperty(_key)) {
-                                    if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) {
+                                    if (~_key.split(/ *, */).indexOf(_tidy_code)) {
                                         return _key_check[_key]();
                                     }
                                 }
@@ -623,7 +628,10 @@
                                 } catch (e) {
                                     // nothing to do here
                                 }
-                                return shell_result ? true : (!params_str.match(/no.*err(or)?.*(message|msg)/) && !!keyEventFailedMsg());
+                                if (shell_result) {
+                                    return true;
+                                }
+                                _par.no_err_msg || keyEventFailedMsg();
 
                                 // tool function(s) //
 
@@ -647,7 +655,7 @@
                         }
 
                         function simulateKey() {
-                            switch (_tidy_keycode_name) {
+                            switch (_tidy_code) {
                                 case "3":
                                 case "home":
                                     return ~home();
@@ -669,7 +677,7 @@
                                 case "splitScreen":
                                     return ~splitScreen();
                                 default:
-                                    return keyEvent(keycode_name);
+                                    return keyEvent(code);
                             }
                         }
 
@@ -690,7 +698,7 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function debugInfo(msg, info_flag, forcible_flag) {
                         global["$$flag"] = global["$$flag"] || {};
                         let $$flag = global["$$flag"];
@@ -776,7 +784,7 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function captureErrScreen(key_name, log_level) {
                         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
@@ -857,11 +865,13 @@
                         }
                     }
 
-                    // updated at Jan 21, 2020
+                    // updated at Mar 1, 2020
                     function getSelector(options) {
                         let _opt = options || {};
                         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _opt.debug_info_flag);
+                        let _debugInfo = _msg => (
+                            typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+                        )(_msg, "", _opt.debug_info_flag);
                         let _sel = global["selector"]();
                         _sel.__proto__ = _sel.__proto__ || {};
                         Object.assign(_sel.__proto__, {
@@ -1031,11 +1041,23 @@
                                                 : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
                                         }
 
+                                        if (_body_class === "Object") {
+                                            let sel = selector();
+                                            Object.keys(_body).forEach((key) => {
+                                                let _par = _body[key];
+                                                if (classof(_par, "Array")) {
+                                                    sel = sel[key].apply(sel, _par);
+                                                } else {
+                                                    sel = sel[key](_par);
+                                                }
+                                            });
+                                            return sel;
+                                        }
+
                                         // tool function(s) //
 
                                         function _chkSels(selectors) {
                                             let _sels = selectors;
-                                            let _sels_len = _sels.length;
                                             let _arg_len = arguments.length;
                                             if (_classof(_sels) !== "Array") {
                                                 _sels = [];
@@ -1043,6 +1065,7 @@
                                                     _sels[i] = arguments[i];
                                                 }
                                             }
+                                            let _sels_len = _sels.length;
                                             for (let i = 0; i < _sels_len; i += 1) {
                                                 let _res = _chkSel(_sels[i]);
                                                 if (_res) {
@@ -1211,18 +1234,13 @@
                                     // tool function(s) //
 
                                     function _childNode(arr) {
-                                        if (!arr || classof(arr) !== "Array") {
-                                            return null;
-                                        }
                                         let _len = arr.length;
                                         for (let i = 0; i < _len; i += 1) {
-                                            if (_nod.childCount()) {
-                                                try {
-                                                    let _idx = +arr[i].match(/\d+/);
-                                                    _nod = _nod.child(_idx);
-                                                } catch (e) {
-
-                                                }
+                                            try {
+                                                let _idx = +arr[i].match(/\d+/);
+                                                _nod = _nod.child(_idx);
+                                            } catch (e) {
+                                                return null;
                                             }
                                         }
                                         return _nod || null;
@@ -1287,7 +1305,7 @@
                         }
                     }
 
-                    // updated at Jan 6, 2020
+                    // updated at Mar 1, 2020
                     function classof(source, check_value) {
                         let class_result = Object.prototype.toString.call(source).slice(8, -1);
                         return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
@@ -1669,6 +1687,37 @@
         };
     }
 
+    function _addObjectValues() {
+        if (!Object["values"]) {
+            Object.prototype.values = function (o) {
+                if (o !== Object(o))
+                    throw new TypeError("Object.values called on a non-object");
+                let key;
+                let value = [];
+                for (key in o) {
+                    if (o.hasOwnProperty(key)) {
+                        value.push(o[key]);
+                    }
+                }
+                return value;
+            };
+        }
+        if (!Object["valuesArr"]) {
+            Object.prototype.valuesArr = function () {
+                if (typeof Object.values === "function") {
+                    return Object.values(this);
+                }
+                let values = [];
+                for (let key in this) {
+                    if (this.hasOwnProperty(key)) {
+                        values.push(this[key]);
+                    }
+                }
+                return values;
+            };
+        }
+    }
+
     function _makeSureImpeded() {
         if (typeof global["$$impeded"] === "undefined") {
             global["$$impeded"] = () => void 0;
@@ -1863,12 +1912,30 @@
         device.getDisplay(true);
     }
 
-    function _chkF(s) {
-        let _mon = require("./MODULE_MONSTER_FUNC");
-        if (typeof global[s] === "function") {
-            return global[s];
+    function _chkF(s, override_par_num) {
+        let _f = (() => {
+            let _mon = require("./MODULE_MONSTER_FUNC");
+            if (typeof global[s] === "function") {
+                return global[s];
+            }
+            return _mon[s];
+        })();
+
+        if ($_und(override_par_num)) {
+            return _f;
         }
-        return _mon[s];
+
+        return function () {
+            let _args = Object.values(arguments);
+            let _aim_par = _args[override_par_num];
+            if ($_und(_aim_par)) {
+                _aim_par = {no_impeded: true};
+            } else {
+                _aim_par = Object.assign(_aim_par, {no_impeded: true});
+            }
+            _args[override_par_num] = _aim_par;
+            return _f.apply({}, _args);
+        }
     }
 
     function _getCode() {
@@ -2219,8 +2286,9 @@
                             let _from_sto = !!_time;
                             let _chances = 3;
                             let _ctr = 0;
+                            let _max = Math.ceil(_max_try * 0.6);
                             while (!_lmt()) {
-                                let _s = " (" + _ctr + "/" + _max_try + ")";
+                                let _s = " (" + _ctr + "/" + _max + ")";
                                 debugInfo(_ctr
                                     ? "重试图案密码解锁" + _s
                                     : "尝试图案密码解锁"
@@ -2263,6 +2331,7 @@
 
                                 debugInfo("图案解锁未成功", 3);
                                 _ctr += 1;
+                                sleep(200);
 
                                 if (_from_sto) {
                                     if (--_chances < 0) {
@@ -2286,7 +2355,7 @@
                             // tool function(s) //
 
                             function _lmt() {
-                                if (_ctr > _max_try) {
+                                if (_ctr > _max) {
                                     return _err("图案解锁方案失败");
                                 }
                             }
@@ -2488,8 +2557,9 @@
                             }], type);
 
                             let _ctr = 0;
+                            let _max = Math.ceil(_max_try * 0.6);
                             while (!_lmt()) {
-                                let _s = " (" + _ctr + "/" + _max_try + ")";
+                                let _s = " (" + _ctr + "/" + _max + ")";
                                 debugInfo(_ctr
                                     ? "重试密码解锁" + _s
                                     : "尝试密码解锁"
@@ -2521,6 +2591,7 @@
                                     }
                                 }
                                 _ctr += 1;
+                                sleep(200);
                             }
                             debugInfo("密码解锁成功");
                             return true;
@@ -2528,7 +2599,7 @@
                             // tool function(s) //
 
                             function _lmt() {
-                                if (_ctr > _max_try) {
+                                if (_ctr > _max) {
                                     return _err([
                                         "密码解锁方案失败",
                                         "可能是密码错误",
@@ -2671,8 +2742,9 @@
                             let _pw = _clean_code;
 
                             let _ctr = 0;
+                            let _max = Math.ceil(_max_try * 0.6);
                             while (!_lmt()) {
-                                let _s = " (" + _ctr + "/" + _max_try + ")";
+                                let _s = " (" + _ctr + "/" + _max + ")";
                                 debugInfo(_ctr
                                     ? "重试PIN解锁" + _s
                                     : "尝试PIN解锁"
@@ -2691,6 +2763,7 @@
                                     break;
                                 }
                                 _ctr += 1;
+                                sleep(200);
                             }
                             debugInfo("PIN解锁成功");
                             return true;
@@ -2698,10 +2771,10 @@
                             // tool function(s) //
 
                             function _lmt() {
-                                if (_ctr > _max_try) {
+                                if (_ctr > _max) {
                                     return _err([
                                         "PIN解锁方案失败",
-                                        "可能是密码错误"
+                                        "尝试次数已达上限"
                                     ]);
                                 }
                             }
@@ -3070,7 +3143,7 @@
                     }
 
                     function _chkOKBtn() {
-                        let _rex = /OK|确定|好.?/;
+                        let _rex = /OK|确(认|定)|好.?/;
                         let _kw = textMatches(_rex);
                         let _node = _kw.findOnce();
                         if (_node) {
@@ -3125,22 +3198,14 @@
         }
 
         function _lmtRch() {
-            if ($_und(_unlock._ctr)) {
-                _unlock._ctr = 0;
-            }
-            if ($_und(_unlock._max)) {
-                _unlock._max = 5;
-            }
-
-            let _max = _unlock._max;
-            let _ctr = _unlock._ctr++;
+            let _max = _max_try;
+            let _ctr = $_und(_unlock.ctr) ? 0 : _unlock.ctr++;
             if (_ctr > _max) {
                 return _err("解锁尝试次数已达上限");
             }
-            if (_ctr) {
-                let _s = " (" + _ctr + "/" + _max + ")";
-                debugInfo("重试解锁" + _s);
-            }
+            let _s = " (" + _ctr + "/" + _max + ")";
+            debugInfo(_ctr ? "重试解锁" + _s : "尝试解锁");
+            sleep(240);
         }
 
         function _backupImpeded() {

@@ -17,6 +17,11 @@ let ext = {
             return !!e.message.match(/has been recycled/);
         }
     },
+    isImageWrapper: (img) => (img
+        && typeof img === "object"
+        && img["getClass"]
+        && img.toString().match(/ImageWrapper/)
+    ),
     reclaim: _reclaim,
     capt: () => {
         let _max = 10;
@@ -40,8 +45,16 @@ let ext = {
     tryRequestScreenCapture: _permitCapt, // legacy
     permitCapt: _permitCapt,
     permit: _permitCapt,
-    matchTpl: (capt, tpl, opt) => {
-        let _capt = capt || images.capt();
+    matchTpl: function (capt, tpl, opt) {
+        let _capt;
+        let _no_capt_fg;
+        if (!capt) {
+            _capt = images.capt();
+            _no_capt_fg = true;
+        } else {
+            _capt = capt;
+        }
+
         let _opt = opt || {};
 
         let _name = _opt.name;
@@ -71,6 +84,12 @@ let ext = {
                 _res_range[0] = +_w.toFixed(2);
             }
             _res.range = _res_range;
+
+            if (_no_capt_fg) {
+                _capt.recycle();
+                _capt = null;
+            }
+
             return _res;
         }
         return null;
@@ -87,10 +106,10 @@ let ext = {
                 return $$af[_key];
             }
             let _img = images.read(_path);
-            if (_af) {
-                $$af[_key] = _img;
+            if (!_af) {
+                $$af = {};
             }
-            return _img;
+            return $$af[_key] = _img;
         }
 
         function _byAttempt(tpl) {
@@ -108,6 +127,10 @@ let ext = {
                     let _resized = images.resize(
                         tpl, [_new_w, _new_h + j], "LANCZOS4"
                     );
+                    let _recycleNow = () => {
+                        _resized.recycle();
+                        _resized = null;
+                    };
                     let _par = {};
                     let _thrd = _opt.threshold_attempt;
                     let _region = _opt.region_attempt;
@@ -123,8 +146,10 @@ let ext = {
                             images.save(_resized, _path);
                         }
                         _res_range = [+(i * 720 / W).toFixed(2), j];
-                        return _resized;
+                        _recycleNow();
+                        return _bySto(_name);
                     }
+                    _recycleNow();
                 }
             }
         }
@@ -180,18 +205,23 @@ module.exports.load = () => Object.assign(global["images"], ext);
 // tool function(s) //
 
 /**
- * Just an insurance way of images.requestScreenCapture() to avoid infinite stuck or stalled without any hint or log
- * During this operation, permission prompt window will be confirmed (with checkbox checked if possible) automatically with effort
+ * Just an insurance way of images.requestScreenCapture()
+ *  to avoid infinite stuck or stalled without any hint or log
+ * During this operation, permission prompt window
+ *  will be confirmed (with checkbox checked if possible)
+ *  automatically with effort
  * @param [params] {object}
  * @param [params.debug_info_flag] {boolean}
  * @param [params.restart_this_engine_flag=false] {boolean}
  * @param [params.restart_this_engine_params] {object}
- * @param [params.restart_this_engine_params.new_file] {string} - new engine task name with or without path or file extension name
+ * @param [params.restart_this_engine_params.new_file] {string}
+ *  - new engine task name with or without path or file extension name
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
  * @param [params.restart_this_engine_params.debug_info_flag] {boolean}
- * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number} - max restart times for avoiding infinite recursion
+ * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number}
+ *  - max restart times for avoiding infinite recursion
  * @return {boolean}
  */
 function _permitCapt(params) {
@@ -208,14 +238,24 @@ function _permitCapt(params) {
     }
 
     let _par = params || {};
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(m, fg, _par.debug_info_flag);
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+    )(m, fg, _par.debug_info_flag);
 
     _debugInfo("开始申请截图权限");
 
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
-    let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
+    let _waitForAction = (
+        typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction
+    );
+    let _messageAction = (
+        typeof messageAction === "undefined" ? messageActionRaw : messageAction
+    );
+    let _clickAction = (
+        typeof clickAction === "undefined" ? clickActionRaw : clickAction
+    );
+    let _getSelector = (
+        typeof getSelector === "undefined" ? getSelectorRaw : getSelector
+    );
     let _$$sel = _getSelector();
 
     if (_$$und(_par.restart_this_engine_flag)) {
@@ -341,7 +381,7 @@ function _permitCapt(params) {
 
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(_kw) === "Array" ? kw[0] : kw;
+        let _kw = classof(kw) === "Array" ? kw[0] : kw;
         let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
         if (!_key_node) return;
         let _bounds = _key_node.bounds();
@@ -476,8 +516,9 @@ function _permitCapt(params) {
 function _reclaim() {
     for (let i = 0, len = arguments.length; i < len; i += 1) {
         let img = arguments[i];
-        if (!img) continue;
-        img.recycle();
+        if (images.isImageWrapper(img)) {
+            img.recycle();
+        }
         /*
             `img = null;` is not necessary
             as which only modified the point
