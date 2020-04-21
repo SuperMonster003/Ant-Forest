@@ -140,13 +140,13 @@ function parseDateTime(clazz, dateTime) {
 
 function addTask(task) {
     TimedTaskManager[is_pro ? "addTaskSync" : "addTask"](task);
-    waitForAction(() => task.id !== 0, 500, 80);
+    waitForAction(() => task.id !== 0, 840, 120);
 }
 
 function removeTask(task) {
     let id = task.id;
     TimedTaskManager[is_pro ? "removeTaskSync" : "removeTask"](task);
-    return waitForAction(() => !ext.getTimedTask(id), 500, 80);
+    return waitForAction(() => !ext.getTimedTask(id), 840, 120);
 }
 
 function updateTask(task) {
@@ -159,7 +159,7 @@ function updateTask(task) {
             if (!task || !task.id) return;
             let new_id = ext.getTimedTask(task.id).id;
             return new_id && new_id !== id;
-        }, 800, 50) && task;
+        }, 1200, 120) && task;
     } catch (e) {
 
     }

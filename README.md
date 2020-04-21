@@ -11,27 +11,33 @@
 [点击可直接下载最新项目包](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip)  
 或点击页面右侧绿色 `Clone or download` 按钮  
 手机浏览器需在项目主页拉到底部点击 `Desktop version`  
-2. 将项目中的全部文件放置于移动设备存储  
+2. 将项目放置到移动设备存储  
 定位到设备的内部存储目录 如:  
 `/sdcard/` `/Internal Storage/` `/内部存储/` `/storage/emulated/0/` 等  
 在此目录下找到 `Auto.js` 默认工作目录  
 中文系统默认目录 `./脚本/`  
 英文系统默认目录 `./Scripts/`  
 若不存在则需手动建立 或在 `Auto.js` 软件中设置一个工作目录  
+将项目文件夹保留结构放置在工作目录中  
 3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
-运行 `Ant_Forest_Launcher.js` 文件可启动项目  
-运行 `Ant_Forest_Settings.js` 文件可进行项目配置  
+运行 `Ant_Forest_Launcher.js` 启动项目  
+运行 `Ant_Forest_Settings.js` 进行项目配置  
 4. 欢迎使用并反馈  
 
-> 安卓系统最低版本: `7.0` / `Android Nougat` / `Android N`  
-> Root: `不必要` `(但无Root权限将影响部分功能执行效率或运作方式 如关闭屏幕/强制停止应用等)`  
-
-> "Auto.js"已测试版本:  
+> ###### 使用指南  
+>> [快速手册](https://www.bilibili.com/video/av91979276/) (视频)  
+>> [项目文档](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md) (尚未完善)  
+>
+> ###### 系统需求
+>> 版本: `Android 7.0+`  
+>> Root权限: `不必要`  
+>
+> ###### "Auto.js"可用版本
 >> `-- 免费版本 --`  
 >> [`4.1.1 Alpha2`](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true)  
 >> `-- 付费版本 --`  
 >> [`Pro 7.0.4-1`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_7.0.4-1%5D(31b16c93).apk?raw=true)  
->> [`Pro 8.0.0-3`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_8.0.0-3%5D(acda8ec1).apk?raw=true)  
+>> [`Pro 8.0.0-5`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/%5Bauto.js%5D%5Bpro_8.0.0-5%5D(f516a724).apk?raw=true)  
 >> `-- 不适用版本 --`  
 >> [`查看不适用版本的已知问题`](https://github.com/SuperMonster002/Hello_Sockpuppet/blob/master/README.md)  
 
@@ -80,11 +86,31 @@
 ·  脚本在网络条件较差时仍可正常运行或识别异常  
 * 图形化配置工具  
 ·  基于UI的配置工具 可详细配置项目参数  
-* ###### 其他功能详见[使用说明书](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md) (尚未完善)
 
 ******
 ### 版本历史
 ******
+# v1.9.16
+###### 2020/04/21 - 代码重构 谨慎升级
+* `新增` 数据统计功能及配置 (基于SQLite) _[`issue #91`](https://github.com/SuperMonster003/Auto.js_Projects/issues/91#issue-486773073)_  
+* `新增` 定时任务自动管理功能的有效时段配置 _[`issue #265`](https://github.com/SuperMonster003/Auto.js_Projects/issues/265)_  
+* `修复` 定时任务控制面板任务类型的引用异常 _[`issue #269`](https://github.com/SuperMonster003/Auto.js_Projects/issues/269)_  
+* `修复` 黑名单中存在异常数据时导致项目无法运行的问题  
+* `修复` 动态列表项目过多可能出现的采集能量罩信息失败问题 _[`issue #288`](https://github.com/SuperMonster003/Auto.js_Projects/issues/288#issuecomment-616518748)_  
+* `修复` 前置应用黑名单触发后可能丢失自动推迟任务的问题  
+* `修复` 重构造成的解锁模块缓冲丢失导致解锁易失败的问题 _[`issue #265`](https://github.com/SuperMonster003/Auto.js_Projects/issues/265)_  
+* `修复` Bug版本检测方法缺失阻塞导致流程失控的问题  
+* `修复` 图形配置工具退出前清理对话框数据的代码错误 _[`issue #274`](https://github.com/SuperMonster003/Auto.js_Projects/issues/274)_  
+* `修复` 屏幕关闭后阻塞事件无法自动解除的问题  
+* `优化` launchThisApp()中判断屏幕方向方法内部逻辑 _[`issue #264`](https://github.com/SuperMonster003/Auto.js_Projects/issues/264)_  
+* `优化` 尽可能减少比较屏幕截图时的内存占用并及时回收  
+* `优化` 获取统计数据所需的用户昵称优先使用排行榜方案  
+* `优化` 自动定时任务移除等待结果阻塞并增加结果超时检测  
+* `优化` 增强自动解锁确认按钮的兼容性 _[`pr #278`](https://github.com/SuperMonster003/Auto.js_Projects/pull/278)_  
+* `优化` 配置页面更新内容中残余换行符的处理  
+* `优化` 主页遮罩层监测方法的兼容性  
+* `优化` 主页能量球收取异常值检测  
+
 # v1.9.15
 ###### 2020/02/23 - 代码重构 谨慎升级
 * `修复` 通话状态监测开关失效的问题  

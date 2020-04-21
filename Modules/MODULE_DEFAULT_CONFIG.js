@@ -109,6 +109,8 @@ module.exports = {
         timers_uninterrupted_check_switch: true,
         // 1 <= x <= 600; multi sections available
         timers_uninterrupted_check_sections: [{section: ["06:30", "00:00"], interval: 60}],
+        // set if you were bothered by auto timed task system; like: [["21:00", "07:45"], ["11:30", "13:30"]]
+        timers_auto_task_sections: [],
         // just in case, as you know; timed task will be set on running and removed when script finished
         timers_insurance_switch: true,
         // 1 <= x <= 10; timed task will be extended every 10 sec to avoid interval's consumption
@@ -141,16 +143,20 @@ module.exports = {
         prompt_before_running_postponed_minutes: 0,
         // record user selected value of postponed settings dialog in countdown dialog
         prompt_before_running_postponed_minutes_user: 3,
+        // specify a path for rank list bottom template locating (*.png)
         rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
         // ant forest timed task will be auto-delayed for 5 min if current foreground app is in this list
         foreground_app_blacklist: [],
+        // some others
+        stat_list_show_zero: 1, // hide zero
+        stat_list_date_range: 2, // today
     },
     unlock: {
         // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
         unlock_code: null,
         // max times for trying unlocking your phone
         unlock_max_try_times: 20,
-        // of "solid"; seg for faster and more accurate swipe and solid for stable swipe without break
+        // "segmental" for faster and more accurate swipe and "solid" for stable swipe without break
         unlock_pattern_strategy: "segmental",
         // side size of a speed-dial-like pattern for unlocking your phone, and 3 is the most common value
         unlock_pattern_size: 3,
@@ -186,26 +192,4 @@ module.exports = {
         hint_btn_dark_color: "#a1887f",
         hint_btn_bright_color: "#26a69a",
     },
-    checkin: {
-        config: {
-            auto_unlock_switch: false,
-        },
-        checkin_items: {
-            alipay: {name: "支付宝", package_name: "com.eg.android.AlipayGphone"},
-            jd: {name: "京东", package_name: "com.jingdong.app.mall22222"},
-            tieba: {name: "百度贴吧", package_name: "com.baidu.tieba"},
-            unionpay: {name: "云闪付", package_name: "com.unionpay22222"},
-            // depend on WeChat partially
-            cmblife: {name: "掌上生活", package_name: "com.cmbchina.ccd.pluto.cmbActivity"},
-            gbanker: {name: "黄金钱包", package_name: "com.gbanker.gbankerandroid22222"},
-            ole: {name: "Olé lifestyle", package_name: "com.crv.ole"},
-            youcoffee: {
-                name: "友咖啡",
-                depend: {
-                    name: "微信",
-                    package_name: "com.tencent.mm",
-                }, // depend on WeChat totally
-            },
-        },
-    }
 };

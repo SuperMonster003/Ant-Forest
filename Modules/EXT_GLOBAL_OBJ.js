@@ -258,8 +258,8 @@ let ext = {
                 return values;
             };
         }
-        if (!Object["len"]) {
-            Object.prototype.len = function () {
+        if (!Object["size"]) {
+            Object.prototype.size = function () {
                 return Object.keys(this).length;
             };
         }
