@@ -5011,7 +5011,7 @@ let $$af = {
                                     max: 20,
                                     range: [28, 30],
                                     threshold_attempt: 0.94,
-                                    region_attempt: [cX(0.8), 0, cX(0.2) - 1, uH - 1],
+                                    // region_attempt: [cX(0.8), 0, cX(0.2), uH],
                                     threshold_result: 0.94,
                                 });
                                 _clip.recycle();
