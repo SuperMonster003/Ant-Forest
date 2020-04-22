@@ -2705,8 +2705,11 @@
                         let _miui = idMatches(_ak +
                             "numeric_inputview"
                         );
+                        let _emui_10 = idMatches(_as + 
+                            "fixedPinEntry"
+                        );
                         let _emui = descMatches("" +
-                            "[Pp][Ii][Nn] ?码区域"
+                            "[Pp][Ii][Nn] ?(码区域|area)"
                         );
                         let _meizu = idMatches(_as +
                             "lockPattern"
@@ -2722,6 +2725,10 @@
                         if (_miui.exists()) {
                             debugInfo("匹配到MIUI/PIN解锁控件");
                             return _trigger(_miui, _stg);
+                        }
+                        if (_emui_10.exists()) {
+                            debugInfo("匹配到EMUI10/PIN解锁控件");
+                            return _trigger(_emui_10, _stg);
                         }
                         if (_emui.exists()) {
                             debugInfo("匹配到EMUI/PIN解锁控件");

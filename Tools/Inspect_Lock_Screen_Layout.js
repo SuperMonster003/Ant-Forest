@@ -271,10 +271,12 @@ function dismissLayer() {
 
         let kw_pin_view_common = id("com.android.systemui:id/pinEntry");
         let kw_pin_view_miui = id("com.android.keyguard:id/numeric_inputview"); // borrowed from e1399579
-        let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?码区域/);
+        let kw_pin_view_emui_10 = id("com.android.systemui:id/fixedPinEntry");
+        let kw_pin_view_emui = descMatches(/[Pp][Ii][Nn] ?(码区域|area)/);
         let cond_pin_view = () =>
             kw_pin_view_common.exists() && kw_pin_view_common ||
             kw_pin_view_miui.exists() && kw_pin_view_miui ||
+            kw_pin_view_emui_10.exists() && kw_pin_view_emui_10 ||
             kw_pin_view_emui.exists() && kw_pin_view_emui ||
             null;
 
