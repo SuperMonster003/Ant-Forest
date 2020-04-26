@@ -226,18 +226,22 @@ let ext = {
     },
     Object: () => {
         if (!Object["values"]) {
-            Object.prototype.values = function (o) {
-                if (o !== Object(o))
-                    throw new TypeError("Object.values called on a non-object");
-                let key;
-                let value = [];
-                for (key in o) {
-                    if (o.hasOwnProperty(key)) {
-                        value.push(o[key]);
-                    }
-                }
-                return value;
-            };
+            Object.defineProperty(Object, "values", {
+                get() {
+                    return function (o) {
+                        if (o !== Object(o))
+                            throw new TypeError("Object.values called on a non-object");
+                        let key;
+                        let value = [];
+                        for (key in o) {
+                            if (o.hasOwnProperty(key)) {
+                                value.push(o[key]);
+                            }
+                        }
+                        return value;
+                    };
+                },
+            });
         }
         if (!Object["keysArr"]) {
             Object.prototype.keysArr = function () {
@@ -301,7 +305,7 @@ let ext = {
             };
         }
     },
-    Math: () => Object.assign(Math.__proto__, {
+    Math: () => Object.assign(Math, {
         rand: (range, fix) => {
             if (!range) {
                 return Math.fix(Math.random(), fix);

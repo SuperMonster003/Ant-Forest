@@ -90,6 +90,19 @@
 ******
 ### 版本历史
 ******
+# v1.9.17
+###### 2020/04/26
+* `新增` 自动开启无障碍服务功能及配置 (默认禁用) _[`issue #262`](https://github.com/SuperMonster003/Auto.js_Projects/issues/262)_  
+* `修复` 账户登录成功判断逻辑错误  
+* `修复` 账户列表跳转触发安全限制的问题 _[`issue #296`](https://github.com/SuperMonster003/Auto.js_Projects/issues/296)_  
+* `修复` 安卓7.x不支持java.time包的问题  
+* `修复` 排行榜倒计时数据可能出现的统计偏差问题 _[`issue #293`](https://github.com/SuperMonster003/Auto.js_Projects/issues/293)_  
+* `修复` 定时任务自动更新时未更新任务类型的问题  
+* `修复` EXT_GLOBAL_OBJ模块污染对象枚举数据的问题  
+* `修复` 排行榜滑动遇到20整倍可能无法滑动的问题 (试修) _[`issue #149`](https://github.com/SuperMonster003/Auto.js_Projects/issues/149)_ _[`#236`](https://github.com/SuperMonster003/Auto.js_Projects/issues/236)_  
+* `优化` 无障碍服务关闭时使用功能提示替代报错终止  
+* `优化` 为auto.waitFor()增加超时检测  
+
 # v1.9.16
 ###### 2020/04/21 - 代码重构 谨慎升级
 * `新增` 数据统计功能及配置 (基于SQLite) _[`issue #91`](https://github.com/SuperMonster003/Auto.js_Projects/issues/91#issue-486773073)_  
@@ -101,11 +114,11 @@
 * `修复` 重构造成的解锁模块缓冲丢失导致解锁易失败的问题 _[`issue #265`](https://github.com/SuperMonster003/Auto.js_Projects/issues/265)_  
 * `修复` Bug版本检测方法缺失阻塞导致流程失控的问题  
 * `修复` 图形配置工具退出前清理对话框数据的代码错误 _[`issue #274`](https://github.com/SuperMonster003/Auto.js_Projects/issues/274)_  
+* `修复` 部分机型系统语言为英文时不能自动解锁的问题 _[`pr #290`](https://github.com/SuperMonster003/Auto.js_Projects/pull/290)_  
 * `修复` 屏幕关闭后阻塞事件无法自动解除的问题  
 * `优化` launchThisApp()中判断屏幕方向方法内部逻辑 _[`issue #264`](https://github.com/SuperMonster003/Auto.js_Projects/issues/264)_  
 * `优化` 尽可能减少比较屏幕截图时的内存占用并及时回收  
-* `优化` 增强自动解锁确认按钮的兼容性 _[`pr #290`](https://github.com/SuperMonster003/Auto.js_Projects/pull/290)_  
-* `优化` 获取统计数据所需的用户昵称优先使用排行榜方案  
+* `优化` 获取统计数据所需的用户昵称优先使用排行榜方案 _[`issue #228`](https://github.com/SuperMonster003/Auto.js_Projects/issues/228)_  
 * `优化` 自动定时任务移除等待结果阻塞并增加结果超时检测  
 * `优化` 配置页面更新内容中残余换行符的处理  
 * `优化` 主页遮罩层监测方法的兼容性  

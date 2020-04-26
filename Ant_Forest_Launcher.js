@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Apr 21, 2020
- * @version 1.9.16
+ * @since Apr 26, 2020
+ * @version 1.9.17
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -22,6 +22,7 @@ let $$init = {
         checkAlipayPackage();
         checkModulesMap();
         checkSdkAndAJVer();
+        checkRootAccess();
         checkAccessibility();
 
         // `return this;` wasn't adopted here
@@ -82,26 +83,133 @@ let $$init = {
             return _mod.checkSdkAndAJVer();
         }
 
-        function checkAccessibility() {
-            let [line, msg] = [showSplitLineRaw, messageActionRaw];
-            let _max = 3;
-            while (!swipe(10000, 0, 10000, 0, 1) && _max--) {
-                sleep(300);
+        function checkRootAccess() {
+            try {
+                let {ProcessShell: PS} = com.stardust.autojs.core.util;
+                let _res = PS.execCommand("date", true).code === 0;
+                return $$flag.autojs_has_root = _res;
+            } catch (e) {
+
             }
-            if (_max < 0) {
-                line();
-                void (
-                    "脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用" +
-                    "|- - - - - - - - - - - - - - - - -|" +
-                    "可尝试以下解决方案:" +
-                    "|- - - - - - - - - - - - - - - - -|" +
-                    'a. 卸载并重新安装"Auto.js"|b. 安装后重启设备|' +
-                    'c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务|' +
-                    "e. 再次尝试运行本项目"
-                ).split("|").forEach(s => msg(s, 4));
-                line();
-                toast("无障碍服务方法无法使用", "Long");
-                exit();
+        }
+
+        function checkAccessibility() {
+            let _line = showSplitLineRaw;
+            let _msg = messageActionRaw;
+
+            _checkSvc();
+            _checkFunc();
+
+            // tool function(s) //
+
+            function _checkSvc() {
+                // do not `require()` before `checkModulesMap()`
+                let _a11y = require("./Modules/EXT_DEVICE").a11y;
+                let $_func = x => typeof x === "function";
+                let _pkg = context.packageName;
+                let _perm = "android.permission.WRITE_SECURE_SETTINGS";
+
+                if (_a11y.state()) {
+                    return true;
+                }
+
+                let _mod_sto = require("./Modules/MODULE_STORAGE");
+                let _mod_mon = require("./Modules/MODULE_MONSTER_FUNC");
+                let $_cfg = _mod_sto.create("af_cfg").get("config", {});
+                if ($_cfg.auto_enable_a11y_svc === "ON") {
+                    let _max = 2;
+                    while (_max--) {
+                        if (!_max) {
+                            if ($$flag.autojs_has_root) {
+                                global["shell"]("pm grant " + _pkg + " " + _perm, true);
+                            } else {
+                                break;
+                            }
+                        }
+                        if (_a11y.enable(true)) {
+                            _line();
+                            _msg("已自动开启无障碍服务", 1);
+                            _msg("尝试一次项目重启操作", 1);
+                            _line();
+                            return _mod_mon.restartThisEngine({
+                                debug_info_flag: "forcible",
+                                max_restart_engine_times: 1,
+                            });
+                        }
+                    }
+                    _autoHint();
+                }
+
+                let _hint = "\n即将自动跳转到无障碍服务设置\n" +
+                    "请手动开启Auto.js无障碍服务\n";
+                if ($_func(auto.waitFor)) {
+                    alert(_hint + "开启后脚本将自动继续");
+
+                    let _thd = threads.start(function () {
+                        // waitFor: script will continue running rather than stop
+                        // when accessibility service switched on by user
+                        auto.waitFor();
+                    });
+
+                    _thd.join(6e4);
+
+                    if (_thd.isAlive()) {
+                        _line();
+                        _msg("等待用户开启无障碍服务超时", 4, 1);
+                        _line();
+                        exit();
+                    }
+                } else {
+                    alert(_hint + "开启后请再次尝试运行项目");
+                    try {
+                        auto();
+                    } catch (e) {
+                        // consume errors msg from auto()
+                    }
+                    exit();
+                }
+
+                // tool function(s) {
+
+                function _autoHint() {
+                    let _shell_sc = "adb shell pm grant " + _pkg + " " + _perm;
+
+                    _line();
+                    _msg("自动开启无障碍服务失败", 4);
+                    _line();
+                    _msg("可能是Auto.js缺少以下权限:", 4);
+                    _msg("WRITE_SECURE_SETTINGS", 4);
+                    _line();
+                    _msg("可尝试使用ADB工具连接手机", 3);
+                    _msg("并执行以下Shell指令(无换行):\n" +
+                        "\n" + _shell_sc + "\n", 3);
+                    _msg("Shell指令已复制到剪切板", 3);
+                    _msg("重启设备后授权不会失效", 3);
+
+                    global["setClip"](_shell_sc);
+                }
+            }
+
+            function _checkFunc() {
+                let _max = 3;
+                while (!swipe(1e4, 0, 1e4, 0, 1) && _max--) {
+                    sleep(300);
+                }
+                if (_max < 0) {
+                    _line();
+                    void (
+                        "脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用" +
+                        "|- - - - - - - - - - - - - - - - -|" +
+                        "可尝试以下解决方案:" +
+                        "|- - - - - - - - - - - - - - - - -|" +
+                        'a. 卸载并重新安装"Auto.js"|b. 安装后重启设备|' +
+                        'c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务|' +
+                        "e. 再次尝试运行本项目"
+                    ).split("|").forEach(s => _msg(s, 4));
+                    _line();
+                    toast("无障碍服务方法无法使用", "Long");
+                    exit();
+                }
             }
         }
 
@@ -157,10 +265,6 @@ let $$init = {
 
         $$dev.getDisplay(true);
 
-        // waitFor: script will continue running rather than stop
-        // when accessibility service switched on by user
-        $$func(auto.waitFor) ? auto.waitFor() : auto();
-
         Object.assign($$dev, require("./Modules/MODULE_UNLOCK"));
 
         let _mod_sto = require("./Modules/MODULE_STORAGE");
@@ -188,6 +292,7 @@ let $$init = {
         debugInfo("Auto.js版本: " + $$app.autojs_ver);
         debugInfo("项目版本: " + $$app.project_ver);
         debugInfo("安卓系统SDK版本: " + $$app.sdk_ver);
+        debugInfo("Root权限: " + ($$app.has_root ? "有效" : "无效"));
 
         return $$init;
 
@@ -271,7 +376,13 @@ let $$init = {
                         cur_pkg: {get: () => currentPackage()},
                         now: {get: () => new Date()},
                         ts: {get: () => +new Date()},
-                        ts_sec: {get: () => java.time.Instant.now().getEpochSecond()},
+                        ts_sec: {
+                            get: () => {
+                                // java.time.Instant.now().getEpochSecond()
+                                // is incompatible with Android 7.x
+                                return Date.now() / 1000 >> 0;
+                            }
+                        },
                     });
                     void Object.assign($$app, {
                         my_engine: _my_engine,
@@ -340,12 +451,13 @@ let $$init = {
                         rl_title: _unESC("2615FE0F0020597D53CB6392884C699C"),
                         local_pics_path: _local_pics_path,
                         rex_energy_amt: /^\s*\d+(\.\d+)?(k?g|t)\s*$/,
+                        has_root: $$flag.autojs_has_root,
                     });
                     void Object.assign($$app, {
                         intent: {
                             home: {
                                 action: "VIEW",
-                                data: encURIPar("alipays://platformapi/startapp", {
+                                data: _encURIPar("alipays://platformapi/startapp", {
                                     saId: 20000067,
                                     url: "https://60000002.h5app.alipay.com/www/home.html",
                                     __webview_options__: {
@@ -356,15 +468,10 @@ let $$init = {
                                         backgroundColor: "-1",
                                     },
                                 }),
-                                // data: encURIPar("alipays://platformapi/startapp", {
-                                //     appId: 60000002,
-                                //     startMultApp: "YES",
-                                //     ...
-                                // }),
                             },
                             rl: {
                                 action: "VIEW",
-                                data: encURIPar("alipays://platformapi/startapp", {
+                                data: _encURIPar("alipays://platformapi/startapp", {
                                     saId: 20000067,
                                     url: "https://60000002.h5app.alipay.com/www/listRank.html",
                                     __webview_options__: {
@@ -383,16 +490,11 @@ let $$init = {
                             },
                             acc_man: {
                                 action: "VIEW",
-                                className: "com.alipay.mobile" +
-                                    ".security.accountmanager" +
-                                    ".ui.AccountManagerActivity_",
-                                packageName: $$app.pkg_name,
+                                data: "alipays://platformapi/startapp?appId=20000027",
                             },
                             acc_login: {
                                 action: "VIEW",
-                                className: "com.alipay.mobile.security.login" +
-                                    ".ui.RecommandAlipayUserLoginActivity",
-                                packageName: "com.eg.android.AlipayGphone",
+                                data: "alipays://platformapi/startapp?appId=20000008",
                             },
                         },
                         fri_drop_by: {
@@ -413,13 +515,13 @@ let $$init = {
                             },
                         },
                     });
-                    void addSelectors();
+                    void _addSelectors();
 
                     return _setter;
 
                     // tool function(s) //
 
-                    function addSelectors() {
+                    function _addSelectors() {
                         let _acc_logged_out = new RegExp(".*(" +
                             /在其他设备登录|logged +in +on +another/.source + "|" +
                             /.*账号于.*通过.*登录.*|account +logged +on +to/.source +
@@ -464,7 +566,7 @@ let $$init = {
                         ;
                     }
 
-                    function encURIPar(pref, par) {
+                    function _encURIPar(pref, par) {
                         let _par = par || {};
                         let _sep = pref.match(/\?/) ? "&" : "?";
 
@@ -1540,16 +1642,19 @@ let $$init = {
                         user_list: {
                             _plans: {
                                 intent: () => {
-                                    return app.startActivity($$app.intent.acc_man);
+                                    app.startActivity($$app.intent.acc_man);
                                 },
                                 pipeline: () => {
                                     $$app.page.alipay.home({debug_info_flag: false});
 
                                     return clickActionsPipeline([
-                                        [["我的", "p1"], "widget"],
-                                        [["设置", {clickable: true}], "widget"],
+                                        [["我的", "p1"]],
+                                        [["设置", {clickable: true}]],
                                         [["换账号登录", null]],
-                                    ]);
+                                    ], {
+                                        name: "账号切换页面",
+                                        default_strategy: "widget",
+                                    });
                                 },
                             },
                             launch: function (plans_arr) {
@@ -1561,9 +1666,8 @@ let $$init = {
                                 let _len = plans_arr.length;
                                 for (let i = 0; i < _len; i += 1) {
                                     let _plan_n = plans_arr[i];
-                                    let _plan = this._plans[_plan_n];
                                     let _task_name = "计划" + surroundWith(_plan_n);
-                                    _plan();
+                                    this._plans[_plan_n]();
                                     if (waitForAction(this.isInPage, 2000)) {
                                         debugInfo(_task_name + "成功");
                                         return true;
@@ -1980,7 +2084,8 @@ let $$init = {
                                             }
 
                                             function _next() {
-                                                return _require() && _click() && _check();
+                                                _require() && _click();
+                                                return _check();
 
                                                 // tool function(s) //
 
@@ -2006,7 +2111,7 @@ let $$init = {
                                                     let _sel = () => $$sel.get("login_next_step");
                                                     let _sel_p1 = $$sel.pickup([_sel(), "p1"]);
 
-                                                    return clickAction(_sel_p1, "w", {
+                                                    clickAction(_sel_p1, "w", {
                                                         max_check_times: 3,
                                                         check_time_once: 500,
                                                         condition_success: () => !_sel(),
@@ -2082,10 +2187,11 @@ let $$init = {
                                                 }
 
                                                 debugInfo('点击"登录"按钮');
-                                                if (!clickAction($$sel.get("login_btn"), "w")) {
-                                                    let _s = '输入密码后点击"登录"失败';
-                                                    return messageAction(_s, 4, 1, 0, "both_dash");
+                                                if (clickAction($$sel.get("login_btn"), "w")) {
+                                                    return true;
                                                 }
+                                                let _s = '输入密码后点击"登录"失败';
+                                                messageAction(_s, 4, 1, 0, "both_dash");
                                             }
 
                                             function _manIpt() {
@@ -2173,7 +2279,7 @@ let $$init = {
 
                                                 // just to prevent screen from
                                                 // turning off immediately
-                                                click(99999, 99999);
+                                                click(1e5, 1e5);
                                                 delete $$flag.glob_e_scr_paused;
                                                 $$dev.cancelOn();
 
@@ -2514,7 +2620,7 @@ let $$init = {
                                 return true;
                             }
 
-                            if (_loginMain.bind(this)()) {
+                            if (_loginMain()) {
                                 $$app.page.af.home();
                                 this._avatar.save();
                                 return true;
@@ -2527,8 +2633,8 @@ let $$init = {
 
                             function _loginMain() {
                                 return $$acc.login(Object.assign({
-                                    name_raw: this.name_raw,
-                                    code_raw: this.code_raw,
+                                    name_raw: $$acc.main.name_raw,
+                                    code_raw: $$acc.main.code_raw,
                                 }, par || {}));
                             }
                         },
@@ -4131,7 +4237,7 @@ let $$af = {
                                         [["简体中文", "p4"], _cond],
                                         ["Save"],
                                     ], {
-                                        name: "切换简体中文语言",
+                                        name: "简体中文语言切换",
                                         default_strategy: "widget",
                                     });
 
@@ -4308,7 +4414,7 @@ let $$af = {
                                 let _getEm = own._getEmount;
                                 let _i = $$app.tool.stabilizer(_getEm, _t) - _t;
 
-                                if (_i <= 0) {
+                                if (_i <= 0 || isNaN(_i)) {
                                     sleep(500);
                                     $$af.emount_t_own = _getEm("buf");
                                     $$af.emount_c_own += $$af.emount_t_own - _t;
@@ -4664,39 +4770,40 @@ let $$af = {
                                 let _mm = +$$sel.pickup(w, "txt").match(/\d+/)[0];
                                 let _nick = $$sel.pickup([w, "p2c2c0c0"], "txt");
                                 if (_mm && _nick) {
-                                    _smp[_nick] = $$app.ts + _mm * 60000;
+                                    _smp[_nick] = {
+                                        ts: $$app.ts + _mm * 60000,
+                                        minute: _mm,
+                                    };
                                 }
                             });
 
-                            let _avail = _smp.size();
-                            if (_avail) {
-                                debugInfo("解析好友有效倒计时数据: " + _avail + "项");
-                            }
+                            let _z = _smp.size();
+                            _z && debugInfo("解析好友有效倒计时数据: " + _z + "项");
 
                             return fri.rl_samples = _smp;
                         }
                     },
-                    _getMinCtd: () => {
-                        let _now = +new Date();
+                    _chkMinCtd: () => {
                         let _smp = fri._getSmp("cache");
-                        let _nicks = Object.keys(_smp);
-                        let _len = _nicks.length;
-
-                        if (!_len) {
-                            return;
+                        let _len = Object.keys(_smp).length;
+                        if (_len) {
+                            let _min_mm = Infinity;
+                            let _min_ctd = Infinity;
+                            Object.values(_smp).forEach((o) => {
+                                if (o.ts < _min_ctd) {
+                                    _min_ctd = o.ts;
+                                    _min_mm = o.minute;
+                                }
+                            });
+                            if (_min_mm > 0) {
+                                $$af.min_ctd_fri = _min_ctd;
+                                debugInfo("好友能量最小倒计时: " + _min_mm + "分钟");
+                                debugInfo("时间数据: " + $$app.tool.timeStr(_min_ctd));
+                                debugInfo("好友能量最小倒计时检测完毕");
+                                return _min_mm <= $$cfg.rank_list_review_threshold;
+                            }
+                            return debugInfo("好友倒计时数据无效: " + _min_mm, 3);
                         }
-
-                        let _min_ctd = Math.mini(Object.values(_smp));
-                        let _mm = Math.round((_min_ctd - _now) / 60000);
-
-                        if (_mm > 0) {
-                            $$af.min_ctd_fri = _min_ctd;
-                            debugInfo("好友能量最小倒计时: " + _mm + "分钟");
-                            debugInfo("时间数据: " + $$app.tool.timeStr(_min_ctd));
-                            debugInfo("好友能量最小倒计时检测完毕");
-                            return _mm <= $$cfg.rank_list_review_threshold;
-                        }
-                        return debugInfo("好友倒计时数据无效: " + _mm, 3);
                     },
                     oballs: {},
                     get oballs_len() {
@@ -4823,6 +4930,7 @@ let $$af = {
 
                             function _fromActivity() {
                                 app.startActivity({
+                                    action: "VIEW",
                                     data: "alipays://platformapi/startapp?appId=20000141",
                                 });
 
@@ -5939,7 +6047,7 @@ let $$af = {
                                 if (!_cond) {
                                     $$af.min_ctd_fri = Infinity;
                                 } else if ($$inf($$af.min_ctd_fri)) {
-                                    fri._getMinCtd();
+                                    fri._chkMinCtd();
                                 }
                             }
                         }
@@ -5968,7 +6076,7 @@ let $$af = {
                                 }
                                 let _b = uH - _t;
 
-                                _swipe();
+                                _swipeOnce();
 
                                 // tool function(s) //
 
@@ -5991,15 +6099,40 @@ let $$af = {
                                     messageAction("rank_list_swipe_distance: " + _dist, 3);
                                 }
 
-                                function _swipe() {
-                                    if (!swipe(cX(0.7), _b, cX(0.3), _t, _du)) {
+                                function _swipeOnceBak_() {
+                                    let _l = cX(0.75);
+                                    let _dt = cY(0.025);
+                                    if (
+                                        !swipe(_l, _b, _l, _b + _dt, 50) ||
+                                        !swipe(_l, _b, _l, _t, _du)
+                                    ) {
                                         let _msg = "swipe()方法返回false值";
                                         messageAction(_msg, 3, 0, 0, "both_dash");
                                     } else {
                                         // just to prevent screen from turning off
                                         // maybe this is not a good idea
-                                        click(99999, 99999);
+                                        click(1e5, 1e5);
                                     }
+                                    sleep(Math.max(0, _itv - _et_scan));
+                                }
+
+                                function _swipeOnce() {
+                                    let _getX = () => cX(Math.rand([0.2, 0.8]));
+                                    let _getDy = () => +Math.rand(3, 0);
+
+                                    if (global["gesture"](_du,
+                                        [_getX(), _b - _getDy()],
+                                        [halfW, cY(0.5)],
+                                        [_getX(), _t + _getDy()]
+                                    )) {
+                                        // just to prevent screen from turning off
+                                        // maybe this is not a good idea
+                                        click(1e5, 1e5);
+                                    } else {
+                                        let _msg = "gesture()方法返回false值";
+                                        messageAction(_msg, 3, 0, 0, "both_dash");
+                                    }
+
                                     sleep(Math.max(0, _itv - _et_scan));
                                 }
                             }
@@ -6264,7 +6397,7 @@ let $$af = {
                             }
                         }
                         if ($$cfg.rank_list_review_threshold_switch) {
-                            if (fri._getMinCtd()) {
+                            if (fri._chkMinCtd()) {
                                 return _trig("最小倒计时阈值");
                             }
                         }
@@ -6491,6 +6624,13 @@ let $$af = {
                         debugInfo("开始更新自动定时任务");
                         _sto_task.setMillis(_next);
                         timers.updateTimedTask(_sto_task);
+
+                        $$sto.af.put("next_auto_task", {
+                            task_id: _sto_id,
+                            timestamp: _next,
+                            type: _type.name,
+                        });
+
                         messageAction(_sxn_str
                             ? "已更新并顺延自动定时任务"
                             : "已更新自动定时任务", 1);
@@ -7216,5 +7356,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
+ * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | forc: force; forcible; forcibly | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | nod: node | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | p: press; parent | par: parameter | param: parameter | pat: pattern | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | win: window
  */

@@ -442,8 +442,8 @@ function launchThisApp(trigger, params) {
 
         let _W, _H;
         let _disp = {};
-        let _win_srv = context.getSystemService(context.WINDOW_SERVICE);
-        let _win_srv_disp = _win_srv.getDefaultDisplay();
+        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+        let _win_svc_disp = _win_svc.getDefaultDisplay();
 
         if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
@@ -487,16 +487,16 @@ function launchThisApp(trigger, params) {
 
         function _getDisp() {
             try {
-                _W = +_win_srv_disp.getWidth();
-                _H = +_win_srv_disp.getHeight();
+                _W = +_win_svc_disp.getWidth();
+                _H = +_win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_srv_disp.getOrientation();
+                let _SCR_O = +_win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_srv_disp.maximumSizeDimension;
+                let _MAX = +_win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -2035,8 +2035,8 @@ function swipeAndShow(f, params) {
 
         let _W, _H;
         let _disp = {};
-        let _win_srv = context.getSystemService(context.WINDOW_SERVICE);
-        let _win_srv_disp = _win_srv.getDefaultDisplay();
+        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+        let _win_svc_disp = _win_svc.getDefaultDisplay();
 
         if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
@@ -2080,16 +2080,16 @@ function swipeAndShow(f, params) {
 
         function _getDisp() {
             try {
-                _W = +_win_srv_disp.getWidth();
-                _H = +_win_srv_disp.getHeight();
+                _W = +_win_svc_disp.getWidth();
+                _H = +_win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_srv_disp.getOrientation();
+                let _SCR_O = +_win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_srv_disp.maximumSizeDimension;
+                let _MAX = +_win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -2651,8 +2651,8 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
         let _W, _H;
         let _disp = {};
-        let _win_srv = context.getSystemService(context.WINDOW_SERVICE);
-        let _win_srv_disp = _win_srv.getDefaultDisplay();
+        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+        let _win_svc_disp = _win_svc.getDefaultDisplay();
 
         if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
@@ -2696,16 +2696,16 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
         function _getDisp() {
             try {
-                _W = +_win_srv_disp.getWidth();
-                _H = +_win_srv_disp.getHeight();
+                _W = +_win_svc_disp.getWidth();
+                _H = +_win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_srv_disp.getOrientation();
+                let _SCR_O = +_win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_srv_disp.maximumSizeDimension;
+                let _MAX = +_win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -3597,7 +3597,7 @@ function clickActionsPipeline(pipeline, options) {
     let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", options.debug_info_flag);
     let sel = _getSelector();
 
-    let pipeline_name = _surroundWith(options.name || "");
+    let pipeline_name = options.name ? _surroundWith(options.name) : "";
 
     let pipe = pipeline.filter(value => typeof value !== "undefined").map(value => {
         let val = Object.prototype.toString.call(value).slice(8, -1) === "Array" ? value : [value];
@@ -4572,7 +4572,8 @@ function __dismissIDEWarnings__() {
         findColorInRegion: (img, color, x, y, w, h, thrd) => $$jvo.Point,
         findColorEquals: (img, color, x, y, w, h) => $$jvo.Point,
         detectsColor: (img, color, x, y, threshold, algorithm) => Boolean(),
-        matchTemplate: (img, tpl, opt) => {/* "MatchingResult" */},
+        matchTemplate: (img, tpl, opt) => {/* "MatchingResult" */
+        },
         getWidth: () => $$num, // TODO this doesn't belong to images
         getHeight: () => $$num, // TODO this doesn't belong to images
     });
@@ -4632,8 +4633,10 @@ function __dismissIDEWarnings__() {
                 },
                 Secure: {
                     DEVELOPMENT_SETTINGS_ENABLED: String(),
-                    getInt: (context_resolver, str, num) => Integer(),
-                    putInt: (context_resolver, str, num) => Boolean(),
+                    getInt: (context_resolver, svc, num) => Integer(),
+                    putInt: (context_resolver, svc, num) => Boolean(),
+                    getString: (context_resolver, svc, str) => String(),
+                    putString: (context_resolver, svc, str) => Boolean(),
                 },
             },
         },

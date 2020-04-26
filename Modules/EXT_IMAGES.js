@@ -554,8 +554,8 @@ function _getDisplay(global_assign, params) {
 
     let _W, _H;
     let _disp = {};
-    let _win_srv = context.getSystemService(context.WINDOW_SERVICE);
-    let _win_srv_disp = _win_srv.getDefaultDisplay();
+    let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+    let _win_svc_disp = _win_svc.getDefaultDisplay();
 
     if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
         return console.error("device.getDisplay()返回结果异常");
@@ -597,16 +597,16 @@ function _getDisplay(global_assign, params) {
 
     function _getDisp() {
         try {
-            _W = +_win_srv_disp.getWidth();
-            _H = +_win_srv_disp.getHeight();
+            _W = +_win_svc_disp.getWidth();
+            _H = +_win_svc_disp.getHeight();
             if (!(_W * _H)) {
                 throw Error();
             }
 
             // left: 1, right: 3, portrait: 0 (or 2 ?)
-            let _SCR_O = +_win_srv_disp.getOrientation();
+            let _SCR_O = +_win_svc_disp.getOrientation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            let _MAX = +_win_srv_disp.maximumSizeDimension;
+            let _MAX = +_win_svc_disp.maximumSizeDimension;
 
             let [_UH, _UW] = [_H, _W];
             let _dimen = (name) => {
