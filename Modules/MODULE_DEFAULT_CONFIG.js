@@ -4,6 +4,8 @@ module.exports = {
         self_collect_switch: true,
         // sometimes alipay will not be launched without Auto.js running in the foreground
         app_launch_springboard: "OFF",
+        // when turned "ON", a11y svc could be auto-enabled with android.permission.WRITE_SECURE_SETTINGS
+        auto_enable_a11y_svc: "OFF",
         // if you are multi-account user, you may turn this on and specify a "main account" to switch
         account_switch: false,
         // if you are multi-account user, you may turn this on and specify a "main account" to switch

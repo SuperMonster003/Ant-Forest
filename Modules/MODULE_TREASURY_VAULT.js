@@ -652,6 +652,24 @@ module.exports = {
         rank_list_bottom_template_hint_not_exists: // 排行榜底部控件图片模板不存在附加提示
             "当前暂未生成图片模板\n" +
             "脚本在下次运行时将自动生成新模板",
+        about_auto_enable_a11y_svc: // 关于自动开启无障碍服务
+            "通过修改系统无障碍服务的列表参数\n" +
+            "实现Auto.js无障碍服务的自动开启\n" +
+            "此过程需要授予Auto.js以下权限:\n\n" +
+            "WRITE_SECURE_SETTINGS\n\n" +
+            "如果设备已经获取Root权限\n" +
+            "脚本会自动自我授权\n" +
+            "否则需要将手机连接到计算机\n" +
+            "然后在计算机使用ADB工具\n" +
+            "执行以下指令(无换行):\n\n" +
+            "adb shell pm grant org.autojs.autojs " +
+            "android.permission.WRITE_SECURE_SETTINGS\n\n" +
+            "执行后Auto.js将获取上述权限\n" +
+            "如需撤销授权需将上述指令的\n" +
+            "grant替换为revoke\n\n" +
+            "注: 如果没有权限授权\n" +
+            "脚本则会在需要的时候\n" +
+            "提示用户手动开启无障碍服务",
         about_app_launch_springboard: // 关于启动跳板
             "某些设备或应用无法直接调用 APP\n" +
             "如 launch() 或 startActivity() 等\n" +

@@ -100,8 +100,7 @@ let $$cfg = {
         }, {
             available: "有效", gravity: "center", stringTransform: {
                 forward: function () {
-                    let {app_combined_name} = this;
-                    let pkg_name = app_combined_name.split("\n")[1];
+                    let pkg_name = this.app_combined_name.split("\n")[1];
                     return app.getAppName(pkg_name) ? "\u2713" : "\u2717";
                 },
                 backward: "__keep__",
@@ -225,12 +224,9 @@ let $$init = {
         setGlobalFunctions(); // MONSTER MODULE
         setGlobalExtensions(); // EXT MODULES
         setGlobalDollarVars(); // `$$xxx` / `sess`
+        checkAccessibility();
 
         device.getDisplay(true);
-
-        // script will not go on without a normal state of accessibility service
-        // auto.waitFor() was abandoned here, as it may cause problems sometimes
-        auto();
 
         // set up the device screen in a portrait orientation
         let _ActInfo = android.content.pm.ActivityInfo;
@@ -2530,20 +2526,20 @@ let $$init = {
                 context.getSystemService(context.INPUT_METHOD_SERVICE).hideSoftInputFromWindow(view.getWindowToken(), 0);
             },
             commonItemBindCheckboxClickListener: function (checkbox_view, item_holder) {
-                let {data_source_key_name} = this;
-                let remove_btn_view = sess_par[data_source_key_name + "_btn_remove"];
+                let {data_source_key_name: _ds_k} = this;
+                let remove_btn_view = sess_par[_ds_k + "_btn_remove"];
                 let item = item_holder.item;
                 let aim_checked = !item.checked;
                 item.checked = aim_checked;
                 let idx = item_holder.position;
-                let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                let deleted_items_idx = _ds_k + "_deleted_items_idx";
+                let deleted_items_idx_count = _ds_k + "_deleted_items_idx_count";
                 sess_par[deleted_items_idx] = sess_par[deleted_items_idx] || {};
                 sess_par[deleted_items_idx_count] = sess_par[deleted_items_idx_count] || 0;
                 sess_par[deleted_items_idx][idx] = aim_checked;
                 aim_checked ? sess_par[deleted_items_idx_count]++ : sess_par[deleted_items_idx_count]--;
                 sess_par[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
-                let _sess_len = sess_cfg[data_source_key_name].length;
+                let _sess_len = sess_cfg[_ds_k].length;
                 this.view._check_all.setChecked(sess_par[deleted_items_idx_count] === _sess_len);
             },
             findViewByTag: function (view, tag) {
@@ -3484,9 +3480,9 @@ let $$init = {
 
                 function unzipArchive() {
                     diag_download.setStep(2);
-                    let {local_backup_path} = $$defs;
-                    let src = local_backup_path + ".Ant_Forest.zip";
-                    if (!$$tool.unzip(src, local_backup_path, false, diag_download)) return;
+                    let {local_backup_path: _path} = $$defs;
+                    let src = _path + ".Ant_Forest.zip";
+                    if (!$$tool.unzip(src, _path, false, diag_download)) return;
                     diag_download.setStep(3);
                     return backupProject();
                 }
@@ -3596,8 +3592,8 @@ let $$init = {
 
                 delete sess_par.sgn_intrpt_update;
 
-                let {BufferedInputStream, File, FileInputStream, FileOutputStream} = java.io;
-                let {CRC32, CheckedOutputStream, ZipEntry, ZipOutputStream} = java.util.zip;
+                let {BufferedInputStream: BIS, File, FileInputStream: FIS, FileOutputStream: FOS} = java.io;
+                let {CRC32, CheckedOutputStream: COS, ZipEntry, ZipOutputStream: ZOS} = java.util.zip;
 
                 let [checked_output_stream, zip_output_stream] = [null, null];
                 let [total_file_size, compressed_size] = [0, 0];
@@ -3634,8 +3630,8 @@ let $$init = {
 
                     total_file_size = getPathTotalSize(input_path);
 
-                    checked_output_stream = new CheckedOutputStream(new FileOutputStream(output_file), new CRC32());
-                    zip_output_stream = new ZipOutputStream(checked_output_stream);
+                    checked_output_stream = new COS(new FOS(output_file), new CRC32());
+                    zip_output_stream = new ZOS(checked_output_stream);
 
                     let source_path = input_path;
                     if (input_file.isFile()) {
@@ -3672,7 +3668,7 @@ let $$init = {
                         let entry = new ZipEntry(sub_path);
                         zip_output_stream.putNextEntry(entry);
 
-                        let buffered_input_stream = new BufferedInputStream(new FileInputStream(input_file));
+                        let buffered_input_stream = new BIS(new FIS(input_file));
                         while (~(read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len))) {
                             zip_output_stream.write(buffer_bytes, 0, read_bytes);
                         }
@@ -3712,7 +3708,7 @@ let $$init = {
             unzip: function (input_path, output_path, include_zip_file_name, dialog) {
                 delete sess_par.sgn_intrpt_update;
 
-                let {BufferedInputStream, BufferedOutputStream, File, FileOutputStream} = java.io;
+                let {BufferedInputStream: BIS, BufferedOutputStream: BOS, File, FileOutputStream: FOS} = java.io;
                 let {ZipFile} = java.util.zip;
                 let {StringUtils} = org.apache.commons.lang3;
 
@@ -3767,8 +3763,8 @@ let $$init = {
                         entry_file = new File(entry_file_path);
                         if (entry_file.isDirectory()) continue;
 
-                        buffered_output_stream = new BufferedOutputStream(new FileOutputStream(entry_file));
-                        buffered_input_stream = new BufferedInputStream(zip_input_file.getInputStream(entry_element));
+                        buffered_output_stream = new BOS(new FOS(entry_file));
+                        buffered_input_stream = new BIS(zip_input_file.getInputStream(entry_element));
                         while (~(read_bytes = buffered_input_stream.read(buffer_bytes, 0, buffer_len))) {
                             if (sess_par.sgn_intrpt_update) {
                                 sess_par.sgn_intrpt_update = false;
@@ -4023,6 +4019,35 @@ let $$init = {
             sess_cfg = sess_cfg || {};
             sess_par = sess_par || {};
         }
+
+        function checkAccessibility() {
+            // do not `require()` before `checkModulesMap()`
+            let _a11y = require("./Modules/EXT_DEVICE").a11y;
+
+            if (_a11y.state()) {
+                return true;
+            }
+
+            let _mod_sto = require("./Modules/MODULE_STORAGE");
+            require("./Modules/EXT_GLOBAL_OBJ").load("Override");
+            let $_cfg = _mod_sto.create("af_cfg").get("config", {});
+            if ($_cfg.auto_enable_a11y_svc === "ON") {
+                if (_a11y.enable(true)) {
+                    toast("已自动开启无障碍服务\n请重新运行一次配置工具", "Long");
+                    return exit();
+                }
+            }
+
+            toast("请手动开启Auto.js无障碍服务\n然后再次运行配置工具", "Long");
+            try {
+                // script will not go on without a normal state of accessibility service
+                // auto.waitFor() was abandoned here, as it may cause problems sometimes
+                auto();
+            } catch (e) {
+                // consume errors msg from auto()
+            }
+            exit();
+        }
     },
     config: function (reset_flag) {
         let mixedWithDefault = (add_o) => {
@@ -4102,9 +4127,9 @@ let $$init = {
             e.consumed = true; // make default "back" dysfunctional
 
             if (sess_par.back_btn_consumed) {
-                let {back_btn_consumed_func} = sess_par;
-                if (typeof back_btn_consumed_func === "function") {
-                    back_btn_consumed_func();
+                let {back_btn_consumed_func: _f} = sess_par;
+                if (typeof _f === "function") {
+                    _f();
                     delete sess_par.back_btn_consumed_func;
                 }
                 return;
@@ -4631,7 +4656,7 @@ $$view.setHomePage($$defs.homepage_title)
                 function _getSvrMdByBlob() {
                     let _url_str = "https://github.com/SuperMonster003/" +
                         "Auto.js_Projects/blob/Ant_Forest/README.md";
-                    let _response_str = _getRespByHttpCxn();
+                    let _response_str = _getRespByHttpCxn(_url_str);
 
                     return _response_str.match(/版本历史[^]+article/)[0]
                         .replace(/<path .+?\/path>/g, "")
@@ -4660,14 +4685,14 @@ $$view.setHomePage($$defs.homepage_title)
                         }).body.string();
                     }
 
-                    function _getRespByHttpCxn() {
+                    function _getRespByHttpCxn(url) {
                         let {URL, HttpURLConnection} = java.net;
-                        let {InputStreamReader, BufferedReader} = java.io;
+                        let {InputStreamReader: ISR, BufferedReader} = java.io;
                         let {StringBuilder} = java.lang;
 
                         let _reader = null;
 
-                        let _url = new URL(_url_str);
+                        let _url = new URL(url);
                         let _cxn = _url.openConnection();
                         _cxn.setRequestMethod("GET");
                         _cxn.setConnectTimeout(15000);
@@ -4680,7 +4705,7 @@ $$view.setHomePage($$defs.homepage_title)
                         }
                         let _is = _cxn.getInputStream();
                         _reader = new BufferedReader(
-                            new InputStreamReader(_is)
+                            new ISR(_is)
                         );
                         let _resp = new StringBuilder();
                         let _line = null;
@@ -6586,10 +6611,10 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         let type_code = $$tool.restoreFromTimedTaskTypeStr(type);
                         let task_id = task.id;
 
-                        let {data_source_key_name, custom_data_source} = this;
+                        let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
                         let reInitDataSource = () => $$view.updateDataSource(
-                            data_source_key_name, "re_init",
-                            custom_data_source.bind(this)()
+                            _ds_k, "re_init",
+                            _custom_ds.bind(this)()
                         );
 
                         let type_info = {
@@ -6677,10 +6702,10 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                 },
                 ui: {
                     resume: function () {
-                        let {data_source_key_name, custom_data_source} = this;
+                        let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
                         $$view.updateDataSource(
-                            data_source_key_name, "re_init",
-                            custom_data_source.bind(this)()
+                            _ds_k, "re_init",
+                            _custom_ds.bind(this)()
                         );
                     },
                 }
@@ -6858,7 +6883,7 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                     item_long_click: function (e, item, idx, item_view, list_view) {
                         item_view._checkbox.checked && item_view._checkbox.click();
                         e.consumed = true;
-                        let {data_source_key_name} = this;
+                        let {data_source_key_name: _ds_k} = this;
                         let edit_item_diag = dialogs.builds(["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1], {
                             items: ["\xa0"],
                         });
@@ -6867,18 +6892,18 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
 
                         edit_item_diag.on("positive", () => {
                             let sectionStringTransform = () => {
-                                let arr = $$cfg.list_heads[data_source_key_name];
+                                let arr = $$cfg.list_heads[_ds_k];
                                 for (let i = 0, len = arr.length; i < len; i += 1) {
                                     let o = arr[i];
                                     if ("section" in o) return o.stringTransform;
                                 }
                             };
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1, {
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1, {
                                 section: sectionStringTransform().backward(edit_item_diag.getItems().toArray()[0].split(": ")[1]),
                                 interval: +edit_item_diag.getItems().toArray()[1].split(": ")[1],
                             }]);
-                            if (!equalObjects(sess_cfg[data_source_key_name], sto_cfg[data_source_key_name])) {
-                                sess_par[data_source_key_name + "_btn_restore"].switch_on();
+                            if (!equalObjects(sess_cfg[_ds_k], sto_cfg[_ds_k])) {
+                                sess_par[_ds_k + "_btn_restore"].switch_on();
                             }
                             edit_item_diag.dismiss();
                         });
@@ -6959,26 +6984,26 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                 },
                 _check_all: {
                     click: function (view) {
-                        let {data_source_key_name} = this;
+                        let {data_source_key_name: _ds_k} = this;
                         let aim_checked = view.checked;
-                        let blacklist_len = sess_par[data_source_key_name].length;
+                        let blacklist_len = sess_par[_ds_k].length;
                         if (!blacklist_len) return view.checked = !aim_checked;
 
-                        sess_par[data_source_key_name].forEach((o, idx) => {
+                        sess_par[_ds_k].forEach((o, idx) => {
                             let o_new = deepCloneObject(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1, o_new]);
                         });
 
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        let deleted_items_idx = _ds_k + "_deleted_items_idx";
+                        let deleted_items_idx_count = _ds_k + "_deleted_items_idx_count";
                         sess_par[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
                         sess_par[deleted_items_idx] = sess_par[deleted_items_idx] || {};
                         for (let i = 0; i < blacklist_len; i += 1) {
                             sess_par[deleted_items_idx][i] = aim_checked;
                         }
 
-                        let remove_btn = sess_par[data_source_key_name + "_btn_remove"];
+                        let remove_btn = sess_par[_ds_k + "_btn_remove"];
                         aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
                     },
                 },
@@ -7340,13 +7365,13 @@ $$view.addPage(["黑名单管理", "blacklist_page"], function () {
             next_page: "foreground_app_blacklist_page",
             updateOpr: function (view) {
                 let hint_text = "空名单";
-                let {foreground_app_blacklist} = sess_cfg;
-                foreground_app_blacklist = foreground_app_blacklist || [];
-                let amount = foreground_app_blacklist.length;
+                let {foreground_app_blacklist: _fg_app_blist} = sess_cfg;
+                _fg_app_blist = _fg_app_blist || [];
+                let amount = _fg_app_blist.length;
                 if (amount) {
                     hint_text = "包含应用:  " + amount + " 项";
                     let invalid_items_count = 0;
-                    foreground_app_blacklist.forEach((o) => {
+                    _fg_app_blist.forEach((o) => {
                         let {app_combined_name} = o;
                         if (app_combined_name) {
                             let pkg_name = app_combined_name.split("\n")[1];
@@ -7399,7 +7424,7 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                     item_long_click: function (e, item, idx, item_view, list_view) {
                         item_view._checkbox.checked && item_view._checkbox.click();
                         e.consumed = true;
-                        let {data_source_key_name} = this;
+                        let {data_source_key_name: _ds_k} = this;
                         let edit_item_diag = dialogs.builds(
                             ["编辑列表项", "点击需要编辑的项", 0, "返回", "确认", 1],
                             {items: ["\xa0"]}
@@ -7412,9 +7437,9 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                             new_item.name = edit_item_diag.getItems().toArray()[0].split(": ")[1];
                             let input = edit_item_diag.getItems().toArray()[1].split(": ")[1];
                             new_item.timestamp = $$tool.restoreFromTimestamp(input);
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1, new_item]);
-                            if (!equalObjects(sess_cfg[data_source_key_name], sto_cfg[data_source_key_name])) {
-                                sess_par[data_source_key_name + "_btn_restore"].switch_on();
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1, new_item]);
+                            if (!equalObjects(sess_cfg[_ds_k], sto_cfg[_ds_k])) {
+                                sess_par[_ds_k + "_btn_restore"].switch_on();
                             }
                             edit_item_diag.dismiss();
                         });
@@ -7498,26 +7523,26 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                 },
                 _check_all: {
                     click: function (view) {
-                        let {data_source_key_name} = this;
+                        let {data_source_key_name: _ds_k} = this;
                         let aim_checked = view.checked;
-                        let blacklist_len = sess_par[data_source_key_name].length;
+                        let blacklist_len = sess_par[_ds_k].length;
                         if (!blacklist_len) return view.checked = !aim_checked;
 
-                        sess_par[data_source_key_name].forEach((o, idx) => {
+                        sess_par[_ds_k].forEach((o, idx) => {
                             let o_new = deepCloneObject(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1, o_new]);
                         });
 
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        let deleted_items_idx = _ds_k + "_deleted_items_idx";
+                        let deleted_items_idx_count = _ds_k + "_deleted_items_idx_count";
                         sess_par[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
                         sess_par[deleted_items_idx] = sess_par[deleted_items_idx] || {};
                         for (let i = 0; i < blacklist_len; i += 1) {
                             sess_par[deleted_items_idx][i] = aim_checked;
                         }
 
-                        let remove_btn = sess_par[data_source_key_name + "_btn_remove"];
+                        let remove_btn = sess_par[_ds_k + "_btn_remove"];
                         aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
                     },
                 },
@@ -7559,26 +7584,26 @@ $$view.addPage(["前置应用黑名单", "foreground_app_blacklist_page"], funct
                 },
                 _check_all: {
                     click: function (view) {
-                        let {data_source_key_name} = this;
+                        let {data_source_key_name: _ds_k} = this;
                         let aim_checked = view.checked;
-                        let blacklist_len = sess_par[data_source_key_name].length;
+                        let blacklist_len = sess_par[_ds_k].length;
                         if (!blacklist_len) return view.checked = !aim_checked;
 
-                        sess_par[data_source_key_name].forEach((o, idx) => {
+                        sess_par[_ds_k].forEach((o, idx) => {
                             let o_new = deepCloneObject(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1, o_new]);
                         });
 
-                        let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                        let deleted_items_idx_count = data_source_key_name + "_deleted_items_idx_count";
+                        let deleted_items_idx = _ds_k + "_deleted_items_idx";
+                        let deleted_items_idx_count = _ds_k + "_deleted_items_idx_count";
                         sess_par[deleted_items_idx_count] = aim_checked ? blacklist_len : 0;
                         sess_par[deleted_items_idx] = sess_par[deleted_items_idx] || {};
                         for (let i = 0; i < blacklist_len; i += 1) {
                             sess_par[deleted_items_idx][i] = aim_checked;
                         }
 
-                        let remove_btn = sess_par[data_source_key_name + "_btn_remove"];
+                        let remove_btn = sess_par[_ds_k + "_btn_remove"];
                         aim_checked ? blacklist_len && remove_btn.switch_on() : remove_btn.switch_off();
                     },
                 },
@@ -7676,6 +7701,70 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
             },
             updateOpr: function (view) {
                 view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
+            },
+        }))
+        .add("button", new Layout("自动开启无障碍服务", "hint", {
+            config_conj: "auto_enable_a11y_svc",
+            map: {
+                ON: "启用自动开启",
+                OFF: "禁用自动开启",
+            },
+            newWindow: function () {
+                let map = this.map;
+                let map_keys = Object.keys(map);
+                let diag = dialogs.builds(["自动开启无障碍服务", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+                    items: map_keys.slice().map(value => map[value]),
+                    itemsSelectMode: "single",
+                    itemsSelectedIndex: map_keys.indexOf((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString()),
+                });
+                diag.on("neutral", () => {
+                    dialogs
+                        .builds([
+                            "关于自动开启无障碍服务", "about_auto_enable_a11y_svc",
+                            ["复制授权指令", "hint_btn_bright_color"],
+                            ["测试权限", "hint_btn_bright_color"],
+                            "关闭", 1
+                        ])
+                        .on("neutral", () => {
+                            let _pkg = context.packageName;
+                            let _perm = "android.permission.WRITE_SECURE_SETTINGS";
+                            let _shell_sc = "adb shell pm grant " + _pkg + " " + _perm;
+                            global["setClip"](_shell_sc);
+                            toast("授权指令已复制到剪切板");
+                        })
+                        .on("negative", (d) => {
+                            let _a11y = require("./Modules/EXT_DEVICE").a11y;
+                            let _ts = Date.now();
+                            let _par = ["%test%" + _ts, true];
+                            _a11y.enable.apply(_a11y, _par);
+                            let _res = _a11y.disable.apply(_a11y, _par);
+                            dialogs
+                                .builds([
+                                    "权限测试结果", "测试" + (_res ? "" : "未") + "通过\n\n" +
+                                    "此设备" + (_res ? "拥有" : "没有") + "以下权限:\n" +
+                                    "WRITE_SECURE_SETTINGS",
+                                    0, 0, "关闭", 1
+                                ])
+                                .on("positive", (d) => {
+                                    d.dismiss();
+                                })
+                                .show();
+                        })
+                        .on("positive", (d) => {
+                            d.dismiss();
+                        })
+                        .show();
+                });
+                diag.on("negative", () => diag.dismiss());
+                diag.on("positive", () => {
+                    $$save.session(this.config_conj, map_keys[diag.selectedIndex]);
+                    diag.dismiss();
+                });
+                diag.show();
+            },
+            updateOpr: function (view) {
+                let value = sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj];
+                view._hint.text("已" + this.map[value.toString()].slice(0, 2));
             },
         }))
         .add("button", new Layout("支付宝应用启动跳板", "hint", {
@@ -8057,14 +8146,14 @@ $$view.addPage(["从本地还原项目", "restore_projects_from_local_page"], fu
                         diag_delete_confirm.on("positive", () => {
                             diag_delete_confirm.dismiss();
 
-                            let {data_source_key_name} = this;
-                            $$view.updateDataSource(data_source_key_name, "splice", [idx, 1], "quiet");
+                            let {data_source_key_name: _ds_k} = this;
+                            $$view.updateDataSource(_ds_k, "splice", [idx, 1], "quiet");
                             $$view.updateViewByTag("restore_projects_from_local_page");
 
-                            let _sess = sess_cfg[data_source_key_name];
-                            let _sto = sto_cfg[data_source_key_name] = deepCloneObject(_sess);
+                            let _sess = sess_cfg[_ds_k];
+                            let _sto = sto_cfg[_ds_k] = deepCloneObject(_sess);
                             // write to storage right away
-                            $$sto.af.put(data_source_key_name, deepCloneObject(_sto));
+                            $$sto.af.put(_ds_k, deepCloneObject(_sto));
                         });
                         diag_delete_confirm.show();
                     }
@@ -8077,9 +8166,9 @@ $$view.addPage(["从本地还原项目", "restore_projects_from_local_page"], fu
                         this.tool_box.deleteItem(null, idx);
                     },
                     item_click: function (item, idx, item_view, list_view) {
-                        let {data_source_key_name, tool_box} = this;
+                        let {data_source_key_name: _ds_k, tool_box} = this;
                         let backup_details = [];
-                        let single_session_data = sess_cfg[data_source_key_name][idx] || {};
+                        let single_session_data = sess_cfg[_ds_k][idx] || {};
                         let map = {
                             version_name: "版本",
                             timestamp: "时间",
