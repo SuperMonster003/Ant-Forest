@@ -3205,7 +3205,11 @@ function getSelector(options) {
                                     }
                                 }
                             }
-                            return sel.exists() ? sel : null;
+                            try {
+                                return sel && sel.exists() ? sel : null;
+                            } catch (e) {
+                                return null;
+                            }
                         }
                     }
                 }

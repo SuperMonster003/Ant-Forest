@@ -90,6 +90,14 @@
 ******
 ### 版本历史
 ******
+# v1.9.18
+###### 2020/05/01
+* `修复` 好友森林主页控件变更导致能量球识别失败的问题 (粗修) _[`issue #119`](https://github.com/SuperMonster003/Auto.js_Projects/issues/119)_ _[`#292`](https://github.com/SuperMonster003/Auto.js_Projects/issues/292)_ _[`#303`](https://github.com/SuperMonster003/Auto.js_Projects/issues/303)_  
+* `修复` 判断能量罩时可能出现的图像被回收问题 _[`issue #299`](https://github.com/SuperMonster003/Auto.js_Projects/issues/299)_  
+* `修复` 解锁模块"确定"按钮可能匹配到非预期控件的问题  
+* `修复` 简化图案解锁密码时可能导致关键点丢失的问题  
+* `修复` 设备切换分辨率时导致排行榜无法识别图标的问题  
+
 # v1.9.17
 ###### 2020/04/26
 * `新增` 自动开启无障碍服务功能及配置 (默认禁用) _[`issue #262`](https://github.com/SuperMonster003/Auto.js_Projects/issues/262)_  

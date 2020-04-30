@@ -146,8 +146,7 @@ let ext = {
                             images.save(_resized, _path);
                         }
                         _res_range = [+(i * 720 / W).toFixed(2), j];
-                        _recycleNow();
-                        return _bySto(_name);
+                        return _resized;
                     }
                     _recycleNow();
                 }
