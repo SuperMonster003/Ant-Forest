@@ -2497,6 +2497,9 @@
                                             }
                                             let [_x1, _y1] = _p1;
                                             let [_x2, _y2] = _p2;
+                                            if (_y1 === _y2) {
+                                                return (_x2 - _x1 > 0 ? 1 : -1) * 1e-5;
+                                            }
                                             return (_y2 - _y1) / (_x2 - _x1);
                                         }
                                     }
@@ -3150,7 +3153,7 @@
                     }
 
                     function _chkOKBtn() {
-                        let _rex = /OK|确(认|定)|好.?/;
+                        let _rex = /OK|确(认|定)|好的?/;
                         let _kw = textMatches(_rex);
                         let _node = _kw.findOnce();
                         if (_node) {

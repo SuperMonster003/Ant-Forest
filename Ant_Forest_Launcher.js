@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Apr 26, 2020
- * @version 1.9.17
+ * @since May 1, 2020
+ * @version 1.9.18
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -757,7 +757,7 @@ let $$init = {
                     }.init().save();
                     $$app.cover_capt = {
                         pool: [],
-                        limit: 3,
+                        limit: 4,
                         get len() {
                             return this.pool.length;
                         },
@@ -800,7 +800,9 @@ let $$init = {
                             let [_l, _t] = [cX(288), cY(210, -1)];
                             let [_w, _h] = [cX(142), cY(44, -1)];
                             let _clip = (img) => {
-                                return images.clip(img, _l, _t, _w, _h);
+                                if (!images.isRecycled(img)) {
+                                    return images.clip(img, _l, _t, _w, _h);
+                                }
                             };
                             let _len = this.len;
                             let _pool = this.pool;
@@ -810,7 +812,7 @@ let $$init = {
 
                             for (let i = 0; i < _len; i += 1) {
                                 let _clp = _clip(_pool[i]);
-                                if (images.findColor(_clp, _clo, _par)) {
+                                if (_clp && images.findColor(_clp, _clo, _par)) {
                                     return true;
                                 }
                             }
@@ -855,6 +857,7 @@ let $$init = {
                                             package_name: $$app.pkg_name,
                                             no_message_flag: true,
                                             condition_launch: () => {
+                                                // noinspection JSIncompatibleTypesComparison
                                                 let _cA = () => $$app.cur_pkg === $$app.pkg_name;
                                                 let _cB = function () {
                                                     return $$sel.get("rl_ent")
@@ -1429,7 +1432,7 @@ let $$init = {
                         fri: {
                             isInPage: function () {
                                 // TODO icon or images match
-                                return $$sel.pickup(/你收取TA|发消息/);
+                                return $$sel.pickup(/你收取TA/);
                             },
                             getReady: function () {
                                 $$app.monitor.reload_btn.start();
@@ -1450,22 +1453,7 @@ let $$init = {
                                 }
 
                                 $$app.monitor.reload_btn.interrupt();
-
-                                if (_max <= 0) {
-                                    return messageAction("进入好友森林超时", 3, 1);
-                                }
-
-                                let _balls_len = 0;
-                                let _ballsReady = () => {
-                                    return _balls_len = $$af.eballs(
-                                        "all", false
-                                    ).length;
-                                };
-                                if (waitForAction(_ballsReady, 1897.83, 80)) {
-                                    debugInfo(["能量球准备完毕", "共计: " + _balls_len + "个"]);
-                                    return _balls_len;
-                                }
-                                return debugInfo("等待能量球超时");
+                                return _max > 0 ? true : messageAction("进入好友森林超时", 3, 1);
                             },
                         },
                         back: function (no_bak) {
@@ -4805,9 +4793,20 @@ let $$af = {
                             return debugInfo("好友倒计时数据无效: " + _min_mm, 3);
                         }
                     },
-                    oballs: {},
-                    get oballs_len() {
-                        return this.oballs.size();
+                    eballs: {
+                        orange: [],
+                        ripe: [],
+                        naught: [],
+                        get length() {
+                            return this.orange.length +
+                                this.ripe.length +
+                                this.naught.length;
+                        },
+                        reset: function () {
+                            this.orange.splice(0);
+                            this.ripe.splice(0);
+                            this.naught.splice(0);
+                        },
                     },
                     trigger: () => {
                         let _sw_pick = $$cfg.friend_collect_switch;
@@ -5107,15 +5106,16 @@ let $$af = {
                             }
 
                             function _chkByImgTpl() {
-                                let _ic = _getIcon();
+                                let _ic_k = "ic_fetch";
+                                let _ic_img = _getIcon(_ic_k);
                                 let _capt = $$app.page.rl.capt_img;
                                 let _x = cX(0.85);
                                 let _y = 0;
                                 let _w = _capt.getWidth() - _x;
                                 let _h = _capt.getHeight() - _y;
                                 let _clip = images.clip(_capt, _x, _y, _w, _h);
-                                let _res = images.matchTpl(_clip, _ic, {
-                                    name: "ic_fetch",
+                                let _res = images.matchTpl(_clip, _ic_img, {
+                                    name: _ic_k + "_" + W + "p",
                                     max: 20,
                                     range: [28, 30],
                                     threshold_attempt: 0.94,
@@ -5139,13 +5139,10 @@ let $$af = {
 
                                 // tool function(s) //
 
-                                function _getIcon() {
-                                    if ($$sto.ic_fetch) {
-                                        return $$sto.ic_fetch;
-                                    }
+                                function _getIcon(key) {
                                     let _base64 = $$sto.treas.image_base64_data;
-                                    let _ic = _base64.ic_fetch;
-                                    return $$sto.ic_fetch = images.fromBase64(_ic);
+                                    let _ic = _base64[key];
+                                    return $$sto[key] = $$sto[key] || images.fromBase64(_ic);
                                 }
                             }
 
@@ -5176,7 +5173,7 @@ let $$af = {
 
                             function _act(tar, idt) {
                                 let _item = null;
-                                let _thd_eball_monit = null;
+                                let _thd_info_collect = null;
                                 let _nextItem = () => _item = tar.pop();
 
                                 while (_nextItem()) {
@@ -5205,6 +5202,8 @@ let $$af = {
                                     // TODO cond: pool diff
                                     // avoid touching widgets in rank list
                                     sleep(500);
+
+                                    fri.eballs.reset();
 
                                     return true;
                                 }
@@ -5240,48 +5239,43 @@ let $$af = {
                                     }
 
                                     function _ready() {
-                                        let _balls_len = $$app.page.fri.getReady();
-
-                                        fri.init_balls_len = _balls_len;
-                                        fri.oballs = {};
-
                                         delete $$flag.pick_off_duty;
-
-                                        return _balls_len;
+                                        return $$app.page.fri.getReady();
                                     }
 
                                     function _monitor() {
-                                        _thd_eball_monit = threads.starts(_thdEballMonit);
+                                        _thd_info_collect = threads.starts(_thdInfoCollect);
                                     }
 
-                                    function _thdEballMonit() {
-                                        debugInfo("已开启能量球监测线程");
-                                        timeRecorder("eball_monit");
+                                    function _thdInfoCollect() {
+                                        debugInfo("已开启森林信息采集线程");
+                                        timeRecorder("forest_info_collect");
 
-                                        let _col_arr = $$cfg.help_collect_ball_color;
-                                        let _thrd = $$cfg.help_collect_ball_threshold;
+                                        let _orange = {
+                                            col_arr: $$cfg.help_collect_ball_color,
+                                            thrd: $$cfg.help_collect_ball_threshold,
+                                            tt: $$cfg.help_collect_ball_intensity * 160 - 920,
+                                        };
+                                        // let _ripe = {
+                                            // col: "#ceff5f", // TODO cfg: ripe_ball_color
+                                            // thrd: 10, // TODO cfg: ripe_ball_threshold
+                                        // };
+                                        debugInfo("帮收能量球采集密度: " + _orange.tt + "毫秒");
 
-                                        let _tt_ref = $$cfg.help_collect_ball_intensity;
-                                        let _tt = _tt_ref * 160 - 920;
-                                        debugInfo("能量球监测采集密度: " + _tt + "毫秒");
-
+                                        let _balls_data = [];
                                         let _capt = null;
                                         let _capture = (t) => {
                                             _capt = images.capt();
                                             sleep(t || 0);
                                             return _capt;
                                         };
-                                        let _reclaim = () => {
-                                            images.reclaim(_capt);
-                                            _capt = null;
-                                        };
 
-                                        _fillUpCvrCapt();
-                                        _analyseOballs();
+                                        _fillUpCoverImgPool();
+                                        _analyseEnergyBalls();
 
                                         // tool function(s) //
 
-                                        function _fillUpCvrCapt() {
+                                        function _fillUpCoverImgPool() {
                                             let _cc = $$app.cover_capt;
                                             let _max = _cc.limit + 1;
                                             while (_max--) {
@@ -5293,106 +5287,196 @@ let $$af = {
                                             }
                                         }
 
-                                        function _analyseOballs() {
-                                            if (!fri.trig_help) {
-                                                return;
-                                            }
-                                            while (1) {
-                                                if (_analyse()) break;
-                                                if (_achieve()) break;
-                                            }
-                                            _reclaim();
+                                        function _analyseEnergyBalls() {
+                                            _analyseCvr();
+                                            _analyseScr();
+                                            _submitBallsData();
 
                                             // tool function(s) //
 
-                                            function _analyse() {
-                                                let _nodes = $$af.eballs("nor", false);
-                                                let _len = _nodes.length;
-                                                let _intrp = (str) => {
-                                                    debugInfo(["采集中断", ">" + str]);
-                                                    return true;
-                                                };
+                                            function _analyseCvr() {
+                                                debugInfo("分析能量罩样本中的能量球");
+                                                _parseCapt($$app.cover_capt.pool);
+                                                debugInfo("能量罩样本能量球分析完毕");
+                                                debugInfo("分析能量球数量: " + _balls_data.length);
+                                                $$app.cover_capt.reclaimAll();
+                                            }
 
-                                                if (!_len) {
-                                                    return _intrp("未发现普通能量球");
-                                                }
+                                            function _analyseScr() {
+                                                debugInfo("分析一次当前屏幕截图样本");
+                                                let _capt = images.capt();
+                                                _parseCapt(_capt);
+                                                images.reclaim(_capt);
+                                                _capt = null;
+                                            }
 
-                                                if (_len === fri.oballs_len) {
-                                                    return _intrp("橙色球状态已全部采集完毕");
-                                                }
-
-                                                _chkInCvr();
-                                                _chkInScr();
+                                            function _parseCapt(img) {
+                                                $$arr(img) ? img.forEach(_parse) : _parse(img);
 
                                                 // tool function(s) //
 
-                                                function _chkInCvr() {
-                                                    let _cvr_fg = _analyseOballs.chk_in_cvr;
-                                                    if (!_cvr_fg) {
-                                                        debugInfo("采集能量罩样本中的橙色球");
-                                                        _parseTpl($$app.cover_capt.pool);
-                                                        debugInfo("能量罩样本橙色球采集完毕");
-                                                        debugInfo("采集结果数量: " + fri.oballs_len);
-                                                        $$app.cover_capt.reclaimAll();
-                                                        _analyseOballs.chk_in_cvr = true;
+                                                function _parse(capt) {
+                                                    let _min_dist = cX(0.091);
+                                                    let [_sx, _sy] = [cX(0.15), cY(312, -1)];
+                                                    let [_l, _t] = [_sx, _sy];
+                                                    let [_w, _h] = [W - _sx * 2, cY(0.42, -1) - _sy];
+                                                    let _binz = images.inRange(capt, "#668800", "#f4ffdf");
+                                                    let _gray = images.grayscale(capt);
+                                                    let _balls = []
+                                                        .concat(_getBalls(_binz, 150, 1e-9))
+                                                        .concat(_getBalls(_gray, 150, 50))
+                                                        .sort(_sortBallsCoords);
+
+                                                    for (let i = 0; i < _balls.length; i += 1) {
+                                                        if (i) {
+                                                            if (_balls[i].x - _balls[i - 1].x < _min_dist) {
+                                                                _balls.splice(i--, 1);
+                                                            }
+                                                        }
                                                     }
-                                                }
 
-                                                function _chkInScr() {
-                                                    let _capt = images.capt();
-                                                    _parseTpl(_capt);
-                                                    images.reclaim(_capt);
-                                                    _capt = null;
-                                                }
+                                                    let _right_ball = _balls[_balls.length - 1];
+                                                    let _left_ball = _balls[0];
+                                                    let _max = _right_ball.x;
+                                                    let _min = _left_ball.x;
+                                                    let _ext = Math.max(_max - halfW, halfW - _min);
+                                                    if (_min - (halfW - _ext) > _min_dist) {
+                                                        _balls.unshift({
+                                                            x: halfW - _ext,
+                                                            y: _right_ball.y,
+                                                            r: _right_ball.r,
+                                                            computed: true,
+                                                        });
+                                                    } else if (halfW + _ext - _max > _min_dist) {
+                                                        _balls.push({
+                                                            x: halfW + _ext,
+                                                            y: _left_ball.y,
+                                                            r: _left_ball.r,
+                                                            computed: true,
+                                                        });
+                                                    }
 
-                                                function _parseTpl(img) {
-                                                    $$arr(img) ? img.forEach(_mch) : _mch(img);
+                                                    let _step = Infinity;
+                                                    _balls.forEach((v, i, a) => {
+                                                        if (i) {
+                                                            let _diff = a[i].x - a[i - 1].x;
+                                                            if (_diff < _step) {
+                                                                _step = _diff;
+                                                            }
+                                                        }
+                                                    });
+
+                                                    for (let i = 0; i < _balls.length; i += 1) {
+                                                        if (i) {
+                                                            let _diff = _balls[i].x - _balls[i - 1].x;
+                                                            let _dist = Math.round(_diff / _step);
+                                                            if (_dist < 2) {
+                                                                continue;
+                                                            }
+                                                            let _dx = _diff / _dist;
+                                                            let _dy = (_balls[i].y - _balls[i - 1].y) / _dist;
+                                                            let _data = [];
+                                                            for (let k = 1; k < _dist; k += 1) {
+                                                                _data.push({
+                                                                    x: _balls[i - 1].x + _dx * k,
+                                                                    y: _balls[i - 1].y + _dy * k,
+                                                                    r: (_balls[i].r + _balls[i - 1].r) / 2,
+                                                                    computed: true,
+                                                                });
+                                                            }
+                                                            _balls.splice.apply(_balls, [i, 0].concat(_data));
+                                                            i += _data.length;
+                                                        }
+                                                    }
+                                                    _balls.forEach((o) => {
+                                                        if (_isOrangeBall(o)) {
+                                                            return _addBall(o, "orange");
+                                                        }
+                                                        if (_isRipeBall(o)) {
+                                                            return _addBall(o, "ripe");
+                                                        }
+                                                        _addBall(o, "naught");
+                                                    });
 
                                                     // tool function(s) //
 
-                                                    function _mch(capt) {
-                                                        _nodes.forEach((nod) => {
-                                                            let _bnd = _getBndByColArr(nod);
-                                                            if (!_bnd) {
-                                                                return;
-                                                            }
+                                                    function _getBalls(img, par1, par2) {
+                                                        return images.findCircles(img, {
+                                                            dp: 1,
+                                                            minDist: _min_dist,
+                                                            minRadius: cX(0.06),
+                                                            maxRadius: cX(0.078),
+                                                            param1: par1,
+                                                            param2: par2,
+                                                            region: [_l, _t, _w, _h],
+                                                        }).map((o) => ({
+                                                            x: o.x + _sx,
+                                                            y: o.y + _sy,
+                                                            r: o["radius"],
+                                                        })).sort(_sortBallsCoords);
+                                                    }
 
-                                                            let _x = _bnd.centerX();
-                                                            if (_x in fri.oballs) {
-                                                                return;
+                                                    function _isOrangeBall(o) {
+                                                        let _ctx = o.x + cX(52);
+                                                        let _cty = o.y + cY(57, -1);
+                                                        let _d = o.r / 4;
+                                                        let _col = ["#f99137", "#f9933a"];
+                                                        for (let i = 0, l = _col.length; i < l; i += 1) {
+                                                            let _mch = images.findColor(capt, _col[i], {
+                                                                region: [_ctx - _d, _cty - _d, _d * 2, _d * 2],
+                                                                threshold: 40,
+                                                            });
+                                                            if (_mch) {
+                                                                return _mch;
                                                             }
+                                                        }
+                                                    }
 
-                                                            let _y = _bnd.centerY();
-                                                            fri.oballs[_x] = [_x, _y];
-                                                            let _c = "(" + _x + ", " + _y + ")";
-                                                            debugInfo("记录橙色球坐标: " + _c);
+                                                    function _isRipeBall(o) {
+                                                        let _d = o.r / 4;
+                                                        return images.findColor(capt, "#ceff5f", {
+                                                            region: [o.x - _d, o.y - _d, _d * 2, _d * 2],
+                                                            threshold: 20,
                                                         });
+                                                    }
+
+                                                    function _sortBallsCoords(a, b) {
+                                                        if (a.x === b.x) {
+                                                            return 0;
+                                                        }
+                                                        return a.x > b.x ? 1 : -1;
+                                                    }
+
+                                                    function _addBall(o, type) {
+                                                        let _pri = {
+                                                            orange: 9,
+                                                            ripe: 6,
+                                                            naught: 3,
+                                                        };
+                                                        let _data_idx = _getDataIdx(o);
+                                                        if (!~_data_idx) {
+                                                            _balls_data.push(Object.assign({type: type}, o));
+                                                        } else if (_pri[type] > _pri[_balls_data[_data_idx].type]) {
+                                                            _balls_data[_data_idx] = Object.assign({type: type}, o);
+                                                        }
 
                                                         // tool function(s) //
 
-                                                        function _getBndByColArr(nod) {
-                                                            let _bnd = null;
-                                                            let _find = (nod, col) => {
-                                                                return _bnd = images.findColorInBounds(
-                                                                    capt, nod, col, _thrd
-                                                                );
-                                                            };
-                                                            let _len = _col_arr.length;
-                                                            for (let i = 0; i < _len; i += 1) {
-                                                                if (_find(nod, _col_arr[i])) {
-                                                                    return _bnd;
+                                                        function _getDataIdx(o) {
+                                                            let _l = _balls_data.length;
+                                                            for (let i = 0; i < _l; i += 1) {
+                                                                if (Math.abs(o.x - _balls_data[i].x) < _min_dist / 2) {
+                                                                    return i;
                                                                 }
                                                             }
+                                                            return -1;
                                                         }
                                                     }
                                                 }
                                             }
 
-                                            function _achieve() {
-                                                let _prog = timeRecorder(
-                                                    "eball_monit", "L", _tt / 100, [1], "%"
-                                                );
-                                                return _prog.slice(0, -1) >= 95;
+                                            function _submitBallsData() {
+                                                _balls_data.forEach((o) => fri.eballs[o.type].push(o));
                                             }
                                         }
                                     }
@@ -5420,7 +5504,7 @@ let $$af = {
 
                                                 let _max = 10;
                                                 while (!$$app.cover_capt.len && _max--) {
-                                                    if (!_thd_eball_monit.isAlive()) {
+                                                    if (!_thd_info_collect.isAlive()) {
                                                         break;
                                                     }
                                                     sleep(100);
@@ -5430,7 +5514,7 @@ let $$af = {
                                             function _fillUpIdent() {
                                                 let _len = $$app.cover_capt.len;
                                                 if (_len) {
-                                                    debugInfo("使用能量球监测线程数据");
+                                                    debugInfo("使用森林信息采集线程数据");
                                                     debugInfo("能量罩样本数量: " + _len);
                                                 }
                                                 $$app.cover_capt.filled_up || _fillUp();
@@ -5441,8 +5525,8 @@ let $$af = {
                                                     debugInfo("能量罩样本数量不足");
                                                     let _max = 12;
                                                     while (1) {
-                                                        if (!_thd_eball_monit.isAlive()) {
-                                                            debugInfo(["能量球监测线程已停止", "现场采集能量罩样本数据"]);
+                                                        if (!_thd_info_collect.isAlive()) {
+                                                            debugInfo(["森林信息采集线程已停止", "现场采集能量罩样本数据"]);
                                                             $$app.cover_capt.add();
                                                             break;
                                                         } else if (--_max < 0) {
@@ -5463,8 +5547,8 @@ let $$af = {
                                             debugInfo("颜色识别检测到保护罩");
                                             _covered = true;
 
-                                            debugInfo("终止能量球监测线程");
-                                            _thd_eball_monit.interrupt();
+                                            debugInfo("终止森林信息采集线程");
+                                            _thd_info_collect.interrupt();
 
                                             let _node_lst = null;
                                             let _sel_lst = () => _node_lst = $$sel.get("list");
@@ -5593,9 +5677,10 @@ let $$af = {
                                     }
 
                                     function _pick() {
+                                        _thd_info_collect.join();
                                         $$app.thd_pick = threads.starts(function () {
                                             debugInfo("已开启能量球收取线程");
-                                            let _ripe = $$af.eballs("ripe");
+                                            let _ripe = fri.eballs.ripe;
                                             if (_ripe.length) {
                                                 _clickAndCnt("pick", _ripe);
                                                 return true;
@@ -5613,10 +5698,7 @@ let $$af = {
                                         // tool function(s) //
 
                                         function _ready() {
-                                            _thd_eball_monit.join();
-
-                                            debugInfo("已开启能量球帮收线程");
-
+                                            debugInfo("帮收功能正在等待开始信号");
                                             if (waitForAction(() => $$flag.pick_off_duty, 2000, 80)) {
                                                 debugInfo("收取线程信号返回正常");
                                                 return true;
@@ -5625,15 +5707,16 @@ let $$af = {
                                         }
 
                                         function _click() {
-                                            if (fri.oballs_len) {
-                                                _clickAndCnt("help", fri.oballs);
+                                            let _orange = fri.eballs.orange;
+                                            if (_orange.length) {
+                                                _clickAndCnt("help", _orange);
                                                 return true;
                                             }
                                             debugInfo("没有可帮收的能量球");
                                         }
 
                                         function _sixRev() {
-                                            if (fri.init_balls_len >= 6) {
+                                            if (fri.eballs.length >= 6) {
                                                 if (!$$cfg.six_balls_review_switch) {
                                                     return debugInfo("六球复查未开启");
                                                 }
@@ -5665,8 +5748,8 @@ let $$af = {
                                                 name: "收取",
                                                 act: "收取",
                                                 click: () => {
-                                                    data.forEach((w) => {
-                                                        clickAction(w.bounds(), "p", _par_p_t);
+                                                    data.forEach((o) => {
+                                                        clickAction([o.x, o.y], "p", _par_p_t);
                                                         sleep(_itv);
                                                     });
                                                     debugInfo("点击成熟能量球: " + data.length + "个");
@@ -5678,12 +5761,11 @@ let $$af = {
                                                 name: "帮收",
                                                 act: "助力",
                                                 click: () => {
-                                                    let _pts = Object.values(data);
-                                                    _pts.forEach((pt) => {
-                                                        clickAction(pt, "p", _par_p_t);
+                                                    data.forEach((o) => {
+                                                        clickAction([o.x, o.y], "p", _par_p_t);
                                                         sleep(_itv);
                                                     });
-                                                    debugInfo("点击帮收能量球: " + _pts.length + "个");
+                                                    debugInfo("点击帮收能量球: " + data.length + "个");
                                                 },
                                                 pk_par: ["你给TA助力", 10],
                                             },
