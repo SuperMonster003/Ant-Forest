@@ -99,13 +99,13 @@
                     }
                     for (let k = 0; k < 3; k += 1) {
                         if (files.exists(_p)) {
-                            return _req(_p);
+                            return _req(files.path(_p));
                         }
                         if (!files.path(_p).match(/\/Modules\//)) {
                             let _mod_p = files.path(_p)
                                 .replace(/\/(.+?\.js$)/, "/Modules/$1");
                             if (files.exists(_mod_p)) {
-                                return _req(_mod_p);
+                                return _req(files.path(_mod_p));
                             }
                         }
                         _p = "." + _p;
@@ -311,7 +311,7 @@
                         let _par = params || {};
                         _par.no_impeded || $$impeded(arguments.callee.name);
 
-                        if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
+                        if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
 
                         let _timeout = Infinity;
                         let _interval = interval || 200;
@@ -578,7 +578,7 @@
                             if (!cond_func) return true;
                             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
                             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-                            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+                            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
                             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
                             while (!_cond_func() && _check_time >= 0) {
                                 sleep(_check_interval);
@@ -650,7 +650,7 @@
                                     while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
                                     return max_try_times_wake_up >= 0;
                                 }
-                                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2400) : false;
+                                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
                             }
                         }
 
@@ -688,7 +688,7 @@
                             if (!cond_func) return true;
                             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
                             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-                            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+                            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
                             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
                             while (!_cond_func() && _check_time >= 0) {
                                 sleep(_check_interval);
@@ -1574,13 +1574,13 @@
                             let _msg = dec ?
                                 "正在解密中 请稍候..." :
                                 "正在加密中 请稍候...";
-                            sleep(2400);
+                            sleep(2.4e3);
                             let _ctr = 0;
                             while (1) {
                                 if (!(_ctr++ % 5)) {
                                     toast(_msg);
                                 }
-                                sleep(1000);
+                                sleep(1e3);
                             }
                         });
                     }
@@ -1734,11 +1734,11 @@
             _.keepOn = function (duration, params) {
                 params = params || {};
                 duration = duration || 5;
-                if (duration < 100) duration *= 60000;
+                if (duration < 100) duration *= 60e3;
                 $_dev.keepScreenOn(duration);
                 if (params.debug_info_flag !== false) {
                     debugInfo("已设置屏幕常亮");
-                    debugInfo(">最大超时时间: " + +(duration / 60000).toFixed(2) + "分钟");
+                    debugInfo(">最大超时时间: " + +(duration / 60e3).toFixed(2) + "分钟");
                 }
             };
         }
@@ -1782,7 +1782,7 @@
                 let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
                 let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-                if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+                if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
                     return console.error("device.getDisplay()返回结果异常");
                 }
                 _showDisp();
@@ -1895,7 +1895,7 @@
                     if (!cond_func) return true;
                     let classof = o => Object.prototype.toString.call(o).slice(8, -1);
                     if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-                    let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+                    let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
                     let _check_interval = typeof time_params === "object" && time_params[1] || 200;
                     while (!_cond_func() && _check_time >= 0) {
                         sleep(_check_interval);
@@ -1962,7 +1962,7 @@
         }
 
         exit();
-        sleep(3600);
+        sleep(3.6e3);
     }
 
     function _isScrOn() {
@@ -1989,9 +1989,9 @@
                 : "尝试唤起设备"
             );
             device.wakeUpIfNeeded();
-            if (waitForAction(_isScrOn, 1500)) {
+            if (waitForAction(_isScrOn, 1.5e3)) {
                 // keep screen on for 2 min
-                device.keepScreenOn(120 * 1000);
+                device.keepScreenOn(2 * 60e3);
                 break;
             }
             _ctr += 1;
@@ -2094,7 +2094,7 @@
                             debugInfo("匹配到QQ锁屏消息弹框控件");
                             clickAction($_sel.pickup("关闭"), "w");
 
-                            if (waitForAction(_cB, 3000)) {
+                            if (waitForAction(_cB, 3e3)) {
                                 debugInfo("关闭弹框控件成功");
                             } else {
                                 debugInfo("关闭弹框控件超时", 3);
@@ -2103,6 +2103,7 @@
                     }
                 },
                 dis: function () {
+                    let _this = this;
                     let _btm = _cfg.unlock_dismiss_layer_bottom;
                     let _top = _cfg.unlock_dismiss_layer_top;
                     let _time_sto = _cfg.unlock_dismiss_layer_swipe_time;
@@ -2133,7 +2134,6 @@
                     }
 
                     function _dismiss() {
-                        let _this = $_unlk.prev_cntr;
                         let _par = [];
                         _pts.forEach(y => _par.push([halfW, cY(y)]));
 
@@ -2178,6 +2178,7 @@
                         }
                         device.cancelOn();
                         debugInfo("解锁页面提示层消除成功");
+                        _this.succ_fg = true;
 
                         // tool function(s) //
 
@@ -2215,12 +2216,12 @@
                     }
                 },
                 handle: function () {
-                    return this.chk() && this.dis();
+                    return !this.succ_fg && this.chk() && this.dis();
                 },
                 succ: function () {
                     let _this = this;
                     let _cA1 = () => !_this.chk();
-                    let _cA = () => waitForAction(_cA1, 1500);
+                    let _cA = () => waitForAction(_cA1, 1.5e3);
                     let _cB = () => $_unlk.unlk_view.chk();
                     return _cA() || _cB();
                 },
@@ -2446,32 +2447,46 @@
                                             _asg(_bnd);
                                         };
 
-                                        waitForAction(_succ, 1200, 120);
+                                        waitForAction(_succ, 1.2e3, 120);
 
                                         return _bnd;
                                     }
                                 }
 
                                 function _simpl(code, sz) {
-                                    _rmDupe();
-                                    _clean();
+                                    let _code = code.slice();
+                                    let _code_bak = [];
+                                    _standardize();
 
-                                    return code;
+                                    while (_code_bak.length !== _code.length) {
+                                        _code_bak = _code.slice();
+                                        _rmDupe();
+                                        _clean();
+                                    }
+
+                                    return _code;
 
                                     // tool function(s) //
+
+                                    function _standardize() {
+                                        _code = _code.filter((n) => (
+                                            +n > 0 && +n <= sz * sz
+                                        ));
+                                    }
 
                                     function _rmDupe() {
                                         let _coord = _initCoord();
                                         let _k0 = NaN;
-                                        let _len = code.length;
+                                        let _len = _code.length;
                                         for (let n = 0; n < _len - 1; n += 1) {
-                                            let _pt1 = code[n];
-                                            let _pt2 = code[n + 1];
+                                            let _pt1 = _code[n];
+                                            let _pt2 = _code[n + 1];
                                             let _k = _slope(_pt1, _pt2);
-                                            if (_k0 !== _k) {
-                                                _k0 = _k;
+                                            // explicitly distinguishes between -0 and +0
+                                            if (Object.is(_k0, _k)) {
+                                                delete _code[n];
                                             } else {
-                                                delete code[n];
+                                                _k0 = _k;
                                             }
                                         }
 
@@ -2497,21 +2512,20 @@
                                             }
                                             let [_x1, _y1] = _p1;
                                             let [_x2, _y2] = _p2;
-                                            if (_y1 === _y2) {
-                                                return (_x2 - _x1 > 0 ? 1 : -1) * 1e-5;
-                                            }
                                             return (_y2 - _y1) / (_x2 - _x1);
                                         }
                                     }
 
                                     function _clean() {
-                                        code = code.filter(x => !$_und(x));
-                                        let _len = code.length;
-                                        for (let n = _len - 1; n > 0; n -= 1) {
-                                            if (code[n] === code[n - 1]) {
-                                                code.splice(n, 1);
+                                        let _code_tmp = [];
+                                        let _cache = {};
+                                        _code.forEach((n) => {
+                                            if (!$_und(n) && !(n in _cache)) {
+                                                _cache[n] = true;
+                                                _code_tmp.push(n);
                                             }
-                                        }
+                                        });
+                                        _code = _code_tmp;
                                     }
                                 }
                             }
@@ -2708,7 +2722,7 @@
                         let _miui = idMatches(_ak +
                             "numeric_inputview"
                         );
-                        let _emui_10 = idMatches(_as + 
+                        let _emui_10 = idMatches(_as +
                             "fixedPinEntry"
                         );
                         let _emui = descMatches("" +
@@ -3148,7 +3162,7 @@
                         let _chk = () => _kw.exists();
                         if (_chk()) {
                             debugInfo("正在等待重试超时");
-                            waitForAction(() => !_chk(), 65000, 500);
+                            waitForAction(() => !_chk(), 65e3, 500);
                         }
                     }
 
@@ -3160,7 +3174,7 @@
                             let _txt = _node.text();
                             debugInfo('点击"' + _txt + '"按钮');
                             clickAction(_node, "w");
-                            sleep(1000);
+                            sleep(1e3);
                         }
                     }
                 },
@@ -3209,7 +3223,7 @@
 
         function _lmtRch() {
             let _max = _max_try;
-            let _ctr = $_und(_unlock.ctr) ? 0 : _unlock.ctr++;
+            let _ctr = $_und(_unlock.ctr) ? _unlock.ctr = 0 : ++_unlock.ctr;
             if (_ctr > _max) {
                 return _err("解锁尝试次数已达上限");
             }

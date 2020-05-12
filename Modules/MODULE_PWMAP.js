@@ -297,13 +297,13 @@ function _exports() {
             let _msg = dec ?
                 "正在解密中 请稍候..." :
                 "正在加密中 请稍候...";
-            sleep(2400);
+            sleep(2.4e3);
             let _ctr = 0;
             while (1) {
                 if (!(_ctr++ % 5)) {
                     toast(_msg);
                 }
-                sleep(1000);
+                sleep(1e3);
             }
         });
     }

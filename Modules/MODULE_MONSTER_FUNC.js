@@ -282,7 +282,7 @@ function launchThisApp(trigger, params) {
     if (_dist) {
         _debugInfo("已开启干扰排除线程");
         _thd_dist = threads.start(function () {
-            while (sleep(1200) || true) _dist();
+            while (sleep(1.2e3) || true) _dist();
         });
     }
 
@@ -318,7 +318,7 @@ function launchThisApp(trigger, params) {
 
             _waitForScrOrReady();
 
-            let _succ = _waitForAction(_cond_launch, 5000, 800);
+            let _succ = _waitForAction(_cond_launch, 5e3, 800);
             _debugInfo("应用启动" + (
                 _succ ? "成功" : "超时 (" + (_max_lch_b - _max_lch) + "/" + _max_lch_b + ")"
             ));
@@ -343,7 +343,7 @@ function launchThisApp(trigger, params) {
         let _max_ready = _par.ready_retry_times || 3;
         let _max_ready_b = _max_ready;
 
-        while (!_waitForAction(_cond_ready, 8000) && _max_ready--) {
+        while (!_waitForAction(_cond_ready, 8e3) && _max_ready--) {
             let _ctr = "(" + (_max_ready_b - _max_ready) + "/" + _max_ready_b + ")";
             if (typeof _trig === "object") {
                 _debugInfo("重新启动Activity " + _ctr);
@@ -411,13 +411,13 @@ function launchThisApp(trigger, params) {
         let _scr_o_par = _par.screen_orientation;
         if (_scr_o_par === 1 && _isVert()) {
             _debugInfo("需等待屏幕方向为横屏");
-            return _waitForAction(_isHoriz, 8000, 80)
+            return _waitForAction(_isHoriz, 8e3, 80)
                 ? (_debugInfo("屏幕方向已就绪"), sleep(500))
                 : _messageAction("等待屏幕方向变化超时", 4);
         }
         if (_scr_o_par === 0 && _isHoriz()) {
             _debugInfo("需等待屏幕方向为竖屏");
-            return _waitForAction(_isVert, 8000, 80)
+            return _waitForAction(_isVert, 8e3, 80)
                 ? (_debugInfo("屏幕方向已就绪"), sleep(500))
                 : _messageAction("等待屏幕方向变化超时", 4);
         }
@@ -445,7 +445,7 @@ function launchThisApp(trigger, params) {
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-        if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+        if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
         }
         _showDisp();
@@ -542,7 +542,7 @@ function launchThisApp(trigger, params) {
             if (!cond_func) return true;
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
             while (!_cond_func() && _check_time >= 0) {
                 sleep(_check_interval);
@@ -600,7 +600,7 @@ function launchThisApp(trigger, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -612,11 +612,11 @@ function launchThisApp(trigger, params) {
     function killThisAppRaw(package_name) {
         package_name = package_name || curerntPackage();
         if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
-        if (!shell("am force-stop " + package_name, true).code) return _success(15000);
+        if (!shell("am force-stop " + package_name, true).code) return _success(15e3);
         let _max_try_times = 10;
         while (_max_try_times--) {
             ~back() && back();
-            if (_success(2500)) break;
+            if (_success(2.5e3)) break;
         }
         return _max_try_times >= 0;
 
@@ -635,7 +635,7 @@ function launchThisApp(trigger, params) {
  *     -- package_name - like "com.eg.android.AlipayGphone"
  * @param [params] {object}
  * @param [params.shell_acceptable=true] {boolean}
- * @param [params.shell_max_wait_time=10000] {number}
+ * @param [params.shell_max_wait_time=10e3] {number}
  * @param [params.keycode_back_acceptable=true] {boolean}
  * @param [params.keycode_back_twice=false] {boolean}
  * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
@@ -676,12 +676,12 @@ function killThisApp(name, params) {
     let _keycode_back_twice = _par.keycode_back_twice || false;
     let _condition_success = _par.condition_success || (() => {
         let samePkgName = () => currentPackage() === _package_name;
-        return _waitForAction(() => !samePkgName(), 12000) && !_waitForAction(samePkgName, 3, 150);
+        return _waitForAction(() => !samePkgName(), 12e3) && !_waitForAction(samePkgName, 3, 150);
     });
 
     let _shell_result = false;
     let _shell_start_timestamp = new Date().getTime();
-    let _shell_max_wait_time = _par.shell_max_wait_time || 10000;
+    let _shell_max_wait_time = _par.shell_max_wait_time || 10e3;
     if (_shell_acceptable) {
         try {
             _shell_result = !shell("am force-stop " + _package_name, true).code;
@@ -737,7 +737,7 @@ function killThisApp(name, params) {
             if (_kw_clicked_flag) continue;
             ~back() && back();
             _keycode_back_twice && ~sleep(200) && back();
-            if (_waitForAction(_condition_success, 2000)) break;
+            if (_waitForAction(_condition_success, 2e3)) break;
         }
         if (_max_try_times_minimize < 0) {
             _debugInfo("最小化应用尝试已达: " + _max_try_times_minimize_backup + "次");
@@ -746,7 +746,7 @@ function killThisApp(name, params) {
             while (_max_try_times_minimize--) {
                 ~back() && back();
                 _keycode_back_twice && ~sleep(200) && back();
-                if (_waitForAction(_condition_success, 2000)) break;
+                if (_waitForAction(_condition_success, 2e3)) break;
             }
             if (_max_try_times_minimize < 0) return _messageAction("最小化当前应用失败", 4, 1);
         }
@@ -800,7 +800,7 @@ function killThisApp(name, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -845,7 +845,7 @@ function killThisApp(name, params) {
  *     -- package_name - like "com.eg.android.AlipayGphone"
  * @param [params] {object}
  * @param [params.shell_acceptable=true] {boolean} - for killing
- * @param [params.shell_max_wait_time=10000] {number} - for killing
+ * @param [params.shell_max_wait_time=10e3] {number} - for killing
  * @param [params.keycode_back_acceptable=true] {boolean} - for killing
  * @param [params.keycode_back_twice=false] {boolean} - for killing
  * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function} - for killing
@@ -879,11 +879,11 @@ function restartThisApp(intent_or_name, params) {
     function killThisAppRaw(package_name) {
         package_name = package_name || curerntPackage();
         if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
-        if (!shell("am force-stop " + package_name, true).code) return _success(15000);
+        if (!shell("am force-stop " + package_name, true).code) return _success(15e3);
         let _max_try_times = 10;
         while (_max_try_times--) {
             ~back() && back();
-            if (_success(2500)) break;
+            if (_success(2.5e3)) break;
         }
         return _max_try_times >= 0;
 
@@ -1008,16 +1008,22 @@ function restartThisEngine(params) {
 /**
  * Run a javascript file via activity by current running Auto.js
  * @param file_name {string} - file name with or without path or file extension name
+ * @param [e_args] {object} arguments params for engines - js file will run by startActivity without this param
  * @example
  * runJsFile("file");
  * runJsFile("../folder/time.js");
+ * runJsFile("Ant_Forest_Launcher", {cmd: "get_current_account_name"});
  */
-function runJsFile(file_name) {
-    app.startActivity({
+function runJsFile(file_name, e_args) {
+    let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js"));
+    if (e_args) {
+        return engines.execScriptFile(_path, {arguments: e_args});
+    }
+    return app.startActivity({
         action: "VIEW",
         packageName: context.packageName,
         className: "org.autojs.autojs.external.open.RunIntentActivity",
-        data: "file://" + files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js")),
+        data: "file://" + _path,
     });
 }
 
@@ -1240,7 +1246,7 @@ function showSplitLine(extra_str, style, params) {
  *         -- logic_flag <br>
  *         --- "and"|"all"|*DEFAULT* - meet all conditions <br>
  *         --- "or"|"one" - meet any one condition
- * @param [timeout_or_times=10000] {number}
+ * @param [timeout_or_times=10e3] {number}
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- 0|Infinity - always wait until f is true <br>
@@ -1250,19 +1256,19 @@ function showSplitLine(extra_str, style, params) {
  * @param [params.no_impeded] {boolean}
  * @example
  * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80);
- * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2000, 50);
+ * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2e3, 50);
  * let kw_settings = text("Settings");
  * let condition = () => kw_settings.exists();
- * // waitForAction(kw_settings, 1000);
- * // waitForAction(condition, 1000);
- * waitForAction(() => condition()), 1000);
+ * // waitForAction(kw_settings, 1e3);
+ * // waitForAction(condition, 1e3);
+ * waitForAction(() => condition()), 1e3);
  * @return {boolean} - if not timed out
  */
 function waitForAction(f, timeout_or_times, interval, params) {
     let _par = params || {};
     _par.no_impeded || $$impeded(arguments.callee.name);
 
-    if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
+    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
 
     let _timeout = Infinity;
     let _interval = interval || 200;
@@ -1576,7 +1582,7 @@ function clickAction(f, strategy, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -1590,7 +1596,7 @@ function clickAction(f, strategy, params) {
  * Wait for an UiObject showing up and click it
  * -- This is a combination function which means independent use is not recommended
  * @param f {object} - only JavaObject is supported
- * @param [timeout_or_times=10000] {number}
+ * @param [timeout_or_times=10e3] {number}
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- less than 100 - take as times
@@ -1674,7 +1680,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -1718,9 +1724,9 @@ function refreshObjects(strategy, params) {
         let alert_text = _params.custom_alert_text || "Alert for refreshing objects";
         let kw_alert_text = text(alert_text);
         let refreshing_obj_thread = threads.start(function () {
-            kw_alert_text.findOne(1000);
+            kw_alert_text.findOne(1e3);
             let kw_ok_btn = textMatches(/OK|确./); // may 确认 or something else
-            kw_ok_btn.findOne(2000).click();
+            kw_ok_btn.findOne(2e3).click();
         });
         let shutdownThread = () => {
             refreshing_obj_thread.isAlive() && refreshing_obj_thread.interrupt();
@@ -1730,7 +1736,7 @@ function refreshObjects(strategy, params) {
             alert(alert_text);
             shutdownThread();
         });
-        thread_alert.join(1000);
+        thread_alert.join(1e3);
         if (thread_alert.isAlive()) {
             shutdownThread();
             thread_alert.interrupt();
@@ -1741,12 +1747,12 @@ function refreshObjects(strategy, params) {
         let _current_package = _param_package || currentPackage();
         _debugInfo(_current_package);
         recents();
-        _waitForAction(() => currentPackage() !== _current_package, 2000, 500) && sleep(500);
+        _waitForAction(() => currentPackage() !== _current_package, 2e3, 500) && sleep(500);
         _debugInfo(currentPackage());
         back();
-        if (!_waitForAction(() => currentPackage() === _current_package, 2000, 80)) {
+        if (!_waitForAction(() => currentPackage() === _current_package, 2e3, 80)) {
             app.launchPackage(_current_package);
-            _waitForAction(() => currentPackage() === _current_package, 2000, 80);
+            _waitForAction(() => currentPackage() === _current_package, 2e3, 80);
         }
         _debugInfo(currentPackage());
     }
@@ -1766,7 +1772,7 @@ function refreshObjects(strategy, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -2038,7 +2044,7 @@ function swipeAndShow(f, params) {
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-        if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+        if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
         }
         _showDisp();
@@ -2135,7 +2141,7 @@ function swipeAndShow(f, params) {
             if (!cond_func) return true;
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
             while (!_cond_func() && _check_time >= 0) {
                 sleep(_check_interval);
@@ -2330,7 +2336,7 @@ function keycode(code, params) {
                 while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
                 return max_try_times_wake_up >= 0;
             }
-            return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2400) : false;
+            return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
         }
     }
 
@@ -2368,7 +2374,7 @@ function keycode(code, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -2624,7 +2630,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         });
 
         threads.start(function () {
-            waitForAction(() => !page_scrolling_flag, 10000);
+            waitForAction(() => !page_scrolling_flag, 10e3);
             global["_$_page_scrolling"] = false;
         });
     } catch (e) {
@@ -2654,7 +2660,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-        if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+        if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
             return console.error("getDisplayRaw()返回结果异常");
         }
         _showDisp();
@@ -2751,7 +2757,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
             if (!cond_func) return true;
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
             while (!_cond_func() && _check_time >= 0) {
                 sleep(_check_interval);
@@ -2770,7 +2776,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
  * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
  * @param dialog {Dialogs} - wrapped "dialogs" object
  * @param message {string} - message shown in title view
- * @param [duration=3000] {number} - time duration before message dismissed (0 for non-auto dismiss)
+ * @param [duration=3e3] {number} - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
     global["_$_alert_title_info"] = global["_$_alert_title_info"] || {};
@@ -2806,7 +2812,7 @@ function alertTitle(dialog, message, duration) {
         alert_title_info["message_showing"]--;
         if (alert_title_info["message_showing"]) return;
         setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
-    }, duration || 3000);
+    }, duration || 3e3);
 
     // tool function(s) //
 
@@ -2843,30 +2849,36 @@ function alertContent(dialog, message, mode) {
 
 /**
  * Observe message(s) from Toast by events.observeToast()
- * @param observed_app_pkg_name {string}
- * @param observed_msg {RegExp|string} - regular expression or a certain specific string
- * @param [timeout=20000] {number}
+ * @param aim_app_pkg {string}
+ * @param aim_msg {RegExp|string} - regular expression or a certain specific string
+ * @param [timeout=20e3] {number}
  * @param [aim_amount=1] {number} - events will be cleared if aim_amount messages have been got
  * @return {string[]}
  */
-function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_amount) {
-    if (aim_amount === 0) return [];
-
-    timeout = +timeout;
-    if (timeout < 3000) timeout = 3000;
-
-    let _timeout = timeout || 20000;
-    let _observed_msg = observed_msg || "";
-    let _pkg_name = observed_app_pkg_name || currentPackage();
-    let _amount = aim_amount || 1;
+function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
+    if (typeof timeout === "undefined") {
+        timeout = 20e3;
+    }
+    let _tt = Math.max(+timeout, 3e3);
+    let _aim_msg = aim_msg || ".*";
+    let _aim_pkg = aim_app_pkg || currentPackage();
+    let _amt = aim_amount || 1;
     let _got_msg = [];
+
+    let _waitForAction = typeof waitForAction === "undefined"
+        ? waitForActionRaw
+        : waitForAction;
 
     threads.start(function () {
         events.observeToast();
-        events.onToast(msg => msg.getPackageName() === _pkg_name && msg.getText().match(_observed_msg) && _got_msg.push(msg.getText()));
+        events.onToast((o) => {
+            return o.getPackageName() === _aim_pkg
+                && o.getText().match(_aim_msg)
+                && _got_msg.push(o.getText());
+        });
     });
 
-    waitForAction(() => _got_msg.length >= _amount, _timeout, 50);
+    _waitForAction(() => _got_msg.length >= _amt, _tt, 50);
 
     // FIXME this will make listeners (like key listeners) invalid
     // FIXME and maybe recycle() is unnecessary to remove toast listener
@@ -2874,6 +2886,22 @@ function observeToastMessage(observed_app_pkg_name, observed_msg, timeout, aim_a
     events.removeAllListeners("toast"); // otherwise, events will exceed the max listeners limit with default 10
 
     return _got_msg;
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
+    }
 }
 
 /**
@@ -3449,7 +3477,7 @@ function surroundWith(target, mark_left, mark_right) {
  * //
  * // result eg: "12.40s"
  * timeRecorder("collect", "save");
- * timeRecorder("collect", "load", 1000, 2, "s");
+ * timeRecorder("collect", "load", 1e3, 2, "s");
  * //
  * // result eg: 18 hours"
  * timeRecorder("waiting", 0);
@@ -3457,7 +3485,7 @@ function surroundWith(target, mark_left, mark_right) {
  * //
  * // result eg: 10.331 (not "10.3310000")
  * timeRecorder("try_peeking");
- * timeRecorder("try_peeking", "time_gap", 1000, [7]);
+ * timeRecorder("try_peeking", "time_gap", 1e3, [7]);
  * //
  * // result eg: "7h 8.16m"
  * timeRecorder("go_to_bed");
@@ -3501,7 +3529,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
         let base_unit = {
             ms: 1,
             get sec() {
-                return 1000 * this.ms;
+                return 1e3 * this.ms;
             },
             get min() {
                 return 60 * this.sec;
@@ -3630,7 +3658,7 @@ function clickActionsPipeline(pipeline, options) {
         let clickOnce = () => condition !== null && _clickAction(kw_keyword, strategy);
 
         clickOnce();
-        while (max_try_times-- > 0 && !_waitForAction(condition === null ? kw_keyword : condition, 1500)) {
+        while (max_try_times-- > 0 && !_waitForAction(condition === null ? kw_keyword : condition, 1.5e3)) {
             clickOnce();
             sleep(interval);
         }
@@ -3708,7 +3736,7 @@ function clickActionsPipeline(pipeline, options) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -3767,7 +3795,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * @param [par.fetch_times=1] {boolean}
  * @param [par.fetch_interval=100] {number}
  * @param [par.debug_info_flag=false] {boolean}
- * @param [par.timeout=60000] {number} -- no less than 5000
+ * @param [par.timeout=60e3] {number} -- no less than 5e3
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
  * // @see "MODULE_MONSTER_FUNC.js"
@@ -3775,7 +3803,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * // [[], [], []] -- 3 groups of data
  * baiduOcr(sel.pickup(/\xa0/, "nodes"), {
  *     fetch_times: 3,
- *     timeout: 12000
+ *     timeout: 12e3
  * });
  */
 function baiduOcr(src, par) {
@@ -3783,8 +3811,8 @@ function baiduOcr(src, par) {
 
     par = par || {};
 
-    let _tt = par.timeout || 60000;
-    if (!+_tt || _tt < 5000) _tt = 5000;
+    let _tt = par.timeout || 60e3;
+    if (!+_tt || _tt < 5e3) _tt = 5e3;
     let _tt_ts = +new Date() + _tt;
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
@@ -3866,18 +3894,19 @@ function baiduOcr(src, par) {
                 };
                 let _response = http.post(_url, _opt).body.string();
                 let _words = JSON.parse(_response)["words_result"];
-                let _words_res = _words.map(val => val["words"]);
-                let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
-                _debugInfo("数据" + _suffix + "获取成功");
-
-                img.recycle();
-                img = null;
-
-                _res.push(_words_res);
+                if (_words) {
+                    let _words_res = _words.map(val => val["words"]);
+                    let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
+                    _debugInfo("数据" + _suffix + "获取成功");
+                    _res.push(_words_res);
+                }
             } catch (e) {
                 if (!e.message.match(/InterruptedIOException/)) {
                     throw (e);
                 }
+            } finally {
+                img.recycle();
+                img = null;
             }
         }));
         sleep(_itv);
@@ -4049,7 +4078,7 @@ function baiduOcr(src, par) {
  * // print "hello" every 1 second for 5 (or 4 sometimes) times
  * setIntervalBySetTimeout(() => {
  *     console.log("hello");
- * }, 1000, 5000);
+ * }, 1e3, 5e3);
  */
 function setIntervalBySetTimeout(func, interval, timeout) {
     interval = interval || 200;
@@ -4264,7 +4293,7 @@ function checkSdkAndAJVer(params) {
                 "按'音量减/VOL-'键停止执行"
             );
         }
-        if (!_waitForAction(() => _continue_sgn, 60000, 300)) {
+        if (!_waitForAction(() => _continue_sgn, 60e3, 300)) {
             _diag && _diag.dismiss();
             let _m = "等待用户操作超时";
             _messageAction(_m, 9, 1, 0, "both");
@@ -4393,7 +4422,7 @@ function checkSdkAndAJVer(params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -4562,6 +4591,11 @@ function __dismissIDEWarnings__() {
         fromBytes: str => $$jvo.ImageWrapper,
         toBytes: (img, format, quality) => [],
         clip: (img, x, y, w, h) => $$jvo.ImageWrapper,
+        grayscale: (img, dst_cn) => $$jvo.ImageWrapper,
+        threshold: (img, thrd, max_val, type) => $$jvo.ImageWrapper,
+        adaptiveThreshold: (img, max_val, adaptive_mthd, thrd_type, block_sz, C) => $$jvo.ImageWrapper,
+        interval: (img, color, thrd) => $$jvo.ImageWrapper,
+        inRange: (img, lower_bound, upper_bound) => $$jvo.ImageWrapper,
         resize: (img, size, interpolation) => $$jvo.ImageWrapper,
         scale: (img, fx, fy, interpolation) => $$jvo.ImageWrapper,
         rotate: (img, degree, x, y) => $$jvo.ImageWrapper,
@@ -4571,18 +4605,25 @@ function __dismissIDEWarnings__() {
         recycle: () => void 0,
         findImage: (img, tpl, opt) => $$jvo.ImageWrapper,
         findColor: (img, color, opt) => $$jvo.Point,
+        findCircles: (gray_img, opt) => Array(),
         pixel: (img, x, y) => $$num,
         findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
         findColorInRegion: (img, color, x, y, w, h, thrd) => $$jvo.Point,
         findColorEquals: (img, color, x, y, w, h) => $$jvo.Point,
-        detectsColor: (img, color, x, y, threshold, algorithm) => Boolean(),
-        matchTemplate: (img, tpl, opt) => {/* "MatchingResult" */
-        },
+        detectsColor: (img, color, x, y, thrd, algorithm) => Boolean(),
+        matchTemplate: (img, tpl, opt) => ({/* "MatchingResult" */}),
+        blur: (img, size, point, type) => $$jvo.ImageWrapper,
+        medianBlur: (img, size) => $$jvo.ImageWrapper,
+        gaussianBlur: (img, size, sigma_x, sigma_y, type) => $$jvo.ImageWrapper,
+        cvtColor: (img, code, dst_cn) => $$jvo.ImageWrapper,
+        findAllPointsForColor: (img, color, opt) => Array(),
+        readPixels: (path) => Object(),
+        matToImage: (img) => $$jvo.ImageWrapper,
         getWidth: () => $$num, // TODO this doesn't belong to images
         getHeight: () => $$num, // TODO this doesn't belong to images
     });
     Object.assign(colors, {
-        isSimilar: (c1, c2, threshold, algorithm) => Boolean(),
+        isSimilar: (c1, c2, thrd, algorithm) => Boolean(),
         parseColor: str => $$num,
         red: (str_$_num) => $$num,
         green: (str_$_num) => $$num,
@@ -4706,8 +4747,7 @@ function __dismissIDEWarnings__() {
                 body: {
                     bytes: () => [],
                     string: () => String(),
-                    json: () => {
-                    },
+                    json: () => [],
                     contentType: String(),
                 },
             };

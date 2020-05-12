@@ -90,9 +90,23 @@
 ******
 ### 版本历史
 ******
+# v1.9.19 Beta
+###### 2020/05/12 - 代码重构 谨慎升级
+* `新增` 能量球识别测试工具 (简易)  
+* `修复` 解锁模块解锁计数器失效的问题 _[`issue #305`](https://github.com/SuperMonster003/Auto.js_Projects/issues/305)_  
+* `修复` 增加engines扩展解决execArgs对象无法解析JavaObject的问题  
+* `修复` 收取/帮收功能开关配置在好友森林页面无效的问题 _[`issue #311`](https://github.com/SuperMonster003/Auto.js_Projects/issues/311)_  
+* `修复` 无障碍服务方法无法处理非字串类型列表结果的问题 _[`issue #308`](https://github.com/SuperMonster003/Auto.js_Projects/issues/308)_  
+* `修复` 解锁模块引用其他模块时可能出现路径无效的问题  
+* `修复` 主页能量球增加数值稳定器避免可能的数值结果错误 (试修) _[`issue #307`](https://github.com/SuperMonster003/Auto.js_Projects/issues/307)_  
+* `修复` 关闭列表状态差异复查条件时可能导致排行榜无限复查的问题  
+* `优化` 提升好友森林能量球中心点及球类型识别准确率 _[`issue #303`](https://github.com/SuperMonster003/Auto.js_Projects/issues/303#issuecomment-622664999)_  
+* `优化` 重构DEVICE模块的getDisplay方法  
+* `优化` 图案解锁的密码简化方法内部逻辑  
+
 # v1.9.18
 ###### 2020/05/01
-* `修复` 好友森林主页控件变更导致能量球识别失败的问题 (粗修) _[`issue #119`](https://github.com/SuperMonster003/Auto.js_Projects/issues/119)_ _[`#292`](https://github.com/SuperMonster003/Auto.js_Projects/issues/292)_ _[`#303`](https://github.com/SuperMonster003/Auto.js_Projects/issues/303)_  
+* `修复` 好友森林主页控件变更导致能量球识别失败的问题 (粗修) _[`issue #119`](https://github.com/SuperMonster003/Auto.js_Projects/issues/119)_ _[`#292`](https://github.com/SuperMonster003/Auto.js_Projects/issues/292)_ _[`#301`](https://github.com/SuperMonster003/Auto.js_Projects/issues/301)_ _[`#303`](https://github.com/SuperMonster003/Auto.js_Projects/issues/303)_  
 * `修复` 判断能量罩时可能出现的图像被回收问题 _[`issue #299`](https://github.com/SuperMonster003/Auto.js_Projects/issues/299)_  
 * `修复` 解锁模块"确定"按钮可能匹配到非预期控件的问题  
 * `修复` 简化图案解锁密码时可能导致关键点丢失的问题  
@@ -1090,4 +1104,10 @@
 
 [//]: # (
 If you prefer to make a donation, run Ant_Forest_Settings.js with Auto.js, then go to the "About" page and click my name. When the page with a pink "CLOSE" button popped up, you could see the QR Code by long-clicking this button. Blue QR Code for Alipay and green for WeChat. I believe i could make it better with your support.  
+)
+
+[//]: # (
+I hope that everything will go well.
+I hope that everything will go well..
+I hope that everything will go well...
 )

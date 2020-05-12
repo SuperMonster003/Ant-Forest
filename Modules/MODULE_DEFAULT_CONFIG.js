@@ -1,3 +1,7 @@
+if (!global["cYx"] || !global["cX"]) {
+    require("./EXT_DEVICE").getDisplay(true);
+}
+
 module.exports = {
     af: {
         // i know the trick about the reason you wanna turn this switch off
@@ -14,7 +18,7 @@ module.exports = {
         account_log_back_in_max_continuous_times: 3,
         // stores information of the "main account" user
         main_account_info: {},
-        // 200 <= x <= 2000, safe: 500; max check time for ant forest homepage balls being ready
+        // 200 <= x <= 30e3, safe: 500; max check time for ant forest homepage balls being ready
         max_own_forest_balls_ready_time: 800,
         // 10 <= x <= 500; as the saying goes, "Haste makes waste"
         balls_click_interval: 120,
@@ -36,6 +40,32 @@ module.exports = {
         friend_collect_icon_color: "#1da06d",
         // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         friend_collect_icon_threshold: 10,
+        // 1 <= x <= 8; size limitation for friend forest samples pool
+        fri_forest_pool_limit: 3,
+        // 50 <= x <= 500; interval between two samples when saving into friend forest samples pool
+        fri_forest_pool_itv: 120,
+        // rectangle region for energy balls recognition in friends forest
+        fri_forest_balls_region: [cX(0.12), cYx(0.24), cX(0.88), cYx(0.44)],
+        // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
+        hough_src_img_strategy: {
+            gray: true, // images.grayscale(image)
+            adapt_thrd: true, // images.adaptiveThreshold(image, 255, "GAUSSIAN_C", "BINARY_INV", 9, 6)
+            med_blur: true, // images.medianBlur(image, 9)
+            blur: true, // images.blur(image, 9, null, "REPLICATE")
+            blt_fltr: false, // images.bilateralFilter(image, 9, 20, 20, "REPLICATE")
+        },
+        // strategies for handling cv::houghCircles results
+        hough_results_strategy: {
+            anti_ovl: true, // anti overlap: remove redundant balls overlapped
+            symmetrical: true, // symmetrical: calculated outer absent ball of one side
+            linear_itp: true, // linear interpolate: calculated inner absent ball(s)
+        },
+        // 0 <= x <= 40; the smaller, the stricter; max limit not tested yet
+        ripe_ball_threshold: 13,
+        // color for ripe balls in a friend's forest
+        ripe_ball_ident_color: "#ceff5f",
+        // 0.06 <= x <= 0.15; minimum distance between two energy balls
+        min_balls_distance: 0.09,
         // set false if you do not wanna give a hand; leave it true if you like "surprise"
         help_collect_switch: true,
         // a valid time section of help collect function; default: the whole day
@@ -49,18 +79,15 @@ module.exports = {
         // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         help_collect_icon_threshold: 10,
         // color for fade-in-and-out help balls in a friend's forest
-        help_collect_ball_color: [
-            ["#f99137", "#25876f"],
-            ["#f9933a", "#17a422"],
-        ],
+        help_ball_ident_colors: ["#f99137", "#f9933a", "#e9b781"],
         // 30 ~< x <= 83; the smaller, the stricter; max limit tested on Sony G8441
-        help_collect_ball_threshold: 40,
+        help_ball_threshold: 35,
         // 10 <= x <= 20; more samples for image matching, at the cost of time however
         help_collect_ball_intensity: 12,
         // protect cover identifying color from a certain point in countdown area
-        protect_cover_ident_color: "#bef658",
+        protect_cover_ident_color: "#bef658", // todo
         // do not set this value too big in case that green balls will be recognized as protect cover
-        protect_cover_ident_threshold: 5,
+        protect_cover_ident_threshold: 5, // todo
         // set true if you wish your dream's coming true when you are making a sweet dream or snoring
         auto_unlock_switch: false,
         // set false value if you need a clean console or hide what you've done to your friends
@@ -140,7 +167,7 @@ module.exports = {
         // 3 <= x <= 30; countdown seconds before dialog dismissed automatically
         prompt_before_running_countdown_seconds: 5,
         // default choices for a postponed minute
-        prompt_before_running_postponed_minutes_default_choices: [1, 2, 3, 5, 10, 15, 20, 30],
+        prompt_before_running_postponed_minutes_map: [1, 2, 3, 5, 10, 15, 20, 30],
         // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute
         prompt_before_running_postponed_minutes: 0,
         // record user selected value of postponed settings dialog in countdown dialog
