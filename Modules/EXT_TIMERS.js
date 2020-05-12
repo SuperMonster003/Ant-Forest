@@ -159,14 +159,14 @@ function updateTask(task) {
             if (!task || !task.id) return;
             let new_id = ext.getTimedTask(task.id).id;
             return new_id && new_id !== id;
-        }, 1200, 120) && task;
+        }, 1.2e3, 120) && task;
     } catch (e) {
 
     }
 }
 
 function waitForAction(f, timeout_or_times, interval) {
-    let _timeout = timeout_or_times || 10000;
+    let _timeout = timeout_or_times || 10e3;
     let _interval = interval || 200;
     let _times = _timeout < 100 ? _timeout : ~~(_timeout / _interval) + 1;
 

@@ -65,7 +65,7 @@ diag.on("positive", () => {
     diag.dismiss();
     threads.start(function () {
         if (!keycode_power_bug) {
-            if (!keycode(26) || !waitForAction(isScreenOff, 2400)) {
+            if (!keycode(26) || !waitForAction(isScreenOff, 2.4e3)) {
                 let diag_scr_off_failed = dialogs.build({
                     title: "自动关闭屏幕失败",
                     content: "请点击 [继续] 按钮后 [手动关屏]\n然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作",
@@ -97,14 +97,14 @@ diag.on("positive", () => {
             }
         }
 
-        if (!waitForAction(isScreenOff, 30000)) messageAction("等待屏幕关闭超时", 8, 1);
+        if (!waitForAction(isScreenOff, 30e3)) messageAction("等待屏幕关闭超时", 8, 1);
 
         sleep(500);
         device.wakeUp();
         let max_try_times_wake_up = 5;
-        while (!waitForAction(isScreenOn, 2000) && max_try_times_wake_up--) device.wakeUp();
+        while (!waitForAction(isScreenOn, 2e3) && max_try_times_wake_up--) device.wakeUp();
         if (max_try_times_wake_up < 0) messageAction("唤起设备失败", 8, 1);
-        sleep(1000);
+        sleep(1e3);
 
         device.keepScreenOn();
 
@@ -124,8 +124,8 @@ diag.on("positive", () => {
         files.write(path_device_info, info);
         device_info_file.close();
 
-        if (!waitForAction(() => isUnlocked(), 25000)) ~alert("等待手动解锁超时") && exit();
-        sleep(1000);
+        if (!waitForAction(() => isUnlocked(), 25e3)) ~alert("等待手动解锁超时") && exit();
+        sleep(1e3);
         captureScreen(path_unlock_bounds);
 
         device.cancelKeepingAwake();
@@ -215,7 +215,7 @@ function dismissLayer() {
             null;
     };
 
-    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 2500)) {
+    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 2.5e3)) {
         device.vibrate(200);
         sleep(500);
         device.vibrate(200);
@@ -239,7 +239,7 @@ function dismissLayer() {
     while (max_try_times_dismiss_layer--) {
         gesture.apply(null, [gesture_time].concat(gesture_params));
 
-        if (waitForAction(() => !kw_preview_container.exists(), 1500)) break;
+        if (waitForAction(() => !kw_preview_container.exists(), 1.5e3)) break;
         if (cond_all_unlock_ways()) break;
         if (data_from_storage_flag) {
             if (--chances_for_storage_data < 0) {
@@ -249,7 +249,7 @@ function dismissLayer() {
         } else gesture_time += (gesture_time <= 130 ? 10 : 80);
     }
 
-    if (max_try_times_dismiss_layer < 0 && !waitForAction(() => !kw_preview_container.exists(), 25000)) ~alert("消除解锁页面提示层失败") && exit();
+    if (max_try_times_dismiss_layer < 0 && !waitForAction(() => !kw_preview_container.exists(), 25e3)) ~alert("消除解锁页面提示层失败") && exit();
     return true;
 
     // tool function(s) //

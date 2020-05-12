@@ -96,7 +96,8 @@ let ext = {
             $$date: x => classof(x, "Date"),
             $$regexp: x => classof(x, "RegExp"),
             $$rex: x => classof(x, "RegExp"),
-            $$nulOrUnd: function (x) {
+            // nullish coalescing operator: ??
+            $$nullish: function (x) {
                 return this.$$nul(x) || this.$$und(x);
             },
             $$fin: x => isFinite(x),

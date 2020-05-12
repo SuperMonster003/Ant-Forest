@@ -1,9 +1,15 @@
+let {Imgproc} = org.opencv.imgproc;
+let {Core, Size,} = org.opencv.core;
+let {Mat} = com.stardust.autojs.core.opencv;
+let _initIfNeeded = () => runtime.getImages().initOpenCvIfNeeded();
+
 if (typeof cX === "undefined") {
     cX = _getDisplay().cX;
 }
 if (typeof debugInfo === "undefined") {
     debugInfo = _debugInfo;
 }
+
 let ext = {
     getName: (img) => {
         let img_str = img.toString().split("@")[1];
@@ -195,6 +201,16 @@ let ext = {
         }
         return _bnd;
     },
+    bilateralFilter: function (img, d, sigmaColor, sigmaSpace, borderType) {
+        _initIfNeeded();
+        let mat = new Mat();
+        let size = d || 0;
+        let sc = sigmaColor || 40;
+        let ss = sigmaSpace || 20;
+        let type = Core["BORDER_" + (borderType || "DEFAULT")];
+        Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
+        return images.matToImage(mat);
+    },
 };
 ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
@@ -202,6 +218,12 @@ module.exports = ext;
 module.exports.load = () => Object.assign(global["images"], ext);
 
 // tool function(s) //
+
+function _newSize(size) {
+    if (!Array.isArray(size)) size = [size, size];
+    if (size.length === 1) size = [size[0], size[0]];
+    return new Size(size[0], size[1]);
+}
 
 /**
  * Just an insurance way of images.requestScreenCapture()
@@ -277,19 +299,19 @@ function _permitCapt(params) {
         let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
         let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
 
-        if (_waitForAction(_sel_sure, 5000)) {
-            if (_waitForAction(_sel_remember, 1000)) {
+        if (_waitForAction(_sel_sure, 5e3)) {
+            if (_waitForAction(_sel_remember, 1e3)) {
                 _debugInfo('勾选"不再提示"复选框');
                 _clickAction(_sel_remember(), "w");
             }
-            if (_waitForAction(_sel_sure, 2000)) {
+            if (_waitForAction(_sel_sure, 2e3)) {
                 let _node = _sel_sure();
                 let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
 
                 _debugInfo(_act_msg);
                 _clickAction(_node, "w");
 
-                if (!_waitForAction(() => !_sel_sure(), 1000)) {
+                if (!_waitForAction(() => !_sel_sure(), 1e3)) {
                     _debugInfo("尝试click()方法再次" + _act_msg);
                     _clickAction(_node, "click");
                 }
@@ -298,7 +320,7 @@ function _permitCapt(params) {
     });
 
     let _thread_monitor = threads.start(function () {
-        if (_waitForAction(() => !!_req_result, 3600, 300)) {
+        if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
             _thread_prompt.interrupt();
             return _debugInfo("截图权限申请结果: " + _req_result);
         }
@@ -369,7 +391,7 @@ function _permitCapt(params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -456,13 +478,11 @@ function _permitCapt(params) {
 
         let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
         _debugInfo("运行新引擎任务:\n" + _file_path);
-        engines.execScriptFile(_file_path, {
-            arguments: Object.assign({}, _params, {
-                max_restart_engine_times: _max_restart_engine_times - 1,
-                max_restart_engine_times_backup: _max_restart_engine_times_backup,
-                instant_run_flag: _instant_run_flag,
-            }),
-        });
+        _runJsFile(_file_path, Object.assign({}, _params, {
+            max_restart_engine_times: _max_restart_engine_times - 1,
+            max_restart_engine_times_backup: _max_restart_engine_times_backup,
+            instant_run_flag: _instant_run_flag,
+        }));
         _debugInfo("强制停止旧引擎任务");
         // _my_engine.forceStop();
         engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
@@ -556,7 +576,7 @@ function _getDisplay(global_assign, params) {
     let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
     let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-    if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
         return console.error("device.getDisplay()返回结果异常");
     }
     _showDisp();
@@ -669,7 +689,7 @@ function _getDisplay(global_assign, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
@@ -767,4 +787,18 @@ function _debugInfo(msg, info_flag, forcible_flag) {
         }
         return _msg;
     }
+}
+
+// updated: May 5, 2020
+function _runJsFile(file_name, e_args) {
+    let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js"));
+    if (e_args) {
+        return engines.execScriptFile(_path, {arguments: e_args});
+    }
+    return app.startActivity({
+        action: "VIEW",
+        packageName: context.packageName,
+        className: "org.autojs.autojs.external.open.RunIntentActivity",
+        data: "file://" + _path,
+    });
 }

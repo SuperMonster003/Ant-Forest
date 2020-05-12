@@ -120,7 +120,7 @@ let saveSession = (key, value, quiet_flag) => {
     updateAllValues();
     threads.start(function () {
         let btn_save = null;
-        waitForAction(() => btn_save = session_params["homepage_btn_save"], 10000, 80);
+        waitForAction(() => btn_save = session_params["homepage_btn_save"], 10e3, 80);
         ui.post(() => needSave() ? btn_save.switch_on() : btn_save.switch_off());
     });
 };
@@ -1291,7 +1291,7 @@ function loadInternalModuleMonsterFunc() {
             alert_title_info["message_showing"]--;
             if (alert_title_info["message_showing"]) return;
             setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
-        }, duration || 3000);
+        }, duration || 3e3);
 
         // tool function(s) //
 
@@ -1449,7 +1449,7 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function waitForAction(f, timeout_or_times, interval) {
-        if (typeof timeout_or_times !== "number") timeout_or_times = 10000;
+        if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
 
         let _timeout = Infinity;
         let _interval = interval || 200;
@@ -1576,7 +1576,7 @@ function loadInternalModuleMonsterFunc() {
                     while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
                     return max_try_times_wake_up >= 0;
                 }
-                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2400) : false;
+                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
             }
         }
 
@@ -1614,7 +1614,7 @@ function loadInternalModuleMonsterFunc() {
             if (!cond_func) return true;
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
             let _check_interval = typeof time_params === "object" && time_params[1] || 200;
             while (!_cond_func() && _check_time >= 0) {
                 sleep(_check_interval);
@@ -2588,13 +2588,13 @@ function loadInternalModulePWMAP() {
             let _msg = dec ?
                 "正在解密中 请稍候..." :
                 "正在加密中 请稍候...";
-            sleep(2400);
+            sleep(2.4e3);
             let _ctr = 0;
             while (1) {
                 if (!(_ctr++ % 5)) {
                     toast(_msg);
                 }
-                sleep(1000);
+                sleep(1e3);
             }
         });
     }
@@ -2713,7 +2713,7 @@ function _getDisplay(global_assign, params) {
     let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
     let _win_svc_disp = _win_svc.getDefaultDisplay();
 
-    if (!_waitForAction(() => _disp = _getDisp(), 3000, 500)) {
+    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
         return console.error("device.getDisplay()返回结果异常");
     }
     _showDisp();
@@ -2826,7 +2826,7 @@ function _getDisplay(global_assign, params) {
         if (!cond_func) return true;
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10000;
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
         let _check_interval = typeof time_params === "object" && time_params[1] || 200;
         while (!_cond_func() && _check_time >= 0) {
             sleep(_check_interval);
