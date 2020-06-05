@@ -180,7 +180,9 @@ function _exports() {
                         for (let j = 0; j < 4; j += 1) {
                             _tmp += _dic[arr[i + j + 2]];
                         }
-                        _res += unescape("%u" + _tmp);
+                        _res += String.fromCharCode(
+                            parseInt(_tmp, 16)
+                        );
                         _shift = 4;
                     } else {
                         _res += _di;

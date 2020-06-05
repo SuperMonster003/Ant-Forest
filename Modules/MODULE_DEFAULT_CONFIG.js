@@ -1,4 +1,4 @@
-if (!global["cYx"] || !global["cX"]) {
+if (!global.cYx || !global.cX) {
     require("./EXT_DEVICE").getDisplay(true);
 }
 
@@ -18,8 +18,6 @@ module.exports = {
         account_log_back_in_max_continuous_times: 3,
         // stores information of the "main account" user
         main_account_info: {},
-        // 200 <= x <= 30e3, safe: 500; max check time for ant forest homepage balls being ready
-        max_own_forest_balls_ready_time: 800,
         // 10 <= x <= 500; as the saying goes, "Haste makes waste"
         balls_click_interval: 120,
         // set true value if you need continuously check your own energy balls
@@ -45,7 +43,7 @@ module.exports = {
         // 50 <= x <= 500; interval between two samples when saving into friend forest samples pool
         fri_forest_pool_itv: 120,
         // rectangle region for energy balls recognition in friends forest
-        fri_forest_balls_region: [cX(0.12), cYx(0.24), cX(0.88), cYx(0.44)],
+        fri_forest_balls_region: [cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
         hough_src_img_strategy: {
             gray: true, // images.grayscale(image)
@@ -63,7 +61,7 @@ module.exports = {
         // 0 <= x <= 40; the smaller, the stricter; max limit not tested yet
         ripe_ball_threshold: 13,
         // color for ripe balls in a friend's forest
-        ripe_ball_ident_color: "#ceff5f",
+        ripe_ball_ident_colors: ["#ceff5f"],
         // 0.06 <= x <= 0.15; minimum distance between two energy balls
         min_balls_distance: 0.09,
         // set false if you do not wanna give a hand; leave it true if you like "surprise"

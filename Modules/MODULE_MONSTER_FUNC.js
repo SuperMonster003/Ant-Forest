@@ -1,5 +1,5 @@
-global["$$impeded"] = (name) => {
-    let _$$flag = global["$$flag"];
+global.$$impeded = (name) => {
+    let _$$flag = global.$$flag;
     if (_$$flag && _$$flag.glob_e_trig_counter) {
         if (name) {
             messageAction("检测到全局事件触发信号", 1, 0, 0, "up_dash");
@@ -16,9 +16,9 @@ global["$$impeded"] = (name) => {
 
 let {
     ui, currentPackage, android, id, click, selector,
-    floaty, colors, toast, files, idMatches, engines,
-    events, timers, swipe, sleep, exit, app, threads,
-    images, device, auto, dialogs, context, http,
+    colors, toast, files, idMatches, device, engines,
+    events, swipe, sleep, exit, app, images, threads,
+    context, http,
 } = global;
 
 module.exports = {
@@ -62,8 +62,8 @@ module.exports = {
 /**
  * Returns both app name and app package name with either one input
  * @param name {string} - app name or app package name
- * @param [params] {object}
- * @param [params.hard_refresh=false] {boolean} - get app information from global cache by default
+ * @param {object} [params]
+ * @param {boolean} [params.hard_refresh=false] - get app information from global cache by default
  * @example
  * parseAppName("Alipay");
  * parseAppName("com.eg.android.AlipayGphone");
@@ -101,8 +101,8 @@ function parseAppName(name, params) {
  *     -- /^[Aa]uto\.?js/ - "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "") <br>
  *     -- /^[Cc]urrent.*[Aa]uto.*js/ - context.packageName <br>
  *     -- "self" - currentPackage()
- * @param [params] {object}
- * @param [params.debug_info_flag] {boolean}
+ * @param {object} [params]
+ * @param {boolean} [params.debug_info_flag]
  * @example
  * // app name
  * getVerName("Alipay");
@@ -124,22 +124,30 @@ function parseAppName(name, params) {
 function getVerName(name, params) {
     let _par = params || {};
 
-    let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
+    let _parseAppName = typeof parseAppName === "undefined"
+        ? parseAppNameRaw
+        : parseAppName;
+    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined"
+        ? debugInfoRaw
+        : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
 
-    name = _handleName(name);
-    let _package_name = _parseAppName(name).package_name;
-    if (!_package_name) return null;
-
-    try {
-        let _installed_packages = context.getPackageManager().getInstalledPackages(0).toArray();
-        for (let i in _installed_packages) {
-            if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
-                return _installed_packages[i].versionName;
+    let _name = _handleName(name);
+    let _pkg_name = _parseAppName(_name).package_name;
+    if (_pkg_name) {
+        try {
+            let _installed_pkgs = context.getPackageManager()
+                .getInstalledPackages(0).toArray();
+            for (let i in _installed_pkgs) {
+                if (_installed_pkgs.hasOwnProperty(i)) {
+                    let _pkg = _installed_pkgs[i].packageName.toString();
+                    if (_pkg === _pkg_name.toString()) {
+                        return _pkg;
+                    }
+                }
             }
+        } catch (e) {
+            _debugInfo(e);
         }
-    } catch (e) {
-        _debugInfo(e);
     }
     return null;
 
@@ -177,31 +185,36 @@ function getVerName(name, params) {
 /**
  * Launch some app with package name or intent
  * And wait for conditions ready if specified
- * @param trigger {object|string|function}
- * <br>
- *     -- intent - activity object like {
- *         action: "VIEW",
- *         packageName: "com.eg.android.AlipayGphone",
- *         className: "...",
- *     } <br>
- *     -- package name - like "com.eg.android.AlipayGphone" <br>
- *     -- app name - like "Alipay"
- *     -- function trigger - () => {}
- * @param [params] {object}
- * @param [params.package_name] {string}
- * @param [params.app_name] {string}
- * @param [params.task_name] {string}
- * @param [params.condition_launch] {function}
- * @param [params.condition_ready] {function}
- * @param [params.disturbance] {function}
- * @param [params.debug_info_flag] {boolean}
- * @param [params.first_time_run_message_flag=true] {boolean}
- * @param [params.no_message_flag] {boolean}
- * @param [params.global_retry_times=2] {number}
- * @param [params.launch_retry_times=3] {number}
- * @param [params.ready_retry_times=5] {number}
- * @param [params.screen_orientation] {number}
- *  -- if specific screen direction needed to run this app; portrait: 0, landscape: 1
+ * @param {object|string|function|android.content.Intent} trigger -
+ * the way of triggering the launcher
+ * <br> **{object}** - activity object
+ * <br> eg: {action:"VIEW",packageName:"...",className:"..."}
+ * <br> **{string}** - app package name or app name
+ * <br> eg: _com.eg.android.AlipayGphone" / "Alipay"
+ * <br> **{function}** - a function trigger which is callable
+ * <br> **{android.content.Intent}** - an android Intent instance
+ * @param {object} [params] - additional options
+ * @param {string} [params.package_name]
+ * @param {string} [params.app_name]
+ * @param {string} [params.task_name]
+ * @param {function} [params.condition_launch]
+ * @param {function|object} [params.condition_ready] -
+ * @param {string} [params.condition_ready.necessary_sel_key] -
+ * necessary selector key with one condition only
+ * @param {array} [params.condition_ready.necessary_sel_keys] -
+ * necessary selector keys with more than one condition
+ * @param {string} [params.condition_ready.optional_sel_key] -
+ * optional selector key with one condition only
+ * @param {array} [params.condition_ready.optional_sel_keys] -
+ * optional selector keys with more than one condition
+ * @param {function} [params.disturbance]
+ * @param {boolean} [params.debug_info_flag]
+ * @param {boolean} [params.first_time_run_message_flag=true]
+ * @param {boolean} [params.no_message_flag]
+ * @param {number} [params.global_retry_times=2]
+ * @param {number} [params.launch_retry_times=3]
+ * @param {number} [params.ready_retry_times=5]
+ * @param {number} [params.screen_orientation] - if specific screen direction needed to run this app; portrait: 0, landscape: 1
  * @example
  * launchThisApp("com.eg.android.AlipayGphone");
  * launchThisApp("com.eg.android.AlipayGphone", {
@@ -228,7 +241,7 @@ function launchThisApp(trigger, params) {
     let _par = params || {};
     _par.no_impeded || $$impeded(arguments.callee.name);
 
-    let $$und = x => typeof x === "undefined";
+    let $_und = x => typeof x === "undefined";
     let _messageAction = typeof messageAction === "undefined"
         ? messageActionRaw
         : messageAction;
@@ -332,7 +345,7 @@ function launchThisApp(trigger, params) {
             _messageAction('打开"' + _app_name + '"失败', 9, 1, 0, 1);
         }
 
-        if (_cond_ready === null || $$und(_cond_ready)) {
+        if ($_und(_cond_ready)) {
             _debugInfo("未设置启动完成条件参数");
             break;
         }
@@ -411,25 +424,27 @@ function launchThisApp(trigger, params) {
         let _scr_o_par = _par.screen_orientation;
         if (_scr_o_par === 1 && _isVert()) {
             _debugInfo("需等待屏幕方向为横屏");
-            return _waitForAction(_isHoriz, 8e3, 80)
-                ? (_debugInfo("屏幕方向已就绪"), sleep(500))
-                : _messageAction("等待屏幕方向变化超时", 4);
-        }
-        if (_scr_o_par === 0 && _isHoriz()) {
+            if (_waitForAction(_isHoriz, 8e3, 80)) {
+                _debugInfo("屏幕方向已就绪");
+                sleep(500);
+            } else {
+                _messageAction("等待屏幕方向变化超时", 4);
+            }
+        } else if (_scr_o_par === 0 && _isHoriz()) {
             _debugInfo("需等待屏幕方向为竖屏");
-            return _waitForAction(_isVert, 8e3, 80)
-                ? (_debugInfo("屏幕方向已就绪"), sleep(500))
-                : _messageAction("等待屏幕方向变化超时", 4);
+            if (_waitForAction(_isVert, 8e3, 80)) {
+                _debugInfo("屏幕方向已就绪");
+                sleep(500);
+            } else {
+                _messageAction("等待屏幕方向变化超时", 4);
+            }
         }
     }
 
     // raw function(s) //
 
     function getDisplayRaw(params) {
-        let $$flag = global["$$flag"];
-        if (!$$flag) {
-            $$flag = global["$$flag"] = {};
-        }
+        let $_flag = global.$$flag = global.$$flag || {};
 
         let _par = params || {};
         let _waitForAction = typeof waitForAction === "undefined" ?
@@ -478,10 +493,10 @@ function launchThisApp(trigger, params) {
         }
 
         function _showDisp() {
-            if (!$$flag.display_params_got) {
+            if (!$_flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + _W + " × " + _H);
                 _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                $$flag.display_params_got = true;
+                $_flag.display_params_got = true;
             }
         }
 
@@ -633,13 +648,13 @@ function launchThisApp(trigger, params) {
  * <br>
  *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
  *     -- package_name - like "com.eg.android.AlipayGphone"
- * @param [params] {object}
- * @param [params.shell_acceptable=true] {boolean}
- * @param [params.shell_max_wait_time=10e3] {number}
- * @param [params.keycode_back_acceptable=true] {boolean}
- * @param [params.keycode_back_twice=false] {boolean}
- * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function}
- * @param [params.debug_info_flag] {boolean}
+ * @param {object} [params]
+ * @param {boolean} [params.shell_acceptable=true]
+ * @param {number} [params.shell_max_wait_time=10e3]
+ * @param {boolean} [params.keycode_back_acceptable=true]
+ * @param {boolean} [params.keycode_back_twice=false]
+ * @param {function} [params.condition_success=()=>currentPackage() !== app_package_name]
+ * @param {boolean} [params.debug_info_flag]
  * @example
  * killThisApp("Alipay");
  * killThisApp("com.eg.android.AlipayGphone", {
@@ -843,24 +858,24 @@ function killThisApp(name, params) {
  *     } <br>
  *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
  *     -- package_name - like "com.eg.android.AlipayGphone"
- * @param [params] {object}
- * @param [params.shell_acceptable=true] {boolean} - for killing
- * @param [params.shell_max_wait_time=10e3] {number} - for killing
- * @param [params.keycode_back_acceptable=true] {boolean} - for killing
- * @param [params.keycode_back_twice=false] {boolean} - for killing
- * @param [params.condition_success=()=>currentPackage() !== app_package_name] {function} - for killing
- * @param [params.package_name] {string} - for launching
- * @param [params.app_name] {string} - for launching
- * @param [params.task_name] {string} - for launching
- * @param [params.condition_launch] {function} - for launching
- * @param [params.condition_ready] {function} - for launching
- * @param [params.disturbance] {function} - for launching
- * @param [params.debug_info_flag] {boolean}
- * @param [params.first_time_run_message_flag=true] {boolean} - for launching
- * @param [params.no_message_flag] {boolean} - for launching
- * @param [params.global_retry_times=2] {number} - for launching
- * @param [params.launch_retry_times=3] {number} - for launching
- * @param [params.ready_retry_times=5] {number} - for launching
+ * @param {object} [params]
+ * @param {boolean} [params.shell_acceptable=true] - for killing
+ * @param {number} [params.shell_max_wait_time=10e3] - for killing
+ * @param {boolean} [params.keycode_back_acceptable=true] - for killing
+ * @param {boolean} [params.keycode_back_twice=false] - for killing
+ * @param {function} [params.condition_success=()=>currentPackage() !== app_package_name] - for killing
+ * @param {string} [params.package_name] - for launching
+ * @param {string} [params.app_name] - for launching
+ * @param {string} [params.task_name] - for launching
+ * @param {function} [params.condition_launch] - for launching
+ * @param {function} [params.condition_ready] - for launching
+ * @param {function} [params.disturbance] - for launching
+ * @param {boolean} [params.debug_info_flag]
+ * @param {boolean} [params.first_time_run_message_flag=true] - for launching
+ * @param {boolean} [params.no_message_flag] - for launching
+ * @param {number} [params.global_retry_times=2] - for launching
+ * @param {number} [params.launch_retry_times=3] - for launching
+ * @param {number} [params.ready_retry_times=5] - for launching
  * @return {boolean}
  */
 function restartThisApp(intent_or_name, params) {
@@ -901,19 +916,19 @@ function restartThisApp(intent_or_name, params) {
 
 /**
  * Run a new task in engine and forcibly stop the old one (restart)
- * @param [params] {object}
- * @param [params.new_file] {string} - new engine task name with or without path or file extension name
+ * @param {object} [params]
+ * @param {string} [params.new_file] - new engine task name with or without path or file extension name
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.debug_info_flag] {boolean}
- * @param [params.max_restart_engine_times=1] {number} - max restart times for avoiding infinite recursion
- * @param [params.instant_run_flag=false] {boolean} - whether to perform an instant run or not
+ * @param {boolean} [params.debug_info_flag]
+ * @param {number} [params.max_restart_engine_times=1] - max restart times for avoiding infinite recursion
+ * @param {*} [params.instant_run_flag] - whether to perform an instant run or not
  * @example
  * restartThisEngine({
- *    debug_info_flag: "forcible",
+ *    debug_info_flag: true,
  *    max_restart_engine_times: 3,
- *    instant_run_flag: true,
+ *    instant_run_flag: false,
  * });
  * @return {boolean}
  */
@@ -929,7 +944,6 @@ function restartThisEngine(params) {
     let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
     let _max_restart_engine_times_params = _params.max_restart_engine_times;
     let _max_restart_engine_times;
-    let _instant_run_flag = !!_params.instant_run_flag;
     if (typeof _max_restart_engine_times_argv === "undefined") {
         if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
         else _max_restart_engine_times = _max_restart_engine_times_params;
@@ -955,7 +969,7 @@ function restartThisEngine(params) {
         arguments: Object.assign({}, _params, {
             max_restart_engine_times: _max_restart_engine_times - 1,
             max_restart_engine_times_backup: _max_restart_engine_times_backup,
-            instant_run_flag: _instant_run_flag,
+            instant_run_flag: _params.instant_run_flag,
         }),
     });
     _debugInfo("强制停止旧引擎任务");
@@ -1008,7 +1022,7 @@ function restartThisEngine(params) {
 /**
  * Run a javascript file via activity by current running Auto.js
  * @param file_name {string} - file name with or without path or file extension name
- * @param [e_args] {object} arguments params for engines - js file will run by startActivity without this param
+ * @param {object} [e_args] arguments params for engines - js file will run by startActivity without this param
  * @example
  * runJsFile("file");
  * runJsFile("../folder/time.js");
@@ -1056,7 +1070,7 @@ function runJsFile(file_name, e_args) {
  *     -- /up|-1/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
- * @param [params] {object} reserved
+ * @param {object} [params] reserved
  * @example
  * messageAction("hello"); // nothing will be printed in console
  * messageAction("hello", 1);
@@ -1075,10 +1089,9 @@ function runJsFile(file_name, e_args) {
  * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    global["$$flag"] = global["$$flag"] || {};
-    let $$flag = global["$$flag"];
+    let $_flag = global.$$flag = global.$$flag || {};
 
-    if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -1096,9 +1109,9 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     if (_if_toast) toast(_msg);
 
     let _spl_ln_style = "solid";
-    let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
-    let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
-    let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
+    let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
+    let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
+    let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
     if (typeof _if_spl_ln === "string") {
@@ -1209,15 +1222,15 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
 
 /**
  * Show a split line in console (32 bytes)
- * @param [extra_str] {string}
+ * @param {string} [extra_str]
  * <br>
  *     -- "\n" - a new blank line after split line <br>
  *     -- *OTHER* - unusual use
- * @param [style] {string}
+ * @param {string} [style]
  * <br>
  *     -- *DEFAULT* - "--------" - 32 bytes <br>
  *     -- "dash" - "- - - - - " - 32 bytes
- * @param [params] {object} - reserved
+ * @param {object} [params] - reserved
  * @example
  * showSplitLine();
  * showSplitLine("\n");
@@ -1246,14 +1259,14 @@ function showSplitLine(extra_str, style, params) {
  *         -- logic_flag <br>
  *         --- "and"|"all"|*DEFAULT* - meet all conditions <br>
  *         --- "or"|"one" - meet any one condition
- * @param [timeout_or_times=10e3] {number}
+ * @param {number} [timeout_or_times=10e3]
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- 0|Infinity - always wait until f is true <br>
  *     -- less than 100 - take as times
- * @param [interval=200] {number}
- * @param [params] {object}
- * @param [params.no_impeded] {boolean}
+ * @param {number} [interval=200]
+ * @param {object} [params]
+ * @param {boolean} [params.no_impeded]
  * @example
  * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80);
  * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2e3, 50);
@@ -1352,27 +1365,27 @@ function waitForAction(f, timeout_or_times, interval, params) {
  *     -- text("abc").desc("def").findOnce()[.parent()] <br>
  *     -- text("abc").desc("def").findOnce()[.parent()].bounds() <br>
  *     -- [106, 39]
- * @param [strategy] - decide the way of click
+ * @param {?string} [strategy] - decide the way of click
  * <br>
  *     -- "click"|c|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- "press|p" - press(coord_A, coord_B, press_time); <br>
  *     -- "widget|w" - text("abc").click(); - not available for Bounds or CoordsArray
- * @param [params] {object|string}
- * @param [params.press_time] {number=1} - only effective for "press" strategy
- * @param [params.condition_success=()=>true] {string|function}
+ * @param {object|string} [params]
+ * @param {number=1} [params.press_time] - only effective for "press" strategy
+ * @param {string|function} [params.condition_success=()=>true]
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
  *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
- * @param [params.check_time_once=500] {number}
- * @param [params.max_check_times=0] {number}
+ * @param {number} [params.check_time_once=500]
+ * @param {number} [params.max_check_times=0]
  * <br>
  *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
  *     --- example: (this is not usage) <br>
  *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
  *     -- return max_check_times >= 0;
- * @param [params.padding] {number|array}
+ * @param {number|array} [params.padding]
  * <br>
  *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
  *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
@@ -1396,37 +1409,56 @@ function clickAction(f, strategy, params) {
     let _par = params || {};
     _par.no_impeded || $$impeded(arguments.callee.name);
 
-    if (typeof f === "undefined" || f === null) return false;
+    if (typeof f === "undefined" || f === null) {
+        return false;
+    }
 
     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let $_str = o => typeof o === "string";
+    let $_und = o => typeof o === "undefined";
+    let $_num = o => typeof o === "number";
+    let _messageAction = typeof messageAction === "undefined"
+        ? messageActionRaw
+        : messageAction;
+    let _waitForAction = typeof waitForAction === "undefined"
+        ? waitForActionRaw
+        : waitForAction;
 
     /**
-     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
+     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"
      */
     let _type = _checkType(f);
     let _padding = _checkPadding(_par.padding);
-    if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+    if (!(typeof strategy).match(/string|undefined/)) {
+        _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+    }
     let _strategy = (strategy || "click").toString();
     let _widget_id = 0;
     let _widget_parent_id = 0;
 
-    let _condition_success = _par.condition_success;
+    let _cond_succ = _par.condition_success;
 
-    let _check_time_once = _par.check_time_once || 500;
-    let _max_check_times = _par.max_check_times || 0;
-    if (!_max_check_times && _condition_success) _max_check_times = 3;
-
-    if (typeof _condition_success === "string" && _condition_success.match(/disappear/)) {
-        _condition_success = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
-    } else if (typeof _condition_success === "undefined") _condition_success = () => true;
-
-    while (~_clickOnce() && _max_check_times--) {
-        if (_waitForAction(() => _condition_success(), _check_time_once, 50)) return true;
+    let _chk_t_once = _par.check_time_once || 500;
+    let _max_chk_cnt = _par.max_check_times || 0;
+    if (!_max_chk_cnt && _cond_succ) {
+        _max_chk_cnt = 3;
     }
-    return _condition_success();
+
+    if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
+        _cond_succ = () => (
+            _type.match(/^Ui/) ? _checkDisappearance() : true
+        );
+    } else if ($_und(_cond_succ)) {
+        _cond_succ = () => true;
+    }
+
+    while (~_clickOnce() && _max_chk_cnt--) {
+        if (_waitForAction(_cond_succ, _chk_t_once, 50)) {
+            return true;
+        }
+    }
+
+    return _cond_succ();
 
     // tool function(s) //
 
@@ -1436,26 +1468,32 @@ function clickAction(f, strategy, params) {
 
         if (_type === "UiSelector") {
             let _node = f.findOnce();
-            if (!_node) return;
+            if (!_node) {
+                return;
+            }
             try {
                 _widget_id = _node.toString().match(/@\w+/)[0].slice(1);
             } catch (e) {
                 _widget_id = 0;
             }
-            if (_strategy.match(/^w(idget)?$/) && _node.clickable() === true) return _node.click();
-            let _bounds = _node.bounds();
-            _x = _bounds.centerX();
-            _y = _bounds.centerY();
+            if (_strategy.match(/^w(idget)?$/) && _node.clickable() === true) {
+                return _node.click();
+            }
+            let _bnd = _node.bounds();
+            _x = _bnd.centerX();
+            _y = _bnd.centerY();
         } else if (_type === "UiObject") {
             try {
                 _widget_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
             } catch (e) {
                 _widget_parent_id = 0;
             }
-            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) return f.click();
-            let _bounds = f.bounds();
-            _x = _bounds.centerX();
-            _y = _bounds.centerY();
+            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) {
+                return f.click();
+            }
+            let _bnd = f.bounds();
+            _x = _bnd.centerX();
+            _y = _bnd.centerY();
         } else if (_type === "Bounds") {
             if (_strategy.match(/^w(idget)?$/)) {
                 _strategy = "click";
@@ -1470,8 +1508,11 @@ function clickAction(f, strategy, params) {
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
             }
-            _x = f[0];
-            _y = f[1];
+            if (Array.isArray(f)) {
+                [_x, _y] = f;
+            } else {
+                [_x, _y] = [f.x, f.y];
+            }
         }
         if (isNaN(_x) || isNaN(_y)) {
             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -1480,66 +1521,117 @@ function clickAction(f, strategy, params) {
         _x += _padding.x;
         _y += _padding.y;
 
-        _strategy.match(/^p(ress)?$/) ? press(_x, _y, _par.press_time || 1) : click(_x, _y);
+        _strategy.match(/^p(ress)?$/)
+            ? press(_x, _y, _par.press_time || 1)
+            : click(_x, _y);
     }
 
     function _checkType(f) {
-        let _checkJavaObject = o => {
-            if (_classof(o) !== "JavaObject") return;
-            let string = o.toString();
-            if (string.match(/^Rect\(/)) return "Bounds";
-            if (string.match(/UiObject/)) return "UiObject";
-            return "UiSelector";
-        };
-        let _checkCoordsArray = arr => {
-            if (_classof(f) !== "Array") return;
-            if (arr.length !== 2) _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
-            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
-            return "CoordsArray";
-        };
-        let _type_f = _checkJavaObject(f) || _checkCoordsArray(f);
-        if (!_type_f) _messageAction("clickAction()f参数类型未知", 8, 1, 0, 1);
+        let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
+        if (!_type_f) {
+            _messageAction("不支持的clickAction()f参数类型: " + _classof(f), 8, 1, 0, 1);
+        }
         return _type_f;
+
+        // tool function(s) //
+
+        function _chkJavaO(o) {
+            if (_classof(o) !== "JavaObject") {
+                return;
+            }
+            let string = o.toString();
+            if (string.match(/^Rect\(/)) {
+                return "Bounds";
+            }
+            if (string.match(/UiObject/)) {
+                return "UiObject";
+            }
+            return "UiSelector";
+        }
+
+        function _chkCoords(arr) {
+            if (_classof(f) !== "Array") {
+                return;
+            }
+            if (arr.length !== 2) {
+                _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
+            }
+            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") {
+                _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
+            }
+            return "CoordsArray";
+        }
+
+        function _chkObjXY(o) {
+            if (_classof(o) === "Object") {
+                if ($_num(o.x) && $_num(o.y)) {
+                    return "ObjXY";
+                }
+            }
+        }
     }
 
     function _checkPadding(arr) {
-        if (!arr) return {x: 0, y: 0};
+        if (!arr) {
+            return {x: 0, y: 0};
+        }
 
         let _coords = [];
-        if (typeof arr === "number") _coords = [0, arr];
-        else if (_classof(arr) !== "Array") _messageAction("clickAction()坐标偏移参数类型未知", 8, 1, 0, 1);
-        else {
-            let _arr_len = arr.length;
-            if (_arr_len === 1) _coords = [0, arr[0]];
-            else if (_arr_len === 2) {
-                let _arr_param_0 = arr[0];
-                if (_arr_param_0 === "x") _coords = [arr[1], 0];
-                else if (_arr_param_0 === "y") _coords = [0, arr[1]];
-                else _coords = arr;
-            } else _messageAction("clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1);
+        if ($_num(arr)) {
+            _coords = [0, arr];
+        } else if (_classof(arr) !== "Array") {
+            return _messageAction(
+                "clickAction()坐标偏移参数类型未知", 8, 1, 0, 1
+            );
         }
-        let _x = +_coords[0];
-        let _y = +_coords[1];
-        if (isNaN(_x) || isNaN(_y)) _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
-        return {
-            x: _x,
-            y: _y,
-        };
+
+        let _arr_len = arr.length;
+        if (_arr_len === 1) {
+            _coords = [0, arr[0]];
+        } else if (_arr_len === 2) {
+            let _par0 = arr[0];
+            if (_par0 === "x") {
+                _coords = [arr[1], 0];
+            } else if (_par0 === "y") {
+                _coords = [0, arr[1]];
+            } else {
+                _coords = arr;
+            }
+        } else {
+            return _messageAction(
+                "clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1
+            );
+        }
+
+        let [_x, _y] = [+_coords[0], +_coords[1]];
+        if (!isNaN(_x) && !isNaN(_y)) {
+            return {x: _x, y: _y};
+        }
+        _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
     }
 
     function _checkDisappearance() {
         try {
             if (_type === "UiSelector") {
                 let _node = f.findOnce();
-                if (!_node) return true;
-                return _par.condition_success.match(/in.?place/) ? _node.toString().match(/@\w+/)[0].slice(1) !== _widget_id : !_node;
-            } else if (_type === "UiObject") {
+                if (!_node) {
+                    return true;
+                }
+                if (!_par.condition_success.match(/in.?place/)) {
+                    return !_node;
+                }
+                let _mch = _node.toString().match(/@\w+/);
+                return _mch[0].slice(1) !== _widget_id;
+            }
+            if (_type === "UiObject") {
                 let _node_parent = f.parent();
-                if (!_node_parent) return true;
-                return _node_parent.toString().match(/@\w+/)[0].slice(1) !== _widget_parent_id;
+                if (!_node_parent) {
+                    return true;
+                }
+                let _mch = _node_parent.toString().match(/@\w+/);
+                return _mch[0].slice(1) !== _widget_parent_id;
             }
         } catch (e) {
-            return true
         }
         return true;
     }
@@ -1596,32 +1688,32 @@ function clickAction(f, strategy, params) {
  * Wait for an UiObject showing up and click it
  * -- This is a combination function which means independent use is not recommended
  * @param f {object} - only JavaObject is supported
- * @param [timeout_or_times=10e3] {number}
+ * @param {number} [timeout_or_times=10e3]
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- less than 100 - take as times
- * @param [interval=300] {number}
- * @param [click_params] {object}
- * @param [click_params.intermission=200] {number}
- * @param [click_params.click_strategy] {string} - decide the way of click
+ * @param {number} [interval=300]
+ * @param {object} [click_params]
+ * @param {number} [click_params.intermission=200]
+ * @param {string} [click_params.click_strategy] - decide the way of click
  * <br>
  *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- "press" - press(coord_A, coord_B, 1); <br>
  *     -- "widget" - text("abc").click();
- * @param [click_params.condition_success=()=>true] {string|function}
+ * @param {string|function} [click_params.condition_success=()=>true]
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
  *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
- * @param [click_params.check_time_once=500] {number}
- * @param [click_params.max_check_times=0] {number}
+ * @param {number} [click_params.check_time_once=500]
+ * @param {number} [click_params.max_check_times=0]
  * <br>
  *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
  *     --- example: (this is not usage) <br>
  *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
  *     -- return max_check_times >= 0;
- * @param [click_params.padding] {number|array}
+ * @param {number|array} [click_params.padding]
  * <br>
  *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
  *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
@@ -1702,14 +1794,14 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
 
 /**
  * Refresh screen objects or current package by a certain strategy
- * @param [strategy] {string}
+ * @param {string} [strategy]
  * <br>
  *     -- "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
  *     -- "page"|"recent[s]"|*DEFAULT*|*OTHER* - recents() + back() - may refresh currentPackage() <br>
- * @param [params] {object}
- * @param [params.custom_alert_text="Alert for refreshing objects"] {string}
- * @param [params.current_package=currentPackage()] {string}
- * @param [params.debug_info_flag] {boolean}
+ * @param {object} [params]
+ * @param {string} [params.custom_alert_text="Alert for refreshing objects"]
+ * @param {string} [params.current_package=currentPackage()]
+ * @param {boolean} [params.debug_info_flag]
  */
 function refreshObjects(strategy, params) {
     let _params = params || {};
@@ -1785,23 +1877,23 @@ function refreshObjects(strategy, params) {
 /**
  * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of "f"
  * @param f {object} - JavaObject
- * @param [params] {object}
- * @param [params.max_swipe_times=12] {number}
- * @param [params.swipe_direction="auto"] {number|string}
+ * @param {object} [params]
+ * @param {number} [params.max_swipe_times=12]
+ * @param {number|string} [params.swipe_direction="auto"]
  * <br>
  *     -- 0|"l"|"left", 1|"u"|"up", 2|"r"|"right", 3|"d"|"down" - direction to swipe each time <br>
  *     -- "auto" - if "f" exists but not in aim area, direction will be auto-set decided by position of "f", or direction will be "up"
- * @param [params.swipe_time=150] {number} - the time spent for each swiping - set bigger as needed
- * @param [params.swipe_interval=300] {number} - the time spent between every swiping - set bigger as needed
- * @param [params.swipe_area=[0.1, 0.1, 0.9, 0.9]] {number[]} - swipe from a center-point to another
- * @param [params.aim_area=[0, 0, -1, -1]] {number[]} - restrict for smaller aim area
+ * @param {number} [params.swipe_time=150] - the time spent for each swiping - set bigger as needed
+ * @param {number} [params.swipe_interval=300] - the time spent between every swiping - set bigger as needed
+ * @param {number[]} [params.swipe_area=[0.1, 0.1, 0.9, 0.9]] - swipe from a center-point to another
+ * @param {number[]} [params.aim_area=[0, 0, -1, -1]] - restrict for smaller aim area
  * <br>
  *     -- area params - x|0<=x<1: x * (height|width), -1: full-height or full-width, -2: set with default value <br>
  *     -- [%left%, %top%, %right%, %bottom%] <br>
  *     -- [1, 50, 700, 1180] - [1, 50, 700, 1180] <br>
  *     -- [1, 50, 700, -1] - [1, 50, 700, device.height] <br>
  *     -- [0.1, 0.2, -1, -1] - [0.1 * device.width, 0.2 * device.height, device.width, device.height]
- * @param [params.condition_meet_sides=1] {number=1|2}
+ * @param {number=1|2} [params.condition_meet_sides=1]
  * <br>
  *     -- example A: condition_meet_sides = 1 <br>
  *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
@@ -1824,10 +1916,10 @@ function swipeAndShow(f, params) {
     let _condition_meet_sides = parseInt(_par.condition_meet_sides);
     if (_condition_meet_sides !== 1 || _condition_meet_sides !== 2) _condition_meet_sides = 1;
 
-    if (!global["WIDTH"] || !global["HEIGHT"]) {
+    if (!global.WIDTH || !global.HEIGHT) {
         let _data = getDisplayRaw();
-        global["WIDTH"] = _data.WIDTH;
-        global["HEIGHT"] = _data.HEIGHT;
+        global.WIDTH = _data.WIDTH;
+        global.HEIGHT = _data.HEIGHT;
     }
 
     let _swipe_area = _setAreaParams(_par.swipe_area, [0.1, 0.1, 0.9, 0.9]);
@@ -2025,10 +2117,7 @@ function swipeAndShow(f, params) {
     // raw function(s) //
 
     function getDisplayRaw(params) {
-        let $$flag = global["$$flag"];
-        if (!$$flag) {
-            $$flag = global["$$flag"] = {};
-        }
+        let $_flag = global.$$flag = global.$$flag || {};
 
         let _par = params || {};
         let _waitForAction = typeof waitForAction === "undefined" ?
@@ -2077,10 +2166,10 @@ function swipeAndShow(f, params) {
         }
 
         function _showDisp() {
-            if (!$$flag.display_params_got) {
+            if (!$_flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + _W + " × " + _H);
                 _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                $$flag.display_params_got = true;
+                $_flag.display_params_got = true;
             }
         }
 
@@ -2160,23 +2249,23 @@ function swipeAndShow(f, params) {
  * Swipe to make a certain specified area, then click it
  * -- This is a combination function which means independent use is not recommended
  * @param f {object} - JavaObject
- * @param [swipe_params] {object}
- * @param [swipe_params.max_swipe_times=12] {number}
- * @param [swipe_params.swipe_direction="auto"] {number|string}
+ * @param {object} [swipe_params]
+ * @param {number} [swipe_params.max_swipe_times=12]
+ * @param {number|string} [swipe_params.swipe_direction="auto"]
  * <br>
  *     -- 0|"l"|"left", 1|"u"|"up", 2|"r"|"right", 3|"d"|"down" - direction to swipe each time <br>
  *     -- "auto" - if "f" exists but not in aim area, direction will be auto-set decided by position of "f", or direction will be "up"
- * @param [swipe_params.swipe_time=150] {number} - the time spent for each swiping - set bigger as needed
- * @param [swipe_params.swipe_interval=300] {number} - the time spent between every swiping - set bigger as needed
- * @param [swipe_params.swipe_area=[0.1, 0.1, 0.9, 0.9]] {number[]} - swipe from a center-point to another
- * @param [swipe_params.aim_area=[0, 0, -1, -1]] {number[]} - restrict for smaller aim area
+ * @param {number} [swipe_params.swipe_time=150] - the time spent for each swiping - set bigger as needed
+ * @param {number} [swipe_params.swipe_interval=300] - the time spent between every swiping - set bigger as needed
+ * @param {number[]} [swipe_params.swipe_area=[0.1, 0.1, 0.9, 0.9]] - swipe from a center-point to another
+ * @param {number[]} [swipe_params.aim_area=[0, 0, -1, -1]] - restrict for smaller aim area
  * <br>
  *     -- area params - x|0<=x<1: x * (height|width), -1: full-height or full-width, -2: set with default value <br>
  *     -- [%left%, %top%, %right%, %bottom%] <br>
  *     -- [1, 50, 700, 1180] - [1, 50, 700, 1180] <br>
  *     -- [1, 50, 700, -1] - [1, 50, 700, device.height] <br>
  *     -- [0.1, 0.2, -1, -1] - [0.1 * device.width, 0.2 * device.height, device.width, device.height]
- * @param [swipe_params.condition_meet_sides=1] {number=1|2}
+ * @param {number=1|2} [swipe_params.condition_meet_sides=1]
  * <br>
  *     -- example A: condition_meet_sides = 1 <br>
  *     -- aim: [0, 0, 720, 1004], direction: "up", swipe distance: 200 <br>
@@ -2187,27 +2276,27 @@ function swipeAndShow(f, params) {
  *     -- swipe once - bounds: [0, 1100, 720, 1350] - neither top nor bottom < 1004 - continue swiping <br>
  *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004, but not bottom - swipe will not stop <br>
  *     -- swipe once - bounds: [0, 700, 720, 950] - top < 1004, and so is bottom - swipe will stop
- * @param [click_params] {object}
- * @param [click_params.intermission=300] {number}
- * @param [click_params.click_strategy] {string} - decide the way of click
+ * @param {object} [click_params]
+ * @param {number} [click_params.intermission=300]
+ * @param {string} [click_params.click_strategy] - decide the way of click
  * <br>
  *     -- "click"|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- "press" - press(coord_A, coord_B, 1); <br>
  *     -- "widget" - text("abc").click();
- * @param [click_params.condition_success=()=>true] {string|function}
+ * @param {string|function} [click_params.condition_success=()=>true]
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
  *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
- * @param [click_params.check_time_once=500] {number}
- * @param [click_params.max_check_times=0] {number}
+ * @param {number} [click_params.check_time_once=500]
+ * @param {number} [click_params.max_check_times=0]
  * <br>
  *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
  *     --- example: (this is not usage) <br>
  *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
  *     -- return max_check_times >= 0;
- * @param [click_params.padding] {number|array}
+ * @param {number|array} [click_params.padding]
  * <br>
  *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
  *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
@@ -2254,10 +2343,10 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
 /**
  * Simulates touch, keyboard or key press events (by shell or functions based on accessibility service)
  * @param code {string|number} - {@link https://developer.android.com/reference/android/view/KeyEvent}
- * @param [params] {object}
- * @param [params.force_shell] {boolean} - don't use accessibility functions like back(), home() or recents()
- * @param [params.no_err_msg] {boolean} - don't print error message when keycode() failed
- * @param [params.double] {boolean} - simulate keycode twice with tiny interval
+ * @param {object} [params]
+ * @param {boolean} [params.force_shell] - don't use accessibility functions like back(), home() or recents()
+ * @param {boolean} [params.no_err_msg] - don't print error message when keycode() failed
+ * @param {boolean} [params.double] - simulate keycode twice with tiny interval
  * @example
  * // home key
  * keycode("home");
@@ -2390,17 +2479,16 @@ function keycode(code, params) {
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
  *     - ">sum is much smaller" - ">>> sum is much smaller"
- * @param [info_flag] {string|number} - like: "up"; "Up"; 3; "up_3"; "both_4" -- "Up": black "up line"; "up": grey "up line"
- * @param [forcible_flag] {boolean} - forcibly enable with true value
+ * @param {string|number} [info_flag] - like: "up"; "Up"; 3; "up_3"; "both_4" -- "Up": black "up line"; "up": grey "up line"
+ * @param {boolean} [forcible_flag] - forcibly enable with true value
  */
 function debugInfo(msg, info_flag, forcible_flag) {
-    global["$$flag"] = global["$$flag"] || {};
-    let $$flag = global["$$flag"];
+    let $_flag = global.$$flag = global.$$flag || {};
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let global_flag = $$flag.debug_info_avail;
+    let global_flag = $_flag.debug_info_avail;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
 
@@ -2556,9 +2644,9 @@ function deepCloneObject(obj) {
  *     - "full_left" - "[WIDTH, 0]" <br>
  *     - "full_right" - "[-WIDTH, 0]" <br>
  *     - [-90, 0] - 90 px right shifting
- * @param [duration=180] {number} - scroll duration
+ * @param {number} [duration=180] - scroll duration
  * @param pages_pool {array} - pool for storing pages (parent views)
- * @param [base_view=ui.main] {View} - specified view for attaching parent views
+ * @param {View} [base_view=ui.main] - specified view for attaching parent views
  */
 function smoothScrollView(shifting, duration, pages_pool, base_view) {
     if (pages_pool.length < 2) return;
@@ -2641,10 +2729,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
     // raw function(s) //
 
     function getDisplayRaw(params) {
-        let $$flag = global["$$flag"];
-        if (!$$flag) {
-            $$flag = global["$$flag"] = {};
-        }
+        let $_flag = global.$$flag = global.$$flag || {};
 
         let _par = params || {};
         let _waitForAction = typeof waitForAction === "undefined" ?
@@ -2693,10 +2778,10 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         }
 
         function _showDisp() {
-            if (!$$flag.display_params_got) {
+            if (!$_flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + _W + " × " + _H);
                 _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                $$flag.display_params_got = true;
+                $_flag.display_params_got = true;
             }
         }
 
@@ -2776,7 +2861,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
  * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
  * @param dialog {Dialogs} - wrapped "dialogs" object
  * @param message {string} - message shown in title view
- * @param [duration=3e3] {number} - time duration before message dismissed (0 for non-auto dismiss)
+ * @param {number} [duration=3e3] - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
     global["_$_alert_title_info"] = global["_$_alert_title_info"] || {};
@@ -2828,7 +2913,7 @@ function alertTitle(dialog, message, duration) {
  * Replace or append a message in dialogs content view
  * @param dialog {Dialogs} - wrapped "dialogs" object
  * @param message {string} - message shown in content view
- * @param [mode="replace"] {string}
+ * @param {string} [mode="replace"]
  * <br>
  *     -- "replace" - original content will be replaced <br>
  *     -- "append" - original content will be reserved
@@ -2851,8 +2936,8 @@ function alertContent(dialog, message, mode) {
  * Observe message(s) from Toast by events.observeToast()
  * @param aim_app_pkg {string}
  * @param aim_msg {RegExp|string} - regular expression or a certain specific string
- * @param [timeout=20e3] {number}
- * @param [aim_amount=1] {number} - events will be cleared if aim_amount messages have been got
+ * @param {number} [timeout=20e3]
+ * @param {number} [aim_amount=1] - events will be cleared if aim_amount messages have been got
  * @return {string[]}
  */
 function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
@@ -2906,31 +2991,41 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 
 /**
  * Save current screen capture as a file with a key name and a formatted timestamp
- * @param key_name {string} - a key name as a clip of the file name
- * @param log_level - #see messageAction -- leave false value (not including 0) if not needing console logs
+ * @param {string} key_name - a key name as a clip of the file name
+ * @param {number|string|object} log_level - any falsy but 0 for not needing console logs
  * @see messageAction
  */
 function captureErrScreen(key_name, log_level) {
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    images.requestScreenCapture();
 
-    let _$$und = o => typeof o === "undefined";
-    let _capt = _$$und(images.permit) ? permitCapt : images.permit;
-    _capt();
+    let _messageAction = typeof messageAction === "undefined"
+        ? messageActionRaw
+        : messageAction;
 
-    let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
+    let _dir = files.getSdcardPath() + "/.local/Pics/Err/";
+    let _suffix = "_" + _getTimeStr();
+    let _path = _dir + key_name + _suffix + ".png";
 
-    files.createWithDirs(path);
-    images.captureScreen(path);
-    _messageAction("已存储屏幕截图文件:", log_level);
-    _messageAction(path, log_level);
+    try {
+        files.createWithDirs(_path);
+        images.captureScreen(_path);
+        _messageAction("已存储屏幕截图文件:", log_level);
+        _messageAction(_path, log_level);
+    } catch (e) {
+        _messageAction(e.message, 3);
+    }
 
     // tool function(s) //
 
-    function getTimeStr() {
-        let now = new Date();
-        let padZero = num => (num < 10 ? "0" : "") + num;
-        return now.getFullYear() + padZero(now.getMonth() + 1) + padZero(now.getDate())
-            + padZero(now.getHours()) + padZero(now.getMinutes()) + padZero(now.getSeconds());
+    function _getTimeStr() {
+        let _now = new Date();
+        let _pad = n => (n < 10 ? "0" : "") + n;
+        return _now.getFullYear() +
+            _pad(_now.getMonth() + 1) +
+            _pad(_now.getDate()) +
+            _pad(_now.getHours()) +
+            _pad(_now.getMinutes()) +
+            _pad(_now.getSeconds());
     }
 
     // raw function(s) //
@@ -2965,35 +3060,12 @@ function captureErrScreen(key_name, log_level) {
         }
         return true;
     }
-
-    function permitCapt() {
-        let _$$isJvo = x => x && !!x["getClass"];
-        let _key = "_$_request_screen_capture";
-        let _fg = global[_key];
-        let _cwd = engines.myEngine().cwd();
-        let _path = _cwd + "/Modules/EXT_IMAGES.js";
-
-        if (files.exists(_path)) {
-            return require(_path).permit();
-        }
-
-        if (_$$isJvo(_fg)) {
-            if (_fg) return true;
-            _fg.incrementAndGet();
-        } else {
-            global[_key] = threads.atomic(1);
-        }
-
-        images.requestScreenCapture(false);
-        sleep(300);
-        return true;
-    }
 }
 
 /**
  * Returns a UiSelector with additional function(s) bound to its __proto__
- * @param [options]
- * @param [options.debug_info_flag] {boolean}
+ * @param {object} [options]
+ * @param {boolean} [options.debug_info_flag]
  * @returns {UiSelector} - with additional function(s)
  */
 function getSelector(options) {
@@ -3002,7 +3074,7 @@ function getSelector(options) {
     let _debugInfo = _msg => (
         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
     )(_msg, "", _opt.debug_info_flag);
-    let _sel = global["selector"]();
+    let _sel = selector();
     _sel.__proto__ = _sel.__proto__ || {};
     Object.assign(_sel.__proto__, {
         kw_pool: {},
@@ -3016,13 +3088,13 @@ function getSelector(options) {
          * <br>
          *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
          *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-         * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
-         * @param [res_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+         * @param {?string} [mem_kw] - to mark this selector node; better use a keyword without conflict
+         * @param {string} [res_type="node"] - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
          * <br>
          *     -- "txt": available text()/desc() value or empty string
-         * @param [par] {object}
-         * @param [par.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-         * @param [par.debug_info_flag] {boolean}
+         * @param {object} [par]
+         * @param {string} [par.selector_prefer="desc"] - unique selector you prefer to check first; "text" or "desc"
+         * @param {boolean} [par.debug_info_flag]
          * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
          * @example
          * // text/desc/id("abc").findOnce();
@@ -3050,7 +3122,7 @@ function getSelector(options) {
          * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
          * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
          */
-        pickup: (sel_body, res_type, mem_kw, par) => {
+        pickup(sel_body, res_type, mem_kw, par) {
             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
             let _params = Object.assign({}, _opt, par);
             let _res_type = (res_type || "").toString();
@@ -3381,14 +3453,14 @@ function getSelector(options) {
                 }
             }
         },
-        add: function (key, sel_body, kw) {
+        add(key, sel_body, kw) {
             let _kw = typeof kw === "string" ? kw : key;
             this.kw_pool[key] = typeof sel_body === "function"
                 ? type => sel_body(type)
                 : type => this.pickup(sel_body, type, _kw);
             return this;
         },
-        get: function (key, type) {
+        get(key, type) {
             let _picker = this.kw_pool[key];
             if (!_picker) {
                 return null;
@@ -3398,29 +3470,29 @@ function getSelector(options) {
             }
             return _picker(type);
         },
-        getAndCache: function (key) {
+        getAndCache(key) {
             // only "node" type can be returned
             return this.get(key, "save_cache");
         },
         cache: {
             save: (key) => _sel.getAndCache(key),
-            load: (key, type) => {
+            load(key, type) {
                 let _node = _sel.cache_pool[key];
                 if (!_node) {
                     return null;
                 }
                 return _sel.pickup(_sel.cache_pool[key], type);
             },
-            refresh: function (key) {
+            refresh(key) {
                 let _cache = _sel.cache_pool[key];
                 _cache && _cache.refresh();
                 this.save(key);
             },
-            reset: (key) => {
+            reset(key) {
                 delete _sel.cache_pool[key];
                 return _sel.getAndCache(key);
             },
-            recycle: (key) => {
+            recycle(key) {
                 let _cache = _sel.cache_pool[key];
                 _cache && _cache.recycle();
             },
@@ -3442,8 +3514,8 @@ function getSelector(options) {
 /**
  * Returns a new string with a certain mark surrounded
  * @param target {*} - will be converted to String format
- * @param [mark_left='"'] {*} - will be converted to String format
- * @param [mark_right=mark_left] {*} - will be converted to String format
+ * @param {*} [mark_left='"'] - will be converted to String format
+ * @param {*} [mark_right=mark_left] - will be converted to String format
  * @example
  * surroundedBy("ABC") // "ABC"
  * surroundedBy("ABC", "#") // "#ABC#"
@@ -3461,14 +3533,14 @@ function surroundWith(target, mark_left, mark_right) {
 /**
  * Record a timestamp then get the time gap by a certain keyword
  * @param keyword {string}
- * @param [operation] {boolean|number|string}
+ * @param {boolean|number|string} [operation]
  * <br>
  * put a timestamp: "put"; "save"; false value <br>
  * load time gap: "load", "get", any other true value <br>
- * @param [divisor=1] {number|"auto"} - "auto" for picking up a result intelligently
- * @param [fixed] {array|number} - array: max decimal places (last place won't be 0)
- * @param [suffix=""|"$$ch"] {string} - "$$en" or "$$ch" is available when %divisor% is set "auto"
- * @param [override_timestamp] {number|Date}
+ * @param {number|"auto"} [divisor=1] - "auto" for picking up a result intelligently
+ * @param {array|number} [fixed] - array: max decimal places (last place won't be 0)
+ * @param {string} [suffix=""|"$$ch"] - "$$en" or "$$ch" is available when %divisor% is set "auto"
+ * @param {number|Date} [override_timestamp]
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
  * // result eg: 1565080123796
@@ -3605,12 +3677,12 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
 /**
  * Function for a series of ordered click actions
  * @param pipeline {array} - object is disordered; use array instead - last item condition: null for self exists; undefined for self disappeared
- * @param [options={}] {object}
- * @param [options.name] {string} - pipeline name
- * @param [options.interval=0] {number}
- * @param [options.max_try_times=5] {number}
- * @param [options.default_strategy="click"] {string}
- * @param [options.debug_info_flag] {boolean}
+ * @param {object} [options={}]
+ * @param {string} [options.name] - pipeline name
+ * @param {number} [options.interval=0]
+ * @param {number} [options.max_try_times=5]
+ * @param {string} [options.default_strategy="click"]
+ * @param {boolean} [options.debug_info_flag]
  * @returns {boolean}
  */
 function clickActionsPipeline(pipeline, options) {
@@ -3677,7 +3749,7 @@ function clickActionsPipeline(pipeline, options) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let sel = selector();
         sel.__proto__ = {
-            pickup: (filter) => {
+            pickup(filter) {
                 if (classof(filter) === "JavaObject") {
                     if (filter.toString().match(/UiObject/)) return filter;
                     return filter.findOnce() || null;
@@ -3790,12 +3862,12 @@ function timedTaskTimeFlagConverter(timeFlag) {
 /**
  * Fetching data by calling OCR API from Baidu
  * @param src {Array|ImageWrapper|UiObject|UiObjectCollection} -- will be converted into ImageWrapper(s)
- * @param [par] {object}
- * @param [par.no_toast_msg_flag=false] {boolean}
- * @param [par.fetch_times=1] {boolean}
- * @param [par.fetch_interval=100] {number}
- * @param [par.debug_info_flag=false] {boolean}
- * @param [par.timeout=60e3] {number} -- no less than 5e3
+ * @param {object} [par]
+ * @param {boolean} [par.no_toast_msg_flag=false]
+ * @param {boolean} [par.fetch_times=1]
+ * @param {number} [par.fetch_interval=100]
+ * @param {boolean} [par.debug_info_flag=false]
+ * @param {number} [par.timeout=60e3] -- no less than 5e3
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
  * // @see "MODULE_MONSTER_FUNC.js"
@@ -3807,24 +3879,38 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * });
  */
 function baiduOcr(src, par) {
-    if (!src) return [];
+    let _isRecycled = (img) => {
+        if (!img) return true;
+        try {
+            img.getHeight();
+        } catch (e) {
+            return !!e.message.match(/has been recycled/);
+        }
+    };
+    if (!src) {
+        return [];
+    }
+    let _par = par || {};
+    let _tt = _par.timeout || 60e3;
+    if (!+_tt || _tt < 5e3) {
+        _tt = 5e3;
+    }
+    let _tt_ts = Date.now() + _tt;
 
-    par = par || {};
-
-    let _tt = par.timeout || 60e3;
-    if (!+_tt || _tt < 5e3) _tt = 5e3;
-    let _tt_ts = +new Date() + _tt;
+    let $_und = o => typeof o === "undefined";
+    $_und(images.permit) ? _permitCapt() : images.permit();
+    let _capt = _par.capt_img || images.capt ? images.capt() : images.captureScreen();
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _debugInfo = (_msg) => {
-        if (!par.debug_info_flag) return null;
+        if (!_par.debug_info_flag) return null;
         return (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", true);
     };
 
     let _msg = "使用baiduOcr获取数据";
     _debugInfo(_msg);
-    if (!par.no_toast_msg_flag) toast(_msg);
+    _par.no_toast_msg_flag || toast(_msg);
 
     let _token = "";
     let _max_token = 10;
@@ -3845,23 +3931,21 @@ function baiduOcr(src, par) {
     });
     _thd_token.join(_tt);
     if (_max_token < 0) {
-        _messageAction("baiduOcr获取access_token失败", 3, +!par.no_toast_msg_flag, 0, "both_dash");
+        let _msg = "baiduOcr获取access_token失败";
+        let _lv = +!_par.no_toast_msg_flag;
+        _messageAction(_msg, 3, _lv, 0, "both_dash");
         return [];
     }
     if (_thd_token.isAlive()) {
         let _msg = "baiduOcr获取access_token超时";
-        let _toast = +!par.no_toast_msg_flag;
+        let _toast = +!_par.no_toast_msg_flag;
         _messageAction(_msg, 3, _toast, 0, "both_dash");
         return [];
     }
 
-    let _$$und = o => typeof o === "undefined";
-    let _capt = _$$und(images.permit) ? permitCapt : images.permit;
-    _capt();
-
-    let _max = par.fetch_times || 1;
+    let _max = _par.fetch_times || 1;
     let _max_b = _max;
-    let _itv = par.fetch_interval || 300;
+    let _itv = _par.fetch_interval || 300;
     let _res = [];
     let _thds = [];
     let _allDead = () => {
@@ -3873,9 +3957,17 @@ function baiduOcr(src, par) {
 
     while (_max--) {
         _thds.push(threads.start(function () {
-            let img = stitchImages(src);
-            if (!img) return [];
-
+            let _max_img = 10;
+            let _img = _stitchImgs(src);
+            while (_max_img--) {
+                if (!_img || !_max_img) {
+                    return [];
+                }
+                if (!_isRecycled(_img)) {
+                    break;
+                }
+                _img = _stitchImgs(src);
+            }
             let _cur = _max_b - _max;
             let _img_str = "stitched_image";
             let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
@@ -3889,7 +3981,8 @@ function baiduOcr(src, par) {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded'
                     },
-                    image: images.toBase64(img), // images.read(img_file) for local file
+                    // images.read(img_file) for local file
+                    image: images.toBase64(_img),
                     image_type: "BASE64",
                 };
                 let _response = http.post(_url, _opt).body.string();
@@ -3905,8 +3998,8 @@ function baiduOcr(src, par) {
                     throw (e);
                 }
             } finally {
-                img.recycle();
-                img = null;
+                _img.recycle();
+                _img = null;
             }
         }));
         sleep(_itv);
@@ -3919,7 +4012,7 @@ function baiduOcr(src, par) {
                 _thds.forEach(thd => thd.interrupt());
 
                 let _msg = "baiduOcr获取数据超时";
-                let _toast = +!par.no_toast_msg_flag;
+                let _toast = +!_par.no_toast_msg_flag;
                 _messageAction(_msg, 3, _toast, 0, "up_dash");
 
                 if (_res.length) {
@@ -3930,27 +4023,49 @@ function baiduOcr(src, par) {
         }
     });
 
-    while (sleep(500) || true) {
+    while (1) {
         if (_allDead()) {
-            if (!par.no_toast_msg_flag && _res.length) {
+            if (!_par.no_toast_msg_flag && _res.length) {
                 toast("baiduOcr获取数据完毕");
             }
             return _max_b === 1 ? _res[0] : _res;
         }
+        sleep(500);
     }
 
     // tool function(s) //
 
-    function stitchImages(imgs) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let getType = (o) => {
+    function _stitchImgs(imgs) {
+        if (!Array.isArray(imgs)) {
+            imgs = [imgs].slice();
+        }
+
+        imgs = imgs.map((img) => {
+            let type = _getType(img);
+            if (type === "UiObject") {
+                return _nodeToImage(img);
+            }
+            if (type === "UiObjectCollection") {
+                return _nodesToImage(img);
+            }
+            return img;
+        });
+
+        return _stitchImg(imgs);
+
+        // tool function(s) //
+
+        function _getType(o) {
             let matched = o.toString().match(/\w+(?=@)/);
             return matched ? matched[0] : "";
-        };
-        let nodeToImage = (node) => {
-            let clipImg = bounds => images.clip(images.captureScreen(), bounds.left, bounds.top, bounds.width(), bounds.height());
+        }
+
+        function _nodeToImage(node) {
+            let clipImg = bnd => images.clip(_capt,
+                bnd.left, bnd.top, bnd.width(), bnd.height()
+            );
             try {
-                // XXX: Nov 11, 2019 by SuperMonster003
+                // FIXME Nov 11, 2019
                 // there is a strong possibility that `node.bounds()` would throw an exception
                 // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
                 let bounds = {};
@@ -3965,42 +4080,43 @@ function baiduOcr(src, par) {
             } catch (e) {
                 // just in case
             }
-        };
-        let nodesToImage = (nodes) => {
+        }
+
+        function _nodesToImage(nodes) {
             let imgs = [];
             nodes.forEach((node) => {
-                let img = nodeToImage(node);
+                let img = _nodeToImage(node);
                 img && imgs.push(img);
             });
-            return stitchImg(imgs);
-        };
-        let stitchImg = (imgs) => {
-            if (getType(imgs) === "ImageWrapper" && classof(imgs) !== "Array") return imgs;
-            if (imgs.length === 1) return imgs[0];
-            let stitched = imgs[0];
-            imgs.forEach((img, idx) => stitched = idx ? images.concat(stitched, img, "BOTTOM") : stitched);
-            return stitched;
-        };
-        if (classof(imgs) !== "Array") imgs = [imgs].slice();
-        imgs = imgs.map(img => {
-            let type = getType(img);
-            if (type === "UiObject") return nodeToImage(img);
-            if (type === "UiObjectCollection") return nodesToImage(img);
-            return img;
-        });
-        return stitchImg(imgs);
+            return _stitchImg(imgs);
+        }
+
+        function _stitchImg(imgs) {
+            let _isImgWrap = o => _getType(o) === "ImageWrapper";
+            if (_isImgWrap(imgs) && !Array.isArray(imgs)) {
+                return imgs;
+            }
+            if (imgs.length === 1) {
+                return imgs[0];
+            }
+            let _stitched = imgs[0];
+            imgs.forEach((img, idx) => {
+                if (idx) {
+                    _stitched = images.concat(_stitched, img, "BOTTOM");
+                }
+            });
+            return _stitched;
+        }
     }
 
-    function permitCapt() {
+    // monster function(s) //
+
+    // updated at Jun 4, 2020
+    function _permitCapt(params) {
+        let _$$und = x => typeof x === "undefined";
         let _$$isJvo = x => x && !!x["getClass"];
         let _key = "_$_request_screen_capture";
         let _fg = global[_key];
-        let _cwd = engines.myEngine().cwd();
-        let _path = _cwd + "/Modules/EXT_IMAGES.js";
-
-        if (files.exists(_path)) {
-            return require(_path).permit();
-        }
 
         if (_$$isJvo(_fg)) {
             if (_fg) return true;
@@ -4009,9 +4125,237 @@ function baiduOcr(src, par) {
             global[_key] = threads.atomic(1);
         }
 
-        images.requestScreenCapture(false);
-        sleep(300);
-        return true;
+        let _par = params || {};
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+        )(m, fg, _par.debug_info_flag);
+
+        _debugInfo("开始申请截图权限");
+
+        let _waitForAction = (
+            typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction
+        );
+        let _messageAction = (
+            typeof messageAction === "undefined" ? messageActionRaw : messageAction
+        );
+        let _clickAction = (
+            typeof clickAction === "undefined" ? clickActionRaw : clickAction
+        );
+        let _getSelector = (
+            typeof getSelector === "undefined" ? getSelectorRaw : getSelector
+        );
+        let _$$sel = _getSelector();
+
+        if (_$$und(_par.restart_this_engine_flag)) {
+            _par.restart_this_engine_flag = true;
+        } else {
+            let _self = _par.restart_this_engine_flag;
+            _par.restart_this_engine_flag = !!_self;
+        }
+        if (!_par.restart_this_engine_params) {
+            _par.restart_this_engine_params = {};
+        }
+        if (!_par.restart_this_engine_params.max_restart_engine_times) {
+            _par.restart_this_engine_params.max_restart_engine_times = 3;
+        }
+
+        _debugInfo("已开启弹窗监测线程");
+        let _thread_prompt = threads.start(function () {
+            let _kw_remember = id("com.android.systemui:id/remember");
+            let _sel_remember = () => _$$sel.pickup(_kw_remember);
+            let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
+            let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
+
+            if (_waitForAction(_sel_sure, 5e3)) {
+                if (_waitForAction(_sel_remember, 1e3)) {
+                    _debugInfo('勾选"不再提示"复选框');
+                    _clickAction(_sel_remember(), "w");
+                }
+                if (_waitForAction(_sel_sure, 2e3)) {
+                    let _node = _sel_sure();
+                    let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
+
+                    _debugInfo(_act_msg);
+                    _clickAction(_node, "w");
+
+                    if (!_waitForAction(() => !_sel_sure(), 1e3)) {
+                        _debugInfo("尝试click()方法再次" + _act_msg);
+                        _clickAction(_node, "click");
+                    }
+                }
+            }
+        });
+
+        let _thread_monitor = threads.start(function () {
+            if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
+                _thread_prompt.interrupt();
+                return _debugInfo("截图权限申请结果: " + _req_result);
+            }
+            if (typeof $$flag !== "undefined") {
+                if (!$$flag.debug_info_avail) {
+                    $$flag.debug_info_avail = true;
+                    _debugInfo("开发者测试模式已自动开启", 3);
+                }
+            }
+            if (_par.restart_this_engine_flag) {
+                _debugInfo("截图权限申请结果: 失败", 3);
+                try {
+                    let _m = android.os.Build.MANUFACTURER.toLowerCase();
+                    if (_m.match(/xiaomi/)) {
+                        _debugInfo("__split_line__dash__");
+                        _debugInfo("检测到当前设备制造商为小米", 3);
+                        _debugInfo("可能需要给Auto.js以下权限:", 3);
+                        _debugInfo('>"后台弹出界面"', 3);
+                        _debugInfo("__split_line__dash__");
+                    }
+                } catch (e) {
+                    // nothing to do here
+                }
+                if (restartThisEngine(_par.restart_this_engine_params)) {
+                    return;
+                }
+            }
+            _messageAction("截图权限申请失败", 9, 1, 0, 1);
+        });
+
+        let _req_result = images.requestScreenCapture(false);
+        _thread_monitor.join();
+
+        if (_req_result) {
+            return true;
+        }
+        _fg.decrementAndGet();
+
+        // raw function(s) //
+
+        function getSelectorRaw() {
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let sel = selector();
+            sel.__proto__ = {
+                pickup(filter) {
+                    if (classof(filter) === "JavaObject") {
+                        if (filter.toString().match(/UiObject/)) return filter;
+                        return filter.findOnce() || null;
+                    }
+                    if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
+                    if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
+                    return null;
+                },
+            };
+            return sel;
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+
+        function clickActionRaw(kw) {
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _kw = classof(kw) === "Array" ? kw[0] : kw;
+            let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+            if (!_key_node) return;
+            let _bounds = _key_node.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
+
+        // tool function(s) //
+
+        // updated: Dec 27, 2019
+        function restartThisEngine(params) {
+            let _params = params || {};
+
+            let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+            let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+
+            let _my_engine = engines.myEngine();
+            let _my_engine_id = _my_engine.id;
+
+            let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
+            let _max_restart_engine_times_params = _params.max_restart_engine_times;
+            let _max_restart_engine_times;
+            if (typeof _max_restart_engine_times_argv === "undefined") {
+                if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
+                else _max_restart_engine_times = _max_restart_engine_times_params;
+            } else _max_restart_engine_times = _max_restart_engine_times_argv;
+
+            _max_restart_engine_times = +_max_restart_engine_times;
+            let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
+
+            if (!_max_restart_engine_times) {
+                _messageAction("引擎重启已拒绝", 3);
+                return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
+            }
+
+            _debugInfo("重启当前引擎任务");
+            _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
+            _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
+            let _file_name = _params.new_file || _my_engine.source.toString();
+            if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+
+            let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+            _debugInfo("运行新引擎任务:\n" + _file_path);
+            _runJsFile(_file_path, Object.assign({}, _params, {
+                max_restart_engine_times: _max_restart_engine_times - 1,
+                max_restart_engine_times_backup: _max_restart_engine_times_backup,
+                instant_run_flag: _params.instant_run_flag,
+            }));
+            _debugInfo("强制停止旧引擎任务");
+            // _my_engine.forceStop();
+            engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+            return true;
+
+            // raw function(s) //
+
+            function messageActionRaw(msg, lv, if_toast) {
+                let _s = msg || " ";
+                if (lv && lv.toString().match(/^t(itle)?$/)) {
+                    let _par = ["[ " + msg + " ]", 1, if_toast];
+                    return messageActionRaw.apply({}, _par);
+                }
+                let _lv = +lv;
+                if (if_toast) {
+                    toast(_s);
+                }
+                if (_lv >= 3) {
+                    if (_lv >= 4) {
+                        console.error(_s);
+                        if (_lv >= 8) {
+                            exit();
+                        }
+                    } else {
+                        console.warn(_s);
+                    }
+                    return;
+                }
+                if (_lv === 0) {
+                    console.verbose(_s);
+                } else if (_lv === 1) {
+                    console.log(_s);
+                } else if (_lv === 2) {
+                    console.info(_s);
+                }
+                return true;
+            }
+
+            function debugInfoRaw(msg, info_flg) {
+                if (info_flg) {
+                    let _s = msg || "";
+                    _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                    console.verbose(_s);
+                }
+            }
+        }
     }
 
     // raw function(s) //
@@ -4072,8 +4416,8 @@ function baiduOcr(src, par) {
  * Function for replacing setInterval() and avoiding its "flaws"
  * {@link https://dev.to/akanksha_9560/why-not-to-use-setinterval--2na9}
  * @param func {function}
- * @param [interval=200] {number}
- * @param [timeout] {number|function} -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
+ * @param {number} [interval=200]
+ * @param {number|function} [timeout] -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
  * @example
  * // print "hello" every 1 second for 5 (or 4 sometimes) times
  * setIntervalBySetTimeout(() => {
@@ -4095,7 +4439,7 @@ function setIntervalBySetTimeout(func, interval, timeout) {
 /**
  * Returns the class name of an object or any type of param, or, returns if the result is the same as specified
  * @param source {*} - any type of param
- * @param [check_value] {string}
+ * @param {string} [check_value]
  * @returns {boolean|string}
  */
 function classof(source, check_value) {
@@ -4105,34 +4449,27 @@ function classof(source, check_value) {
 
 /**
  * Check if device is running compatible (relatively) Auto.js version and android sdk version
- * @param [params] {object}
- * @param [params.debug_info_flag] {boolean}
+ * @param {object} [params]
+ * @param {boolean} [params.debug_info_flag]
  */
 function checkSdkAndAJVer(params) {
-    global["$$app"] = global["$$app"] || {};
-    let $$app = global["$$app"];
+    let $_app = global.$$app = global.$$app || {};
 
     let _par = params || {};
 
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
     let _messageAction = typeof messageAction === "undefined"
         ? messageActionRaw
         : messageAction;
-    let _clickAction = typeof clickAction === "undefined"
-        ? clickActionRaw
-        : clickAction;
     let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
         ? debugInfoRaw
         : debugInfo)(m, fg, _par.debug_info_flag);
 
-    let _aj_pkg = $$app.cur_autojs_pkg = context.packageName;
+    let _aj_pkg = $_app.cur_autojs_pkg = context.packageName;
     let _aj_ver = _getVerName(_aj_pkg) || "0";
     let _aj_pro_suff = _aj_pkg.match(/pro/) ? " Pro" : "";
-    $$app.cur_autojs_name = "Auto.js" + _aj_pro_suff;
-    $$app.autojs_ver = _aj_ver;
-    $$app.project_ver = _getProjectVer();
+    $_app.cur_autojs_name = "Auto.js" + _aj_pro_suff;
+    $_app.autojs_ver = _aj_ver;
+    $_app.project_ver = _getProjectVer();
 
     _chkSdk();
     _chkVer();
@@ -4141,11 +4478,14 @@ function checkSdkAndAJVer(params) {
 
     function _getVerName(pkg) {
         try {
-            let _pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+            let _pkgs = context.getPackageManager()
+                .getInstalledPackages(0).toArray();
             for (let i in _pkgs) {
-                let _pkg = _pkgs[i];
-                if (_pkg.packageName.toString() === pkg) {
-                    return _pkg["versionName"];
+                if (_pkgs.hasOwnProperty(i)) {
+                    let _pkg = _pkgs[i];
+                    if (_pkg.packageName.toString() === pkg) {
+                        return _pkg["versionName"];
+                    }
                 }
             }
         } catch (e) {
@@ -4168,15 +4508,16 @@ function checkSdkAndAJVer(params) {
     function _chkSdk() {
         // let sdk_ver = +shell("getprop ro.build.version.sdk").result;
         let sdk_ver = android.os.Build.VERSION.SDK_INT;
-        $$app.sdk_ver = sdk_ver;
-        if (sdk_ver >= 24) return true;
-        _messageAction("脚本无法继续", 4, 0, 0, "up");
-        _messageAction("安卓系统版本低于7.0", 8, 1, 1, "\n");
+        $_app.sdk_ver = sdk_ver;
+        if (sdk_ver < 24) {
+            _messageAction("脚本无法继续", 4, 0, 0, "up");
+            _messageAction("安卓系统版本低于7.0", 8, 1, 1, 1);
+        }
     }
 
     function _chkVer() {
         let _bugs_map = {
-            failed: "版本信息获取失败\n不建议使用此版本运行项目",
+            failed: "版本信息获取失败",
             ab_cwd: "cwd()方法功能异常",
             ab_engines_setArguments: "engines.setArguments()功能异常",
             ab_find_forEach: "UiSelector.find().forEach()方法功能异常",
@@ -4187,12 +4528,13 @@ function checkSdkAndAJVer(params) {
             ab_SimpActAuto: "SimpleActionAutomator模块异常",
             ab_inflate: "ui.inflate()方法功能异常",
             ab_uiSelector: "UiSelector模块功能异常",
-            ab_ui_layout: "图形配置页面布局异常",
+            ab_ui_layout: "UI页面布局异常",
             crash_autojs: "脚本运行后导致Auto.js崩溃",
             crash_ui_call_ui: "ui脚本调用ui脚本会崩溃",
             crash_ui_settings: "图形配置页面崩溃",
             dislocation_floaty: "Floaty模块绘制存在错位现象",
             dialogs_event: "Dialogs模块事件失效",
+            dialogs_not_responded: "无法响应对话框点击事件",
             forcibly_update: "强制更新",
             na_login: "无法登陆Auto.js账户",
             press_block: "press()方法时间过短时可能出现阻塞现象",
@@ -4203,7 +4545,7 @@ function checkSdkAndAJVer(params) {
             un_relative_path: "不支持相对路径",
             un_runtime: "不支持runtime参数",
             un_view_bind: "不支持view对象绑定自定义方法",
-            not_full_function: "此版本可能未包含所需全部功能",
+            not_full_function: "此版本未包含所需全部功能",
         };
 
         let _bug_chk_res = _chkBugs(_aj_ver);
@@ -4213,91 +4555,22 @@ function checkSdkAndAJVer(params) {
         if (_bug_chk_res === "") {
             return _debugInfo("Bug版本检查: 未知");
         }
-        _bug_chk_res = _bug_chk_res.map((bug_code) => (
+        let _bug_chk_cnt = _bug_chk_res.map(bug_code => (
             "\n-> " + (_bugs_map[bug_code] || "/* 无效的Bug描述 */"))
         );
 
         _debugInfo("Bug版本检查: 确诊");
 
-        let _bug_cont = "脚本可能无法正常运行\n建议更换Auto.js版本\n\n" +
-            "当前版本:\n-> " + (_aj_ver || "/* 版本检测失败 */") +
-            "\n\n异常详情:" + _bug_chk_res.join();
-
-        let _continue_sgn = false;
-        let _known_diag_bug_ver = ["Pro 7.0.3-1"];
-        let _diag;
-        if (!~_known_diag_bug_ver.indexOf(_aj_ver)) {
-            _diag = dialogs
-                .build({
-                    title: "Auto.js版本异常提示",
-                    content: _bug_cont,
-                    neutral: "为何出现此提示",
-                    neutralColor: "#03a6ef",
-                    negative: "退出",
-                    negativeColor: "#33bb33",
-                    positive: "尝试继续",
-                    positiveColor: "#ee3300",
-                    autoDismiss: false,
-                    canceledOnTouchOutside: false,
-                })
-                .on("neutral", () => {
-                    dialogs
-                        .build({
-                            title: "什么是版本异常",
-                            content: "此项目无法保证所有的\n" +
-                                "Auto.js版本均正常运行\n\n" +
-                                "此异常结果由开发者测试并提供",
-                            positive: "OK",
-                            autoDismiss: false,
-                            canceledOnTouchOutside: false,
-                        })
-                        .on("positive", d => d.dismiss())
-                        .show();
-                })
-                .on("negative", (d) => {
-                    d.dismiss();
-                    exit();
-                })
-                .on("positive", (d) => {
-                    _messageAction("用户选择了尝试运行Bug版本", 3, 0, 0, -1);
-                    _continue_sgn = true;
-                    d.dismiss();
-                })
-                .show();
-        } else {
-            _debugInfo(["dialogs模块功能异常", "使用alert()方法替代"], 3);
-
-            if (typeof threads === "undefined") {
-                alert(
-                    _bug_cont + "\n\n" +
-                    "按'确定/OK'键停止执行"
-                );
-                exit();
-            }
-            threads.start(function () {
-                events.removeAllKeyDownListeners("volume_up");
-                events.removeAllKeyDownListeners("volume_down");
-                events.observeKey();
-                events.onKeyDown("volume_down", function (e) {
-                    _debugInfo("用户按下音量减键");
-                    _debugInfo("尝试点击确定按钮");
-                    _clickAction(textMatches(/OK|确定/), "w");
-                    _messageAction("脚本已停止", 4, 1);
-                    _messageAction("用户终止运行", 4, 0, 1);
-                    exit();
-                });
-            });
-            alert(
-                _bug_cont + "\n\n" +
-                "按'确定/OK'键尝试继续执行\n" +
-                "按'音量减/VOL-'键停止执行"
-            );
-        }
-        if (!_waitForAction(() => _continue_sgn, 60e3, 300)) {
-            _diag && _diag.dismiss();
-            let _m = "等待用户操作超时";
-            _messageAction(_m, 9, 1, 0, "both");
-        }
+        alert("\n" +
+            "此项目无法正常运行\n" +
+            "请更换Auto.js版本\n\n" +
+            "当前版本:\n" +
+            "-> " + (_aj_ver || "/* 版本检测失败 */") + "\n\n" +
+            "异常详情:" + _bug_chk_cnt.join("") + "\n\n" +
+            "在项目简介中查看支持版本\n" +
+            "或直接尝试 v4.1.1 Alpha2"
+        );
+        exit();
 
         // tool function(s) //
 
@@ -4307,49 +4580,30 @@ function checkSdkAndAJVer(params) {
         function _chkBugs(ver_name) {
             let _ver = ver_name || "0";
 
-            // version <= 3.0.0 Alpha20
-            if (_ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings", "not_full_function"];
-            }
-
-            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-            if (_ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
-                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-            if (_ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
-                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-            if (_ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
-                return ["un_inflate", "un_runtime", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (_ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
-                return ["un_inflate", "un_engines", "not_full_function"];
-            }
-
-            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-            if (_ver.match(/^3\.1\.1 Alpha[34]$/)) {
-                return ["ab_inflate", "un_engines", "not_full_function"];
-            }
-
-            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-            if (_ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
-                return ["un_execArgv", "ab_inflate", "not_full_function"];
-            }
-
-            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-            if (_ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
-                return ["dislocation_floaty", "ab_inflate", "not_full_function"];
+            // version ∈ 4.1.1
+            // version === Pro 8.+
+            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
+            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
+            if (_ver.match(/^(4\.1\.1.+)$/) ||
+                _ver.match(/^Pro 8\.\d.+$/) ||
+                _ver.match(/^Pro 7\.0\.((0-[46])|(2-4)|(3-7)|(4-1))$/)
+            ) {
+                return 0; // known normal
             }
 
             // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
             if (_ver.match(/^4\.1\.0 Alpha[34]$/)) {
-                return ["ab_SimpActAuto"];
+                return ["ab_SimpActAuto", "dialogs_not_responded"];
+            }
+
+            // version === 4.1.0 Alpha(2|5)?
+            if (_ver.match(/^4\.1\.0 Alpha[25]$/)) {
+                return ["dialogs_not_responded"];
+            }
+
+            // 4.0.x versions
+            if (_ver.match(/^4\.0\./)) {
+                return ["dialogs_not_responded", "not_full_function"];
             }
 
             // version === Pro 7.0.0-(1|2)
@@ -4362,20 +4616,44 @@ function checkSdkAndAJVer(params) {
                 return ["crash_autojs"];
             }
 
-            // other 4.0.x versions
-            if (_ver.match(/^4\.0\./)) {
-                return ["not_full_function"];
+            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
+            if (_ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+                return ["dislocation_floaty", "ab_inflate", "not_full_function"];
             }
 
-            // version === 4.1.0 Alpha(2|5)? || version ∈ 4.1.1
-            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
-            if (_ver.match(/^((4\.1\.0 Alpha[25]?)|(4\.1\.1.+))$/) ||
-                _ver.match(/^Pro 7\.0\.((0-[46])|(2-4))$/) ||
-                _ver === "Pro 7.0.3-7" ||
-                _ver === "Pro 7.0.4-1"
-            ) {
-                return 0; // known normal
+            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
+            if (_ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+                return ["un_execArgv", "ab_inflate", "not_full_function"];
+            }
+
+            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
+            if (_ver.match(/^3\.1\.1 Alpha[34]$/)) {
+                return ["ab_inflate", "un_engines", "not_full_function"];
+            }
+
+            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
+            if (_ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
+                return ["un_inflate", "un_engines", "not_full_function"];
+            }
+
+            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
+            if (_ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+                return ["un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
+            if (_ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+                return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
+            if (_ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
+            }
+
+            // version <= 3.0.0 Alpha20
+            if (_ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+                return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings", "not_full_function"];
             }
 
             switch (_ver) {
@@ -4417,20 +4695,6 @@ function checkSdkAndAJVer(params) {
 
     // raw function(s) //
 
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
     function messageActionRaw(msg, lv, if_toast) {
         let _s = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
@@ -4462,318 +4726,11 @@ function checkSdkAndAJVer(params) {
         return true;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
-    }
-
     function debugInfoRaw(msg, info_flg) {
         if (info_flg) {
             let _s = msg || "";
             _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
             console.verbose(_s);
         }
-    }
-}
-
-/**
- * Just for dismissing warning hints by IDE like WebStorm
- * May be helpful for developer who runs codes at Auto.js
- * Do not invoke this function in case of overriding exceptions
- */
-function __dismissIDEWarnings__() {
-    // love me, but do not invoke me
-
-    if (typeof $$sel === "undefined") $$sel = {};
-    let {Integer} = java.lang; // TODO java.__proto__
-
-    Object.assign(dialogs, {
-        setItems: arr => $$und,
-        getItems: () => $$arr,
-        getContentView: () => new View(),
-        getTitleView: () => new View(),
-        getActionButton: btn_name => $$str(btn_name),
-        setContent: str => $$und(str),
-        setActionButton: (btn_name, str) => $$und(btn_name, str),
-        promptCheckBoxChecked: Boolean(),
-        isPromptCheckBoxChecked: () => Boolean(),
-        selectedIndex: Integer(),
-        getSelectedIndex: () => $$num,
-        selectedIndices: [],
-        getSelectedIndices: () => $$arr,
-        items: [],
-        isCancelled: () => Boolean(),
-        getInputEditText: () => String(),
-    });
-    Object.assign(engines, {
-        myEngine: () => ({
-            source: {
-                toString: () => String(),
-            },
-            forceStop: () => void 0,
-            setTag: (str, obj) => void 0,
-            getTag: str => $$obj,
-            cwd: () => String(),
-            id: $$num,
-            execArgv: $$obj,
-        }),
-        all: () => $$arr,
-        stopAllAndToast: () => void 0,
-    });
-    Object.assign(events, {
-        removeAllKeyDownListeners: str => this,
-        observeKey: () => void 0,
-        onKeyDown: (str, obj) => this,
-        onKeyUp: (str, obj) => this,
-        onceKeyDown: (str, obj) => this,
-        onceKeyUp: (str, obj) => this,
-        setKeyInterceptionEnabled: (str_$_bool, bool) => {
-            return void 0;
-        },
-        getAction: () => $$num,
-        getX: () => $$num,
-        getY: () => $$num,
-        getEventTime: () => $$num,
-        getDownTime: () => $$num,
-    });
-    Object.assign(threads, {
-        start: runnable => $$jvo.Thread,
-        interrupt: () => void 0,
-        isAlive: () => Boolean(),
-        shutDownAll: () => void 0,
-        join: num => void 0,
-        atomic: num => $$jvo.AtomicLong,
-        AtomicLong: {
-            incrementAndGet: () => $$num,
-            decrementAndGet: () => $$num,
-            compareAndSet: (long1, long2) => Boolean(),
-        },
-        getKeyCode: () => $$num,
-    });
-    Object.assign($$sel, {
-        findOnce: UiObject => $$jvo.UiObject,
-        childCount: () => $$num,
-        children: () => $$jvo.UiObjects,
-        setText: str => Boolean(),
-        parent: () => $$jvo.UiObject,
-        clickable: () => Boolean(),
-        scrollable: bool => $$jvo.UiGlobSel,
-        idContains: bool => $$jvo.UiGlobSel,
-        indexInParent: () => $$jvo.UiObject,
-        bounds: () => ({
-            width: () => $$num,
-            height: () => $$num,
-            centerX: () => $$num,
-            centerY: () => $$num,
-        }),
-    });
-    Object.assign(floaty, {
-        rawWindow: xml => $$jvo.JsRawWin,
-        setBackgroundColor: num => void 0,
-        setSize: (num1, num2) => void 0,
-        closeAll: () => void 0,
-        getWidth: () => $$num,
-        setTouchable: bool => void 0,
-        setOnTouchListener: func => void 0,
-    });
-    Object.assign(images, {
-        read: str => $$jvo.ImageWrapper,
-        load: str => $$jvo.ImageWrapper,
-        copy: image => $$jvo.ImageWrapper,
-        save: (image, path, format, quality) => Boolean(),
-        fromBase64: str => $$jvo.ImageWrapper,
-        toBase64: (img, format, quality) => String(),
-        fromBytes: str => $$jvo.ImageWrapper,
-        toBytes: (img, format, quality) => [],
-        clip: (img, x, y, w, h) => $$jvo.ImageWrapper,
-        grayscale: (img, dst_cn) => $$jvo.ImageWrapper,
-        threshold: (img, thrd, max_val, type) => $$jvo.ImageWrapper,
-        adaptiveThreshold: (img, max_val, adaptive_mthd, thrd_type, block_sz, C) => $$jvo.ImageWrapper,
-        interval: (img, color, thrd) => $$jvo.ImageWrapper,
-        inRange: (img, lower_bound, upper_bound) => $$jvo.ImageWrapper,
-        resize: (img, size, interpolation) => $$jvo.ImageWrapper,
-        scale: (img, fx, fy, interpolation) => $$jvo.ImageWrapper,
-        rotate: (img, degree, x, y) => $$jvo.ImageWrapper,
-        concat: (img1, img2, direction) => $$jvo.ImageWrapper,
-        requestScreenCapture: bool => Boolean(),
-        captureScreen: path => $$jvo.ImageWrapper,
-        recycle: () => void 0,
-        findImage: (img, tpl, opt) => $$jvo.ImageWrapper,
-        findColor: (img, color, opt) => $$jvo.Point,
-        findCircles: (gray_img, opt) => Array(),
-        pixel: (img, x, y) => $$num,
-        findMultiColors: (img, first_color, paths, opt) => $$jvo.Point,
-        findColorInRegion: (img, color, x, y, w, h, thrd) => $$jvo.Point,
-        findColorEquals: (img, color, x, y, w, h) => $$jvo.Point,
-        detectsColor: (img, color, x, y, thrd, algorithm) => Boolean(),
-        matchTemplate: (img, tpl, opt) => ({/* "MatchingResult" */}),
-        blur: (img, size, point, type) => $$jvo.ImageWrapper,
-        medianBlur: (img, size) => $$jvo.ImageWrapper,
-        gaussianBlur: (img, size, sigma_x, sigma_y, type) => $$jvo.ImageWrapper,
-        cvtColor: (img, code, dst_cn) => $$jvo.ImageWrapper,
-        findAllPointsForColor: (img, color, opt) => Array(),
-        readPixels: (path) => Object(),
-        matToImage: (img) => $$jvo.ImageWrapper,
-        getWidth: () => $$num, // TODO this doesn't belong to images
-        getHeight: () => $$num, // TODO this doesn't belong to images
-    });
-    Object.assign(colors, {
-        isSimilar: (c1, c2, thrd, algorithm) => Boolean(),
-        parseColor: str => $$num,
-        red: (str_$_num) => $$num,
-        green: (str_$_num) => $$num,
-        blue: (str_$_num) => $$num,
-        toString: (num) => $$str,
-        rgb: (num1, num2, num3) => $$num,
-    });
-    Object.assign(files, {
-        getSdcardPath: () => String(),
-        cwd: () => String(),
-        createWithDirs: str => Boolean(),
-        remove: str => Boolean(),
-        path: str => String(),
-        exists: str => Boolean(),
-        removeDir: str => Boolean(),
-    });
-    Object.assign(auto, {
-        waitFor: () => void 0,
-    });
-    Object.assign(app, {
-        launchPackage: str => Boolean(),
-        launchApp: str => Boolean(),
-        getAppName: str => String(),
-        startActivity: obj$str => void 0,
-        viewFile: str => void 0,
-    });
-    Object.assign(device, {
-        isScreenOn: () => Boolean(),
-        keepScreenOn: num => void 0,
-        cancelKeepingAwake: () => void 0,
-        brand: String(),
-        wakeUp: () => void 0,
-        wakeUpIfNeeded: () => void 0,
-        vibrate: num => void 0,
-    });
-    Object.assign(console, {
-        verbose: str => void 0,
-    });
-    Object.assign(android, {
-        provider: {
-            Settings: {
-                System: {
-                    SCREEN_OFF_TIMEOUT: String(),
-                    getInt: (context_resolver, str, num) => Integer(),
-                    putInt: (context_resolver, str, num) => Boolean(),
-                    canWrite: () => null,
-                },
-                Global: {
-                    STAY_ON_WHILE_PLUGGED_IN: String(),
-                    getInt: (context_resolver, str, num) => Integer(),
-                    putInt: (context_resolver, str, num) => Boolean(),
-                },
-                Secure: {
-                    DEVELOPMENT_SETTINGS_ENABLED: String(),
-                    getInt: (context_resolver, svc, num) => Integer(),
-                    putInt: (context_resolver, svc, num) => Boolean(),
-                    getString: (context_resolver, svc, str) => String(),
-                    putString: (context_resolver, svc, str) => Boolean(),
-                },
-            },
-        },
-        view: {
-            MotionEvent: {
-                ACTION_DOWN: Integer(),
-                ACTION_UP: Integer(),
-                ACTION_MOVE: Integer(),
-            },
-            ViewParent: function (Layout) {
-
-            },
-            KeyEvent: {
-                ACTION_DOWN: Integer(),
-                ACTION_UP: Integer(),
-                ACTION_MOVE: Integer(),
-                keyCodeToString: num => $$str,
-            },
-        },
-        content: {
-            Intent: function () {
-                this.FLAG_ACTIVITY_NEW_TASK = "$$num";
-                this.setClassName = (pkg_nm, class_nm) => android.content.Intent;
-                this.putExtra = (str, arr) => android.content.Intent;
-                this.addCategory = str => android.content.Intent;
-                this.setAction = str => android.content.Intent;
-                this.setFlags = num => android.content.Intent;
-                this.setDataAndType = (Uri, str) => android.content.Intent;
-                this.setType = str => android.content.Intent;
-                this.addFlags = num => android.content.Intent;
-                this.extras = [];
-                this.category = [];
-            },
-        },
-        widget: {
-            LinearLayout: function (ctx) {
-                this.addView = View => void 0;
-                this.getParent = () => android.view.ViewParent;
-            },
-            CheckBox: function (ctx) {
-                this.setChecked = bool => void 0;
-            }
-        },
-    });
-    Object.assign(context, {
-        getContentResolver: () => "ContentResolver",
-        getPackageName: () => String(),
-        getPackageManager: function () {
-            return {
-                queryIntentActivities: (Intent, num) => "queryIntentActivities",
-            };
-        },
-    });
-    Object.assign(timers, {
-        setMillis: num => void 0,
-    });
-    Object.assign(http, {
-        post: function (url, data, options, callback) {
-            return {
-                statusCode: Integer(),
-                statusMessage: String(),
-                headers: {},
-                body: {
-                    bytes: () => [],
-                    string: () => String(),
-                    json: () => [],
-                    contentType: String(),
-                },
-            };
-        },
-        __okhttp__: {
-            client: () => "okhttp3.OkHttpClient",
-        },
-        client: function () {
-            return this.__okhttp__.client();
-        }
-    });
-    Object.assign(ui, {
-        finish: () => void 0,
-    });
-
-    // constructor(s) //
-
-    function View() {
-        this.getText = () => $$obj;
-        this.setTextColor = (num) => $$und;
-        this.setVisibility = (num) => $$und;
-        this.removeAllViews = () => $$und;
-        this.setClickable = (bool) => $$und;
-        this.getChildCount = () => $$num;
-        this.getChildAt = (num) => this;
-        this.indexOfChild = (View) => $$num;
-        this.findViewWithTag = (str) => this;
     }
 }

@@ -1,21 +1,19 @@
-let {Imgproc} = org.opencv.imgproc;
-let {Core, Size,} = org.opencv.core;
-let {Mat} = com.stardust.autojs.core.opencv;
-let _initIfNeeded = () => runtime.getImages().initOpenCvIfNeeded();
-
-if (typeof cX === "undefined") {
-    cX = _getDisplay().cX;
+if (typeof cX === "undefined" || typeof halfW === "undefined") {
+    _getDisplay(true);
 }
 if (typeof debugInfo === "undefined") {
     debugInfo = _debugInfo;
 }
+if (typeof timeRecorder === "undefined") {
+    timeRecorder = _timeRecorder;
+}
 
 let ext = {
-    getName: (img) => {
+    getName(img) {
         let img_str = img.toString().split("@")[1];
         return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
     },
-    isRecycled: (img) => {
+    isRecycled(img) {
         if (!img) return true;
         try {
             img.getHeight();
@@ -29,7 +27,7 @@ let ext = {
         && img.toString().match(/ImageWrapper/)
     ),
     reclaim: _reclaim,
-    capt: () => {
+    capt() {
         let _max = 10;
         while (_max--) {
             try {
@@ -51,7 +49,7 @@ let ext = {
     tryRequestScreenCapture: _permitCapt, // legacy
     permitCapt: _permitCapt,
     permit: _permitCapt,
-    matchTpl: function (capt, tpl, opt) {
+    matchTpl(capt, tpl, opt) {
         let _capt;
         let _no_capt_fg;
         if (!capt) {
@@ -159,7 +157,7 @@ let ext = {
             }
         }
     },
-    findColorInBounds: (img, src, color, threshold) => {
+    findColorInBounds(img, src, color, threshold) {
         if (!color) {
             throw ("findColorInBounds的color参数无效");
         }
@@ -201,27 +199,634 @@ let ext = {
         }
         return _bnd;
     },
-    bilateralFilter: function (img, d, sigmaColor, sigmaSpace, borderType) {
+    bilateralFilter(img, d, sigmaColor, sigmaSpace, borderType) {
+        let {Mat} = com.stardust.autojs.core.opencv;
+        let {Imgproc} = org.opencv.imgproc;
+        let {Core} = org.opencv.core;
+
         _initIfNeeded();
+
         let mat = new Mat();
         let size = d || 0;
         let sc = sigmaColor || 40;
         let ss = sigmaSpace || 20;
         let type = Core["BORDER_" + (borderType || "DEFAULT")];
+
         Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
+
         return images.matToImage(mat);
+
+        // tool function(s) //
+
+        function _initIfNeeded() {
+            runtime.getImages().initOpenCvIfNeeded();
+        }
+    },
+    findAFBallsByHough(param) {
+        timeRecorder("hough_beginning");
+        let _du = {};
+        let _par = param || {};
+        let _cfg = Object.assign(
+            _$DEFAULT(),
+            global.$$cfg || {},
+            _par.config || {}
+        );
+        let _no_dbg = _par.no_debug_info;
+        let _dbg_bak;
+        let $_flag = global.$$flag = global.$$flag || {};
+
+        _dbgBackup();
+
+        let _src_img_stg = _cfg.hough_src_img_strategy;
+        let _results_stg = _cfg.hough_results_strategy;
+        let _min_dist = cX(_cfg.min_balls_distance);
+        let _region = _cfg.fri_forest_balls_region
+            .map((v, i) => (i % 2
+                    ? v < 1 ? cY(v) : v
+                    : v < 1 ? cX(v) : v
+            ));
+
+        let _balls_data = [];
+        let _balls_data_o = {};
+        let _pool = _par.pool || {
+            data: [],
+            interval: _cfg.fri_forest_pool_itv,
+            limit: _cfg.fri_forest_pool_limit,
+            get len() {
+                return this.data.length;
+            },
+            get filled_up() {
+                return this.len >= this.limit;
+            },
+            add(capt) {
+                capt = capt || ext.capt();
+                this.filled_up && this.reclaimLast();
+                let _img_name = ext.getName(capt);
+                debugInfo("添加森林页面采样: " + _img_name);
+                this.data.unshift(capt);
+            },
+            reclaimLast() {
+                let _last = this.data.pop();
+                let _img_name = ext.getName(_last);
+                debugInfo("森林页面采样已达阈值: " + this.limit);
+                debugInfo(">移除并回收最旧样本: " + _img_name);
+                ext.reclaim(_last);
+                _last = null;
+            },
+            reclaimAll() {
+                if (!this.len) {
+                    return;
+                }
+                debugInfo("回收全部森林页面采样");
+                this.data.forEach((capt) => {
+                    let _img_name = ext.getName(capt);
+                    ext.reclaim(capt);
+                    debugInfo(">已回收: " + _img_name);
+                    capt = null;
+                });
+                this.clear();
+                debugInfo("森林页面样本已清空");
+            },
+            clear() {
+                this.data.splice(0, this.len);
+            },
+        };
+        let _capt = null;
+        let _capture = (t) => {
+            _capt = ext.capt();
+            sleep(t || 0);
+            return _capt;
+        };
+
+        _setWballExtFunction();
+        _fillUpForestImgPool();
+        _analyseEnergyBalls();
+
+        _dbgRestore();
+
+        let _du_o = _par.duration !== false ? {
+            duration: Object.assign({
+                _map: [
+                    ["gray", "灰度化"],
+                    ["adapt_thrd", "自适应阈值"],
+                    ["med_blur", "中值滤波"],
+                    ["blur", "均值滤波"],
+                    ["blt_fltr", "双边滤波"],
+                    ["img_samples_processing", "数据处理"],
+                    // disabled as misunderstanding may caused
+                    // ["total", "总计用时"],
+                ],
+                total: timeRecorder("hough_beginning", "L"),
+                showDebugInfo() {
+                    debugInfo("__split_line__dash__");
+                    debugInfo("图像填池: " +
+                        this.fill_up_pool + "ms" + "  [ " +
+                        _cfg.fri_forest_pool_itv + ", " +
+                        _cfg.fri_forest_pool_limit + " ]"
+                    );
+                    this._map.forEach((arr) => {
+                        let [_k, _v] = arr;
+                        if (_k in this) {
+                            if (this.hasOwnProperty(_k)) {
+                                debugInfo(_v + ": " + this[_k] + "ms");
+                            }
+                        }
+                    });
+                    debugInfo("__split_line__dash__");
+                },
+            }, _du),
+        } : {};
+
+        return Object.assign(_balls_data_o, _du_o, {
+            expand() {
+                let _data = [];
+                for (let i in this) {
+                    if (this.hasOwnProperty(i)) {
+                        if (Array.isArray(this[i])) {
+                            this[i].forEach(o => _data.push(o));
+                        }
+                    }
+                }
+                return _data;
+            },
+        });
+
+        // tool function(s) //
+
+        function _dbgBackup() {
+            if (_no_dbg) {
+                _dbg_bak = $_flag.debug_info_avail;
+                $_flag.debug_info_avail = false;
+            }
+        }
+
+        function _dbgRestore() {
+            if (_no_dbg) {
+                $_flag.debug_info_avail = _dbg_bak;
+            }
+        }
+
+        function _setWballExtFunction() {
+            if (!images.isWball) {
+                images.isWball = (o, capt, container) => {
+                    let _capt = capt || images.capt();
+                    let _ctx = o.x;
+                    let _cty = o.y;
+                    let _ref = o.r / Math.SQRT2;
+                    let _x_min = _ctx - _ref;
+                    let _y_min = _cty - _ref;
+                    let _x_max = _ctx + _ref;
+                    let _y_max = _cty + _ref;
+                    let _step = 2;
+                    let _hue_max = _cfg.homepage_water_ball_max_hue_b0;
+                    let _result = false;
+
+                    while (_x_min < _x_max && _y_min < _y_max) {
+                        let _col = images.pixel(_capt, _x_min, _y_min);
+                        let _red = colors.red(_col);
+                        let _green = colors.green(_col);
+                        // hue value in HSB mode without blue component
+                        let _hue = 120 - (_red / _green) * 60;
+                        if (isFinite(_hue) && _hue < _hue_max) {
+                            if (Array.isArray(container)) {
+                                container.push(o);
+                            }
+                            _result = true;
+                            break;
+                        }
+                        _x_min += _step;
+                        _y_min += _step;
+                    }
+
+                    if (!capt) {
+                        images.reclaim(_capt);
+                        _capt = null;
+                    }
+
+                    return _result;
+                };
+            }
+            if (!images.isRipeBall) {
+                images.isRipeBall = (o, capt, container) => {
+                    let _capt = capt || images.capt();
+                    let _d = o.r / 4;
+                    let _colors = _cfg.ripe_ball_ident_colors;
+                    let _result = false;
+
+                    for (let i = 0, l = _colors.length; i < l; i += 1) {
+                        if (images.findColor(_capt, _colors[i], {
+                            region: [o.x - _d, o.y - _d, _d * 2, _d * 2],
+                            threshold: _cfg.ripe_ball_threshold,
+                        })) {
+                            if (Array.isArray(container)) {
+                                container.push(o);
+                            }
+                            _result = true;
+                            break;
+                        }
+                    }
+
+                    if (!capt) {
+                        images.reclaim(_capt);
+                        _capt = null;
+                    }
+
+                    return _result;
+                };
+            }
+            if (!images.isOrangeBall) {
+                images.isOrangeBall = (o, capt, container) => {
+                    let _capt = capt || images.capt();
+                    let _ctx = o.x + cX(52);
+                    let _cty = o.y + cYx(57);
+                    let _d = o.r / 4;
+                    let _colors = _cfg.help_ball_ident_colors;
+                    let _result = false;
+
+                    for (let i = 0, l = _colors.length; i < l; i += 1) {
+                        let _l = _ctx - _d;
+                        let _t = _cty - _d;
+                        let _w = Math.min(_d * 2, W - _l);
+                        let _h = Math.min(_d * 2, H - _t);
+                        if (images.findColor(_capt, _colors[i], {
+                            region: [_l, _t, _w, _h],
+                            threshold: _cfg.help_ball_threshold,
+                        })) {
+                            if (Array.isArray(container)) {
+                                container.push(o);
+                            }
+                            _result = true;
+                            break;
+                        }
+                    }
+
+                    if (!capt) {
+                        images.reclaim(_capt);
+                        _capt = null;
+                    }
+
+                    return _result;
+                };
+            }
+        }
+
+        function _fillUpForestImgPool() {
+            timeRecorder("fill_up_pool");
+            let _max = _pool.limit + 1;
+            while (_max--) {
+                _pool.add(_capture());
+                sleep(_pool.interval);
+                if (!_pool.len || _pool.filled_up) {
+                    break;
+                }
+            }
+            _du.fill_up_pool = timeRecorder("fill_up_pool", "L");
+        }
+
+        function _analyseEnergyBalls() {
+            debugInfo("分析森林页面样本中的能量球");
+            _pool.data.forEach(_parse);
+            debugInfo("森林页面样本能量球分析完毕");
+            debugInfo("解析的能量球数量: " + _balls_data.length);
+            _balls_data.forEach((o) => {
+                _balls_data_o[o.type] = _balls_data_o[o.type] || [];
+                _balls_data_o[o.type].push(o);
+            });
+            _par.pool && _par.keep_pool_data || _pool.reclaimAll();
+
+            // tool function(s) //
+
+            function _parse(capt) {
+                if (!capt || ext.isRecycled(capt)) {
+                    capt = ext.capt();
+                }
+                let [_l, _t, _r, _b] = _region;
+                let [_w, _h] = [_r - _l, _b - _t];
+
+                let _gray = _getImg("gray", true, () => images.grayscale(capt));
+
+                let _adapt_thrd = _getImg("adapt_thrd", _src_img_stg.adapt_thrd,
+                    () => images.adaptiveThreshold(
+                        _gray, 255, "GAUSSIAN_C", "BINARY_INV", 9, 6
+                    )
+                );
+                let _med_blur = _getImg("med_blur", _src_img_stg.med_blur,
+                    () => images.medianBlur(_gray, 9)
+                );
+                let _blur = _getImg("blur", _src_img_stg.blur,
+                    () => images.blur(_gray, 9, [-1, -1], "REPLICATE")
+                );
+                let _blt_fltr = _getImg("blt_fltr", _src_img_stg.blt_fltr,
+                    () => ext.bilateralFilter(_gray, 9, 20, 20, "REPLICATE")
+                );
+
+                let _proc_key = "img_samples_processing";
+                timeRecorder(_proc_key);
+                let _wballs = [];
+                let _balls = []
+                    .concat(_getBalls(_src_img_stg.gray && _gray))
+                    .concat(_getBalls(_adapt_thrd))
+                    .concat(_getBalls(_med_blur))
+                    .concat(_getBalls(_blur))
+                    .concat(_getBalls(_blt_fltr))
+                    .filter(_filterWball)
+                    .sort(_sortX);
+
+                _reclaimImages();
+
+                if (_wballs.length + _balls.length) {
+                    _antiOverlap();
+                    _symmetrical();
+                    _linearInterpolate();
+                    _addBalls();
+                }
+
+                _du[_proc_key] = timeRecorder(_proc_key, "L");
+
+                // tool function(s) //
+
+                function _getImg(name, condition, imgFunc) {
+                    if (condition) {
+                        timeRecorder(name);
+                        let _img = imgFunc();
+                        let _et = timeRecorder(name, "L");
+                        _du[name] ? _du[name] = _et : _du[name] += _et;
+                        return _img;
+                    }
+                }
+
+                function _reclaimImages() {
+                    ext.reclaim(
+                        _gray, _adapt_thrd, _med_blur, _blur, _blt_fltr
+                    );
+                    _gray = _adapt_thrd = _med_blur = _blur = _blt_fltr = null;
+                }
+
+                function _antiOverlap() {
+                    if (_results_stg.anti_ovl) {
+                        _antiX(_balls);
+                        _antiX(_wballs);
+                        _antiXY(_balls, _wballs);
+                    }
+
+                    // tool function(s) //
+
+                    function _antiX(o) {
+                        for (let i = 1; i < o.length; i += 1) {
+                            if (o[i].x - o[i - 1].x < _min_dist) {
+                                o.splice(i--, 1);
+                            }
+                        }
+                    }
+
+                    function _antiXY(sample, ref) {
+                        let _chkSample = (smp, ref, i) => {
+                            let _cond_x = Math.abs(ref.x - smp.x) < _min_dist;
+                            let _cond_y = Math.abs(ref.y - smp.y) < _min_dist;
+                            if (_cond_x && _cond_y) {
+                                sample.splice(i--, 1);
+                            }
+                        };
+
+                        if (ref) {
+                            return ref.forEach((_ref) => {
+                                for (let i = 0; i < sample.length; i += 1) {
+                                    _chkSample(sample[i], _ref, i);
+                                }
+                            });
+                        }
+                        for (let i = 1; i < sample.length; i += 1) {
+                            _chkSample(sample[i - 1], sample[i], i);
+                        }
+                    }
+                }
+
+                function _symmetrical() {
+                    if (!_results_stg.symmetrical || !_balls.length) {
+                        return;
+                    }
+                    if (_balls.length === 1) {
+                        let {x: _x} = _balls[0];
+                        if (Math.abs(_x - halfW) <= _min_dist) {
+                            return;
+                        }
+                    }
+                    let _right_ball = _balls[_balls.length - 1];
+                    let _left_ball = _balls[0];
+                    let _max = _right_ball.x;
+                    let _min = _left_ball.x;
+                    let _ext = Math.max(_max - halfW, halfW - _min);
+                    if (_min - (halfW - _ext) > _min_dist) {
+                        _balls.unshift({
+                            x: halfW - _ext,
+                            y: _right_ball.y,
+                            r: _right_ball.r,
+                            computed: true,
+                        });
+                    } else if (halfW + _ext - _max > _min_dist) {
+                        _balls.push({
+                            x: halfW + _ext,
+                            y: _left_ball.y,
+                            r: _left_ball.r,
+                            computed: true,
+                        });
+                    }
+                }
+
+                function _linearInterpolate() {
+                    if (!_results_stg.linear_itp) {
+                        return;
+                    }
+                    let _step = _getMinStep();
+                    for (let i = 1; i < _balls.length; i += 1) {
+                        let _diff = _balls[i].x - _balls[i - 1].x;
+                        let _dist = Math.round(_diff / _step);
+                        if (_dist < 2) {
+                            continue;
+                        }
+                        let _dx = _diff / _dist;
+                        let _dy = (_balls[i].y - _balls[i - 1].y) / _dist;
+                        let _data = [];
+                        for (let k = 1; k < _dist; k += 1) {
+                            _data.push({
+                                x: _balls[i - 1].x + _dx * k,
+                                y: _balls[i - 1].y + _dy * k,
+                                r: (_balls[i].r + _balls[i - 1].r) / 2,
+                                computed: true,
+                            });
+                        }
+                        _balls.splice.apply(_balls, [i, 0].concat(_data));
+                        i += _data.length;
+                    }
+
+                    // tool function(s) //
+
+                    function _getMinStep() {
+                        let _step = Infinity;
+                        _balls.forEach((v, i, a) => {
+                            if (i) {
+                                let _diff = a[i].x - a[i - 1].x;
+                                if (_diff < _step) {
+                                    _step = _diff;
+                                }
+                            }
+                        });
+                        return _step;
+                    }
+                }
+
+                function _addBalls() {
+                    _wballs.map(_extProperties).forEach((o) => {
+                        _addBall(o, "water");
+                    });
+                    _balls.map(_extProperties).forEach((o) => {
+                        if (_isOrangeBall(o)) {
+                            return _addBall(o, "orange");
+                        }
+                        if (_isRipeBall(o, capt)) {
+                            return _addBall(o, "ripe");
+                        }
+                        _addBall(o, "naught");
+                    });
+
+                    // tool function(s) //
+
+                    function _isOrangeBall(o) {
+                        return images.isOrangeBall(o, capt);
+                    }
+
+                    function _isRipeBall(o) {
+                        return images.isRipeBall(o, capt);
+                    }
+
+                    function _addBall(o, type) {
+                        let _pri = {orange: 9, ripe: 6, naught: 3};
+                        let _data_idx = _getDataIdx(o);
+                        if (!~_data_idx) {
+                            _balls_data.push(Object.assign({type: type}, o));
+                        } else if (_pri[type] > _pri[_balls_data[_data_idx].type]) {
+                            // low-priority data will be replaced with the one with higher priority
+                            // eg: assumed that there was a ball with "ripe" property of type,
+                            // another ball which was taken as the identical ball with the one above
+                            // will replace "ripe" with "orange"
+                            // however, "orange" won't be replace with "ripe" even "naught"
+                            _balls_data[_data_idx] = Object.assign({type: type}, o);
+                        }
+
+                        // tool function(s) //
+
+                        function _getDataIdx(o) {
+                            let _l = _balls_data.length;
+                            for (let i = 0; i < _l; i += 1) {
+                                // take as identical balls
+                                if (Math.abs(o.x - _balls_data[i].x) < _min_dist / 2) {
+                                    return i;
+                                }
+                            }
+                            return -1;
+                        }
+                    }
+
+                    function _extProperties(o) {
+                        let {x: _x, y: _y, r: _r} = o;
+                        return Object.assign(o, {
+                            left: _x - _r,
+                            top: _y - _r,
+                            right: _x + _r,
+                            bottom: _y + _r,
+                            // width and height were made functional
+                            // just for better compatible with Auto.js
+                            width: () => _r * 2,
+                            height: () => _r * 2,
+                        });
+                    }
+                }
+
+                function _getBalls(img, par1, par2) {
+                    return !img ? [] : images
+                        .findCircles(img, {
+                            dp: 1,
+                            minDist: _min_dist,
+                            minRadius: cX(0.06),
+                            maxRadius: cX(0.078),
+                            param1: par1 || 15,
+                            param2: par2 || 15,
+                            region: [_l, _t, _w, _h],
+                        })
+                        .map(o => {
+                            // o.x and o.y are relative,
+                            // yet x and y are absolute
+                            let _x = o.x + _l;
+                            let _y = o.y + _t;
+                            let _r = +o.radius.toFixed(2);
+                            return {x: _x, y: _y, r: _r};
+                        })
+                        .filter(o => (
+                            o.x - o.r >= _l &&
+                            o.x + o.r <= _r &&
+                            o.y - o.r >= _t &&
+                            o.y + o.r <= _b
+                        ))
+                        .sort(_sortX);
+                }
+
+                function _sortX(a, b) {
+                    return a.x === b.x ? 0 : a.x > b.x ? 1 : -1;
+                }
+
+                function _filterWball(o) {
+                    return o && !images.isWball(o, capt, _wballs);
+                }
+            }
+        }
+
+        // updated at Jun 3, 2020
+        function _$DEFAULT() {
+            return {
+                help_ball_ident_colors: [
+                    "#f99137", "#f9933a", "#e9b781"
+                ],
+                help_ball_threshold: 35,
+                ripe_ball_ident_colors: ["#ceff5f"],
+                ripe_ball_threshold: 13,
+                fri_forest_balls_region: [
+                    cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)
+                ],
+                hough_src_img_strategy: {
+                    gray: true,
+                    adapt_thrd: true,
+                    med_blur: true,
+                    blur: true,
+                    blt_fltr: false,
+                },
+                hough_results_strategy: {
+                    anti_ovl: true,
+                    symmetrical: true,
+                    linear_itp: true,
+                },
+                min_balls_distance: 0.09,
+                fri_forest_pool_limit: 3,
+                fri_forest_pool_itv: 120,
+                homepage_water_ball_max_hue_b0: 44,
+            };
+        }
     },
 };
 ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global["images"], ext);
+module.exports.load = () => Object.assign(global.images, ext);
 
 // tool function(s) //
 
 function _newSize(size) {
-    if (!Array.isArray(size)) size = [size, size];
-    if (size.length === 1) size = [size[0], size[0]];
+    let {Size} = org.opencv.core;
+    if (!Array.isArray(size)) {
+        size = [size, size];
+    }
+    if (size.length === 1) {
+        size = [size[0], size[0]];
+    }
     return new Size(size[0], size[1]);
 }
 
@@ -231,17 +836,17 @@ function _newSize(size) {
  * During this operation, permission prompt window
  *  will be confirmed (with checkbox checked if possible)
  *  automatically with effort
- * @param [params] {object}
- * @param [params.debug_info_flag] {boolean}
- * @param [params.restart_this_engine_flag=false] {boolean}
- * @param [params.restart_this_engine_params] {object}
- * @param [params.restart_this_engine_params.new_file] {string}
+ * @param {object} [params]
+ * @param {boolean} [params.debug_info_flag]
+ * @param {boolean} [params.restart_this_engine_flag=true]
+ * @param {object} [params.restart_this_engine_params]
+ * @param {string} [params.restart_this_engine_params.new_file]
  *  - new engine task name with or without path or file extension name
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param [params.restart_this_engine_params.debug_info_flag] {boolean}
- * @param [params.restart_this_engine_params.max_restart_engine_times=3] {number}
+ * @param {boolean} [params.restart_this_engine_params.debug_info_flag]
+ * @param {number} [params.restart_this_engine_params.max_restart_engine_times=3]
  *  - max restart times for avoiding infinite recursion
  * @return {boolean}
  */
@@ -365,7 +970,7 @@ function _permitCapt(params) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let sel = selector();
         sel.__proto__ = {
-            pickup: (filter) => {
+            pickup(filter) {
                 if (classof(filter) === "JavaObject") {
                     if (filter.toString().match(/UiObject/)) return filter;
                     return filter.findOnce() || null;
@@ -456,7 +1061,6 @@ function _permitCapt(params) {
         let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
         let _max_restart_engine_times_params = _params.max_restart_engine_times;
         let _max_restart_engine_times;
-        let _instant_run_flag = !!_params.instant_run_flag;
         if (typeof _max_restart_engine_times_argv === "undefined") {
             if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
             else _max_restart_engine_times = _max_restart_engine_times_params;
@@ -481,7 +1085,7 @@ function _permitCapt(params) {
         _runJsFile(_file_path, Object.assign({}, _params, {
             max_restart_engine_times: _max_restart_engine_times - 1,
             max_restart_engine_times_backup: _max_restart_engine_times_backup,
-            instant_run_flag: _instant_run_flag,
+            instant_run_flag: _params.instant_run_flag,
         }));
         _debugInfo("强制停止旧引擎任务");
         // _my_engine.forceStop();
@@ -546,15 +1150,12 @@ function _reclaim() {
     }
 }
 
-// updated: Feb 5, 2020
-function _getDisplay(global_assign, params) {
-    let $$flag = global["$$flag"];
-    if (!$$flag) {
-        $$flag = global["$$flag"] = {};
-    }
+// monster function(s) //
 
-    let _par;
-    let _glob_asg;
+// updated: Jun 3, 2020
+function _getDisplay(global_assign, params) {
+    let $_flag = global.$$flag = global.$$flag || {};
+    let _par, _glob_asg;
     if (typeof global_assign === "boolean") {
         _par = params || {};
         _glob_asg = global_assign;
@@ -569,63 +1170,116 @@ function _getDisplay(global_assign, params) {
     let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
         ? debugInfoRaw
         : debugInfo)(m, fg, _par.debug_info_flag);
-    let $_str = x => typeof x === "string";
 
     let _W, _H;
     let _disp = {};
+    let _metrics = new android.util.DisplayMetrics();
     let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
     let _win_svc_disp = _win_svc.getDefaultDisplay();
+    _win_svc_disp.getRealMetrics(_metrics);
 
     if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        return console.error("device.getDisplay()返回结果异常");
+        console.error("device.getDisplay()返回结果异常");
+        return {cX: cX, cY: cY, cYx: cYx};
     }
     _showDisp();
     _assignGlob();
-    return Object.assign(_disp, {cX: _cX, cY: _cY});
+    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
 
     // tool function(s) //
 
-    function _cX(num) {
-        let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
-        let _x = Math.round(num * _unit);
-        return Math.min(_x, _W);
+    function cX(num, base) {
+        return _cTrans(1, +num, base);
     }
 
-    function _cY(num, aspect_ratio) {
-        let _ratio = aspect_ratio;
-        if (!~_ratio) _ratio = "16:9"; // -1
-        if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
-            let _split = _ratio.split(":");
-            _ratio = _split[0] / _split[1];
+    function cY(num, base) {
+        return _cTrans(-1, +num, base);
+    }
+
+    function cYx(num, base) {
+        num = +num;
+        base = +base;
+        if (num >= 1) {
+            if (!base) {
+                base = 720;
+            } else if (base < 0) {
+                if (!~base) {
+                    base = 720;
+                } else if (base === -2) {
+                    base = 1080;
+                } else {
+                    throw Error(
+                        "can not parse base param for cYx()"
+                    );
+                }
+            } else if (base < 5) {
+                throw Error(
+                    "base and num params should " +
+                    "both be pixels for cYx()"
+                );
+            }
+            return Math.round(num * _W / base);
         }
-        _ratio = _ratio || _H / _W;
-        _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
-        let _h = _W * _ratio;
-        let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
-        let _y = Math.round(num * _unit);
-        return Math.min(_y, _H);
+
+        if (!base || !~base) {
+            base = 16 / 9;
+        } else if (base === -2) {
+            base = 21 / 9;
+        } else if (base < 0) {
+            throw Error(
+                "can not parse base param for cYx()"
+            );
+        } else {
+            base = base < 1 ? 1 / base : base;
+        }
+        return Math.round(num * _W * base);
+    }
+
+    function _cTrans(dxn, num, base) {
+        let _full = ~dxn ? _W : _H;
+        if (isNaN(num)) {
+            throw Error("can not parse num param for cTrans()");
+        }
+        if (Math.abs(num) < 1) {
+            return Math.min(Math.round(num * _full), _full);
+        }
+        let _base = base;
+        if (!base || !~base) {
+            _base = ~dxn ? 720 : 1280;
+        } else if (base === -2) {
+            _base = ~dxn ? 1080 : 1920;
+        }
+        let _ct = Math.round(num * _full / _base);
+        return Math.min(_ct, _full);
     }
 
     function _showDisp() {
-        if (!$$flag.display_params_got) {
+        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
             _debugInfo("屏幕宽高: " + _W + " × " + _H);
             _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $$flag.display_params_got = true;
+            $_flag.display_params_got = true;
         }
     }
 
     function _getDisp() {
         try {
-            _W = +_win_svc_disp.getWidth();
-            _H = +_win_svc_disp.getHeight();
+            _W = _win_svc_disp.getWidth();
+            _H = _win_svc_disp.getHeight();
             if (!(_W * _H)) {
                 throw Error();
             }
 
-            // left: 1, right: 3, portrait: 0 (or 2 ?)
-            let _SCR_O = +_win_svc_disp.getOrientation();
+            // if the device is rotated 90 degrees counter-clockwise,
+            // to compensate rendering will be rotated by 90 degrees clockwise
+            // and thus the returned value here will be Surface#ROTATION_90
+            // 0: 0°, device is portrait
+            // 1: 90°, device is rotated 90 degree counter-clockwise
+            // 2: 180°, device is reverse portrait
+            // 3: 270°, device is rotated 90 degree clockwise
+            let _SCR_O = _win_svc_disp.getRotation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            let _MAX = +_win_svc_disp.maximumSizeDimension;
+            // let _MAX = +_win_svc_disp.maximumSizeDimension;
+            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
             let [_UH, _UW] = [_H, _W];
             let _dimen = (name) => {
@@ -677,7 +1331,7 @@ function _getDisplay(global_assign, params) {
                 navH: _disp.navigation_bar_height,
                 navHC: _disp.navigation_bar_height_computed,
                 actH: _disp.action_bar_default_height,
-                cX: _cX, cY: _cY,
+                cX: cX, cY: cY, cYx: cYx,
             });
         }
     }
@@ -705,13 +1359,12 @@ function _getDisplay(global_assign, params) {
 
 // updated: Jan 13, 2020
 function _debugInfo(msg, info_flag, forcible_flag) {
-    global["$$flag"] = global["$$flag"] || {};
-    let $$flag = global["$$flag"];
+    let $_flag = global.$$flag = global.$$flag || {};
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let global_flag = $$flag.debug_info_avail;
+    let global_flag = $_flag.debug_info_avail;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
 
@@ -801,4 +1454,112 @@ function _runJsFile(file_name, e_args) {
         className: "org.autojs.autojs.external.open.RunIntentActivity",
         data: "file://" + _path,
     });
+}
+
+// updated: Jun 3, 2020
+function _timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
+    global["_$_ts_rec"] = global["_$_ts_rec"] || {};
+    let records = global["_$_ts_rec"];
+    if (!operation || operation.toString().match(/^(S|save|put)$/)) {
+        return records[keyword] = +new Date();
+    }
+
+    divisor = divisor || 1;
+
+    let forcible_fixed_num_flag = false;
+    if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
+
+    let prefix = "";
+    let result = +(override_timestamp || new Date()) - records[keyword]; // number
+
+    if (divisor !== "auto") {
+        suffix = suffix || "";
+        result = result / divisor;
+    } else {
+        suffix = suffix || "$$ch";
+        fixed = fixed || [2];
+        forcible_fixed_num_flag = true;
+
+        let getSuffix = (unit_str) => ({
+            ms$$ch: "毫秒", ms$$en: "ms ",
+            sec$$ch: "秒", sec$$en: "s ",
+            min$$ch: "分钟", min$$en: "m ",
+            hour$$ch: "小时", hour$$en: "h ",
+            day$$ch: "天", day$$en: "d ",
+        })[unit_str + suffix];
+
+        let base_unit = {
+            ms: 1,
+            get sec() {
+                return 1e3 * this.ms;
+            },
+            get min() {
+                return 60 * this.sec;
+            },
+            get hour() {
+                return 60 * this.min;
+            },
+            get day() {
+                return 24 * this.hour;
+            }
+        };
+
+        if (result >= base_unit.day) {
+            let _d = ~~(result / base_unit.day);
+            prefix += _d + getSuffix("day");
+            result %= base_unit.day;
+            let _h = ~~(result / base_unit.hour);
+            if (_h) prefix += _h + getSuffix("hour");
+            result %= base_unit.hour;
+            let _min = ~~(result / base_unit.min);
+            if (_min) {
+                result /= base_unit.min;
+                suffix = getSuffix("min");
+            } else {
+                result %= base_unit.min;
+                result /= base_unit.sec;
+                suffix = getSuffix("sec");
+            }
+        } else if (result >= base_unit.hour) {
+            let _hr = ~~(result / base_unit.hour);
+            prefix += _hr + getSuffix("hour");
+            result %= base_unit.hour;
+            let _min = ~~(result / base_unit.min);
+            if (_min) {
+                result /= base_unit.min;
+                suffix = getSuffix("min");
+            } else {
+                result %= base_unit.min;
+                result /= base_unit.sec;
+                suffix = getSuffix("sec");
+            }
+        } else if (result >= base_unit.min) {
+            let _min = ~~(result / base_unit.min);
+            prefix += _min + getSuffix("min");
+            result %= base_unit.min;
+            result /= base_unit.sec;
+            suffix = getSuffix("sec");
+        } else if (result >= base_unit.sec) {
+            result /= base_unit.sec;
+            suffix = getSuffix("sec");
+        } else {
+            result /= base_unit.ms; // yes, i have OCD [:wink:]
+            suffix = getSuffix("ms");
+        }
+    }
+
+    if (typeof fixed !== "undefined" && fixed !== null) {
+        result = result.toFixed(+fixed);  // string
+    }
+
+    if (forcible_fixed_num_flag) result = +result;
+    suffix = suffix.toString().replace(/ *$/g, "");
+
+    let _res;
+    if (!prefix) {
+        _res = result + suffix;
+    } else {
+        _res = prefix + (result ? result + suffix : "");
+    }
+    return _res === "NaN" ? NaN : _res;
 }

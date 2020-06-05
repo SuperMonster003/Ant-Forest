@@ -53,8 +53,8 @@
     let $_arr = x => classof(x, "Array");
     let $_jvo = x => classof(x, "JavaObject");
     let $_sel = getSelector();
-    if ($_und(global["$$flag"])) {
-        global["$$flag"] = {};
+    if ($_und(global.$$flag)) {
+        global.$$flag = {};
     }
     let $_unlk = _unlkSetter();
     let _intro = device.brand + " " + device.product + " " + device.release;
@@ -161,10 +161,9 @@
 
                     // updated at Mar 1, 2020
                     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-                        global["$$flag"] = global["$$flag"] || {};
-                        let $$flag = global["$$flag"];
+                        let $_flag = global.$$flag = global.$$flag || {};
 
-                        if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+                        if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
                         let _msg = msg || "";
                         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -182,9 +181,9 @@
                         if (_if_toast) toast(_msg);
 
                         let _spl_ln_style = "solid";
-                        let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
-                        let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
-                        let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
+                        let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
+                        let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
+                        let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
                         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
                         if (typeof _if_spl_ln === "string") {
@@ -700,13 +699,12 @@
 
                     // updated at Mar 1, 2020
                     function debugInfo(msg, info_flag, forcible_flag) {
-                        global["$$flag"] = global["$$flag"] || {};
-                        let $$flag = global["$$flag"];
+                        let $_flag = global.$$flag = global.$$flag || {};
 
                         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
                         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-                        let global_flag = $$flag.debug_info_avail;
+                        let global_flag = $_flag.debug_info_avail;
                         if (!global_flag && !forcible_flag) return;
                         if (global_flag === false || forcible_flag === false) return;
 
@@ -784,28 +782,38 @@
                         }
                     }
 
-                    // updated at Mar 1, 2020
+                    // updated at Jun 5, 2020
                     function captureErrScreen(key_name, log_level) {
-                        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+                        images.requestScreenCapture();
 
-                        let _$$und = o => typeof o === "undefined";
-                        let _capt = _$$und(images.permit) ? permitCapt : images.permit;
-                        _capt();
+                        let _messageAction = typeof messageAction === "undefined"
+                            ? messageActionRaw
+                            : messageAction;
 
-                        let path = files.getSdcardPath() + "/.local/Pics/Err/" + key_name + "_" + getTimeStr() + ".png";
+                        let _dir = files.getSdcardPath() + "/.local/Pics/Err/";
+                        let _suffix = "_" + _getTimeStr();
+                        let _path = _dir + key_name + _suffix + ".png";
 
-                        files.createWithDirs(path);
-                        images.captureScreen(path);
-                        _messageAction("已存储屏幕截图文件:", log_level);
-                        _messageAction(path, log_level);
+                        try {
+                            files.createWithDirs(_path);
+                            images.captureScreen(_path);
+                            _messageAction("已存储屏幕截图文件:", log_level);
+                            _messageAction(_path, log_level);
+                        } catch (e) {
+                            _messageAction(e.message, 3);
+                        }
 
                         // tool function(s) //
 
-                        function getTimeStr() {
-                            let now = new Date();
-                            let padZero = num => (num < 10 ? "0" : "") + num;
-                            return now.getFullYear() + padZero(now.getMonth() + 1) + padZero(now.getDate())
-                                + padZero(now.getHours()) + padZero(now.getMinutes()) + padZero(now.getSeconds());
+                        function _getTimeStr() {
+                            let _now = new Date();
+                            let _pad = n => (n < 10 ? "0" : "") + n;
+                            return _now.getFullYear() +
+                                _pad(_now.getMonth() + 1) +
+                                _pad(_now.getDate()) +
+                                _pad(_now.getHours()) +
+                                _pad(_now.getMinutes()) +
+                                _pad(_now.getSeconds());
                         }
 
                         // raw function(s) //
@@ -840,29 +848,6 @@
                             }
                             return true;
                         }
-
-                        function permitCapt() {
-                            let _$$isJvo = x => x && !!x["getClass"];
-                            let _key = "_$_request_screen_capture";
-                            let _fg = global[_key];
-                            let _cwd = engines.myEngine().cwd();
-                            let _path = _cwd + "/Modules/EXT_IMAGES.js";
-
-                            if (files.exists(_path)) {
-                                return require(_path).permit();
-                            }
-
-                            if (_$$isJvo(_fg)) {
-                                if (_fg) return true;
-                                _fg.incrementAndGet();
-                            } else {
-                                global[_key] = threads.atomic(1);
-                            }
-
-                            images.requestScreenCapture(false);
-                            sleep(300);
-                            return true;
-                        }
                     }
 
                     // updated at Mar 1, 2020
@@ -872,7 +857,7 @@
                         let _debugInfo = _msg => (
                             typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
                         )(_msg, "", _opt.debug_info_flag);
-                        let _sel = global["selector"]();
+                        let _sel = selector();
                         _sel.__proto__ = _sel.__proto__ || {};
                         Object.assign(_sel.__proto__, {
                             kw_pool: {},
@@ -886,13 +871,13 @@
                              * <br>
                              *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
                              *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-                             * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
-                             * @param [res_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+                             * @param {?string} [mem_kw] - to mark this selector node; better use a keyword without conflict
+                             * @param {string} [res_type="node"] - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
                              * <br>
                              *     -- "txt": available text()/desc() value or empty string
-                             * @param [par] {object}
-                             * @param [par.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-                             * @param [par.debug_info_flag] {boolean}
+                             * @param {object} [par]
+                             * @param {string} [par.selector_prefer="desc"] - unique selector you prefer to check first; "text" or "desc"
+                             * @param {boolean} [par.debug_info_flag]
                              * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
                              * @example
                              * // text/desc/id("abc").findOnce();
@@ -920,7 +905,7 @@
                              * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
                              * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
                              */
-                            pickup: (sel_body, res_type, mem_kw, par) => {
+                            pickup(sel_body, res_type, mem_kw, par) {
                                 let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
                                 let _params = Object.assign({}, _opt, par);
                                 let _res_type = (res_type || "").toString();
@@ -1247,14 +1232,14 @@
                                     }
                                 }
                             },
-                            add: function (key, sel_body, kw) {
+                            add(key, sel_body, kw) {
                                 let _kw = typeof kw === "string" ? kw : key;
                                 this.kw_pool[key] = typeof sel_body === "function"
                                     ? type => sel_body(type)
                                     : type => this.pickup(sel_body, type, _kw);
                                 return this;
                             },
-                            get: function (key, type) {
+                            get(key, type) {
                                 let _picker = this.kw_pool[key];
                                 if (!_picker) {
                                     return null;
@@ -1264,29 +1249,29 @@
                                 }
                                 return _picker(type);
                             },
-                            getAndCache: function (key) {
+                            getAndCache(key) {
                                 // only "node" type can be returned
                                 return this.get(key, "save_cache");
                             },
                             cache: {
                                 save: (key) => _sel.getAndCache(key),
-                                load: (key, type) => {
+                                load(key, type) {
                                     let _node = _sel.cache_pool[key];
                                     if (!_node) {
                                         return null;
                                     }
                                     return _sel.pickup(_sel.cache_pool[key], type);
                                 },
-                                refresh: function (key) {
+                                refresh(key) {
                                     let _cache = _sel.cache_pool[key];
                                     _cache && _cache.refresh();
                                     this.save(key);
                                 },
-                                reset: (key) => {
+                                reset(key) {
                                     delete _sel.cache_pool[key];
                                     return _sel.getAndCache(key);
                                 },
-                                recycle: (key) => {
+                                recycle(key) {
                                     let _cache = _sel.cache_pool[key];
                                     _cache && _cache.recycle();
                                 },
@@ -1354,7 +1339,7 @@
                         let _raw = _encrypted.map((s) => '"' + s + '"');
                         let _res = "[" + _raw + "]";
                         if (_empty) {
-                            global["setClip"](_res);
+                            setClip(_res);
                             toast("密文数组已复制剪切板");
                         }
                         return _res;
@@ -1408,7 +1393,7 @@
                         let _decrypted = _dec(_input);
                         _thd_mon.interrupt();
                         if (_empty) {
-                            global["setClip"](_decrypted);
+                            setClip(_decrypted);
                             toast("解密字符串已复制剪切板");
                         }
                         return _decrypted;
@@ -1457,7 +1442,9 @@
                                         for (let j = 0; j < 4; j += 1) {
                                             _tmp += _dic[arr[i + j + 2]];
                                         }
-                                        _res += unescape("%u" + _tmp);
+                                        _res += String.fromCharCode(
+                                            parseInt(_tmp, 16)
+                                        );
                                         _shift = 4;
                                     } else {
                                         _res += _di;
@@ -1530,7 +1517,7 @@
                             let _s = "已生成新密文字典";
 
                             _splitLine();
-                            global["toastLog"](_s);
+                            toastLog(_s);
                             _splitLine();
 
                             // tool function(s) //
@@ -1689,78 +1676,77 @@
 
     function _addObjectValues() {
         if (!Object["values"]) {
-            Object.prototype.values = function (o) {
-                if (o !== Object(o))
-                    throw new TypeError("Object.values called on a non-object");
-                let key;
-                let value = [];
-                for (key in o) {
-                    if (o.hasOwnProperty(key)) {
-                        value.push(o[key]);
+            Object.defineProperty(Object.prototype, "values", {
+                value: function (o) {
+                    if (o !== Object(o)) {
+                        throw new TypeError("Object.values called on a non-object");
                     }
-                }
-                return value;
-            };
+                    let key;
+                    let value = [];
+                    for (key in o) {
+                        if (o.hasOwnProperty(key)) {
+                            value.push(o[key]);
+                        }
+                    }
+                    return value;
+                },
+                enumerable: false,
+            });
         }
         if (!Object["valuesArr"]) {
-            Object.prototype.valuesArr = function () {
-                if (typeof Object.values === "function") {
-                    return Object.values(this);
-                }
-                let values = [];
-                for (let key in this) {
-                    if (this.hasOwnProperty(key)) {
-                        values.push(this[key]);
+            Object.defineProperty(Object.prototype, "valuesArr", {
+                value: function () {
+                    if (typeof Object.values === "function") {
+                        return Object.values(this);
                     }
-                }
-                return values;
-            };
+                    let values = [];
+                    for (let key in this) {
+                        if (this.hasOwnProperty(key)) {
+                            values.push(this[key]);
+                        }
+                    }
+                    return values;
+                },
+                enumerable: false,
+            });
         }
     }
 
     function _makeSureImpeded() {
-        if (typeof global["$$impeded"] === "undefined") {
-            global["$$impeded"] = () => void 0;
+        if (typeof global.$$impeded === "undefined") {
+            global.$$impeded = () => void 0;
         }
     }
 
     function _activeDeviceObj() {
-        let $_dev = global["device"] || {};
-        let _ = $_dev.__proto__;
-        if (!_) {
-            _ = $_dev.__proto__ = {};
-        }
-        if (!$_dev.keepOn) {
+        let $_dev = global.device || {};
+        let _ = $_dev.__proto__ = $_dev.__proto__ || {};
+        if (typeof _.keepOn !== "function") {
             _.keepOn = function (duration, params) {
-                params = params || {};
-                duration = duration || 5;
-                if (duration < 100) duration *= 60e3;
-                $_dev.keepScreenOn(duration);
-                if (params.debug_info_flag !== false) {
+                let _par = params || {};
+                let _du = duration || 5;
+                _du *= _du < 100 ? 60e3 : 1;
+                $_dev.keepScreenOn(_du);
+                if (_par.debug_info_flag !== false) {
+                    let _mm = +(_du / 60e3).toFixed(2);
                     debugInfo("已设置屏幕常亮");
-                    debugInfo(">最大超时时间: " + +(duration / 60e3).toFixed(2) + "分钟");
+                    debugInfo(">最大超时时间: " + _mm + "分钟");
                 }
             };
         }
-        if (!$_dev.cancelOn) {
+        if (typeof _.cancelOn !== "function") {
             _.cancelOn = function (params) {
-                // click(Math.pow(10, 7), Math.pow(10, 7));
-                params = params || {};
+                let _par = params || {};
                 $_dev.cancelKeepingAwake();
-                if (params.debug_info_flag !== false) {
+                if (_par.debug_info_flag !== false) {
                     debugInfo("屏幕常亮已取消");
                 }
             };
         }
-        if (!$_dev.getDisplay) {
+        if (typeof _.getDisplay !== "function") {
             _.getDisplay = function (global_assign, params) {
-                let $$flag = global["$$flag"];
-                if (!$$flag) {
-                    $$flag = global["$$flag"] = {};
-                }
-
-                let _par;
-                let _glob_asg;
+                let $_flag = global.$$flag = global.$$flag || {};
+                let _par, _glob_asg;
                 if (typeof global_assign === "boolean") {
                     _par = params || {};
                     _glob_asg = global_assign;
@@ -1813,10 +1799,10 @@
                 }
 
                 function _showDisp() {
-                    if (!$$flag.display_params_got) {
+                    if (!$_flag.display_params_got) {
                         _debugInfo("屏幕宽高: " + _W + " × " + _H);
                         _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                        $$flag.display_params_got = true;
+                        $_flag.display_params_got = true;
                     }
                 }
 
@@ -1909,7 +1895,7 @@
                 }
             };
         }
-        device.getDisplay(true);
+        $_dev.getDisplay(true);
     }
 
     function _chkF(s, override_par_num) {
@@ -2016,7 +2002,7 @@
         return {
             init_scr: _isScrOn(),
             prev_cntr: {
-                chk: function () {
+                chk() {
                     _wakeUpIFN();
                     _disturbance();
 
@@ -2102,7 +2088,7 @@
                         }
                     }
                 },
-                dis: function () {
+                dis() {
                     let _this = this;
                     let _btm = _cfg.unlock_dismiss_layer_bottom;
                     let _top = _cfg.unlock_dismiss_layer_top;
@@ -2151,7 +2137,7 @@
                                 _from_sto ? "本地存储" : "自动计算"
                             ));
 
-                            global["gesture"].apply({}, [_time].concat(_par));
+                            gesture.apply({}, [_time].concat(_par));
 
                             if (_this.succ()) {
                                 break;
@@ -2215,10 +2201,10 @@
                         }
                     }
                 },
-                handle: function () {
+                handle() {
                     return !this.succ_fg && this.chk() && this.dis();
                 },
-                succ: function () {
+                succ() {
                     let _this = this;
                     let _cA1 = () => !_this.chk();
                     let _cA = () => waitForAction(_cA1, 1.5e3);
@@ -2227,7 +2213,7 @@
                 },
             },
             unlk_view: {
-                chk: function () {
+                chk() {
                     let _this = this;
 
                     if (!_isScrOn()) {
@@ -2299,7 +2285,7 @@
 
                                 let _pts = _getPts();
                                 let _act = {
-                                    segmental: () => {
+                                    segmental() {
                                         let _par = [];
                                         let _len = _pts.length;
                                         for (let i = 0; i < _len - 1; i += 1) {
@@ -2311,11 +2297,11 @@
                                             let _pts2 = [_pt2[0], _pt2[1]];
                                             _par.push([_t1, _t2, _pts1, _pts2]);
                                         }
-                                        global["gestures"].apply({}, _par);
+                                        gestures.apply({}, _par);
                                     },
-                                    solid: () => {
+                                    solid() {
                                         let _par = [_time].concat(_pts);
-                                        global["gesture"].apply({}, _par);
+                                        gesture.apply({}, _par);
                                     },
                                 };
 
@@ -2814,20 +2800,20 @@
 
                             function _unlockPin() {
                                 let _num_pad = {
-                                    kw: function (num) {
+                                    kw(num) {
                                         return idMatches(_as + "key" + num);
                                     },
-                                    node: function (num) {
+                                    node(num) {
                                         return this.kw(num).findOnce();
                                     },
-                                    test: function () {
+                                    test() {
                                         let _kw = n => _num_pad.kw(n);
                                         if (_testNumNodes(_kw)) {
                                             debugInfo("匹配到通用PIN/KEY解锁控件");
                                             return true;
                                         }
                                     },
-                                    click: function () {
+                                    click() {
                                         let _node = n => _num_pad.node(n);
                                         return _trig(() => {
                                             _pw.forEach((n) => {
@@ -2837,7 +2823,7 @@
                                     },
                                 };
                                 let _cntr = {
-                                    test: function () {
+                                    test() {
                                         let _kw = idMatches(_as + "container");
                                         let _node = _kw.findOnce();
                                         if (_node) {
@@ -2845,7 +2831,7 @@
                                             return this.node = _node;
                                         }
                                     },
-                                    click: function () {
+                                    click() {
                                         let _node = this.node;
                                         let _bnd = _node.bounds();
                                         let _len = _node.childCount();
@@ -2857,22 +2843,22 @@
                                     },
                                 };
                                 let _inp_view = {
-                                    kw: function (num) {
+                                    kw(num) {
                                         let _num = num.toString();
                                         // miui
                                         return idMatches(_ak + "numeric_inputview").text(_num);
                                     },
-                                    node: function (num) {
+                                    node(num) {
                                         return this.kw(num).findOnce();
                                     },
-                                    test: function () {
+                                    test() {
                                         let _kw = n => _inp_view.kw(n);
                                         if (_testNumNodes(_kw)) {
                                             debugInfo("匹配到MIUI/PIN解锁控件");
                                             return true;
                                         }
                                     },
-                                    click: function () {
+                                    click() {
                                         let _node = n => _inp_view.node(n);
                                         return _trig(() => {
                                             _pw.forEach((n) => {
@@ -2882,10 +2868,10 @@
                                     },
                                 };
                                 let _sgl_desc = {
-                                    kw: function (num) {
+                                    kw(num) {
                                         return desc(num);
                                     },
-                                    node: function (num) {
+                                    node(num) {
                                         let _node = this.kw(num).findOnce();
                                         if (!+num && !_node) {
                                             return _specialZero();
@@ -2907,14 +2893,14 @@
                                             return [_pt("x"), _pt("y")];
                                         }
                                     },
-                                    test: function () {
+                                    test() {
                                         let _kw = n => _sgl_desc.kw(n);
                                         if (_testNumNodes(_kw)) {
                                             debugInfo("匹配到内容描述PIN解锁控件");
                                             return true;
                                         }
                                     },
-                                    click: function () {
+                                    click() {
                                         let _node = n => _sgl_desc.node(n);
                                         return _trig(() => {
                                             _pw.forEach((n) => {
@@ -2924,7 +2910,7 @@
                                     },
                                 };
                                 let _msj = {
-                                    test: function () {
+                                    test() {
                                         let _aim = _this.misjudge;
                                         if (_aim) {
                                             debugInfo("匹配到标记匹配PIN解锁控件");
@@ -2933,7 +2919,7 @@
                                             return this.aim = _aim;
                                         }
                                     },
-                                    click: function () {
+                                    click() {
                                         return _trig(function () {
                                             let _aim = _msj.aim;
                                             if (!_aim) {
@@ -3098,7 +3084,7 @@
                         }
                     }
                 },
-                dis: function () {
+                dis() {
                     if (!_code) {
                         return _err("密码为空");
                     }
@@ -3109,10 +3095,10 @@
                     this.stg();
                     device.cancelOn();
                 },
-                handle: function () {
+                handle() {
                     return this.chk() && this.dis();
                 },
-                succ: function (t) {
+                succ(t) {
                     let _t = t || 1920;
                     let _flg = true; // for _correct()
                     let _cond = function () {
@@ -3233,15 +3219,15 @@
         }
 
         function _backupImpeded() {
-            if (typeof global["$$impeded"] === "function") {
+            if (typeof global.$$impeded === "function") {
                 // copy global.$$impeded
-                global["impededBak"] = $$impeded.bind(global);
+                global.impededBak = $$impeded.bind(global);
             }
         }
 
         function _restoreImpededIFN() {
-            if ($_func(global["impededBak"])) {
-                global["$$impeded"] = global["impededBak"];
+            if ($_func(global.impededBak)) {
+                global.$$impeded = global.impededBak;
             }
         }
     }

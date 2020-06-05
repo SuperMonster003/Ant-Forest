@@ -1,38 +1,33 @@
-let $_dev = global["device"];
-if (!$_dev) {
-    $_dev = global["device"] = {};
-}
-if (!$_dev.__proto__) {
-    $_dev.__proto__ = {};
-}
+let $_dev = global.device = global.device || {};
+$_dev.__proto__ = $_dev.__proto__ || {};
 
 let ext = {
     /**
      * device.keepScreenOn()
-     * @param [duration] {number} could be minute (less than 100) or second -- 5 and 300000 both for 5 min
-     * @param [params] {object}
-     * @param [params.debug_info_flag] {boolean}
+     * @param {number} [duration] could be minute (less than 100) or second -- 5 and 300000 both for 5 min
+     * @param {object} [params]
+     * @param {boolean} [params.debug_info_flag]
      */
-    keepOn: function (duration, params) {
-        params = params || {};
-        duration = duration || 5;
-        if (duration < 100) duration *= 60e3;
-        $_dev.keepScreenOn(duration);
-        if (params.debug_info_flag !== false) {
+    keepOn(duration, params) {
+        let _par = params || {};
+        let _du = duration || 5;
+        _du *= _du < 100 ? 60e3 : 1;
+        $_dev.keepScreenOn(_du);
+        if (_par.debug_info_flag !== false) {
+            let _mm = +(_du / 60e3).toFixed(2);
             debugInfo("已设置屏幕常亮");
-            debugInfo(">最大超时时间: " + +(duration / 60e3).toFixed(2) + "分钟");
+            debugInfo(">最大超时时间: " + _mm + "分钟");
         }
     },
     /**
      * device.cancelKeepingAwake()
-     * @param [params] {object}
-     * @param [params.debug_info_flag] {boolean}
+     * @param {object} [params]
+     * @param {boolean} [params.debug_info_flag]
      */
-    cancelOn: function (params) {
-        // click(Math.pow(10, 7), Math.pow(10, 7));
-        params = params || {};
+    cancelOn(params) {
+        let _par = params || {};
         $_dev.cancelKeepingAwake();
-        if (params.debug_info_flag !== false) {
+        if (_par.debug_info_flag !== false) {
             debugInfo("屏幕常亮已取消");
         }
     },
@@ -43,7 +38,7 @@ let ext = {
      * -- odd: delay time; <br>
      * -- even: vibrate time; <br>
      * -- nums less than 10 will be multiplied by 1000
-     * @param [repeat=1] {number} -- repeat times
+     * @param {number} [repeat=1] -- repeat times
      * <br>
      * -- times less than 1 or without number type will be reset to 1
      * @example
@@ -54,7 +49,7 @@ let ext = {
      * // repeat twice
      * device.vibrates([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2);
      */
-    vibrates: function (pattern, repeat) {
+    vibrates(pattern, repeat) {
         let _repeat;
         let _nums = pattern;
         if (typeof _nums !== "object") {
@@ -91,7 +86,7 @@ let ext = {
      * -- 1: OFF-HOOK; <br>
      * // even always returns 0
      */
-    getCallState: function () {
+    getCallState() {
         let {ITelephony} = com.android.internal.telephony;
         let {ServiceManager} = android.os;
 
@@ -108,10 +103,10 @@ let ext = {
      * Returns display screen width and height data and
      * converter functions with different aspect ratios <br>
      * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
-     * @param [global_assign=false] -- set true for global assignment
-     * @param [params] {object}
-     * @param [params.global_assign=false] {boolean}
-     * @param [params.debug_info_flag=false] {boolean}
+     * @param {?boolean} [global_assign=false] -- set true for global assignment
+     * @param {object} [params]
+     * @param {boolean} [params.global_assign=false]
+     * @param {boolean} [params.debug_info_flag=false]
      * @example
      * require("./Modules/EXT_DEVICE").load();
      * let {
@@ -146,14 +141,9 @@ let ext = {
            cYx: cYx, cX: (function((number|*), *=): number), cY: (function((number|*), *=): number)
      }}
      */
-    getDisplay: function (global_assign, params) {
-        let $$flag = global["$$flag"];
-        if (!$$flag) {
-            $$flag = global["$$flag"] = {};
-        }
-
-        let _par;
-        let _glob_asg;
+    getDisplay(global_assign, params) {
+        let $_flag = global.$$flag = global.$$flag || {};
+        let _par, _glob_asg;
         if (typeof global_assign === "boolean") {
             _par = params || {};
             _glob_asg = global_assign;
@@ -171,8 +161,10 @@ let ext = {
 
         let _W, _H;
         let _disp = {};
+        let _metrics = new android.util.DisplayMetrics();
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
+        _win_svc_disp.getRealMetrics(_metrics);
 
         if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
             console.error("device.getDisplay()返回结果异常");
@@ -187,25 +179,35 @@ let ext = {
         /**
          * adaptive coordinate transform for x axis
          * @param num {number|*} - pixel num (x) or percentage num (0.x)
-         * @param [base] {number} - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
-         * //// eg: local device with 720px display width
-         * let x = cX(300, 720); // or cX(300, -1); even cX(300);
-         * let res = console.log(x);
+         * //-- local device with 720px display width --//
+         *
          * // on 720px device: 300
          * // on 1080px device: 450 (300 * 1080 / 720)
          * // on 1080*1920 device: 450 (same as above)
          * // on 1080*2520 device: 450 (same as above)
-         * //// eg: local device with 1080px display width
-         * let x = cX(300, 1080); // or cX(300, -2);
-         * let res = console.log(x);
+         * console.log(cX(300, 720));
+         * console.log(cX(300, -1)); // same as above
+         * console.log(cX(300)); // same as above
+         *
+         * //-- local device with 1080px display width --//
+         *
          * // on 1080px device: 300
          * // on 720px device: 200 (300 * 720 / 1080)
          * // on 720*1680 device: 200 (same as above)
-         * //// eg: local device with 1080px display width
-         * let x1 = cX(0.5); let x2 = cX(0.5, -1); let x3 = cX(0.5, -2);
-         * let x4 = cX(0.5, 720); let x5 = cX(0.5, 1080); let x6 = cX(0.5, 9999);
-         * let res = console.log(x1, x2, x3, x4, x5, x6);
+         * console.log(cX(300, 1080));
+         * console.log(cX(300, -2)); // same as above
+         *
+         * //-- local device with 1080px display width --//
+         *
+         * let x1 = cX(0.5);
+         * let x2 = cX(0.5, -1);
+         * let x3 = cX(0.5, -2);
+         * let x4 = cX(0.5, 720);
+         * let x5 = cX(0.5, 1080);
+         * let x6 = cX(0.5, 9999);
+         * console.log(x1, x2, x3, x4, x5, x6);
          * // on 1080px device: all 540 (1080 * 0.5) -- base params will be ignored
          * // on 720px device: all 360 (720 * 0.5) -- base params will be ignored
          * @return {number}
@@ -218,25 +220,35 @@ let ext = {
         /**
          * adaptive coordinate transform for y axis
          * @param num {number|*} - pixel num (x) or percentage num (0.x)
-         * @param [base] {number} - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
-         * //// eg: local device with 1280px display height
-         * let y = cY(300, 1280); // or cY(300, -1); even cY(300);
-         * let res = console.log(y);
+         * //-- local device with 1280px display height --//
+         *
          * // on 720*1280 device: 300 (same as source device)
          * // on 1080*1920 device: 450 (300 * 1920 / 1280)
-         * // on 1080*2520 device: 590 (300 * 2520 / 1280) (not same as above)
-         * //// eg: local device with 1920px display height
-         * let y = cY(300, 1080); // or cY(300, -2);
-         * let res = console.log(y);
+         * // on 1080*2520 device: 590 (300 * 2520 / 1280) (remarkable)
+         * console.log(cY(300, 1280));
+         * console.log(cY(300, -1)); // same as above
+         * console.log(cY(300)); // same as above
+         *
+         * //-- local device with 1920px display height --//
+         *
          * // on 720*1280 device: 200 (300 * 1280 / 1920)
-         * // on 720*1680 device: 262 (300 * 1680 / 1920) (not same as above)
-         * //// eg: local device with 1920px display height
-         * let y1 = cY(0.5); let y2 = cY(0.5, -1); let y3 = cY(0.5, -2);
-         * let y4 = cY(0.5, 1280); let y5 = cY(0.5, 1920); let y6 = cY(0.5, 9999);
-         * let res = console.log(y1, y2, y3, y4, y5, y6);
+         * // on 720*1680 device: 262 (300 * 1680 / 1920) (remarkable)
+         * console.log(cY(300, 1080));
+         * console.log(cY(300, -2)); // same as above
+         *
+         * //-- local device with 1920px display height --//
+         *
+         * let y1 = cY(0.5);
+         * let y2 = cY(0.5, -1);
+         * let y3 = cY(0.5, -2);
+         * let y4 = cY(0.5, 1280);
+         * let y5 = cY(0.5, 1920);
+         * let y6 = cY(0.5, 9999);
          * // on 1080*1920 device: all 960 (1920 * 0.5) -- base params will be ignored
          * // on 720*1280 device: all 640 (1280 * 0.5) -- base params will be ignored
+         * console.log(y1, y2, y3, y4, y5, y6);
          * @return {number}
          * @public
          */
@@ -247,38 +259,47 @@ let ext = {
         /**
          * adaptive coordinate transform for y axis based (and only based) on x axis
          * @param num {number|*} - pixel num (x) or percentage num (0.x)
-         * @param [base] {number} - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
-         * //// eg: local device with 720*1280 display (try ignoring the height: 1280)
-         * let y = cYx(300, 720); // or cYx(300, -1); even cYx(300);
-         * let res = console.log(y);
+         * //-- local device with 720*1280 display (try ignoring the height: 1280) --//
+         *
          * // on 720*1280 device: 300 (same as source device)
          * // on 1080*1920 device: 450 (300 * 1080 / 720) (same as above)
          * // on 1080*2520 device: 450 (300 * 1080 / 720) (still same as above)
          * // on 1080*9999 device: 450 (300 * 1080 / 720) (still same as above)
          * // all results only affected by width
-         * //// eg: local device with 1080*1920 display
-         * let y = cYx(300, 1080); // or cYx(300, -2);
-         * let res = console.log(y);
+         * console.log(cYx(300, 720));
+         * console.log(cYx(300, -1)); // same as above
+         * console.log(cYx(300)); // same as above
+         *
+         * //-- local device with 1080*1920 display --//
+         *
          * // on 720*1280 device: 200 (300 * 720 / 1080)
          * // on 720*1680 device: 200 (300 * 720 / 1080) (same as above)
-         * //// eg: local device with 2160*5040 display
+         * console.log(cYx(300, 1080));
+         * console.log(cYx(300, -2)); // same as above
+         *
+         * //-- local device with 2160*5040 display --//
+         *
          * let y1 = cYx(0.5); // or cYx(0.5, -1); or cYx(0.5, 16/9);
          * let y2 = cYx(0.5, 1280); // or cYx(0.5, 1920); or cYx(0.5, 9999); -- Error
          * let y3 = cYx(0.5, 5040/2160); // or cYx(0.5, 21/9); or cYx(0.5, 2160/5040); or xYc(0.5, -2) -- GOOD!
          * let y4 = cYx(2020); // or cYx(2020, 720); or cYx(2020, -1); -- even if unreasonable
          * let y5 = cYx(2020, 5040/2160); // or cYx(2020, 16/9); -- Error
          * let y6 = cYx(2020, 2160); // GOOD!
-         * console.log(y1, y3, y4, y6);
+         *
          * // on 1080*1920 device: (ignore height: 1920)
          * // y1: 0.5 * 16/9 * 1080 = 960
          * // y3: 0.5 * 21/9 * 1080 = 1260 -- which is the proper way of usage
          * // y4: 2020 / 720 * 1080 = ... -- no one will set 2020 on a device with only 720px available
          * // y6: 2020 / 2160 * 1080 = 1010 -- which is another proper way of usage
+         *
          * // on 720*1280 device: (ignore height: 1280)
          * // just replacing 1080 in calculations each with 720
+         *
          * // on 1440*1920 device: (ignore height: 1920)
          * // likewise (replace 1080 with 1440)
+         * console.log(y1, y3, y4, y6);
          * @return {number}
          * @public
          */
@@ -327,7 +348,7 @@ let ext = {
          * @see cY
          * @param dxn {number} - direction -- 1: x; -1: y
          * @param num {number} - pixel num (x) or percentage num (0.x)
-         * @param [base] {number} - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @return {number}
          * @private
          */
@@ -350,25 +371,32 @@ let ext = {
         }
 
         function _showDisp() {
-            if (!$$flag.display_params_got) {
+            if ($_flag.debug_info_avail && !$_flag.display_params_got) {
                 _debugInfo("屏幕宽高: " + _W + " × " + _H);
                 _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                $$flag.display_params_got = true;
+                $_flag.display_params_got = true;
             }
         }
 
         function _getDisp() {
             try {
-                _W = +_win_svc_disp.getWidth();
-                _H = +_win_svc_disp.getHeight();
+                _W = _win_svc_disp.getWidth();
+                _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
-                // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_svc_disp.getOrientation();
+                // if the device is rotated 90 degrees counter-clockwise,
+                // to compensate rendering will be rotated by 90 degrees clockwise
+                // and thus the returned value here will be Surface#ROTATION_90
+                // 0: 0°, device is portrait
+                // 1: 90°, device is rotated 90 degree counter-clockwise
+                // 2: 180°, device is reverse portrait
+                // 3: 270°, device is rotated 90 degree clockwise
+                let _SCR_O = _win_svc_disp.getRotation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_svc_disp.maximumSizeDimension;
+                // let _MAX = +_win_svc_disp.maximumSizeDimension;
+                let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -461,7 +489,7 @@ let ext = {
              * @return {{svc: [string], forcible: boolean}}
              * @private
              */
-            _parseArgs: function (args) {
+            _parseArgs(args) {
                 let _svc = [_aj_svc];
                 let _forcible = false;
                 let _type0 = typeof args[0];
@@ -485,12 +513,12 @@ let ext = {
              * @return {string} - enabled services (str forcibly)
              * @private
              */
-            _getString: function () {
+            _getString() {
                 // getString() may be null on some Android OS
                 return getString(_ctx_reso, _ENABL_A11Y_SVC) || "";
             },
             /**
-             * @param [arguments] {...boolean|string|string[]}
+             * @param {...boolean|string|string[]} [arguments]
              * @example
              * // import module with a new instance
              * let {a11y} = require("./Modules/EXT_DEVICE");
@@ -516,13 +544,15 @@ let ext = {
              * a11y.enable([...], true); // enable forcibly
              * @return {boolean} - !!(all_services_started_successfully)
              */
-            enable: function () {
+            enable() {
                 try {
                     let _this = this;
                     let {forcible, svc} = this._parseArgs(arguments);
                     let _svc;
                     if (!this.state(svc)) {
-                        _svc = this.enabled_svc.split(":").filter(x => !~svc.indexOf(x)).concat(svc).join(":");
+                        _svc = this.enabled_svc.split(":")
+                            .filter(x => !~svc.indexOf(x))
+                            .concat(svc).join(":");
                     } else if (forcible) {
                         _svc = this.enabled_svc;
                     }
@@ -539,7 +569,7 @@ let ext = {
                 }
             },
             /**
-             * @param [arguments] {...boolean|string|string[]}
+             * @param {...boolean|string|string[]} [arguments]
              * @see this.enable
              * @example
              * // import module with a new instance
@@ -559,7 +589,7 @@ let ext = {
              * a11y.disable([...], true); // disable forcibly
              * @return {boolean} - !!(all_services_stopped_successfully)
              */
-            disable: function () {
+            disable() {
                 try {
                     let _args0 = arguments[0];
                     let $_str = x => typeof x === "string";
@@ -599,21 +629,21 @@ let ext = {
                 }
             },
             /**
-             * @param [arguments] {...boolean|string|string[]}
+             * @param {...boolean|string|string[]} [arguments]
              * @see this.enable
              * @see this.disable
              * @return {boolean}
              */
-            restart: function () {
+            restart() {
                 return this.disable.apply(this, arguments) && this.enable.apply(this, arguments);
             },
             /**
-             * @param [x] {...boolean|string|string[]}
+             * @param {...boolean|string|string[]} [x]
              * @see this.enable
              * @see this.disable
              * @return {boolean} - !!(all_services_is_running)
              */
-            state: function (x) {
+            state(x) {
                 let _enabled_svc = this.enabled_svc = this._getString();
                 if (typeof x === "undefined") {
                     x = [_aj_svc];
@@ -631,7 +661,7 @@ let ext = {
              * @desc returns all running a11y services
              * @return {string[]} - [] for empty data (rather than "")
              */
-            services: function () {
+            services() {
                 return this._getString().split(":").filter(x => !!x);
             },
         };
@@ -639,19 +669,18 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global["device"], ext);
+module.exports.load = () => Object.assign(global.device, ext);
 
 // tool function(s) //
 
 // updated: Dec 3, 2019
 function debugInfo(msg, info_flag, forcible_flag) {
-    global["$$flag"] = global["$$flag"] || {};
-    let $$flag = global["$$flag"];
+    let $_flag = global.$$flag = global.$$flag || {};
 
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-    let global_flag = $$flag.debug_info_avail;
+    let global_flag = $_flag.debug_info_avail;
     if (!global_flag && !forcible_flag) return;
     if (global_flag === false || forcible_flag === false) return;
 
@@ -731,10 +760,9 @@ function debugInfo(msg, info_flag, forcible_flag) {
 
 // updated: Apr 25, 2020
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    global["$$flag"] = global["$$flag"] || {};
-    let $$flag = global["$$flag"];
+    let $_flag = global.$$flag = global.$$flag || {};
 
-    if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -752,9 +780,9 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     if (_if_toast) toast(_msg);
 
     let _spl_ln_style = "solid";
-    let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
-    let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
-    let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
+    let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
+    let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
+    let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
     if (typeof _if_spl_ln === "string") {

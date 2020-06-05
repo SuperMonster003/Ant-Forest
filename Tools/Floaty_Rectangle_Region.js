@@ -2,11 +2,11 @@ require("../Modules/EXT_GLOBAL_OBJ").load();
 require("../Modules/EXT_DEVICE").load().getDisplay(true);
 
 // let {execArgv: e_argv} = engines.myEngine();
-let o;
+let o = {};
 // let cfg_conj;
 // let sess_par = global.sess_par || {};
 let sess_cfg = global.sess_cfg || {};
-let $$sto = global.$$sto || {};
+let $_sto = global.$$sto || {};
 // let sto_cfg = global.sto_cfg || {};
 
 /*
@@ -21,12 +21,17 @@ if (e_argv && e_argv.config_conj) {
 }
 */
 
-o = {
-    l: cX(0.15),
-    t: cY(312, -1),
-    r: cX(0.85),
-    b: cY(0.42, -1),
-};
+// o = {
+//     l: cX(0.12),
+//     t: cYx(0.25),
+//     r: cX(0.88),
+//     b: cY(0.45),
+// };
+let _region = require("../Modules/MODULE_STORAGE").create("af_cfg").get("config", {}).fri_forest_balls_region
+    || require("../Modules/MODULE_DEFAULT_CONFIG").af.fri_forest_balls_region;
+["l", "t", "r", "b"].forEach((k, i) => {
+    o[k] = _region[i];
+});
 
 !function () {
     let rect, setRect;
@@ -53,18 +58,20 @@ o = {
         clear();
     });
 
+    let _dx = cX(0.1);
+    let _dy = cYx(0.08);
     ui.post(() => {
         win_ctrl.ctrl.addView(setSeekbar({
-            title: "左", nums: [cX(0), cX(0.2), o.l], key: "l",
+            title: "左", nums: [o.l - _dx, o.l + _dx, o.l], key: "l",
         }));
         win_ctrl.ctrl.addView(setSeekbar({
-            title: "上", nums: [cY(0.22, -1), cY(0.26, -1), o.t], key: "t",
+            title: "上", nums: [o.t - _dy, o.t + _dy, o.t], key: "t",
         }));
         win_ctrl.ctrl.addView(setSeekbar({
-            title: "右", nums: [cX(0.8), cX(W), o.r], key: "r",
+            title: "右", nums: [o.r - _dx, o.r + _dx, o.r], key: "r",
         }));
         win_ctrl.ctrl.addView(setSeekbar({
-            title: "下", nums: [cY(0.4, -1), cY(0.44, -1), o.b], key: "b",
+            title: "下", nums: [o.b - _dy, o.b + _dy, o.b], key: "b",
         }));
     });
 
@@ -113,7 +120,7 @@ o = {
         let [min, max, init] = nums;
         if (isNaN(+min)) min = 0;
         if (isNaN(+init)) {
-            let _init = sess_cfg[config_conj] || $$sto.def.af[config_conj];
+            let _init = sess_cfg[config_conj] || $_sto.def.af[config_conj];
             init = isNaN(+_init) ? min : _init;
         }
         if (isNaN(+max)) max = 100;
@@ -146,13 +153,15 @@ o = {
         update(init);
         new_view._seekbar.setOnSeekBarChangeListener(
             new android.widget.SeekBar.OnSeekBarChangeListener({
-                onProgressChanged: function (v, progress, fromUser) {
+                onProgressChanged(seek_bar, progress, from_user) {
                     let result = progress + min;
                     update(result);
-                    o[key] = result;
-                    // $$save.session(config_conj, result);
+                    $$save.session(config_conj, result);
                 },
-            }));
+                onStartTrackingTouch: (seek_bar) => void 0,
+                onStopTrackingTouch: (seek_bar) => void 0,
+            })
+        );
         return new_view;
     }
 }();

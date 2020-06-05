@@ -8,10 +8,10 @@
  */
 
 module.exports = {
-    create: function (name) {
+    create(name) {
         return new Storage(name);
     },
-    remove: function (name) {
+    remove(name) {
         this.create(name).clear();
     },
 };

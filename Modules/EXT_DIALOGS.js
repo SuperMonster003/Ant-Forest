@@ -13,7 +13,7 @@ let rtDialogs = () => {
 };
 
 let ext = {
-    build: function (properties) {
+    build(properties) {
         var builder = Object.create(runtime.dialogs.newBuilder());
         builder.thread = threads.currentThread();
         for (var name in properties) {
@@ -127,7 +127,7 @@ let ext = {
             return c;
         }
     },
-    builds: function (common, o) {
+    builds(common, o) {
         let common_o = {};
         let defs = typeof defs === "undefined" ? require("./MODULE_DEFAULT_CONFIG").settings : defs;
         let dialog_contents = require("./MODULE_TREASURY_VAULT").dialog_contents || {};
@@ -166,7 +166,7 @@ let ext = {
         global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
         return final_dialog;
     },
-    rawInput: function (title, prefill, callback) {
+    rawInput(title, prefill, callback) {
         prefill = prefill || "";
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -180,7 +180,7 @@ let ext = {
     get prompt() {
         return this.rawInput;
     },
-    input: function (title, prefill, callback) {
+    input(title, prefill, callback) {
         prefill = prefill || "";
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -198,7 +198,7 @@ let ext = {
         return eval(dialogs.rawInput(title, prefill), callback ? callback : null);
 
     },
-    alert: function (title, prefill, callback) {
+    alert(title, prefill, callback) {
         prefill = prefill || "";
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -209,7 +209,7 @@ let ext = {
         }
         return rtDialogs().alert(title, prefill, callback ? callback : null);
     },
-    confirm: function (title, prefill, callback) {
+    confirm(title, prefill, callback) {
         prefill = prefill || "";
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -220,7 +220,7 @@ let ext = {
         }
         return rtDialogs().confirm(title, prefill, callback ? callback : null);
     },
-    select: function (title, items, callback) {
+    select(title, items, callback) {
         if (items instanceof Array) {
             if (isUiThread() && !callback) {
                 return new Promise(function (resolve) {
@@ -233,7 +233,7 @@ let ext = {
         }
         return rtDialogs().select(title, [].slice.call(arguments, 1), null);
     },
-    singleChoice: function (title, items, index, callback) {
+    singleChoice(title, items, index, callback) {
         index = index || 0;
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -244,7 +244,7 @@ let ext = {
         }
         return rtDialogs().singleChoice(title, index, items, callback ? callback : null);
     },
-    multiChoice: function (title, items, index, callback) {
+    multiChoice(title, items, index, callback) {
         index = index || [];
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
@@ -269,12 +269,12 @@ let ext = {
             return jsArray;
         }
     },
-    dismiss: function () {
+    dismiss() {
         for (let i = 0, len = arguments.length; i < len; i += 1) {
             arguments[i].dismiss();
         }
     },
-    disableBack: function (d, f) {
+    disableBack(d, f) {
         // to prevent dialog from being dismissed
         // by pressing "back" button (usually by accident)
         d.setOnKeyListener(
@@ -289,4 +289,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global["dialogs"], ext);
+module.exports.load = () => Object.assign(global.dialogs, ext);

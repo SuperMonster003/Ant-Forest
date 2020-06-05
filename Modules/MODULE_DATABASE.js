@@ -36,7 +36,7 @@ module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) 
         insertInto: _insertInto,
         rawQry: s => _db.rawQuery(s, null),
         rawQryData: sql => _rawQryData(sql),
-        clear: () => {
+        clear() {
             db.execSQL("drop table " + tbl_name);
             _init();
         },
