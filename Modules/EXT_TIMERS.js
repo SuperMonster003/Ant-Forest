@@ -17,14 +17,14 @@ let days_ident = [
 ].map(value => value.toString());
 
 let ext = {
-    addDailyTask: function (task) {
+    addDailyTask(task) {
         let localTime = parseDateTime("LocalTime", task.time);
         let timedTask = TimedTask.dailyTask(localTime, files.path(task.path), parseConfig(task));
 
         addTask(timedTask);
         return timedTask;
     },
-    addWeeklyTask: function (task) {
+    addWeeklyTask(task) {
         let localTime = parseDateTime("LocalTime", task.time);
         let timeFlag = 0;
         for (let i = 0; i < task.daysOfWeek.length; i++) {
@@ -37,23 +37,23 @@ let ext = {
         addTask(timedTask);
         return timedTask;
     },
-    addDisposableTask: function (task) {
+    addDisposableTask(task) {
         let localDateTime = parseDateTime("LocalDateTime", task.date);
         let timedTask = TimedTask.disposableTask(localDateTime, files.path(task.path), parseConfig(task));
         addTask(timedTask);
         return timedTask;
     },
-    addIntentTask: function (task) {
+    addIntentTask(task) {
         let intentTask = new IntentTask();
         intentTask.setScriptPath(files.path(task.path));
         task.action && intentTask.setAction(task.action);
         addTask(intentTask);
         return intentTask;
     },
-    getTimedTask: function (id) {
+    getTimedTask(id) {
         return TimedTaskManager.getTimedTask(id);
     },
-    getIntentTask: function (id) {
+    getIntentTask(id) {
         return TimedTaskManager.getIntentTask(id);
     },
     get removeIntentTask() {
@@ -71,7 +71,7 @@ let ext = {
         };
     },
     updateTimedTask: updateTask,
-    queryTimedTasks: function (options, callback) {
+    queryTimedTasks(options, callback) {
         options = options || {};
         var sql = '';
         var args = [];
@@ -93,7 +93,7 @@ let ext = {
             return list;
         })();
     },
-    queryIntentTasks: function (options, callback) {
+    queryIntentTasks(options, callback) {
         var sql = '';
         var args = [];
 
@@ -113,7 +113,7 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global["timers"], ext);
+module.exports.load = () => Object.assign(global.timers, ext);
 
 // tool function(s) //
 

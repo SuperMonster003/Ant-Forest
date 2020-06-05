@@ -1,20 +1,19 @@
 let ext = {
-    execArgvJs: () => {
+    execArgvJs() {
         let _e = engines.myEngine();
         let _argv = _e.execArgv || {};
         let _o = {};
-        let {Boolean: _Bool, Double: _Dbl} = java.lang;
         for (let i in _argv) {
             if (_argv.hasOwnProperty(i)) {
-                let v = _argv[i];
-                if (!v["getClass"]) {
-                    _o[i] = v;
-                } else if (v instanceof _Bool) {
-                    _o[i] = v["booleanValue"]();
-                } else if (v instanceof _Dbl) {
-                    _o[i] = v["doubleValue"]();
+                let _v = _argv[i];
+                if (!_v.getClass) {
+                    _o[i] = _v;
+                } else if (_v instanceof java.lang.Boolean) {
+                    _o[i] = _v.booleanValue();
+                } else if (_v instanceof java.lang.Double) {
+                    _o[i] = _v.doubleValue();
                 } else {
-                    _o[i] = v;
+                    _o[i] = _v;
                 }
             }
         }
@@ -23,4 +22,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global["engines"], ext);
+module.exports.load = () => Object.assign(global.engines, ext);

@@ -144,7 +144,7 @@ setHomePage(defs.homepage_title)
     .add("button", new Layout("锁屏密码", {
         config_conj: "unlock_code",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds(["设置锁屏解锁密码", this.config_conj, ["查看示例", "hint_btn_bright_color"], "返回", "确认", 1], {
                 inputHint: "密码将以密文形式存储在本地",
             });
@@ -196,7 +196,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             view._hint.text(session_config[this.config_conj] ? "已设置" : "空");
         },
     }))
@@ -205,7 +205,7 @@ setHomePage(defs.homepage_title)
     .add("button", new Layout("最大尝试次数", {
         config_conj: "unlock_max_try_times",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds([
                 "设置解锁最大尝试次数", "",
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
@@ -223,7 +223,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
         },
     }))
@@ -232,7 +232,7 @@ setHomePage(defs.homepage_title)
     .add("button", new Layout("上滑时长", {
         config_conj: "unlock_dismiss_layer_swipe_time",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds([
                 "提示层页面上滑时长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
@@ -250,14 +250,14 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
         },
     }))
     .add("button", new Layout("起点位置", {
         config_conj: "unlock_dismiss_layer_bottom",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds([
                 "提示层页面起点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
@@ -276,7 +276,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
             view._hint.text(value.toString() + "% H");
         },
@@ -284,7 +284,7 @@ setHomePage(defs.homepage_title)
     .add("button", new Layout("终点位置", {
         config_conj: "unlock_dismiss_layer_top",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds([
                 "提示层页面终点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
@@ -303,7 +303,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
             view._hint.text(value.toString() + "% H");
         },
@@ -317,7 +317,7 @@ setHomePage(defs.homepage_title)
             "segmental": "叠加路径", // gestures()
             "solid": "连续路径", // gesture()
         },
-        newWindow: function () {
+        newWindow() {
             let map = this.map;
             let map_keys = Object.keys(map);
             let diag = dialogs.builds(["图案解锁滑动策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
@@ -337,7 +337,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()]);
         },
     }))
@@ -345,7 +345,7 @@ setHomePage(defs.homepage_title)
         config_conj: () => "unlock_pattern_swipe_time_"
             + (session_config.unlock_pattern_strategy || DEFAULT_UNLOCK.unlock_pattern_strategy),
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let config_conj = this.config_conj();
             let diag = dialogs.builds([
                 "设置图案解锁滑动时长", config_conj,
@@ -364,7 +364,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             let config_conj = this.config_conj();
             view._hint.text((session_config[config_conj] || DEFAULT_UNLOCK[config_conj]).toString() + " ms");
         },
@@ -372,7 +372,7 @@ setHomePage(defs.homepage_title)
     .add("button", new Layout("点阵边长", {
         config_conj: "unlock_pattern_size",
         hint: "加载中...",
-        newWindow: function () {
+        newWindow() {
             let diag = dialogs.builds([
                 "设置图案解锁边长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
@@ -390,7 +390,7 @@ setHomePage(defs.homepage_title)
             });
             diag.show();
         },
-        updateOpr: function (view) {
+        updateOpr(view) {
             view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
         },
     }))
@@ -417,7 +417,7 @@ ui.emitter.on("back_pressed", e => {
 events.on("exit", () => {
     listener.removeAllListeners();
     threads.shutDownAll();
-    global["dialogs_pool"].forEach((diag) => {
+    global.dialogs_pool.forEach((diag) => {
         diag.dismiss();
         diag = null;
     });
@@ -814,13 +814,17 @@ function setPage(title_param, title_bg_color, additions, options) {
             let update = (source) => new_view._text.setText((title ? title + ": " : "") + source.toString() + (unit ? " " + unit : ""));
 
             update(init);
-            new_view._seekbar.setOnSeekBarChangeListener(new android.widget.SeekBar.OnSeekBarChangeListener({
-                onProgressChanged: function (v, progress, fromUser) {
-                    let result = progress + min;
-                    update(result);
-                    saveSession(config_conj, result);
-                },
-            }));
+            new_view._seekbar.setOnSeekBarChangeListener(
+                new android.widget.SeekBar.OnSeekBarChangeListener({
+                    onProgressChanged(seek_bar, progress, from_user) {
+                        let result = progress + min;
+                        update(result);
+                        $$save.session(config_conj, result);
+                    },
+                    onStartTrackingTouch: (seek_bar) => void 0,
+                    onStopTrackingTouch: (seek_bar) => void 0,
+                })
+            );
 
             return new_view;
         }
@@ -920,7 +924,7 @@ function Layout(title, params) {
     if (params.listeners) {
         Object.defineProperties(this, {
             listener: {
-                get: function () {
+                get() {
                     return params.listeners;
                 },
             },
@@ -1116,7 +1120,7 @@ function loadInternalModuleDialog(__runtime__, scope) {
         }
 
         let final_dialog = dialogs.build(Object.assign({}, common_o, o));
-        global["dialogs_pool"] = (global["dialogs_pool"] || []).concat([final_dialog]);
+        global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
         return final_dialog;
     };
 
@@ -1304,10 +1308,9 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-        global["$$flag"] = global["$$flag"] || {};
-        let $$flag = global["$$flag"];
+        let $_flag = global.$$flag = global.$$flag || {};
 
-        if ($$flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+        if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
 
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
@@ -1325,9 +1328,9 @@ function loadInternalModuleMonsterFunc() {
         if (_if_toast) toast(_msg);
 
         let _spl_ln_style = "solid";
-        let _saveLnStyle = () => $$flag.last_cnsl_spl_ln_type = _spl_ln_style;
-        let _loadLnStyle = () => $$flag.last_cnsl_spl_ln_type;
-        let _clearLnStyle = () => delete $$flag.last_cnsl_spl_ln_type;
+        let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
+        let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
+        let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
         if (typeof _if_spl_ln === "string") {
@@ -1625,13 +1628,12 @@ function loadInternalModuleMonsterFunc() {
     }
 
     function debugInfo(msg, info_flag, forcible_flag) {
-        global["$$flag"] = global["$$flag"] || {};
-        let $$flag = global["$$flag"];
+        let $_flag = global.$$flag = global.$$flag || {};
 
         let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
         let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
 
-        let global_flag = $$flag.debug_info_avail;
+        let global_flag = $_flag.debug_info_avail;
         if (!global_flag && !forcible_flag) return;
         if (global_flag === false || forcible_flag === false) return;
 
@@ -1774,7 +1776,7 @@ function loadInternalModuleMonsterFunc() {
         let _opt = options || {};
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _opt.debug_info_flag);
-        let _sel = global["selector"]();
+        let _sel = selector();
         _sel.__proto__ = _sel.__proto__ || {};
         Object.assign(_sel.__proto__, {
             kw_pool: {},
@@ -1788,13 +1790,13 @@ function loadInternalModuleMonsterFunc() {
              * <br>
              *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
              *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-             * @param [mem_kw {string|null}] - to mark this selector node; better use a keyword without conflict
-             * @param [res_type="node"] {string} - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+             * @param {?string} [mem_kw] - to mark this selector node; better use a keyword without conflict
+             * @param {string} [res_type="node"] - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
              * <br>
              *     -- "txt": available text()/desc() value or empty string
-             * @param [par] {object}
-             * @param [par.selector_prefer="desc"] {string} - unique selector you prefer to check first; "text" or "desc"
-             * @param [par.debug_info_flag] {boolean}
+             * @param {object} [par]
+             * @param {string} [par.selector_prefer="desc"] - unique selector you prefer to check first; "text" or "desc"
+             * @param {boolean} [par.debug_info_flag]
              * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
              * @example
              * // text/desc/id("abc").findOnce();
@@ -1822,7 +1824,7 @@ function loadInternalModuleMonsterFunc() {
              * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
              * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
              */
-            pickup: (sel_body, res_type, mem_kw, par) => {
+            pickup(sel_body, res_type, mem_kw, par) {
                 let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
                 let _params = Object.assign({}, _opt, par);
                 let _res_type = (res_type || "").toString();
@@ -2141,14 +2143,14 @@ function loadInternalModuleMonsterFunc() {
                     }
                 }
             },
-            add: function (key, sel_body, kw) {
+            add(key, sel_body, kw) {
                 let _kw = typeof kw === "string" ? kw : key;
                 this.kw_pool[key] = typeof sel_body === "function"
                     ? type => sel_body(type)
                     : type => this.pickup(sel_body, type, _kw);
                 return this;
             },
-            get: function (key, type) {
+            get(key, type) {
                 let _picker = this.kw_pool[key];
                 if (!_picker) {
                     return null;
@@ -2158,29 +2160,29 @@ function loadInternalModuleMonsterFunc() {
                 }
                 return _picker(type);
             },
-            getAndCache: function (key) {
+            getAndCache(key) {
                 // only "node" type can be returned
                 return this.get(key, "save_cache");
             },
             cache: {
                 save: (key) => _sel.getAndCache(key),
-                load: (key, type) => {
+                load(key, type) {
                     let _node = _sel.cache_pool[key];
                     if (!_node) {
                         return null;
                     }
                     return _sel.pickup(_sel.cache_pool[key], type);
                 },
-                refresh: function (key) {
+                refresh(key) {
                     let _cache = _sel.cache_pool[key];
                     _cache && _cache.refresh();
                     this.save(key);
                 },
-                reset: (key) => {
+                reset(key) {
                     delete _sel.cache_pool[key];
                     return _sel.getAndCache(key);
                 },
-                recycle: (key) => {
+                recycle(key) {
                     let _cache = _sel.cache_pool[key];
                     _cache && _cache.recycle();
                 },
@@ -2368,7 +2370,7 @@ function loadInternalModulePWMAP() {
         let _raw = _encrypted.map((s) => '"' + s + '"');
         let _res = "[" + _raw + "]";
         if (_empty) {
-            global["setClip"](_res);
+            setClip(_res);
             toast("密文数组已复制剪切板");
         }
         return _res;
@@ -2422,7 +2424,7 @@ function loadInternalModulePWMAP() {
         let _decrypted = _dec(_input);
         _thd_mon.interrupt();
         if (_empty) {
-            global["setClip"](_decrypted);
+            setClip(_decrypted);
             toast("解密字符串已复制剪切板");
         }
         return _decrypted;
@@ -2471,7 +2473,9 @@ function loadInternalModulePWMAP() {
                         for (let j = 0; j < 4; j += 1) {
                             _tmp += _dic[arr[i + j + 2]];
                         }
-                        _res += unescape("%u" + _tmp);
+                        _res += String.fromCharCode(
+                            parseInt(_tmp, 16)
+                        );
                         _shift = 4;
                     } else {
                         _res += _di;
@@ -2544,7 +2548,7 @@ function loadInternalModulePWMAP() {
             let _s = "已生成新密文字典";
 
             _splitLine();
-            global["toastLog"](_s);
+            toastLog(_s);
             _splitLine();
 
             // tool function(s) //
@@ -2683,15 +2687,10 @@ function loadInternalModuleStorage() {
     })();
 }
 
-// updated at Feb 5, 2020
+// updated: May 29, 2020
 function _getDisplay(global_assign, params) {
-    let $$flag = global["$$flag"];
-    if (!$$flag) {
-        $$flag = global["$$flag"] = {};
-    }
-
-    let _par;
-    let _glob_asg;
+    let $_flag = global.$$flag = global.$$flag || {};
+    let _par, _glob_asg;
     if (typeof global_assign === "boolean") {
         _par = params || {};
         _glob_asg = global_assign;
@@ -2706,63 +2705,116 @@ function _getDisplay(global_assign, params) {
     let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
         ? debugInfoRaw
         : debugInfo)(m, fg, _par.debug_info_flag);
-    let $_str = x => typeof x === "string";
 
     let _W, _H;
     let _disp = {};
+    let _metrics = new android.util.DisplayMetrics();
     let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
     let _win_svc_disp = _win_svc.getDefaultDisplay();
+    _win_svc_disp.getRealMetrics(_metrics);
 
     if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        return console.error("device.getDisplay()返回结果异常");
+        console.error("device.getDisplay()返回结果异常");
+        return {cX: cX, cY: cY, cYx: cYx};
     }
     _showDisp();
     _assignGlob();
-    return Object.assign(_disp, {cX: _cX, cY: _cY});
+    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
 
     // tool function(s) //
 
-    function _cX(num) {
-        let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
-        let _x = Math.round(num * _unit);
-        return Math.min(_x, _W);
+    function cX(num, base) {
+        return _cTrans(1, +num, base);
     }
 
-    function _cY(num, aspect_ratio) {
-        let _ratio = aspect_ratio;
-        if (!~_ratio) _ratio = "16:9"; // -1
-        if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
-            let _split = _ratio.split(":");
-            _ratio = _split[0] / _split[1];
+    function cY(num, base) {
+        return _cTrans(-1, +num, base);
+    }
+
+    function cYx(num, base) {
+        num = +num;
+        base = +base;
+        if (num >= 1) {
+            if (!base) {
+                base = 720;
+            } else if (base < 0) {
+                if (!~base) {
+                    base = 720;
+                } else if (base === -2) {
+                    base = 1080;
+                } else {
+                    throw Error(
+                        "can not parse base param for cYx()"
+                    );
+                }
+            } else if (base < 5) {
+                throw Error(
+                    "base and num params should " +
+                    "both be pixels for cYx()"
+                );
+            }
+            return Math.round(num * _W / base);
         }
-        _ratio = _ratio || _H / _W;
-        _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
-        let _h = _W * _ratio;
-        let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
-        let _y = Math.round(num * _unit);
-        return Math.min(_y, _H);
+
+        if (!base || !~base) {
+            base = 16 / 9;
+        } else if (base === -2) {
+            base = 21 / 9;
+        } else if (base < 0) {
+            throw Error(
+                "can not parse base param for cYx()"
+            );
+        } else {
+            base = base < 1 ? 1 / base : base;
+        }
+        return Math.round(num * _W * base);
+    }
+
+    function _cTrans(dxn, num, base) {
+        let _full = ~dxn ? _W : _H;
+        if (isNaN(num)) {
+            throw Error("can not parse num param for cTrans()");
+        }
+        if (Math.abs(num) < 1) {
+            return Math.min(Math.round(num * _full), _full);
+        }
+        let _base = base;
+        if (!base || !~base) {
+            _base = ~dxn ? 720 : 1280;
+        } else if (base === -2) {
+            _base = ~dxn ? 1080 : 1920;
+        }
+        let _ct = Math.round(num * _full / _base);
+        return Math.min(_ct, _full);
     }
 
     function _showDisp() {
-        if (!$$flag.display_params_got) {
+        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
             _debugInfo("屏幕宽高: " + _W + " × " + _H);
             _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $$flag.display_params_got = true;
+            $_flag.display_params_got = true;
         }
     }
 
     function _getDisp() {
         try {
-            _W = +_win_svc_disp.getWidth();
-            _H = +_win_svc_disp.getHeight();
+            _W = _win_svc_disp.getWidth();
+            _H = _win_svc_disp.getHeight();
             if (!(_W * _H)) {
                 throw Error();
             }
 
-            // left: 1, right: 3, portrait: 0 (or 2 ?)
-            let _SCR_O = +_win_svc_disp.getOrientation();
+            // if the device is rotated 90 degrees counter-clockwise,
+            // to compensate rendering will be rotated by 90 degrees clockwise
+            // and thus the returned value here will be Surface#ROTATION_90
+            // 0: 0°, device is portrait
+            // 1: 90°, device is rotated 90 degree counter-clockwise
+            // 2: 180°, device is reverse portrait
+            // 3: 270°, device is rotated 90 degree clockwise
+            let _SCR_O = _win_svc_disp.getRotation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            let _MAX = +_win_svc_disp.maximumSizeDimension;
+            // let _MAX = +_win_svc_disp.maximumSizeDimension;
+            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
             let [_UH, _UW] = [_H, _W];
             let _dimen = (name) => {
@@ -2814,7 +2866,7 @@ function _getDisplay(global_assign, params) {
                 navH: _disp.navigation_bar_height,
                 navHC: _disp.navigation_bar_height_computed,
                 actH: _disp.action_bar_default_height,
-                cX: _cX, cY: _cY,
+                cX: cX, cY: cY, cYx: cYx,
             });
         }
     }
