@@ -1081,7 +1081,7 @@ let $$init = {
                                         debug_info_flag: false,
                                         no_message_flag: true,
                                         first_time_run_message_flag: false,
-                                        condition_ready: $$app.page.autojs.is_fg,
+                                        condition_ready: () => $$app.page.autojs.is_fg,
                                     });
 
                                     if (_res) {
