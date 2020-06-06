@@ -3079,7 +3079,7 @@ let $$init = {
                                         Object.assign($$cfg, _new);
                                     },
                                     get def_choices() {
-                                        let _src = $$cfg[this.key_prefix + "_default_choices"];
+                                        let _src = $$cfg[this.key_prefix + "_map"];
                                         let _res = {};
                                         _src.forEach(_num => _res[_num] = _num + " min");
                                         return _res;
