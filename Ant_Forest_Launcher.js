@@ -4297,7 +4297,10 @@ let $$af = {
                             o.type = "ripe";
                             return o;
                         }));
-                        debugInfo("已转换" + _orange.length + "个主页橙色误判球");
+                        let _len = _orange.length;
+                        if (_len) {
+                            debugInfo("已转换" + _len + "个主页橙色误判球");
+                        }
                         delete _info.orange;
                     }
                 },
