@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Jun 5, 2020
- * @version 1.9.19
+ * @since Jun 9, 2020
+ * @version 1.9.20
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -1285,12 +1285,31 @@ let $$init = {
                                     if (_pool.length !== 2) {
                                         return true;
                                     }
-                                    return !images.findImage.apply({}, _pool);
+                                    let _fz = 0.35;
+                                    let [_a, _b] = _pool.map(capt => (
+                                        images.scale(capt, _fz, _fz)
+                                    ));
+                                    let _res = !images.findImage(_a, _b);
+                                    images.reclaim(_a, _b);
+                                    _a = _b = null;
+                                    return _res;
                                 }
                             },
                             btm_tpl: {
                                 path: $$cfg.rank_list_bottom_template_path,
-                                img: images.read($$cfg.rank_list_bottom_template_path),
+                                get img() {
+                                    if (this._img && !images.isRecycled(this._img)) {
+                                        return this._img;
+                                    }
+                                    return this._img = images.read(this.path);
+                                },
+                                set img(img) {
+                                    this._img = img;
+                                },
+                                reclaim() {
+                                    images.reclaim(this._img);
+                                    this._img = null;
+                                },
                             },
                             launch(plans_arr, shared_opt) {
                                 // TODO split from alipay spring board
@@ -2576,19 +2595,19 @@ let $$init = {
                                 // tool function(s) //
 
                                 function _check(img) {
-                                    let _capt = this.capt();
-                                    if (_capt) {
-                                        let _mch = images.findImage(_capt, img, {level: 1});
-                                        images.reclaim(_capt);
-                                        _capt = null;
+                                    let _avt_clip = this.getAvtClip();
+                                    if (_avt_clip) {
+                                        let _mch = images.findImage(_avt_clip, img, {level: 1});
+                                        images.reclaim(_avt_clip);
+                                        _avt_clip = null;
                                         if (_mch) {
-                                            this._capt_cached = _capt;
+                                            this._avt_clip_cached = _avt_clip;
                                         }
                                         return _mch;
                                     }
                                 }
                             },
-                            capt() {
+                            getAvtClip() {
                                 let _b = null;
 
                                 waitForAction(() => _b = _getAvtPos(), 8e3, 100);
@@ -2644,12 +2663,12 @@ let $$init = {
                                 }
                             },
                             save(path) {
-                                let _capt = this._capt_cached || this.capt();
-                                if (_capt) {
-                                    images.save(_capt, path || this._path);
-                                    images.reclaim(_capt);
-                                    _capt = null;
-                                    delete this._capt_cached;
+                                let _avt_clip = this._avt_clip_cached || this.getAvtClip();
+                                if (_avt_clip) {
+                                    images.save(_avt_clip, path || this._path);
+                                    images.reclaim(_avt_clip);
+                                    _avt_clip = null;
+                                    delete this._avt_clip_cached;
                                     return true;
                                 }
                             },
@@ -3730,10 +3749,7 @@ let $$init = {
 
                         let _sel_str = $$sel.cache.load(_key, "sel_str");
                         let _bd = $$sel.cache.load(_key, "bounds");
-                        let _l = _bd.left;
-                        let _t = _bd.top;
-                        let _r = _bd.right;
-                        let _b = _bd.bottom;
+                        let {left: _l, top: _t, right: _r, bottom: _b} = _bd;
                         let _w = _bd.width() - 3;
                         let _h = _bd.height() - 3;
 
@@ -3751,11 +3767,10 @@ let $$init = {
 
                         let _capt = images.capt();
                         let _clip = images.clip(_capt, _l, _t, _w, _h);
-                        let _copy = images.copy(_clip);
                         let _path = $$app.page.rl.btm_tpl.path;
-                        images.reclaim($$app.page.rl.btm_tpl.img);
-                        $$app.page.rl.btm_tpl.img = _copy;
-                        images.save(_copy, _path);
+                        $$app.page.rl.btm_tpl.reclaim();
+                        $$app.page.rl.btm_tpl.img = _clip;
+                        images.save(_clip, _path);
                         debugInfo("已存储列表底部控件图片模板");
 
                         images.reclaim(_capt, _clip);
@@ -4265,17 +4280,38 @@ let $$af = {
                         this.home_balls_info = images.findAFBallsByHough({
                             no_debug_info: _opt.no_debug_info,
                         });
+                        _cvtOrangeIntoRipe.call(this);
                     }
                     if (!type || type === "all") {
                         return this.home_balls_info.expand();
                     }
                     return this.home_balls_info[type] || [];
+
+                    // tool function(s) //
+
+                    function _cvtOrangeIntoRipe() {
+                        let _info = this.home_balls_info;
+                        let _orange = _info.orange || [];
+                        let _ripe = _info.ripe || [];
+                        _info.ripe = _ripe.concat(_orange.map(o => {
+                            o.type = "ripe";
+                            return o;
+                        }));
+                        let _len = _orange.length;
+                        if (_len) {
+                            debugInfo("已转换" + _len + "个主页橙色误判球");
+                        }
+                        delete _info.orange;
+                    }
                 },
                 cleaner: {
                     imgWrapper() {
                         $$af && Object.keys($$af).forEach((key) => (
                             images.reclaim($$af[key])
                         ));
+                    },
+                    eballs() {
+                        $$af.home_balls_info = {};
                     },
                 },
             });
@@ -4398,9 +4434,9 @@ let $$af = {
                             });
                         } while (--_max && !waitForAction(_noRipeBalls, 2.4e3));
 
-                        if (_max >= 0) {
-                            return _stableEmount();
-                        }
+                        _max >= 0 && _stableEmount();
+
+                        return true;
 
                         // tool function(s) //
 
@@ -4450,15 +4486,14 @@ let $$af = {
                         let _i = $$app.tool.stabilizer(_getEm, _t) - _t;
 
                         if (_i <= 0 || isNaN(_i)) {
-                            sleep(500);
-                            $$af.emount_t_own = _getEm("buf");
+                            $$af.emount_t_own = _getEm("buffer");
                             $$af.emount_c_own += $$af.emount_t_own - _t;
                         } else {
                             $$af.emount_t_own += _i;
                             $$af.emount_c_own += _i;
                         }
 
-                        return true;
+                        return !isNaN(_i) && _i > 0;
                     }
 
                     function _chkCountdown() {
@@ -4577,36 +4612,54 @@ let $$af = {
                                     debugInfo("已开启倒计时数据OCR识别线程");
 
                                     let _capt = images.capt();
+                                    let [_cl, _ct, _cr, _cb] = $$cfg.forest_balls_rect_region;
+                                    let _cw = _cr - _cl;
+                                    let _ch = _cb - _ct;
+                                    let _clip = images.clip(_capt, _cl, _ct, _cw, _ch);
                                     let _stitched = null;
 
-                                    let _raw_data = baiduOcr(
-                                        _stitchImg(), {
-                                            fetch_times: 3,
-                                            fetch_interval: 500,
-                                            no_toast_msg_flag: true,
-                                            capt_img: _capt,
-                                        })
+                                    let _raw_data = baiduOcr(_stitchImg(), {
+                                        fetch_times: 3,
+                                        fetch_interval: 500,
+                                        no_toast_msg_flag: true,
+                                        capt_img: _clip,
+                                    });
+
+                                    debugInfo("OCR识别线程已获取数据")
+                                    debugInfo("原始数据:");
+                                    // nested data should be applied (not called)
+                                    debugInfo(util.format.apply(util, _raw_data));
+
+                                    let _rex_t = /(\d{2})\D(\d{2})/;
+                                    let _proc_data = _raw_data
                                         .map((data) => {
-                                            // eg: [["11:29"], ["11:25", "07:03", "3"], [""]]
-                                            // --> [["11:29"], ["11:25", "07:03"], []]
-                                            return data.filter(s => !!s.match(/\d{2}:\d{2}/));
+                                            // eg: [["11:29"], ["11.25", "07|03", "3"], [""]]
+                                            // --> [["11:29"], ["11.25", "07|03"], []]
+                                            return data.filter(s => !!s.match(_rex_t));
                                         })
                                         .filter((data) => {
-                                            // eg: [["11:29"], ["11:25", "07:03"], []]
-                                            // --> [["11:29"], ["11:25", "07:03"]]
+                                            // eg: [["11:29"], ["11.25", "07|03"], []]
+                                            // --> [["11:29"], ["11.25", "07|03"]]
                                             return data.length > 0;
                                         })
                                         .map((data) => {
-                                            // eg: [["11:29"], ["11:25", "07:03"]]
-                                            // --> [["11:29"], ["07:03", "11:25"]]
-                                            // --> ["11:29", "07:03"]
-                                            return data.sort((a, b) => a > b ? 1 : -1)[0];
+                                            let _map = (s) => s.replace(_rex_t, "$1:$2");
+                                            let _sort = (a, b) => a === b ? 0 : a > b ? 1 : -1;
+                                            // eg: [["11:29"], ["11.25", "07|03"]]
+                                            // --> [["11:29"], ["11:25", "07:03"]] // map
+                                            // --> [["11:29"], ["07:03", "11:25"]] // sort
+                                            // --> ["11:29", "07:03"] // index(0)
+                                            return data.map(_map).sort(_sort)[0];
                                         });
 
-                                    images.reclaim(_capt, _stitched);
-                                    _capt = _stitched = null;
+                                    debugInfo("加工数据:");
+                                    // flat data should be called (not applied)
+                                    debugInfo(util.format.call(util, _proc_data));
 
-                                    if (!_raw_data.length) {
+                                    images.reclaim(_capt, _clip, _stitched);
+                                    _capt = _clip = _stitched = null;
+
+                                    if (!_proc_data.length) {
                                         debugInfo("OCR识别线程未能获取有效数据");
                                         return;
                                     }
@@ -4618,7 +4671,7 @@ let $$af = {
                                     }
                                     debugInfo("OCR识别线程数据已采纳");
 
-                                    return _ctd_data = _raw_data;
+                                    return _ctd_data = _proc_data;
 
                                     // tool function(s) //
 
@@ -4698,6 +4751,7 @@ let $$af = {
                             $$dev.cancelOn();
                             $$app.monitor.af_home_in_page.interrupt();
                             delete $$flag.af_home_in_page;
+                            $$af.cleaner.eballs(); // clear cache
 
                             let _em = $$af.emount_c_own - _old_em;
                             let _et = timeRecorder("monitor_own", "L", "auto");
@@ -4752,20 +4806,26 @@ let $$af = {
                         // tool function(s) //
 
                         function _trig() {
+                            let _res = false;
                             delete _wballs_info.coord;
-                            if (_wballs_info.lmt--) {
-                                let _capt = images.capt();
-                                for (let coord of _wballs_cache) {
-                                    if (images.isWball(coord, _capt)) {
-                                        return _wballs_info.coord = coord;
-                                    }
-                                }
-                                return false;
+                            if (!_wballs_info.lmt--) {
+                                let _sA = "中断主页浇水回赠能量球检测";
+                                let _sB = "已达最大检查次数限制";
+                                messageAction(_sA, 3, 0, 0, -1);
+                                messageAction(_sB, 3, 0, 1, 1);
+                                return _res;
                             }
-                            let _sA = "中断主页浇水回赠能量球检测";
-                            let _sB = "已达最大检查次数限制";
-                            messageAction(_sA, 3, 0, 0, -1);
-                            messageAction(_sB, 3, 0, 1, 1);
+                            let _capt = images.capt();
+                            for (let coord of _wballs_cache) {
+                                if (images.isWball(coord, _capt)) {
+                                    _wballs_info.coord = coord;
+                                    _res = true;
+                                    break;
+                                }
+                            }
+                            _capt.recycle();
+                            _capt = null;
+                            return _res;
                         }
 
                         function _fetch(cache_o) {
@@ -4776,8 +4836,13 @@ let $$af = {
                                 clickAction(_wballs_info.coord, "p", _par);
                             }
                             sleep(240);
-                            _wballs_info.ctr += 1;
-                            _stableEmount();
+
+                            if (_stableEmount()) {
+                                return _wballs_info.ctr += 1;
+                            }
+                            debugInfo("浇水回赠能量球点击超时");
+                            debugInfo("可能是能量球误匹配");
+                            _wballs_cache = [];
                         }
                     }
 
@@ -6110,41 +6175,33 @@ let $$af = {
                                 if (!_node) {
                                     return;
                                 }
-
                                 let _bd = _node.bounds();
-                                let _l = _bd.left;
-                                let _t = _bd.top;
-                                let _w = _bd.width();
-                                let _h = _bd.height();
-
+                                let {left: _l, top: _t} = _bd;
+                                let [_w, _h] = [_bd.width(), _bd.height()];
                                 if (_h <= 3) {
                                     return;
                                 }
-
                                 if (_rl.btm_h !== _h) {
                                     _rl.btm_h = _h;
                                     $$flag.rl_forc_chk = true;
                                     return;
                                 }
-
                                 let _sA = "发送排行榜停检信号";
                                 let _sB = ">已匹配列表底部控件";
                                 debugInfo([_sA, _sB]);
                                 $$flag.rl_bottom_rch = true;
 
                                 let _capt = images.capt();
-                                let _par = [_capt, _l, _t, _w - 3, _h - 3];
-                                let _clip = images.clip.apply({}, _par);
-                                let _copy = images.copy(_clip);
+                                let _clip = images.clip.apply({}, [
+                                    _capt, _l, _t, _w - 3, _h - 3
+                                ]);
                                 let _path = $$app.page.rl.btm_tpl.path;
 
-                                images.reclaim($$app.page.rl.btm_tpl.img);
-                                $$app.page.rl.btm_tpl.img = _copy;
-                                images.save(_copy, _path);
-
+                                $$app.page.rl.btm_tpl.reclaim();
+                                $$app.page.rl.btm_tpl.img = _clip;
+                                images.save(_clip, _path);
                                 images.reclaim(_capt, _clip);
-                                _capt = null;
-                                _clip = null;
+                                _capt = _clip = null;
 
                                 debugInfo("列表底部控件图片模板已更新");
                             }
@@ -6179,7 +6236,6 @@ let $$af = {
                             if (!_tpl) {
                                 return;
                             }
-
                             let _h = _tpl.height;
                             let _min = cX(0.04);
                             let _max = cX(0.18);
@@ -6190,9 +6246,9 @@ let $$af = {
                             // tool function(s) //
 
                             function _match() {
-                                let _mch = images.findImage(
-                                    _rl.capt_img, _tpl, {level: 1}
-                                );
+                                let _mch = images.findImage(_rl.capt_img, _tpl, {
+                                    level: 1, region: [0, cY(0.8)],
+                                });
                                 if (_mch) {
                                     let _sA = "列表底部条件满足";
                                     let _sB = ">已匹配列表底部控件图片模板";
@@ -6595,7 +6651,7 @@ let $$af = {
                     toast(msg);
                     debugInfo("统计结果展示完毕");
 
-                    // tool function(s) //
+                    // promise(s) //
 
                     function _floatyResAsync() {
                         debugInfo("开始绘制Floaty");
@@ -6623,170 +6679,185 @@ let $$af = {
 
                         let _msg_win = floaty.rawWindow(_lyt.msg);
 
-                        ui.run(() => {
-                            let _sum = (_e_own + _e_fri).toString();
-                            if (!~_e_own) _sum = "Statistics Failed";
-                            _sum = _sum || "0";
-                            _msg_win.text.setText(_sum);
-                            _msg_win.setSize(-2, 0);
-
-                            let _max = 5e3;
-                            let _ts = $$app.ts;
-
-                            // TODO seems not good enough
-                            while ($$app.ts - _ts < _max) {
-                                if (_msg_win.getWidth() > 0) {
-                                    break;
-                                }
-                            }
+                        return new Promise((reso) => {
+                            ui.post(() => {
+                                let _sum = _e_own + _e_fri;
+                                _sum = _sum < 0 ? "Statistics Failed" : _sum.toString();
+                                _msg_win.text.setText(_sum);
+                                _msg_win.setSize(-2, 0);
+                                waitForAction(() => _msg_win.getWidth() > 0, 5e3);
+                            });
+                            reso(_setFloatyAsync());
                         });
 
-                        let _hints = _getHints();
-                        let _hint_len = _hints.length;
+                        // promise(s) //
 
-                        let _wA = _msg_win.getWidth();
-                        let _wB = cX(0.54);
-                        let _wC = cX(0.25) * _hint_len;
-                        let _min_w = Math.max(_wA, _wB, _wC);
-                        let _l_pos = (W - _min_w) / 2;
+                        function _setFloatyAsync() {
+                            let _hints = _getHints();
+                            let _hint_len = _hints.length;
 
-                        _msg_win.setPosition(_l_pos, _h.base);
-                        _msg_win.setSize(_min_w, _h.msg);
+                            let _wA = _msg_win.getWidth();
+                            let _wB = cX(0.54);
+                            let _wC = cX(0.25) * _hint_len;
+                            let _min_w = Math.max(_wA, _wB, _wC);
+                            let _l_pos = (W - _min_w) / 2;
 
-                        let _hint_t_pos = _h.base - _h.col - _h.hint;
-                        let _col_up_t_pos = _h.base - _h.col;
-                        let _col_dn_t_pos = _h.base + _h.msg;
-                        let _tt_t_pos = _h.base + _h.msg + _h.col;
-                        let _avg_w = Math.trunc(_min_w / _hint_len);
-                        let _col_o = {
-                            "YOU": "#7dae17",
-                            "FRI": "#2ba653",
-                            "SOR": "#a3555e", // SORRY
-                            "OTHER": "#907aa3",
-                        };
+                            _msg_win.setPosition(_l_pos, _h.base);
+                            _msg_win.setSize(_min_w, _h.msg);
 
-                        for (let i = 0; i < _hint_len; i += 1) {
-                            let _cur_hint = _hints[i];
-                            let _col_value = _col_o[_cur_hint.slice(0, 3)];
-                            if (!_col_value) _col_value = _col_o["OTHER"];
-                            let _cur_hint_col = "#cc" + _col_value.slice(1);
-                            let _stripe_bg = colors.parseColor(_cur_hint_col);
-                            let _cur_l_pos = _l_pos + _avg_w * i;
-                            let _cur_w = _min_w - (_hint_len - 1) * _avg_w;
-                            if (i !== _hint_len - 1) _cur_w = _avg_w;
+                            let _hint_t_pos = _h.base - _h.col - _h.hint;
+                            let _col_up_t_pos = _h.base - _h.col;
+                            let _col_dn_t_pos = _h.base + _h.msg;
+                            let _tt_t_pos = _h.base + _h.msg + _h.col;
+                            let _avg_w = Math.trunc(_min_w / _hint_len);
+                            let _col_o = {
+                                "YOU": "#7dae17",
+                                "FRI": "#2ba653",
+                                "SOR": "#a3555e", // SORRY
+                                "OTHER": "#907aa3",
+                            };
 
-                            let _col_dn_win = floaty.rawWindow(_lyt.col);
-                            _col_dn_win.setSize(1, 0);
-                            _col_dn_win.text.setBackgroundColor(_stripe_bg);
-                            _col_dn_win.setPosition(_cur_l_pos, _col_dn_t_pos);
+                            for (let i = 0; i < _hint_len; i += 1) {
+                                let _cur_hint = _hints[i];
+                                let _abbr = _cur_hint.slice(0, 3);
+                                let _col_value = _col_o[_abbr] || _col_o["OTHER"];
+                                let _cur_hint_col = "#cc" + _col_value.slice(1);
+                                let _stripe_bg = colors.parseColor(_cur_hint_col);
+                                let _cur_l_pos = _l_pos + _avg_w * i;
+                                let _cur_w = _min_w - (_hint_len - 1) * _avg_w;
+                                if (i !== _hint_len - 1) {
+                                    _cur_w = _avg_w;
+                                }
 
-                            let _col_up_win = floaty.rawWindow(_lyt.col);
-                            _col_up_win.setSize(1, 0);
-                            _col_up_win.text.setBackgroundColor(_stripe_bg);
-                            _col_up_win.setPosition(_cur_l_pos, _col_up_t_pos);
+                                let _col_dn_win = floaty.rawWindow(_lyt.col);
+                                _col_dn_win.setSize(1, 0);
+                                _col_dn_win.text.setBackgroundColor(_stripe_bg);
+                                _col_dn_win.setPosition(_cur_l_pos, _col_dn_t_pos);
 
-                            let _hint_win = floaty.rawWindow(_lyt.hint);
-                            _hint_win.setSize(1, 0);
-                            _hint_win.text.setText(_cur_hint);
-                            _hint_win.setPosition(_cur_l_pos, _hint_t_pos);
+                                let _col_up_win = floaty.rawWindow(_lyt.col);
+                                _col_up_win.setSize(1, 0);
+                                _col_up_win.text.setBackgroundColor(_stripe_bg);
+                                _col_up_win.setPosition(_cur_l_pos, _col_up_t_pos);
 
-                            _col_dn_win.setSize(_cur_w, _h.col);
-                            _col_up_win.setSize(_cur_w, _h.col);
-                            _hint_win.setSize(_cur_w, _h.hint);
-                        }
+                                let _hint_win = floaty.rawWindow(_lyt.hint);
+                                _hint_win.setSize(1, 0);
+                                _hint_win.text.setText(_cur_hint);
+                                _hint_win.setPosition(_cur_l_pos, _hint_t_pos);
 
-                        let _tt_win = floaty.rawWindow(_lyt.tt);
-                        _tt_win.setSize(1, 0);
-                        _tt_win.setPosition(_l_pos, _tt_t_pos);
-                        _tt_win.setSize(_min_w, _h.tt);
+                                _col_dn_win.setSize(_cur_w, _h.col);
+                                _col_up_win.setSize(_cur_w, _h.col);
+                                _hint_win.setSize(_cur_w, _h.hint);
+                            }
 
-                        _setFloTt(_ctd);
+                            let _tt_win = floaty.rawWindow(_lyt.tt);
+                            _tt_win.setSize(1, 0);
+                            _tt_win.setPosition(_l_pos, _tt_t_pos);
+                            _tt_win.setSize(_min_w, _h.tt);
 
-                        return new Promise((reso) => {
-                            debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
-                            timeRecorder("flo_tt");
-                            setIntervalBySetTimeout(_setText, 200, _cond);
+                            _setFloTt(_ctd);
+
+                            return new Promise((reso) => {
+                                debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
+                                timeRecorder("flo_tt");
+                                setIntervalBySetTimeout(_setText, 200, _cond);
+
+                                // tool function(s) //
+
+                                function _setText() {
+                                    let _rmng_t = _tt - timeRecorder("flo_tt", "L");
+                                    let _rmng_ctd = Math.ceil(_rmng_t / 1e3);
+                                    if (_ctd > _rmng_ctd) {
+                                        _ctd = _rmng_ctd;
+                                        _setFloTt(Math.max(0, _ctd));
+                                    }
+                                }
+
+                                function _cond() {
+                                    if (_ctd <= 0 || $$flag.floaty_fin) {
+                                        if ($$flag.floaty_err) {
+                                            messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                                            messageAction("建议改用Toast方式显示收取结果", 3);
+                                        }
+
+                                        let _pref = $$flag.floaty_err ? "强制" : "";
+                                        debugInfo(_pref + "关闭所有Floaty窗口");
+                                        floaty.closeAll();
+
+                                        if ($$flag.floaty_fin === 0) {
+                                            $$flag.floaty_fin = 1;
+                                            debugInfo(_pref + "发送Floaty消息结束等待信号");
+                                        }
+
+                                        debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
+
+                                        return reso() || true;
+                                    }
+                                }
+                            });
 
                             // tool function(s) //
 
-                            function _setText() {
-                                let _rmng_t = _tt - timeRecorder("flo_tt", "L");
-                                let _rmng_ctd = Math.ceil(_rmng_t / 1e3);
-                                if (_ctd > _rmng_ctd) {
-                                    _ctd = _rmng_ctd;
-                                    _setFloTt(Math.max(0, _ctd));
+                            function _getHints() {
+                                let _res = [];
+
+                                if (!~_e_own) {
+                                    _res.push("SORRY");
+                                } else {
+                                    _e_own && _res.push("YOURSELF: " + _e_own);
+                                    _e_fri && _res.push("FRIENDS: " + _e_fri);
                                 }
+
+                                let _len = _res.length;
+                                debugInfo("消息数量参数: " + _len);
+                                if ($$2(_len)) {
+                                    // @returns %alias%.slice(0, 3) + ": \d+g"
+                                    _res.forEach((s, i, a) => {
+                                        a[i] = s.replace(/(\w{3})\w+(?=:)/, "$1");
+                                    });
+                                } else if ($$1(_len)) {
+                                    // @returns %alias% only
+                                    _res.forEach((s, i, a) => {
+                                        a[i] = s.replace(/(\w+)(?=:).*/, "$1");
+                                    });
+                                } else if (!_len) {
+                                    let _notes = ("NEVER.contains(SAY+DIE)%5cn" +
+                                        "LIFE+!%3d%3d+ALL+ROSES%5cn" +
+                                        "IMPOSSIBLE+%3d%3d%3d+undefined%5cn" +
+                                        "GOD.FAIR()+%3d%3d%3d+true%5cn" +
+                                        "%2f((%3f!GIVE+(UP%7cIN)).)%2b%2fi%5cn" +
+                                        "WORKMAN+%3d+new+Work()%5cn" +
+                                        "LUCK.length+%3d%3d%3d+Infinity%5cn" +
+                                        "LLIST.next+%3d%3d%3d+LUCKY%5cn" +
+                                        "BLESSING.discard(DISGUISE)%5cn" +
+                                        "WATER.drink().drink()").split("%5cn");
+                                    let _len = _notes.length;
+                                    let _ran = Math.trunc(Math.rand(_len));
+                                    let _raw = _notes[_ran];
+                                    let _dec = decodeURIComponent(_raw);
+                                    let _hint = _dec.replace(/\+(?!\/)/g, " ");
+                                    debugInfo("随机挑选提示语");
+                                    _res = [_hint];
+                                }
+
+                                return _res;
                             }
 
-                            function _cond() {
-                                if (_ctd <= 0 || $$flag.floaty_fin) {
-                                    if ($$flag.floaty_err) {
-                                        messageAction("此设备可能无法使用Floaty功能", 3, 1);
-                                        messageAction("建议改用Toast方式显示收取结果", 3);
+                            function _setFloTt(ctd) {
+                                ui.run(function () {
+                                    try {
+                                        debugInfo("设置倒计时数据文本: " + ctd);
+                                        _tt_win.text.setText(surroundWith(ctd, "(", ")"));
+                                        delete $$flag.floaty_err;
+                                    } catch (e) {
+                                        if (!$$flag.floaty_fin) {
+                                            debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
+                                        }
                                     }
-
-                                    let _pref = $$flag.floaty_err ? "强制" : "";
-                                    debugInfo(_pref + "关闭所有Floaty窗口");
-                                    floaty.closeAll();
-
-                                    if ($$flag.floaty_fin === 0) {
-                                        $$flag.floaty_fin = 1;
-                                        debugInfo(_pref + "发送Floaty消息结束等待信号");
-                                    }
-
-                                    debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
-
-                                    return reso() || true;
-                                }
+                                });
                             }
-                        });
+                        }
 
                         // tool function(s) //
-
-                        function _getHints() {
-                            let _res = [];
-
-                            if (!~_e_own) {
-                                _res.push("SORRY");
-                            } else {
-                                _e_own && _res.push("YOURSELF: " + _e_own);
-                                _e_fri && _res.push("FRIENDS: " + _e_fri);
-                            }
-
-                            let _len = _res.length;
-                            debugInfo("消息数量参数: " + _len);
-                            if ($$2(_len)) {
-                                // @returns %alias%.slice(0, 3) + ": \d+g"
-                                _res.forEach((s, i, a) => {
-                                    a[i] = s.replace(/(\w{3})\w+(?=:)/, "$1");
-                                });
-                            } else if ($$1(_len)) {
-                                // @returns %alias% only
-                                _res.forEach((s, i, a) => {
-                                    a[i] = s.replace(/(\w+)(?=:).*/, "$1");
-                                });
-                            } else if (!_len) {
-                                let _notes = ("NEVER.contains(SAY+DIE)%5cn" +
-                                    "LIFE+!%3d%3d+ALL+ROSES%5cn" +
-                                    "IMPOSSIBLE+%3d%3d%3d+undefined%5cn" +
-                                    "GOD.FAIR()+%3d%3d%3d+true%5cn" +
-                                    "%2f((%3f!GIVE+(UP%7cIN)).)%2b%2fi%5cn" +
-                                    "WORKMAN+%3d+new+Work()%5cn" +
-                                    "LUCK.length+%3d%3d%3d+Infinity%5cn" +
-                                    "LLIST.next+%3d%3d%3d+LUCKY%5cn" +
-                                    "BLESSING.discard(DISGUISE)%5cn" +
-                                    "WATER.drink().drink()").split("%5cn");
-                                let _len = _notes.length;
-                                let _ran = Math.trunc(Math.rand(_len));
-                                let _raw = _notes[_ran];
-                                let _dec = decodeURIComponent(_raw);
-                                let _hint = _dec.replace(/\+(?!\/)/g, " ");
-                                debugInfo("随机挑选提示语");
-                                _res = [_hint];
-                            }
-
-                            return _res;
-                        }
 
                         function _getLayouts() {
                             return {
@@ -6826,18 +6897,6 @@ let $$af = {
                             };
                         }
 
-                        function _setFloTt(ctd) {
-                            ui.run(function () {
-                                try {
-                                    debugInfo("设置倒计时数据文本: " + ctd);
-                                    _tt_win.text.setText(surroundWith(ctd, "(", ")"));
-                                    delete $$flag.floaty_err;
-                                } catch (e) {
-                                    $$flag.floaty_fin || debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
-                                }
-                            });
-                        }
-
                         // listener(s) //
 
                         function _onClick() {
@@ -6875,8 +6934,8 @@ let $$af = {
                                     $$flag.floaty_usr_touch = _e_t - _dn_t > 200;
                                 }
                             }
-                            // event will not be consumed
-                            // instead of being involved by onClickListener
+                            // event will be involved by onClickListener
+                            // instead of being consumed
                             return false;
                         }
                     }
@@ -6901,6 +6960,9 @@ let $$af = {
 
             function _floatyReady() {
                 return new Promise((reso) => {
+                    if (!$$cfg.floaty_result_switch) {
+                        $$flag.floaty_fin = 1;
+                    }
                     if ($$1($$flag.floaty_fin)) {
                         return reso();
                     }
@@ -6913,7 +6975,8 @@ let $$af = {
 
                     function _cond() {
                         if ($$1($$flag.floaty_fin)) {
-                            return reso() || true;
+                            reso();
+                            return true;
                         }
                     }
 
@@ -6925,7 +6988,6 @@ let $$af = {
                             let _sB = ">等待结束信号超时";
                             $$flag.floaty_fin = 1;
                             debugInfo([_sA, _sB], 3);
-                            reso();
                         }
                     }
                 });
@@ -6944,7 +7006,10 @@ let $$af = {
                     // tool function(s) //
 
                     function _cond() {
-                        return !_thd || !_thd.isAlive();
+                        if (!_thd || !_thd.isAlive()) {
+                            reso();
+                            return true;
+                        }
                     }
 
                     function _reso() {
@@ -7105,7 +7170,7 @@ let $$af = {
 
                     function _setIntrpLsners() {
                         !function _scrTouch() {
-                            let _cvr_win = floaty.rawWindow(
+                            let _cvr_win = $$app.flo_cvr_win = floaty.rawWindow(
                                 <frame id="cover" gravity="center"/>
                             );
                             // prevent touch event from being
@@ -7210,7 +7275,11 @@ let $$af = {
             }
         },
         exitNow: () => $$app.exit(),
-        err: e => messageAction(e, 4, 1, 0, -1),
+        err: function (e) {
+            messageAction(e.message, 4, 1, 0, -1);
+            messageAction(e.stack, 4, 0, 0, 1);
+            $$app.exit();
+        },
     },
     link() {
         let _c = this._collector;

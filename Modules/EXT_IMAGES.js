@@ -21,11 +21,12 @@ let ext = {
             return !!e.message.match(/has been recycled/);
         }
     },
-    isImageWrapper: (img) => (img
-        && typeof img === "object"
-        && img["getClass"]
-        && img.toString().match(/ImageWrapper/)
-    ),
+    isImageWrapper: (img) => {
+        return img
+            && typeof img === "object"
+            && img["getClass"]
+            && img.toString().match(/ImageWrapper/);
+    },
     reclaim: _reclaim,
     capt() {
         let _max = 10;
@@ -240,7 +241,7 @@ let ext = {
         let _src_img_stg = _cfg.hough_src_img_strategy;
         let _results_stg = _cfg.hough_results_strategy;
         let _min_dist = cX(_cfg.min_balls_distance);
-        let _region = _cfg.fri_forest_balls_region
+        let _region = _cfg.forest_balls_rect_region
             .map((v, i) => (i % 2
                     ? v < 1 ? cY(v) : v
                     : v < 1 ? cX(v) : v
@@ -367,19 +368,40 @@ let ext = {
         }
 
         function _setWballExtFunction() {
+            if (!images.inTreeArea) {
+                images.inTreeArea = (o) => {
+                    // TODO...
+                    let _tree_area = {x: halfW, y: cYx(670), r: cX(182)};
+                    if (typeof o !== "object" || !o.r) {
+                        throw Error("inTreeArea() invoked with invalid arguments");
+                    }
+                    let {x: _ox, y: _oy, r: _or} = o;
+                    let {x: _zx, y: _zy, r: _zr} = _tree_area;
+                    let _ct_dist_min = _or + _zr;
+                    let _ct_dist = Math.sqrt(
+                        Math.pow(_zy - _oy, 2) + Math.pow(_zx - _ox, 2)
+                    );
+                    return _ct_dist < _ct_dist_min;
+                }
+            }
             if (!images.isWball) {
                 images.isWball = (o, capt, container) => {
                     let _capt = capt || images.capt();
                     let _ctx = o.x;
                     let _cty = o.y;
-                    let _ref = o.r / Math.SQRT2;
-                    let _x_min = _ctx - _ref;
-                    let _y_min = _cty - _ref;
-                    let _x_max = _ctx + _ref;
-                    let _y_max = _cty + _ref;
+                    let _offset = o.r / Math.SQRT2;
+                    let _x_min = _ctx - _offset;
+                    let _y_min = _cty - _offset;
+                    let _x_max = _ctx + _offset;
+                    let _y_max = _cty + _offset;
                     let _step = 2;
                     let _hue_max = _cfg.homepage_water_ball_max_hue_b0;
+                    let _cty_max = cYx(626, -2); // TODO...
                     let _result = false;
+
+                    if (_cty > _cty_max) {
+                        return _result;
+                    }
 
                     while (_x_min < _x_max && _y_min < _y_max) {
                         let _col = images.pixel(_capt, _x_min, _y_min);
@@ -408,6 +430,9 @@ let ext = {
             }
             if (!images.isRipeBall) {
                 images.isRipeBall = (o, capt, container) => {
+                    if (images.inTreeArea(o)) {
+                        return;
+                    }
                     let _capt = capt || images.capt();
                     let _d = o.r / 4;
                     let _colors = _cfg.ripe_ball_ident_colors;
@@ -436,18 +461,21 @@ let ext = {
             }
             if (!images.isOrangeBall) {
                 images.isOrangeBall = (o, capt, container) => {
+                    if (images.inTreeArea(o)) {
+                        return false;
+                    }
                     let _capt = capt || images.capt();
                     let _ctx = o.x + cX(52);
                     let _cty = o.y + cYx(57);
-                    let _d = o.r / 4;
+                    let _offset = o.r / 4;
                     let _colors = _cfg.help_ball_ident_colors;
                     let _result = false;
 
                     for (let i = 0, l = _colors.length; i < l; i += 1) {
-                        let _l = _ctx - _d;
-                        let _t = _cty - _d;
-                        let _w = Math.min(_d * 2, W - _l);
-                        let _h = Math.min(_d * 2, H - _t);
+                        let _l = _ctx - _offset;
+                        let _t = _cty - _offset;
+                        let _w = Math.min(_offset * 2, W - _l);
+                        let _h = Math.min(_offset * 2, H - _t);
                         if (images.findColor(_capt, _colors[i], {
                             region: [_l, _t, _w, _h],
                             threshold: _cfg.help_ball_threshold,
@@ -677,16 +705,21 @@ let ext = {
 
                 function _addBalls() {
                     _wballs.map(_extProperties).forEach((o) => {
-                        _addBall(o, "water");
-                    });
-                    _balls.map(_extProperties).forEach((o) => {
-                        if (_isOrangeBall(o)) {
-                            return _addBall(o, "orange");
-                        }
                         if (_isRipeBall(o, capt)) {
                             return _addBall(o, "ripe");
                         }
-                        _addBall(o, "naught");
+                        _addBall(o, "water");
+                    });
+                    _balls.map(_extProperties).forEach((o) => {
+                        if (_isRipeBall(o, capt)) {
+                            if (_isOrangeBall(o)) {
+                                return _addBall(o, "orange");
+                            }
+                            return _addBall(o, "ripe");
+                        }
+                        if (!images.inTreeArea(o)) {
+                            _addBall(o, "naught");
+                        }
                     });
 
                     // tool function(s) //
@@ -789,7 +822,7 @@ let ext = {
                 help_ball_threshold: 35,
                 ripe_ball_ident_colors: ["#ceff5f"],
                 ripe_ball_threshold: 13,
-                fri_forest_balls_region: [
+                forest_balls_rect_region: [
                     cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)
                 ],
                 hough_src_img_strategy: {

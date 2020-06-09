@@ -43,7 +43,7 @@ module.exports = {
         // 50 <= x <= 500; interval between two samples when saving into friend forest samples pool
         fri_forest_pool_itv: 120,
         // rectangle region for energy balls recognition in friends forest
-        fri_forest_balls_region: [cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)],
+        forest_balls_rect_region: [cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
         hough_src_img_strategy: {
             gray: true, // images.grayscale(image)

@@ -27,8 +27,8 @@ if (e_argv && e_argv.config_conj) {
 //     r: cX(0.88),
 //     b: cY(0.45),
 // };
-let _region = require("../Modules/MODULE_STORAGE").create("af_cfg").get("config", {}).fri_forest_balls_region
-    || require("../Modules/MODULE_DEFAULT_CONFIG").af.fri_forest_balls_region;
+let _region = require("../Modules/MODULE_STORAGE").create("af_cfg").get("config", {}).forest_balls_rect_region
+    || require("../Modules/MODULE_DEFAULT_CONFIG").af.forest_balls_rect_region;
 ["l", "t", "r", "b"].forEach((k, i) => {
     o[k] = _region[i];
 });
