@@ -1425,7 +1425,7 @@ function clickAction(f, strategy, params) {
         : waitForAction;
 
     /**
-     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"
+     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"
      */
     let _type = _checkType(f);
     let _padding = _checkPadding(_par.padding);
@@ -1538,6 +1538,9 @@ function clickAction(f, strategy, params) {
         function _chkJavaO(o) {
             if (_classof(o) !== "JavaObject") {
                 return;
+            }
+            if (o.getClass().getName().match(/Point$/)) {
+                return "Points";
             }
             let string = o.toString();
             if (string.match(/^Rect\(/)) {
@@ -3864,7 +3867,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * @param src {Array|ImageWrapper|UiObject|UiObjectCollection} -- will be converted into ImageWrapper(s)
  * @param {object} [par]
  * @param {boolean} [par.no_toast_msg_flag=false]
- * @param {boolean} [par.fetch_times=1]
+ * @param {number} [par.fetch_times=1]
  * @param {number} [par.fetch_interval=100]
  * @param {boolean} [par.debug_info_flag=false]
  * @param {number} [par.timeout=60e3] -- no less than 5e3
@@ -4425,15 +4428,24 @@ function baiduOcr(src, par) {
  * }, 1e3, 5e3);
  */
 function setIntervalBySetTimeout(func, interval, timeout) {
-    interval = interval || 200;
-    let init_timestamp = +new Date();
-    let timeoutReached = typeof timeout === "function" ? timeout : () => {
-        return +new Date() - init_timestamp >= timeout;
-    };
+    let _itv = interval || 200;
+    let _init_ts = Date.now();
+    let _in_case_ts = _init_ts + 10 * 60e3; // 10 minutes at most
+    let _inCase = () => Date.now() < _in_case_ts;
+    let _timeoutReached;
+    if (typeof timeout === "function") {
+        _timeoutReached = () => {
+            return _inCase() && timeout();
+        }
+    } else {
+        _timeoutReached = () => {
+            return _inCase() && Date.now() - _init_ts >= timeout;
+        }
+    }
     setTimeout(function fn() {
         func();
-        timeoutReached() || setTimeout(fn, interval);
-    }, interval);
+        _timeoutReached() || setTimeout(fn, _itv);
+    }, _itv);
 }
 
 /**

@@ -5756,7 +5756,7 @@ $$view.addPage(["能量球识别与定位", "eballs_recognition_page"], function
     $$view.setPage(arguments[0])
         .add("subhead", new Layout("边界与定位", {subhead_color: "#bf360c"}))
         .add("button", new Layout("能量球分布区域", "hint", {
-            config_conj: "fri_forest_balls_region",
+            config_conj: "forest_balls_rect_region",
             newWindow() {
                 $$view.diag.rectSetter.bind(this)({
                     title: "好友森林能量球分布区域",

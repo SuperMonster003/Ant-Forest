@@ -872,6 +872,34 @@ let ext = {
             let _frac = parseInt(_fraction);
             return isNaN(_frac) ? _min : +_min.toFixed(_frac);
         },
+        /**
+         * @summary Distance between two points (zh-CN: 两点间距)
+         * @description Returns distance value between two points
+         * @function Math.dist
+         * @static
+         * @param {number[]} arr1 - a number array with two coordinates
+         * @param {number[]} arr2 - another number array with two coordinates
+         * @example
+         * Math.dist(); // NaN
+         * Math.dist([0, 0], [3, 4]); // 5
+         * Math.dist([6, 7], [12, 15]); // 10
+         * @returns {number}
+         */
+        dist(arr1, arr2) {
+            if (!arr1 || !arr2) {
+                return NaN;
+            }
+            if (!Array.isArray(arr1) || !Array.isArray(arr2)) {
+                return NaN;
+            }
+            if (arr1.length !== 2 || arr2.length !== 2) {
+                return NaN;
+            }
+            return Math.sqrt(
+                Math.pow(arr2[1] - arr1[1], 2) +
+                Math.pow(arr2[0] - arr1[0], 2)
+            );
+        },
     }),
 };
 
