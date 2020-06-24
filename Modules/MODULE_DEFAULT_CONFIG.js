@@ -12,12 +12,14 @@ module.exports = {
         auto_enable_a11y_svc: "OFF",
         // if you are multi-account user, you may turn this on and specify a "main account" to switch
         account_switch: false,
-        // if you are multi-account user, you may turn this on and specify a "main account" to switch
+        // with this switch on, original logged in account will be logged back before exit
         account_log_back_in_switch: false,
-        // with this value, switching back will not always happen infinitely
+        // with this value, logging back in will not happen in any circumstance
         account_log_back_in_max_continuous_times: 3,
         // stores information of the "main account" user
         main_account_info: {},
+        // 1 <= x <= 200; press time for press(); small value like 1 may be not safe in some situations
+        balls_click_duration: 36,
         // 10 <= x <= 500; as the saying goes, "Haste makes waste"
         balls_click_interval: 120,
         // set true value if you need continuously check your own energy balls
@@ -26,10 +28,8 @@ module.exports = {
         homepage_monitor_threshold: 2,
         // return to homepage and monitor if own energy min countdown is less than some threshold
         homepage_background_monitor_switch: false,
-        // so far, only 1 is allowed; you can change it into 0.9 or 1.2, just maybe in the future
-        homepage_background_monitor_threshold: 1,
-        // 0 <= x <= 300; just in case; set 0 to impose limit
-        homepage_water_ball_check_limit: 0,
+        // 1.0 <= x <= 3.0; value should not bigger than homepage_monitor_threshold
+        homepage_bg_monitor_threshold: 1,
         // max hue value in HSB mode without blue component for water wall identification
         homepage_water_ball_max_hue_b0: 44,
         // seriously? i cannot believe it if you turn this switch off
@@ -38,11 +38,11 @@ module.exports = {
         friend_collect_icon_color: "#1da06d",
         // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         friend_collect_icon_threshold: 10,
-        // 1 <= x <= 8; size limitation for friend forest samples pool
-        fri_forest_pool_limit: 3,
-        // 50 <= x <= 500; interval between two samples when saving into friend forest samples pool
-        fri_forest_pool_itv: 120,
-        // rectangle region for energy balls recognition in friends forest
+        // 1 <= x <= 8; size limitation for forest balls samples pool
+        forest_balls_pool_limit: 2,
+        // 50 <= x <= 500; interval between two samples when saving into forest balls samples pool
+        forest_balls_pool_itv: 240,
+        // rectangle region for energy balls recognition in forest page
         forest_balls_rect_region: [cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
         hough_src_img_strategy: {
@@ -58,10 +58,10 @@ module.exports = {
             symmetrical: true, // symmetrical: calculated outer absent ball of one side
             linear_itp: true, // linear interpolate: calculated inner absent ball(s)
         },
-        // 0 <= x <= 40; the smaller, the stricter; max limit not tested yet
-        ripe_ball_threshold: 13,
-        // color for ripe balls in a friend's forest
-        ripe_ball_ident_colors: ["#ceff5f"],
+        // 0 <= x <= 40; the smaller, the stricter;
+        ripe_ball_detect_threshold: 13,
+        // color for ripe balls in forest page
+        ripe_ball_detect_color: "#ceff5f",
         // 0.06 <= x <= 0.15; minimum distance between two energy balls
         min_balls_distance: 0.09,
         // set false if you do not wanna give a hand; leave it true if you like "surprise"
@@ -74,18 +74,16 @@ module.exports = {
         six_balls_review_max_continuous_times: 3,
         // color for help icon with a heart pattern
         help_collect_icon_color: "#f99137",
-        // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
+        // 0 <= x <= 66; the smaller, the stricter;
         help_collect_icon_threshold: 10,
-        // color for fade-in-and-out help balls in a friend's forest
-        help_ball_ident_colors: ["#f99137", "#f9933a", "#e9b781"],
-        // 30 ~< x <= 83; the smaller, the stricter; max limit tested on Sony G8441
-        help_ball_threshold: 35,
-        // 10 <= x <= 20; more samples for image matching, at the cost of time however
-        help_collect_ball_intensity: 12,
+        // color for fade-in-and-out help balls in forest page
+        help_ball_detect_color: "#f99137",
+        // 23 <= x <= 132; the smaller, the stricter;
+        help_ball_detect_threshold: 91,
         // protect cover identifying color from a certain point in countdown area
-        protect_cover_ident_color: "#bef658", // todo
+        protect_cover_detect_color: "#bef658", // TODO...
         // do not set this value too big in case that green balls will be recognized as protect cover
-        protect_cover_ident_threshold: 5, // todo
+        protect_cover_detect_threshold: 5, // TODO...
         // set true if you wish your dream's coming true when you are making a sweet dream or snoring
         auto_unlock_switch: false,
         // set false value if you need a clean console or hide what you've done to your friends
@@ -164,6 +162,8 @@ module.exports = {
         prompt_before_running_switch: true,
         // 3 <= x <= 30; countdown seconds before dialog dismissed automatically
         prompt_before_running_countdown_seconds: 5,
+        // dialog won't prompt with truthy value when running with screen off or device locked
+        prompt_before_running_auto_skip: true,
         // default choices for a postponed minute
         prompt_before_running_postponed_minutes_map: [1, 2, 3, 5, 10, 15, 20, 30],
         // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute

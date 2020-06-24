@@ -292,14 +292,13 @@ let ext = {
         if (!src || !target) {
             return false;
         }
-        let _self = arguments.callee;
         let _src_name = files.getName(src);
         files.create(target);
         if (files.isDir(src)) {
             files.listDir(src).forEach((item) => {
                 let _src = src + item + (files.isDir(item) ? "/" : "");
                 let _target = target + (unbundle_flag ? "" : _src_name + "/");
-                _self(_src, _target);
+                this.copyFolder(_src, _target);
             });
         } else {
             files.copy(src, target + _src_name);

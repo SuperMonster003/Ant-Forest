@@ -239,7 +239,7 @@ function getVerName(name, params) {
  */
 function launchThisApp(trigger, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(launchThisApp.name);
 
     let $_und = x => typeof x === "undefined";
     let _messageAction = typeof messageAction === "undefined"
@@ -666,7 +666,7 @@ function launchThisApp(trigger, params) {
  */
 function killThisApp(name, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(killThisApp.name);
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
@@ -827,11 +827,12 @@ function killThisApp(name, params) {
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
+        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (_key_w) {
+            let _bounds = _key_w.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
     }
 
     function parseAppNameRaw(name) {
@@ -1198,10 +1199,12 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         ui.post(function () {
             throw ("FORCE_STOP");
         });
-        exit();
     }
 
-    if (_exit_flag) exit();
+    if (_exit_flag || _throw_flag) {
+        exit();
+        sleep(3e3);
+    }
 
     return !(_msg_lv in {3: 1, 4: 1});
 
@@ -1279,7 +1282,7 @@ function showSplitLine(extra_str, style, params) {
  */
 function waitForAction(f, timeout_or_times, interval, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(waitForAction.name);
 
     if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
 
@@ -1376,7 +1379,7 @@ function waitForAction(f, timeout_or_times, interval, params) {
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
- *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
+ *     -- /disappear(ed)?.*in.?place/ - (f) => #some widget info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
  * @param {number} [params.check_time_once=500]
  * @param {number} [params.max_check_times=0]
@@ -1407,7 +1410,7 @@ function waitForAction(f, timeout_or_times, interval, params) {
  */
 function clickAction(f, strategy, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(clickAction.name);
 
     if (typeof f === "undefined" || f === null) {
         return false;
@@ -1467,19 +1470,19 @@ function clickAction(f, strategy, params) {
         let _y = 0 / 0;
 
         if (_type === "UiSelector") {
-            let _node = f.findOnce();
-            if (!_node) {
+            let _w = f.findOnce();
+            if (!_w) {
                 return;
             }
             try {
-                _widget_id = _node.toString().match(/@\w+/)[0].slice(1);
+                _widget_id = _w.toString().match(/@\w+/)[0].slice(1);
             } catch (e) {
                 _widget_id = 0;
             }
-            if (_strategy.match(/^w(idget)?$/) && _node.clickable() === true) {
-                return _node.click();
+            if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
+                return _w.click();
             }
-            let _bnd = _node.bounds();
+            let _bnd = _w.bounds();
             _x = _bnd.centerX();
             _y = _bnd.centerY();
         } else if (_type === "UiObject") {
@@ -1616,22 +1619,22 @@ function clickAction(f, strategy, params) {
     function _checkDisappearance() {
         try {
             if (_type === "UiSelector") {
-                let _node = f.findOnce();
-                if (!_node) {
+                let _w = f.findOnce();
+                if (!_w) {
                     return true;
                 }
                 if (!_par.condition_success.match(/in.?place/)) {
-                    return !_node;
+                    return !_w;
                 }
-                let _mch = _node.toString().match(/@\w+/);
+                let _mch = _w.toString().match(/@\w+/);
                 return _mch[0].slice(1) !== _widget_id;
             }
             if (_type === "UiObject") {
-                let _node_parent = f.parent();
-                if (!_node_parent) {
+                let _w_parent = f.parent();
+                if (!_w_parent) {
                     return true;
                 }
-                let _mch = _node_parent.toString().match(/@\w+/);
+                let _mch = _w_parent.toString().match(/@\w+/);
                 return _mch[0].slice(1) !== _widget_parent_id;
             }
         } catch (e) {
@@ -1707,7 +1710,7 @@ function clickAction(f, strategy, params) {
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
- *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
+ *     -- /disappear(ed)?.*in.?place/ - (f) => #some widget info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
  * @param {number} [click_params.check_time_once=500]
  * @param {number} [click_params.max_check_times=0]
@@ -1787,11 +1790,12 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
+        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (_key_w) {
+            let _bounds = _key_w.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
     }
 }
 
@@ -1911,7 +1915,7 @@ function refreshObjects(strategy, params) {
  */
 function swipeAndShow(f, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(swipeAndShow.name);
 
     let _swipe_interval = _par.swipe_interval || 150;
     let _max_swipe_times = _par.max_swipe_times || 12;
@@ -1967,12 +1971,12 @@ function swipeAndShow(f, params) {
         if (isImageType(f)) {
             return "up";
         }
-        let _node = f.findOnce();
-        if (!_node) {
+        let _widget = f.findOnce();
+        if (!_widget) {
             return "up";
         }
         // auto mode
-        let _bnd = _node.bounds();
+        let _bnd = _widget.bounds();
         let [_bl, _bt] = [_bnd.left, _bnd.top];
         let [_br, _bb] = [_bnd.right, _bnd.bottom];
         if (_bb >= _aim_area.b || _bt >= _aim_area.b) {
@@ -2050,22 +2054,22 @@ function swipeAndShow(f, params) {
     }
 
     function _success() {
-        return isImageType(f) ? _chk_img() : _chk_node();
+        return isImageType(f) ? _chk_img() : _chk_widget();
 
         // tool function(s) //
 
-        function _chk_node() {
+        function _chk_widget() {
             let _max = 5;
-            let _node;
+            let _widget;
             while (_max--) {
-                if ((_node = f.findOnce())) {
+                if ((_widget = f.findOnce())) {
                     break;
                 }
             }
-            if (!_node) {
+            if (!_widget) {
                 return;
             }
-            let _bnd = _node.bounds();
+            let _bnd = _widget.bounds();
             if (_bnd.height() <= 0 || _bnd.width() <= 0) {
                 return;
             }
@@ -2290,7 +2294,7 @@ function swipeAndShow(f, params) {
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
- *     -- /disappear(ed)?.*in.?place/ - (f) => #some node info changed#; - disappeared in place <br>
+ *     -- /disappear(ed)?.*in.?place/ - (f) => #some widget info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
  * @param {number} [click_params.check_time_once=500]
  * @param {number} [click_params.max_check_times=0]
@@ -2322,18 +2326,19 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
+        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (_key_w) {
+            let _bounds = _key_w.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
     }
 
     function swipeAndShowRaw(kw, params) {
         let _max_try_times = 10;
         while (_max_try_times--) {
-            let _node = kw.findOnce();
-            if (_node && _node.bounds().top > 0 && _node.bounds().bottom < device.height) return true;
+            let _widget = kw.findOnce();
+            if (_widget && _widget.bounds().top > 0 && _widget.bounds().bottom < device.height) return true;
             let _dev_h = device.height;
             let _dev_w = device.width;
             swipe(_dev_w * 0.5, _dev_h * 0.8, _dev_w * 0.5, _dev_h * 0.2, params.swipe_time || 150);
@@ -2369,7 +2374,7 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
  */
 function keycode(code, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(arguments.callee.name);
+    _par.no_impeded || $$impeded(keycode.name);
 
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
 
@@ -2939,15 +2944,12 @@ function alertContent(dialog, message, mode) {
  * Observe message(s) from Toast by events.observeToast()
  * @param aim_app_pkg {string}
  * @param aim_msg {RegExp|string} - regular expression or a certain specific string
- * @param {number} [timeout=20e3]
+ * @param {number} [timeout=8e3]
  * @param {number} [aim_amount=1] - events will be cleared if aim_amount messages have been got
  * @return {string[]}
  */
 function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
-    if (typeof timeout === "undefined") {
-        timeout = 20e3;
-    }
-    let _tt = Math.max(+timeout, 3e3);
+    let _tt = +timeout || 8e3;
     let _aim_msg = aim_msg || ".*";
     let _aim_pkg = aim_app_pkg || currentPackage();
     let _amt = aim_amount || 1;
@@ -2968,10 +2970,12 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 
     _waitForAction(() => _got_msg.length >= _amt, _tt, 50);
 
-    // FIXME this will make listeners (like key listeners) invalid
-    // FIXME and maybe recycle() is unnecessary to remove toast listener
-    // events.recycle(); // to remove toast listener from "events" to make it available for next-time invoke
-    events.removeAllListeners("toast"); // otherwise, events will exceed the max listeners limit with default 10
+    // events.recycle() will make listeners (like key listeners) invalid
+    // events.recycle();
+
+    // remove toast listeners to make it available for next-time invocation
+    // otherwise, events will exceed the max listeners limit with default 10
+    events.removeAllListeners("toast");
 
     return _got_msg;
 
@@ -3083,16 +3087,17 @@ function getSelector(options) {
         kw_pool: {},
         cache_pool: {},
         /**
-         * Returns a selector (UiSelector) or node (UiObject) or some attribute
-         * If no nodes (UiObjects) were found, returns null or "" or false
+         * Returns a selector (UiSelector) or widget (UiObject) or some attribute
+         * If no widgets (UiObjects) were found, returns null or "" or false
          * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
          * @memberOf getSelector
          * @param sel_body {string|RegExp|array} - selector body will be converted into array type
          * <br>
          *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
          *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-         * @param {?string} [mem_kw] - to mark this selector node; better use a keyword without conflict
-         * @param {string} [res_type="node"] - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+         * @param {?string} [mem_kw] - to mark this selector widget; better use a keyword without conflict
+         * @param {string} [res_type="widget"] -
+         * "widget" ("w"), "widget_collection" ("wc"), "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
          * <br>
          *     -- "txt": available text()/desc() value or empty string
          * @param {object} [par]
@@ -3104,12 +3109,12 @@ function getSelector(options) {
          * // UiObject
          * pickup("abc");
          * // same as above
-         * pickup("abc", "node", "my_alphabet");
+         * pickup("abc", "w", "my_alphabet");
          * // text/desc/id("abc");
          * // UiSelector
          * pickup("abc", "sel", "my_alphabet");
          * // text("abc").findOnce()
-         * pickup(text("abc"), "node", "my_alphabet");
+         * pickup(text("abc"), "w", "my_alphabet");
          * // id/text/desc and so forth -- string
          * pickup(/^abc.+z/, "sel_str", "AtoZ")
          * // text/desc/id("morning").exists() -- boolean
@@ -3130,8 +3135,10 @@ function getSelector(options) {
             let _params = Object.assign({}, _opt, par);
             let _res_type = (res_type || "").toString();
 
-            if (!_res_type || _res_type.match(/^n(ode)?$/)) {
-                _res_type = "node";
+            if (!_res_type || _res_type.match(/^w(idget)?$/)) {
+                _res_type = "widget";
+            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
+                _res_type = "widgets";
             } else if (_res_type.match(/^s(el(ector)?)?$/)) {
                 _res_type = "selector";
             } else if (_res_type.match(/^e(xist(s)?)?$/)) {
@@ -3151,36 +3158,36 @@ function getSelector(options) {
             let _compass = _sel_body[2];
 
             let _kw = _getSelector(_additional_sel);
-            let _node = null;
-            let _nodes = [];
+            let _widget = null;
+            let _w_collection = [];
             if (_kw && _kw.toString().match(/UiObject/)) {
-                _node = _kw;
-                if (_res_type === "nodes") {
-                    _nodes = [_kw];
+                _widget = _kw;
+                if (_res_type === "widgets") {
+                    _w_collection = [_kw];
                 }
                 _kw = null;
             } else {
-                _node = _kw ? _kw.findOnce() : null;
-                if (_res_type === "nodes") {
-                    _nodes = _kw ? _kw.find() : [];
+                _widget = _kw ? _kw.findOnce() : null;
+                if (_res_type === "widgets") {
+                    _w_collection = _kw ? _kw.find() : [];
                 }
             }
 
             if (_compass) {
-                _node = _relativeNode([_kw || _node, _compass]);
+                _widget = _relativeWidget([_kw || _widget, _compass]);
             }
 
             let _res = {
                 selector: _kw,
-                node: _node,
-                nodes: _nodes,
-                exists: !!_node,
+                widget: _widget,
+                widgets: _w_collection,
+                exists: !!_widget,
                 get selector_string() {
                     return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
                 },
                 get txt() {
-                    let _text = _node && _node.text() || "";
-                    let _desc = _node && _node.desc() || "";
+                    let _text = _widget && _widget.text() || "";
+                    let _desc = _widget && _widget.desc() || "";
                     return _desc.length > _text.length ? _desc : _text;
                 }
             };
@@ -3190,13 +3197,13 @@ function getSelector(options) {
             }
 
             try {
-                if (!_node) {
+                if (!_widget) {
                     return null;
                 }
-                return _node[_res_type]();
+                return _widget[_res_type]();
             } catch (e) {
                 try {
-                    return _node[_res_type];
+                    return _widget[_res_type];
                 } catch (e) {
                     debugInfo(e, 3);
                     return null;
@@ -3319,73 +3326,73 @@ function getSelector(options) {
             }
 
             /**
-             * Returns a relative node (UiObject) by compass string
-             * @param nod_info {array|*} - [node, compass]
+             * Returns a relative widget (UiObject) by compass string
+             * @param w_info {array|*} - [widget, compass]
              * @returns {null|UiObject}
              * @example
              * // text("Alipay").findOnce().parent().parent();
-             * relativeNode([text("Alipay"), "pp"]);
+             * relativeWidget([text("Alipay"), "pp"]);
              * // text("Alipay").findOnce().parent().parent();
-             * relativeNode([text("Alipay").findOnce(), "p2"]);
+             * relativeWidget([text("Alipay").findOnce(), "p2"]);
              * // id("abc").findOnce().parent().parent().parent().child(2);
-             * relativeNode([id("abc"), "p3c2"]);
+             * relativeWidget([id("abc"), "p3c2"]);
              * // id("abc").findOnce().parent().child(5);
              * // returns an absolute sibling
-             * relativeNode([id("abc"), "s5"/"s5p"]);
+             * relativeWidget([id("abc"), "s5"/"s5p"]);
              * // id("abc").findOnce().parent().child(%childCount% - 5);
              * // abs sibling
-             * relativeNode([id("abc"), "s5n"]);
+             * relativeWidget([id("abc"), "s5n"]);
              * // id("abc").findOnce().parent().child(%indexInParent()% + 3);
              * // rel sibling
-             * relativeNode([id("abc"), "s+3"]);
+             * relativeWidget([id("abc"), "s+3"]);
              * // id("abc").findOnce().parent().child(%indexInParent()% - 2);
              * // rel sibling
-             * relativeNode([id("abc"), "s-2"]);
+             * relativeWidget([id("abc"), "s-2"]);
              */
-            function _relativeNode(nod_info) {
+            function _relativeWidget(w_info) {
                 let classof = o => Object.prototype.toString.call(o).slice(8, -1);
 
-                let _nod_inf = classof(nod_info) === "Array"
-                    ? nod_info.slice()
-                    : [nod_info];
+                let _w_info = classof(w_info) === "Array"
+                    ? w_info.slice()
+                    : [w_info];
 
-                let _nod = _nod_inf[0];
-                let _node_class = classof(_nod);
-                let _node_str = (_nod || "").toString();
+                let _w = _w_info[0];
+                let _w_class = classof(_w);
+                let _w_str = (_w || "").toString();
 
-                if (typeof _nod === "undefined") {
-                    _debugInfo("relativeNode的node参数为Undefined");
+                if (typeof _w === "undefined") {
+                    _debugInfo("relativeWidget的widget参数为Undefined");
                     return null;
                 }
-                if (classof(_nod) === "Null") {
-                    // _debugInfo("relativeNode的node参数为Null");
+                if (classof(_w) === "Null") {
+                    // _debugInfo("relativeWidget的widget参数为Null");
                     return null;
                 }
-                if (_node_str.match(/^Rect\(/)) {
-                    // _debugInfo("relativeNode的node参数为Rect()");
+                if (_w_str.match(/^Rect\(/)) {
+                    // _debugInfo("relativeWidget的widget参数为Rect()");
                     return null;
                 }
-                if (_node_class === "JavaObject") {
-                    if (_node_str.match(/UiObject/)) {
-                        // _debugInfo("relativeNode的node参数为UiObject");
+                if (_w_class === "JavaObject") {
+                    if (_w_str.match(/UiObject/)) {
+                        // _debugInfo("relativeWidget的widget参数为UiObject");
                     } else {
-                        // _debugInfo("relativeNode的node参数为UiSelector");
-                        _nod = _nod.findOnce();
-                        if (!_nod) {
+                        // _debugInfo("relativeWidget的widget参数为UiSelector");
+                        _w = _w.findOnce();
+                        if (!_w) {
                             // _debugInfo("UiSelector查找后返回Null");
                             return null;
                         }
                     }
                 } else {
-                    _debugInfo("未知的relativeNode的node参数", 3);
+                    _debugInfo("未知的relativeWidget的widget参数", 3);
                     return null;
                 }
 
-                let _compass = _nod_inf[1];
+                let _compass = _w_info[1];
 
                 if (!_compass) {
-                    // _debugInfo("relativeNode的罗盘参数为空");
-                    return _nod;
+                    // _debugInfo("relativeWidget的罗盘参数为空");
+                    return _w;
                 }
 
                 _compass = _compass.toString();
@@ -3398,19 +3405,19 @@ function getSelector(options) {
                         let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
                         if (_rel_mch) {
                             let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
-                            let _child_cnt = _nod.parent().childCount();
-                            let _cur_idx = _nod.indexInParent();
-                            _nod = _rel_mch[0].match(/\d+[bn]/)
-                                ? _nod.parent().child(_child_cnt - Math.abs(_rel_amt))
-                                : _nod.parent().child(_cur_idx + _rel_amt);
+                            let _child_cnt = _w.parent().childCount();
+                            let _cur_idx = _w.indexInParent();
+                            _w = _rel_mch[0].match(/\d+[bn]/)
+                                ? _w.parent().child(_child_cnt - Math.abs(_rel_amt))
+                                : _w.parent().child(_cur_idx + _rel_amt);
                         } else if (_abs_mch) {
-                            _nod = _nod.parent().child(
+                            _w = _w.parent().child(
                                 parseInt(_abs_mch[0].match(/\d+/)[0])
                             );
                         }
                         _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
                         if (!_compass) {
-                            return _nod;
+                            return _w;
                         }
                     }
                 } catch (e) {
@@ -3431,28 +3438,28 @@ function getSelector(options) {
                 if (_parents) {
                     let _len = _parents.length;
                     for (let i = 0; i < _len; i += 1) {
-                        if (!(_nod = _nod.parent())) {
+                        if (!(_w = _w.parent())) {
                             return null;
                         }
                     }
                 }
 
                 let _mch = _compass.match(/c\d+/g);
-                return _mch ? _childNode(_mch) : _nod;
+                return _mch ? _childWidget(_mch) : _w;
 
                 // tool function(s) //
 
-                function _childNode(arr) {
+                function _childWidget(arr) {
                     let _len = arr.length;
                     for (let i = 0; i < _len; i += 1) {
                         try {
                             let _idx = +arr[i].match(/\d+/);
-                            _nod = _nod.child(_idx);
+                            _w = _w.child(_idx);
                         } catch (e) {
                             return null;
                         }
                     }
-                    return _nod || null;
+                    return _w || null;
                 }
             }
         },
@@ -3469,19 +3476,19 @@ function getSelector(options) {
                 return null;
             }
             if (type && type.toString().match(/cache/)) {
-                return this.cache_pool[key] = _picker("node");
+                return this.cache_pool[key] = _picker("widget");
             }
             return _picker(type);
         },
         getAndCache(key) {
-            // only "node" type can be returned
+            // only "widget" type can be returned
             return this.get(key, "save_cache");
         },
         cache: {
             save: (key) => _sel.getAndCache(key),
             load(key, type) {
-                let _node = _sel.cache_pool[key];
-                if (!_node) {
+                let _widget = _sel.cache_pool[key];
+                if (!_widget) {
                     return null;
                 }
                 return _sel.pickup(_sel.cache_pool[key], type);
@@ -3768,11 +3775,12 @@ function clickActionsPipeline(pipeline, options) {
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
+        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (_key_w) {
+            let _bounds = _key_w.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -3876,7 +3884,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * // @see "MODULE_MONSTER_FUNC.js"
  * let sel = getSelector();
  * // [[], [], []] -- 3 groups of data
- * baiduOcr(sel.pickup(/\xa0/, "nodes"), {
+ * baiduOcr(sel.pickup(/\xa0/, "widgets"), {
  *     fetch_times: 3,
  *     timeout: 12e3
  * });
@@ -4046,10 +4054,10 @@ function baiduOcr(src, par) {
         imgs = imgs.map((img) => {
             let type = _getType(img);
             if (type === "UiObject") {
-                return _nodeToImage(img);
+                return _widgetToImage(img);
             }
             if (type === "UiObjectCollection") {
-                return _nodesToImage(img);
+                return _widgetsToImage(img);
             }
             return img;
         });
@@ -4063,17 +4071,17 @@ function baiduOcr(src, par) {
             return matched ? matched[0] : "";
         }
 
-        function _nodeToImage(node) {
+        function _widgetToImage(widget) {
             let clipImg = bnd => images.clip(_capt,
                 bnd.left, bnd.top, bnd.width(), bnd.height()
             );
             try {
                 // FIXME Nov 11, 2019
-                // there is a strong possibility that `node.bounds()` would throw an exception
+                // there is a strong possibility that `widget.bounds()` would throw an exception
                 // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
                 let bounds = {};
                 let regexp = /.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/;
-                node.toString().replace(regexp, ($0, $1, $2, $3, $4) => {
+                widget.toString().replace(regexp, ($0, $1, $2, $3, $4) => {
                     bounds = {
                         left: +$1, top: +$2, right: +$3, bottom: +$4,
                         width: () => $3 - $1, height: () => $4 - $2,
@@ -4085,10 +4093,10 @@ function baiduOcr(src, par) {
             }
         }
 
-        function _nodesToImage(nodes) {
+        function _widgetsToImage(widgets) {
             let imgs = [];
-            nodes.forEach((node) => {
-                let img = _nodeToImage(node);
+            widgets.forEach((widget) => {
+                let img = _widgetToImage(widget);
                 img && imgs.push(img);
             });
             return _stitchImg(imgs);
@@ -4175,15 +4183,15 @@ function baiduOcr(src, par) {
                     _clickAction(_sel_remember(), "w");
                 }
                 if (_waitForAction(_sel_sure, 2e3)) {
-                    let _node = _sel_sure();
+                    let _widget = _sel_sure();
                     let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
 
                     _debugInfo(_act_msg);
-                    _clickAction(_node, "w");
+                    _clickAction(_widget, "w");
 
                     if (!_waitForAction(() => !_sel_sure(), 1e3)) {
                         _debugInfo("尝试click()方法再次" + _act_msg);
-                        _clickAction(_node, "click");
+                        _clickAction(_widget, "click");
                     }
                 }
             }
@@ -4265,11 +4273,12 @@ function baiduOcr(src, par) {
         function clickActionRaw(kw) {
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             let _kw = classof(kw) === "Array" ? kw[0] : kw;
-            let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-            if (!_key_node) return;
-            let _bounds = _key_node.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+            let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+            if (_key_w) {
+                let _bounds = _key_w.bounds();
+                click(_bounds.centerX(), _bounds.centerY());
+                return true;
+            }
         }
 
         // tool function(s) //
