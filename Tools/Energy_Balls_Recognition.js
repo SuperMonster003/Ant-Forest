@@ -51,10 +51,7 @@ function _() {
 
     threads.start(function () {
         while (~sleep(10)) {
-            _balls_data = images.findAFBallsByHough({
-                config: $_cfg,
-                duration: false,
-            }).expand();
+            _balls_data = images.findAFBallsByHough().expand();
         }
     });
 

@@ -19,8 +19,9 @@ let $$cfg = {
             rank_list_samples_collect_page: {
                 rank_list_review_page: null,
             },
-            fri_forest_samples_collect_page: {
-                eballs_recognition_page: null,
+            forest_samples_collect_page: {
+                eballs_color_config_page: null,
+                hough_strategy_page: null,
             },
         },
         help_collect_page: {
@@ -28,8 +29,9 @@ let $$cfg = {
             rank_list_samples_collect_page: {
                 rank_list_review_page: null,
             },
-            fri_forest_samples_collect_page: {
-                eballs_recognition_page: null,
+            forest_samples_collect_page: {
+                eballs_color_config_page: null,
+                hough_strategy_page: null,
             },
         },
         auto_unlock_page: null,
@@ -1848,10 +1850,10 @@ let $$init = {
                             </vertical>
                         );
 
-                        let text_node = picker_view.picker_title;
+                        let text_widget = picker_view.picker_title;
                         let {text, text_color, type, init} = o;
-                        text && text_node.setText(text);
-                        text_color && text_node.setTextColor(colors.parseColor(text_color));
+                        text && text_widget.setText(text);
+                        text_color && text_widget.setTextColor(colors.parseColor(text_color));
 
                         if (type === "time") {
                             picker_view.picker_root.addView(ui.inflate(
@@ -1877,7 +1879,7 @@ let $$init = {
                                     <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
                                 </vertical>
                             ));
-                            let picker_node = picker_view.picker;
+                            let picker_widget = picker_view.picker;
                             if (init) {
                                 // init:
                                 // 1. 1564483851219 - timestamp
@@ -1895,10 +1897,10 @@ let $$init = {
                             });
                             let init_params = init.concat(onDateChangedListener);
                             /**
-                             * @function picker_node.init
+                             * @function picker_widget.init
                              * @constructor android.widget.DatePicker
                              */
-                            picker_node.init.apply(picker_node, init_params);
+                            picker_widget.init.apply(picker_widget, init_params);
                         } else if (type === "week") {
                             let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                             let checkbox_views = ui.inflate(
@@ -1946,43 +1948,43 @@ let $$init = {
                         }
 
                         time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
-                        let picker_node = picker_view.picker;
+                        let picker_widget = picker_view.picker;
                         if (type === "time") {
-                            picker_node.setOnTimeChangedListener(setTimeStr);
+                            picker_widget.setOnTimeChangedListener(setTimeStr);
                         }
 
                         let {yy, MM, dd, hh, mm} = {
                             yy() {
                                 try {
-                                    return picker_node.getYear();
+                                    return picker_widget.getYear();
                                 } catch (e) {
                                     return new Date().getFullYear();
                                 }
                             },
                             MM: () => padZero((() => {
                                 try {
-                                    return picker_node.getMonth();
+                                    return picker_widget.getMonth();
                                 } catch (e) {
                                     return new Date().getMonth();
                                 }
                             })() + 1),
                             dd: () => padZero((() => {
                                 try {
-                                    return picker_node.getDayOfMonth();
+                                    return picker_widget.getDayOfMonth();
                                 } catch (e) {
                                     return new Date().getDate();
                                 }
                             })()),
                             hh() {
                                 try {
-                                    return padZero(picker_node.getCurrentHour());
+                                    return padZero(picker_widget.getCurrentHour());
                                 } catch (e) {
                                     return null;
                                 }
                             },
                             mm() {
                                 try {
-                                    return padZero(picker_node.getCurrentMinute());
+                                    return padZero(picker_widget.getCurrentMinute());
                                 } catch (e) {
                                     return null;
                                 }
@@ -2778,7 +2780,7 @@ let $$init = {
                 function traversePage(pages, tree) {
                     /*
                      * traverse the page views by BFS (Breadth-First-Search) algorithm
-                     * and put all nodes into _pages_buffer[] in traversed order
+                     * and put all widgets into _pages_buffer[] in traversed order
                      */
                     let sub_trees = [];
                     let keys = Object.keys(tree);
@@ -3304,8 +3306,78 @@ let $$init = {
                             })
                         .show();
                 },
-                rectSetter() {
+                rectSetter(opt) {
+                    let _opt = opt || {};
+                    let _cfg_conj = this.config_conj;
+                    let _def_key = _opt.def_key || "af";
+                    let _title = _opt.title || this.title || "矩形区域设置";
 
+                    dialogs
+                        .builds([
+                            _title, _cfg_conj,
+                            "使用默认值", "放弃", "确认修改", 1
+                        ], {inputHint: "Rect(l,t,r,b) x.like=72|0.1|10%"})
+                        .on("neutral", (d) => {
+                            let _def = $$sto.def[_def_key][_cfg_conj].join(",");
+                            d.getInputEditText().setText(_def);
+                        })
+                        .on("negative", (d) => {
+                            d.dismiss();
+                        })
+                        .on("positive", (d) => {
+                            let _get_text = d.getInputEditText().getText().toString();
+                            if (!_get_text) {
+                                return d.dismiss();
+                            }
+                            let _nums = _get_text.split(/[^\d\.]+/);
+                            if (_checkInput(_nums, d)) {
+                                d.dismiss();
+                                return $$save.session(_cfg_conj, _nums);
+                            }
+                        })
+                        .show();
+
+                    // tool function(s) //
+
+                    function _checkInput(nums, d) {
+                        let _l = nums.length;
+                        if (_l !== 4) {
+                            return alertTitle(d, "解析的数值数量不为4");
+                        }
+                        for (let i = 0; i < _l; i += 1) {
+                            let _num = nums[i];
+                            if (_num.match(/%$/)) {
+                                _num = _num.replace(/[^\d.]/g, "") / 100;
+                            }
+                            if (+_num < 1) {
+                                _num *= i % 2 ? H : W;
+                            }
+                            _num = parseInt(_num);
+                            if (isNaN(_num)) {
+                                return alertTitle(d, "第" + i + "个参数无法解析");
+                            }
+                            nums[i] = _num;
+                        }
+                        if (nums[0] < 0) {
+                            return alertTitle(d, "\"左\"值需大于0");
+                        }
+                        if (nums[1] < 0) {
+                            return alertTitle(d, "\"上\"值需大于0");
+                        }
+                        if (nums[2] > W) {
+                            return alertTitle(d, "\"右\"值不可大于屏幕宽度");
+                        }
+                        if (nums[3] > H) {
+                            return alertTitle(d, "\"下\"值不可大于屏幕高度");
+                        }
+                        if (nums[0] >= nums[2]) {
+                            return alertTitle(d, "\"左\"值需小于\"右\"值");
+                        }
+                        if (nums[1] >= nums[3]) {
+                            return alertTitle(d, "\"上\"值需小于\"下\"值");
+                        }
+                        return true;
+                    }
                 },
                 radioSetter(opt) {
                     let _opt = opt || {};
@@ -3717,15 +3789,15 @@ let $$init = {
 
                 let filtered_items = [];
                 let all_items = [];
-                let pkg_manager = context.getPackageManager();
-                let pkg_list = pkg_manager.getInstalledPackages(0).toArray();
+                let pkg_mgr = context.getPackageManager();
+                let pkg_list = pkg_mgr.getInstalledPackages(0).toArray();
                 if (pkg_list.length) {
                     pkg_list.forEach((o) => {
-                        let pkg_info = pkg_manager.getPackageInfo(o.packageName, 0);
+                        let pkg_info = pkg_mgr.getPackageInfo(o.packageName, 0);
                         let pkg_name = o.packageName;
                         let {applicationInfo} = pkg_info;
                         let is_sys_app = (applicationInfo.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) > 0;
-                        let app_name = applicationInfo.loadLabel(pkg_manager).toString();
+                        let app_name = applicationInfo.loadLabel(pkg_mgr).toString();
                         let joint_str = app_name + "\n" + pkg_name;
                         if (filterFunc(joint_str)) {
                             is_sys_app || filtered_items.push(joint_str);
@@ -5054,7 +5126,7 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("主页能量球通用设置", {subhead_color: "#bf360c"}))
+        .add("subhead", new Layout("基本设置"))
         .add("page", new Layout("循环监测", "hint", {
             config_conj: "homepage_monitor_switch",
             next_page: "homepage_monitor_page",
@@ -5069,37 +5141,10 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
                 $$view.udop.main_sw.bind(this)(view);
             },
         }))
-        .add("button", new Layout("能量球点击间隔", "hint", {
-            config_conj: "balls_click_interval",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(10, 500);
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
-            },
-        }))
         .add("split_line")
-        .add("subhead", new Layout("主页金色球设置", {subhead_color: "#bf360c"}))
-        .add("button", new Layout("最大连续检查次数", "hint", {
-            config_conj: "homepage_water_ball_check_limit",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 300, {
-                    title: "金色球最大连续检查次数",
-                });
-            },
-            updateOpr(view) {
-                let _cfg_val = sess_cfg[this.config_conj];
-                view._hint.text(_cfg_val ? _cfg_val.toString() : "无限制");
-            },
-        }))
-        .add("button", new Layout("最大色相值 (无蓝分量)", "hint", {
-            config_conj: "homepage_water_ball_max_hue_b0",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(12, 52, {hint_set: "R"});
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + "°");
-            },
+        .add("subhead", new Layout("公用设置"))
+        .add("page", new Layout("能量球样本采集", {
+            next_page: "forest_samples_collect_page",
         }))
         .ready();
 });
@@ -5127,6 +5172,20 @@ $$view.addPage(["主页能量球循环监测", "homepage_monitor_page"], functio
             newWindow() {
                 $$view.diag.numSetter.bind(this)(1, 3, {
                     title: "主页能量球循环监测阈值",
+                    positiveAdd(d, input, positiveFunc) {
+                        let _min = sess_cfg.homepage_bg_monitor_threshold;
+                        if (input >= _min) {
+                            return true;
+                        }
+                        dialogs.builds([
+                            ["请注意", "caution_btn_color"],
+                            "监测阈值: " + input + "\n" +
+                            "返检阈值: " + _min + "\n\n" +
+                            "监测阈值不可小于返检阈值\n" +
+                            "可设置更大的监测阈值\n" +
+                            "或设置更小的返检阈值", 0, 0, "返回"
+                        ]).show();
+                    },
                 });
             },
             updateOpr(view) {
@@ -5158,9 +5217,26 @@ $$view.addPage(["主页能量球返检监控", "homepage_background_monitor_page
         .add("split_line")
         .add("subhead", new Layout("基本设置"))
         .add("button", new Layout("返检阈值", "hint", {
-            config_conj: "homepage_background_monitor_threshold",
+            config_conj: "homepage_bg_monitor_threshold",
             newWindow() {
-                dialogs.builds(["主页能量球返检阈值", this.config_conj, 0, "返回", 0]).show();
+                $$view.diag.numSetter.bind(this)(1, 3, {
+                    title: "主页能量球返检阈值",
+                    hint_set: "R",
+                    positiveAdd(d, input, positiveFunc) {
+                        let _max = sess_cfg.homepage_monitor_threshold;
+                        if (input <= _max) {
+                            return true;
+                        }
+                        dialogs.builds([
+                            ["请注意", "caution_btn_color"],
+                            "返检阈值: " + input + "\n" +
+                            "监测阈值: " + _max + "\n\n" +
+                            "返检阈值不可大于监测阈值\n" +
+                            "可设置更小的返检阈值\n" +
+                            "或设置更大的监测阈值", 0, 0, "返回"
+                        ]).show();
+                    },
+                });
             },
             updateOpr(view) {
                 view._hint.text(sess_cfg[this.config_conj].toString() + " min");
@@ -5186,45 +5262,18 @@ $$view.addPage(["收取功能", "friend_collect_page"], function () {
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("基本设置"))
-        .add("button", new Layout("能量球点击间隔", "hint", {
-            config_conj: "balls_click_interval",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(10, 500);
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
-            },
-        }))
-        .add("split_line")
-        .add("subhead", new Layout("高级设置"))
+        .add("subhead", new Layout("公用设置"))
         .add("page", new Layout("排行榜样本采集", {
             next_page: "rank_list_samples_collect_page",
-            listeners: {
-                click(item_view, next_page_view) {
-                    sess_par.rl_page_pick_func = true;
-                    sess_par.rl_page_help_func = false;
-                    $$view.updateViewByTag("rl_page_pick_func");
-                    $$view.updateViewByTag("rl_page_help_func");
-                }
-            },
         }))
-        .add("page", new Layout("好友森林样本采集", {
-            next_page: "fri_forest_samples_collect_page",
-            listeners: {
-                click(item_view, next_page_view) {
-                    sess_par.fri_page_pick_func = true;
-                    sess_par.fri_page_help_func = false;
-                    $$view.updateViewByTag("fri_page_pick_func");
-                    $$view.updateViewByTag("fri_page_help_func");
-                }
-            },
+        .add("page", new Layout("能量球样本采集", {
+            next_page: "forest_samples_collect_page",
         }))
         .ready();
 });
 $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], function () {
     $$view.setPage(arguments[0])
-        .add("subhead", new Layout("公共基本设置"))
+        .add("subhead", new Layout("基本设置"))
         .add("button", new Layout("滑动距离", "hint", {
             config_conj: "rank_list_swipe_distance",
             newWindow() {
@@ -5313,7 +5362,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("公共高级设置"))
+        .add("subhead", new Layout("高级设置"))
         .add("page", new Layout("样本复查", "hint", {
             config_conj: "rank_list_review_switch",
             next_page: "rank_list_review_page",
@@ -5393,113 +5442,8 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("收取功能设置", {
-            subhead_color: $$defs.subhead_highlight_color,
-            view_tag: "rl_page_pick_func",
-            updateOpr(view) {
-                let _view_tag = this.view_tag;
-                let _nearest_end_tag = "invisible_split_line";
-                let _sess_value = sess_par[_view_tag];
-                if ($$und(_sess_value)) {
-                    _sess_value = true;
-                }
-                let parent = view.getParent();
-                let view_index = parent.indexOfChild(view) - 2;
-                let child_count = parent.getChildCount();
-
-                while (++view_index < child_count) {
-                    let child_view = parent.getChildAt(view_index);
-                    _sess_value ? reveal(child_view) : hide(child_view);
-                    if (_nearest_end_tag && child_view.findViewWithTag(_nearest_end_tag)) {
-                        break;
-                    }
-                }
-
-                // tool function(s) //
-
-                function hide(view) {
-                    view.setVisibility(8);
-                }
-
-                function reveal(view) {
-                    view.setVisibility(0);
-                }
-            },
-        }))
-        .add("button", new Layout("收取图标颜色色值", "hint", {
-            config_conj: "friend_collect_icon_color",
-            newWindow() {
-                $$view.diag.colorSetter.bind(this)();
-            },
-            updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
-            },
-        }))
-        .add("button", new Layout("收取图标颜色阈值", "hint", {
-            config_conj: "friend_collect_icon_threshold",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 66, {
-                    title: "收取图标颜色检测阈值",
-                });
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
-            },
-        }))
-        .add("invisible_split_line")
-        .add("subhead", new Layout("帮收功能设置", {
-            subhead_color: $$defs.subhead_highlight_color,
-            view_tag: "rl_page_help_func",
-            updateOpr(view) {
-                let _view_tag = this.view_tag;
-                let _nearest_end_tag = "";
-                let _sess_value = sess_par[_view_tag];
-                if ($$und(_sess_value)) {
-                    _sess_value = true;
-                }
-                let parent = view.getParent();
-                let view_index = parent.indexOfChild(view) - 2;
-                let child_count = parent.getChildCount();
-
-                while (++view_index < child_count) {
-                    let child_view = parent.getChildAt(view_index);
-                    _sess_value ? reveal(child_view) : hide(child_view);
-                    if (_nearest_end_tag && child_view.findViewWithTag(_nearest_end_tag)) {
-                        break;
-                    }
-                }
-
-                // tool function(s) //
-
-                function hide(view) {
-                    view.setVisibility(8);
-                }
-
-                function reveal(view) {
-                    view.setVisibility(0);
-                }
-            },
-        }))
-        .add("button", new Layout("帮收图标颜色色值", "hint", {
-            config_conj: "help_collect_icon_color",
-            newWindow() {
-                $$view.diag.colorSetter.bind(this)();
-            },
-            updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
-            },
-        }))
-        .add("button", new Layout("帮收图标颜色阈值", "hint", {
-            config_conj: "help_collect_icon_threshold",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 66, {
-                    title: "帮收图标颜色检测阈值",
-                });
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
-            },
-        }))
+        .add("info", new Layout('"收取/帮收功能"共用此页面配置'))
+        .add("blank")
         .ready();
 });
 $$view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
@@ -5613,11 +5557,11 @@ $$view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
         .add("blank")
         .ready();
 });
-$$view.addPage(["好友森林样本采集", "fri_forest_samples_collect_page"], function () {
+$$view.addPage(["能量球样本采集", "forest_samples_collect_page"], function () {
     $$view.setPage(arguments[0])
-        .add("subhead", new Layout("公共基本设置"))
-        .add("button", new Layout("好友森林样本采集容量", "hint", {
-            config_conj: "fri_forest_pool_limit",
+        .add("subhead", new Layout("采集样本池", {subhead_color: $$defs.subhead_highlight_color}))
+        .add("button", new Layout("样本池总容量", "hint", {
+            config_conj: "forest_balls_pool_limit",
             newWindow() {
                 $$view.diag.numSetter.bind(this)(1, 8);
             },
@@ -5625,8 +5569,8 @@ $$view.addPage(["好友森林样本采集", "fri_forest_samples_collect_page"], 
                 view._hint.text(sess_cfg[this.config_conj].toString());
             },
         }))
-        .add("button", new Layout("好友森林样本采集间隔", "hint", {
-            config_conj: "fri_forest_pool_itv",
+        .add("button", new Layout("样本采集间隔", "hint", {
+            config_conj: "forest_balls_pool_itv",
             newWindow() {
                 $$view.diag.numSetter.bind(this)(50, 500);
             },
@@ -5634,159 +5578,27 @@ $$view.addPage(["好友森林样本采集", "fri_forest_samples_collect_page"], 
                 view._hint.text(sess_cfg[this.config_conj].toString());
             },
         }))
-        .add("split_line")
-        .add("subhead", new Layout("公共高级设置"))
-        .add("page", new Layout("能量球识别与定位", {
-            next_page: "eballs_recognition_page",
-        }))
-        .add("split_line")
-        .add("subhead", new Layout("收取功能设置", {
-            subhead_color: $$defs.subhead_highlight_color,
-            view_tag: "fri_page_pick_func",
-            updateOpr(view) {
-                let _view_tag = this.view_tag;
-                let _nearest_end_tag = "invisible_split_line";
-                let _sess_value = sess_par[_view_tag];
-                if ($$und(_sess_value)) {
-                    _sess_value = true;
-                }
-                let parent = view.getParent();
-                let view_index = parent.indexOfChild(view) - 2;
-                let child_count = parent.getChildCount();
-
-                while (++view_index < child_count) {
-                    let child_view = parent.getChildAt(view_index);
-                    _sess_value ? reveal(child_view) : hide(child_view);
-                    if (_nearest_end_tag && child_view.findViewWithTag(_nearest_end_tag)) {
-                        break;
-                    }
-                }
-
-                // tool function(s) //
-
-                function hide(view) {
-                    view.setVisibility(8);
-                }
-
-                function reveal(view) {
-                    view.setVisibility(0);
-                }
-            },
-        }))
-        .add("button", new Layout("成熟能量球颜色色值", "hint", {
-            config_conj: "ripe_ball_ident_colors",
-            newWindow() {
-                alert("颜色组配置方法暂未开发完成");
-                // $$view.diag.colorSetter.bind(this)();
-            },
-            updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
-            },
-        }))
-        .add("button", new Layout("成熟能量球颜色阈值", "hint", {
-            config_conj: "ripe_ball_threshold",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 40, {
-                    title: "成熟能量球颜色检测阈值",
-                });
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
-            },
-        }))
-        .add("invisible_split_line")
-        .add("subhead", new Layout("帮收功能设置", {
-            subhead_color: $$defs.subhead_highlight_color,
-            view_tag: "fri_page_help_func",
-            updateOpr(view) {
-                let _view_tag = this.view_tag;
-                let _nearest_end_tag = "";
-                let _sess_value = sess_par[_view_tag];
-                if ($$und(_sess_value)) {
-                    _sess_value = true;
-                }
-                let parent = view.getParent();
-                let view_index = parent.indexOfChild(view) - 2;
-                let child_count = parent.getChildCount();
-
-                while (++view_index < child_count) {
-                    let child_view = parent.getChildAt(view_index);
-                    _sess_value ? reveal(child_view) : hide(child_view);
-                    if (_nearest_end_tag && child_view.findViewWithTag(_nearest_end_tag)) {
-                        break;
-                    }
-                }
-
-                // tool function(s) //
-
-                function hide(view) {
-                    view.setVisibility(8);
-                }
-
-                function reveal(view) {
-                    view.setVisibility(0);
-                }
-            },
-        }))
-        .add("button", new Layout("帮收能量球颜色色值", "hint", {
-            config_conj: "help_ball_ident_colors",
-            newWindow() {
-                alert("颜色组配置方法暂未开发完成");
-                // $$view.diag.colorSetter.bind(this)();
-            },
-            updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
-            },
-        }))
-        .add("button", new Layout("帮收能量球颜色阈值", "hint", {
-            config_conj: "help_ball_threshold",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(28, 83, {
-                    title: "帮收能量球颜色检测阈值",
-                });
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
-            },
-        }))
-        .ready();
-});
-
-$$view.addPage(["能量球识别与定位", "eballs_recognition_page"], function () {
-    $$view.setPage(arguments[0])
-        .add("subhead", new Layout("边界与定位", {subhead_color: "#bf360c"}))
-        .add("button", new Layout("能量球分布区域", "hint", {
+        .add("subhead", new Layout("识别与定位", {subhead_color: $$defs.subhead_highlight_color}))
+        .add("button", new Layout("能量球识别区域", "hint", {
             config_conj: "forest_balls_rect_region",
             newWindow() {
                 $$view.diag.rectSetter.bind(this)({
-                    title: "好友森林能量球分布区域",
+                    title: "森林页面能量球识别区域",
                 });
-                dialogs
-                    .builds([
-                        "好友森林能量球分布区域", this.config_conj,
-                        "使用默认值", "放弃", "确认修改", 1
-                    ], {inputHint: "Rect(l,t,r,b) x.like=72|0.1|10%"})
-                    .on("neutral", (d) => {
-
-                    })
-                    .on("negative", (d) => {
-                        d.dismiss();
-                    })
-                    .on("positive", (d) => {
-
-                    })
-                    .show();
             },
             updateOpr(view) {
                 let _cfg_conj = this.config_conj;
                 let [_l, _t, _r, _b] = sess_cfg[_cfg_conj]
-                    .map((v, i) => i % 2 ? v : cX(v));
+                    .map((v, i) => (i % 2
+                            ? v < 1 ? cY(v) : v
+                            : v < 1 ? cX(v) : v
+                    ));
                 let _rect = [[_l, _t], [_r, _b]]
-                    .map(a => a.join(", ")).join(" - ");
-                view._hint.text("Rect(" + _rect + ")");
+                    .map(a => a.join(" , ")).join("  -  ");
+                view._hint.text("Rect  [ " + _rect + " ] ");
             },
         }))
-        .add("button", new Layout("最小球心间距", "hint", {
+        .add("button", new Layout("能量球最小球心间距", "hint", {
             config_conj: "min_balls_distance",
             newWindow() {
                 $$view.diag.numSetter.bind(this)(0.06, 0.15, {
@@ -5808,8 +5620,106 @@ $$view.addPage(["能量球识别与定位", "eballs_recognition_page"], function
                 view._hint.text(_v + " px  [ " + _v_p + "% W ]");
             },
         }))
+        .add("page", new Layout("颜色与阈值调节", {
+            next_page: "eballs_color_config_page",
+        }))
+        .add("page", new Layout("霍夫变换数据传入与处理", {
+            next_page: "hough_strategy_page",
+        }))
+        .add("subhead", new Layout("操作与控制", {subhead_color: $$defs.subhead_highlight_color}))
+        .add("button", new Layout("能量球点击时长", "hint", {
+            config_conj: "balls_click_duration",
+            newWindow() {
+                $$view.diag.numSetter.bind(this)(10, 500);
+            },
+            updateOpr(view) {
+                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
+            },
+        }))
+        .add("button", new Layout("能量球点击间隔", "hint", {
+            config_conj: "balls_click_interval",
+            newWindow() {
+                $$view.diag.numSetter.bind(this)(10, 500);
+            },
+            updateOpr(view) {
+                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
+            },
+        }))
         .add("split_line")
-        .add("subhead", new Layout("霍夫变换传入策略", {subhead_color: "#bf360c"}))
+        .add("info", new Layout('"自收/收取/帮收功能"共用此页面配置'))
+        .add("blank")
+        .ready();
+});
+$$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
+    $$view.setPage(arguments[0])
+        .add("subhead", new Layout("成熟 (绿色) 能量球", {
+            subhead_color: $$defs.subhead_highlight_color,
+        }))
+        .add("button", new Layout("识别色值", "hint", {
+            config_conj: "ripe_ball_detect_color",
+            newWindow() {
+                $$view.diag.colorSetter.bind(this)();
+            },
+            updateOpr(view) {
+                $$view.hint.colorSetter.bind(this)(view);
+            },
+        }))
+        .add("button", new Layout("识别阈值", "hint", {
+            config_conj: "ripe_ball_detect_threshold",
+            newWindow() {
+                $$view.diag.numSetter.bind(this)(0, 40, {
+                    title: "成熟能量球颜色检测阈值",
+                });
+            },
+            updateOpr(view) {
+                view._hint.text(sess_cfg[this.config_conj].toString());
+            },
+        }))
+        .add("invisible_split_line")
+        .add("subhead", new Layout("帮收 (橙色) 能量球", {
+            subhead_color: $$defs.subhead_highlight_color,
+        }))
+        .add("button", new Layout("识别色值", "hint", {
+            config_conj: "help_ball_detect_color",
+            newWindow() {
+                $$view.diag.colorSetter.bind(this)();
+            },
+            updateOpr(view) {
+                $$view.hint.colorSetter.bind(this)(view);
+            },
+        }))
+        .add("button", new Layout("识别阈值", "hint", {
+            config_conj: "help_ball_detect_threshold",
+            newWindow() {
+                $$view.diag.numSetter.bind(this)(23, 230, {
+                    title: "帮收能量球颜色检测阈值",
+                });
+            },
+            updateOpr(view) {
+                view._hint.text(sess_cfg[this.config_conj].toString());
+            },
+        }))
+        .add("invisible_split_line")
+        .add("subhead", new Layout("浇水回赠 (金色) 能量球", {
+            subhead_color: $$defs.subhead_highlight_color,
+        }))
+        .add("button", new Layout("最大色相值 (无蓝分量)", "hint", {
+            config_conj: "homepage_water_ball_max_hue_b0",
+            newWindow() {
+                $$view.diag.numSetter.bind(this)(12, 52, {hint_set: "R"});
+            },
+            updateOpr(view) {
+                view._hint.text(sess_cfg[this.config_conj].toString() + "°");
+            },
+        }))
+        .add("split_line")
+        .add("info", new Layout('"自收/收取/帮收功能"共用此页面配置'))
+        .add("blank")
+        .ready();
+});
+$$view.addPage(["霍夫变换", "hough_strategy_page"], function () {
+    $$view.setPage(arguments[0])
+        .add("subhead", new Layout("数据传入策略", {subhead_color: "#bf360c"}))
         .add("checkbox_switch", new Layout("灰度化 (grayscale)", {
             kk: "gray",
             config_conj: "hough_src_img_strategy",
@@ -5915,7 +5825,7 @@ $$view.addPage(["能量球识别与定位", "eballs_recognition_page"], function
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("图像结果数据处理", {subhead_color: "#bf360c"}))
+        .add("subhead", new Layout("数据处理策略", {subhead_color: "#bf360c"}))
         .add("checkbox_switch", new Layout("覆盖检测", {
             kk: "anti_ovl",
             config_conj: "hough_results_strategy",
@@ -5989,11 +5899,10 @@ $$view.addPage(["能量球识别与定位", "eballs_recognition_page"], function
             },
         }))
         .add("split_line")
-        .add("info", new Layout('"收取/帮收功能"共用此页面配置'))
+        .add("info", new Layout('"自收/收取/帮收功能"共用此页面配置'))
         .add("blank")
         .ready();
 });
-
 $$view.addPage(["帮收功能", "help_collect_page"], function () {
     $$view.setPage(arguments[0])
         .add("switch", new Layout("总开关", {
@@ -6013,15 +5922,6 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
         }))
         .add("split_line")
         .add("subhead", new Layout("基本设置"))
-        .add("button", new Layout("能量球点击间隔", "hint", {
-            config_conj: "balls_click_interval",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(10, 500);
-            },
-            updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
-            },
-        }))
         .add("button", new Layout("有效时段", "hint", {
             config_conj: "help_collect_section",
             newWindow() {
@@ -6077,28 +5977,12 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
             },
         }))
         .add("split_line")
-        .add("subhead", new Layout("高级设置"))
+        .add("subhead", new Layout("公用设置"))
         .add("page", new Layout("排行榜样本采集", {
             next_page: "rank_list_samples_collect_page",
-            listeners: {
-                click(item_view, next_page_view) {
-                    sess_par.rl_page_pick_func = false;
-                    sess_par.rl_page_help_func = true;
-                    $$view.updateViewByTag("rl_page_pick_func");
-                    $$view.updateViewByTag("rl_page_help_func");
-                }
-            },
         }))
-        .add("page", new Layout("好友森林样本采集", {
-            next_page: "fri_forest_samples_collect_page",
-            listeners: {
-                click(item_view, next_page_view) {
-                    sess_par.fri_page_pick_func = false;
-                    sess_par.fri_page_help_func = true;
-                    $$view.updateViewByTag("fri_page_pick_func");
-                    $$view.updateViewByTag("fri_page_help_func");
-                }
-            },
+        .add("page", new Layout("能量球样本采集", {
+            next_page: "forest_samples_collect_page",
         }))
         .ready();
 });
@@ -6426,7 +6310,7 @@ $$view.addPage(["消息提示", "message_showing_page"], function () {
             },
         }))
         .add("split_line")
-        .add("switch", new Layout("运行前提示", {
+        .add("switch", new Layout("运行前提示对话框", {
             config_conj: "prompt_before_running_switch",
             listeners: {
                 _switch: {
@@ -6467,6 +6351,21 @@ $$view.addPage(["消息提示", "message_showing_page"], function () {
             },
             updateOpr(view) {
                 view._hint.text(this.map[(sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString()]);
+            },
+        }))
+        .add("checkbox_switch", new Layout("息屏或上锁启动时自动跳过", {
+            default_state: true,
+            config_conj: "prompt_before_running_auto_skip",
+            listeners: {
+                _checkbox_switch: {
+                    check(state) {
+                        $$save.session(this.config_conj, !!state);
+                    },
+                },
+            },
+            updateOpr(view) {
+                let session_conf = !!sess_cfg[this.config_conj];
+                view._checkbox_switch.setChecked(session_conf);
             },
         }))
         .add("split_line")

@@ -1,3 +1,8 @@
+let {Mat} = com.stardust.autojs.core.opencv;
+let {Imgproc} = org.opencv.imgproc;
+let {Core, Size} = org.opencv.core;
+let _rt_img = runtime.getImages();
+
 if (typeof cX === "undefined" || typeof halfW === "undefined") {
     _getDisplay(true);
 }
@@ -7,11 +12,64 @@ if (typeof debugInfo === "undefined") {
 if (typeof timeRecorder === "undefined") {
     timeRecorder = _timeRecorder;
 }
+if (typeof Math.std !== "function") {
+    Object.assign(Math, {
+        std(arr) {
+            let _sum = arr.reduce((a, b) => +a + +b);
+            let _len = arr.length;
+            let _avg = _sum / _len;
+            let _acc = 0;
+            for (let i = 0; i < _len; i += 1) {
+                _acc += Math.pow((arr[i] - _avg), 2);
+            }
+            return Math.sqrt(_acc / _len);
+        },
+    });
+}
 
 let ext = {
+    _initIfNeeded() {
+        _rt_img.initOpenCvIfNeeded();
+    },
+    _toPointArray(points) {
+        let _arr = [];
+        for (let i = 0; i < points.length; i++) {
+            _arr[i] = points[i];
+        }
+        return _arr;
+    },
+    _buildRegion(region, img) {
+        if (region === undefined) {
+            region = [];
+        }
+        let x = region[0] === undefined ? 0 : region[0];
+        let y = region[1] === undefined ? 0 : region[1];
+        let width = region[2] === undefined ? img.getWidth() - x : region[2];
+        let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
+        let r = new org.opencv.core.Rect(x, y, width, height);
+        if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
+            throw new Error("out of region: " +
+                "region = [" + [x, y, width, height] + "], " +
+                "image.size = [" + [img.width, img.height] + "]"
+            );
+        }
+        return r;
+    },
     getName(img) {
         let img_str = img.toString().split("@")[1];
         return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
+    },
+    getMean(capt) {
+        let _v = Core.mean((capt || ext.capt()).getMat()).val;
+        let [R, G, B] = _v;
+        let [_R, _G, _B] = [R, G, B].map(x => +x.toFixed(2));
+        let _arr = [_R, _G, _B];
+        return {
+            data: {R: _R, G: _G, B: _B},
+            arr: _arr,
+            std: Math.std(_arr),
+            string: "[" + _arr.join(", ") + "]",
+        };
     },
     isRecycled(img) {
         if (!img) return true;
@@ -170,15 +228,15 @@ let ext = {
         if (_srcMch(/^Rect/)) {
             _bnd = src;
         } else if (_srcMch(/^((text|desc|id)(Matches)?)\(/)) {
-            let _node = src.findOnce();
-            if (!_node) {
+            let _w = src.findOnce();
+            if (!_w) {
                 return null;
             }
-            _bnd = _node.bounds();
+            _bnd = _w.bounds();
         } else if (_srcMch(/UiObject/)) {
             _bnd = src.bounds();
         } else {
-            throw ("findColorInBounds的src参数类型无效");
+            throw Error("findColorInBounds的src参数类型无效");
         }
 
         let _x = _bnd.left;
@@ -189,11 +247,11 @@ let ext = {
         let _mch = col => images.findColorInRegion(
             _img, col, _x, _y, _w, _h, threshold
         );
-        if (typeof color !== "object") {
+        if (!Array.isArray(color)) {
             return _mch(color) ? _bnd : null;
         }
-
-        for (let i = 0, len = color.length; i < len; i += 1) {
+        let _len = color.length;
+        for (let i = 0; i < _len; i += 1) {
             if (!_mch(color[i])) {
                 return null;
             }
@@ -201,11 +259,7 @@ let ext = {
         return _bnd;
     },
     bilateralFilter(img, d, sigmaColor, sigmaSpace, borderType) {
-        let {Mat} = com.stardust.autojs.core.opencv;
-        let {Imgproc} = org.opencv.imgproc;
-        let {Core} = org.opencv.core;
-
-        _initIfNeeded();
+        this._initIfNeeded();
 
         let mat = new Mat();
         let size = d || 0;
@@ -216,12 +270,6 @@ let ext = {
         Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
 
         return images.matToImage(mat);
-
-        // tool function(s) //
-
-        function _initIfNeeded() {
-            runtime.getImages().initOpenCvIfNeeded();
-        }
     },
     findAFBallsByHough(param) {
         timeRecorder("hough_beginning");
@@ -251,8 +299,8 @@ let ext = {
         let _balls_data_o = {};
         let _pool = _par.pool || {
             data: [],
-            interval: _cfg.fri_forest_pool_itv,
-            limit: _cfg.fri_forest_pool_limit,
+            interval: _cfg.forest_balls_pool_itv,
+            limit: _cfg.forest_balls_pool_limit,
             get len() {
                 return this.data.length;
             },
@@ -314,16 +362,15 @@ let ext = {
                     ["blur", "均值滤波"],
                     ["blt_fltr", "双边滤波"],
                     ["img_samples_processing", "数据处理"],
-                    // disabled as misunderstanding may caused
-                    // ["total", "总计用时"],
+                    ["total", "全部用时"],
                 ],
                 total: timeRecorder("hough_beginning", "L"),
                 showDebugInfo() {
                     debugInfo("__split_line__dash__");
                     debugInfo("图像填池: " +
                         this.fill_up_pool + "ms" + "  [ " +
-                        _cfg.fri_forest_pool_itv + ", " +
-                        _cfg.fri_forest_pool_limit + " ]"
+                        _cfg.forest_balls_pool_itv + ", " +
+                        _cfg.forest_balls_pool_limit + " ]"
                     );
                     this._map.forEach((arr) => {
                         let [_k, _v] = arr;
@@ -434,29 +481,25 @@ let ext = {
                         return;
                     }
                     let _capt = capt || images.capt();
-                    let _d = o.r / 4;
-                    let _colors = _cfg.ripe_ball_ident_colors;
-                    let _result = false;
-
-                    for (let i = 0, l = _colors.length; i < l; i += 1) {
-                        if (images.findColor(_capt, _colors[i], {
-                            region: [o.x - _d, o.y - _d, _d * 2, _d * 2],
-                            threshold: _cfg.ripe_ball_threshold,
-                        })) {
-                            if (Array.isArray(container)) {
-                                container.push(o);
-                            }
-                            _result = true;
-                            break;
-                        }
-                    }
+                    let _offset = o.r / 4;
+                    let _d = _offset * 2;
+                    let _color = _cfg.ripe_ball_detect_color;
+                    let _result = images.findColor(_capt, _color, {
+                        region: [o.x - _offset, o.y - _offset, _d, _d],
+                        threshold: _cfg.ripe_ball_detect_threshold,
+                    });
 
                     if (!capt) {
                         images.reclaim(_capt);
                         _capt = null;
                     }
 
-                    return _result;
+                    if (_result) {
+                        if (Array.isArray(container)) {
+                            container.push(o);
+                        }
+                        return true;
+                    }
                 };
             }
             if (!images.isOrangeBall) {
@@ -465,35 +508,54 @@ let ext = {
                         return false;
                     }
                     let _capt = capt || images.capt();
-                    let _ctx = o.x + cX(52);
-                    let _cty = o.y + cYx(57);
-                    let _offset = o.r / 4;
-                    let _colors = _cfg.help_ball_ident_colors;
-                    let _result = false;
+                    let _w = cX(115);
+                    let _dw = _w / 5 - 1;
+                    let _h = cYx(30);
+                    let _l = o.x + cYx(10) - _w / 2;
+                    let _r = _l + _w;
+                    let _t = o.y + o.r;
+                    let _result = true;
+                    let _pct_data = [];
 
-                    for (let i = 0, l = _colors.length; i < l; i += 1) {
-                        let _l = _ctx - _offset;
-                        let _t = _cty - _offset;
-                        let _w = Math.min(_offset * 2, W - _l);
-                        let _h = Math.min(_offset * 2, H - _t);
-                        if (images.findColor(_capt, _colors[i], {
-                            region: [_l, _t, _w, _h],
-                            threshold: _cfg.help_ball_threshold,
-                        })) {
-                            if (Array.isArray(container)) {
-                                container.push(o);
-                            }
-                            _result = true;
+                    while (_r - _l >= _dw) {
+                        let _region = [_l, _t, _dw, _h];
+                        let _pct = _getColMchPct(_region);
+                        if (!_pct) {
+                            _result = false;
                             break;
                         }
+                        _pct_data.push(_pct);
+                        _l += _dw;
                     }
 
                     if (!capt) {
                         images.reclaim(_capt);
                         _capt = null;
                     }
+                    if (_result) {
+                        o.color_matched = {
+                            percentage: _pct_data,
+                            region: _region,
+                        };
+                        if (Array.isArray(container)) {
+                            container.push(o);
+                        }
+                        return true;
+                    }
 
-                    return _result;
+                    // tool function(s) //
+
+                    function _getColMchPct(region) {
+                        let _thrd = _cfg.help_ball_detect_threshold;
+                        let _color = _cfg.help_ball_detect_color;
+
+                        let _cnt = ext.findAllPointsForColor(
+                            _capt, _color, {threshold: _thrd, region: region}
+                        ).length;
+                        let _total = _w * _h;
+
+                        return +(_cnt / _total).toFixed(3);
+                    }
                 };
             }
         }
@@ -503,10 +565,10 @@ let ext = {
             let _max = _pool.limit + 1;
             while (_max--) {
                 _pool.add(_capture());
-                sleep(_pool.interval);
                 if (!_pool.len || _pool.filled_up) {
                     break;
                 }
+                sleep(_pool.interval);
             }
             _du.fill_up_pool = timeRecorder("fill_up_pool", "L");
         }
@@ -584,9 +646,7 @@ let ext = {
                 }
 
                 function _reclaimImages() {
-                    ext.reclaim(
-                        _gray, _adapt_thrd, _med_blur, _blur, _blt_fltr
-                    );
+                    ext.reclaim(_gray, _adapt_thrd, _med_blur, _blur, _blt_fltr);
                     _gray = _adapt_thrd = _med_blur = _blur = _blt_fltr = null;
                 }
 
@@ -667,15 +727,15 @@ let ext = {
                     }
                     let _step = _getMinStep();
                     for (let i = 1; i < _balls.length; i += 1) {
-                        let _diff = _balls[i].x - _balls[i - 1].x;
-                        let _dist = Math.round(_diff / _step);
-                        if (_dist < 2) {
+                        let _dist = _calcDist(_balls[i], _balls[i - 1]);
+                        let _cnt = Math.floor(_dist / _step - 0.75) + 1;
+                        if (_cnt < 2) {
                             continue;
                         }
-                        let _dx = _diff / _dist;
-                        let _dy = (_balls[i].y - _balls[i - 1].y) / _dist;
+                        let _dx = _dist / _cnt;
+                        let _dy = (_balls[i].y - _balls[i - 1].y) / _cnt;
                         let _data = [];
-                        for (let k = 1; k < _dist; k += 1) {
+                        for (let k = 1; k < _cnt; k += 1) {
                             _data.push({
                                 x: _balls[i - 1].x + _dx * k,
                                 y: _balls[i - 1].y + _dy * k,
@@ -693,7 +753,7 @@ let ext = {
                         let _step = Infinity;
                         _balls.forEach((v, i, a) => {
                             if (i) {
-                                let _diff = a[i].x - a[i - 1].x;
+                                let _diff = _calcDist(a[i], a[i - 1]);
                                 if (_diff < _step) {
                                     _step = _diff;
                                 }
@@ -701,20 +761,24 @@ let ext = {
                         });
                         return _step;
                     }
+
+                    function _calcDist(p1, p2) {
+                        return Math.sqrt(
+                            Math.pow(p2.x - p1.x, 2) +
+                            Math.pow(p2.y - p1.y, 2)
+                        );
+                    }
                 }
 
                 function _addBalls() {
                     _wballs.map(_extProperties).forEach((o) => {
-                        if (_isRipeBall(o, capt)) {
-                            return _addBall(o, "ripe");
-                        }
                         _addBall(o, "water");
                     });
                     _balls.map(_extProperties).forEach((o) => {
-                        if (_isRipeBall(o, capt)) {
-                            if (_isOrangeBall(o)) {
-                                return _addBall(o, "orange");
-                            }
+                        if (_isOrangeBall(o)) {
+                            return _addBall(o, "orange");
+                        }
+                        if (_isRipeBall(o)) {
                             return _addBall(o, "ripe");
                         }
                         if (!images.inTreeArea(o)) {
@@ -725,7 +789,9 @@ let ext = {
                     // tool function(s) //
 
                     function _isOrangeBall(o) {
-                        return images.isOrangeBall(o, capt);
+                        if (!_par.no_orange_ball) {
+                            return images.isOrangeBall(o, capt);
+                        }
                     }
 
                     function _isRipeBall(o) {
@@ -792,13 +858,22 @@ let ext = {
                             let _x = o.x + _l;
                             let _y = o.y + _t;
                             let _r = +o.radius.toFixed(2);
-                            return {x: _x, y: _y, r: _r};
+                            let _d = _r * 2;
+                            let _clip = images.clip(
+                                capt, _x - _r, _y - _r, _d, _d
+                            );
+                            let _mean = ext.getMean(_clip);
+                            _clip.recycle();
+                            _clip = null;
+                            return {x: _x, y: _y, r: _r, mean: _mean};
                         })
                         .filter(o => (
                             o.x - o.r >= _l &&
                             o.x + o.r <= _r &&
                             o.y - o.r >= _t &&
-                            o.y + o.r <= _b
+                            o.y + o.r <= _b &&
+                            // excluding homepage cloud(s)
+                            o.mean.std > 20
                         ))
                         .sort(_sortX);
                 }
@@ -808,7 +883,13 @@ let ext = {
                 }
 
                 function _filterWball(o) {
-                    return o && !images.isWball(o, capt, _wballs);
+                    if (!o) {
+                        return false;
+                    }
+                    if (images.isRipeBall(o, capt)) {
+                        return true;
+                    }
+                    return !images.isWball(o, capt, _wballs);
                 }
             }
         }
@@ -816,12 +897,10 @@ let ext = {
         // updated at Jun 3, 2020
         function _$DEFAULT() {
             return {
-                help_ball_ident_colors: [
-                    "#f99137", "#f9933a", "#e9b781"
-                ],
-                help_ball_threshold: 35,
-                ripe_ball_ident_colors: ["#ceff5f"],
-                ripe_ball_threshold: 13,
+                help_ball_detect_color: "#f99137",
+                help_ball_detect_threshold: 91,
+                ripe_ball_detect_color: "#ceff5f",
+                ripe_ball_detect_threshold: 13,
                 forest_balls_rect_region: [
                     cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)
                 ],
@@ -838,11 +917,97 @@ let ext = {
                     linear_itp: true,
                 },
                 min_balls_distance: 0.09,
-                fri_forest_pool_limit: 3,
-                fri_forest_pool_itv: 120,
+                forest_balls_pool_limit: 2,
+                forest_balls_pool_itv: 240,
                 homepage_water_ball_max_hue_b0: 44,
             };
         }
+    },
+    findAllPointsForColor(img, color, options) {
+        this._initIfNeeded();
+        let _finder = _rt_img.colorFinder;
+        let _default_color_threshold = 4;
+        let _opt = options || {};
+
+        let _color = typeof color === 'string'
+            ? colors.parseColor(color)
+            : color;
+        let _thrd = _opt.similarity
+            ? Math.floor(255 * (1 - _opt.similarity))
+            : _opt.threshold || _default_color_threshold;
+        let _region = _opt.region
+            ? this._buildRegion(_opt.region, img)
+            : null;
+
+        // compatible with Auto.js Pro versions
+        _finder.__proto__ = Object.assign(_finder.__proto__ || {}, {
+            findAllPointsForColor(image, color, threshold, rect) {
+                let {Core, Scalar} = org.opencv.core;
+                let {Mat, OpenCVHelper} = com.stardust.autojs.core.opencv;
+
+                let _screen_metrics = runtime.getScreenMetrics();
+
+                let _mat_of_point = _findColorInner(image, color, threshold, rect);
+                if (_mat_of_point === null) {
+                    return [];
+                }
+                let _points = _mat_of_point.toArray();
+                OpenCVHelper.release(_mat_of_point);
+
+                if (rect !== null) {
+                    for (let i = 0; i < _points.length; i++) {
+                        _points[i].x = _screen_metrics.scaleX(_points[i].x + rect.x);
+                        _points[i].y = _screen_metrics.scaleX(_points[i].y + rect.y);
+                    }
+                }
+                return _points;
+
+                // tool function(s) //
+
+                function _findColorInner(image, color, threshold, rect) {
+                    let _bi = Mat();
+                    let _lower_bound = new Scalar(
+                        colors.red(color) - threshold,
+                        colors.green(color) - threshold,
+                        colors.blue(color) - threshold,
+                        255
+                    );
+                    let _upper_bound = new Scalar(
+                        colors.red(color) + threshold,
+                        colors.green(color) + threshold,
+                        colors.blue(color) + threshold,
+                        255
+                    );
+
+                    if (rect === null) {
+                        Core.inRange(image.getMat(), _lower_bound, _upper_bound, _bi);
+                    } else {
+                        let _mat = new Mat(image.getMat(), rect);
+                        Core.inRange(_mat, _lower_bound, _upper_bound, _bi);
+                        OpenCVHelper.release(_mat);
+                    }
+
+                    let _non_zero_pos = new Mat();
+                    Core.findNonZero(_bi, _non_zero_pos);
+
+                    let _result;
+                    if (!_non_zero_pos.rows() || !_non_zero_pos.cols()) {
+                        _result = null;
+                    } else {
+                        _result = OpenCVHelper.newMatOfPoint(_non_zero_pos);
+                    }
+
+                    OpenCVHelper.release(_bi);
+                    OpenCVHelper.release(_non_zero_pos);
+
+                    return _result;
+                }
+            },
+        });
+
+        return this._toPointArray(
+            _finder.findAllPointsForColor(img, _color, _thrd, _region)
+        );
     },
 };
 ext.capture = ext.captureCurrentScreen = () => ext.capt();
@@ -853,7 +1018,6 @@ module.exports.load = () => Object.assign(global.images, ext);
 // tool function(s) //
 
 function _newSize(size) {
-    let {Size} = org.opencv.core;
     if (!Array.isArray(size)) {
         size = [size, size];
     }
@@ -943,15 +1107,15 @@ function _permitCapt(params) {
                 _clickAction(_sel_remember(), "w");
             }
             if (_waitForAction(_sel_sure, 2e3)) {
-                let _node = _sel_sure();
+                let _w = _sel_sure();
                 let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
 
                 _debugInfo(_act_msg);
-                _clickAction(_node, "w");
+                _clickAction(_w, "w");
 
                 if (!_waitForAction(() => !_sel_sure(), 1e3)) {
                     _debugInfo("尝试click()方法再次" + _act_msg);
-                    _clickAction(_node, "click");
+                    _clickAction(_w, "click");
                 }
             }
         }
@@ -1041,11 +1205,12 @@ function _permitCapt(params) {
     function clickActionRaw(kw) {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_node = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (!_key_node) return;
-        let _bounds = _key_node.bounds();
-        click(_bounds.centerX(), _bounds.centerY());
-        return true;
+        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
+        if (_key_w) {
+            let _bounds = _key_w.bounds();
+            click(_bounds.centerX(), _bounds.centerY());
+            return true;
+        }
     }
 
     function messageActionRaw(msg, lv, if_toast) {

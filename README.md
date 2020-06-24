@@ -30,8 +30,7 @@
 > ###### 使用指南
 >
 > > [快速手册](https://www.bilibili.com/video/av91979276/) (视频)  
-> > [项目文档](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md)
-> > (尚未完善)
+> > [项目文档](https://github.com/SuperMonster003/Auto.js_Projects/blob/Ant_Forest/Documents/Ant_Forest_User_Manual.md) (尚未完善)
 >
 > ###### 系统需求
 >
@@ -100,10 +99,28 @@
 ### 版本历史
 ******
 
+# v1.9.21
+###### 2020/06/24 - 代码重构 谨慎升级
+* `修复` 森林主页可能将漂浮云朵误识别为能量球的问题 _[`issue #349`](https://github.com/SuperMonster003/Auto.js_Projects/issues/349)_
+* `修复` 控件变更导致黑名单功能及统计功能出现异常的问题 _[`issue #357`](https://github.com/SuperMonster003/Auto.js_Projects/issues/357)_ _[`#356`](https://github.com/SuperMonster003/Auto.js_Projects/issues/356)_ _[`#355`](https://github.com/SuperMonster003/Auto.js_Projects/issues/355)_
+* `修复` 主页能量球监测收取后可能出现无法停止监测的问题
+* `修复` 解锁功能关闭后当设备亮屏但上锁时依然可解锁的问题
+* `修复` Toast监控线程在出现能量球误识别情况时功能失效的问题
+* `修复` 检测支付宝是否安装的方法内部引用错误 _[`issue #363`](https://github.com/SuperMonster003/Auto.js_Projects/issues/363)_ _[`#359`](https://github.com/SuperMonster003/Auto.js_Projects/issues/359)_
+* `优化` 增加息屏或上锁启动时自动跳过选项以增强运行前提示对话框功能性 _[`issue #302`](https://github.com/SuperMonster003/Auto.js_Projects/issues/302)_
+* `优化` 自动在需要时尝试修复配置文件中缺失的转义字符
+* `优化` 能量球识别数据处理的线性插值方案的方法内部逻辑
+* `优化` 解锁模块适配部分VIVO设备 (PIN方案) _[`issue #331`](https://github.com/SuperMonster003/Auto.js_Projects/issues/331)_
+* `优化` 开放主页能量球返检监控配置选项
+* `优化` 重新调整配置工具的功能页面及部分配置选项
+* `优化` 重构sel.pickup()方法更正部分语义
+* `优化` 移除主页橙色能量球降级时不必要的资源及时间占用
+* `优化` 调整运行前提示对话框方法激活位置
+
 # v1.9.20
 ###### 2020/06/09
 * `修复` 使用Toast方式展示结果时脚本无法正常结束的问题
-* `修复` 使用Floaty方式展示结果过程可能出现无响应的问题
+* `修复` 使用Floaty方式展示结果过程可能出现无响应的问题 
 * `修复` README.md使用插件格式化后可能的非预期显示问题
 * `修复` 主页成熟能量球收取完毕后未更新样本缓存的问题
 * `修复` 排行榜样本池差异检测时可能造成内存不足的问题 (试修) _[`issue #346`](https://github.com/SuperMonster003/Auto.js_Projects/issues/346)_
@@ -1140,7 +1157,7 @@
 * `灵感` ~~主要方法的JSDoc注释~~ [v1.6.23](#v1623)
 * `灵感` ~~可用于配置脚本的UI界面 (高交互性)~~ [v1.5.0](#v150)
 * `灵感` ~~帮收好友能量增加精准性及效率~~ [v1.1.2](#v112)
-* `灵感` ~~登录主账户之前记录当前用户信息 脚本结束后恢复登录 (需录入账户信息)~~ [v1.9.0](#v190))
+* `灵感` ~~登录主账户之前记录当前用户信息 脚本结束后恢复登录 (需录入账户信息)~~ [v1.9.0](#v190)
 * `灵感` ~~额外文件的生成/存取不受机型限制~~ [v1.2.0](#v120)
 * `灵感` 语言智能切换且可供用户配置
 * `灵感` ~~使用Floaty方式替代Toast消息显示~~ [v1.3.5](#v135)

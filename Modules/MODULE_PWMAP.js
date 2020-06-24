@@ -296,15 +296,13 @@ function _exports() {
 
     function _thdMonitor(dec) {
         return threads.start(function () {
-            let _msg = dec ?
-                "正在解密中 请稍候..." :
-                "正在加密中 请稍候...";
+            let _msg = dec
+                ? "正在解密中 请稍候..."
+                : "正在加密中 请稍候...";
             sleep(2.4e3);
             let _ctr = 0;
             while (1) {
-                if (!(_ctr++ % 5)) {
-                    toast(_msg);
-                }
+                _ctr++ % 5 || toast(_msg);
                 sleep(1e3);
             }
         });

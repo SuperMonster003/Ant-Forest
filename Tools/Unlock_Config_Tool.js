@@ -1627,91 +1627,6 @@ function loadInternalModuleMonsterFunc() {
         }
     }
 
-    function debugInfo(msg, info_flag, forcible_flag) {
-        let $_flag = global.$$flag = global.$$flag || {};
-
-        let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-        let global_flag = $_flag.debug_info_avail;
-        if (!global_flag && !forcible_flag) return;
-        if (global_flag === false || forcible_flag === false) return;
-
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-        if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
-
-        let info_flag_str = (info_flag || "").toString();
-        let info_flag_line = (info_flag_str.match(/[Uu]p|both/) || [""])[0];
-        let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-        if (info_flag_line === "Up") _showSplitLine();
-        if (info_flag_line.match(/both|up/)) debugInfo("__split_line__", "", forcible_flag);
-
-        if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-        else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-        if (info_flag_line === "both") debugInfo("__split_line__", "", forcible_flag);
-
-        // raw function(s) //
-
-        function showSplitLineRaw(extra_str, style) {
-            let _extra_str = extra_str || "";
-            let _split_line = "";
-            if (style === "dash") {
-                for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                _split_line += "-";
-            } else {
-                for (let i = 0; i < 33; i += 1) _split_line += "-";
-            }
-            return ~console.log(_split_line + _extra_str);
-        }
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
-            }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
-            }
-            if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
-            }
-            if (_lv === 0) {
-                console.verbose(_s);
-            } else if (_lv === 1) {
-                console.log(_s);
-            } else if (_lv === 2) {
-                console.info(_s);
-            }
-            return true;
-        }
-
-        // tool function(s) //
-
-        function setDebugSplitLine(msg) {
-            let _msg = "";
-            if (msg.match(/dash/)) {
-                for (let i = 0; i < 17; i += 1) _msg += "- ";
-                _msg += "-";
-            } else {
-                for (let i = 0; i < 33; i += 1) _msg += "-";
-            }
-            return _msg;
-        }
-    }
-
     function equalObjects(obj_a, obj_b) {
         let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
         let class_of_a = classOf(obj_a),
@@ -1770,435 +1685,6 @@ function loadInternalModuleMonsterFunc() {
             }
         }
         return new_obj;
-    }
-
-    function getSelector(options) {
-        let _opt = options || {};
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", _opt.debug_info_flag);
-        let _sel = selector();
-        _sel.__proto__ = _sel.__proto__ || {};
-        Object.assign(_sel.__proto__, {
-            kw_pool: {},
-            cache_pool: {},
-            /**
-             * Returns a selector (UiSelector) or node (UiObject) or some attribute
-             * If no nodes (UiObjects) were found, returns null or "" or false
-             * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
-             * @memberOf getSelector
-             * @param sel_body {string|RegExp|array} - selector body will be converted into array type
-             * <br>
-             *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
-             *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-             * @param {?string} [mem_kw] - to mark this selector node; better use a keyword without conflict
-             * @param {string} [res_type="node"] - "node", "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
-             * <br>
-             *     -- "txt": available text()/desc() value or empty string
-             * @param {object} [par]
-             * @param {string} [par.selector_prefer="desc"] - unique selector you prefer to check first; "text" or "desc"
-             * @param {boolean} [par.debug_info_flag]
-             * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
-             * @example
-             * // text/desc/id("abc").findOnce();
-             * // UiObject
-             * pickup("abc");
-             * // same as above
-             * pickup("abc", "node", "my_alphabet");
-             * // text/desc/id("abc");
-             * // UiSelector
-             * pickup("abc", "sel", "my_alphabet");
-             * // text("abc").findOnce()
-             * pickup(text("abc"), "node", "my_alphabet");
-             * // id/text/desc and so forth -- string
-             * pickup(/^abc.+z/, "sel_str", "AtoZ")
-             * // text/desc/id("morning").exists() -- boolean
-             * pickup("morning", "exists");
-             * // text/desc/id("morning").findOnce().parent().parent().child(3).id()
-             * pickup(["morning", "p2c3"], "id");
-             * // text/desc/id("hello").findOnce().parent().child(%childCount% - 3)["txt"]
-             * pickup(["hello", "s3b"], "txt");
-             * // text/desc/id("hello").findOnce().parent().child(%%indexInParent% + 2)["txt"]
-             * pickup(["hello", "s+2"], "txt");
-             * // text/desc/id("hello").className("Button").findOnce()
-             * pickup(["hello", {className: "Button"}]);
-             * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
-             * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
-             */
-            pickup(sel_body, res_type, mem_kw, par) {
-                let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
-                let _params = Object.assign({}, _opt, par);
-                let _res_type = (res_type || "").toString();
-
-                if (!_res_type || _res_type.match(/^n(ode)?$/)) {
-                    _res_type = "node";
-                } else if (_res_type.match(/^s(el(ector)?)?$/)) {
-                    _res_type = "selector";
-                } else if (_res_type.match(/^e(xist(s)?)?$/)) {
-                    _res_type = "exists";
-                } else if (_res_type.match(/^t(xt)?$/)) {
-                    _res_type = "txt";
-                } else if (_res_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) {
-                    _res_type = "selector_string";
-                }
-
-                if (typeof _sel_body[1] === "string") {
-                    _sel_body.splice(1, 0, "");
-                }
-
-                let _body = _sel_body[0];
-                let _additional_sel = _sel_body[1];
-                let _compass = _sel_body[2];
-
-                let _kw = _getSelector(_additional_sel);
-                let _node = null;
-                let _nodes = [];
-                if (_kw && _kw.toString().match(/UiObject/)) {
-                    _node = _kw;
-                    if (_res_type === "nodes") {
-                        _nodes = [_kw];
-                    }
-                    _kw = null;
-                } else {
-                    _node = _kw ? _kw.findOnce() : null;
-                    if (_res_type === "nodes") {
-                        _nodes = _kw ? _kw.find() : [];
-                    }
-                }
-
-                if (_compass) {
-                    _node = _relativeNode([_kw || _node, _compass]);
-                }
-
-                let _res = {
-                    selector: _kw,
-                    node: _node,
-                    nodes: _nodes,
-                    exists: !!_node,
-                    get selector_string() {
-                        return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
-                    },
-                    get txt() {
-                        let _text = _node && _node.text() || "";
-                        let _desc = _node && _node.desc() || "";
-                        return _desc.length > _text.length ? _desc : _text;
-                    }
-                };
-
-                if (_res_type in _res) {
-                    return _res[_res_type];
-                }
-
-                try {
-                    if (!_node) {
-                        return null;
-                    }
-                    return _node[_res_type]();
-                } catch (e) {
-                    try {
-                        return _node[_res_type];
-                    } catch (e) {
-                        debugInfo(e, 3);
-                        return null;
-                    }
-                }
-
-                // tool function(s)//
-
-                function _getSelector(addition) {
-                    let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                    if (mem_kw) {
-                        let _mem_sel = global[_mem_kw_prefix + mem_kw];
-                        if (_mem_sel) {
-                            return _mem_sel;
-                        }
-                    }
-                    let _kw_sel = _getSelFromLayout(addition);
-                    if (mem_kw && _kw_sel) {
-                        // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
-                        global[_mem_kw_prefix + mem_kw] = _kw_sel;
-                    }
-                    return _kw_sel;
-
-                    // tool function(s) //
-
-                    function _getSelFromLayout(addition) {
-                        let _prefer = _params.selector_prefer;
-                        let _body_class = _classof(_body);
-
-                        if (_body_class === "JavaObject") {
-                            if (_body.toString().match(/UiObject/)) {
-                                addition && _debugInfo("UiObject无法使用额外选择器", 3);
-                                return _body;
-                            }
-                            return _chkSels(_body);
-                        }
-
-                        if (typeof _body === "string") {
-                            return _prefer === "text"
-                                ? _chkSels(text(_body), desc(_body), id(_body))
-                                : _chkSels(desc(_body), text(_body), id(_body));
-                        }
-
-                        if (_body_class === "RegExp") {
-                            return _prefer === "text"
-                                ? _chkSels(textMatches(_body), descMatches(_body), idMatches(_body))
-                                : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
-                        }
-
-                        // tool function(s) //
-
-                        function _chkSels(selectors) {
-                            let _sels = selectors;
-                            let _sels_len = _sels.length;
-                            let _arg_len = arguments.length;
-                            if (_classof(_sels) !== "Array") {
-                                _sels = [];
-                                for (let i = 0; i < _arg_len; i += 1) {
-                                    _sels[i] = arguments[i];
-                                }
-                            }
-                            for (let i = 0; i < _sels_len; i += 1) {
-                                let _res = _chkSel(_sels[i]);
-                                if (_res) {
-                                    return _res;
-                                }
-                            }
-                            return null;
-
-                            // tool function(s) //
-
-                            function _chkSel(sel) {
-                                if (_classof(addition) === "Array") {
-                                    let _o = {};
-                                    _o[addition[0]] = addition[1];
-                                    addition = _o;
-                                }
-                                if (_classof(addition) === "Object") {
-                                    let _keys = Object.keys(addition);
-                                    let _k_len = _keys.length;
-                                    for (let i = 0; i < _k_len; i += 1) {
-                                        let _k = _keys[i];
-                                        if (!sel[_k]) {
-                                            let _m = "无效的additional_selector属性值:";
-                                            _debugInfo([_m, _k], 3);
-                                            return null;
-                                        }
-                                        let _val = addition[_k];
-                                        try {
-                                            let _arg = _classof(_val) === "Array" ? _val : [_val];
-                                            sel = sel[_k].apply(sel, _arg);
-                                        } catch (e) {
-                                            let _m = "无效的additional_selector选择器:";
-                                            _debugInfo([_m, _k], 3);
-                                            return null;
-                                        }
-                                    }
-                                }
-                                return sel.exists() ? sel : null;
-                            }
-                        }
-                    }
-                }
-
-                /**
-                 * Returns a relative node (UiObject) by compass string
-                 * @param nod_info {array|*} - [node, compass]
-                 * @returns {null|UiObject}
-                 * @example
-                 * // text("Alipay").findOnce().parent().parent();
-                 * relativeNode([text("Alipay"), "pp"]);
-                 * // text("Alipay").findOnce().parent().parent();
-                 * relativeNode([text("Alipay").findOnce(), "p2"]);
-                 * // id("abc").findOnce().parent().parent().parent().child(2);
-                 * relativeNode([id("abc"), "p3c2"]);
-                 * // id("abc").findOnce().parent().child(5);
-                 * // returns an absolute sibling
-                 * relativeNode([id("abc"), "s5"/"s5p"]);
-                 * // id("abc").findOnce().parent().child(%childCount% - 5);
-                 * // abs sibling
-                 * relativeNode([id("abc"), "s5n"]);
-                 * // id("abc").findOnce().parent().child(%indexInParent()% + 3);
-                 * // rel sibling
-                 * relativeNode([id("abc"), "s+3"]);
-                 * // id("abc").findOnce().parent().child(%indexInParent()% - 2);
-                 * // rel sibling
-                 * relativeNode([id("abc"), "s-2"]);
-                 */
-                function _relativeNode(nod_info) {
-                    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                    let _nod_inf = classof(nod_info) === "Array"
-                        ? nod_info.slice()
-                        : [nod_info];
-
-                    let _nod = _nod_inf[0];
-                    let _node_class = classof(_nod);
-                    let _node_str = (_nod || "").toString();
-
-                    if (typeof _nod === "undefined") {
-                        _debugInfo("relativeNode的node参数为Undefined");
-                        return null;
-                    }
-                    if (classof(_nod) === "Null") {
-                        // _debugInfo("relativeNode的node参数为Null");
-                        return null;
-                    }
-                    if (_node_str.match(/^Rect\(/)) {
-                        // _debugInfo("relativeNode的node参数为Rect()");
-                        return null;
-                    }
-                    if (_node_class === "JavaObject") {
-                        if (_node_str.match(/UiObject/)) {
-                            // _debugInfo("relativeNode的node参数为UiObject");
-                        } else {
-                            // _debugInfo("relativeNode的node参数为UiSelector");
-                            _nod = _nod.findOnce();
-                            if (!_nod) {
-                                // _debugInfo("UiSelector查找后返回Null");
-                                return null;
-                            }
-                        }
-                    } else {
-                        _debugInfo("未知的relativeNode的node参数", 3);
-                        return null;
-                    }
-
-                    let _compass = _nod_inf[1];
-
-                    if (!_compass) {
-                        // _debugInfo("relativeNode的罗盘参数为空");
-                        return _nod;
-                    }
-
-                    _compass = _compass.toString();
-
-                    try {
-                        if (_compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
-                            // backwards|negative
-                            let _rel_mch = _compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/);
-                            // forwards|positive
-                            let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
-                            if (_rel_mch) {
-                                let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
-                                let _child_cnt = _nod.parent().childCount();
-                                let _cur_idx = _nod.indexInParent();
-                                _nod = _rel_mch[0].match(/\d+[bn]/)
-                                    ? _nod.parent().child(_child_cnt - Math.abs(_rel_amt))
-                                    : _nod.parent().child(_cur_idx + _rel_amt);
-                            } else if (_abs_mch) {
-                                _nod = _nod.parent().child(
-                                    parseInt(_abs_mch[0].match(/\d+/)[0])
-                                );
-                            }
-                            _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
-                            if (!_compass) {
-                                return _nod;
-                            }
-                        }
-                    } catch (e) {
-                        return null;
-                    }
-
-                    let _parents = _compass.replace(
-                        /([Pp])(\d+)/g, ($0, $1, $2) => {
-                            let _str = "";
-                            let _max = parseInt($2);
-                            for (let i = 0; i < _max; i += 1) {
-                                _str += "p";
-                            }
-                            return _str;
-                        }
-                    ).match(/p*/)[0]; // may be ""
-
-                    if (_parents) {
-                        let _len = _parents.length;
-                        for (let i = 0; i < _len; i += 1) {
-                            if (!(_nod = _nod.parent())) {
-                                return null;
-                            }
-                        }
-                    }
-
-                    let _mch = _compass.match(/c\d+/g);
-                    return _mch ? _childNode(_mch) : _nod;
-
-                    // tool function(s) //
-
-                    function _childNode(arr) {
-                        if (!arr || classof(arr) !== "Array") {
-                            return null;
-                        }
-                        let _len = arr.length;
-                        for (let i = 0; i < _len; i += 1) {
-                            if (_nod.childCount()) {
-                                try {
-                                    let _idx = +arr[i].match(/\d+/);
-                                    _nod = _nod.child(_idx);
-                                } catch (e) {
-
-                                }
-                            }
-                        }
-                        return _nod || null;
-                    }
-                }
-            },
-            add(key, sel_body, kw) {
-                let _kw = typeof kw === "string" ? kw : key;
-                this.kw_pool[key] = typeof sel_body === "function"
-                    ? type => sel_body(type)
-                    : type => this.pickup(sel_body, type, _kw);
-                return this;
-            },
-            get(key, type) {
-                let _picker = this.kw_pool[key];
-                if (!_picker) {
-                    return null;
-                }
-                if (type && type.toString().match(/cache/)) {
-                    return this.cache_pool[key] = _picker("node");
-                }
-                return _picker(type);
-            },
-            getAndCache(key) {
-                // only "node" type can be returned
-                return this.get(key, "save_cache");
-            },
-            cache: {
-                save: (key) => _sel.getAndCache(key),
-                load(key, type) {
-                    let _node = _sel.cache_pool[key];
-                    if (!_node) {
-                        return null;
-                    }
-                    return _sel.pickup(_sel.cache_pool[key], type);
-                },
-                refresh(key) {
-                    let _cache = _sel.cache_pool[key];
-                    _cache && _cache.refresh();
-                    this.save(key);
-                },
-                reset(key) {
-                    delete _sel.cache_pool[key];
-                    return _sel.getAndCache(key);
-                },
-                recycle(key) {
-                    let _cache = _sel.cache_pool[key];
-                    _cache && _cache.recycle();
-                },
-            },
-        });
-        return _sel;
-
-        // raw function(s) //
-
-        function debugInfoRaw(msg, info_flg) {
-            if (info_flg) {
-                let _s = msg || "";
-                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                console.verbose(_s);
-            }
-        }
     }
 
     function classof(source, check_value) {
@@ -2328,7 +1814,7 @@ function loadInternalDialogContents() {
     };
 }
 
-// updated at Jan 8, 2020
+// updated at Jun 24, 2020
 function loadInternalModulePWMAP() {
     let _path = "";
     let _dic = {};
@@ -2589,22 +2075,20 @@ function loadInternalModulePWMAP() {
 
     function _thdMonitor(dec) {
         return threads.start(function () {
-            let _msg = dec ?
-                "正在解密中 请稍候..." :
-                "正在加密中 请稍候...";
+            let _msg = dec
+                ? "正在解密中 请稍候..."
+                : "正在加密中 请稍候...";
             sleep(2.4e3);
             let _ctr = 0;
             while (1) {
-                if (!(_ctr++ % 5)) {
-                    toast(_msg);
-                }
+                _ctr++ % 5 || toast(_msg);
                 sleep(1e3);
             }
         });
     }
 }
 
-// updated at Nov 14, 2019
+// updated at Jun 24, 2020
 function loadInternalModuleStorage() {
     return (function () {
         let storages = {};
@@ -2622,66 +2106,151 @@ function loadInternalModuleStorage() {
         // constructor(s) //
 
         function Storage(name) {
-            let storage_dir = files.getSdcardPath() + "/.local/";
-            let file = createFile(storage_dir);
-            let opened = files.open(file);
-            let readFile = () => files.read(file);
+            let _dir = files.getSdcardPath() + "/.local/";
+            let _full_path = _dir + name + ".nfe";
+            files.createWithDirs(_full_path);
+            let _opened = files.open(_full_path);
+            let _readFile = () => files.read(_full_path);
 
-            this.contains = contains;
-            this.get = get;
-            this.put = put;
-            this.remove = remove;
-            this.clear = clear;
+            this.contains = _contains;
+            this.get = _get;
+            this.put = _put;
+            this.remove = _remove;
+            this.clear = _clear;
 
-            function createFile(dir) {
-                let file = dir + name + ".nfe";
-                files.createWithDirs(file);
-                return file;
-            }
+            // tool function(s) //
 
-            function contains(key) {
-                let read = readFile();
-                if (!read) return false;
-                return key in JSON.parse(read);
-            }
-
-            function put(key, value) {
-                if (typeof value === "undefined") {
-                    throw new TypeError('"put" value can\'t be undefined');
+            function _replacer(k, v) {
+                if (typeof v === "number") {
+                    if (isNaN(v) || !isFinite(v)) {
+                        /** Zero Width No-Break Space */
+                        let _pad = "\ufeff";
+                        return _pad + v.toString() + _pad;
+                    }
                 }
-                let read = readFile();
-                let obj = read && JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
-                let new_obj = {};
-                new_obj[key] = value;
-                Object.assign(obj, new_obj);
-                files.write(file, JSON.stringify(obj, (key, value) => value === Infinity ? "Infinity" : value));
-                opened.close();
+                return v;
             }
 
-            function get(key, value) {
-                let read = readFile();
-                if (!read) return value;
+            function _reviver(k, v) {
+                if (typeof v === "string") {
+                    let _rex = /^\ufeff(.+)\ufeff$/;
+                    if (v.match(_rex)) {
+                        return +v.replace(_rex, "$1");
+                    }
+                }
+                return v;
+            }
+
+            function _contains(key) {
+                return key in _jsonParseFile();
+            }
+
+            function _put(key, new_val, forc) {
+                if (typeof new_val === "undefined") {
+                    let _m = '"put" value can\'t be undefined';
+                    throw new TypeError(_m);
+                }
+
+                let _old_data = {};
+                let _tmp_data = {};
+
                 try {
-                    let obj = JSON.parse(read, (key, value) => value === "Infinity" ? Infinity : value) || {};
-                    return key in obj ? obj[key] : value;
+                    _old_data = _jsonParseFile(_reviver);
                 } catch (e) {
                     console.warn(e.message);
-                    return value;
+                }
+
+                let _cA = _classof(new_val, "Object");
+                let _cB = _classof(_old_data[key], "Object");
+                let _both_type_o = _cA && _cB;
+                let _keyLen = () => Object.keys(new_val).length;
+
+                if (!forc && _both_type_o && _keyLen()) {
+                    _tmp_data[key] = Object.assign(
+                        _old_data[key], new_val
+                    );
+                } else {
+                    _tmp_data[key] = new_val;
+                }
+
+                files.write(_full_path, JSON.stringify(
+                    Object.assign(_old_data, _tmp_data), _replacer, 2
+                ));
+                _opened.close();
+            }
+
+            function _get(key, value) {
+                let _o = _jsonParseFile(_reviver);
+                if (_o && key in _o) {
+                    return _o[key];
+                }
+                return value;
+            }
+
+            function _remove(key) {
+                let _o = _jsonParseFile();
+                if (key in _o) {
+                    delete _o[key];
+                    files.write(_full_path, JSON.stringify(_o));
+                    _opened.close();
                 }
             }
 
-            function remove(key) {
-                let read = readFile();
-                if (!read) return;
-                let obj = JSON.parse(read);
-                if (!(key in obj)) return;
-                delete obj[key];
-                files.write(file, JSON.stringify(obj));
-                opened.close();
+            function _clear() {
+                files.remove(_full_path);
             }
 
-            function clear() {
-                files.remove(file);
+            function _classof(src, chk) {
+                let _s = Object.prototype.toString.call(src).slice(8, -1);
+                return chk ? _s.toUpperCase() === chk.toUpperCase() : _s;
+            }
+
+            function _jsonParseFile(reviver) {
+                let _str = _readFile();
+                try {
+                    return _str ? JSON.parse(_str, reviver) : {};
+                } catch (e) {
+                    console.warn("JSON.parse()解析配置文件异常");
+                    console.warn("尝试查找并修复异常的转义字符");
+
+                    let _backslash_rex = /[ntrfb\\'"0xu]/;
+                    let _str_new = "";
+
+                    for (let i in _str) {
+                        let _i = +i;
+                        let _s = _str[_i];
+                        if (_s === "\\") {
+                            let _prev_s = _str[_i - 1];
+                            let _next_s = _str[_i + 1];
+                            if (_prev_s && _next_s) {
+                                if (_prev_s !== "\\") {
+                                    if (!_next_s.match(_backslash_rex)) {
+                                        _s += "\\";
+                                    }
+                                }
+                            }
+                        }
+                        _str_new += _s;
+                    }
+
+                    try {
+                        let _res = JSON.parse(_str_new, reviver);
+                        console.info("修复成功");
+                        files.write(_full_path, _str_new);
+                        console.info("已重新写入修复后的数据");
+                        return _res;
+                    } catch (e) {
+                        let _new_file_name = name + ".nfe." + Date.now() + ".bak";
+
+                        files.rename(_full_path, _new_file_name);
+                        console.error("修复失败");
+                        console.warn("已将损坏的配置文件备份至");
+                        console.warn(_dir + _new_file_name);
+                        console.warn("以供手动排查配置文件中的问题");
+
+                        throw Error(e);
+                    }
+                }
             }
         }
     })();
