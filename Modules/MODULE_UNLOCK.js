@@ -53,7 +53,8 @@ let _max_try = _cfg.unlock_max_try_times;
 let _pat_sz = _cfg.unlock_pattern_size;
 
 module.exports = {
-    is_screen_on: $_unlk.init_scr,
+    is_init_screen_on: $_unlk.init_scr,
+    is_init_unlocked: $_unlk.init_unlk,
     isUnlocked: () => _isUnlk(),
     isLocked: () => !_isUnlk(),
     unlock: _unlock,
@@ -1819,6 +1820,7 @@ function _unlkSetter() {
 
     return {
         init_scr: _isScrOn(),
+        init_unlk: _isUnlk(),
         prev_cntr: {
             trigger() {
                 _wakeUpIFN();

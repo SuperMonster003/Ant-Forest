@@ -102,6 +102,8 @@
 # v1.9.22
 ###### 2020/06/25
 * `修复` 配置工具无法修改延时接力任务区间的问题 _[`issue #364`](https://github.com/SuperMonster003/Auto.js_Projects/issues/364#issuecomment-649203097)_
+* `修复` 排行榜列表底部的邀请按钮判断条件失效的问题
+* `修复` 运行前提示对话框判断初始解锁状态时的逻辑错误
 * `修复` 运行前提示对话框与保险任务功能之间的执行逻辑错误
 * `修复` 复查后样本池未清理影响紧邻好友能量球识别效率的问题
 * `优化` 因受制而顺延的任务在日志与配置工具中增加顺延标注 _[`issue #364`](https://github.com/SuperMonster003/Auto.js_Projects/issues/364#issuecomment-649471695)_

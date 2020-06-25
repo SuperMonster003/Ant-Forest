@@ -410,7 +410,7 @@ let $$init = {
                         my_engine_id: _my_engine.id,
                         my_engine_argv: _e_argv,
                         cwd: _my_engine.cwd(), // `files.cwd()` also fine
-                        init_scr_on: _e_argv.init_scr_on || $$dev.is_screen_on,
+                        init_scr_on: _e_argv.init_scr_on || $$dev.is_init_screen_on,
                         init_fg_pkg: _e_argv.init_fg_pkg || currentPackage(),
                         cwp: _getCwp(_my_engine),
                         exit(msg_fg) {
@@ -2858,7 +2858,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _screenOn() {
-                        if ($$dev.is_screen_on) {
+                        if ($$dev.is_init_screen_on) {
                             return true;
                         }
                         debugInfo(["跳过前置应用黑名单检测", ">屏幕未亮起"]);
@@ -3583,7 +3583,7 @@ let $$init = {
         }
     },
     unlock() {
-        let _is_scr_on = $$dev.is_screen_on;
+        let _is_scr_on = $$dev.is_init_screen_on;
         let _is_dev_unlk = $$dev.isUnlocked();
 
         if (!$$cfg.auto_unlock_switch) {
@@ -3698,10 +3698,10 @@ let $$init = {
                         return debugInfo('"运行前提示"未开启');
                     }
                     if ($$cfg.prompt_before_running_auto_skip) {
-                        if (!$$dev.is_screen_on) {
+                        if (!$$dev.is_init_screen_on) {
                             return debugInfo([_skip, ">屏幕未亮起"]);
                         }
-                        if (!$$dev.isUnlocked()) {
+                        if (!$$dev.is_init_unlocked) {
                             return debugInfo([_skip, ">设备未解锁"]);
                         }
                     }
@@ -6328,7 +6328,7 @@ let $$af = {
                         function _invtBtn() {
                             let _col = "#30bf6c";
                             let _colors = _rl.invt_colors || _invtColors();
-                            let _r = [cX(0.82), cY(0.62), cX(0.17), cY(0.37)];
+                            let _r = [cX(0.71), cY(0.62), cX(0.28), cY(0.37)];
                             let _opt = {region: _r, threshold: 10,};
                             let _par = [_rl.capt_img, _col, _colors, _opt];
                             let _mch = images.findMultiColors.apply({}, _par);
