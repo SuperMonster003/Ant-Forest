@@ -3195,19 +3195,19 @@ let $$init = {
                     let _opt = opt || {};
                     let _add = add || {};
                     let _cfg_conj = this.config_conj;
-                    if (!_cfg_conj) {
+                    if (!_cfg_conj && !_opt.no_this_check) {
                         throw Error("numSetter()可能绑定了错误的this对象");
                     }
                     if ($$func(_cfg_conj)) {
                         _cfg_conj = _cfg_conj.call(this);
                     }
-                    let _def_key = _opt.def_key || "af";
-                    let _def = $$sto.def[_def_key][_cfg_conj].toString();
                     let _title = _opt.title || this.title;
                     let _content = _opt.content;
                     let _neutral = _opt.neutral;
                     let _negative = _opt.negative;
                     let _positive = _opt.positive;
+                    let _def_key = _opt.def_key || "af";
+                    let _def_value = _neutral === 0 || $$sto.def[_def_key][_cfg_conj].toString();
 
                     let _set = _opt.hint_set || "N";
                     let _saveValue = _opt.saveValue;
@@ -3239,7 +3239,7 @@ let $$init = {
                             _content[1] =
                                 "有效值: " + _mini + " [ " + _mini_p + " ] " +
                                 " -  " + _maxi + " [ " + _maxi_p + " ]\n" +
-                                "默认值: " + _cvt(_def) + " [ " + _def + " ]";
+                                "默认值: " + _cvt(_def_value) + " [ " + _def_value + " ]";
                         }
                         if (_content[0]) {
                             if (_content[1] || _content[2]) {
@@ -3257,7 +3257,9 @@ let $$init = {
 
                     return dialogs
                         .builds([
-                            _title, $$und(_content) ? _cfg_conj : _content,
+                            _title, $$und(_content)
+                                ? _cfg_conj
+                                : $$nul(_content) ? "" : _content,
                             _neutral === 0 ? 0 : ["使用默认值", "hint_btn_dark_color"],
                             _negative === 0 ? 0 : "返回",
                             _positive === 0 ? 0 : "确认修改",
@@ -3274,7 +3276,7 @@ let $$init = {
                                 d, (s) => d.getInputEditText().setText(s)
                             ])
                             : (d) => {
-                                d.getInputEditText().setText(_def);
+                                d.getInputEditText().setText(_def_value);
                             })
                         .on("negative", $$func(_negative)
                             ? (d) => _negative.apply(this, [d, _mini, _maxi])
@@ -6894,7 +6896,9 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                     if (arr.length) return arr;
                     let type_info = {
                         min_countdown: "最小倒计时",
+                        min_countdown_restrained: "最小倒计时 (顺延)",
                         uninterrupted: "延时接力",
+                        uninterrupted_restrained: "延时接力 (顺延)",
                         insurance: "意外保险",
                         postponed: "用户推迟",
                         postponed_auto: "自动推迟",
@@ -7012,10 +7016,11 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         // tool function(s) //
 
                         function showDiagContent() {
-                            let is_weekly_type = type.match(/每周/);
+                            let is_weekly = type.match(/每周/);
+                            let pad = type.match(/\)$/) ? " " : "";
                             return "任务ID: " + task_id + "\n\n" +
-                                "任务类型: " + (is_weekly_type ? "每周" : type) + "任务" + "\n\n" +
-                                (is_weekly_type ? "任务周期: " + type.match(/\d/g).join(", ") + "\n\n" : "") +
+                                "任务类型: " + (is_weekly ? "每周" : type) + pad + "任务" + "\n\n" +
+                                (is_weekly ? "任务周期: " + type.match(/\d/g).join(", ") + "\n\n" : "") +
                                 "下次运行: " + $$tool.getTimeStrFromTs(next_run_time, "time_str_full");
                         }
                     },
@@ -7253,7 +7258,9 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                                         ],
                                         time_str: {
                                             suffix(getStrFunc) {
-                                                if (getStrFunc(2).default() <= getStrFunc(1).default()) return "(+1)";
+                                                if (getStrFunc(2).default() <= getStrFunc(1).default()) {
+                                                    return "(+1)";
+                                                }
                                             },
                                         },
                                         onFinish(ret) {
@@ -7264,8 +7271,10 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                                 }
 
                                 if (_pref === "间隔") {
-                                    $$view.diag.numSetter.bind(this)(1, 600, {
+                                    $$view.diag.numSetter(1, 600, {
+                                        no_this_check: true,
                                         title: "修改" + _pref,
+                                        content: null,
                                         neutral: 0,
                                         positive(d, min, max) {
                                             let _n = $$view.diag.checkInputRange(d, min, max);

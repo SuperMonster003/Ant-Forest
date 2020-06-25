@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Jun 24, 2020
- * @version 1.9.21
+ * @since Jun 25, 2020
+ * @version 1.9.22
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -2966,6 +2966,12 @@ let $$init = {
                     debugInfo(">任务已达最大连续次数限制: " + _max);
                     this.reset();
                 },
+                get id() {
+                    let _task = this.task;
+                    if (_task) {
+                        return _task.id || -1;
+                    }
+                },
                 get _sto_accu() {
                     return +$$sto.af.get(_keys.ins_accu, 0);
                 },
@@ -3026,6 +3032,13 @@ let $$init = {
                     let _thd = this._thread;
                     _thd && _thd.interrupt();
 
+                    return _self;
+                },
+                remove() {
+                    let _id = this.id;
+                    if (~_id) {
+                        timers.removeTimedTask(_id);
+                    }
                     return _self;
                 }
             };
@@ -3714,22 +3727,26 @@ let $$init = {
                             let _regexp = / *\[ *\d+ *] */;
                             debugInfo('用户点击"' + _btn.replace(_regexp, "") + '"按钮');
                         };
-                        let _diag_prompt = dialogs.builds([
-                            "运行提示", "\n即将在 " + _sec + " 秒内运行" + $$app.task_name + "任务\n",
-                            ["推迟运行", "warn_btn_color"],
-                            ["放弃任务", "caution_btn_color"],
-                            ["立即开始  [ " + _sec + " ]", "attraction_btn_color"],
-                            1,
-                        ]).on("positive", (d) => {
-                            _btnMsg("positive");
-                            _action.posBtn(d);
-                        }).on("negative", (d) => {
-                            _btnMsg("negative");
-                            _action.negBtn(d);
-                        }).on("neutral", (d) => {
-                            _btnMsg("neutral");
-                            _action.neuBtn(d);
-                        });
+                        let _diag_prompt = dialogs
+                            .builds([
+                                "运行提示", "\n即将在 " + _sec + " 秒内运行" + $$app.task_name + "任务\n",
+                                ["推迟运行", "warn_btn_color"],
+                                ["放弃任务", "caution_btn_color"],
+                                ["立即开始  [ " + _sec + " ]", "attraction_btn_color"],
+                                1,
+                            ])
+                            .on("neutral", (d) => {
+                                _btnMsg("neutral");
+                                _action.neuBtn(d);
+                            })
+                            .on("negative", (d) => {
+                                _btnMsg("negative");
+                                _action.negBtn(d);
+                            })
+                            .on("positive", (d) => {
+                                _btnMsg("positive");
+                                _action.posBtn(d);
+                            });
 
                         return dialogs.disableBack(_diag_prompt, () => _action.pause(100));
                     }
@@ -3742,23 +3759,29 @@ let $$init = {
                                 d.dismiss();
                             },
                             negBtn(d) {
-                                let _d = dialogs.builds(getBuildsParam());
                                 this.pause(300);
 
-                                _d.on("negative", (d_self) => {
-                                    dialogs.dismiss(d_self);
-                                }).on("positive", (d_self) => {
-                                    dialogs.dismiss(d_self, d);
-                                    messageAction("放弃" + $$app.task_name + "任务", 1, 1, 0, "both");
-                                    exit();
-                                }).show();
+                                dialogs
+                                    .builds(getBuildsParam())
+                                    .on("negative", (d_self) => {
+                                        dialogs.dismiss(d_self);
+                                    })
+                                    .on("positive", (d_self) => {
+                                        dialogs.dismiss(d_self, d);
+                                        $$app.monitor.insurance.interrupt().remove();
+                                        let _m = "放弃" + $$app.task_name + "任务";
+                                        messageAction(_m, 1, 1, 0, "both");
+                                        exit();
+                                    })
+                                    .show();
 
                                 // tool function(s) //
 
                                 function getBuildsParam() {
+                                    let _ins_id = $$app.monitor.insurance.id;
                                     let _task_len = timers.queryTimedTasks({
                                         path: $$app.cwp,
-                                    }).length;
+                                    }).filter((task) => task.id !== _ins_id).length;
                                     let _task_str = $$app.task_name + "定时任务";
                                     let _title = ["注意", "title_caution_color"];
                                     let _pref = "当前未设置任何" + _task_str + "\n\n";
@@ -3807,28 +3830,36 @@ let $$init = {
 
                                 if (+_cfg.sto_min) {
                                     d.dismiss();
+                                    $$app.monitor.insurance.interrupt().clean();
                                     return $$app.setPostponedTask(_cfg.sto_min);
                                 }
 
                                 let _map = _cfg.def_choices; // ["1 min", "5 min"...]
                                 let _map_keys = Object.keys(_map); // [1, 2, 5, 10...]
 
-                                dialogs.builds([
-                                    "设置任务推迟时间", "",
-                                    0, "返回", ["确定", "warn_btn_color"],
-                                    1, "记住设置且不再提示",
-                                ], {
-                                    items: _map_keys.map(v => _map[v]),
-                                    itemsSelectMode: "single",
-                                    itemsSelectedIndex: _map_keys.indexOf((_cfg.user_min)),
-                                }).on("negative", (d_self) => {
-                                    d_self.dismiss();
-                                }).on("positive", (d_self) => {
-                                    dialogs.dismiss(d_self, d);
-                                    _cfg.user_min = _map_keys[d_self.getSelectedIndex()];
-                                    if (d_self.promptCheckBoxChecked) _cfg.sto_min = _cfg.user_min;
-                                    $$app.setPostponedTask(_cfg.user_min);
-                                }).show();
+                                dialogs
+                                    .builds([
+                                        "设置任务推迟时间", "",
+                                        0, "返回", ["确定", "warn_btn_color"],
+                                        1, "记住设置且不再提示",
+                                    ], {
+                                        items: _map_keys.map(v => _map[v]),
+                                        itemsSelectMode: "single",
+                                        itemsSelectedIndex: _map_keys.indexOf((_cfg.user_min)),
+                                    })
+                                    .on("negative", (d_self) => {
+                                        d_self.dismiss();
+                                    })
+                                    .on("positive", (d_self) => {
+                                        dialogs.dismiss(d_self, d);
+                                        _cfg.user_min = _map_keys[d_self.getSelectedIndex()];
+                                        if (d_self.promptCheckBoxChecked) {
+                                            _cfg.sto_min = _cfg.user_min;
+                                        }
+                                        $$app.monitor.insurance.interrupt().clean();
+                                        $$app.setPostponedTask(_cfg.user_min);
+                                    })
+                                    .show();
                             },
                             pause(interval) {
                                 _thd_et.interrupt();
@@ -5347,11 +5378,12 @@ let $$af = {
                         let _nextItem = () => _item = tar.pop();
 
                         while (_nextItem()) {
-                            _enter();
-                            _intro();
-                            _check();
-                            _back();
-                            _coda();
+                            do {
+                                _enter();
+                                _intro();
+                                _check();
+                                _back();
+                            } while (_coda());
                         }
 
                         // tool function(s) //
@@ -5364,7 +5396,7 @@ let $$af = {
 
                             if ($$flag.six_review) {
                                 debugInfo("复查当前好友", "both");
-                                delete $$flag.six_review;
+                                $$flag.six_review -= 1;
                             } else {
                                 debugInfo("点击" + idt + "目标");
                             }
@@ -5996,7 +6028,7 @@ let $$af = {
                         }
 
                         function _coda() {
-                            if (!_item.avail_clicked) {
+                            if (!_item.avail_clicked && !$$flag.six_review) {
                                 messageAct("无能量球可操作", 1, 0, 1, 1);
                                 delete _item.avail_clicked;
                             } else {
@@ -6005,16 +6037,8 @@ let $$af = {
 
                             delete $$af.nick;
                             $$app.page.fri.pool.clear();
-                            $$flag.six_review && _review();
 
-                            // tool function(s) //
-
-                            function _review() {
-                                _enter();
-                                _intro();
-                                _check();
-                                _back();
-                            }
+                            return $$flag.six_review;
                         }
                     }
                 }
@@ -6503,8 +6527,8 @@ let $$af = {
                     let _isInRange = (checker) => {
                         let _len = checker.length;
                         for (let i = 0; i < _len; i += 1) {
-                            let _chk = checker[i];
-                            if ($$num(_chk[0], "<=", _next, "<=", _chk[1])) {
+                            let [_a, _b] = checker[i];
+                            if ($$num(_a, "<=", _next, "<=", _b)) {
                                 return true;
                             }
                         }
@@ -6546,12 +6570,8 @@ let $$af = {
                     }
 
                     let _next_avail_range = _sxn_info.sort((a, b) => {
-                        let _a = a.left_ts;
-                        let _b = b.left_ts;
-                        if (_a === _b) {
-                            return 0;
-                        }
-                        return _a > _b ? 1 : -1;
+                        let _a = a.left_ts, _b = b.left_ts;
+                        return _a === _b ? 0 : _a > _b ? 1 : -1;
                     })[0];
                     debugInfo("时间数据不在有效时段范围内");
                     $$app.next_avail_sxn_str = _getSxnStr(_next_avail_range.sxn);
@@ -6561,7 +6581,13 @@ let $$af = {
 
             function _setAutoTask() {
                 timeRecorder("set_auto_task");
+
                 let _sxn_str = $$app.next_avail_sxn_str;
+                if (_sxn_str) {
+                    _type.desc += " (顺延)";
+                    _type.name += "_restrained";
+                }
+
                 $$app.thd_set_auto_task = threads.starts(function () {
                     let _task = _update() || _add();
                     let _nxt_str = $$app.tool.timeStr(_next);
@@ -6578,34 +6604,30 @@ let $$af = {
                 function _update() {
                     let _sto_nxt = $$sto.af.get("next_auto_task", {});
                     let _sto_id = _sto_nxt.task_id;
-                    if (!_sto_id) {
-                        return;
+                    if (_sto_id) {
+                        let _sto_task = timers.getTimedTask(_sto_id);
+                        if (_sto_task) {
+                            return _updateTask(_sto_task);
+                        }
                     }
-
-                    let _sto_task = timers.getTimedTask(_sto_id);
-                    if (!_sto_task) {
-                        return;
-                    }
-
-                    return _updateTask();
 
                     // tool function(s) //
 
-                    function _updateTask() {
+                    function _updateTask(task) {
                         debugInfo("开始更新自动定时任务");
-                        _sto_task.setMillis(_next);
-                        timers.updateTimedTask(_sto_task);
+                        task.setMillis(_next);
+                        timers.updateTimedTask(task);
 
                         $$sto.af.put("next_auto_task", {
                             task_id: _sto_id,
                             timestamp: _next,
                             type: _type.name,
                         });
-
                         messageAction(_sxn_str
                             ? "已更新并顺延自动定时任务"
-                            : "已更新自动定时任务", 1);
-                        return _sto_task;
+                            : "已更新自动定时任务", 1
+                        );
+                        return task;
                     }
                 }
 
@@ -6620,8 +6642,8 @@ let $$af = {
                     });
                     messageAction(_sxn_str
                         ? "已添加并顺延自动定时任务"
-                        : "已添加自动定时任务", 1);
-
+                        : "已添加自动定时任务", 1
+                    );
                     return _task;
                 }
             }

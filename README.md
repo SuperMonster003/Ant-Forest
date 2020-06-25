@@ -99,14 +99,25 @@
 ### 版本历史
 ******
 
+# v1.9.22
+###### 2020/06/25
+* `修复` 配置工具无法修改延时接力任务区间的问题 _[`issue #364`](https://github.com/SuperMonster003/Auto.js_Projects/issues/364#issuecomment-649203097)_
+* `修复` 运行前提示对话框与保险任务功能之间的执行逻辑错误
+* `修复` 复查后样本池未清理影响紧邻好友能量球识别效率的问题
+* `优化` 因受制而顺延的任务在日志与配置工具中增加顺延标注 _[`issue #364`](https://github.com/SuperMonster003/Auto.js_Projects/issues/364#issuecomment-649471695)_
+* `优化` Intent匹配组件优先级相同时使用包名过滤兼容双开应用 _[`issue #319`](https://github.com/SuperMonster003/Auto.js_Projects/issues/319)_ _[`#320`](https://github.com/SuperMonster003/Auto.js_Projects/issues/320)_
+* `优化` 迁移部分功能方法至APP扩展模块中  
+  · intent()  
+  · startActivity()  
+
 # v1.9.21
 ###### 2020/06/24 - 代码重构 谨慎升级
 * `修复` 森林主页可能将漂浮云朵误识别为能量球的问题 _[`issue #349`](https://github.com/SuperMonster003/Auto.js_Projects/issues/349)_
-* `修复` 控件变更导致黑名单功能及统计功能出现异常的问题 _[`issue #357`](https://github.com/SuperMonster003/Auto.js_Projects/issues/357)_ _[`#356`](https://github.com/SuperMonster003/Auto.js_Projects/issues/356)_ _[`#355`](https://github.com/SuperMonster003/Auto.js_Projects/issues/355)_
+* `修复` 控件变更导致黑名单功能及统计功能出现异常的问题 _[`issue #355`](https://github.com/SuperMonster003/Auto.js_Projects/issues/355)_ _[`#356`](https://github.com/SuperMonster003/Auto.js_Projects/issues/356)_ _[`#357`](https://github.com/SuperMonster003/Auto.js_Projects/issues/357)_
 * `修复` 主页能量球监测收取后可能出现无法停止监测的问题
 * `修复` 解锁功能关闭后当设备亮屏但上锁时依然可解锁的问题
 * `修复` Toast监控线程在出现能量球误识别情况时功能失效的问题
-* `修复` 检测支付宝是否安装的方法内部引用错误 _[`issue #363`](https://github.com/SuperMonster003/Auto.js_Projects/issues/363)_ _[`#359`](https://github.com/SuperMonster003/Auto.js_Projects/issues/359)_
+* `修复` 检测支付宝是否安装的方法内部引用错误 _[`issue #359`](https://github.com/SuperMonster003/Auto.js_Projects/issues/359)_ _[`#363`](https://github.com/SuperMonster003/Auto.js_Projects/issues/363)_
 * `优化` 增加息屏或上锁启动时自动跳过选项以增强运行前提示对话框功能性 _[`issue #302`](https://github.com/SuperMonster003/Auto.js_Projects/issues/302)_
 * `优化` 自动在需要时尝试修复配置文件中缺失的转义字符
 * `优化` 能量球识别数据处理的线性插值方案的方法内部逻辑
