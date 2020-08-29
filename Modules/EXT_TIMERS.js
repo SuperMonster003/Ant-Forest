@@ -1,13 +1,18 @@
 // better compatibility for both free and pro versions
 
-importPackage(org.joda.time);
+global.timersx = typeof global.timersx === "object" ? global.timersx : {};
 
 let is_pro = getVerName("current_autojs").match(/[Pp]ro/);
-let timing = is_pro ? com.stardust.autojs.core.timing : org.autojs.autojs.timing;
-var TimedTask = is_pro ? timing.TimedTask.Companion : timing.TimedTask;
-var IntentTask = timing.IntentTask;
-var TimedTaskManager = is_pro ? timing.TimedTaskManager.Companion.getInstance() : timing.TimedTaskManager.getInstance();
-var bridges = require("__bridges__");
+let timing = is_pro
+    ? com.stardust.autojs.core.timing
+    : org.autojs.autojs.timing;
+let TimedTask = is_pro
+    ? timing.TimedTask.Companion
+    : timing.TimedTask;
+let timed_task_mgr = is_pro
+    ? timing.TimedTaskManager.Companion.getInstance()
+    : timing.TimedTaskManager.getInstance();
+let bridges = require.call(global, "__bridges__");
 let days_ident = [
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
     'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
@@ -18,102 +23,102 @@ let days_ident = [
 
 let ext = {
     addDailyTask(task) {
-        let localTime = parseDateTime("LocalTime", task.time);
-        let timedTask = TimedTask.dailyTask(localTime, files.path(task.path), parseConfig(task));
-
+        let timedTask = TimedTask.dailyTask(
+            parseDateTime("LocalTime", task.time),
+            files.path(task.path),
+            parseConfig(task)
+        );
         addTask(timedTask);
         return timedTask;
     },
     addWeeklyTask(task) {
-        let localTime = parseDateTime("LocalTime", task.time);
-        let timeFlag = 0;
+        let time_flag = 0;
         for (let i = 0; i < task.daysOfWeek.length; i++) {
-            let dayString = task.daysOfWeek[i].toString();
-            let dayIndex = days_ident.indexOf(dayString.toLowerCase()) % 7;
-            if (!~dayIndex) throw new Error('unknown day: ' + dayString);
-            timeFlag |= TimedTask.getDayOfWeekTimeFlag(dayIndex + 1);
+            let day_str = task.daysOfWeek[i].toString();
+            let day_idx = days_ident.indexOf(day_str.toLowerCase()) % 7;
+            if (!~day_idx) {
+                throw new Error('unknown day: ' + day_str);
+            }
+            time_flag |= TimedTask.getDayOfWeekTimeFlag(day_idx + 1);
         }
-        let timedTask = TimedTask.weeklyTask(localTime, new java.lang.Long(timeFlag), files.path(task.path), parseConfig(task));
+        let timedTask = TimedTask.weeklyTask(
+            parseDateTime("LocalTime", task.time),
+            Number(new java.lang.Long(time_flag)),
+            files.path(task.path),
+            parseConfig(task)
+        );
         addTask(timedTask);
         return timedTask;
     },
     addDisposableTask(task) {
-        let localDateTime = parseDateTime("LocalDateTime", task.date);
-        let timedTask = TimedTask.disposableTask(localDateTime, files.path(task.path), parseConfig(task));
+        let timedTask = TimedTask.disposableTask(
+            parseDateTime("LocalDateTime", task.date),
+            files.path(task.path),
+            parseConfig(task)
+        );
         addTask(timedTask);
         return timedTask;
     },
     addIntentTask(task) {
-        let intentTask = new IntentTask();
-        intentTask.setScriptPath(files.path(task.path));
-        task.action && intentTask.setAction(task.action);
-        addTask(intentTask);
-        return intentTask;
+        let intent_task = new timing.IntentTask();
+        intent_task.setScriptPath(files.path(task.path));
+        task.action && intent_task.setAction(task.action);
+        addTask(intent_task);
+        return intent_task;
     },
     getTimedTask(id) {
-        return TimedTaskManager.getTimedTask(id);
+        return timed_task_mgr.getTimedTask(id);
     },
     getIntentTask(id) {
-        return TimedTaskManager.getIntentTask(id);
+        return timed_task_mgr.getIntentTask(id);
     },
-    get removeIntentTask() {
-        return function (id) {
-            if (!id && isNaN(+id)) return;
-            let task = this.getIntentTask(id);
-            return task && removeTask(task);
-        };
+    removeIntentTask(id) {
+        let task = this.getIntentTask(id);
+        return task && removeTask(task);
     },
-    get removeTimedTask() {
-        return function (id) {
-            if (!id && isNaN(+id)) return;
-            let task = this.getTimedTask(id);
-            return task && removeTask(task);
-        };
+    removeTimedTask(id) {
+        let task = this.getTimedTask(id);
+        return task && removeTask(task);
     },
     updateTimedTask: updateTask,
-    queryTimedTasks(options, callback) {
-        options = options || {};
-        var sql = '';
-        var args = [];
-
-        function sqlAppend(str) {
-            if (sql.length === 0) {
-                sql += str;
-            } else {
-                sql += ' AND ' + str;
-            }
-            return true;
+    queryTimedTasks(options) {
+        let opt = options || {};
+        let sql = '';
+        let args = [];
+        let append = str => sql += sql.length ? ' AND ' + str : str;
+        let path = opt.path;
+        if (path) {
+            append('script_path = ?');
+            args.push(path);
         }
-
-        let path = options.path;
-        path && sqlAppend('script_path = ?') && args.push(path);
-        return is_pro ? bridges.toArray(TimedTaskManager.queryTimedTasks(sql || null, args)) : (() => {
-            let list = TimedTaskManager.getAllTasksAsList().toArray();
-            if (options.path) list = list.filter(task => task.getScriptPath() === path);
-            return list;
-        })();
+        if (is_pro) {
+            return bridges.toArray(timed_task_mgr.queryTimedTasks(sql || null, args));
+        }
+        let list = timed_task_mgr.getAllTasksAsList().toArray();
+        if (path) {
+            list = list.filter(task => task.getScriptPath() === path);
+        }
+        return list;
     },
-    queryIntentTasks(options, callback) {
-        var sql = '';
-        var args = [];
-
-        function sqlAppend(str) {
-            if (sql.length === 0) {
-                sql += str;
-            } else {
-                sql += ' AND ' + str;
-            }
-            return true;
+    queryIntentTasks(options) {
+        let opt = options || {};
+        let sql = '';
+        let args = [];
+        let append = str => sql += sql.length ? ' AND ' + str : str;
+        if (opt.path) {
+            append('script_path = ?');
+            args.push(options.path);
         }
-
-        options.path && sqlAppend('script_path = ?') && args.push(options.path);
-        options.action && sqlAppend('action = ?') && args.push(options.action);
-        return bridges.toArray(TimedTaskManager.queryIntentTasks(sql ? sql : null, args));
+        if (opt.action) {
+            append('action = ?');
+            args.push(options.action);
+        }
+        return bridges.toArray(timed_task_mgr.queryIntentTasks(sql ? sql : null, args));
     },
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.timers, ext);
+module.exports.load = () => global.timersx = ext;
 
 // tool function(s) //
 
@@ -125,74 +130,130 @@ function parseConfig(c) {
     return config;
 }
 
-function parseDateTime(clazz, dateTime) {
+function parseDateTime(clazz, date_time) {
     clazz = is_pro ? clazz : org.joda.time[clazz];
-    if (typeof (dateTime) == 'string') {
-        return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : clazz.parse(dateTime);
-    } else if (typeof (dateTime) == 'object' && dateTime.constructor === Date) {
-        return is_pro ? TimedTask.parseDateTime(clazz, dateTime.getTime()) : new clazz(dateTime.getTime());
-    } else if (typeof (dateTime) == 'number') {
-        return is_pro ? TimedTask.parseDateTime(clazz, dateTime) : new clazz(dateTime);
-    } else {
-        throw new Error("cannot parse date time: " + dateTime);
+    if (typeof date_time === 'string') {
+        return is_pro
+            ? TimedTask.parseDateTime.call(TimedTask, clazz, date_time)
+            : clazz.parse(date_time);
     }
+    if (typeof date_time === 'object' && date_time.constructor === Date) {
+        return is_pro
+            ? TimedTask.parseDateTime.call(TimedTask, clazz, date_time.getTime())
+            : new clazz(date_time.getTime());
+    }
+    if (typeof date_time === 'number') {
+        return is_pro
+            ? TimedTask.parseDateTime.call(TimedTask, clazz, date_time)
+            : new clazz(date_time);
+    }
+    throw new Error("cannot parse date time: " + date_time);
 }
 
 function addTask(task) {
-    TimedTaskManager[is_pro ? "addTaskSync" : "addTask"](task);
-    waitForAction(() => task.id !== 0, 840, 120);
+    timed_task_mgr[is_pro ? "addTaskSync" : "addTask"](task);
+    waitForAction(() => task.id !== 0, 1e3, 200);
 }
 
 function removeTask(task) {
-    let id = task.id;
-    TimedTaskManager[is_pro ? "removeTaskSync" : "removeTask"](task);
-    return waitForAction(() => !ext.getTimedTask(id), 840, 120);
+    timed_task_mgr[is_pro ? "removeTaskSync" : "removeTask"](task);
+    return waitForAction(() => !ext.getTimedTask(task.id), 1e3, 200);
 }
 
 function updateTask(task) {
-    if (!task) return;
-    task.setScheduled(false);
-    let id = task.id;
-    TimedTaskManager[is_pro ? "updateTask" : "updateTask"](task);
-    try {
-        return waitForAction(() => {
-            if (!task || !task.id) return;
-            let new_id = ext.getTimedTask(task.id).id;
-            return new_id && new_id !== id;
-        }, 1.2e3, 120) && task;
-    } catch (e) {
+    if (task) {
+        let id = task.id;
+        task.setScheduled(false);
+        timed_task_mgr.updateTask(task);
+        if (waitForAction(diffId.bind(null, id), 1e3, 200)) {
+            return task;
+        }
+    }
 
+    // tool function(s) //
+
+    function diffId(id) {
+        try {
+            let new_id = ext.getTimedTask(id).id;
+            return new_id && new_id !== id;
+        } catch (e) {
+            console.warn(e.message); //// TEST ////
+            console.warn(e.stack); //// TEST ////
+        }
     }
 }
 
-function waitForAction(f, timeout_or_times, interval) {
-    let _timeout = timeout_or_times || 10e3;
+// monster function(s) //
+
+// updated: Aug 2, 2020
+function waitForAction(f, timeout_or_times, interval, params) {
+    let _par = params || {};
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
+
+    if (typeof timeout_or_times !== "number") {
+        timeout_or_times = 10e3;
+    }
+    let _times = timeout_or_times;
+    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+        _times = Infinity;
+    }
+    let _timeout = Infinity;
+    if (timeout_or_times > 100) {
+        _timeout = timeout_or_times;
+    }
     let _interval = interval || 200;
-    let _times = _timeout < 100 ? _timeout : ~~(_timeout / _interval) + 1;
+    if (_interval >= _timeout) {
+        _times = 1;
+    }
 
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    while (!_checkF(f) && _times--) sleepSafe(_interval);
-    return _times >= 0;
+    let _start_ts = Date.now();
+    while (!_checkF(f) && --_times) {
+        if (Date.now() - _start_ts > _timeout) {
+            return false; // timed out
+        }
+        sleep(_interval);
+    }
+    return _times > 0;
 
     // tool function(s) //
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (_classof(f) === "JavaObject") return _checkF(() => f.exists());
+        let _messageAction = typeof messageAction === "undefined"
+            ? messageActionRaw
+            : messageAction;
+
+        if (typeof f === "function") {
+            return f();
+        }
+        if (_classof(f) === "JavaObject") {
+            return f.toString().match(/UiObject/) ? f : f.exists();
+        }
         if (_classof(f) === "Array") {
             let _arr = f;
-            let _logic_flag = "all";
-            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+            let _len = _arr.length;
+            let _logic = "all";
+            if (typeof _arr[_len - 1] === "string") {
+                _logic = _arr.pop();
             }
-            return _logic_flag === "all";
-        } else if (typeof f === "function") return f();
-        else _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+            if (_logic.match(/^(or|one)$/)) {
+                _logic = "one";
+            }
+            for (let i = 0; i < _len; i += 1) {
+                let _ele = _arr[i];
+                if (!(typeof _ele).match(/function|object/)) {
+                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                }
+                if (_logic === "all" && !_checkF(_ele)) {
+                    return false;
+                }
+                if (_logic === "one" && _checkF(_ele)) {
+                    return true;
+                }
+            }
+            return _logic === "all";
+        }
+        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
     }
 
     // raw function(s) //
@@ -227,31 +288,13 @@ function waitForAction(f, timeout_or_times, interval) {
         }
         return true;
     }
-
-    // tool function(s) //
-
-    function sleepSafe(timeout) {
-        let lock = threads.lock();
-        let wait = lock.newCondition();
-
-        threads.start(function () {
-            lock.lock();
-            sleep(timeout);
-            wait.signal();
-            lock.unlock();
-        });
-
-        lock.lock();
-        wait.await();
-        lock.unlock();
-    }
 }
 
-// updated at Jan 21, 2020
+// updated: Jan 21, 2020
 function getVerName(name, params) {
     let _par = params || {};
 
-    let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
+    let _parseAppName = typeof global.parseAppName === "undefined" ? parseAppNameRaw : global.parseAppName;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
 
     name = _handleName(name);
@@ -261,8 +304,10 @@ function getVerName(name, params) {
     try {
         let _installed_packages = context.getPackageManager().getInstalledPackages(0).toArray();
         for (let i in _installed_packages) {
-            if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
-                return _installed_packages[i].versionName;
+            if (_installed_packages.hasOwnProperty(i)) {
+                if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
+                    return _installed_packages[i].versionName;
+                }
             }
         }
     } catch (e) {

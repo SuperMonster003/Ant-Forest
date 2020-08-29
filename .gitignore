@@ -7,8 +7,4 @@
 /.github
 /.idea
 /Tools/Accessibility_Settings.js
-/Declarations/android-platform-26.d.ts
-/Declarations/android-platform-27.d.ts
-/Declarations/common.d.ts
-/Declarations/org.nativescript.widgets.d.ts
-/Declarations/android-declarations.d.ts
+/Declarations

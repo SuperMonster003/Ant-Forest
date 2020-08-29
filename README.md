@@ -99,6 +99,16 @@
 ### 版本历史
 ******
 
+# v1.9.23
+###### 2020/08/29
+* `修复` 从服务器恢复项目页面最多只显示近30个版本的问题
+* `修复` 统计功能日期统计范围的全部天数数值计算错误的问题
+* `修复` 扩展模块的load方法覆盖模块原有方法的问题
+* `修复` DIALOGS扩展模块multiChoice方法内部的原生代码问题
+* `修复` 主账户头像本地图片可能为纯绿色且会导致匹配及自动替换无效的问题
+* `优化` IMAGES模块重写原生requestScreenCapture防止多次调用导致阻塞
+* `优化` 扩展模块全局对象名称追加字母"x"以区别于原生模块对象名称
+
 # v1.9.22
 ###### 2020/06/25
 * `修复` 配置工具无法修改延时接力任务区间的问题 _[`issue #364`](https://github.com/SuperMonster003/Auto.js_Projects/issues/364#issuecomment-649203097)_
@@ -140,7 +150,7 @@
 * `修复` 浇水能量球误匹配时出现无限循环等待的问题 _[`issue #341`](https://github.com/SuperMonster003/Auto.js_Projects/issues/341)_
 * `修复` 主页成熟能量球可能误升级为橙色球的问题 _[`issue #344`](https://github.com/SuperMonster003/Auto.js_Projects/issues/344)_
 * `优化` 通过限制识别范围降低能量球识别的误判率
-* `优化` 放宽baiduOCR方法的原始数据筛选条件 _[`issue 343`](https://github.com/SuperMonster003/Auto.js_Projects/issues/343)_
+* `优化` 放宽baiduOCR()的原始数据筛选条件 _[`issue #343`](https://github.com/SuperMonster003/Auto.js_Projects/issues/343)_
 
 # v1.9.19
 ###### 2020/06/05 - 代码重构 谨慎升级
@@ -304,7 +314,7 @@
 * `修复` observeToastMessage()导致按键监听器失效的问题 _[`issue #189`](https://github.com/SuperMonster003/Auto.js_Projects/issues/189)_
 * `修复` Schema方式启动App时对象类子参数首项无效的问题
 * `修复` THREADS模块可能阻塞UI线程的问题
-* `修复` waitForAction传入错误参数类型导致的异常 _[`issue #173`](https://github.com/SuperMonster003/Auto.js_Projects/issues/173)_ _[`#176`](https://github.com/SuperMonster003/Auto.js_Projects/issues/176)_
+* `修复` waitForAction()传入错误参数类型导致的异常 _[`issue #173`](https://github.com/SuperMonster003/Auto.js_Projects/issues/173)_ _[`#176`](https://github.com/SuperMonster003/Auto.js_Projects/issues/176)_
 * `修复` waitForAndClickAction()控件参数为空时的异常
 * `修复` Dollar符号全局变量污染Pro7和Pro8版本的问题
 * `修复` 保险任务逻辑错误导致连续性任务丢失或堆积问题 _[`issue #172`](https://github.com/SuperMonster003/Auto.js_Projects/issues/172)_ _[`#175`](https://github.com/SuperMonster003/Auto.js_Projects/issues/175)_ _[`#203`](https://github.com/SuperMonster003/Auto.js_Projects/issues/203)_
@@ -331,7 +341,7 @@
 * `优化` 摒弃"运行失败自动重试"功能
 * `优化` 摒弃排行榜样本采集策略配置 (统一策略)
 * `优化` 调整"启动跳板"功能默认为关闭状态
-* `优化` 整合tryRequestScreenCapture到IMAGES扩展模块中
+* `优化` 整合tryRequestScreenCapture()到IMAGES扩展模块中
 * `优化` 排行榜页面跳转逻辑 _[`issue #194`](https://github.com/SuperMonster003/Auto.js_Projects/issues/194)_
 * `优化` 启动工具深度代码重构
 

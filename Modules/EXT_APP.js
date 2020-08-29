@@ -1,25 +1,29 @@
+global.appx = typeof global.appx === "object" ? global.appx : {};
+
+let Intent = android.content.Intent;
+
 let ext = {
     checkActivity(o) {
-        let i = app.intent(o);
+        let i = this.intent(o);
         let ctx_pkg_mgr = context.getPackageManager();
         let query_result = ctx_pkg_mgr.queryIntentActivities(i, 0);
 
         return !!(query_result && query_result.toArray().length);
     },
     resolveActivity(o) {
-        let i = app.intent(o);
+        let i = this.intent(o);
         let ctx_pkg_mgr = context.getPackageManager();
 
         return i.resolveActivity(ctx_pkg_mgr);
     },
     /**
-     * @memberOf global.app
-     * @override
+     * a duplicate from Auto.js 4.1.1 Alpha2
+     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @param {object} o
      * @returns {android.content.Intent}
      */
     intent(o) {
-        let _i = new android.content.Intent();
+        let _i = new Intent();
         let {
             packageName, className, category,
             action, extras, data, flags, type,
@@ -29,6 +33,10 @@ let ext = {
             if (className) {
                 _i.setClassName(packageName, className);
             } else {
+                // the Intent can only match the components
+                // in the given application package with setPackage().
+                // Otherwise, if there's more than one app that can handle the intent,
+                // the system presents the user with a dialog to pick which app to use
                 _i.setPackage(packageName);
             }
         }
@@ -81,19 +89,19 @@ let ext = {
 
         function parseIntentFlag(flag) {
             if (typeof flag === "string") {
-                return android.content.Intent["FLAG_" + flag.toUpperCase()];
+                return Intent["FLAG_" + flag.toUpperCase()];
             }
             return flag;
         }
     },
     /**
-     * @memberOf global.app
+     * a duplicate from Auto.js 4.1.1 Alpha2
+     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @see app.intent
      * @param {string|android.content.Intent|object} o
      * @returns void
      */
     startActivity(o) {
-        let {Intent} = android.content;
         if (typeof o === "string") {
             if (runtime.getProperty("class." + o)) {
                 context.startActivity(
@@ -105,7 +113,7 @@ let ext = {
             }
             throw new Error("class " + o + " not found");
         }
-        if (o instanceof android.content.Intent) {
+        if (o instanceof Intent) {
             context.startActivity(o.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             return;
         }
@@ -118,4 +126,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.app, ext);
+module.exports.load = () => global.appx = ext;

@@ -1,3 +1,5 @@
+global.threadsx = typeof global.threadsx === "object" ? global.threadsx : {};
+
 let ext = {
     // prevent script exiting error from showing up
     // (both console and toast window) if threads were interrupted
@@ -14,4 +16,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.threads, ext);
+module.exports.load = () => global.threadsx = ext;

@@ -17,7 +17,7 @@
 _overrideRequire();
 _makeSureImpeded();
 _addObjectValues();
-_activeDeviceObj();
+_activeExtension();
 
 let $_und = x => typeof x === "undefined";
 let $_F = x => x === false;
@@ -113,7 +113,7 @@ function _overrideRequire() {
                 MODULE_STORAGE: _storage,
                 MODULE_MONSTER_FUNC: _monster,
                 MODULE_DEFAULT_CONFIG: {
-                    // updated at Nov 14, 2019
+                    // updated: Nov 14, 2019
                     unlock: {
                         unlock_code: null,
                         unlock_max_try_times: 20,
@@ -132,7 +132,7 @@ function _overrideRequire() {
 
             // internal modules //
 
-            // updated at Nov 14, 2019
+            // updated: Nov 14, 2019
             function _monster() {
                 return {
                     messageAction: messageAction,
@@ -149,7 +149,7 @@ function _overrideRequire() {
                 // even though not showing up above
                 // monster function(s) //
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                     let $_flag = global.$$flag = global.$$flag || {};
 
@@ -268,7 +268,7 @@ function _overrideRequire() {
                     return !(_msg_lv in {3: 1, 4: 1});
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function showSplitLine(extra_str, style, params) {
                     let _extra_str = extra_str || "";
                     let _split_line = "";
@@ -281,26 +281,32 @@ function _overrideRequire() {
                     return !!~console.log(_split_line + _extra_str);
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Aug 2, 2020
                 function waitForAction(f, timeout_or_times, interval, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(waitForAction.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
 
-                    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-                    let _timeout = Infinity;
-                    let _interval = interval || 200;
+                    if (typeof timeout_or_times !== "number") {
+                        timeout_or_times = 10e3;
+                    }
                     let _times = timeout_or_times;
+                    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+                        _times = Infinity;
+                    }
+                    let _timeout = Infinity;
+                    if (timeout_or_times > 100) {
+                        _timeout = timeout_or_times;
+                    }
+                    let _interval = interval || 200;
+                    if (_interval >= _timeout) {
+                        _times = 1;
+                    }
 
-                    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-                    if (timeout_or_times > 100) _timeout = timeout_or_times;
-                    if (interval >= _timeout) _times = 1;
-
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-                    let _start_timestamp = +new Date();
+                    let _start_ts = Date.now();
                     while (!_checkF(f) && --_times) {
-                        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+                        if (Date.now() - _start_ts > _timeout) {
+                            return false; // timed out
+                        }
                         sleep(_interval);
                     }
                     return _times > 0;
@@ -309,30 +315,81 @@ function _overrideRequire() {
 
                     function _checkF(f) {
                         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                        let _messageAction = typeof messageAction === "undefined"
+                            ? messageActionRaw
+                            : messageAction;
 
-                        if (typeof f === "function") return f();
-                        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+                        if (typeof f === "function") {
+                            return f();
+                        }
+                        if (_classof(f) === "JavaObject") {
+                            return f.toString().match(/UiObject/) ? f : f.exists();
+                        }
                         if (_classof(f) === "Array") {
                             let _arr = f;
-                            let _logic_flag = "all";
-                            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-                            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-                            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+                            let _len = _arr.length;
+                            let _logic = "all";
+                            if (typeof _arr[_len - 1] === "string") {
+                                _logic = _arr.pop();
                             }
-                            return _logic_flag === "all";
+                            if (_logic.match(/^(or|one)$/)) {
+                                _logic = "one";
+                            }
+                            for (let i = 0; i < _len; i += 1) {
+                                let _ele = _arr[i];
+                                if (!(typeof _ele).match(/function|object/)) {
+                                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                                }
+                                if (_logic === "all" && !_checkF(_ele)) {
+                                    return false;
+                                }
+                                if (_logic === "one" && _checkF(_ele)) {
+                                    return true;
+                                }
+                            }
+                            return _logic === "all";
                         }
+                        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
+                    }
 
-                        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+                    // raw function(s) //
+
+                    function messageActionRaw(msg, lv, if_toast) {
+                        let _s = msg || " ";
+                        if (lv && lv.toString().match(/^t(itle)?$/)) {
+                            let _par = ["[ " + msg + " ]", 1, if_toast];
+                            return messageActionRaw.apply({}, _par);
+                        }
+                        let _lv = +lv;
+                        if (if_toast) {
+                            toast(_s);
+                        }
+                        if (_lv >= 3) {
+                            if (_lv >= 4) {
+                                console.error(_s);
+                                if (_lv >= 8) {
+                                    exit();
+                                }
+                            } else {
+                                console.warn(_s);
+                            }
+                            return;
+                        }
+                        if (_lv === 0) {
+                            console.verbose(_s);
+                        } else if (_lv === 1) {
+                            console.log(_s);
+                        } else if (_lv === 2) {
+                            console.info(_s);
+                        }
+                        return true;
                     }
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function clickAction(f, strategy, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(clickAction.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
 
                     if (typeof f === "undefined" || f === null) return false;
 
@@ -425,14 +482,14 @@ function _overrideRequire() {
                     }
 
                     function _checkType(f) {
-                        let _checkJavaObject = o => {
+                        let _checkJavaObject = (o) => {
                             if (_classof(o) !== "JavaObject") return;
                             let string = o.toString();
                             if (string.match(/^Rect\(/)) return "Bounds";
                             if (string.match(/UiObject/)) return "UiObject";
                             return "UiSelector";
                         };
-                        let _checkCoordsArray = arr => {
+                        let _checkCoordsArray = (arr) => {
                             if (_classof(f) !== "Array") return;
                             if (arr.length !== 2) _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
                             if (typeof arr[0] !== "number" || typeof arr[1] !== "number") _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
@@ -493,10 +550,10 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function keycode(code, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(keycode.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
 
                     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
 
@@ -587,7 +644,7 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function debugInfo(msg, info_flag, forcible_flag) {
                     let $_flag = global.$$flag = global.$$flag || {};
 
@@ -627,9 +684,13 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Jun 5, 2020
+                // updated: Jun 5, 2020
                 function captureErrScreen(key_name, log_level) {
-                    images.requestScreenCapture();
+                    if (!files.isFile("./EXT_IMAGES.js")) {
+                        return;
+                    }
+                    require("./EXT_IMAGES").load();
+                    imagesx.requestScreenCapture();
 
                     let _messageAction = typeof messageAction === "undefined"
                         ? messageActionRaw
@@ -641,7 +702,7 @@ function _overrideRequire() {
 
                     try {
                         files.createWithDirs(_path);
-                        images.captureScreen(_path);
+                        imagesx.captureScreen(_path);
                         _messageAction("已存储屏幕截图文件:", log_level);
                         _messageAction(_path, log_level);
                     } catch (e) {
@@ -662,7 +723,7 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Jun 18, 2020
+                // updated: Jun 18, 2020
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -1031,14 +1092,14 @@ function _overrideRequire() {
                     return _sel;
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Mar 1, 2020
                 function classof(source, check_value) {
                     let class_result = Object.prototype.toString.call(source).slice(8, -1);
                     return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
                 }
             }
 
-            // updated at Jun 24, 2020
+            // updated: Jun 24, 2020
             function _pwmap() {
                 let _path = "";
                 let _dic = {};
@@ -1096,7 +1157,7 @@ function _overrideRequire() {
                             if (_s.match(_rex)) {
                                 _res.push(_rand(_s));
                             } else {
-                                let _sglStr = s => {
+                                let _sglStr = (s) => {
                                     let _cc = s.charCodeAt(0);
                                     let _cc_hex = _cc.toString(16);
                                     return _cc_hex.toUpperCase();
@@ -1278,7 +1339,7 @@ function _overrideRequire() {
                         "请输入要解密的字符串数组" :
                         "请输入要加密的字符串";
                     while (_max--) {
-                        _inp = dialogs.rawInput(
+                        _inp = dialogsx.rawInput(
                             "请输入要" + _msg + "的字符串\n" +
                             "点击其他区域放弃输入"
                         );
@@ -1312,7 +1373,7 @@ function _overrideRequire() {
                 }
             }
 
-            // updated at Jun 24, 2020
+            // updated: Jun 24, 2020
             function _storage() {
                 let storages = {};
 
@@ -1484,7 +1545,7 @@ function _overrideRequire() {
 function _addObjectValues() {
     if (!Object["values"]) {
         Object.defineProperty(Object.prototype, "values", {
-            value: function (o) {
+            value(o) {
                 if (o !== Object(o)) {
                     throw new TypeError("Object.values called on a non-object");
                 }
@@ -1502,7 +1563,7 @@ function _addObjectValues() {
     }
     if (!Object["valuesArr"]) {
         Object.defineProperty(Object.prototype, "valuesArr", {
-            value: function () {
+            value() {
                 if (typeof Object.values === "function") {
                     return Object.values(this);
                 }
@@ -1525,217 +1586,241 @@ function _makeSureImpeded() {
     }
 }
 
-function _activeDeviceObj() {
-    let $_dev = global.device || {};
-    let _ = $_dev.__proto__ = $_dev.__proto__ || {};
-    if (typeof _.keepOn !== "function") {
-        _.keepOn = function (duration, params) {
-            let _par = params || {};
-            let _du = duration || 5;
-            _du *= _du < 100 ? 60e3 : 1;
-            $_dev.keepScreenOn(_du);
-            if (_par.debug_info_flag !== false) {
-                let _mm = +(_du / 60e3).toFixed(2);
-                debugInfo("已设置屏幕常亮");
-                debugInfo(">最大超时时间: " + _mm + "分钟");
-            }
-        };
-    }
-    if (typeof _.cancelOn !== "function") {
-        _.cancelOn = function (params) {
-            let _par = params || {};
-            $_dev.cancelKeepingAwake();
-            if (_par.debug_info_flag !== false) {
-                debugInfo("屏幕常亮已取消");
-            }
-        };
-    }
-    if (typeof _.getDisplay !== "function") {
-        _.getDisplay = function (global_assign, params) {
-            let $_flag = global.$$flag = global.$$flag || {};
-            let _par, _glob_asg;
-            if (typeof global_assign === "boolean") {
-                _par = params || {};
-                _glob_asg = global_assign;
-            } else {
-                _par = global_assign || {};
-                _glob_asg = _par.global_assign;
-            }
+function _activeExtension() {
+    !function _devicex() {
+        global.devicex = typeof global.devicex === "object" ? global.devicex : {};
+        if (typeof devicex.keepOn !== "function") {
+            devicex.keepOn = function (duration, params) {
+                let _par = params || {};
+                let _du = duration || 5;
+                _du *= _du < 100 ? 60e3 : 1;
+                device.keepScreenOn(_du);
+                if (_par.debug_info_flag !== false) {
+                    let _mm = +(_du / 60e3).toFixed(2);
+                    debugInfo("已设置屏幕常亮");
+                    debugInfo(">最大超时时间: " + _mm + "分钟");
+                }
+            };
+        }
+        if (typeof devicex.cancelOn !== "function") {
+            devicex.cancelOn = function (params) {
+                let _par = params || {};
+                device.cancelKeepingAwake();
+                if (_par.debug_info_flag !== false) {
+                    debugInfo("屏幕常亮已取消");
+                }
+            };
+        }
+        if (typeof devicex.getDisplay !== "function") {
+            devicex.getDisplay = function (global_assign, params) {
+                let $_flag = global.$$flag = global.$$flag || {};
+                let _par, _glob_asg;
+                if (typeof global_assign === "boolean") {
+                    _par = params || {};
+                    _glob_asg = global_assign;
+                } else {
+                    _par = global_assign || {};
+                    _glob_asg = _par.global_assign;
+                }
 
-            let _waitForAction = typeof waitForAction === "undefined"
-                ? waitForActionRaw
-                : waitForAction;
-            let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-                ? debugInfoRaw
-                : debugInfo)(m, fg, _par.debug_info_flag);
+                let _waitForAction = typeof waitForAction === "undefined"
+                    ? waitForActionRaw
+                    : waitForAction;
+                let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
+                    ? debugInfoRaw
+                    : debugInfo)(m, fg, _par.debug_info_flag);
 
-            let _W, _H;
-            let _disp = {};
-            let _metrics = new android.util.DisplayMetrics();
-            let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-            let _win_svc_disp = _win_svc.getDefaultDisplay();
-            _win_svc_disp.getRealMetrics(_metrics);
+                let _W, _H;
+                let _disp = {};
+                let _metrics = new android.util.DisplayMetrics();
+                let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+                let _win_svc_disp = _win_svc.getDefaultDisplay();
+                _win_svc_disp.getRealMetrics(_metrics);
 
-            if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-                console.error("device.getDisplay()返回结果异常");
-                return {cX: cX, cY: cY, cYx: cYx};
-            }
-            _showDisp();
-            _assignGlob();
-            return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
+                if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
+                    console.error("devicex.getDisplay()返回结果异常");
+                    return {cX: cX, cY: cY, cYx: cYx};
+                }
+                _showDisp();
+                _assignGlob();
+                return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
 
-            // tool function(s) //
+                // tool function(s) //
 
-            function cX(num, base) {
-                return _cTrans(1, +num, base);
-            }
+                function cX(num, base) {
+                    return _cTrans(1, +num, base);
+                }
 
-            function cY(num, base) {
-                return _cTrans(-1, +num, base);
-            }
+                function cY(num, base) {
+                    return _cTrans(-1, +num, base);
+                }
 
-            function cYx(num, base) {
-                num = +num;
-                base = +base;
-                if (num >= 1) {
-                    if (!base) {
-                        base = 720;
-                    } else if (base < 0) {
-                        if (!~base) {
+                function cYx(num, base) {
+                    num = +num;
+                    base = +base;
+                    if (num >= 1) {
+                        if (!base) {
                             base = 720;
-                        } else if (base === -2) {
-                            base = 1080;
-                        } else {
+                        } else if (base < 0) {
+                            if (!~base) {
+                                base = 720;
+                            } else if (base === -2) {
+                                base = 1080;
+                            } else {
+                                throw Error(
+                                    "can not parse base param for cYx()"
+                                );
+                            }
+                        } else if (base < 5) {
                             throw Error(
-                                "can not parse base param for cYx()"
+                                "base and num params should " +
+                                "both be pixels for cYx()"
                             );
                         }
-                    } else if (base < 5) {
+                        return Math.round(num * _W / base);
+                    }
+
+                    if (!base || !~base) {
+                        base = 16 / 9;
+                    } else if (base === -2) {
+                        base = 21 / 9;
+                    } else if (base < 0) {
                         throw Error(
-                            "base and num params should " +
-                            "both be pixels for cYx()"
+                            "can not parse base param for cYx()"
                         );
+                    } else {
+                        base = base < 1 ? 1 / base : base;
                     }
-                    return Math.round(num * _W / base);
+                    return Math.round(num * _W * base);
                 }
 
-                if (!base || !~base) {
-                    base = 16 / 9;
-                } else if (base === -2) {
-                    base = 21 / 9;
-                } else if (base < 0) {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                } else {
-                    base = base < 1 ? 1 / base : base;
-                }
-                return Math.round(num * _W * base);
-            }
-
-            function _cTrans(dxn, num, base) {
-                let _full = ~dxn ? _W : _H;
-                if (isNaN(num)) {
-                    throw Error("can not parse num param for cTrans()");
-                }
-                if (Math.abs(num) < 1) {
-                    return Math.min(Math.round(num * _full), _full);
-                }
-                let _base = base;
-                if (!base || !~base) {
-                    _base = ~dxn ? 720 : 1280;
-                } else if (base === -2) {
-                    _base = ~dxn ? 1080 : 1920;
-                }
-                let _ct = Math.round(num * _full / _base);
-                return Math.min(_ct, _full);
-            }
-
-            function _showDisp() {
-                if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-                    _debugInfo("屏幕宽高: " + _W + " × " + _H);
-                    _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                    $_flag.display_params_got = true;
-                }
-            }
-
-            function _getDisp() {
-                try {
-                    _W = _win_svc_disp.getWidth();
-                    _H = _win_svc_disp.getHeight();
-                    if (!(_W * _H)) {
-                        throw Error();
+                function _cTrans(dxn, num, base) {
+                    let _full = ~dxn ? _W : _H;
+                    if (isNaN(num)) {
+                        throw Error("can not parse num param for cTrans()");
                     }
+                    if (Math.abs(num) < 1) {
+                        return Math.min(Math.round(num * _full), _full);
+                    }
+                    let _base = base;
+                    if (!base || !~base) {
+                        _base = ~dxn ? 720 : 1280;
+                    } else if (base === -2) {
+                        _base = ~dxn ? 1080 : 1920;
+                    }
+                    let _ct = Math.round(num * _full / _base);
+                    return Math.min(_ct, _full);
+                }
 
-                    // if the device is rotated 90 degrees counter-clockwise,
-                    // to compensate rendering will be rotated by 90 degrees clockwise
-                    // and thus the returned value here will be Surface#ROTATION_90
-                    // 0: 0°, device is portrait
-                    // 1: 90°, device is rotated 90 degree counter-clockwise
-                    // 2: 180°, device is reverse portrait
-                    // 3: 270°, device is rotated 90 degree clockwise
-                    let _SCR_O = _win_svc_disp.getRotation();
-                    let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                    // let _MAX = +_win_svc_disp.maximumSizeDimension;
-                    let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
+                function _showDisp() {
+                    if ($_flag.debug_info_avail && !$_flag.display_params_got) {
+                        _debugInfo("屏幕宽高: " + _W + " × " + _H);
+                        _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
+                        $_flag.display_params_got = true;
+                    }
+                }
 
-                    let [_UH, _UW] = [_H, _W];
-                    let _dimen = (name) => {
-                        let resources = context.getResources();
-                        let resource_id = resources.getIdentifier(name, "dimen", "android");
-                        if (resource_id > 0) {
-                            return resources.getDimensionPixelSize(resource_id);
-                        }
-                        return NaN;
-                    };
-
-                    _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                    return {
-                        WIDTH: _W,
-                        USABLE_WIDTH: _UW,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: _UH,
-                        screen_orientation: _SCR_O,
-                        status_bar_height: _dimen("status_bar_height"),
-                        navigation_bar_height: _dimen("navigation_bar_height"),
-                        navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                        action_bar_default_height: _dimen("action_bar_default_height"),
-                    };
-                } catch (e) {
+                function _getDisp() {
                     try {
-                        _W = +device.width;
-                        _H = +device.height;
-                        return _W && _H && {
+                        _W = _win_svc_disp.getWidth();
+                        _H = _win_svc_disp.getHeight();
+                        if (!(_W * _H)) {
+                            throw Error();
+                        }
+
+                        // if the device is rotated 90 degrees counter-clockwise,
+                        // to compensate rendering will be rotated by 90 degrees clockwise
+                        // and thus the returned value here will be Surface#ROTATION_90
+                        // 0: 0°, device is portrait
+                        // 1: 90°, device is rotated 90 degree counter-clockwise
+                        // 2: 180°, device is reverse portrait
+                        // 3: 270°, device is rotated 90 degree clockwise
+                        let _SCR_O = _win_svc_disp.getRotation();
+                        let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+                        // let _MAX = +_win_svc_disp.maximumSizeDimension;
+                        let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
+
+                        let [_UH, _UW] = [_H, _W];
+                        let _dimen = (name) => {
+                            let resources = context.getResources();
+                            let resource_id = resources.getIdentifier(name, "dimen", "android");
+                            if (resource_id > 0) {
+                                return resources.getDimensionPixelSize(resource_id);
+                            }
+                            return NaN;
+                        };
+
+                        _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
+
+                        return {
                             WIDTH: _W,
+                            USABLE_WIDTH: _UW,
                             HEIGHT: _H,
-                            USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                            USABLE_HEIGHT: _UH,
+                            screen_orientation: _SCR_O,
+                            status_bar_height: _dimen("status_bar_height"),
+                            navigation_bar_height: _dimen("navigation_bar_height"),
+                            navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
+                            action_bar_default_height: _dimen("action_bar_default_height"),
                         };
                     } catch (e) {
+                        try {
+                            _W = +device.width;
+                            _H = +device.height;
+                            return _W && _H && {
+                                WIDTH: _W,
+                                HEIGHT: _H,
+                                USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                            };
+                        } catch (e) {
+                        }
                     }
                 }
-            }
 
-            function _assignGlob() {
-                if (_glob_asg) {
-                    Object.assign(global, {
-                        W: _W, WIDTH: _W,
-                        halfW: Math.round(_W / 2),
-                        uW: _disp.USABLE_WIDTH,
-                        H: _H, HEIGHT: _H,
-                        uH: _disp.USABLE_HEIGHT,
-                        scrO: _disp.screen_orientation,
-                        staH: _disp.status_bar_height,
-                        navH: _disp.navigation_bar_height,
-                        navHC: _disp.navigation_bar_height_computed,
-                        actH: _disp.action_bar_default_height,
-                        cX: cX, cY: cY, cYx: cYx,
+                function _assignGlob() {
+                    if (_glob_asg) {
+                        Object.assign(global, {
+                            W: _W, WIDTH: _W,
+                            halfW: Math.round(_W / 2),
+                            uW: _disp.USABLE_WIDTH,
+                            H: _H, HEIGHT: _H,
+                            uH: _disp.USABLE_HEIGHT,
+                            scrO: _disp.screen_orientation,
+                            staH: _disp.status_bar_height,
+                            navH: _disp.navigation_bar_height,
+                            navHC: _disp.navigation_bar_height_computed,
+                            actH: _disp.action_bar_default_height,
+                            cX: cX, cY: cY, cYx: cYx,
+                        });
+                    }
+                }
+            };
+        }
+        devicex.getDisplay(true);
+    }();
+    !function _dialogsx() {
+        global.dialogsx = typeof global.dialogsx === "object" ? global.dialogsx : {};
+        let myLooper = android.os.Looper.myLooper;
+        let getMainLooper = android.os.Looper.getMainLooper;
+        let isUiThread = () => myLooper() === getMainLooper();
+        let rtDialogs = () => {
+            let d = runtime.dialogs;
+            return isUiThread() ? d : d.nonUiDialogs;
+        };
+        if (typeof dialogsx.rawInput !== "function") {
+            dialogsx.rawInput = function (title, prefill, callback) {
+                prefill = prefill || "";
+                if (isUiThread() && !callback) {
+                    return new Promise(function (resolve) {
+                        rtDialogs().rawInput(title, prefill, function () {
+                            resolve.apply(null, Array.prototype.slice.call(arguments));
+                        });
                     });
                 }
-            }
-        };
-    }
-    $_dev.getDisplay(true);
+                return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+            };
+        }
+    }();
 }
 
 function _chkF(s, override_par_num) {
@@ -1765,7 +1850,7 @@ function _chkF(s, override_par_num) {
 }
 
 function _err(s) {
-    device.cancelOn();
+    devicex.cancelOn();
     messageAction("解锁失败", 4, 1, 0, -1);
 
     let _s = $_str(s) ? [s] : s;
@@ -1847,13 +1932,15 @@ function _unlkSetter() {
                         desc: "MIUI10",
                         selector: idMatches(_as + "((.*lock_screen|notification)_(container.*|panel.*)|keyguard_.*)")
                     },
-                }
+                };
 
                 for (let key in _map) {
-                    let {desc: _desc, selector: _sel} = _map[key];
-                    if (_sel.exists()) {
-                        debugInfo("匹配到" + _desc + "解锁提示层控件");
-                        return (this.trigger = _sel.exists.bind(_sel))();
+                    if (_map.hasOwnProperty(key)) {
+                        let {desc: _desc, selector: _sel} = _map[key];
+                        if (_sel.exists()) {
+                            debugInfo("匹配到" + _desc + "解锁提示层控件");
+                            return (this.trigger = _sel.exists.bind(_sel))();
+                        }
                     }
                 }
 
@@ -1881,8 +1968,10 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let _o = _map[key];
-                        _o.trigger() && _o.handle();
+                        if (_map.hasOwnProperty(key)) {
+                            let _o = _map[key];
+                            _o.trigger() && _o.handle();
+                        }
                     }
                 }
             },
@@ -1923,7 +2012,7 @@ function _unlkSetter() {
 
                     let _max = 30;
                     let _ctr = 0;
-                    device.keepOn(3);
+                    devicex.keepOn(3);
                     while (!_lmt()) {
                         let _s = " (" + _ctr + "/" + _max + ")";
                         debugInfo(_ctr
@@ -1958,7 +2047,7 @@ function _unlkSetter() {
                             debugInfo("参数增量: " + _increment);
                         }
                     }
-                    device.cancelOn();
+                    devicex.cancelOn();
                     debugInfo("解锁页面提示层消除成功");
                     _this.succ_fg = true;
 
@@ -2035,10 +2124,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo("匹配到" + _desc + "图案解锁控件");
-                            return _trigger(_sel, _stg);
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo("匹配到" + _desc + "图案解锁控件");
+                                return _trigger(_sel, _stg);
+                            }
                         }
                     }
 
@@ -2322,10 +2413,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo("匹配到" + _desc + "密码解锁控件");
-                            return _trigger(_sel, _stg);
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo("匹配到" + _desc + "密码解锁控件");
+                                return _trigger(_sel, _stg);
+                            }
                         }
                     }
 
@@ -2518,13 +2611,15 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            if (_desc.match(/\w$/)) {
-                                _desc += "/";
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                if (_desc.match(/\w$/)) {
+                                    _desc += "/";
+                                }
+                                debugInfo("匹配到" + _desc + "PIN解锁控件");
+                                return _trigger(_sel, _stg);
                             }
-                            debugInfo("匹配到" + _desc + "PIN解锁控件");
-                            return _trigger(_sel, _stg);
                         }
                     }
 
@@ -2784,10 +2879,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel, pw_rect: _rect} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo(["匹配到特殊设备解锁方案:", _desc]);
-                            return _trigger(_sel, _stg.bind(null, _rect));
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel, pw_rect: _rect} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo(["匹配到特殊设备解锁方案:", _desc]);
+                                return _trigger(_sel, _stg.bind(null, _rect));
+                            }
                         }
                     }
 
@@ -2871,9 +2968,9 @@ function _unlkSetter() {
                 if (!$_func(this.stg)) {
                     return _err("没有可用的解锁策略");
                 }
-                device.keepOn(5);
+                devicex.keepOn(5);
                 this.stg();
-                device.cancelOn();
+                devicex.cancelOn();
             },
             handle() {
                 return this.trigger() && this.dismiss();
@@ -2930,7 +3027,7 @@ function _unlkSetter() {
                 }
 
                 function _chkOKBtn() {
-                    let _rex = /OK|确(认|定)|好的?/;
+                    let _rex = /OK|确([认定])|好的?/;
                     let _kw = textMatches(_rex);
                     let _widget = _kw.findOnce();
                     if (_widget) {

@@ -164,7 +164,7 @@ let ext = {
             /**
              * @summary global.toast
              * @description toast a message in current screen
-             * @memberOf global
+             * @override
              * @param {string|*} [msg=""] -
              * string (or any value with toString() method) to toast
              * @param {boolean|string|number} [if_long=0] -
@@ -231,7 +231,15 @@ let ext = {
     String() {
         if (!String["toTitleCase"]) {
             Object.defineProperty(String.prototype, "toTitleCase", {
-                value: function () {
+                /**
+                 * Converts all the alphabetic characters in a string to title case.
+                 * @function String.prototype.toTitleCase
+                 * @see String.prototype.toUpperCase
+                 * @see String.prototype.toLowerCase
+                 * @see String.prototype.slice
+                 * @returns {string}
+                 */
+                value() {
                     let _str = this.toString();
                     if (!_str) {
                         return "";
@@ -242,35 +250,35 @@ let ext = {
         }
         if (!String["trimStart"]) {
             Object.defineProperty(String.prototype, "trimStart", {
-                value: function () {
+                value() {
                     return this.replace(/^\s*/, "");
                 },
             });
         }
         if (!String["trimEnd"]) {
             Object.defineProperty(String.prototype, "trimEnd", {
-                value: function () {
+                value() {
                     return this.replace(/\s*$/, "");
                 },
             });
         }
         if (!String["trimLeft"]) {
             Object.defineProperty(String.prototype, "trimLeft", {
-                value: function () {
+                value() {
                     return this.trimStart();
                 },
             });
         }
         if (!String["trimRight"]) {
             Object.defineProperty(String.prototype, "trimRight", {
-                value: function () {
+                value() {
                     return this.trimEnd();
                 },
             });
         }
         if (!String["trimBoth"]) {
             Object.defineProperty(String.prototype, "trimBoth", {
-                value: function () {
+                value() {
                     return this.trimStart().trimEnd();
                 },
             });
@@ -279,7 +287,7 @@ let ext = {
     Object() {
         if (!Object["values"]) {
             Object.defineProperty(Object, "values", {
-                value: function (o) {
+                value(o) {
                     if (o !== Object(o)) {
                         throw new TypeError("Object.values called on a non-object");
                     }
@@ -305,7 +313,7 @@ let ext = {
                  * @param {[]} [opt.include] - include specified keys ONLY, and o.exclude will be invalid
                  * @returns {number}
                  */
-                value: function (o, opt) {
+                value(o, opt) {
                     let _opt = opt || {};
                     let _inc = _opt.include;
                     let _exc = _opt.exclude;
@@ -334,7 +342,7 @@ let ext = {
     Array() {
         if (!Array["includes"]) {
             Object.defineProperty(Array.prototype, "includes", {
-                value: function (x, i) {
+                value(x, i) {
                     return this.slice(i).some((v) => {
                         if (typeof x !== "undefined") {
                             return Number.isNaN(x) ? Number.isNaN(v) : x === v;
@@ -345,36 +353,36 @@ let ext = {
         }
     },
     Number() {
-        if (!Number["restrict"]) {
-            Object.defineProperty(Number.prototype, "restrict", {
+        if (!Number["clamp"]) {
+            Object.defineProperty(Number.prototype, "clamp", {
                 /**
-                 * Returns a number restricted in a certain range
-                 * @function Number.prototype.restrict
+                 * Returns a number clamped to inclusive range of min and max
+                 * @function Number.prototype.clamp
                  * @param {...number|*} [args] -
-                 * restricted range indicated by numbers
+                 * inclusive range indicated by numbers
                  * or values could be converted to numbers
                  * @example
-                 * // 'restrict' often used for a alterable or random number
-                 * Math.rand([-5, 9]).restrict([0, 10]);
-                 * Math.rand([-5, 9]).restrict(0, 10); // also OK but not recommended
+                 * // 'clamp' often used for an alterable or random number
+                 * Math.rand([-5, 9]).clamp([0, 10]);
+                 * Math.rand([-5, 9]).clamp(0, 10); // also OK but not recommended
                  * // different from Math.rand([0.3, 0.5])
-                 * Math.random().restrict([0.3, 0.5]);
+                 * Math.random().clamp([0.3, 0.5]);
                  * // always returns the source number itself
-                 * (9).restrict(); // 9
-                 * (99).restrict(); // 99
+                 * (9).clamp(); // 9
+                 * (99).clamp(); // 99
                  * // always returns the numeric value of param
-                 * (9).restrict([80]); // 80 -- same as restrict([80, 80])
-                 * (99).restrict(["80"]); // 80 -- +"80" -> 80
-                 * // (10).restrict([false, "Hi", [-1], "7"])
-                 * // -> (10).restrict([+false, +"Hi", +[-1], +"7"])
-                 * // -> (10).restrict([0, NaN, -1, 7]) // numeric converted
-                 * // -> (10).restrict([0, -1, 7]) // filtered
-                 * // -> (10).restrict([-1, 0, 7]) // sorted, range: [-1, 7]
+                 * (9).clamp([80]); // 80 -- same as clamp([80, 80])
+                 * (99).clamp(["80"]); // 80 -- +"80" -> 80
+                 * // (10).clamp([false, "Hi", [-1], "7"])
+                 * // -> (10).clamp([+false, +"Hi", +[-1], +"7"])
+                 * // -> (10).clamp([0, NaN, -1, 7]) // numeric converted
+                 * // -> (10).clamp([0, -1, 7]) // filtered
+                 * // -> (10).clamp([-1, 0, 7]) // sorted, range: [-1, 7]
                  * // -> 7
-                 * (10).restrict([false, "Hi", [-1], "7"]); // 7
+                 * (10).clamp([false, "Hi", [-1], "7"]); // 7
                  * @returns {number}
                  */
-                value: function (args) {
+                value(args) {
                     let _num = this.valueOf();
                     let _args = (!Array.isArray(args)
                         ? Array.prototype.slice.call(arguments)
@@ -458,7 +466,7 @@ let ext = {
                  * num_c.toFixedNum(2); //  9.6   -- number
                  * @returns {number}
                  */
-                value: function (num) {
+                value(num) {
                     return Number(this.toFixed(num));
                 },
             });
@@ -499,7 +507,6 @@ let ext = {
              * @summary Random Number (zh-CN: 随机数)
              * @description Returns a pseudorandom number between min and max from the 'range' param
              * @function Math.rand
-             * @static
              * @param {*|number[]|number} [range=[0,1]] -
              * range could contains more than 2 numbers
              * or with one number for [0, range]
@@ -566,7 +573,6 @@ let ext = {
              * @summary Sum (zh-CN: 求和)
              * @description Returns a sum of numbers with (or without) fraction digits
              * @function Math.sum
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be summed up
              * @param {?number} [fraction] -
@@ -604,7 +610,6 @@ let ext = {
              * @summary Arithmetic Mean (zh-CN: 算术平均数)
              * @description Returns the average of numbers with (or without) fraction digits
              * @function Math.avg
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be averaged
              * @param {?number} [fraction] -
@@ -724,7 +729,6 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.max(...number[])
              * @function Math.maxi
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
@@ -802,7 +806,6 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.min(...number[])
              * @function Math.mini
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
@@ -878,7 +881,6 @@ let ext = {
              * @summary Distance between two points (zh-CN: 两点间距)
              * @description Returns distance value between two points
              * @function Math.dist
-             * @static
              * @param {number[]} arr1 - a number array with two coordinates
              * @param {number[]} arr2 - another number array with two coordinates
              * @example
@@ -902,6 +904,72 @@ let ext = {
                     Math.pow(arr2[0] - arr1[0], 2)
                 );
             },
+            /**
+             * Returns the logarithm (with both base and antilogarithm) of two numbers.
+             * @function Math.logMn
+             * @param base
+             * @param antilogarithm
+             * @param [fraction=13]
+             * @example
+             * console.log(Math.logMn(10, 100)); // 2 -- 10 ^ (2) = 100
+             * console.log(Math.logMn(2, 1024)); // 10 -- 2 ^ (10) = 1024
+             * console.log(Math.logMn(81, 9)); // 0.5 -- 81 ^ (0.5) = 9
+             * @example
+             * console.log(Math.logMn(3, 2187)); // 7 (with default fraction - 13)
+             * console.log(Math.logMn(3, 2187, -1)); // 7.000000000000001
+             * console.log(Math.logMn(3, 2187, 18)); // 7.000000000000001
+             * console.log(Math.logMn(3, 2187, 5)); // 7
+             * console.log(Math.logMn(3, 2187, 0)); // 7
+             * @returns {number}
+             */
+            logMn(base, antilogarithm, fraction) {
+                let _frac = typeof fraction === "number" ? fraction : 13;
+                let _result = Math.log(antilogarithm) / Math.log(base);
+                if (isNaN(_result) || !isFinite(_result) || ~_frac) {
+                    return _result;
+                }
+                return Number(_result.toFixed(_frac));
+            },
+        });
+    },
+    JSON() {
+        Object.assign(JSON, {
+            /**
+             * @function JSON.isJson
+             * @param {string} str - JSON string
+             * @see JSON.parse
+             * @see JSON.stringify
+             * @example
+             * console.log(JSON.isJson('{}')); // true
+             * console.log(JSON.isJson('{"a":1,"b":"2"}')); // true
+             * console.log(JSON.isJson('{"a": 1, "b": "2"}')); // true -- ok with whitespace characters
+             * console.log(JSON.isJson('{"a": 1, "b": "2",}')); // false -- trailing commas are not supported
+             * @example
+             * console.log(JSON.isJson('[]')); // true
+             * console.log(JSON.isJson('[1,"2",[3]]')); // true
+             * console.log(JSON.isJson('[1, "2", [3]]')); // true -- ok with whitespace characters
+             * console.log(JSON.isJson('[1, "2", [3],]')); // false -- trailing commas are not supported
+             * @example
+             * let str_a = "{'a':1}";
+             * let str_b = '{"a":1}';
+             * if (JSON.isJson(str_a)) {
+             *     console.log(JSON.parse(str_a));
+             * }
+             * if (JSON.isJson(str_b)) {
+             *     console.log(JSON.parse(str_b));
+             * }
+             * @returns {boolean}
+             */
+            isJson(str) {
+                if (typeof str === "string") {
+                    try {
+                        return this.stringify(this.parse(str)).replace(/\s*/g, "") === str.replace(/\s*/g, "");
+                    } catch (e) {
+                        // console.error(e);
+                    }
+                }
+                return false;
+            },
         });
     },
 };
@@ -919,7 +987,7 @@ module.exports.load = function () {
     }
 
     let _keys_len = _keys.length;
-    let _toTitleCase = str => {
+    let _toTitleCase = (str) => {
         let _head = str[0].toUpperCase();
         let _body = str.slice(1).toLowerCase();
         return _head + _body;

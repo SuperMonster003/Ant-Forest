@@ -14,13 +14,6 @@ global.$$impeded = (name) => {
     return true;
 };
 
-let {
-    ui, currentPackage, android, id, click, selector,
-    colors, toast, files, idMatches, device, engines,
-    events, swipe, sleep, exit, app, images, threads,
-    context, http,
-} = global;
-
 module.exports = {
     parseAppName: parseAppName,
     getVerName: getVerName,
@@ -183,31 +176,23 @@ function getVerName(name, params) {
 }
 
 /**
- * Launch some app with package name or intent
- * And wait for conditions ready if specified
- * @param {object|string|function|android.content.Intent} trigger -
- * the way of triggering the launcher
- * <br> **{object}** - activity object
- * <br> eg: {action:"VIEW",packageName:"...",className:"..."}
- * <br> **{string}** - app package name or app name
- * <br> eg: _com.eg.android.AlipayGphone" / "Alipay"
- * <br> **{function}** - a function trigger which is callable
- * <br> **{android.content.Intent}** - an android Intent instance
- * @param {object} [params] - additional options
+ * Launch some app with package name or intent and wait for conditions ready if specified
+ * @param {object|string|function|android.content.Intent} trigger - the way of triggering the launcher
+ * <br> {object} - activity object -- eg: {action:"VIEW",packageName:"...",className:"..."}
+ * <br> {string} - app package name or app name -- eg: _com.eg.android.AlipayGphone" or "Alipay"
+ * <br> {(function(): *)} - a function trigger which is callable
+ * <br> {android.content.Intent} - an android Intent instance
+ * @param {{}} [params] - additional options
  * @param {string} [params.package_name]
  * @param {string} [params.app_name]
  * @param {string} [params.task_name]
- * @param {function} [params.condition_launch]
- * @param {function|object} [params.condition_ready] -
- * @param {string} [params.condition_ready.necessary_sel_key] -
- * necessary selector key with one condition only
- * @param {array} [params.condition_ready.necessary_sel_keys] -
- * necessary selector keys with more than one condition
- * @param {string} [params.condition_ready.optional_sel_key] -
- * optional selector key with one condition only
- * @param {array} [params.condition_ready.optional_sel_keys] -
- * optional selector keys with more than one condition
- * @param {function} [params.disturbance]
+ * @param {(function(): *)} [params.condition_launch]
+ * @param {(function(): *)|{}} [params.condition_ready]
+ * @param {string} [params.condition_ready.necessary_sel_key] - necessary selector key with one condition only
+ * @param {array} [params.condition_ready.necessary_sel_keys] - necessary selector keys with more than one condition
+ * @param {string} [params.condition_ready.optional_sel_key] - optional selector key with one condition only
+ * @param {array} [params.condition_ready.optional_sel_keys] - optional selector keys with more than one condition
+ * @param {(function(): *)} [params.disturbance]
  * @param {boolean} [params.debug_info_flag]
  * @param {boolean} [params.first_time_run_message_flag=true]
  * @param {boolean} [params.no_message_flag]
@@ -239,7 +224,7 @@ function getVerName(name, params) {
  */
 function launchThisApp(trigger, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(launchThisApp.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(launchThisApp.name);
 
     let $_und = x => typeof x === "undefined";
     let _messageAction = typeof messageAction === "undefined"
@@ -317,7 +302,7 @@ function launchThisApp(trigger, params) {
         while (_max_lch--) {
             if (typeof _trig === "object") {
                 _debugInfo("加载intent参数启动应用");
-                app.startActivity(_trig);
+                (global.appx ? appx : app).startActivity(_trig);
             } else if (typeof _trig === "string") {
                 _debugInfo("加载应用包名参数启动应用");
                 if (!app.launchPackage(_pkg_name)) {
@@ -360,7 +345,7 @@ function launchThisApp(trigger, params) {
             let _ctr = "(" + (_max_ready_b - _max_ready) + "/" + _max_ready_b + ")";
             if (typeof _trig === "object") {
                 _debugInfo("重新启动Activity " + _ctr);
-                app.startActivity(_trig);
+                (global.appx ? appx : app).startActivity(_trig);
             } else {
                 _debugInfo("重新启动应用 " + _ctr);
                 app.launchPackage(_trig);
@@ -416,11 +401,11 @@ function launchThisApp(trigger, params) {
         let _isHoriz = () => {
             let _disp = getDisplayRaw();
             return _disp.WIDTH > _disp.HEIGHT;
-        }
+        };
         let _isVert = () => {
             let _disp = getDisplayRaw();
             return _disp.WIDTH < _disp.HEIGHT;
-        }
+        };
         let _scr_o_par = _par.screen_orientation;
         if (_scr_o_par === 1 && _isVert()) {
             _debugInfo("需等待屏幕方向为横屏");
@@ -666,7 +651,7 @@ function launchThisApp(trigger, params) {
  */
 function killThisApp(name, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(killThisApp.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(killThisApp.name);
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
@@ -910,7 +895,7 @@ function restartThisApp(intent_or_name, params) {
     }
 
     function launchThisAppRaw(intent_or_name) {
-        typeof intent_or_name === "object" ? app.startActivity(intent_or_name) : launch(intent_or_name) || launchApp(intent_or_name);
+        typeof intent_or_name === "object" ? (global.appx ? appx : app).startActivity(intent_or_name) : launch(intent_or_name) || launchApp(intent_or_name);
         return true;
     }
 }
@@ -922,7 +907,7 @@ function restartThisApp(intent_or_name, params) {
  * <br>
  *     -- *DEFAULT* - old engine task <br>
  *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param {boolean} [params.debug_info_flag]
+ * @param {boolean|string} [params.debug_info_flag]
  * @param {number} [params.max_restart_engine_times=1] - max restart times for avoiding infinite recursion
  * @param {*} [params.instant_run_flag] - whether to perform an instant run or not
  * @example
@@ -1034,7 +1019,7 @@ function runJsFile(file_name, e_args) {
     if (e_args) {
         return engines.execScriptFile(_path, {arguments: e_args});
     }
-    return app.startActivity({
+    return (global.appx ? appx : app).startActivity({
         action: "VIEW",
         packageName: context.packageName,
         className: "org.autojs.autojs.external.open.RunIntentActivity",
@@ -1282,23 +1267,29 @@ function showSplitLine(extra_str, style, params) {
  */
 function waitForAction(f, timeout_or_times, interval, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(waitForAction.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
 
-    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-    let _timeout = Infinity;
-    let _interval = interval || 200;
+    if (typeof timeout_or_times !== "number") {
+        timeout_or_times = 10e3;
+    }
     let _times = timeout_or_times;
+    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+        _times = Infinity;
+    }
+    let _timeout = Infinity;
+    if (timeout_or_times > 100) {
+        _timeout = timeout_or_times;
+    }
+    let _interval = interval || 200;
+    if (_interval >= _timeout) {
+        _times = 1;
+    }
 
-    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-    if (timeout_or_times > 100) _timeout = timeout_or_times;
-    if (interval >= _timeout) _times = 1;
-
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    let _start_timestamp = +new Date();
+    let _start_ts = Date.now();
     while (!_checkF(f) && --_times) {
-        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+        if (Date.now() - _start_ts > _timeout) {
+            return false; // timed out
+        }
         sleep(_interval);
     }
     return _times > 0;
@@ -1307,23 +1298,41 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _messageAction = typeof messageAction === "undefined"
+            ? messageActionRaw
+            : messageAction;
 
-        if (typeof f === "function") return f();
-        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+        if (typeof f === "function") {
+            return f();
+        }
+        if (_classof(f) === "JavaObject") {
+            return f.toString().match(/UiObject/) ? f : f.exists();
+        }
         if (_classof(f) === "Array") {
             let _arr = f;
-            let _logic_flag = "all";
-            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+            let _len = _arr.length;
+            let _logic = "all";
+            if (typeof _arr[_len - 1] === "string") {
+                _logic = _arr.pop();
             }
-            return _logic_flag === "all";
+            if (_logic.match(/^(or|one)$/)) {
+                _logic = "one";
+            }
+            for (let i = 0; i < _len; i += 1) {
+                let _ele = _arr[i];
+                if (!(typeof _ele).match(/function|object/)) {
+                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                }
+                if (_logic === "all" && !_checkF(_ele)) {
+                    return false;
+                }
+                if (_logic === "one" && _checkF(_ele)) {
+                    return true;
+                }
+            }
+            return _logic === "all";
         }
-
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
     }
 
     // raw function(s) //
@@ -1410,7 +1419,7 @@ function waitForAction(f, timeout_or_times, interval, params) {
  */
 function clickAction(f, strategy, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(clickAction.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
 
     if (typeof f === "undefined" || f === null) {
         return false;
@@ -1915,7 +1924,7 @@ function refreshObjects(strategy, params) {
  */
 function swipeAndShow(f, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(swipeAndShow.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(swipeAndShow.name);
 
     let _swipe_interval = _par.swipe_interval || 150;
     let _max_swipe_times = _par.max_swipe_times || 12;
@@ -2374,7 +2383,7 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
  */
 function keycode(code, params) {
     let _par = params || {};
-    _par.no_impeded || $$impeded(keycode.name);
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
 
     let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
 
@@ -3713,7 +3722,7 @@ function clickActionsPipeline(pipeline, options) {
 
     let pipeline_name = options.name ? _surroundWith(options.name) : "";
 
-    let pipe = pipeline.filter(value => typeof value !== "undefined").map(value => {
+    let pipe = pipeline.filter(value => typeof value !== "undefined").map((value) => {
         let val = Object.prototype.toString.call(value).slice(8, -1) === "Array" ? value : [value];
         if (typeof val[1] === "function" || val[1] === null) val.splice(1, 0, null);
         val[1] = val[1] || default_strategy;
@@ -3872,7 +3881,8 @@ function timedTaskTimeFlagConverter(timeFlag) {
 
 /**
  * Fetching data by calling OCR API from Baidu
- * @param src {Array|ImageWrapper|UiObject|UiObjectCollection} -- will be converted into ImageWrapper(s)
+ * @typedef {com.stardust.autojs.core.image.ImageWrapper} Image
+ * @param src {Array|Image|UiObject|UiObjectCollection} -- will be converted into Image
  * @param {object} [par]
  * @param {boolean} [par.no_toast_msg_flag=false]
  * @param {number} [par.fetch_times=1]
@@ -3908,9 +3918,8 @@ function baiduOcr(src, par) {
     }
     let _tt_ts = Date.now() + _tt;
 
-    let $_und = o => typeof o === "undefined";
-    $_und(images.permit) ? _permitCapt() : images.permit();
-    let _capt = _par.capt_img || images.capt ? images.capt() : images.captureScreen();
+    _permitCapt();
+    let _capt = _par.capt_img || images.captureScreen();
 
     let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
     let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
@@ -4122,7 +4131,7 @@ function baiduOcr(src, par) {
 
     // monster function(s) //
 
-    // updated at Jun 4, 2020
+    // updated: Jun 4, 2020
     function _permitCapt(params) {
         let _$$und = x => typeof x === "undefined";
         let _$$isJvo = x => x && !!x["getClass"];
@@ -4472,9 +4481,10 @@ function classof(source, check_value) {
  * Check if device is running compatible (relatively) Auto.js version and android sdk version
  * @param {object} [params]
  * @param {boolean} [params.debug_info_flag]
+ * @returns {{cur_autojs_name: string, cur_autojs_pkg: string, project_ver: string| number|void, autojs_ver: string|void, sdk_ver: number}}
  */
 function checkSdkAndAJVer(params) {
-    let $_app = global.$$app = global.$$app || {};
+    let $_app = {};
 
     let _par = params || {};
 
@@ -4494,6 +4504,8 @@ function checkSdkAndAJVer(params) {
 
     _chkSdk();
     _chkVer();
+
+    return $_app;
 
     // tool function(s) //
 

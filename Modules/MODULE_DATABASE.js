@@ -20,8 +20,8 @@
 
 // FIXME how i wish i could figure out the usage of SimpleCursorAdapter()
 module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) {
-    let {SQLiteDatabase: SQLDb} = android.database.sqlite;
-    let {ContentValues: CV} = android.content;
+    let SQLDb = android.database.sqlite.SQLiteDatabase;
+    let CV = android.content.ContentValues;
 
     files.createWithDirs(db_path);
     let _db = SQLDb.openOrCreateDatabase(files.path(db_path), null);
@@ -37,7 +37,7 @@ module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) 
         rawQry: s => _db.rawQuery(s, null),
         rawQryData: sql => _rawQryData(sql),
         clear() {
-            db.execSQL("drop table " + tbl_name);
+            _db.execSQL("drop table " + tbl_name);
             _init();
         },
     });

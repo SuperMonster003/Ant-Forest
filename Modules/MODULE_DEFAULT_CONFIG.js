@@ -50,7 +50,7 @@ module.exports = {
             adapt_thrd: true, // images.adaptiveThreshold(image, 255, "GAUSSIAN_C", "BINARY_INV", 9, 6)
             med_blur: true, // images.medianBlur(image, 9)
             blur: true, // images.blur(image, 9, null, "REPLICATE")
-            blt_fltr: false, // images.bilateralFilter(image, 9, 20, 20, "REPLICATE")
+            blt_fltr: false, // imagesx.bilateralFilter(image, 9, 20, 20, "REPLICATE")
         },
         // strategies for handling cv::houghCircles results
         hough_results_strategy: {

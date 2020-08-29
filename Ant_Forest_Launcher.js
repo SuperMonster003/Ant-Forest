@@ -1,16 +1,14 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Jun 25, 2020
- * @version 1.9.22
+ * @since Jun 30, 2020
+ * @version 1.9.23 Alpha
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
  */
 
 'use strict';
-
-let $$sel, $$app, $$cfg, $$sto, $$dev, $$flag, $$acc;
 
 let $$init = {
     check() {
@@ -45,7 +43,7 @@ let $$init = {
                 showSplitLineRaw();
                 exit();
             }
-            $$app = {pkg_name: _pkg};
+            global._$_pkg_name = _pkg;
         }
 
         function checkModulesMap() {
@@ -87,16 +85,15 @@ let $$init = {
         function checkSdkAndAJVer() {
             // do not `require()` before `checkModulesMap()`
             let _mod = require("./Modules/MODULE_MONSTER_FUNC");
-            return _mod.checkSdkAndAJVer();
+            global.$_app = _mod.checkSdkAndAJVer();
         }
 
         function checkRootAccess() {
             try {
-                $$flag = {
-                    autojs_has_root: !com.stardust.autojs.core.util
-                        .ProcessShell.execCommand("date", true).code,
-                };
+                let execCommand = com.stardust.autojs.core.util.ProcessShell.execCommand;
+                global._$_autojs_has_root = execCommand("date", true).code === 0;
             } catch (e) {
+                global._$_autojs_has_root = false;
             }
         }
 
@@ -127,7 +124,7 @@ let $$init = {
                     let _max = 2;
                     while (_max--) {
                         if (!_max) {
-                            if (!$$flag.autojs_has_root) {
+                            if (!global._$_autojs_has_root) {
                                 break;
                             }
                             shell("pm grant " + _pkg + " " + _perm, true);
@@ -148,32 +145,7 @@ let $$init = {
                     _autoHint();
                 }
 
-                if ($_func(auto.waitFor)) {
-                    let _thd = threads.start(function () {
-                        // waitFor: script will continue running rather than stop
-                        // when accessibility service switched on by user
-                        auto.waitFor();
-                    });
-
-                    _thd.join(1e3);
-
-                    if (_thd.isAlive()) {
-                        alert("\n" +
-                            "自动跳转到无障碍服务设置页面之后\n\n" +
-                            "请手动开启Auto.js无障碍服务开关\n\n" +
-                            "开启后脚本将自动继续"
-                        );
-                    }
-
-                    _thd.join(6e4);
-
-                    if (_thd.isAlive()) {
-                        _line();
-                        _msg("等待用户开启无障碍服务超时", 4, 1);
-                        _line();
-                        exit();
-                    }
-                } else {
+                if (!$_func(auto.waitFor)) {
                     try {
                         auto();
                     } catch (e) {
@@ -184,6 +156,31 @@ let $$init = {
                             "开启后需手动再次运行项目"
                         );
                     }
+                    exit();
+                }
+
+                let _thd = threads.start(function () {
+                    // script will continue running rather than stop
+                    // when accessibility service enabled by user
+                    auto.waitFor();
+                });
+
+                _thd.join(1e3);
+
+                if (_thd.isAlive()) {
+                    alert("\n" +
+                        "自动跳转到无障碍服务设置页面之后\n\n" +
+                        "请手动开启Auto.js无障碍服务开关\n\n" +
+                        "开启后脚本将自动继续"
+                    );
+                }
+
+                _thd.join(60e3);
+
+                if (_thd.isAlive()) {
+                    _line();
+                    _msg("等待用户开启无障碍服务超时", 4, 1);
+                    _line();
                     exit();
                 }
 
@@ -280,26 +277,11 @@ let $$init = {
         setGlobalFunctions(); // MONSTER MODULE
         setGlobalExtensions(); // EXT MODULES
 
-        $$sel = getSelector();
-
-        let _mod_sto = require("./Modules/MODULE_STORAGE");
-        $$sto = Object.assign($$sto || {}, {
-            af: _mod_sto.create("af"),
-            af_cfg: _mod_sto.create("af_cfg"),
-            treas: require("./Modules/MODULE_TREASURY_VAULT"),
-        });
-
-        $$cfg = Object.assign($$cfg || {},
-            require("./Modules/MODULE_DEFAULT_CONFIG").af || {},
-            $$sto.af_cfg.get("config", {})
-        );
-
         setFlags();
         debugInfo("开发者测试日志已启用", "both_dash_Up");
         debugInfo("设备型号: " + device.brand + " " + device.product);
 
-        $$dev = Object.assign(device, require("./Modules/MODULE_UNLOCK"));
-        $$dev.getDisplay(true);
+        devicex.getDisplay(true);
 
         appSetter().setEngine().setTask().setParams().setBlist().setPages().setTools().setDb().init();
 
@@ -363,6 +345,41 @@ let $$init = {
             require("./Modules/EXT_IMAGES").load();
             require("./Modules/EXT_THREADS").load();
             require("./Modules/EXT_ENGINES").load();
+
+            global.$$sel = getSelector();
+            global.$$unlk = require("./Modules/MODULE_UNLOCK");
+            global.$$flag = {
+                autojs_has_root: global._$_autojs_has_root,
+            };
+            global.$$sto = {
+                af: require("./Modules/MODULE_STORAGE").create("af"),
+                af_cfg: require("./Modules/MODULE_STORAGE").create("af_cfg"),
+                treas: require("./Modules/MODULE_TREASURY_VAULT"),
+            };
+            global.$$cfg = Object.assign({},
+                require("./Modules/MODULE_DEFAULT_CONFIG").af || {},
+                $$sto.af_cfg.get("config", {})
+            );
+            global.$$app = {
+                pkg_name: global._$_pkg_name,
+                cur_autojs_name: $_app.cur_autojs_name,
+                cur_autojs_pkg: $_app.cur_autojs_pkg,
+                project_ver: $_app.project_ver,
+                autojs_ver: $_app.autojs_ver,
+                sdk_ver: $_app.sdk_ver,
+                get cur_pkg() {
+                    return currentPackage();
+                },
+                get now() {
+                    return new Date();
+                },
+                get ts() {
+                    return Date.now();
+                },
+                get ts_sec() {
+                    return Date.now() / 1e3 >> 0;
+                },
+            };
         }
 
         function setFlags() {
@@ -373,7 +390,7 @@ let $$init = {
             $$flag.debug_info_avail = _dbg_info_sw && _msg_show_sw;
             $$flag.no_msg_act_flag = !_msg_show_sw;
 
-            let _e_argv = this.e_argv = engines.execArgvJs();
+            let _e_argv = this.e_argv = enginesx.execArgvJs();
             if (Object.size(_e_argv, {exclude: ["intent"]})) {
                 if (!$$und(_e_argv.debug_info_flag)) {
                     $$flag.debug_info_avail = !!_e_argv.debug_info_flag;
@@ -399,69 +416,59 @@ let $$init = {
                         return _cwp.match(/\[remote]/) ? _defPath() : _cwp;
                     };
 
-                    $$app = Object.defineProperties($$app, {
-                        cur_pkg: {get: () => currentPackage()},
-                        now: {get: () => new Date()},
-                        ts: {get: () => Date.now()},
-                        ts_sec: {get: () => Date.now() / 1e3 >> 0},
-                    });
-                    $$app = Object.assign($$app, {
-                        my_engine: _my_engine,
-                        my_engine_id: _my_engine.id,
-                        my_engine_argv: _e_argv,
-                        cwd: _my_engine.cwd(), // `files.cwd()` also fine
-                        init_scr_on: _e_argv.init_scr_on || $$dev.is_init_screen_on,
-                        init_fg_pkg: _e_argv.init_fg_pkg || currentPackage(),
-                        cwp: _getCwp(_my_engine),
-                        exit(msg_fg) {
-                            if (msg_fg !== false) {
-                                let _s = $$app.task_name + "任务结束";
-                                messageAction(_s, 1, 0, 0, "both_n");
-                            }
-                            return ui.post(exit);
-                        },
-                    });
+                    $$app.my_engine = _my_engine;
+                    $$app.my_engine_id = _my_engine.id;
+                    $$app.my_engine_argv = _e_argv;
+                    $$app.cwd = _my_engine.cwd(); // `files.cwd()` also fine
+                    $$app.init_scr_on = _e_argv.init_scr_on || $$unlk.is_init_screen_on;
+                    $$app.init_fg_pkg = _e_argv.init_fg_pkg || currentPackage();
+                    $$app.cwp = _getCwp(_my_engine);
+                    $$app.exit = (msg_fg) => {
+                        if (msg_fg !== false) {
+                            let _s = $$app.task_name + "任务结束";
+                            messageAction(_s, 1, 0, 0, "both_n");
+                        }
+                        return ui.post(exit);
+                    };
 
                     return this;
                 },
                 setTask() {
-                    $$app = Object.assign($$app, {
-                        setPostponedTask: (du, if_toast) => {
-                            if ($$flag.task_deploying) {
-                                return;
+                    $$app.setPostponedTask = (du, if_toast) => {
+                        if ($$flag.task_deploying) {
+                            return;
+                        }
+                        threadsx.starts(function () {
+                            $$flag.task_deploying = true;
+
+                            let _task_s = $$app.task_name + "任务";
+                            let _du_s = du + "分钟";
+
+                            if (!$$F(if_toast)) {
+                                toast(_task_s + "推迟 " + _du_s);
                             }
-                            threads.starts(function () {
-                                $$flag.task_deploying = true;
 
-                                let _task_s = $$app.task_name + "任务";
-                                let _du_s = du + "分钟";
+                            messageAction("推迟" + _task_s, 1, 0, 0, -1);
+                            messageAction("推迟时长: " + _du_s, 1, 0, 0, 1);
 
-                                if (!$$F(if_toast)) {
-                                    toast(_task_s + "推迟 " + _du_s);
-                                }
+                            let _ts = $$app.ts + du * 60e3;
+                            let _par = {path: $$app.cwp, date: _ts};
+                            let _task = timersx.addDisposableTask(_par);
 
-                                messageAction("推迟" + _task_s, 1, 0, 0, -1);
-                                messageAction("推迟时长: " + _du_s, 1, 0, 0, 1);
+                            let _suff = "";
+                            if ($$sto.af.get("fg_blist_ctr")) {
+                                _suff = "_auto";
+                            }
 
-                                let _ts = $$app.ts + du * 60e3;
-                                let _par = {path: $$app.cwp, date: _ts};
-                                let _task = timers.addDisposableTask(_par);
-
-                                let _suff = "";
-                                if ($$sto.af.get("fg_blist_ctr")) {
-                                    _suff = "_auto";
-                                }
-
-                                $$sto.af.put("next_auto_task", {
-                                    task_id: _task.id,
-                                    timestamp: _ts,
-                                    type: "postponed" + _suff,
-                                });
-
-                                ui.post(exit);
+                            $$sto.af.put("next_auto_task", {
+                                task_id: _task.id,
+                                timestamp: _ts,
+                                type: "postponed" + _suff,
                             });
-                        },
-                    });
+
+                            ui.post(exit);
+                        });
+                    };
 
                     return this;
                 },
@@ -472,79 +479,74 @@ let $$init = {
                         String.fromCharCode(parseInt($0, 16))
                     ));
                     let _local_pics_path = files.getSdcardPath() + "/.local/Pics/";
-
                     files.createWithDirs(_local_pics_path);
 
-                    $$app = Object.assign($$app, {
-                        task_name: surroundWith(_unESC("8682868168EE6797")),
-                        rl_title: _unESC("2615FE0F0020597D53CB6392884C699C"),
-                        local_pics_path: _local_pics_path,
-                        rex_energy_amt: /^\s*\d+(\.\d+)?(k?g|t)\s*$/,
-                        has_root: $$flag.autojs_has_root,
-                    });
-                    $$app = Object.assign($$app, {
-                        intent: {
-                            home: {
-                                action: "VIEW",
-                                data: _encURIPar("alipays://platformapi/startapp", {
-                                    saId: 20000067,
-                                    url: "https://60000002.h5app.alipay.com/www/home.html",
-                                    __webview_options__: {
-                                        appClearTop: true,
-                                        startMultApp: true,
-                                        enableCubeView: false,
-                                        enableScrollBar: false,
-                                        backgroundColor: "-1",
-                                        transparentTitle: "auto",
-                                    },
-                                }),
-                            },
-                            rl: {
-                                action: "VIEW",
-                                data: _encURIPar("alipays://platformapi/startapp", {
-                                    saId: 20000067,
-                                    url: "https://60000002.h5app.alipay.com/www/listRank.html",
-                                    __webview_options__: {
-                                        appClearTop: true,
-                                        startMultApp: true,
-                                        showOptionMenu: true,
-                                        gestureBack: true,
-                                        backBehavior: "back",
-                                        enableCubeView: false,
-                                        enableScrollBar: false,
-                                        backgroundColor: "-1",
-                                        defaultTitle: $$app.rl_title,
-                                        transparentTitle: "none",
-                                    },
-                                }),
-                            },
-                            acc_man: {
-                                action: "VIEW",
-                                data: "alipays://platformapi/startapp?appId=20000027",
-                            },
-                            acc_login: {
-                                action: "VIEW",
-                                data: "alipays://platformapi/startapp?appId=20000008",
-                            },
+                    $$app.task_name = surroundWith(_unESC("8682868168EE6797"));
+                    $$app.rl_title = _unESC("2615FE0F0020597D53CB6392884C699C");
+                    $$app.local_pics_path = _local_pics_path;
+                    $$app.rex_energy_amt = /^\s*\d+(\.\d+)?(k?g|t)\s*$/;
+                    $$app.has_root = $$flag.autojs_has_root;
+                    $$app.intent = {
+                        home: {
+                            action: "VIEW",
+                            data: _encURIPar("alipays://platformapi/startapp", {
+                                saId: 20000067,
+                                url: "https://60000002.h5app.alipay.com/www/home.html",
+                                __webview_options__: {
+                                    appClearTop: true,
+                                    startMultApp: true,
+                                    enableCubeView: false,
+                                    enableScrollBar: false,
+                                    backgroundColor: "-1",
+                                    transparentTitle: "auto",
+                                },
+                            }),
                         },
-                        fri_drop_by: {
-                            _pool: [],
-                            _max: 5,
-                            ic(name) {
-                                let _ctr = this._pool[name] || 0;
-                                if (_ctr === this._max) {
-                                    debugInfo("发送排行榜复查停止信号");
-                                    debugInfo(">已达连续好友访问最大阈值");
-                                    $$flag.rl_review_stop = true;
-                                }
-                                this._pool[name] = ++_ctr;
-                            },
-                            dc(name) {
-                                let _ctr = this._pool[name] || 0;
-                                this._pool[name] = _ctr > 1 ? --_ctr : 0;
-                            },
+                        rl: {
+                            action: "VIEW",
+                            data: _encURIPar("alipays://platformapi/startapp", {
+                                saId: 20000067,
+                                url: "https://60000002.h5app.alipay.com/www/listRank.html",
+                                __webview_options__: {
+                                    appClearTop: true,
+                                    startMultApp: true,
+                                    showOptionMenu: true,
+                                    gestureBack: true,
+                                    backBehavior: "back",
+                                    enableCubeView: false,
+                                    enableScrollBar: false,
+                                    backgroundColor: "-1",
+                                    defaultTitle: $$app.rl_title,
+                                    transparentTitle: "none",
+                                },
+                            }),
                         },
-                    });
+                        acc_man: {
+                            action: "VIEW",
+                            data: "alipays://platformapi/startapp?appId=20000027",
+                        },
+                        acc_login: {
+                            action: "VIEW",
+                            data: "alipays://platformapi/startapp?appId=20000008",
+                        },
+                    };
+                    $$app.fri_drop_by = {
+                        _pool: [],
+                        _max: 5,
+                        ic(name) {
+                            let _ctr = this._pool[name] || 0;
+                            if (_ctr === this._max) {
+                                debugInfo("发送排行榜复查停止信号");
+                                debugInfo(">已达连续好友访问最大阈值");
+                                $$flag.rl_review_stop = true;
+                            }
+                            this._pool[name] = ++_ctr;
+                        },
+                        dc(name) {
+                            let _ctr = this._pool[name] || 0;
+                            this._pool[name] = _ctr > 1 ? --_ctr : 0;
+                        },
+                    };
 
                     return this;
 
@@ -837,7 +839,7 @@ let $$init = {
                                     },
                                     intent() {
                                         let _i = $$app.intent.home;
-                                        if (app.checkActivity(_i)) {
+                                        if (appx.checkActivity(_i)) {
                                             return this._launcher(_i);
                                         }
                                         this._showActHint();
@@ -948,7 +950,7 @@ let $$init = {
                                     },
                                     intent() {
                                         let _i = $$app.intent.rl;
-                                        if (app.checkActivity(_i)) {
+                                        if (appx.checkActivity(_i)) {
                                             return this._launcher(_i);
                                         }
                                         this._showActHint();
@@ -1096,7 +1098,9 @@ let $$init = {
                                         debug_info_flag: false,
                                         no_message_flag: true,
                                         first_time_run_message_flag: false,
-                                        condition_ready: () => $$app.page.autojs.is_fg,
+                                        condition_ready() {
+                                            return $$app.page.autojs.is_fg;
+                                        },
                                     });
 
                                     if (_res) {
@@ -1125,7 +1129,7 @@ let $$init = {
                                         let _msg = "恢复跳板" + _page + "页面";
                                         debugInfo(_msg);
                                         toast(_msg);
-                                        return app.startActivity(cmd);
+                                        return appx.startActivity(cmd);
                                     };
 
                                     if (!waitForAction(_isFg, 9e3, 300)) {
@@ -1239,14 +1243,10 @@ let $$init = {
                                 debugInfo(_tOut() ? "页面关闭可能未成功" : _succ);
                             },
                             isInPage() {
-                                // noinspection JSIncompatibleTypesComparison
-                                let _cA = () => $$app.cur_pkg === $$app.pkg_name;
-                                let _cB = function () {
-                                    return $$sel.get("rl_ent")
-                                        || $$sel.get("af_home")
-                                        || $$sel.get("wait_awhile");
-                                };
-                                return _cA() || _cB();
+                                return $$app.cur_pkg === $$app.pkg_name
+                                    || $$sel.get("rl_ent")
+                                    || $$sel.get("af_home")
+                                    || $$sel.get("wait_awhile");
                             },
                         },
                         rl: {
@@ -1257,8 +1257,8 @@ let $$init = {
                                 this._capt = img;
                             },
                             capt() {
-                                images.reclaim(this._capt);
-                                return this.capt_img = images.capt();
+                                imagesx.reclaim(this._capt);
+                                return this.capt_img = imagesx.capt();
                             },
                             pool: {
                                 data: [],
@@ -1271,7 +1271,7 @@ let $$init = {
                                 filter() {
                                     let _pool = this.data;
                                     for (let i = 0; i < _pool.length; i += 1) {
-                                        if (images.isRecycled(_pool[i])) {
+                                        if (imagesx.isRecycled(_pool[i])) {
                                             _pool.splice(i--, 1);
                                         }
                                     }
@@ -1281,7 +1281,7 @@ let $$init = {
                                     let _pool = this.data;
 
                                     for (let i = _pool.length; i-- > 2;) {
-                                        images.reclaim(_pool[i]);
+                                        imagesx.reclaim(_pool[i]);
                                         _pool[i] = null;
                                         _pool.splice(i, 1);
                                     }
@@ -1305,7 +1305,8 @@ let $$init = {
                                         images.scale(capt, _fz, _fz)
                                     ));
                                     let _res = !images.findImage(_a, _b);
-                                    images.reclaim(_a, _b);
+                                    imagesx.reclaim(_a, _b);
+                                    imagesx.findAFBallsByHough()
                                     _a = _b = null;
                                     return _res;
                                 }
@@ -1313,7 +1314,7 @@ let $$init = {
                             btm_tpl: {
                                 path: $$cfg.rank_list_bottom_template_path,
                                 get img() {
-                                    if (this._img && !images.isRecycled(this._img)) {
+                                    if (this._img && !imagesx.isRecycled(this._img)) {
                                         return this._img;
                                     }
                                     return this._img = images.read(this.path);
@@ -1322,7 +1323,7 @@ let $$init = {
                                     this._img = img;
                                 },
                                 reclaim() {
-                                    images.reclaim(this._img);
+                                    imagesx.reclaim(this._img);
                                     this._img = null;
                                 },
                             },
@@ -1371,10 +1372,7 @@ let $$init = {
                             },
                             isInPage() {
                                 let _fg = $$flag.rl_in_page;
-                                if (!$$und(_fg)) {
-                                    return _fg;
-                                }
-                                return $$sel.get("rl_title");
+                                return $$und(_fg) ? $$sel.get("rl_title") : _fg;
                             },
                         },
                         fri: {
@@ -1446,18 +1444,18 @@ let $$init = {
                                     return this.len >= this.limit;
                                 },
                                 add(capt) {
-                                    capt = capt || images.capt();
+                                    capt = capt || imagesx.capt();
                                     this.filled_up && this.reclaimLast();
-                                    let _img_name = images.getName(capt);
+                                    let _img_name = imagesx.getName(capt);
                                     debugInfo("添加好友森林采样: " + _img_name);
                                     this.data.unshift(capt);
                                 },
                                 reclaimLast() {
                                     let _last = this.data.pop();
-                                    let _img_name = images.getName(_last);
+                                    let _img_name = imagesx.getName(_last);
                                     debugInfo("好友森林采样已达阈值: " + this.limit);
                                     debugInfo(">移除并回收最旧样本: " + _img_name);
-                                    images.reclaim(_last);
+                                    imagesx.reclaim(_last);
                                     _last = null;
                                 },
                                 reclaimAll() {
@@ -1466,8 +1464,8 @@ let $$init = {
                                     }
                                     debugInfo("回收全部好友森林采样");
                                     this.data.forEach((capt) => {
-                                        let _img_name = images.getName(capt);
-                                        images.reclaim(capt);
+                                        let _img_name = imagesx.getName(capt);
+                                        imagesx.reclaim(capt);
                                         debugInfo(">已回收: " + _img_name);
                                         capt = null;
                                     });
@@ -1481,7 +1479,7 @@ let $$init = {
                                     let [_l, _t] = [cX(288), cYx(210)];
                                     let [_w, _h] = [cX(142), cYx(44)];
                                     let _clip = (img) => {
-                                        if (!images.isRecycled(img)) {
+                                        if (!imagesx.isRecycled(img)) {
                                             return images.clip(img, _l, _t, _w, _h);
                                         }
                                     };
@@ -1653,7 +1651,7 @@ let $$init = {
 
                     return this;
                 },
-                init: function () {
+                init() {
                     _setInitAutojsState();
                     _addSelectors();
 
@@ -1723,12 +1721,12 @@ let $$init = {
         function accSetter() {
             return {
                 setParams() {
-                    $$acc = {
+                    global.$$acc = {
                         switch: $$cfg.account_switch,
                         user_list: {
                             _plans: {
                                 intent() {
-                                    app.startActivity($$app.intent.acc_man);
+                                    appx.startActivity($$app.intent.acc_man);
                                 },
                                 pipeline() {
                                     $$app.page.alipay.home({debug_info_flag: false});
@@ -2082,7 +2080,7 @@ let $$init = {
                                         if (!$$acc.isInLoginPg()) {
                                             let _w = $$sel.get("login_new_acc");
                                             if (!clickAction($$sel.pickup([_w, "p4"]), "w")) {
-                                                app.startActivity($$app.intent.acc_login);
+                                                appx.startActivity($$app.intent.acc_login);
                                             }
                                         }
 
@@ -2286,23 +2284,22 @@ let $$init = {
 
                                             function _manIpt() {
                                                 debugInfo("需要手动输入密码");
-                                                $$dev.vibrates(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+                                                devicex.vibrate([100, 200, 100, 200, 200]);
 
                                                 let _user_tt = 2; // min
                                                 let _btn_tt = 2; // min
                                                 let _res = false;
-
                                                 let _max = ~~(_user_tt + _btn_tt) * 60e3;
                                                 $$flag.glob_e_scr_paused = true;
-                                                $$dev.keepOn(_max);
+                                                devicex.keepOn(_max);
 
-                                                threads.starts(function () {
-                                                    let _d = dialogs.builds([
+                                                threadsx.starts(function () {
+                                                    let _d = dialogsx.builds([
                                                         "需要密码", "login_password_needed",
                                                         0, 0, "确定", 1
                                                     ]).on("positive", d => d.dismiss()).show();
 
-                                                    threads.starts(function () {
+                                                    threadsx.starts(function () {
                                                         let _ = _responder();
 
                                                         _.dialog();
@@ -2325,7 +2322,7 @@ let $$init = {
                                                                     let _cond = () => _cA() && _cB();
 
                                                                     if (!waitForAction(_cond, _user_tt * 60e3)) {
-                                                                        $$dev.cancelOn();
+                                                                        devicex.cancelOn();
                                                                         _d.dismiss();
                                                                         let _s = "需要密码时等待用户响应超时";
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
@@ -2340,16 +2337,14 @@ let $$init = {
                                                                     ]);
 
                                                                     let _cA = () => !$$sel.get("login_btn");
-                                                                    let _rex = ".*confirmSet.*" +
-                                                                        "|.*mainTip|.*登录中.*" +
-                                                                        "|.*message";
+                                                                    let _rex = ".*confirmSet.*|.*mainTip|.*登录中.*|.*message";
                                                                     let _cT1 = () => $$sel.pickup(_rex);
                                                                     let _cT2 = () => _cT1() || _err_ens();
                                                                     let _cB = () => !waitForAction(_cT2, 500);
                                                                     let _cond = () => _cA() && _cB();
 
                                                                     if (!waitForAction(_cond, _btn_tt * 60e3)) {
-                                                                        $$dev.cancelOn();
+                                                                        devicex.cancelOn();
                                                                         _d.dismiss(); // just in case
                                                                         let _s = '等待"登录"按钮消失超时';
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
@@ -2367,11 +2362,10 @@ let $$init = {
                                                     sleep(500);
                                                 }
 
-                                                // just to prevent screen from
-                                                // turning off immediately
+                                                // prevent screen from turning off immediately
                                                 click(1e5, 1e5);
                                                 delete $$flag.glob_e_scr_paused;
-                                                $$dev.cancelOn();
+                                                devicex.cancelOn();
 
                                                 return true;
                                             }
@@ -2400,7 +2394,7 @@ let $$init = {
                                                 remark: "失败提示",
                                                 cond: _err_ens,
                                                 feedback() {
-                                                    $$dev.cancelOn();
+                                                    devicex.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
                                                     messageAction("失败提示信息:" + _err_msg(), 9, 0, 1, 1);
@@ -2412,7 +2406,7 @@ let $$init = {
                                                     let _fail_pref = "失败提示信息: ";
                                                     let _fail_main = $$sel.pickup(/.*mainTip/, "txt");
                                                     let _fail_msg = _fail_pref + _fail_main;
-                                                    $$dev.cancelOn();
+                                                    devicex.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
                                                     messageAction(_fail_msg, 9, 0, 1, 1);
@@ -2447,9 +2441,9 @@ let $$init = {
                                     let _t = time || 1;
                                     if (_t < 100) _t *= 60e3;
 
-                                    $$dev.keepOn(_t + 5 * 60e3);
+                                    devicex.keepOn(_t + 5 * 60e3);
                                     let _res = _checker();
-                                    $$dev.cancelOn();
+                                    devicex.cancelOn();
                                     return _res;
 
                                     // tool function(s) //
@@ -2487,7 +2481,6 @@ let $$init = {
                                             if (!cond_arr) {
                                                 return;
                                             }
-
                                             let _type_map = {
                                                 "success": "成功",
                                                 "fail": "失败",
@@ -2516,7 +2509,6 @@ let $$init = {
                                 function _clearFlag() {
                                     debugInfo("清除账户登出标记");
                                     delete $$flag.acc_logged_out;
-
                                     return true;
                                 }
                             }
@@ -2588,7 +2580,12 @@ let $$init = {
                     $$acc.main = {
                         _avatar: {
                             _path: $$app.local_pics_path + "main_user_mini_avatar_clip.png",
-                            check(path) {
+                            _isTotalGreen(img) {
+                                return imagesx.findAllPointsForColor(
+                                    img, "#30bf6c", {threshold: 2}
+                                ).length > img.height * img.width * 0.98;
+                            },
+                            isValid(path) {
                                 if ($$flag.acc_logged_out) {
                                     return debugInfo(["跳过主账户头像检查", ">检测到账户登出状态"]);
                                 }
@@ -2610,21 +2607,19 @@ let $$init = {
                                 // tool function(s) //
 
                                 function _check(img) {
-                                    let _avt_clip = this.getAvtClip();
-                                    if (_avt_clip) {
-                                        let _mch = images.findImage(_avt_clip, img, {level: 1});
-                                        images.reclaim(_avt_clip);
-                                        _avt_clip = null;
-                                        if (_mch) {
-                                            this._avt_clip_cached = _avt_clip;
+                                    if (this.checkGreen(img)) {
+                                        let _avt = this.getAvtClip();
+                                        if (_avt && images.findImage(_avt, img, {level: 1})) {
+                                            this._avt_clip_cached = _avt;
+                                            imagesx.reclaim(_avt);
+                                            _avt = null;
+                                            return true;
                                         }
-                                        return _mch;
                                     }
                                 }
                             },
                             getAvtClip() {
                                 let _b = null;
-
                                 waitForAction(() => _b = _getAvtPos(), 8e3, 100);
 
                                 if (!_b || $$emptyObj(_b)) {
@@ -2638,23 +2633,10 @@ let $$init = {
                                     messageAction("森林主页头像控件数据无效", 3, 0, 1, "dash");
                                     return;
                                 }
-                                // chop: here means chopped
-                                let _sqrt2 = Math.SQRT2;
-                                let [w_chop, h_chop] = [w / _sqrt2, h / _sqrt2];
-                                let _scr_capt = images.capt();
-                                let _avt_clip = images.clip(
-                                    _scr_capt,
-                                    // A. get the biggest rectangle area inside the circle (or ellipse)
-                                    // B. one pixel from each side of the area was removed
-                                    l + (w - w_chop) / 2 + 1,
-                                    t + (h - h_chop) / 2 + 1,
-                                    w_chop - 2,
-                                    h_chop - 2
-                                );
 
-                                images.reclaim(_scr_capt);
-                                _scr_capt = null;
-
+                                let _avt_clip;
+                                let _this = this;
+                                waitForAction(() => _this.checkGreen(_avt_clip = _getAvtClip()), 2000);
                                 return _avt_clip;
 
                                 // tool function(s) //
@@ -2676,16 +2658,38 @@ let $$init = {
                                     }
                                     return null;
                                 }
+
+                                function _getAvtClip() {
+                                    let _sqrt2 = Math.SQRT2;
+                                    // chop: here means chopped
+                                    let [w_chop, h_chop] = [w / _sqrt2, h / _sqrt2];
+                                    let _scr_capt = imagesx.capt();
+                                    let _clip = images.clip(
+                                        _scr_capt,
+                                        // A. get the biggest rectangle area inside the circle (or ellipse)
+                                        // B. one pixel from each side of the area was removed
+                                        l + (w - w_chop) / 2 + 1,
+                                        t + (h - h_chop) / 2 + 1,
+                                        w_chop - 2,
+                                        h_chop - 2
+                                    );
+                                    imagesx.reclaim(_scr_capt);
+                                    _scr_capt = null;
+                                    return _clip;
+                                }
                             },
                             save(path) {
                                 let _avt_clip = this._avt_clip_cached || this.getAvtClip();
                                 if (_avt_clip) {
                                     images.save(_avt_clip, path || this._path);
-                                    images.reclaim(_avt_clip);
+                                    imagesx.reclaim(_avt_clip);
                                     _avt_clip = null;
                                     delete this._avt_clip_cached;
                                     return true;
                                 }
+                            },
+                            checkGreen(clip) {
+                                return !this._isTotalGreen(clip);
                             },
                         },
                         _avail() {
@@ -2706,7 +2710,7 @@ let $$init = {
                             if (!this._avail()) {
                                 return;
                             }
-                            if (this._avatar.check()) {
+                            if (this._avatar.isValid()) {
                                 return true;
                             }
 
@@ -2858,7 +2862,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _screenOn() {
-                        if ($$dev.is_init_screen_on) {
+                        if ($$unlk.is_init_screen_on) {
                             return true;
                         }
                         debugInfo(["跳过前置应用黑名单检测", ">屏幕未亮起"]);
@@ -2980,7 +2984,7 @@ let $$init = {
                 },
                 get _sto_ids() {
                     let _all = $$sto.af.get(_keys.ins_tasks, []);
-                    return _all.filter(id => timers.getTimedTask(id));
+                    return _all.filter(id => timersx.getTimedTask(id));
                 },
                 get _next_task_time() {
                     return $$app.ts + $$cfg[_keys.ins_itv] * 60e3;
@@ -2990,7 +2994,7 @@ let $$init = {
                     let _str = "";
 
                     if (_ids.length) {
-                        _ids.forEach(id => timers.removeTimedTask(id));
+                        _ids.forEach(id => timersx.removeTimedTask(id));
                         _str += "任务ID: ";
                         _str += _ids.length > 1
                             ? surroundWith(_ids.join(", "), "[ ", " ]")
@@ -3008,7 +3012,7 @@ let $$init = {
                     return _self;
                 },
                 deploy() {
-                    this.task = timers.addDisposableTask({
+                    this.task = timersx.addDisposableTask({
                         path: $$app.cwp,
                         date: this._next_task_time,
                     });
@@ -3019,10 +3023,10 @@ let $$init = {
                     return _self;
                 },
                 monitor() {
-                    this._thread = threads.starts(function () {
+                    this._thread = threadsx.starts(function () {
                         setInterval(() => {
                             _self.task.setMillis(_self._next_task_time);
-                            timers.updateTimedTask(_self.task);
+                            timersx.updateTimedTask(_self.task);
                         }, 10e3);
                     });
 
@@ -3037,7 +3041,7 @@ let $$init = {
                 remove() {
                     let _id = this.id;
                     if (~_id) {
-                        timers.removeTimedTask(_id);
+                        timersx.removeTimedTask(_id);
                     }
                     return _self;
                 }
@@ -3051,7 +3055,7 @@ let $$init = {
                 maxRun() {
                     let _max = +$$cfg.max_running_time_global;
 
-                    _max && threads.starts(function () {
+                    _max && threadsx.starts(function () {
                         setTimeout(function () {
                             ui.post(() => {
                                 let _s = "超时强制退出";
@@ -3072,7 +3076,7 @@ let $$init = {
                         return _name + " (" + _code + ")";
                     };
 
-                    threads.starts(function () {
+                    threadsx.starts(function () {
                         events.observeKey();
                         events.setKeyInterceptionEnabled("volume_up", true);
                         events.onceKeyDown("volume_up", function (e) {
@@ -3201,7 +3205,7 @@ let $$init = {
                                 },
                             });
 
-                            threads.starts(function () {
+                            threadsx.starts(function () {
                                 let _handleTrigger = () => {
                                     _self.onTrigger();
                                     _self.onTriggerMsg();
@@ -3267,7 +3271,7 @@ let $$init = {
                                             $$sto.af_cfg.put("config", _dat);
                                         },
                                     };
-                                    return $$dev.getCallState() !== getCurState();
+                                    return devicex.getCallState() !== getCurState();
 
                                     // tool function(s) //
 
@@ -3278,7 +3282,7 @@ let $$init = {
                                         }
 
                                         // won't write into storage
-                                        _cur_state = $$dev.getCallState();
+                                        _cur_state = devicex.getCallState();
 
                                         let _sto = _stoSetter();
                                         return $$und(_sto.filled_up) ? _sto.fillIn() : _sto.reap();
@@ -3312,7 +3316,7 @@ let $$init = {
                                                     }
                                                 },
                                                 fillIn() {
-                                                    if ($$und(_cur_state)) _cur_state = $$dev.getCallState();
+                                                    if ($$und(_cur_state)) _cur_state = devicex.getCallState();
                                                     this.states = _cur_state;
                                                     debugInfo([
                                                         "已存储通话状态数据",
@@ -3343,7 +3347,7 @@ let $$init = {
                                 trigger() {
                                     return $$flag.dev_unlocked
                                         && !$$flag.glob_e_scr_paused
-                                        && !$$dev.isScreenOn();
+                                        && !device.isScreenOn();
                                 },
                                 onTrigger() {
                                     if ($$flag.glob_e_scr_privilege) {
@@ -3354,7 +3358,7 @@ let $$init = {
                                 },
                                 onRelease() {
                                     $$flag.glob_e_trig_counter++;
-                                    $$dev.isLocked() && $$dev.unlock();
+                                    $$unlk.isLocked() && $$unlk.unlock();
                                     $$flag.glob_e_trig_counter--;
                                 },
                             },
@@ -3362,7 +3366,7 @@ let $$init = {
                     }
                 },
                 logOut() {
-                    threads.starts(function () {
+                    threadsx.starts(function () {
                         debugInfo("已开启账户登出监测线程");
 
                         delete $$flag.acc_logged_out;
@@ -3480,11 +3484,9 @@ let $$init = {
                     }
                 }),
                 rl_in_page: new Monitor("排行榜页面", function () {
-                    let _n = "rl_title"; // name
-                    let _t = "bounds"; // type
                     while (1) {
-                        $$sel.cache.refresh(_n); // contains save()
-                        $$flag.rl_in_page = $$sel.cache.load(_n, _t);
+                        $$sel.cache.refresh("rl_title"); // including `save()
+                        $$flag.rl_in_page = $$sel.cache.load("rl_title", "bounds");
                         sleep(120);
                     }
                 }),
@@ -3515,7 +3517,7 @@ let $$init = {
                         debugInfo(">" + _sel_str + ": " + _sel_body);
                         $$flag.rl_bottom_rch = true;
 
-                        let _capt = images.capt();
+                        let _capt = imagesx.capt();
                         let _clip = images.clip(_capt, _l, _t, _w, _h);
                         let _path = $$app.page.rl.btm_tpl.path;
                         $$app.page.rl.btm_tpl.reclaim();
@@ -3523,7 +3525,7 @@ let $$init = {
                         images.save(_clip, _path);
                         debugInfo("已存储列表底部控件图片模板");
 
-                        images.reclaim(_capt, _clip);
+                        imagesx.reclaim(_capt, _clip);
                         _capt = null;
                         _clip = null;
 
@@ -3565,7 +3567,7 @@ let $$init = {
                     }
                     _thd = null;
                     debugInfo("开启" + name + "监测线程");
-                    return _thd = threads.starts(thr_f);
+                    return _thd = threadsx.starts(thr_f);
                 };
                 this.interrupt = function () {
                     if (_thd && !this.disabled) {
@@ -3583,8 +3585,8 @@ let $$init = {
         }
     },
     unlock() {
-        let _is_scr_on = $$dev.is_init_screen_on;
-        let _is_dev_unlk = $$dev.isUnlocked();
+        let _is_scr_on = $$unlk.is_init_screen_on;
+        let _is_dev_unlk = $$unlk.isUnlocked();
 
         if (!$$cfg.auto_unlock_switch) {
             if (!_is_scr_on) {
@@ -3600,7 +3602,7 @@ let $$init = {
         if (_is_dev_unlk && _is_scr_on) {
             debugInfo("无需解锁");
         } else {
-            $$dev.unlock();
+            $$unlk.unlock();
         }
         $$flag.dev_unlocked = true;
 
@@ -3641,7 +3643,7 @@ let $$init = {
                             debugInfo('用户' + (_box ? '已' : '没有') + '勾选"不再提示"');
                             debugInfo('用户点击"' + _btn + '"按钮');
                         };
-                        let _diag_prompt = dialogs.builds([
+                        let _diag_prompt = dialogsx.builds([
                             "参数调整提示", "settings_never_launched",
                             0, "跳过", "现在配置", 1, 1
                         ]).on("negative", (d_self) => {
@@ -3652,7 +3654,7 @@ let $$init = {
                             _action.posBtn(d_self);
                         });
 
-                        return dialogs.disableBack(_diag_prompt);
+                        return dialogsx.disableBack(_diag_prompt);
                     }
 
                     function actionSetter() {
@@ -3698,10 +3700,10 @@ let $$init = {
                         return debugInfo('"运行前提示"未开启');
                     }
                     if ($$cfg.prompt_before_running_auto_skip) {
-                        if (!$$dev.is_init_screen_on) {
+                        if (!$$unlk.is_init_screen_on) {
                             return debugInfo([_skip, ">屏幕未亮起"]);
                         }
-                        if (!$$dev.is_init_unlocked) {
+                        if (!$$unlk.is_init_unlocked) {
                             return debugInfo([_skip, ">设备未解锁"]);
                         }
                     }
@@ -3714,7 +3716,7 @@ let $$init = {
                     let _sec = +$$cfg.prompt_before_running_countdown_seconds + 1;
                     let _diag = _promptSetter();
                     let _action = _actionSetter();
-                    let _thd_et = threads.starts(_thdEt);
+                    let _thd_et = threadsx.starts(_thdEt);
 
                     _diag.show();
                     _action.wait();
@@ -3727,7 +3729,7 @@ let $$init = {
                             let _regexp = / *\[ *\d+ *] */;
                             debugInfo('用户点击"' + _btn.replace(_regexp, "") + '"按钮');
                         };
-                        let _diag_prompt = dialogs
+                        let _diag_prompt = dialogsx
                             .builds([
                                 "运行提示", "\n即将在 " + _sec + " 秒内运行" + $$app.task_name + "任务\n",
                                 ["推迟运行", "warn_btn_color"],
@@ -3748,7 +3750,7 @@ let $$init = {
                                 _action.posBtn(d);
                             });
 
-                        return dialogs.disableBack(_diag_prompt, () => _action.pause(100));
+                        return dialogsx.disableBack(_diag_prompt, () => _action.pause(100));
                     }
 
                     function _actionSetter() {
@@ -3761,13 +3763,13 @@ let $$init = {
                             negBtn(d) {
                                 this.pause(300);
 
-                                dialogs
+                                dialogsx
                                     .builds(getBuildsParam())
                                     .on("negative", (d_self) => {
-                                        dialogs.dismiss(d_self);
+                                        dialogsx.dismiss(d_self);
                                     })
                                     .on("positive", (d_self) => {
-                                        dialogs.dismiss(d_self, d);
+                                        dialogsx.dismiss(d_self, d);
                                         $$app.monitor.insurance.interrupt().remove();
                                         let _m = "放弃" + $$app.task_name + "任务";
                                         messageAction(_m, 1, 1, 0, "both");
@@ -3779,7 +3781,7 @@ let $$init = {
 
                                 function getBuildsParam() {
                                     let _ins_id = $$app.monitor.insurance.id;
-                                    let _task_len = timers.queryTimedTasks({
+                                    let _task_len = timersx.queryTimedTasks({
                                         path: $$app.cwp,
                                     }).filter((task) => task.id !== _ins_id).length;
                                     let _task_str = $$app.task_name + "定时任务";
@@ -3837,7 +3839,7 @@ let $$init = {
                                 let _map = _cfg.def_choices; // ["1 min", "5 min"...]
                                 let _map_keys = Object.keys(_map); // [1, 2, 5, 10...]
 
-                                dialogs
+                                dialogsx
                                     .builds([
                                         "设置任务推迟时间", "",
                                         0, "返回", ["确定", "warn_btn_color"],
@@ -3851,9 +3853,9 @@ let $$init = {
                                         d_self.dismiss();
                                     })
                                     .on("positive", (d_self) => {
-                                        dialogs.dismiss(d_self, d);
+                                        dialogsx.dismiss(d_self, d);
                                         _cfg.user_min = _map_keys[d_self.getSelectedIndex()];
-                                        if (d_self.promptCheckBoxChecked) {
+                                        if (d_self.isPromptCheckBoxChecked()) {
                                             _cfg.sto_min = _cfg.user_min;
                                         }
                                         $$app.monitor.insurance.interrupt().clean();
@@ -3864,7 +3866,7 @@ let $$init = {
                             pause(interval) {
                                 _thd_et.interrupt();
                                 setTimeout(function () {
-                                    let _cont = dialogs.getContentText(_diag);
+                                    let _cont = dialogsx.getContentText(_diag);
                                     let _cont_txt = _cont.replace(
                                         /.*(".+".*任务).*/, "请选择$1运行选项"
                                     );
@@ -3889,7 +3891,7 @@ let $$init = {
 
                     function _thdEt() {
                         while (--_sec) {
-                            let _cont = dialogs.getContentText(_diag);
+                            let _cont = dialogsx.getContentText(_diag);
                             _diag.setContent(_cont.replace(/\d+/, _sec));
                             let _pos = _diag.getActionButton("positive");
                             let _pos_str = _pos.replace(/ *\[ *\d+ *]$/, "");
@@ -3963,8 +3965,8 @@ let $$init = {
                             $$app.task_name = surroundWith("好友列表数据采集");
                             messageAction("正在采集好友列表数据", 1, 1, 0, "both");
 
-                            let _thd_swipe = threads.starts(_thdSwipe);
-                            let _thd_expand_lst = threads.starts(_thdExpandLst);
+                            let _thd_swipe = threadsx.starts(_thdSwipe);
+                            let _thd_expand_lst = threadsx.starts(_thdExpandLst);
                             _thd_expand_lst.join(5 * 60e3);
                             _thd_expand_lst.interrupt();
                             _thd_swipe.interrupt();
@@ -4131,8 +4133,8 @@ let $$init = {
 
                             function _byPipeline() {
                                 let _name = "";
-                                let _thd_get_name = threads.starts(_thdGetName);
-                                let _thd_mon_logout = threads.starts(_thdMonLogout);
+                                let _thd_get_name = threadsx.starts(_thdGetName);
+                                let _thd_mon_logout = threadsx.starts(_thdMonLogout);
 
                                 let _cond = () => _name || $$flag.acc_logged_out;
                                 waitForAction(_cond, 12e3);
@@ -4279,16 +4281,16 @@ let $$af = {
             },
             captReady() {
                 // CAUTION:
-                // images.capt() contains images.permitCapt()
+                // imagesx.capt() contains imagesx.permitCapt()
                 // however, which is not recommended to be used
                 // into a Java Thread at the first time
                 // as capture permission will be forcibly interrupted
                 // with this thread killed in a short time (about 300ms)
-                images.permitCapt();
+                imagesx.permitCapt();
             },
             displayReady() {
-                if (!$$0($$dev.screen_orientation)) {
-                    $$dev.getDisplay(true);
+                if (!$$0(global.scrO)) {
+                    devicex.getDisplay(true);
                 }
             },
             languageReady() {
@@ -4334,7 +4336,7 @@ let $$af = {
                 eballs(type, options) {
                     let _opt = options || {};
                     if (!_opt.cache || !Object.size(this.home_balls_info)) {
-                        this.home_balls_info = images.findAFBallsByHough({
+                        this.home_balls_info = imagesx.findAFBallsByHough({
                             no_debug_info: _opt.no_debug_info,
                             no_orange_ball: true,
                         });
@@ -4347,7 +4349,7 @@ let $$af = {
                 cleaner: {
                     imgWrapper() {
                         $$af && Object.keys($$af).forEach((key) => (
-                            images.reclaim($$af[key])
+                            imagesx.reclaim($$af[key])
                         ));
                     },
                     eballs() {
@@ -4403,9 +4405,9 @@ let $$af = {
                 let _total = this._getEmount("buf");
                 debugInfo("初始能量: " + ($$af.emount_t_own = _total) + "g");
 
-                let _avt = $$app.avatar_checked_time;
-                if (_avt) {
-                    debugInfo("主账户检测耗时: " + _avt);
+                let _avt_du = $$app.avatar_checked_time;
+                if (_avt_du) {
+                    debugInfo("主账户检测耗时: " + _avt_du);
                     delete $$app.avatar_checked_time;
                 }
 
@@ -4415,7 +4417,7 @@ let $$af = {
 
                 return this;
             },
-            collect: function () {
+            collect() {
                 let _own = this;
                 _detect() && _check();
                 _result();
@@ -4511,9 +4513,9 @@ let $$af = {
                                     }
                                     let _result = [];
                                     if (_cache.length) {
-                                        let _capt = images.capt();
+                                        let _capt = imagesx.capt();
                                         _cache.forEach((o) => {
-                                            images.isRipeBall(o, _capt, _result);
+                                            imagesx.isRipeBall(o, _capt, _result);
                                         });
                                         _capt.recycle();
                                         _capt = null;
@@ -4574,32 +4576,29 @@ let $$af = {
                         function _ctdTrigger() {
                             debugInfo("开始检测自己能量球最小倒计时");
 
+                            $$af.min_ctd_own = Infinity;
                             let _nor_balls = $$af.eballs("naught", {cache: true});
                             let _len = _nor_balls.length;
                             if (!_len) {
-                                $$af.min_ctd_own = Infinity;
                                 return debugInfo("未发现未成熟的能量球");
                             }
                             debugInfo("找到自己未成熟能量球: " + _len + "个");
 
                             let _t_spot = timeRecorder("ctd_own");
-                            let _min_ctd_own = Math.mini(_getCtdData());
+                            let _min_own_ripe_ts = Math.mini(_getOwnRipeTs());
 
-                            if (!$$posNum(_min_ctd_own)) {
-                                $$af.min_ctd_own = Infinity;
+                            if (!$$posNum(_min_own_ripe_ts)) {
                                 return debugInfo("自己能量最小倒计时数据无效", 3);
                             }
-                            if ($$inf(_min_ctd_own)) {
-                                $$af.min_ctd_own = Infinity;
+                            if ($$inf(_min_own_ripe_ts)) {
                                 return debugInfo("自己能量倒计时数据为空");
                             }
 
-                            let _par = ["ctd_own", "L", 60e3, 0, "", _min_ctd_own];
-                            let _remain = +timeRecorder.apply({}, _par);
-                            $$af.min_ctd_own = _min_ctd_own;
+                            $$af.min_ctd_own = _min_own_ripe_ts;
 
+                            let _remain = timeRecorder("ctd_own", "L", 60e3, [2], "", _min_own_ripe_ts);
                             debugInfo("自己能量最小倒计时: " + _remain + "分钟");
-                            debugInfo("时间: " + $$app.tool.timeStr(_min_ctd_own));
+                            debugInfo("时间: " + $$app.tool.timeStr(_min_own_ripe_ts));
 
                             let _cA = $$cfg.homepage_monitor_switch;
                             let _cB = _remain <= $$af.thrd_mon_own;
@@ -4611,7 +4610,7 @@ let $$af = {
 
                             // tool function(s) //
 
-                            function _getCtdData() {
+                            function _getOwnRipeTs() {
                                 timeRecorder("ctd_data");
 
                                 let _tt = 12e3;
@@ -4622,8 +4621,8 @@ let $$af = {
                                 };
                                 let _remainT = () => _tt - timeRecorder("ctd_data", "L");
                                 let _ctd_data = [];
-                                let _thd_ocr = threads.starts(_thdOcr);
-                                let _thd_toast = threads.starts(_thdToast);
+                                let _thd_ocr = threadsx.starts(_thdOcr);
+                                let _thd_toast = threadsx.starts(_thdToast);
 
                                 _thd_toast.join(1.5e3);
 
@@ -4646,7 +4645,7 @@ let $$af = {
                                     messageAction(_str_b1 + _str_b2, 3, 0, 0, 1);
                                 }
 
-                                return _ctd_data.map(str => {
+                                return _ctd_data.map((str) => {
                                     let _mch = str.match(/\d+:\d+/);
                                     if (!_mch) {
                                         messageAction("无效字串:", 3);
@@ -4666,7 +4665,7 @@ let $$af = {
                                 function _thdOcr() {
                                     debugInfo("已开启倒计时数据OCR识别线程");
 
-                                    let _capt = images.capt();
+                                    let _capt = imagesx.capt();
                                     let [_cl, _ct, _cr, _cb] = $$cfg.forest_balls_rect_region;
                                     let _cw = _cr - _cl;
                                     let _ch = _cb - _ct;
@@ -4680,7 +4679,7 @@ let $$af = {
                                         capt_img: _clip,
                                     });
 
-                                    debugInfo("OCR识别线程已获取数据")
+                                    debugInfo("OCR识别线程已获取数据");
                                     debugInfo("原始数据:");
                                     // nested data should be applied (not called)
                                     debugInfo(util.format.apply(util, _raw_data));
@@ -4711,7 +4710,7 @@ let $$af = {
                                     // flat data should be called (not applied)
                                     debugInfo(util.format.call(util, _proc_data));
 
-                                    images.reclaim(_capt, _clip, _stitched);
+                                    imagesx.reclaim(_capt, _clip, _stitched);
                                     _capt = _clip = _stitched = null;
 
                                     if (!_proc_data.length) {
@@ -4790,7 +4789,7 @@ let $$af = {
                             timeRecorder("monitor_own");
                             $$app.monitor.af_home_in_page.start();
 
-                            $$dev.keepOn(_tt);
+                            devicex.keepOn(_tt);
                             while (timeRecorder("monitor_own", "L") < _tt) {
                                 if ($$flag.af_home_in_page) {
                                     _debugPageState();
@@ -4803,7 +4802,7 @@ let $$af = {
                                 _debugPageState();
                                 sleep(180);
                             }
-                            $$dev.cancelOn();
+                            devicex.cancelOn();
                             $$app.monitor.af_home_in_page.interrupt();
                             delete $$flag.af_home_in_page;
                             $$af.cleaner.eballs(); // clear cache
@@ -4867,9 +4866,9 @@ let $$af = {
                                 messageAction(_sB, 3, 0, 1, 1);
                                 return _res;
                             }
-                            let _capt = images.capt();
+                            let _capt = imagesx.capt();
                             for (let coord of _wb_cache) {
-                                if (images.isWball(coord, _capt)) {
+                                if (imagesx.isWaterBall(coord, _capt)) {
                                     _wb_info.coord = coord;
                                     _res = true;
                                     break;
@@ -5127,7 +5126,7 @@ let $$af = {
                     }
 
                     function _fromActivity() {
-                        app.startActivity({
+                        appx.startActivity({
                             action: "VIEW",
                             data: "alipays://platformapi/startapp?appId=20000141",
                         });
@@ -5315,7 +5314,7 @@ let $$af = {
                         let _w = _capt.getWidth() - _x;
                         let _h = _capt.getHeight() - _y;
                         let _clip = images.clip(_capt, _x, _y, _w, _h);
-                        let _res = images.matchTpl(_clip, _ic_img, {
+                        let _res = imagesx.matchTpl(_clip, _ic_img, {
                             name: _ic_k + "_" + W + "p",
                             max: 20,
                             range: [28, 30],
@@ -5444,12 +5443,12 @@ let $$af = {
                             }
 
                             function _monitor() {
-                                _thd_info_collect = threads.starts(_thdInfoCollect);
+                                _thd_info_collect = threadsx.starts(_thdInfoCollect);
                             }
 
                             function _thdInfoCollect() {
                                 debugInfo("已开启好友森林信息采集线程");
-                                let _eballs_o = images.findAFBallsByHough({
+                                let _eballs_o = imagesx.findAFBallsByHough({
                                     pool: $$app.page.fri.pool,
                                     keep_pool_data: true,
                                 });
@@ -5542,7 +5541,7 @@ let $$af = {
                                     }
 
                                     let _w_cvr = null;
-                                    let _thd_auto_expand = threads.starts(_autoExpand);
+                                    let _thd_auto_expand = threadsx.starts(_autoExpand);
 
                                     _getTs() && _addBlist();
 
@@ -5558,9 +5557,7 @@ let $$af = {
                                         let _lst_more = $$sel.pickup("点击加载更多");
 
                                         while (_ctr++ < 50) {
-                                            waitForAndClickAction(
-                                                _lst_more, 3e3, 120, _par
-                                            )
+                                            waitForAndClickAction(_lst_more, 3e3, 120, _par);
                                             sleep(_ctr < 12 ? 200 : 900);
                                         }
                                     }
@@ -5669,7 +5666,7 @@ let $$af = {
 
                                 function _pick() {
                                     if (_fri.trig_pick) {
-                                        $$app.thd_pick = threads.starts(function () {
+                                        $$app.thd_pick = threadsx.starts(function () {
                                             debugInfo("已开启能量球收取线程");
                                             let _ripe = _fri.eballs.ripe;
                                             if (_ripe.length) {
@@ -6094,8 +6091,8 @@ let $$af = {
                         $$impeded("排行榜滑动流程");
 
                         let _et_scan = timeRecorder("rl_scan", "L") || 0;
-                        let _itv = $$cfg.rank_list_swipe_interval.restrict(5, 800);
-                        let _du = $$cfg.rank_list_swipe_time.restrict(100, 800);
+                        let _itv = $$cfg.rank_list_swipe_interval.clamp(5, 800);
+                        let _du = $$cfg.rank_list_swipe_time.clamp(100, 800);
                         let _dist = $$cfg.rank_list_swipe_distance;
                         if (_dist < 1) {
                             _dist = Math.trunc(_dist * H);
@@ -6247,7 +6244,7 @@ let $$af = {
                                 debugInfo([_sA, _sB]);
                                 $$flag.rl_bottom_rch = true;
 
-                                let _capt = images.capt();
+                                let _capt = imagesx.capt();
                                 let _clip = images.clip.apply({}, [
                                     _capt, _l, _t, _w - 3, _h - 3
                                 ]);
@@ -6256,7 +6253,7 @@ let $$af = {
                                 $$app.page.rl.btm_tpl.reclaim();
                                 $$app.page.rl.btm_tpl.img = _clip;
                                 images.save(_clip, _path);
-                                images.reclaim(_capt, _clip);
+                                imagesx.reclaim(_capt, _clip);
                                 _capt = _clip = null;
 
                                 debugInfo("列表底部控件图片模板已更新");
@@ -6379,7 +6376,7 @@ let $$af = {
                     return debugInfo([_m_q, "检测到复查停止信号"]);
                 }
 
-                let _trig = msg => {
+                let _trig = (msg) => {
                     let _msg = "触发排行榜样本复查条件:";
                     debugInfo([_msg, msg], "both");
                     return $$flag.rl_review = true;
@@ -6532,7 +6529,7 @@ let $$af = {
                                 return true;
                             }
                         }
-                    }
+                    };
                     let _rec_now = $$app.now;
                     let _d_ms = 24 * 3.6e6;
                     let _d_str = _rec_now.toDateString() + " ";
@@ -6588,7 +6585,7 @@ let $$af = {
                     _type.name += "_restrained";
                 }
 
-                $$app.thd_set_auto_task = threads.starts(function () {
+                $$app.thd_set_auto_task = threadsx.starts(function () {
                     let _task = _update() || _add();
                     let _nxt_str = $$app.tool.timeStr(_next);
                     messageAction("任务ID: " + _task.id, 1, 0, 1);
@@ -6605,7 +6602,7 @@ let $$af = {
                     let _sto_nxt = $$sto.af.get("next_auto_task", {});
                     let _sto_id = _sto_nxt.task_id;
                     if (_sto_id) {
-                        let _sto_task = timers.getTimedTask(_sto_id);
+                        let _sto_task = timersx.getTimedTask(_sto_id);
                         if (_sto_task) {
                             return _updateTask(_sto_task);
                         }
@@ -6616,7 +6613,7 @@ let $$af = {
                     function _updateTask(task) {
                         debugInfo("开始更新自动定时任务");
                         task.setMillis(_next);
-                        timers.updateTimedTask(task);
+                        timersx.updateTimedTask(task);
 
                         $$sto.af.put("next_auto_task", {
                             task_id: _sto_id,
@@ -6633,7 +6630,7 @@ let $$af = {
 
                 function _add() {
                     let _par = {path: $$app.cwp, date: _next};
-                    let _task = timers.addDisposableTask(_par);
+                    let _task = timersx.addDisposableTask(_par);
 
                     $$sto.af.put("next_auto_task", {
                         task_id: _task.id,
@@ -6726,7 +6723,30 @@ let $$af = {
                         _cvr_win.setTouchable(true);
                         _cvr_win.setSize(-1, -1);
                         _cvr_win["cover"].on("click", _onClick);
-                        _cvr_win["cover"].setOnTouchListener(_onTouch);
+                        _cvr_win["cover"].setOnTouchListener({
+                            onTouch: (view, e) => {
+                                if (!$$flag.floaty_usr_touch) {
+                                    let _ME = android.view.MotionEvent;
+                                    let _act = e.getAction();
+
+                                    if (_act === _ME.ACTION_DOWN) {
+                                        let _thrd = cYx(0.12);
+                                        $$flag.floaty_usr_touch = e.getY() > _thrd;
+                                    }
+                                    if (_act === _ME.ACTION_MOVE) {
+                                        $$flag.floaty_usr_touch = true;
+                                    }
+                                    if (_act === _ME.ACTION_UP) {
+                                        let _e_t = e.getEventTime();
+                                        let _dn_t = e.getDownTime();
+                                        $$flag.floaty_usr_touch = _e_t - _dn_t > 200;
+                                    }
+                                }
+                                // touch event will be given to the 'cover' view
+                                // instead of being consumed
+                                return false;
+                            },
+                        });
 
                         let _h = _getHeights();
                         let _lyt = _getLayouts();
@@ -6969,29 +6989,6 @@ let $$af = {
                                 keycode(4, {double: true});
                             }
                         }
-
-                        function _onTouch(view, e) {
-                            if (!$$flag.floaty_usr_touch) {
-                                let _me = android.view.MotionEvent;
-                                let _act = e.getAction();
-
-                                if (_act === _me.ACTION_DOWN) {
-                                    let _thrd = cYx(0.12);
-                                    $$flag.floaty_usr_touch = e.getY() > _thrd;
-                                }
-                                if (_act === _me.ACTION_MOVE) {
-                                    $$flag.floaty_usr_touch = true;
-                                }
-                                if (_act === _me.ACTION_UP) {
-                                    let _e_t = e.getEventTime();
-                                    let _dn_t = e.getDownTime();
-                                    $$flag.floaty_usr_touch = _e_t - _dn_t > 200;
-                                }
-                            }
-                            // event will be involved by onClickListener
-                            // instead of being consumed
-                            return false;
-                        }
                     }
                 }
             });
@@ -7132,7 +7129,7 @@ let $$af = {
                 function _bugModel() {
                     // poor guy, don't cry... [:sweat_smile:]
                     let _bug = [/[Mm]eizu/];
-                    let _brand = $$dev.brand;
+                    let _brand = device.brand;
                     let _len = _bug.length;
                     for (let i = 0; i < _len; i += 1) {
                         if (_brand.match(_bug[i])) {
@@ -7149,7 +7146,9 @@ let $$af = {
             // by modifying android settings provider
             function _scrOffBySetAsync() {
                 let _sto = storages.create("scr_off_by_set");
-                let {System, Global, Secure} = android.provider.Settings;
+                let System = android.provider.Settings.System;
+                let Global = android.provider.Settings.Global;
+                let Secure = android.provider.Settings.Secure;
                 let _scr_off_tt = System.SCREEN_OFF_TIMEOUT;
                 let _dev_set_enabl = Secure.DEVELOPMENT_SETTINGS_ENABLED;
                 let _stay_on_plug = Global.STAY_ON_WHILE_PLUGGED_IN;
@@ -7231,17 +7230,19 @@ let $$af = {
                             // transferred to the view beneath
                             _cvr_win.setTouchable(true);
                             _cvr_win.setSize(-1, -1);
-                            _cvr_win["cover"].setOnTouchListener(function () {
-                                $$flag.scr_off_intrp_by_usr = true;
+                            _cvr_win["cover"].setOnTouchListener({
+                                onTouch() {
+                                    $$flag.scr_off_intrp_by_usr = true;
 
-                                let _s = ["中止屏幕关闭", "检测到屏幕触碰"];
-                                toast(_s.join("\n"), "Long", "Force");
-                                debugInfo("__split_line__");
-                                debugInfo(_s);
-                                debugInfo("__split_line__");
+                                    let _s = ["中止屏幕关闭", "检测到屏幕触碰"];
+                                    toast(_s.join("\n"), "Long", "Force");
+                                    debugInfo("__split_line__");
+                                    debugInfo(_s);
+                                    debugInfo("__split_line__");
 
-                                _cvr_win.close();
-                                return false;
+                                    _cvr_win.close();
+                                    return false;
+                                },
                             });
                         }();
 
@@ -7316,7 +7317,7 @@ let $$af = {
                     }
 
                     function _condition(reso) {
-                        if (!$$dev.isScreenOn()) {
+                        if (!device.isScreenOn()) {
                             let _et = timeRecorder("set_provider", "L", "auto");
                             debugInfo("策略执行成功");
                             debugInfo("用时: " + _et);
@@ -7329,18 +7330,11 @@ let $$af = {
             }
         },
         exitNow: () => $$app.exit(),
-        err: function (e) {
+        err(e) {
             messageAction(e.message, 4, 1, 0, -1);
             messageAction(e.stack, 4, 0, 0, 1);
             $$app.exit();
         },
-    },
-    link() {
-        let _c = this._collector;
-        _c.parent = this;
-        _c.own.parent = _c.fri.parent = _c;
-        delete this.link;
-        return this;
     },
     launch() {
         this._launcher.greet().assign().home().ready();
@@ -7365,16 +7359,23 @@ let $$af = {
             .then(_.exitNow)
             .catch(_.err);
     },
-};
+    bind() {
+        let _c = this._collector;
+        _c.parent = this;
+        _c.own.parent = _c.fri.parent = _c;
+        delete this.bind; // optional
+        return this;
+    },
+}.bind();
 
 // entrance //
 $$init.check().global().queue().delay().monitor().unlock().prompt().command();
 
-$$af.link().launch().collect().timers().epilogue();
+$$af.launch().collect().timers().epilogue();
 
 /**
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparision (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompress(ed) | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget_collection | win: window
+ * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
  */

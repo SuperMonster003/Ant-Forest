@@ -1,5 +1,4 @@
-let $_file = global.files = global.files || {};
-$_file.__proto__ = $_file.__proto__ || {};
+global.filesx = typeof global.filesx === "object" ? global.filesx : {};
 
 let ext = {
     zip(input_path, output_path, dialog) {
@@ -172,7 +171,7 @@ let ext = {
             BufferedOutputStream: BOS,
         } = java.io;
 
-        let {ZipFile: ZF} = java.util.zip;
+        let ZF = java.util.zip.ZipFile;
 
         let _t_file_sz = 0;
         let _uncompr_sz = 0;
@@ -308,4 +307,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign($_file, ext);
+module.exports.load = () => global.filesx = ext;

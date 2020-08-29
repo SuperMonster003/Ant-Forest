@@ -1,6 +1,8 @@
-let {Mat} = com.stardust.autojs.core.opencv;
-let {Imgproc} = org.opencv.imgproc;
-let {Core, Size} = org.opencv.core;
+global.imagesx = typeof global.imagesx === "object" ? global.imagesx : {};
+
+let Mat = com.stardust.autojs.core.opencv.Mat;
+let Imgproc = org.opencv.imgproc.Imgproc;
+let Core = org.opencv.core.Core;
 let _rt_img = runtime.getImages();
 
 if (typeof cX === "undefined" || typeof halfW === "undefined") {
@@ -105,14 +107,21 @@ let ext = {
         toast(_msg);
         exit();
     },
+    capture() {
+        return this.capt.apply(this);
+    },
+    captureScreen() {
+        return this.capt.apply(this);
+    },
+    requestScreenCapture: _requestScreenCapture,
     tryRequestScreenCapture: _permitCapt, // legacy
-    permitCapt: _permitCapt,
     permit: _permitCapt,
+    permitCapt: _permitCapt,
     matchTpl(capt, tpl, opt) {
         let _capt;
         let _no_capt_fg;
         if (!capt) {
-            _capt = images.capt();
+            _capt = this.capt();
             _no_capt_fg = true;
         } else {
             _capt = capt;
@@ -221,7 +230,7 @@ let ext = {
             throw ("findColorInBounds的color参数无效");
         }
 
-        let _img = img || images.capt();
+        let _img = img || this.capt();
         let _srcMch = rex => src.toString().match(rex);
 
         let _bnd;
@@ -415,8 +424,8 @@ let ext = {
         }
 
         function _setWballExtFunction() {
-            if (!images.inTreeArea) {
-                images.inTreeArea = (o) => {
+            if (!imagesx.inTreeArea) {
+                imagesx.inTreeArea = (o) => {
                     // TODO...
                     let _tree_area = {x: halfW, y: cYx(670), r: cX(182)};
                     if (typeof o !== "object" || !o.r) {
@@ -431,9 +440,9 @@ let ext = {
                     return _ct_dist < _ct_dist_min;
                 }
             }
-            if (!images.isWball) {
-                images.isWball = (o, capt, container) => {
-                    let _capt = capt || images.capt();
+            if (!imagesx.isWaterBall) {
+                imagesx.isWaterBall = (o, capt, container) => {
+                    let _capt = capt || ext.capt();
                     let _ctx = o.x;
                     let _cty = o.y;
                     let _offset = o.r / Math.SQRT2;
@@ -468,19 +477,19 @@ let ext = {
                     }
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
 
                     return _result;
                 };
             }
-            if (!images.isRipeBall) {
-                images.isRipeBall = (o, capt, container) => {
-                    if (images.inTreeArea(o)) {
+            if (!imagesx.isRipeBall) {
+                imagesx.isRipeBall = (o, capt, container) => {
+                    if (imagesx.inTreeArea(o)) {
                         return;
                     }
-                    let _capt = capt || images.capt();
+                    let _capt = capt || ext.capt();
                     let _offset = o.r / 4;
                     let _d = _offset * 2;
                     let _color = _cfg.ripe_ball_detect_color;
@@ -490,7 +499,7 @@ let ext = {
                     });
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
 
@@ -502,12 +511,12 @@ let ext = {
                     }
                 };
             }
-            if (!images.isOrangeBall) {
-                images.isOrangeBall = (o, capt, container) => {
-                    if (images.inTreeArea(o)) {
+            if (!imagesx.isOrangeBall) {
+                imagesx.isOrangeBall = (o, capt, container) => {
+                    if (imagesx.inTreeArea(o)) {
                         return false;
                     }
-                    let _capt = capt || images.capt();
+                    let _capt = capt || ext.capt();
                     let _w = cX(115);
                     let _dw = _w / 5 - 1;
                     let _h = cYx(30);
@@ -529,7 +538,7 @@ let ext = {
                     }
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
                     if (_result) {
@@ -781,7 +790,7 @@ let ext = {
                         if (_isRipeBall(o)) {
                             return _addBall(o, "ripe");
                         }
-                        if (!images.inTreeArea(o)) {
+                        if (!imagesx.inTreeArea(o)) {
                             _addBall(o, "naught");
                         }
                     });
@@ -790,12 +799,12 @@ let ext = {
 
                     function _isOrangeBall(o) {
                         if (!_par.no_orange_ball) {
-                            return images.isOrangeBall(o, capt);
+                            return imagesx.isOrangeBall(o, capt);
                         }
                     }
 
                     function _isRipeBall(o) {
-                        return images.isRipeBall(o, capt);
+                        return imagesx.isRipeBall(o, capt);
                     }
 
                     function _addBall(o, type) {
@@ -852,7 +861,7 @@ let ext = {
                             param2: par2 || 15,
                             region: [_l, _t, _w, _h],
                         })
-                        .map(o => {
+                        .map((o) => {
                             // o.x and o.y are relative,
                             // yet x and y are absolute
                             let _x = o.x + _l;
@@ -886,15 +895,15 @@ let ext = {
                     if (!o) {
                         return false;
                     }
-                    if (images.isRipeBall(o, capt)) {
+                    if (imagesx.isRipeBall(o, capt)) {
                         return true;
                     }
-                    return !images.isWball(o, capt, _wballs);
+                    return !imagesx.isWaterBall(o, capt, _wballs);
                 }
             }
         }
 
-        // updated at Jun 3, 2020
+        // updated: Jun 3, 2020
         function _$DEFAULT() {
             return {
                 help_ball_detect_color: "#f99137",
@@ -942,8 +951,10 @@ let ext = {
         // compatible with Auto.js Pro versions
         _finder.__proto__ = Object.assign(_finder.__proto__ || {}, {
             findAllPointsForColor(image, color, threshold, rect) {
-                let {Core, Scalar} = org.opencv.core;
-                let {Mat, OpenCVHelper} = com.stardust.autojs.core.opencv;
+                let Core = org.opencv.core.Core;
+                let Scalar = org.opencv.core.Scalar;
+                let Mat = com.stardust.autojs.core.opencv.Mat;
+                let OpenCVHelper = com.stardust.autojs.core.opencv.OpenCVHelper;
 
                 let _screen_metrics = runtime.getScreenMetrics();
 
@@ -965,7 +976,7 @@ let ext = {
                 // tool function(s) //
 
                 function _findColorInner(image, color, threshold, rect) {
-                    let _bi = Mat();
+                    let _bi = new Mat();
                     let _lower_bound = new Scalar(
                         colors.red(color) - threshold,
                         colors.green(color) - threshold,
@@ -1010,21 +1021,38 @@ let ext = {
         );
     },
 };
-ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.images, ext);
+module.exports.load = () => global.imagesx = ext;
 
 // tool function(s) //
 
-function _newSize(size) {
-    if (!Array.isArray(size)) {
-        size = [size, size];
+function _requestScreenCapture(landscape) {
+    let $$isJvo = x => x && !!x["getClass"];
+    let key = "_$_request_screen_capture";
+    let flag = global[key];
+
+    if ($$isJvo(flag)) {
+        if (flag) {
+            return true;
+        }
+        flag.incrementAndGet();
+    } else {
+        flag = global[key] = threads.atomic(1);
     }
-    if (size.length === 1) {
-        size = [size[0], size[0]];
+
+    const ResultAdapter = require.call(global, "result_adapter");
+    let javaImages = runtime.getImages();
+    let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
+    let orientation;
+    if (typeof landscape === "boolean") {
+        orientation = landscape ? ScreenCapturer.ORIENTATION_LANDSCAPE : ScreenCapturer.ORIENTATION_PORTRAIT;
+    } else {
+        orientation = ScreenCapturer.ORIENTATION_AUTO;
     }
-    return new Size(size[0], size[1]);
+    let result = ResultAdapter.wait(javaImages.requestScreenCapture(orientation));
+    flag.decrementAndGet();
+    return result;
 }
 
 /**
@@ -1048,16 +1076,18 @@ function _newSize(size) {
  * @return {boolean}
  */
 function _permitCapt(params) {
-    let _$$und = x => typeof x === "undefined";
+    let $_und = x => typeof x === "undefined";
     let _$$isJvo = x => x && !!x["getClass"];
-    let _key = "_$_request_screen_capture";
-    let _fg = global[_key];
+    let _key = "_$_ext_images_permit_capt";
+    let _flag = global[_key];
 
-    if (_$$isJvo(_fg)) {
-        if (_fg) return true;
-        _fg.incrementAndGet();
+    if (_$$isJvo(_flag)) {
+        if (_flag) {
+            return true;
+        }
+        _flag.incrementAndGet();
     } else {
-        global[_key] = threads.atomic(1);
+        _flag = global[_key] = threads.atomic(1);
     }
 
     let _par = params || {};
@@ -1081,7 +1111,7 @@ function _permitCapt(params) {
     );
     let _$$sel = _getSelector();
 
-    if (_$$und(_par.restart_this_engine_flag)) {
+    if ($_und(_par.restart_this_engine_flag)) {
         _par.restart_this_engine_flag = true;
     } else {
         let _self = _par.restart_this_engine_flag;
@@ -1124,7 +1154,7 @@ function _permitCapt(params) {
     let _thread_monitor = threads.start(function () {
         if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
             _thread_prompt.interrupt();
-            return _debugInfo("截图权限申请结果: " + _req_result);
+            return _debugInfo("截图权限申请结果: 成功");
         }
         if (typeof $$flag !== "undefined") {
             if (!$$flag.debug_info_avail) {
@@ -1153,13 +1183,10 @@ function _permitCapt(params) {
         _messageAction("截图权限申请失败", 9, 1, 0, 1);
     });
 
-    let _req_result = images.requestScreenCapture(false);
+    let _req_result = _requestScreenCapture(false);
     _thread_monitor.join();
-
-    if (_req_result) {
-        return true;
-    }
-    _fg.decrementAndGet();
+    _flag.decrementAndGet();
+    return _req_result;
 
     // raw function(s) //
 
@@ -1337,7 +1364,7 @@ function _permitCapt(params) {
 function _reclaim() {
     for (let i = 0, len = arguments.length; i < len; i += 1) {
         let img = arguments[i];
-        if (images.isImageWrapper(img)) {
+        if (ext.isImageWrapper(img)) {
             img.recycle();
         }
         /*
@@ -1377,7 +1404,7 @@ function _getDisplay(global_assign, params) {
     _win_svc_disp.getRealMetrics(_metrics);
 
     if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        console.error("device.getDisplay()返回结果异常");
+        console.error("devicex.getDisplay()返回结果异常");
         return {cX: cX, cY: cY, cYx: cYx};
     }
     _showDisp();
@@ -1646,7 +1673,7 @@ function _runJsFile(file_name, e_args) {
     if (e_args) {
         return engines.execScriptFile(_path, {arguments: e_args});
     }
-    return app.startActivity({
+    return (global.appx ? appx : app).startActivity({
         action: "VIEW",
         packageName: context.packageName,
         className: "org.autojs.autojs.external.open.RunIntentActivity",

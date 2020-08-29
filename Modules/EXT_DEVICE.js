@@ -1,10 +1,10 @@
-let $_dev = global.device = global.device || {};
-$_dev.__proto__ = $_dev.__proto__ || {};
+global.devicex = typeof global.devicex === "object" ? global.devicex : {};
 
 let ext = {
     /**
      * device.keepScreenOn()
-     * @param {number} [duration] could be minute (less than 100) or second -- 5 and 300000 both for 5 min
+     * @param {number} [duration=5] -
+     * could be minute (less than 100) or second -- 5 and 300000 both for 5 min
      * @param {object} [params]
      * @param {boolean} [params.debug_info_flag]
      */
@@ -12,7 +12,7 @@ let ext = {
         let _par = params || {};
         let _du = duration || 5;
         _du *= _du < 100 ? 60e3 : 1;
-        $_dev.keepScreenOn(_du);
+        device.keepScreenOn(_du);
         if (_par.debug_info_flag !== false) {
             let _mm = +(_du / 60e3).toFixed(2);
             debugInfo("已设置屏幕常亮");
@@ -26,51 +26,53 @@ let ext = {
      */
     cancelOn(params) {
         let _par = params || {};
-        $_dev.cancelKeepingAwake();
+        device.cancelKeepingAwake();
         if (_par.debug_info_flag !== false) {
             debugInfo("屏幕常亮已取消");
         }
     },
     /**
-     * Vibrate the device with pattern and repeat times
-     * @param pattern {number|array} -- vibrate pattern
-     * <br>
-     * -- odd: delay time; <br>
-     * -- even: vibrate time; <br>
-     * -- nums less than 10 will be multiplied by 1000
-     * @param {number} [repeat=1] -- repeat times
-     * <br>
-     * -- times less than 1 or without number type will be reset to 1
+     * Vibrate the device with a certain pattern
+     * @param {number|number[]} pattern -
+     * an array of longs of times for which to turn the vibrator on or off
+     * @param {number} [repeat=1] -
+     * total repeat times
+     * @param {boolean} [async=true] -
+     * vibrator working asynchronously or not
+     * @see global.device
+     * @see com.stardust.autojs.runtime.api.Device
      * @example
-     * // a pattern and default repeat times (one time)
-     * device.vibrates([0, 0.1, 0.3, 0.1, 0.3, 0.2]);
-     * // pattern could be spread with one-time repeat
-     * device.vibrates(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+     * // async and repeat once
+     * devicex.vibrate(100);
+     * devicex.vibrate([100]);
+     * devicex.vibrate([100, 300, 100, 300, 200]);
      * // repeat twice
-     * device.vibrates([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2);
+     * devicex.vibrate(100, 2); // devicex.vibrate([100, 1000], 2)
+     * devicex.vibrate([100, 300, 100, 300, 200], 2);
+     * // sync (not async)
+     * devicex.vibrate([100, 300, 100, 300, 200], 2, false);
+     * // "SOS" in Morse -- zh-CN: SOS 的摩斯编码
+     * devicex.vibrate([100, 60, 100, 60, 100, 200, 200, 60, 200, 60, 200, 200, 100, 60, 100, 60, 100]);
      */
-    vibrates(pattern, repeat) {
-        let _repeat;
-        let _nums = pattern;
-        if (typeof _nums !== "object") {
-            _nums = [];
-            let _len = arguments.length;
-            for (let i = 0; i < _len; i += 1) {
-                _nums[i] = arguments[i];
-            }
-            _repeat = 1;
-        } else {
-            _repeat = parseInt(repeat);
-            if (!_repeat || _repeat < 0) {
-                _repeat = 1;
-            }
-        }
-        while (_repeat--) {
-            let _len = _nums.length;
-            for (let i = 0; i < _len; i += 1) {
-                let arg = +_nums[i];
-                if (arg < 10) arg *= 1e3;
-                i % 2 ? $_dev.vibrate(arg) : sleep(arg);
+    vibrate(pattern, repeat, async) {
+        let _repeat = repeat || 1;
+        let _async = typeof async === "undefined" ? true : !!async;
+        let _pattern = typeof pattern === "number" ? [pattern] : pattern;
+        _async ? threads.start(_vibrate) : _vibrate();
+
+        // tool function(s) //
+
+        function _vibrate() {
+            let _getNum = (num) => num < 10 ? num * 1e3 : num;
+            while (_repeat--) {
+                _pattern.forEach((num, i) => {
+                    let _num = _getNum(num);
+                    let _prev_num = _getNum(_pattern[i - 1] || 0);
+                    i % 2 ? sleep(_num + _prev_num) : device.vibrate(_num);
+                });
+                if (repeat && _pattern.length % 2) {
+                    sleep(1e3); // default off duration
+                }
             }
         }
     },
@@ -87,8 +89,8 @@ let ext = {
      * // even always returns 0
      */
     getCallState() {
-        let {ITelephony} = com.android.internal.telephony;
-        let {ServiceManager} = android.os;
+        let ITelephony = com.android.internal.telephony.ITelephony;
+        let ServiceManager = android.os.ServiceManager;
 
         let _svr_mgr = ITelephony.Stub.asInterface(
             ServiceManager.checkService("phone")
@@ -117,9 +119,9 @@ let ext = {
      *   navigation_bar_height,
      *   navigation_bar_height_computed,
      *   action_bar_default_height,
-     * } = device.getDisplay();
+     * } = devicex.getDisplay();
      * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
-     * device.getDisplay(true); // global assignment
+     * devicex.getDisplay(true); // global assignment
      * console.log(W, H, cX(0.2), cY(0.45), cYx(0.45));
      * console.log(cX(0.2, a)); // a will be ignored
      * console.log(cX(200, 720), cX(200, -1), cX(200)); // all the same
@@ -167,7 +169,7 @@ let ext = {
         _win_svc_disp.getRealMetrics(_metrics);
 
         if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-            console.error("device.getDisplay()返回结果异常");
+            console.error("devicex.getDisplay()返回结果异常");
             return {cX: cX, cY: cY, cYx: cYx};
         }
         _showDisp();
@@ -473,8 +475,32 @@ let ext = {
             if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     },
+    /**
+     * Control whether the accelerometer will be used to change screen orientation.
+     * @param {number} mode - 1: auto-rotate; 2: portrait
+     * @example
+     * devicex.setRotation(1); // auto rotation on
+     * @example
+     * devicex.setRotation(0); // auto rotation off (stay portrait)
+     * @example
+     * devicex.setRotation(+!devicex.getRotation()); // toggle
+     */
+    setRotation(mode) {
+        let System = android.provider.Settings.System;
+        let _ctx_reso = context.getContentResolver();
+        System.putInt(_ctx_reso, System.ACCELEROMETER_ROTATION, +!!mode);
+    },
+    /**
+     * Returns screen orientation state.
+     * @returns number - 1: auto-rotate; 2: portrait
+     */
+    getRotation() {
+        let System = android.provider.Settings.System;
+        let _ctx_reso = context.getContentResolver();
+        return System.getInt(_ctx_reso, System.ACCELEROMETER_ROTATION, 0);
+    },
     a11y: (() => {
-        let {Secure} = android.provider.Settings;
+        let Secure = android.provider.Settings.Secure;
         let {putInt, getString, putString} = Secure;
         let _ENABL_A11Y_SVC = Secure.ENABLED_ACCESSIBILITY_SERVICES;
         let _A11Y_ENABL = Secure.ACCESSIBILITY_ENABLED;
@@ -609,9 +635,7 @@ let ext = {
                     };
                     let _svc;
                     if (_contains()) {
-                        _svc = _enabled_svc.split(":").filter(x => {
-                            return !~svc.indexOf(x);
-                        }).join(":");
+                        _svc = _enabled_svc.split(":").filter(x => !~svc.indexOf(x)).join(":");
                     } else if (forcible) {
                         _svc = _enabled_svc;
                     }
@@ -669,7 +693,7 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.device, ext);
+module.exports.load = () => global.devicex = ext;
 
 // tool function(s) //
 
@@ -891,25 +915,32 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     }
 }
 
-// updated: Apr 25, 2020
+// updated: Aug 2, 2020
 function waitForAction(f, timeout_or_times, interval, params) {
     let _par = params || {};
+    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
 
-    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-    let _timeout = Infinity;
-    let _interval = interval || 200;
+    if (typeof timeout_or_times !== "number") {
+        timeout_or_times = 10e3;
+    }
     let _times = timeout_or_times;
+    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+        _times = Infinity;
+    }
+    let _timeout = Infinity;
+    if (timeout_or_times > 100) {
+        _timeout = timeout_or_times;
+    }
+    let _interval = interval || 200;
+    if (_interval >= _timeout) {
+        _times = 1;
+    }
 
-    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-    if (timeout_or_times > 100) _timeout = timeout_or_times;
-    if (interval >= _timeout) _times = 1;
-
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    let _start_timestamp = +new Date();
+    let _start_ts = Date.now();
     while (!_checkF(f) && --_times) {
-        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+        if (Date.now() - _start_ts > _timeout) {
+            return false; // timed out
+        }
         sleep(_interval);
     }
     return _times > 0;
@@ -918,23 +949,41 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _messageAction = typeof messageAction === "undefined"
+            ? messageActionRaw
+            : messageAction;
 
-        if (typeof f === "function") return f();
-        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+        if (typeof f === "function") {
+            return f();
+        }
+        if (_classof(f) === "JavaObject") {
+            return f.toString().match(/UiObject/) ? f : f.exists();
+        }
         if (_classof(f) === "Array") {
             let _arr = f;
-            let _logic_flag = "all";
-            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+            let _len = _arr.length;
+            let _logic = "all";
+            if (typeof _arr[_len - 1] === "string") {
+                _logic = _arr.pop();
             }
-            return _logic_flag === "all";
+            if (_logic.match(/^(or|one)$/)) {
+                _logic = "one";
+            }
+            for (let i = 0; i < _len; i += 1) {
+                let _ele = _arr[i];
+                if (!(typeof _ele).match(/function|object/)) {
+                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                }
+                if (_logic === "all" && !_checkF(_ele)) {
+                    return false;
+                }
+                if (_logic === "one" && _checkF(_ele)) {
+                    return true;
+                }
+            }
+            return _logic === "all";
         }
-
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
     }
 
     // raw function(s) //
