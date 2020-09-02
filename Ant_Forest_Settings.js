@@ -82,7 +82,7 @@ let $$init = {
                 } else {
                     for (let i = 0; i < 33; i += 1) _split_line += "-";
                 }
-                return ~console.log(_split_line + _extra_str);
+                console.log(_split_line + _extra_str);
             }
         }
     },
@@ -286,6 +286,9 @@ let $$init = {
         Object.assign($$sto, {
             af: _mod_sto.create("af"),
             cfg: _mod_sto.create("af_cfg"),
+            af_blist: _mod_sto.create("af_blist"),
+            af_flist: _mod_sto.create("af_flist"),
+            af_backup: _mod_sto.create("af_backup"),
             unlock: _mod_sto.create("unlock"),
             def: require("./Modules/MODULE_DEFAULT_CONFIG"),
         });
@@ -294,7 +297,7 @@ let $$init = {
         $$defs = Object.assign({}, $$sto.def.settings, {
             item_area_width: cX($$sto.def.settings.item_area_width) + "px",
             homepage_title: "蚂蚁森林",
-            local_backup_path: files.cwd() + "/BAK/Ant_Forest/",
+            local_backup_path: files.getSdcardPath() + "/.local/Backup/Ant_Forest/",
             image_base64_data: _mod_vault.image_base64_data || {},
             dialog_contents: _mod_vault.dialog_contents || {},
         });
@@ -326,7 +329,7 @@ let $$init = {
                 let _homepage = $$view.setPage(home_title, (p_view) => {
                     return $$view.setButtons(p_view, "homepage",
                         ["save", "SAVE", "OFF", (btn_view) => {
-                            if ($$save.check()) {
+                            if ($$save.trigger()) {
                                 $$save.config();
                                 btn_view.switch_off();
                                 toast("已保存");
@@ -444,6 +447,42 @@ let $$init = {
                             return page_view;
                         }
 
+                        item_view.setNextPage = p => opt.next_page = p;
+                        item_view.getNextPage = () => opt.next_page;
+                        item_view.setHintText = (s) => {
+                            item_view["_hint"] && ui.post(() => {
+                                item_view["_hint"].text(s);
+                            });
+                        };
+                        item_view.setHintTextColor = (c) => {
+                            item_view["_hint"] && item_view["_hint"].setTextColor(
+                                typeof c === "string" ? colors.parseColor(c) : c
+                            );
+                        };
+                        item_view.setHintVisibility = (v) => {
+                            item_view["_hint"] && ui.post(() => {
+                                v = v === true ? 0 : v === false ? 8 : v;
+                                item_view["_hint"].setVisibility(v);
+                            });
+                        };
+                        item_view.setTitleText = (s) => {
+                            item_view["_title"] && ui.post(() => {
+                                item_view["_title"].text(s);
+                            });
+                        };
+                        item_view.setTitleTextColor = (c) => {
+                            item_view["_title"] && item_view["_title"].setTextColor(
+                                typeof c === "string" ? colors.parseColor(c) : c
+                            );
+                        };
+                        item_view.setChevronVisibility = (v) => {
+                            item_view["_chevron_btn"] && ui.post(() => {
+                                v = v === true ? 0 : v === false ? 8 : v;
+                                item_view["_chevron_btn"].setVisibility(v);
+                            });
+                        };
+                        item_view.page_view = page_view;
+
                         let hint = opt.hint;
                         if (hint) {
                             let _hint_view = ui.inflate(
@@ -484,7 +523,7 @@ let $$init = {
                             if ($$str(hint)) {
                                 _hint_view._hint.setText(hint);
                             }
-                            item_view._content.addView(_hint_view);
+                            item_view["_content"].addView(_hint_view);
                         }
 
                         if (type === "radio") {
@@ -506,10 +545,7 @@ let $$init = {
                             item_view.addView(radiogroup_view);
                         }
 
-                        let title = opt.title;
-                        if ($$str(title) && item_view._title) {
-                            item_view._title.text(title);
-                        }
+                        item_view.setTitleText(opt.title);
 
                         if (type.match(/.*switch$/)) {
                             let sw_view;
@@ -565,12 +601,12 @@ let $$init = {
                                 }
                             });
                             item_view.setClickListener();
-                            item_view._chevron_btn.setVisibility(8);
+                            item_view.setChevronVisibility(8);
                             let sub_page_ready_interval = setInterval(function () {
                                 if (sess_par["ready_signal_" + opt.next_page]) {
                                     ui.post(() => {
                                         item_view.restoreClickListener();
-                                        item_view._chevron_btn.setVisibility(0);
+                                        item_view.setChevronVisibility(0);
                                     });
                                     clearInterval(sub_page_ready_interval);
                                 }
@@ -591,10 +627,6 @@ let $$init = {
                                 item_view._info_icon.on("click", () => opt.infoWindow());
                             }
                         }
-
-                        item_view.setNextPage = (page) => opt.next_page = page;
-                        item_view.getNextPage = () => opt.next_page;
-                        item_view.page_view = page_view;
 
                         if (opt.view_tag) {
                             item_view.setTag(opt.view_tag);
@@ -754,9 +786,7 @@ let $$init = {
                                 </vertical>
                             );
 
-                            $$view.updateDataSource(
-                                ds_k, "init", options.custom_data_source
-                            );
+                            $$view.updateDataSource(ds_k, "init", options.custom_data_source);
                             list_view._check_all.setVisibility(
                                 android.view.View[options.list_checkbox.toUpperCase()]
                             );
@@ -1160,7 +1190,7 @@ let $$init = {
 
                                 function _refreshAddFromLstDiag() {
                                     let _items = [];
-                                    let _fri_lst = $$sto.af.get("friends_list_data", {});
+                                    let _fri_lst = $$sto.af_flist.get("friends_list_data", {});
                                     if (_fri_lst.list_data) {
                                         _fri_lst.list_data.forEach((o) => {
                                             let _nick = o.nickname;
@@ -1188,7 +1218,7 @@ let $$init = {
                             _diag.on("negative", () => {
                                 _diag.dismiss();
                                 $$view.setListItemsSearchAndSelectView((() => {
-                                    let {list_data} = $$sto.af.get("friends_list_data", {list_data: []});
+                                    let {list_data} = $$sto.af_flist.get("friends_list_data", {list_data: []});
                                     return list_data.map(o => o.nickname);
                                 }), {
                                     empty_list_prompt: true,
@@ -1332,10 +1362,10 @@ let $$init = {
                             sess_par[deleted_items_idx] = {};
                             sess_par[deleted_items_idx_count] = 0;
 
-                            let restore_btn = p_view._text_restore.getParent();
+                            let _restore_btn = p_view._text_restore.getParent();
                             let _sess = sess_cfg[ds_k];
                             let _sto = sto_cfg[ds_k];
-                            equalObjects(_sess, _sto) ? restore_btn.switch_off() : restore_btn.switch_on();
+                            equalObjects(_sess, _sto) ? _restore_btn.switch_off() : _restore_btn.switch_on();
 
                             let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
                             _page_view._check_all.setChecked(true);
@@ -1389,7 +1419,7 @@ let $$init = {
                                     diag_add_from_list.setItems(Array(15).join("... ...,").split(",").slice(0, -1));
                                     diag_add_from_list.setContent("当前可添加的应用总数: ... ...");
                                     diag_add_from_list.setSelectedIndices([]);
-                                    threads.start(function () {
+                                    threadsx.starts(function () {
                                         let items = $$tool.getAllAppsJointStr(
                                             () => diag_add_from_list.getActionButton("negative") !== "显示系统应用",
                                             [blacklist_selected_apps, tmp_selected_apps],
@@ -1430,12 +1460,8 @@ let $$init = {
                                 });
                             });
                             diag.on("positive", () => {
-                                tmp_selected_apps.forEach((name) => {
-                                    $$view.updateDataSource(
-                                        ds_k,
-                                        "update_unshift",
-                                        {app_combined_name: name}
-                                    )
+                                tmp_selected_apps.forEach((n) => {
+                                    $$view.updateDataSource(ds_k, "update_unshift", {app_combined_name: n})
                                 });
                                 if (tmp_selected_apps.length) setTimeout(function () {
                                     p_view.getParent()._list_data.smoothScrollBy(0, -Math.pow(10, 5));
@@ -1878,7 +1904,7 @@ let $$init = {
                                 checkbox_views["week_" + i].setText(weeks_str[i]);
                                 checkbox_views["week_" + i].on("check", (checked, view) => {
                                     week_checkbox_states[weeks_str.indexOf(view.text)] = checked;
-                                    threads.start(function () {
+                                    threadsx.starts(function () {
                                         let max_try_times = 20;
                                         let interval = setInterval(function () {
                                             if (!max_try_times--) return clearInterval(interval);
@@ -2162,7 +2188,7 @@ let $$init = {
                     if (thread_calc_and_set_input && thread_calc_and_set_input.isAlive()) {
                         thread_calc_and_set_input.interrupt();
                     }
-                    thread_calc_and_set_input = threads.start(function () {
+                    thread_calc_and_set_input = threadsx.starts(function () {
                         let data_source = [];
                         if (input_text) {
                             data_source_ori.forEach((name) => {
@@ -2188,7 +2214,7 @@ let $$init = {
                 function updateListData(data_source, refresh_btn_text_alter_flag) {
                     sess_par.list_refreshing_counter = sess_par.list_refreshing_counter || 0;
                     if (sess_par.list_refreshing_counter) return;
-                    threads.start(function () {
+                    threadsx.starts(function () {
                         refresh_btn_text_alter_flag && search_view.refresh_btn.setText("...");
                         sess_par.list_refreshing_counter += 1;
                         let _data_source = $$func(data_source) ? data_source() : data_source;
@@ -2264,7 +2290,7 @@ let $$init = {
                             let remove_btn = p_view._text_remove.getParent();
                             remove_btn.switch_off();
                             btn_view.switch_off();
-                            list_data_backup.forEach(value => $$view.updateDataSource(ds_k, "update", value));
+                            list_data_backup.forEach(v => $$view.updateDataSource(ds_k, "update", v));
                             let _page_view = $$view.findViewByTag(p_view, "list_page_view").getParent();
                             _page_view._check_all.setChecked(true);
                             _page_view._check_all.setChecked(false);
@@ -2486,7 +2512,7 @@ let $$init = {
                             })
                             .show();
 
-                        let _thd = threads.start(function () {
+                        let _thd = threadsx.starts(function () {
                             while (1) {
                                 if (_diag.getSelectedIndex() === 1) {
                                     if (_diag.getActionButton("positive") === "确定") {
@@ -2660,10 +2686,10 @@ let $$init = {
                         if (deps.length > 1) hint_text += "均";
                         hint_text = "不可用  [ " + hint_text + "未开启 ]";
                     }
-                    view._hint.text(hint_text);
-                    view._chevron_btn && view._chevron_btn.setVisibility(8);
-                    view._title.setTextColor(colors.parseColor("#919191"));
-                    view._hint.setTextColor(colors.parseColor("#b0b0b0"));
+                    view.setHintText(hint_text);
+                    view.setChevronVisibility(8);
+                    view.setTitleTextColor("#919191");
+                    view.setHintTextColor("#b0b0b0");
                     let next_page = view.getNextPage();
                     if (next_page) {
                         view.next_page_backup = next_page;
@@ -2672,9 +2698,9 @@ let $$init = {
                 }
 
                 function setViewEnabled(view) {
-                    view._chevron_btn && view._chevron_btn.setVisibility(0);
-                    view._title.setTextColor(colors.parseColor("#111111"));
-                    view._hint.setTextColor(colors.parseColor("#888888"));
+                    view.setChevronVisibility(0);
+                    view.setTitleTextColor("#111111");
+                    view.setHintTextColor("#888888");
                     let {next_page_backup} = view;
                     next_page_backup && view.setNextPage(next_page_backup);
                 }
@@ -2754,10 +2780,14 @@ let $$init = {
                     if (sub_trees.length) sub_trees.forEach(sub_tree => traversePage(pages, sub_tree));
                 }
             },
-            updateDataSource(ds_k, opr, data, quiet, no_rewrite) {
-                let _lst_h = list_heads;
-                if (opr.match(/init/)) {
-                    let _h_o_arr = _lst_h[ds_k];
+            updateDataSource(ds_k, operation, data, options) {
+                let _opt = options || {};
+                let _quiet = _opt.is_quiet;
+                let _sync_ds_k = _opt.sync_data_source;
+                let _write_back = _opt.write_back === undefined ? true : !!_opt.write_back;
+
+                if (operation.match(/init/)) {
+                    let _h_o_arr = list_heads[ds_k];
                     let _h_o_len = _h_o_arr.length;
                     let _ori_ds = data || sess_cfg[ds_k] || sess_par[ds_k];
                     _ori_ds = $$func(_ori_ds) ? _ori_ds() : _ori_ds;
@@ -2781,91 +2811,74 @@ let $$init = {
                             break;
                         }
                     }
-                    if (opr.match(/re/)) {
-                        if (!sess_par[ds_k]) sess_par[ds_k] = [];
+                    if (operation.match(/re/)) {
+                        if (!sess_par[ds_k]) {
+                            sess_par[ds_k] = [];
+                        }
                         sess_par[ds_k].splice(0);
-                        return _ori_ds.map(magicData).forEach(value => sess_par[ds_k].push(value));
+                        return _ori_ds.map(_magicData).forEach(v => sess_par[ds_k].push(v));
                     }
-                    return sess_par[ds_k] = _ori_ds.map(magicData);
+                    return sess_par[ds_k] = _ori_ds.map(_magicData);
                 }
 
-                if (opr === "rewrite") return rewriteToSessionConfig();
+                if (operation === "rewrite") {
+                    return _writeBack();
+                }
 
-                if (opr.match(/delete|splice/)) {
+                if (operation.match(/delete|splice/)) {
                     let _data_params = classof(data, "Array") ? data.slice() : [data];
-                    if (_data_params.length > 2 && !_data_params[2].list_item_name_0) _data_params[2] = magicData(_data_params[2]);
+                    if (_data_params.length > 2 && !_data_params[2]["list_item_name_0"]) {
+                        _data_params[2] = _magicData(_data_params[2]);
+                    }
                     Array.prototype.splice.apply(sess_par[ds_k], _data_params);
-                    return rewriteToSessionConfig();
+                    return _writeBack();
                 }
 
-                if (opr.match(/update/)) {
-                    if (data && !classof(data, "Array")) data = [data];
-                    let arr_unshift_flag = opr.match(/unshift|beginning/);
-
-                    if (!sess_par[ds_k]) sess_par[ds_k] = [];
-                    data.map(magicData).forEach((value) => {
+                if (operation.match(/update/)) {
+                    if (data && !classof(data, "Array")) {
+                        data = [data];
+                    }
+                    if (!sess_par[ds_k]) {
+                        sess_par[ds_k] = [];
+                    }
+                    let arr_unshift_flag = operation.match(/unshift|beginning/);
+                    data.map(_magicData).forEach((value) => {
                         // {name: 1, age: 2};
                         let arr = sess_par[ds_k];
                         arr_unshift_flag ? arr.unshift(value) : arr.push(value);
                     });
-
-                    return rewriteToSessionConfig();
+                    return _writeBack();
                 }
 
                 // tool function(s) //
 
-                function magicData(obj) {
-                    let final_o = {};
-                    _lst_h[ds_k].forEach((o, i) => {
-                        let list_item_name = Object.keys(o).filter(key => $$str(o[key]))[0];
-                        let list_item_value = obj[list_item_name];
-                        final_o["list_item_name_" + i] = o.stringTransform
-                            ? o.stringTransform.forward.bind(obj)(list_item_value)
-                            : list_item_value;
-                        final_o[list_item_name] = "list_item_name_" + i; // backup
-                        final_o["width_" + i] = o.width ? cX(o.width) + "px" : -2;
+                function _magicData(obj) {
+                    let _final_o = {};
+                    list_heads[ds_k] && list_heads[ds_k].forEach((o, i) => {
+                        let _ls_name = Object.keys(o).filter(k => $$str(o[k]))[0];
+                        let _ls_value = obj[_ls_name];
+                        _final_o["list_item_name_" + i] = o.stringTransform
+                            ? o.stringTransform.forward.bind(obj)(_ls_value)
+                            : _ls_value;
+                        _final_o[_ls_name] = "list_item_name_" + i; // backup
+                        _final_o["width_" + i] = o.width ? cX(o.width) + "px" : -2;
                     });
-                    Object.keys(obj).forEach((key) => {
-                        if (!(key in final_o)) final_o[key] = obj[key];
+                    Object.keys(obj).forEach((k) => {
+                        if (!(k in _final_o)) {
+                            _final_o[k] = obj[k];
+                        }
                     });
-                    return final_o;
+                    return _final_o;
                 }
 
-                function rewriteToSessionConfig() {
-                    if (no_rewrite) return;
-
-                    sess_cfg[ds_k] = [];
-
-                    let session_data = sess_par[ds_k];
-                    if (!session_data.length) {
-                        return $$save.session(ds_k, [], quiet);
+                function _writeBack() {
+                    if (_write_back) {
+                        sess_cfg[ds_k] = [];
+                        $$save.session(ds_k, $$tool.restoreSessParListData(ds_k), _quiet);
+                        if (_sync_ds_k) {
+                            sto_cfg[ds_k] = deepCloneObject(sess_cfg[ds_k]);
+                        }
                     }
-
-                    let new_data = [];
-                    session_data.forEach((obj) => {
-                        let final_o = deepCloneObject(obj);
-                        Object.keys(final_o).forEach((key) => {
-                            if (final_o[key] in final_o) {
-                                let useless_name = final_o[key];
-                                final_o[key] = final_o[final_o[key]];
-                                delete final_o[useless_name];
-                            }
-                            if (key.match(/^width_\d$/)) final_o[key] = undefined;
-                        });
-
-                        let list_head_objs = _lst_h[ds_k] || [];
-                        list_head_objs.forEach((o) => {
-                            if ("stringTransform" in o) {
-                                let aim_key = Object.keys(o).filter((key => $$str(o[key])))[0];
-                                let {backward} = o.stringTransform;
-                                if (backward === "__delete__") delete final_o[aim_key];
-                                else if ($$func(backward)) final_o[aim_key] = backward.bind(final_o)(final_o[aim_key]);
-                            }
-                        });
-
-                        new_data.push(Object.assign({}, final_o)); // to remove undefined items
-                    });
-                    $$save.session(ds_k, new_data, quiet);
                 }
             },
             updateViewByTag(view_tag) {
@@ -3002,7 +3015,7 @@ let $$init = {
 
                 let _db_nickname = _db_data.map(o => o.name);
                 if (_show_zero) {
-                    let _fri_lst = $$sto.af.get("friends_list_data", {});
+                    let _fri_lst = $$sto.af_flist.get("friends_list_data", {});
                     if (_fri_lst.list_data) {
                         _fri_lst.list_data.forEach((o) => {
                             let _nick = o.nickname;
@@ -3041,9 +3054,7 @@ let $$init = {
 
                 let _ds_k_ls = "stat_list";
                 sess_par[_ds_k_ls].splice(0);
-                $$view.updateDataSource(
-                    _ds_k_ls, "update", _db_data, null, "no_rewrite"
-                );
+                $$view.updateDataSource(_ds_k_ls, "update", _db_data, {write_back: false});
             },
             diag: {
                 checkInputRange(d) {
@@ -3114,7 +3125,7 @@ let $$init = {
                                 if (!_cur_col) {
                                     return alertTitle(d, "输入的颜色值无法识别");
                                 }
-                                let _col_val = "#" + colors.toStr(_cur_col).slice(3);
+                                let _col_val = "#" + colors.toString(+_cur_col).slice(3);
                                 $$save.session(_cfg_conj, _col_val);
                             }
                             d.dismiss();
@@ -3458,14 +3469,14 @@ let $$init = {
             },
             udop: {
                 main_sw(view, dependencies) {
-                    view._hint.text(sess_cfg[this.config_conj] ? "已开启" : "已关闭");
+                    view.setHintText(sess_cfg[this.config_conj] ? "已开启" : "已关闭");
                     dependencies && $$view.checkDependency(view, dependencies);
                 },
             }
         };
 
         $$save = {
-            check: () => !equalObjects(sess_cfg, sto_cfg),
+            trigger: () => !equalObjects(sess_cfg, sto_cfg),
             session(key, value, quiet_flag) {
                 if (key !== undefined) sess_cfg[key] = value;
                 if (quiet_flag) return;
@@ -3474,14 +3485,13 @@ let $$init = {
                 threadsx.starts(function () {
                     let btn_save = null;
                     waitForAction(() => btn_save = sess_par["homepage_btn_save"], 10e3, 80);
-                    ui.post(() => $$save.check() ? btn_save.switch_on() : btn_save.switch_off());
+                    ui.post(() => $$save.trigger() ? btn_save.switch_on() : btn_save.switch_off());
                 });
             },
             config() {
                 let sess_cfg_mixed = deepCloneObject(sess_cfg);
                 writeUnlockStorage();
                 writeBlacklist();
-                writeProjectBackupInfo();
                 $$sto.cfg.put("config", sess_cfg_mixed); // only "cfg" reserved now (without unlock, blacklist, etc)
                 sto_cfg = deepCloneObject(sess_cfg);
                 return true;
@@ -3497,7 +3507,9 @@ let $$init = {
                             delete sess_cfg_mixed[i];
                         }
                     }
-                    $$sto.unlock.put("config", Object.assign({}, $$sto.unlock.get("config", {}), tmp_config));
+                    $$sto.unlock.put("config", Object.assign(
+                        {}, $$sto.unlock.get("config", {}), tmp_config)
+                    );
                 }
 
                 function writeBlacklist() {
@@ -3518,14 +3530,9 @@ let $$init = {
                             timestamp: o.timestamp,
                         });
                     });
-                    $$sto.af.put("blacklist", _blist);
+                    $$sto.af_blist.put("blacklist", _blist);
                     delete sess_cfg_mixed.blacklist_protect_cover;
                     delete sess_cfg_mixed.blacklist_by_user;
-                }
-
-                function writeProjectBackupInfo() {
-                    $$sto.af.put("project_backup_info", sess_cfg_mixed.project_backup_info);
-                    delete sess_cfg_mixed.project_backup_info;
                 }
             },
         };
@@ -3671,7 +3678,7 @@ let $$init = {
                     setProgressNum(num) {
                         let _num = parseInt(num);
                         if (!isNaN(_num) && _num > 0) {
-                            threads.start(function () {
+                            threadsx.starts(function () {
                                 ui.post(() => dialog.setProgress(Math.min(100, _num)));
                             });
                         }
@@ -3774,7 +3781,10 @@ let $$init = {
                     Documents: "folder",
                     "Ant_Forest_Launcher.js": "file",
                     "Ant_Forest_Settings.js": "file",
+                    "LICENSE": "file",
                     "README.md": "file",
+                    "jsconfig.json": "file",
+                    ".gitignore": "file",
                 };
                 let now = new Date();
                 let time_str = getTimeStr(now);
@@ -3783,27 +3793,30 @@ let $$init = {
                     if (backup_src_map.hasOwnProperty(name)) {
                         let _suffix = backup_src_map[name] === "folder" ? "/" : "";
                         let _src = files.path("./") + name + _suffix;
-                        filesx.copyFolder(_src, backup_dir);
+                        if (files.exists(_src)) {
+                            filesx.copyFolder(_src, backup_dir);
+                        }
                     }
                 }
-                let zip_output_file_name = backup_dir.replace(/\/\.(.+?)\/$/, ($0, $1) => "/Ant_Forest_" + $1 + ".zip");
-                if (!filesx.zip(backup_dir, zip_output_file_name, dialog)) return;
-                let data_source_key_name = "project_backup_info";
-                $$view.updateDataSource(data_source_key_name, "update_unshift", {
-                    file_name: files.getName(zip_output_file_name).replace(/\.zip$/, ""),
-                    file_path: zip_output_file_name,
+                let zip_out_name = backup_dir.replace(/\/\.(\d{8}_\d{6})/, ($0, $1) => (
+                    "/Ant_Forest_" + $1 + ".zip"
+                ));
+                if (!filesx.zip(backup_dir, zip_out_name, dialog)) {
+                    return;
+                }
+                $$view.updateDataSource("project_backup_info", "update_unshift", {
+                    file_name: files.getName(zip_out_name).replace(/\.zip$/, ""),
+                    file_path: zip_out_name,
                     version_name: version_name,
                     timestamp: now.getTime(),
-                    remark: auto_flag ? "自动备份" : (sess_par.project_backup_info_remark || "手动备份"),
-                }, "quiet");
+                    remark: auto_flag ? "自动备份" : (sess_par.proj_bak_info_remark || "手动备份"),
+                }, {is_quiet: true, sync_data_source: true});
                 $$view.updateViewByTag("restore_projects_from_local_page");
 
-                let _sess = sess_cfg[data_source_key_name];
-                let _sto = sto_cfg[data_source_key_name] = deepCloneObject(_sess);
                 // write to storage right away
-                $$sto.af.put(data_source_key_name, deepCloneObject(_sto));
+                $$sto.af_backup.put("project", sess_cfg.project_backup_info);
 
-                delete sess_par.project_backup_info_remark;
+                delete sess_par.proj_bak_info_remark;
                 files.removeDir(backup_dir);
                 if (!auto_flag) {
                     dialog.setContent("备份完成");
@@ -3830,7 +3843,9 @@ let $$init = {
                     local: {
                         first_step_txt: "检查文件",
                         first_step_func() {
-                            if (files.exists(source)) return remainingStepsForRestoring();
+                            if (files.exists(source)) {
+                                return remainingStepsForRestoring();
+                            }
                             alertContent(diag_restoring, "恢复失败:\n文件不存在", "append");
                         },
                     },
@@ -3888,10 +3903,21 @@ let $$init = {
                 }
             },
             restoreFromTimestamp(timestamp) {
-                if (timestamp.match(/^\d{13}$/)) return +timestamp;
-                if (timestamp === "永不") return Infinity;
-                let time_nums = timestamp.split(/\D+/);
-                return new Date(+time_nums[0], time_nums[1] - 1, +time_nums[2], +time_nums[3], +time_nums[4]).getTime();
+                let _ts = timestamp;
+                if (typeof timestamp === "number") {
+                    _ts = timestamp.toString();
+                }
+                if (_ts.match(/^\d{13}$/)) {
+                    return +_ts;
+                }
+                if (_ts === "永不") {
+                    return Infinity;
+                }
+                let _args = _ts.split(/\D+/).map((s, i) => {
+                    return (i === 1) ? s - 1 : +s;
+                });
+                _args.unshift(+"thisArgCanBeAny");
+                return (new (Function.prototype.bind.apply(Date, _args))).getTime();
             },
             restoreFromTimedTaskTypeStr(str) {
                 if (str === "每日") return [0, 1, 2, 3, 4, 5, 6];
@@ -3988,9 +4014,10 @@ let $$init = {
                     diag_download.setStep(2);
                     let {local_backup_path: _path} = $$defs;
                     let src = _path + ".Ant_Forest.zip";
-                    if (!filesx.unzip(src, _path, false, diag_download)) return;
-                    diag_download.setStep(3);
-                    return backupProject();
+                    if (filesx.unzip(src, _path, false, diag_download)) {
+                        diag_download.setStep(3);
+                        return backupProject();
+                    }
                 }
 
                 function backupProject() {
@@ -4123,7 +4150,7 @@ let $$init = {
                     && _diagReceiver(_diag, len);
                 };
 
-                let _thd_t_bytes_by_http = threads.start(function () {
+                let _thd_t_bytes_by_http = threadsx.starts(function () {
                     while (!_isTBytesAvail()) {
                         try {
                             // may be -1 with a strong possibility
@@ -4135,7 +4162,7 @@ let $$init = {
                     }
                 });
 
-                let _thd_t_bytes_by_url_cxn = threads.start(function () {
+                let _thd_t_bytes_by_url_cxn = threadsx.starts(function () {
                     while (!_isTBytesAvail()) {
                         try {
                             let _cxn = new java.net.URL(url).openConnection();
@@ -4151,7 +4178,7 @@ let $$init = {
                     }
                 });
 
-                threads.start(function () {
+                threadsx.starts(function () {
                     let _client = new OkHttpClient();
                     let _builder = new Packages.okhttp3.Request.Builder();
                     if (_headers) {
@@ -4268,6 +4295,38 @@ let $$init = {
             timeStrToSection(str) {
                 return str.replace(/ \(\+1\)/g, "").split(" - ");
             },
+            restoreSessParListData(ds_k) {
+                let new_data = [];
+                sess_par[ds_k].forEach((o) => {
+                    let _final_o = deepCloneObject(o);
+                    Object.keys(_final_o).forEach((key) => {
+                        if (_final_o[key] in _final_o) {
+                            let _useless = _final_o[key];
+                            _final_o[key] = _final_o[_final_o[key]];
+                            delete _final_o[_useless];
+                        }
+                        if (key.match(/^width_\d$/)) {
+                            _final_o[key] = undefined;
+                        }
+                    });
+
+                    list_heads[ds_k] && list_heads[ds_k].forEach((o) => {
+                        if ("stringTransform" in o) {
+                            let _aim_k = Object.keys(o).filter((k => $$str(o[k])))[0];
+                            let _bw = o.stringTransform.backward;
+                            if (_bw === "__delete__") {
+                                delete _final_o[_aim_k];
+                            } else if ($$func(_bw)) {
+                                _final_o[_aim_k] = _bw.bind(_final_o)(_final_o[_aim_k]);
+                            }
+                        }
+                    });
+
+                    // to remove undefined items
+                    new_data.push(Object.assign({}, _final_o));
+                });
+                return new_data;
+            },
         };
 
         $$db = (function () {
@@ -4324,10 +4383,6 @@ let $$init = {
             require("./Modules/EXT_DIALOGS").load();
             require("./Modules/EXT_THREADS").load();
             require("./Modules/EXT_GLOBAL_OBJ").load();
-
-            colors.toStr = function () {
-                return colors.toString.apply(colors, arguments);
-            };
         }
 
         function setGlobalDollarVars() {
@@ -4375,14 +4430,6 @@ let $$init = {
         }
     },
     config(reset_flag) {
-        let mixedWithDefault = (add_o) => {
-            return Object.assign(
-                {}, add_o,
-                $$sto.unlock.get("config", {}),
-                isolatedBlacklist(),
-                isolatedProjectBackups()
-            );
-        };
         if (!reset_flag) {
             let _refilled_sto_cfg = Object.assign(
                 {}, $$sto.def.af,
@@ -4390,27 +4437,33 @@ let $$init = {
             );
             // to forcibly refill storage data
             $$sto.cfg.put("config", _refilled_sto_cfg);
-            sto_cfg = mixedWithDefault(_refilled_sto_cfg);
+            sto_cfg = _mixedWithDefault(_refilled_sto_cfg);
             sess_cfg = deepCloneObject(sto_cfg);
         } else {
-            let _mixed = mixedWithDefault($$sto.def.af);
+            let _mixed = _mixedWithDefault($$sto.def.af);
             sess_cfg = deepCloneObject(_mixed);
             sto_cfg = deepCloneObject(_mixed);
             $$sto.cfg.put("config", $$sto.def.af);
             listener.emit("update_all");
         }
 
+        threadsx.starts(_initProjectBackups);
+        threadsx.starts(_initStatData);
+
         return $$init;
 
         // tool function(s) //
 
-        function isolatedProjectBackups() {
-            let sto_backups = $$sto.af.get("project_backup_info", []);
-            return {project_backup_info: sto_backups.filter((o) => o.file_path && files.exists(o.file_path))};
+        function _mixedWithDefault(add_o) {
+            return Object.assign(
+                {}, add_o,
+                $$sto.unlock.get("config", {}),
+                _isolatedBlacklist()
+            );
         }
 
-        function isolatedBlacklist() {
-            let _blist = $$sto.af.get("blacklist", []);
+        function _isolatedBlacklist() {
+            let _blist = $$sto.af_blist.get("blacklist", []);
             let _blist_cvr = [];
             let _blist_usr = [];
             if (classof(_blist, "Object")) {
@@ -4445,6 +4498,186 @@ let $$init = {
             Object.assign(sess_par, _res);
             return _res;
         }
+
+        function _initProjectBackups() {
+            delete sess_par.restore_proj_from_local_page_updated;
+
+            let _sto_data = $$sto.af_backup.get("project", []);
+            let _sto_names = _sto_data.map((o) => o.file_name);
+
+            _transferOldStorage();
+            _transferOldFiles();
+            _scanBackupFolder();
+            _tidyUpData();
+
+            sess_cfg.project_backup_info = sto_cfg.project_backup_info = _sto_data;
+            sess_par.restore_proj_from_local_page_updated = true;
+
+            $$view.updateViewByTag("restore_projects_from_local_page");
+            $$view.updateViewByTag("backup_projects_from_local");
+
+            // tool function(s) //
+
+            function _transferOldStorage() {
+                let _sto_old_bak = $$sto.af.get("project_backup_info");
+                if (typeof _sto_old_bak !== "undefined") {
+                    _sto_data = _sto_data.concat(
+                        _sto_old_bak.filter((o) => {
+                            return !~_sto_names.indexOf(o.file_name);
+                        }).map((o) => {
+                            o.file_path = $$defs.local_backup_path + o.file_name + ".zip";
+                            return o;
+                        })
+                    );
+                    sess_par.proj_sto_modified = true;
+                    sess_par.old_proj_sto_exists = true;
+                }
+            }
+
+            function _transferOldFiles() {
+                let _new_path = $$defs.local_backup_path;
+                let _old_path = files.cwd() + "/BAK/Ant_Forest/";
+                if (files.exists(_old_path)) {
+                    files.remove(_old_path + ".Ant_Forest.zip");
+                    files.createWithDirs(_new_path);
+                    files.listDir(_old_path).forEach((name) => {
+                        let _new_full_p = _new_path + name;
+                        let _old_full_p = _old_path + name;
+                        let _rex_a = /^\.v\d+\.\d+\.\d+\.zip$/;
+                        let _rex_b = /^Ant_Forest_\d{8}_\d{6}\.zip$/;
+                        if (name.match(_rex_a) || name.match(_rex_b)) {
+                            files.move(_old_full_p, _new_full_p);
+                        }
+                    });
+                    if (files.isEmptyDir(_old_path)) {
+                        files.removeDir(_old_path);
+                    }
+                    let _old_path_parent = _old_path.slice(
+                        0, _old_path.lastIndexOf("/", _old_path.length - 2)
+                    );
+                    if (files.isEmptyDir(_old_path_parent)) {
+                        files.removeDir(_old_path_parent);
+                    }
+                }
+            }
+
+            function _scanBackupFolder() {
+                let _path = $$defs.local_backup_path;
+                let _max = 200;
+                for (let i = 0; i < _sto_data.length; i += 1) {
+                    let _full_p = _path + _sto_data[i].file_name + ".zip";
+                    if (!files.exists(_full_p)) {
+                        _sto_data.splice(i--, 1);
+                        sess_par.proj_sto_modified = true;
+                    } else if (_sto_data[i].file_path !== _full_p) {
+                        _sto_data[i].file_path = _full_p;
+                        sess_par.proj_sto_modified = true;
+                    }
+                }
+                let _files = files.listDir(_path, function (name) {
+                    if (name.match(/^\.\d{8}_\d{6}$/) && files.isDir(_path + name)) {
+                        files.removeDir(_path + name);
+                        return false;
+                    }
+                    if (name === ".Ant_Forest.zip") {
+                        files.remove(_path + name);
+                        return false;
+                    }
+                    return !!name.match(/^Ant_Forest_\d{8}_\d{6}\.zip$/)
+                        && !~_sto_names.indexOf(name.slice(0, -4));
+                }).sort((a, b) => a === b ? 0 : a < b ? 1 : -1);
+                let _ctr = _sto_data.length;
+                for (let i = 0, l = _files.length; i < l; i += 1) {
+                    let _name = _files[i];
+                    let _full_p = _path + _name;
+                    if (_ctr < _max && _fillStoData(_full_p)) {
+                        _ctr += 1;
+                    } else {
+                        files.remove(_full_p);
+                    }
+                }
+
+                function _fillStoData(full_path) {
+                    let _file_name = files.getNameWithoutExtension(full_path);
+                    let _ver = _getVer();
+                    if (_ver) {
+                        _sto_data.push({
+                            version_name: _ver,
+                            timestamp: _getTs(),
+                            file_name: _file_name,
+                            file_path: full_path,
+                            remark: "扫描并自动添加的备份",
+                        });
+                        return sess_par.proj_sto_modified = true;
+                    }
+
+                    // tool function(s) //
+
+                    function _getVer() {
+                        if (full_path && files.isFile(full_path)) {
+                            let _out_path = full_path.slice(0, full_path.lastIndexOf("/"));
+                            filesx.unzip(full_path, _out_path);
+                            let _unzipped_path = _out_path + "/." + _file_name.slice(11);
+                            let _ver = _getLocalVerName(_unzipped_path + "/Ant_Forest_Launcher.js");
+                            files.removeDir(_unzipped_path);
+                            return _ver;
+                        }
+
+                        // tool function(s) //
+
+                        function _getLocalVerName(file) {
+                            try {
+                                let _file = file || "./Ant_Forest_Launcher.js";
+                                let _regexp = /version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/;
+                                return "v" + files.read(_file).match(_regexp)[0].slice(8);
+                            } catch (e) {
+                                return "未知版本";
+                            }
+                        }
+                    }
+
+                    function _getTs() {
+                        if (full_path && files.isFile(full_path)) {
+                            let _str = _file_name.slice(11);
+                            let _args = [
+                                +_str.slice(0, 4), _str.slice(4, 6) - 1, +_str.slice(6, 8),
+                                +_str.slice(9, 11), +_str.slice(11, 13), +_str.slice(13)
+                            ];
+                            _args.unshift(+"thisArgCanBeAny");
+                            return (new (Function.prototype.bind.apply(Date, _args))).getTime();
+                        }
+                    }
+                }
+            }
+
+            function _tidyUpData() {
+                if (sess_par.proj_sto_modified) {
+                    delete sess_par.proj_sto_modified;
+                    $$sto.af_backup.put("project", _sto_data);
+                }
+                if (sess_par.old_proj_sto_exists) {
+                    $$sto.af.remove("project_backup_info");
+                }
+            }
+        }
+
+        function _initStatData() {
+            delete sess_par.stat_page_updated;
+            threadsx.starts(function () {
+                if (waitForAction(_cond, 60e3)) {
+                    sess_par.init_stat_list_data = $$view.statListDataSource("GET");
+                    sess_par.stat_page_updated = true;
+                    $$view.updateViewByTag("stat_page");
+                }
+            });
+
+            // tool function(s) //
+
+            function _cond() {
+                return typeof $$view !== "undefined"
+                    && typeof $$view.statListDataSource === "function";
+            }
+        }
     },
     listener() {
         // consume "back" keydown event and define a new one
@@ -4462,30 +4695,42 @@ let $$init = {
 
             if ($$view.checkPageState()) {
                 let _one_rolling = rolling_pages.length === 1;
-                let _need_save = $$save.check();
+                let _need_save = $$save.trigger();
                 return _one_rolling ? _need_save ? quitConfirm() : quitNow() : $$view.pageJump("back");
             }
 
             // tool function(s) //
 
             function quitConfirm() {
-                dialogsx.builds([
-                    "设置未保存", "确定要退出吗",
-                    "返回", ["强制退出", "caution_btn_color"], ["保存并退出", "hint_btn_bright_color"], 1,
-                ]).show()
-                    .on("neutral", diag => diag.dismiss())
-                    .on("negative", () => quitNow())
-                    .on("positive", diag => $$save.config() && quitNow(diag));
+                dialogsx
+                    .builds([
+                        "设置未保存", "确定要退出吗",
+                        "返回", ["强制退出", "caution_btn_color"], ["保存并退出", "hint_btn_bright_color"], 1,
+                    ])
+                    .on("neutral", (d) => {
+                        d.dismiss();
+                    })
+                    .on("negative", () => {
+                        quitNow();
+                    })
+                    .on("positive", (d) => {
+                        $$save.config();
+                        toast("已保存");
+                        quitNow(d);
+                    })
+                    .show();
             }
 
-            function quitNow(dialog) {
-                if (dialog) dialog.dismiss();
+            function quitNow(diag) {
+                diag && diag.dismiss();
                 if ($$sto.af.get("af_postponed")) {
                     toast("配置结束\n即将运行蚂蚁森林");
                     runJsFile("Ant_Forest_Launcher");
                     $$sto.af.remove("af_postponed");
                     $$sto.af.put("config_prompted", true);
                 }
+                // do not use ui.post(exit)
+                // as events.on("exit") won't be triggered
                 exit();
             }
         });
@@ -4522,7 +4767,7 @@ let $$init = {
         Object.assign(global, {listener: _listener});
 
         return $$init;
-    }
+    },
 };
 
 // entrance //
@@ -4582,7 +4827,40 @@ $$view.setHomePage($$defs.homepage_title)
             $$view.udop.main_sw.bind(this)(view);
         },
     }))
-    .add("page", new Layout("数据统计", {next_page: "stat_page"}))
+    .add("page", new Layout("数据统计", {
+        next_page: null,
+        view_tag: "stat_page",
+        updateOpr(view) {
+            if (!sess_par.stat_page_updated) {
+                return;
+            }
+            view.setNextPage("stat_page");
+
+            let view_tag = this.view_tag;
+            threadsx.starts(function () {
+                if (waitForAction(() => view_pages[view_tag], 5e3) && !sess_par.stat_page_created) {
+                    sess_par.stat_page_created = true;
+                    ui.post(() => {
+                        view_pages[view_tag]
+                            .add("list", new Layout("/*数据统计列表*/", {
+                                list_head: "stat_list",
+                                data_source_key_name: "stat_list",
+                                custom_data_source: sess_par.init_stat_list_data,
+                                list_checkbox: "gone",
+                                listeners: {
+                                    _list_data: {
+                                        item_bind(item_view, item_holder) {
+                                            item_view._checkbox.setVisibility(8);
+                                        },
+                                    },
+                                },
+                            }))
+                            .ready();
+                    });
+                }
+            });
+        },
+    }))
     .add("page", new Layout("黑名单管理", {next_page: "blacklist_page"}))
     .add("page", new Layout("运行与安全", {next_page: "script_security_page"}))
     .add("subhead", new Layout("备份与还原"))
@@ -5059,11 +5337,10 @@ $$view.setHomePage($$defs.homepage_title)
             }
         },
         updateOpr(view) {
-            view._hint.text($$tool.getLocalVerName());
+            view.setHintText($$tool.getLocalVerName());
         },
     }))
-    .ready()
-;
+    .ready();
 
 $$view.addPage(["自收功能", "self_collect_page"], function () {
     $$view.setPage(arguments[0])
@@ -5146,7 +5423,7 @@ $$view.addPage(["主页能量球循环监测", "homepage_monitor_page"], functio
                 });
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " min");
+                view.setHintText(sess_cfg[this.config_conj].toString() + " min");
             },
         }))
         .add("split_line")
@@ -5196,7 +5473,7 @@ $$view.addPage(["主页能量球返检监控", "homepage_background_monitor_page
                 });
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " min");
+                view.setHintText(sess_cfg[this.config_conj].toString() + " min");
             },
         }))
         .ready();
@@ -5291,7 +5568,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             updateOpr(view) {
                 let value = sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj];
                 if (value < 1) value = cY(value);
-                view._hint.text(value.toString() + " px  [ " + Math.round(value / H * 100) + "% H ]");
+                view.setHintText(value.toString() + " px  [ " + Math.round(value / H * 100) + "% H ]");
             },
         }))
         .add("button", new Layout("滑动时长", "hint", {
@@ -5302,7 +5579,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("滑动间隔", "hint", {
@@ -5315,7 +5592,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             updateOpr(view) {
                 let conj = this.config_conj;
                 let data = sess_cfg[conj] || $$sto.def.af[conj];
-                view._hint.text(data.toString() + " ms");
+                view.setHintText(data.toString() + " ms");
             },
         }))
         .add("split_line")
@@ -5335,7 +5612,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
             },
         }))
         .add("button", new Layout("列表底部控件图片模板", "hint", {
@@ -5395,7 +5672,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             },
             updateOpr(view) {
                 let file_exists_flag = files.exists(sto_cfg.rank_list_bottom_template_path);
-                view._hint.text(file_exists_flag ? "已生成" : "暂未生成");
+                view.setHintText(file_exists_flag ? "已生成" : "暂未生成");
             },
         }))
         .add("split_line")
@@ -5523,7 +5800,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                 $$view.diag.numSetter.bind(this)(1, 8);
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
+                view.setHintText(sess_cfg[this.config_conj].toString());
             },
         }))
         .add("button", new Layout("样本采集间隔", "hint", {
@@ -5532,7 +5809,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                 $$view.diag.numSetter.bind(this)(50, 500);
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
+                view.setHintText(sess_cfg[this.config_conj].toString());
             },
         }))
         .add("subhead", new Layout("识别与定位", {subhead_color: $$defs.subhead_highlight_color}))
@@ -5552,7 +5829,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                     ));
                 let _rect = [[_l, _t], [_r, _b]]
                     .map(a => a.join(" , ")).join("  -  ");
-                view._hint.text("Rect  [ " + _rect + " ] ");
+                view.setHintText("Rect  [ " + _rect + " ] ");
             },
         }))
         .add("button", new Layout("能量球最小球心间距", "hint", {
@@ -5574,7 +5851,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                 let _v = sess_cfg[_cfg_conj] || $$sto.def.af[_cfg_conj];
                 _v = cX(_v).toString();
                 let _v_p = (_v * 100 / W).toFixedNum(2);
-                view._hint.text(_v + " px  [ " + _v_p + "% W ]");
+                view.setHintText(_v + " px  [ " + _v_p + "% W ]");
             },
         }))
         .add("page", new Layout("颜色与阈值调节", {
@@ -5590,7 +5867,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                 $$view.diag.numSetter.bind(this)(10, 500);
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
+                view.setHintText(sess_cfg[this.config_conj].toString() + " ms");
             },
         }))
         .add("button", new Layout("能量球点击间隔", "hint", {
@@ -5599,7 +5876,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
                 $$view.diag.numSetter.bind(this)(10, 500);
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + " ms");
+                view.setHintText(sess_cfg[this.config_conj].toString() + " ms");
             },
         }))
         .add("split_line")
@@ -5631,7 +5908,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
+                view.setHintText(sess_cfg[this.config_conj].toString());
             },
         }))
         .add("invisible_split_line")
@@ -5657,7 +5934,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString());
+                view.setHintText(sess_cfg[this.config_conj].toString());
             },
         }))
         .add("invisible_split_line")
@@ -5670,7 +5947,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
                 $$view.diag.numSetter.bind(this)(12, 52, {hint_set: "R"});
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj].toString() + "°");
+                view.setHintText(sess_cfg[this.config_conj].toString() + "°");
             },
         }))
         .add("split_line")
@@ -5927,7 +6204,7 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
             updateOpr(view) {
                 let _v = sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]; // Array
                 let hint_text = _v[0] === _v[1] ? "全天" : $$tool.timeSectionToStr(_v);
-                view._hint.text(hint_text);
+                view.setHintText(hint_text);
             },
         }))
         .add("page", new Layout("六球复查", "hint", {
@@ -5974,7 +6251,7 @@ $$view.addPage(["六球复查", "six_balls_review_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
             },
         }))
         .add("split_line")
@@ -6083,7 +6360,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                     .show();
             },
             updateOpr(view) {
-                view._hint.text(sess_cfg[this.config_conj] ? "已设置" : "空");
+                view.setHintText(sess_cfg[this.config_conj] ? "已设置" : "空");
             },
         }))
         .add("split_line")
@@ -6098,7 +6375,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString());
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString());
             },
         }))
         .add("split_line")
@@ -6112,7 +6389,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString() + " ms");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("起点位置", "hint", {
@@ -6129,7 +6406,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
             },
             updateOpr(view) {
                 let value = (sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]) * 100;
-                view._hint.text(value.toString() + "% H");
+                view.setHintText(value.toString() + "% H");
             },
         }))
         .add("button", new Layout("终点位置", "hint", {
@@ -6146,7 +6423,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
             },
             updateOpr(view) {
                 let value = (sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]) * 100;
-                view._hint.text(value.toString() + "% H");
+                view.setHintText(value.toString() + "% H");
             },
         }))
         .add("split_line")
@@ -6170,7 +6447,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text(this.map[(sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString()]);
+                view.setHintText(this.map[(sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString()]);
             },
         }))
         .add("button", new Layout("滑动时长", "hint", {
@@ -6187,7 +6464,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
             },
             updateOpr(view) {
                 let config_conj = this.config_conj();
-                view._hint.text((sess_cfg[config_conj] || $$sto.def.unlock[config_conj]).toString() + " ms");
+                view.setHintText((sess_cfg[config_conj] || $$sto.def.unlock[config_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("点阵边长", "hint", {
@@ -6199,7 +6476,7 @@ $$view.addPage(["自动解锁", "auto_unlock_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString());
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString());
             },
         }))
         .ready();
@@ -6294,7 +6571,7 @@ $$view.addPage(["消息提示", "message_showing_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " s");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " s");
             },
         }))
         .add("button", new Layout("推迟运行间隔时长", "hint", {
@@ -6311,7 +6588,7 @@ $$view.addPage(["消息提示", "message_showing_page"], function () {
                 $$view.diag.radioSetter.bind(this)();
             },
             updateOpr(view) {
-                view._hint.text(this.map[(sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString()]);
+                view.setHintText(this.map[(sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString()]);
             },
         }))
         .add("checkbox_switch", new Layout("息屏或上锁启动时自动跳过", {
@@ -6584,7 +6861,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
             updateOpr(view) {
                 let session_value = +sess_cfg[this.config_conj];
                 let value = isNaN(session_value) ? $$sto.def.af[this.config_conj] : session_value;
-                view._hint.text(value === 0 ? "已关闭" : (value.toString() + " min"));
+                view.setHintText(value === 0 ? "已关闭" : (value.toString() + " min"));
             },
         }))
         .add("split_line")
@@ -6658,7 +6935,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
             updateOpr(view) {
                 let session_value = +sess_cfg[this.config_conj];
                 let value = isNaN(session_value) ? $$sto.def.af[this.config_conj] : session_value;
-                view._hint.text(value === 0 ? "已关闭" : (value.toString() + " min"));
+                view.setHintText(value === 0 ? "已关闭" : (value.toString() + " min"));
             },
         }))
         .add("split_line")
@@ -6692,7 +6969,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                     let _itv = _areas[0].interval;
                     _hint = _sect + "  [ " + _itv + " min ]";
                 }
-                view._hint.text(_hint);
+                view.setHintText(_hint);
             },
         }))
         .add("split_line")
@@ -6718,7 +6995,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                 $$view.diag.numSetter.bind(this)(1, 10);
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
             },
         }))
         .add("button", new Layout("最大连续保险次数", "hint", {
@@ -6727,7 +7004,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                 $$view.diag.numSetter.bind(this)(1, 5);
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
             },
         }))
         .add("split_line")
@@ -6813,7 +7090,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                 } else if (_len === 1) {
                     _hint = $$tool.timeSectionToStr(_areas[0]);
                 }
-                view._hint.text(_hint);
+                view.setHintText(_hint);
             },
         }))
         .add("split_line")
@@ -6882,10 +7159,9 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         let task_id = task.id;
 
                         let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
-                        let reInitDataSource = () => $$view.updateDataSource(
-                            _ds_k, "re_init",
-                            _custom_ds.bind(this)()
-                        );
+                        let reInitDataSource = () => {
+                            $$view.updateDataSource(_ds_k, "re_init", _custom_ds.bind(this)());
+                        };
 
                         let type_info = {
                             min_countdown: "最小倒计时",
@@ -6940,10 +7216,12 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                                         // tool function(s) //
 
                                         function deleteNow() {
-                                            d.dismiss();
-                                            ds.dismiss();
-                                            timersx.removeTimedTask(task_id);
-                                            reInitDataSource();
+                                            threadsx.starts(function () {
+                                                d.dismiss();
+                                                ds.dismiss();
+                                                timersx.removeTimedTask(task_id, "wait");
+                                                reInitDataSource();
+                                            });
                                         }
                                     })
                                     .show();
@@ -6990,10 +7268,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                 ui: {
                     resume() {
                         let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
-                        $$view.updateDataSource(
-                            _ds_k, "re_init",
-                            _custom_ds.bind(this)()
-                        );
+                        $$view.updateDataSource(_ds_k, "re_init", _custom_ds.bind(this)());
                     },
                 }
             },
@@ -7105,12 +7380,11 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                     },
                 },
                 onFinish(ret) {
-                    if (ret) {
-                        update() || add();
-                    }
-
-                    // to fresh data list; maybe not a good way
-                    ui.emitter.emit("resume");
+                    threadsx.starts(function () {
+                        ret && (update() || add());
+                        // to fresh data list; maybe not a good way
+                        ui.emitter.emit("resume");
+                    });
 
                     // tool function(s) //
 
@@ -7122,36 +7396,41 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
 
                     function update() {
                         let current_task = task && timersx.getTimedTask(task.id);
-                        if (!current_task) return;
-
-                        if (type_str === "disposable") {
-                            current_task.setMillis(ret);
-                        } else if (type_str === "daily") {
-                            current_task.setMillis(trimTimestamp(ret));
-                        } else if (type_str === "weekly") {
-                            current_task.setMillis(trimTimestamp(ret.timestamp));
-                            current_task.setTimeFlag(timedTaskTimeFlagConverter(ret.days_of_week));
-                        } else return;
-
-                        timersx.updateTimedTask(current_task);
-                        return current_task;
+                        if (current_task) {
+                            if (type_str === "disposable") {
+                                current_task.setMillis(ret);
+                            } else if (type_str === "daily") {
+                                current_task.setMillis(trimTimestamp(ret));
+                            } else if (type_str === "weekly") {
+                                current_task.setMillis(trimTimestamp(ret.timestamp));
+                                current_task.setTimeFlag(timedTaskTimeFlagConverter(ret.days_of_week));
+                            } else {
+                                return;
+                            }
+                            timersx.updateTimedTask(current_task, "wait");
+                            return current_task;
+                        }
                     }
 
                     function add() {
                         let path = files.cwd() + "/Ant_Forest_Launcher.js";
-                        if (type_str === "disposable") timersx.addDisposableTask({
-                            path: path,
-                            date: ret,
-                        });
-                        else if (type_str === "daily") timersx.addDailyTask({
-                            path: path,
-                            time: trimTimestamp(ret, true),
-                        });
-                        else if (type_str === "weekly") timersx.addWeeklyTask({
-                            path: path,
-                            time: trimTimestamp(ret.timestamp, true),
-                            daysOfWeek: ret.days_of_week,
-                        });
+                        if (type_str === "disposable") {
+                            timersx.addDisposableTask({
+                                path: path,
+                                date: ret,
+                            }, "wait");
+                        } else if (type_str === "daily") {
+                            timersx.addDailyTask({
+                                path: path,
+                                time: trimTimestamp(ret, true),
+                            }, "wait");
+                        } else if (type_str === "weekly") {
+                            timersx.addWeeklyTask({
+                                path: path,
+                                time: trimTimestamp(ret.timestamp, true),
+                                daysOfWeek: ret.days_of_week,
+                            }, "wait");
+                        }
                     }
                 },
             });
@@ -7539,7 +7818,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
                 }
             },
             updateOpr(view) {
-                view._hint.text(this.checkMainAccountInfo() ? "已设置" : "未设置");
+                view.setHintText(this.checkMainAccountInfo() ? "已设置" : "未设置");
             },
         }))
         .add("split_line")
@@ -7567,19 +7846,6 @@ $$view.addPage(["数据统计", "stat_page"], function () {
         let _ds_k = "stat_list";
         $$view.setStatPageButtons(p_view, _ds_k);
     }, {no_scroll_view: true})
-        .add("list", new Layout("/*数据统计列表*/", {
-            list_head: "stat_list",
-            data_source_key_name: "stat_list",
-            custom_data_source: $$view.statListDataSource("GET"),
-            list_checkbox: "gone",
-            listeners: {
-                _list_data: {
-                    item_bind(item_view, item_holder) {
-                        item_view._checkbox.setVisibility(8);
-                    },
-                },
-            },
-        }))
         .ready();
 });
 $$view.addPage(["旧账户回切", "account_log_back_in_page"], function () {
@@ -7611,7 +7877,7 @@ $$view.addPage(["旧账户回切", "account_log_back_in_page"], function () {
             updateOpr(view) {
                 let session_value = +sess_cfg[this.config_conj];
                 if (isNaN(session_value)) session_value = +$$sto.def.af[this.config_conj];
-                view._hint.text((session_value === 0 ? "无限制" : session_value).toString());
+                view.setHintText((session_value === 0 ? "无限制" : session_value).toString());
             },
         }))
         .ready();
@@ -7623,14 +7889,14 @@ $$view.addPage(["黑名单管理", "blacklist_page"], function () {
             next_page: "cover_blacklist_page",
             updateOpr(view) {
                 let amount = sess_cfg.blacklist_protect_cover.length;
-                view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
+                view.setHintText(amount ? "包含成员:  " + amount + " 人" : "空名单");
             },
         }))
         .add("page", new Layout("收取/帮收黑名单", "hint", {
             next_page: "collect_blacklist_page",
             updateOpr(view) {
                 let amount = sess_cfg.blacklist_by_user.length;
-                view._hint.text(amount ? "包含成员:  " + amount + " 人" : "空名单");
+                view.setHintText(amount ? "包含成员:  " + amount + " 人" : "空名单");
             },
         }))
         .add("split_line")
@@ -7654,7 +7920,7 @@ $$view.addPage(["黑名单管理", "blacklist_page"], function () {
                     });
                     hint_text += invalid_items_count ? "  ( 含有 " + invalid_items_count + " 个无效项 )" : "";
                 }
-                view._hint.text(hint_text);
+                view.setHintText(hint_text);
             },
         }))
         .add("split_line")
@@ -7914,7 +8180,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
                 });
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
             },
         }))
         .add("button", new Layout("排他性任务最大排队时间", "hint", {
@@ -7923,7 +8189,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
                 $$view.diag.numSetter.bind(this)(1, 120);
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
             },
         }))
         .add("split_line")
@@ -7934,7 +8200,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
                 $$view.diag.numSetter.bind(this)(100, 800);
             },
             updateOpr(view) {
-                view._hint.text((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
+                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("自动开启无障碍服务", "hint", {
@@ -7987,7 +8253,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
             },
             updateOpr(view) {
                 let value = sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj];
-                view._hint.text("已" + this.map[value.toString()].slice(0, 2));
+                view.setHintText("已" + this.map[value.toString()].slice(0, 2));
             },
         }))
         .add("button", new Layout("支付宝应用启动跳板", "hint", {
@@ -8008,14 +8274,14 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
             },
             updateOpr(view) {
                 let value = sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj];
-                view._hint.text("已" + this.map[value.toString()].slice(0, 2));
+                view.setHintText("已" + this.map[value.toString()].slice(0, 2));
             },
         }))
         .add("page", new Layout("支付宝应用及页面保留", "hint", {
             config_conj: "kill_when_done_switch",
             next_page: "kill_when_done_page",
             updateOpr(view) {
-                view._hint.text(!sess_cfg[this.config_conj] ? "已开启" : "已关闭");
+                view.setHintText(!sess_cfg[this.config_conj] ? "已开启" : "已关闭");
             },
         }))
         .add("page", new Layout("通话状态监测", "hint", {
@@ -8152,7 +8418,7 @@ $$view.addPage(["通话状态监测", "phone_call_state_monitor_page"], function
                 let value = $$sto.def.af[this.config_conj];
                 let storage_value = sess_cfg[this.config_conj];
                 if (!$$und(storage_value)) value = storage_value;
-                view._hint.text(value === undefined ? "未配置" : value.toString());
+                view.setHintText(value === undefined ? "未配置" : value.toString());
             },
         }))
         .ready();
@@ -8160,60 +8426,191 @@ $$view.addPage(["通话状态监测", "phone_call_state_monitor_page"], function
 $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], function () {
     $$view.setPage(arguments[0])
         .add("subhead", new Layout("备份", {subhead_color: $$defs.subhead_highlight_color}))
-        .add("button", new Layout("备份至本地", {
+        .add("button", new Layout("备份至本地", "等待\"本地还原\"准备就绪...", {
+            view_tag: "backup_projects_from_local",
             newWindow() {
-                let diag = dialogsx.builds([
-                    "备份项目至本地", "backup_to_local",
-                    ["添加备注", "hint_btn_bright_color"], "放弃", "开始备份", 1
-                ]);
-                diag.on("negative", () => diag.dismiss());
-                diag.on("neutral", () => {
-                    diag.dismiss();
-                    let diag_remark = dialogsx.builds([
-                        "为备份添加备注", ""
-                        , 0, "放弃", "确定", 1
-                    ], {inputHint: ""});
-                    diag_remark.on("negative", () => {
-                        diag_remark.dismiss();
-                        diag.show();
+                if (sess_par.restore_proj_from_local_page_updated) {
+                    let diag = dialogsx.builds([
+                        "备份项目至本地", "backup_to_local",
+                        ["添加备注", "hint_btn_bright_color"], "放弃", "开始备份", 1
+                    ]);
+                    diag.on("negative", () => diag.dismiss());
+                    diag.on("neutral", () => {
+                        diag.dismiss();
+                        let diag_remark = dialogsx.builds([
+                            "为备份添加备注", ""
+                            , 0, "放弃", "确定", 1
+                        ], {inputHint: ""});
+                        diag_remark.on("negative", () => {
+                            diag_remark.dismiss();
+                            diag.show();
+                        });
+                        diag_remark.on("positive", () => {
+                            let _remark = diag_remark.getInputEditText().getText();
+                            sess_par.proj_bak_info_remark = _remark.toString();
+                            diag_remark.dismiss();
+                            diag.show();
+                        });
+                        diag_remark.show();
                     });
-                    diag_remark.on("positive", () => {
-                        let _remark = diag_remark.getInputEditText().getText();
-                        sess_par.project_backup_info_remark = _remark.toString();
-                        diag_remark.dismiss();
-                        diag.show();
+                    diag.on("positive", (d) => {
+                        delete global["_$_dialog_streaming_intrp_sgn"];
+                        d.dismiss();
+                        let _d_bak = dialogsx.builds([
+                            "正在备份", "此过程可能需要一些时间", 0, 0, "终止", 1
+                        ], {progress: {max: 100, showMinMax: false}});
+                        _d_bak.on("positive", (ds) => {
+                            global["_$_dialog_streaming_intrp_sgn"] = true;
+                            ds.dismiss();
+                        }).show();
+                        threadsx.starts(function () {
+                            $$tool.backupProjectFiles(null, null, _d_bak);
+                        });
                     });
-                    diag_remark.show();
-                });
-                diag.on("positive", () => {
-                    delete global["_$_dialog_streaming_intrp_sgn"];
-                    diag.dismiss();
-                    let diag_backup = dialogsx.builds(["正在备份", "此过程可能需要一些时间", 0, 0, "终止", 1], {
-                        progress: {
-                            max: 100,
-                            showMinMax: false,
-                        },
-                    });
-                    diag_backup.on("positive", () => {
-                        global["_$_dialog_streaming_intrp_sgn"] = true;
-                        diag_backup.dismiss();
-                    });
-                    diag_backup.show();
-                    threadsx.starts(function () {
-                        $$tool.backupProjectFiles(null, null, diag_backup);
-                    });
-                });
-                diag.show();
+                    diag.show();
+                }
+            },
+            updateOpr(view) {
+                view.setHintTextColor("#b0b0b0");
+                if (!sess_par.restore_proj_from_local_page_updated) {
+                    view.setTitleTextColor("#919191");
+                    view.setHintVisibility(0);
+                } else {
+                    view.setTitleTextColor("#111111");
+                    view.setHintVisibility(8);
+                }
             },
         }))
         .add("split_line")
         .add("subhead", new Layout("还原", {subhead_color: $$defs.subhead_highlight_color}))
         .add("page", new Layout("从本地还原", "hint", {
             view_tag: "restore_projects_from_local_page",
-            next_page: "restore_projects_from_local_page",
+            next_page: null,
             updateOpr(view) {
+                if (!sess_par.restore_proj_from_local_page_updated) {
+                    view.setHintText("正在准备数据...");
+                    return;
+                }
                 let amount = sess_cfg.project_backup_info.length;
-                view._hint.text(amount ? "共计备份:  " + amount + " 项" : "无备份");
+                view.setHintText(amount ? "共计备份:  " + amount + " 项" : "无备份");
+                view.setNextPage("restore_projects_from_local_page");
+
+                let view_tag = this.view_tag;
+                threadsx.starts(function () {
+                    if (waitForAction(() => view_pages[view_tag], 5e3) && !sess_par.restore_proj_from_local_page_created) {
+                        sess_par.restore_proj_from_local_page_created = true;
+                        ui.post(() => {
+                            view_pages[view_tag]
+                                .add("list", new Layout("/*本地项目还原*/", {
+                                    list_head: "project_backup_info",
+                                    data_source_key_name: "project_backup_info",
+                                    list_checkbox: "gone",
+                                    get tool_box() {
+                                        return {
+                                            deleteItem(diag_p, idx) {
+                                                diag_p && diag_p.dismiss();
+                                                dialogsx
+                                                    .builds([
+                                                        "删除备份", "确定删除此备份吗\n此操作无法撤销",
+                                                        0, "放弃", ["删除", "caution_btn_color"], 1,
+                                                    ])
+                                                    .on("negative", (d) => {
+                                                        d.dismiss();
+                                                        diag_p && diag_p.show();
+                                                    })
+                                                    .on("positive", (d) => {
+                                                        d.dismiss();
+                                                        let _file_path = sess_cfg.project_backup_info[idx].file_path;
+                                                        $$view.updateDataSource("project_backup_info", "splice", [idx, 1], {
+                                                            is_quiet: true,
+                                                            sync_data_source: true,
+                                                        });
+                                                        $$view.updateViewByTag("restore_projects_from_local_page");
+                                                        // write to storage right away
+                                                        $$sto.af_backup.put("project", sess_cfg.project_backup_info);
+                                                        files.remove(_file_path);
+                                                    })
+                                                    .show();
+                                            }
+                                        };
+                                    },
+                                    listeners: {
+                                        _list_data: {
+                                            item_long_click(e, item, idx, item_view, list_view) {
+                                                e.consumed = true;
+                                                this.tool_box.deleteItem(null, idx);
+                                            },
+                                            item_click(item, idx, item_view, list_view) {
+                                                let {data_source_key_name: _ds_k, tool_box} = this;
+                                                let backup_details = [];
+                                                let single_session_data = sess_cfg[_ds_k][idx] || {};
+                                                let map = {
+                                                    version_name: "版本",
+                                                    timestamp: "时间",
+                                                    file_path: "路径",
+                                                    remark: "备注",
+                                                };
+                                                Object.keys(map).forEach((k) => {
+                                                    if (k in single_session_data) {
+                                                        let label_name = map[k];
+                                                        let value = single_session_data[k];
+                                                        if (k === "timestamp") {
+                                                            value = $$tool.getTimeStrFromTs(value, "time_str_full");
+                                                        }
+                                                        value && backup_details.push(label_name + ": " + value);
+                                                    }
+                                                });
+                                                backup_details = backup_details.join("\n\n");
+                                                let diag = dialogsx.builds([
+                                                    "备份详情", backup_details,
+                                                    ["删除此备份", "caution_btn_color"], "返回", ["还原此备份", "warn_btn_color"], 1,
+                                                ]);
+                                                diag.on("positive", () => {
+                                                    diag.dismiss();
+                                                    let diag_confirm = dialogsx.builds([
+                                                        "还原本地备份", "restore_from_local",
+                                                        0, "放弃", ["还原", "caution_btn_color"], 1,
+                                                    ]);
+                                                    diag_confirm.on("negative", () => {
+                                                        diag_confirm.dismiss();
+                                                        diag.show();
+                                                    });
+                                                    diag_confirm.on("positive", () => {
+                                                        diag_confirm.dismiss();
+                                                        $$tool.restoreProjectFiles(single_session_data.file_path);
+                                                    });
+                                                    diag_confirm.show();
+                                                });
+                                                diag.on("negative", () => diag.dismiss());
+                                                diag.on("neutral", () => tool_box.deleteItem(diag, idx));
+                                                diag.show();
+                                            },
+                                            item_bind(item_view) {
+                                                item_view._checkbox.setVisibility(8);
+                                            },
+                                        },
+                                    },
+                                }))
+                                .add("info", new Layout("dynamic_info", {
+                                    view_tag: "restore_projects_from_local_page",
+                                    updateOpr(view) {
+                                        view._info_text.setText(sess_cfg.project_backup_info.length
+                                            ? "点击列表项可还原项目或删除备份项目"
+                                            : "暂无备份项目"
+                                        );
+                                    },
+                                }))
+                                .add("info", new Layout("长按列表项可删除备份项目", {
+                                    view_tag: "restore_projects_from_local_page",
+                                    updateOpr(view) {
+                                        view.setVisibility(sess_cfg.project_backup_info.length ? 0 : 8);
+                                    },
+                                }))
+                                .add("blank")
+                                .ready();
+                        });
+                    }
+                });
             },
         }))
         .add("page", new Layout("从服务器还原", "hint", {
@@ -8224,12 +8621,11 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                     return;
                 }
                 let view_tag = this.view_tag;
-                view._chevron_btn.setVisibility(8);
-                view._hint.text("正在从服务器获取数据...");
+                view.setChevronVisibility(8);
+                view.setHintText("正在从服务器获取数据...");
                 clearClickListener();
                 sess_par.restore_proj_from_svr_page_updated = true;
                 threadsx.starts(function () {
-                    let setViewText = text => ui.post(() => view._hint.text(text));
                     let max_try_times = 5;
                     while (max_try_times--) {
                         try {
@@ -8241,12 +8637,12 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                             let amount = sess_par.server_releases_info.length;
                             if (!amount) {
                                 restoreClickListener();
-                                return setViewText("无备份 (点击可重新检查)");
+                                return view.setHintText("无备份 (点击可重新检查)");
                             }
                             view.setNextPage("restore_projects_from_server_page");
-                            ui.post(() => view._chevron_btn.setVisibility(0));
+                            view.setChevronVisibility(0);
                             view.restoreClickListener();
-                            setViewText("共计备份:  " + amount + " 项");
+                            view.setHintText("共计备份:  " + amount + " 项");
 
                             if (!waitForAction(() => view_pages[view_tag], 5e3)) {
                                 continue;
@@ -8307,7 +8703,7 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                                                         });
                                                         diag_confirm.on("positive", () => {
                                                             diag_confirm.dismiss();
-                                                            $$tool.restoreProjectFiles(single_session_data.zipball_url);
+                                                            $$tool.restoreProjectFiles(single_session_data["zipball_url"]);
                                                         });
                                                         diag_confirm.show();
                                                     });
@@ -8321,8 +8717,7 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                                     }))
                                     .add("info", new Layout("点击列表项可查看并还原项目"))
                                     .add("blank")
-                                    .ready()
-                                ;
+                                    .ready();
                             });
                         } catch (e) {
                             sleep(200);
@@ -8330,7 +8725,7 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
                     }
                     restoreClickListener();
                     return threadsx.starts(function () {
-                        setViewText("服务器数据获取失败 (点击重试)");
+                        view.setHintText("服务器数据获取失败 (点击重试)");
                     });
                 });
 
@@ -8350,109 +8745,6 @@ $$view.addPage(["项目备份还原", "local_project_backup_restore_page"], func
 });
 $$view.addPage(["从本地还原项目", "restore_projects_from_local_page"], function () {
     $$view.setPage(arguments[0], null, {no_scroll_view: true})
-        .add("list", new Layout("/*本地项目还原*/", {
-            list_head: "project_backup_info",
-            data_source_key_name: "project_backup_info",
-            list_checkbox: "gone",
-            get tool_box() {
-                return {
-                    deleteItem(parent_dialog, idx) {
-                        parent_dialog && parent_dialog.dismiss();
-
-                        let diag_delete_confirm = dialogsx.builds([
-                            "删除备份", "确定删除此备份吗\n此操作无法撤销",
-                            0, "放弃", ["删除", "caution_btn_color"], 1,
-                        ]);
-                        diag_delete_confirm.on("negative", () => {
-                            diag_delete_confirm.dismiss();
-                            parent_dialog && parent_dialog.show();
-                        });
-                        diag_delete_confirm.on("positive", () => {
-                            diag_delete_confirm.dismiss();
-
-                            let _ds_k = "project_backup_info";
-                            $$view.updateDataSource(_ds_k, "splice", [idx, 1], "quiet");
-                            $$view.updateViewByTag("restore_projects_from_local_page");
-
-                            let _sess = sess_cfg[_ds_k];
-                            let _sto = sto_cfg[_ds_k] = deepCloneObject(_sess);
-                            // write to storage right away
-                            $$sto.af.put(_ds_k, deepCloneObject(_sto));
-                        });
-                        diag_delete_confirm.show();
-                    }
-                };
-            },
-            listeners: {
-                _list_data: {
-                    item_long_click(e, item, idx, item_view, list_view) {
-                        e.consumed = true;
-                        this.tool_box.deleteItem(null, idx);
-                    },
-                    item_click(item, idx, item_view, list_view) {
-                        let {data_source_key_name: _ds_k, tool_box} = this;
-                        let backup_details = [];
-                        let single_session_data = sess_cfg[_ds_k][idx] || {};
-                        let map = {
-                            version_name: "版本",
-                            timestamp: "时间",
-                            file_path: "路径",
-                            remark: "备注",
-                        };
-                        Object.keys(map).forEach((key) => {
-                            if (!(key in single_session_data)) return;
-                            let label_name = map[key];
-                            let value = single_session_data[key];
-                            if (key === "timestamp") value = $$tool.getTimeStrFromTs(value, "time_str");
-                            value && backup_details.push(label_name + ": " + value);
-                        });
-                        backup_details = backup_details.join("\n\n");
-                        let diag = dialogsx.builds([
-                            "备份详情", backup_details,
-                            ["删除此备份", "caution_btn_color"], "返回", ["还原此备份", "warn_btn_color"], 1,
-                        ]);
-                        diag.on("positive", () => {
-                            diag.dismiss();
-                            let diag_confirm = dialogsx.builds([
-                                "还原本地备份", "restore_from_local",
-                                0, "放弃", ["还原", "caution_btn_color"], 1,
-                            ]);
-                            diag_confirm.on("negative", () => {
-                                diag_confirm.dismiss();
-                                diag.show();
-                            });
-                            diag_confirm.on("positive", () => {
-                                diag_confirm.dismiss();
-                                $$tool.restoreProjectFiles(single_session_data.file_path);
-                            });
-                            diag_confirm.show();
-                        });
-                        diag.on("negative", () => diag.dismiss());
-                        diag.on("neutral", () => tool_box.deleteItem(diag, idx));
-                        diag.show();
-                    },
-                    item_bind(item_view) {
-                        item_view._checkbox.setVisibility(8);
-                    },
-                },
-            },
-        }))
-        .add("info", new Layout("dynamic_info", {
-            view_tag: "restore_projects_from_local_page",
-            updateOpr(view) {
-                view._info_text.setText(sess_cfg.project_backup_info.length
-                    ? "点击列表项可还原项目或删除备份项目"
-                    : "暂无备份项目"
-                );
-            },
-        }))
-        .add("info", new Layout("长按列表项可删除备份项目", {
-            view_tag: "restore_projects_from_local_page",
-            updateOpr(view) {
-                view.setVisibility(sess_cfg.project_backup_info.length ? 0 : 8);
-            },
-        }))
-        .add("blank")
         .ready();
 });
 $$view.addPage(["从服务器还原项目", "restore_projects_from_server_page"], function () {

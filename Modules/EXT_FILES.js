@@ -155,13 +155,13 @@ let ext = {
                     if (files.isDir(_abs_path)) {
                         _parseFolder(_abs_path);
                     } else {
-                        _size += java.io.File(_abs_path).length();
+                        _size += new java.io.File(_abs_path).length();
                     }
                 });
             }
         }
     },
-    unzip(input_path, output_path, include_file, dialog) {
+    unzip(input_path, output_path, within_folder, dialog) {
         delete global["_$_dialog_streaming_intrp_sgn"];
 
         let {
@@ -190,18 +190,13 @@ let ext = {
             let _i_file = new File(_i_path);
             _t_file_sz += _i_file.length();
 
-            if (_o_path) {
-                _o_path = files.path(_o_path);
-            } else {
-                _o_path = _i_path.slice(0, _i_path.lastIndexOf(_sep));
-            }
+            _o_path = _o_path
+                ? files.path(_o_path)
+                : _i_path.slice(0, _i_path.lastIndexOf(_sep));
 
-            if (include_file) {
-                let _i_file_name = _i_file.getName();
-                if (_i_file_name) {
-                    _i_file_name = _i_file_name.slice(0, _i_file_name.lastIndexOf("."));
-                }
-                _o_path = _o_path + _sep + _i_file_name;
+            if (within_folder) {
+                let _nm = _i_file.getName();
+                _o_path += _sep + _nm.slice(0, _nm.lastIndexOf("."));
             }
 
             files.createWithDirs(_o_path + _sep);
@@ -214,13 +209,13 @@ let ext = {
 
             while (_ze.hasMoreElements()) {
                 let _entry = _ze.nextElement();
-                let _entry_name = _entry.getName();
+                let _entry_nm = _entry.getName();
                 if (!global["_$_project_backup_path"]) {
-                    let _idx = _entry_name.indexOf(_sep);
-                    let _path = ~_idx ? _entry_name.slice(0, _idx) : _entry_name;
+                    let _idx = _entry_nm.indexOf(_sep);
+                    let _path = ~_idx ? _entry_nm.slice(0, _idx) : _entry_nm;
                     global["_$_project_backup_path"] = _o_path + _sep + _path + _sep;
                 }
-                let _entry_path = files.path(_o_path + _sep + _entry_name);
+                let _entry_path = files.path(_o_path + _sep + _entry_nm);
                 files.createWithDirs(_entry_path);
                 let _entry_file = new File(_entry_path);
                 if (_entry_file.isDirectory()) {
@@ -266,7 +261,7 @@ let ext = {
      * Copy a file or folder to target path
      * @param {string} src - source file or folder
      * @param {string} target - target path (absolute or relative)
-     * @param {?boolean} [unbundle_flag=falsy] -
+     * @param {any} [unbundle_flag=falsy] -
      * whether unbundle all files from the master folder
      * only available when src param is a folder
      * @example

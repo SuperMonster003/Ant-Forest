@@ -63,25 +63,27 @@ module.exports = {
  * @return {{app_name: string, package_name: string}}
  */
 function parseAppName(name, params) {
-    if (!name) return {app_name: "", package_name: ""};
+    if (!name) {
+        return {app_name: "", package_name: ""};
+    }
 
     global["_$_app_name_cache"] = global["_$_app_name_cache"] || {};
     global["_$_app_pkg_name_cache"] = global["_$_app_pkg_name_cache"] || {};
 
-    params = params || {};
-    let hard_refresh = params.hard_refresh || false;
+    let _par = params || {};
+    let _hr = _par.hard_refresh || false;
+    let _checkCache = (cache) => !_hr && name in cache ? cache[name] : null;
+    let _app_name = _checkCache(global["_$_app_name_cache"])
+        || !name.match(/.+\..+\./) && app.getPackageName(name) && name;
+    let _pkg_name = _checkCache(global["_$_app_pkg_name_cache"])
+        || app.getAppName(name) && name;
 
-    let checkCache = (cacheObj) => !hard_refresh && name in cacheObj ? cacheObj[name] : null;
-
-    let _app_name = checkCache(global["_$_app_name_cache"]) || !name.match(/.+\..+\./) && app.getPackageName(name) && name;
-    let _package_name = checkCache(global["_$_app_pkg_name_cache"]) || app.getAppName(name) && name;
-
-    _app_name = _app_name || _package_name && app.getAppName(_package_name);
-    _package_name = _package_name || _app_name && app.getPackageName(_app_name);
+    _app_name = _app_name || _pkg_name && app.getAppName(_pkg_name);
+    _pkg_name = _pkg_name || _app_name && app.getPackageName(_app_name);
 
     return {
-        app_name: global["_$_app_name_cache"][_package_name] = _app_name,
-        package_name: global["_$_app_pkg_name_cache"][_app_name] = _package_name,
+        app_name: global["_$_app_name_cache"][_pkg_name] = _app_name,
+        package_name: global["_$_app_pkg_name_cache"][_app_name] = _pkg_name,
     };
 }
 
@@ -117,12 +119,12 @@ function parseAppName(name, params) {
 function getVerName(name, params) {
     let _par = params || {};
 
-    let _parseAppName = typeof parseAppName === "undefined"
-        ? parseAppNameRaw
-        : parseAppName;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
+    let _parseAppName = (
+        typeof parseAppName === "function" ? parseAppName : parseAppNameRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
 
     let _name = _handleName(name);
     let _pkg_name = _parseAppName(_name).package_name;
@@ -227,21 +229,20 @@ function launchThisApp(trigger, params) {
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(launchThisApp.name);
 
     let $_und = x => typeof x === "undefined";
-    let _messageAction = typeof messageAction === "undefined"
-        ? messageActionRaw
-        : messageAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
-    let _killThisApp = typeof killThisApp === "undefined"
-        ? killThisAppRaw
-        : killThisApp;
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _killThisApp = (
+        typeof killThisApp === "function" ? killThisApp : killThisAppRaw
+    );
 
     let _trig = trigger || 0;
-
     if (!~["object", "string", "function"].indexOf(typeof _trig)) {
         _messageAction("应用启动目标参数无效", 8, 1, 0, 1);
     }
@@ -327,7 +328,7 @@ function launchThisApp(trigger, params) {
         }
 
         if (_max_lch < 0) {
-            _messageAction('打开"' + _app_name + '"失败', 9, 1, 0, 1);
+            _messageAction('打开"' + _app_name + '"失败', 8, 1, 0, 1);
         }
 
         if ($_und(_cond_ready)) {
@@ -370,7 +371,7 @@ function launchThisApp(trigger, params) {
     }
 
     if (_max_retry < 0) {
-        _messageAction('"' + _name + '"初始状态准备失败', 9, 1, 0, 1);
+        _messageAction('"' + _name + '"初始状态准备失败', 8, 1, 0, 1);
     }
     _debugInfo('"' + _name + '"初始状态准备完毕');
 
@@ -430,14 +431,14 @@ function launchThisApp(trigger, params) {
 
     function getDisplayRaw(params) {
         let $_flag = global.$$flag = global.$$flag || {};
-
         let _par = params || {};
-        let _waitForAction = typeof waitForAction === "undefined" ?
-            waitForActionRaw :
-            waitForAction;
-        let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ?
-            debugInfoRaw :
-            debugInfo)(m, fg, _par.debug_info_flag);
+
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
         let $_str = x => typeof x === "string";
 
         let _W, _H;
@@ -487,16 +488,16 @@ function launchThisApp(trigger, params) {
 
         function _getDisp() {
             try {
-                _W = +_win_svc_disp.getWidth();
-                _H = +_win_svc_disp.getHeight();
+                _W = _win_svc_disp.getWidth();
+                _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_svc_disp.getOrientation();
+                let _SCR_O = _win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_svc_disp.maximumSizeDimension;
+                let _MAX = _win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -522,16 +523,13 @@ function launchThisApp(trigger, params) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
-                try {
-                    _W = +device.width;
-                    _H = +device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                } catch (e) {
-                }
+                _W = device.width;
+                _H = device.height;
+                return _W && _H && {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                };
             }
         }
 
@@ -653,11 +651,21 @@ function killThisApp(name, params) {
     let _par = params || {};
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(killThisApp.name);
 
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
-    let _parseAppName = typeof parseAppName === "undefined" ? parseAppNameRaw : parseAppName;
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _clickAction = (
+        typeof clickAction === "function" ? clickAction : clickActionRaw
+    );
+    let _parseAppName = (
+        typeof parseAppName === "function" ? parseAppName : parseAppNameRaw
+    );
 
     let _name = name || "";
     if (!_name) {
@@ -867,12 +875,20 @@ function killThisApp(name, params) {
 function restartThisApp(intent_or_name, params) {
     intent_or_name = intent_or_name || currentPackage();
 
-    let _killThisApp = typeof killThisApp === "undefined" ? killThisAppRaw : killThisApp;
-    let _launchThisApp = typeof launchThisApp === "undefined" ? launchThisAppRaw : launchThisApp;
+    let _killThisApp = (
+        typeof killThisApp === "function" ? killThisApp : killThisAppRaw
+    );
+    let _launchThisApp = (
+        typeof launchThisApp === "function" ? launchThisApp : launchThisAppRaw
+    );
 
     let _result = true;
-    if (!_killThisApp(intent_or_name, params)) _result = false;
-    if (!_launchThisApp(intent_or_name, params)) _result = false;
+    if (!_killThisApp(intent_or_name, params)) {
+        _result = false;
+    }
+    if (!_launchThisApp(intent_or_name, params)) {
+        _result = false;
+    }
     return _result;
 
     // raw function(s) //
@@ -921,46 +937,51 @@ function restartThisApp(intent_or_name, params) {
 function restartThisEngine(params) {
     let _params = params || {};
 
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _params.debug_info_flag);
 
-    let _my_engine = engines.myEngine();
-    let _my_engine_id = _my_engine.id;
+    let _my_e = engines.myEngine();
+    let _my_e_id = _my_e.id;
+    let _e_argv = _my_e.execArgv;
 
-    let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
-    let _max_restart_engine_times_params = _params.max_restart_engine_times;
-    let _max_restart_engine_times;
-    if (typeof _max_restart_engine_times_argv === "undefined") {
-        if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
-        else _max_restart_engine_times = _max_restart_engine_times_params;
-    } else _max_restart_engine_times = _max_restart_engine_times_argv;
-
-    _max_restart_engine_times = +_max_restart_engine_times;
-    let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
-
-    if (!_max_restart_engine_times) {
+    let _restart_times_a = _e_argv.max_restart_engine_times;
+    let _restart_times_p = _params.max_restart_engine_times;
+    let _restart_times;
+    if (typeof _restart_times_a === "undefined") {
+        _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
+    } else {
+        _restart_times = +_restart_times_a;
+    }
+    if (!_restart_times) {
         _messageAction("引擎重启已拒绝", 3);
         return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
     }
 
+    let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
     _debugInfo("重启当前引擎任务");
-    _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
-    _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
-    let _file_name = _params.new_file || _my_engine.source.toString();
-    if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+    _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
+    _debugInfo(">最大次数: " + _restart_times_bak);
+    let _file_name = _params.new_file || _my_e.source.toString();
+    if (_file_name.match(/^\[remote]/)) {
+        _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+    }
 
-    let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+    let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
     _debugInfo("运行新引擎任务:\n" + _file_path);
     engines.execScriptFile(_file_path, {
         arguments: Object.assign({}, _params, {
-            max_restart_engine_times: _max_restart_engine_times - 1,
-            max_restart_engine_times_backup: _max_restart_engine_times_backup,
+            max_restart_engine_times: _restart_times - 1,
+            max_restart_engine_times_backup: _restart_times_bak,
             instant_run_flag: _params.instant_run_flag,
         }),
     });
     _debugInfo("强制停止旧引擎任务");
     // _my_engine.forceStop();
-    engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+    engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
     return true;
 
     // raw function(s) //
@@ -1076,49 +1097,57 @@ function runJsFile(file_name, e_args) {
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
     let $_flag = global.$$flag = global.$$flag || {};
-
-    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+    if ($_flag.no_msg_act_flag) {
+        return !(msg_level in {3: 1, 4: 1});
+    }
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+        return messageAction.apply(
+            null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
+        );
     }
+    if_toast && toast(_msg);
 
     let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-    let _if_toast = if_toast || false;
     let _if_arrow = if_arrow || false;
     let _if_spl_ln = if_split_line || false;
     _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-    if (_if_toast) toast(_msg);
-
     let _spl_ln_style = "solid";
     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
 
     if (typeof _if_spl_ln === "string") {
-        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+        if (_if_spl_ln.match(/dash/)) {
+            _spl_ln_style = "dash";
+        }
         if (_if_spl_ln.match(/both|up/)) {
-            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+            if (!_matchLnStyle()) {
+                _showSplitLine("", _spl_ln_style);
+            }
+            if (_if_spl_ln.match(/_n|n_/)) {
+                _if_spl_ln = "\n";
+            } else if (_if_spl_ln.match(/both/)) {
+                _if_spl_ln = 1;
+            } else if (_if_spl_ln.match(/up/)) {
+                _if_spl_ln = 0;
+            }
         }
     }
 
     _clearLnStyle();
 
     if (_if_arrow) {
-        if (_if_arrow > 10) {
-            console.warn('-> "if_arrow"参数大于10');
-            _if_arrow = 10;
-        }
+        _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
         _msg = "> " + _msg;
-        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+        for (let i = 0; i < _if_arrow; i += 1) {
+            _msg = "-" + _msg;
+        }
     }
 
     let _exit_flag = false;
@@ -1176,21 +1205,23 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
                 _spl_ln_extra = _if_spl_ln;
             }
         }
-        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+        if (!_spl_ln_extra.match(/\n/)) {
+            _saveLnStyle();
+        }
         _showSplitLine(_spl_ln_extra, _spl_ln_style);
     }
 
     if (_throw_flag) {
-        ui.post(function () {
-            throw ("FORCE_STOP");
-        });
+        try {
+            throw ("forcibly stopped");
+        } catch (e) {
+            console.error(e.message);
+            console.error(e.stack);
+        }
     }
-
-    if (_exit_flag || _throw_flag) {
+    if (_exit_flag) {
         exit();
-        sleep(3e3);
     }
-
     return !(_msg_lv in {3: 1, 4: 1});
 
     // raw function(s) //
@@ -1204,7 +1235,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 }
 
@@ -1218,14 +1249,13 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
  * <br>
  *     -- *DEFAULT* - "--------" - 32 bytes <br>
  *     -- "dash" - "- - - - - " - 32 bytes
- * @param {object} [params] - reserved
  * @example
  * showSplitLine();
  * showSplitLine("\n");
  * showSplitLine("", "dash");
  * @return {boolean} - always true
  */
-function showSplitLine(extra_str, style, params) {
+function showSplitLine(extra_str, style) {
     let _extra_str = extra_str || "";
     let _split_line = "";
     if (style === "dash") {
@@ -1234,7 +1264,7 @@ function showSplitLine(extra_str, style, params) {
     } else {
         for (let i = 0; i < 33; i += 1) _split_line += "-";
     }
-    return !!~console.log(_split_line + _extra_str);
+    console.log(_split_line + _extra_str);
 }
 
 /**
@@ -1298,9 +1328,9 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = typeof messageAction === "undefined"
-            ? messageActionRaw
-            : messageAction;
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
 
         if (typeof f === "function") {
             return f();
@@ -1429,12 +1459,12 @@ function clickAction(f, strategy, params) {
     let $_str = o => typeof o === "string";
     let $_und = o => typeof o === "undefined";
     let $_num = o => typeof o === "number";
-    let _messageAction = typeof messageAction === "undefined"
-        ? messageActionRaw
-        : messageAction;
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _waitForAction = (
+        typeof messageAction === "function" ? waitForAction : waitForActionRaw
+    );
 
     /**
      * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"
@@ -1457,9 +1487,7 @@ function clickAction(f, strategy, params) {
     }
 
     if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
-        _cond_succ = () => (
-            _type.match(/^Ui/) ? _checkDisappearance() : true
-        );
+        _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
     } else if ($_und(_cond_succ)) {
         _cond_succ = () => true;
     }
@@ -1735,19 +1763,26 @@ function clickAction(f, strategy, params) {
  * @return {boolean} - waitForAction(...) && clickAction(...)
  */
 function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
-    if (!f) return false;
-
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _clickAction = (
+        typeof clickAction === "function" ? clickAction : clickActionRaw
+    );
 
     if (Object.prototype.toString.call(f).slice(8, -1) !== "JavaObject") {
         _messageAction("waitForAndClickAction不支持非JavaObject参数", 8, 1);
     }
-    click_params = click_params || {};
-    let _intermission = click_params.intermission || 200;
-    let _strategy = click_params.click_strategy;
-    return _waitForAction(f, timeout_or_times, interval) && ~sleep(_intermission) && _clickAction(f, _strategy, click_params);
+    let _par = click_params || {};
+    let _intermission = _par.intermission || 200;
+    let _strategy = _par.click_strategy;
+    if (_waitForAction(f, timeout_or_times, interval)) {
+        sleep(_intermission);
+        return _clickAction(f, _strategy, _par);
+    }
 
     // raw function(s) //
 
@@ -1821,12 +1856,16 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  */
 function refreshObjects(strategy, params) {
     let _params = params || {};
+    let _stg = strategy || "";
 
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _strategy = strategy || "";
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _params.debug_info_flag);
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
 
-    if (_strategy.match(/objects?|alert/)) {
+    if (_stg.match(/objects?|alert/)) {
         descMatches(/.*/).exists(); // useful or useless ?
 
         let alert_text = _params.custom_alert_text || "Alert for refreshing objects";
@@ -2136,12 +2175,12 @@ function swipeAndShow(f, params) {
         let $_flag = global.$$flag = global.$$flag || {};
 
         let _par = params || {};
-        let _waitForAction = typeof waitForAction === "undefined" ?
-            waitForActionRaw :
-            waitForAction;
-        let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ?
-            debugInfoRaw :
-            debugInfo)(m, fg, _par.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
         let $_str = x => typeof x === "string";
 
         let _W, _H;
@@ -2191,16 +2230,16 @@ function swipeAndShow(f, params) {
 
         function _getDisp() {
             try {
-                _W = +_win_svc_disp.getWidth();
-                _H = +_win_svc_disp.getHeight();
+                _W = _win_svc_disp.getWidth();
+                _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_svc_disp.getOrientation();
+                let _SCR_O = _win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_svc_disp.maximumSizeDimension;
+                let _MAX = _win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -2226,16 +2265,13 @@ function swipeAndShow(f, params) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
-                try {
-                    _W = +device.width;
-                    _H = +device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                } catch (e) {
-                }
+                _W = device.width;
+                _H = device.height;
+                return _W && _H && {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                };
             }
         }
 
@@ -2318,8 +2354,12 @@ function swipeAndShow(f, params) {
  *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
  */
 function swipeAndShowAndClickAction(f, swipe_params, click_params) {
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
-    let _swipeAndShow = typeof swipeAndShow === "undefined" ? swipeAndShowRaw : swipeAndShow;
+    let _clickAction = (
+        typeof clickAction === "undefined" ? clickActionRaw : clickAction
+    );
+    let _swipeAndShow = (
+        typeof swipeAndShow === "undefined" ? swipeAndShowRaw : swipeAndShow
+    );
 
     let _res_swipe = _swipeAndShow(f, swipe_params);
     if (!_res_swipe) {
@@ -2385,7 +2425,9 @@ function keycode(code, params) {
     let _par = params || {};
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
 
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
 
     if (_par.force_shell) {
         return keyEvent(code);
@@ -2502,27 +2544,46 @@ function keycode(code, params) {
 function debugInfo(msg, info_flag, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
 
-    let global_flag = $_flag.debug_info_avail;
-    if (!global_flag && !forcible_flag) return;
-    if (global_flag === false || forcible_flag === false) return;
+    let _glob_fg = $_flag.debug_info_avail;
+    let _forc_fg = forcible_flag;
+    if (!_glob_fg && !_forc_fg) {
+        return;
+    }
+    if (_glob_fg === false || _forc_fg === false) {
+        return;
+    }
 
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _info_flag_str = (info_flag || "").toString();
+    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
+    if (_info_flag_str.match(/Up/)) {
+        _showSplitLine();
+    }
+    if (_info_flag_str.match(/both|up/)) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
+    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
+        msg = setDebugSplitLine(msg);
+    }
+    if (_classof(msg) === "Array") {
+        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+    } else {
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+    }
 
-    let info_flag_str = (info_flag || "").toString();
-    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-    if (info_flag_str.match(/Up/)) _showSplitLine();
-    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
+    if (_info_flag_str.match("both")) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
     // raw function(s) //
 
@@ -2535,7 +2596,7 @@ function debugInfo(msg, info_flag, forcible_flag) {
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -2585,55 +2646,82 @@ function debugInfo(msg, info_flag, forcible_flag) {
 
 /**
  * Returns equivalency of two objects (generalized) or two basic-data-type variables
- * @param obj_a {*}
- * @param obj_b {*}
+ * @param {*} obj_a
+ * @param {*} obj_b
  * @return {boolean}
  */
 function equalObjects(obj_a, obj_b) {
-    let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
-    let class_of_a = classOf(obj_a),
-        class_of_b = classOf(obj_b),
-        type_of_a = typeof obj_a,
-        type_of_b = typeof obj_b;
-    let matchFeature = (a, b, feature) => a === feature && b === feature;
-    if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
-    if (matchFeature(class_of_a, class_of_b, "Null")) return true;
+    let _classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+    let _class_a = _classOf(obj_a);
+    let _class_b = _classOf(obj_b);
+    let _type_a = typeof obj_a;
+    let _type_b = typeof obj_b;
 
-    if (class_of_a === "Array") {
-        if (class_of_b !== "Array") return false;
-        let len_a = obj_a.length,
-            len_b = obj_b.length;
-        if (len_a !== len_b) return false;
-        let used_obj_b_indices = [];
-        for (let i = 0, len = obj_a.length; i < len; i += 1) {
-            if (!function () {
-                let a = obj_a[i];
-                for (let j = 0, len_j = obj_b.length; j < len_j; j += 1) {
-                    if (~used_obj_b_indices.indexOf(j)) continue;
-                    if (equalObjects(a, obj_b[j])) {
-                        used_obj_b_indices.push(j);
-                        return true;
-                    }
-                }
-            }()) return false;
-        }
+    if (!_isTypeMatch(_type_a, _type_b, "object")) {
+        return obj_a === obj_b;
+    }
+    if (_isTypeMatch(_class_a, _class_b, "Null")) {
         return true;
     }
 
-    if (class_of_a === "Object") {
-        if (class_of_b !== "Object") return false;
-        let keys_a = Object.keys(obj_a),
-            keys_b = Object.keys(obj_b),
-            len_a = keys_a.length,
-            len_b = keys_b.length;
-        if (len_a !== len_b) return false;
-        if (!equalObjects(keys_a, keys_b)) return false;
-        for (let i in obj_a) {
-            if (obj_a.hasOwnProperty(i)) {
-                if (!equalObjects(obj_a[i], obj_b[i])) return false;
+    if (_class_a === "Array") {
+        if (_class_b === "Array") {
+            let _len_a = obj_a.length;
+            let _len_b = obj_b.length;
+            if (_len_a === _len_b) {
+                let _used_b_indices = [];
+                for (let i = 0, l = obj_a.length; i < l; i += 1) {
+                    if (!_singleArrCheck(i, _used_b_indices)) {
+                        return false;
+                    }
+                }
+                return true;
             }
         }
-        return true;
+        return false;
+    }
+
+    if (_class_a === "Object") {
+        if (_class_b === "Object") {
+            let _keys_a = Object.keys(obj_a);
+            let _keys_b = Object.keys(obj_b);
+            let _len_a = _keys_a.length;
+            let _len_b = _keys_b.length;
+            if (_len_a !== _len_b) {
+                return false;
+            }
+            if (!equalObjects(_keys_a, _keys_b)) {
+                return false;
+            }
+            for (let i in obj_a) {
+                if (obj_a.hasOwnProperty(i)) {
+                    if (!equalObjects(obj_a[i], obj_b[i])) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // tool function(s) //
+
+    function _isTypeMatch(a, b, feature) {
+        return a === feature && b === feature;
+    }
+
+    function _singleArrCheck(i, container) {
+        let _a = obj_a[i];
+        for (let i = 0, l = obj_b.length; i < l; i += 1) {
+            if (~container.indexOf(i)) {
+                continue;
+            }
+            if (equalObjects(_a, obj_b[i])) {
+                container.push(i);
+                return true;
+            }
+        }
     }
 }
 
@@ -2749,12 +2837,12 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
         let $_flag = global.$$flag = global.$$flag || {};
 
         let _par = params || {};
-        let _waitForAction = typeof waitForAction === "undefined" ?
-            waitForActionRaw :
-            waitForAction;
-        let _debugInfo = (m, fg) => (typeof debugInfo === "undefined" ?
-            debugInfoRaw :
-            debugInfo)(m, fg, _par.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
         let $_str = x => typeof x === "string";
 
         let _W, _H;
@@ -2804,16 +2892,16 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
         function _getDisp() {
             try {
-                _W = +_win_svc_disp.getWidth();
-                _H = +_win_svc_disp.getHeight();
+                _W = _win_svc_disp.getWidth();
+                _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
                     throw Error();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = +_win_svc_disp.getOrientation();
+                let _SCR_O = _win_svc_disp.getOrientation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = +_win_svc_disp.maximumSizeDimension;
+                let _MAX = _win_svc_disp.maximumSizeDimension;
 
                 let [_UH, _UW] = [_H, _W];
                 let _dimen = (name) => {
@@ -2839,16 +2927,13 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
-                try {
-                    _W = +device.width;
-                    _H = +device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                } catch (e) {
-                }
+                _W = device.width;
+                _H = device.height;
+                return _W && _H && {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                };
             }
         }
 
@@ -2876,8 +2961,8 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
 /**
  * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
- * @param dialog {Dialogs} - wrapped "dialogs" object
- * @param message {string} - message shown in title view
+ * @param {com.stardust.autojs.core.ui.dialog.JsDialog} dialog
+ * @param {string} message - message shown in title view
  * @param {number} [duration=3e3] - time duration before message dismissed (0 for non-auto dismiss)
  */
 function alertTitle(dialog, message, duration) {
@@ -2928,7 +3013,7 @@ function alertTitle(dialog, message, duration) {
 
 /**
  * Replace or append a message in dialogs content view
- * @param dialog {Dialogs} - wrapped "dialogs" object
+ * @param dialog {com.stardust.autojs.core.ui.dialog.JsDialog}
  * @param message {string} - message shown in content view
  * @param {string} [mode="replace"]
  * <br>
@@ -2964,9 +3049,9 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
     let _amt = aim_amount || 1;
     let _got_msg = [];
 
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
 
     threads.start(function () {
         events.observeToast();
@@ -3008,15 +3093,20 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 /**
  * Save current screen capture as a file with a key name and a formatted timestamp
  * @param {string} key_name - a key name as a clip of the file name
- * @param {number|string|object} log_level - any falsy but 0 for not needing console logs
+ * @param {{}} [options]
+ * @param {number|string|null} [options.log_level]
+ * @param {number} [options.max_samples=10]
  * @see messageAction
  */
-function captureErrScreen(key_name, log_level) {
+function captureErrScreen(key_name, options) {
     images.requestScreenCapture();
 
-    let _messageAction = typeof messageAction === "undefined"
-        ? messageActionRaw
-        : messageAction;
+    let _opt = options || {};
+    let _log_lv = _opt.log_level;
+    let _max_smp = _opt.max_samples || 10;
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
 
     let _dir = files.getSdcardPath() + "/.local/Pics/Err/";
     let _suffix = "_" + _getTimeStr();
@@ -3025,8 +3115,11 @@ function captureErrScreen(key_name, log_level) {
     try {
         files.createWithDirs(_path);
         images.captureScreen(_path);
-        _messageAction("已存储屏幕截图文件:", log_level);
-        _messageAction(_path, log_level);
+        if (_log_lv !== null && _log_lv !== undefined) {
+            _messageAction("已存储屏幕截图文件:", _log_lv);
+            _messageAction(_path, _log_lv);
+        }
+        _removeRedundant();
     } catch (e) {
         _messageAction(e.message, 3);
     }
@@ -3042,6 +3135,16 @@ function captureErrScreen(key_name, log_level) {
             _pad(_now.getHours()) +
             _pad(_now.getMinutes()) +
             _pad(_now.getSeconds());
+    }
+
+    function _removeRedundant() {
+        files.listDir(_dir, function (name) {
+            return !!~name.indexOf(key_name);
+        }).sort((a, b) => {
+            return a === b ? 0 : a > b ? -1 : 1;
+        }).slice(_max_smp).forEach((name) => {
+            files.remove(_dir + name);
+        });
     }
 
     // raw function(s) //
@@ -3154,7 +3257,7 @@ function getSelector(options) {
                 _res_type = "exists";
             } else if (_res_type.match(/^t(xt)?$/)) {
                 _res_type = "txt";
-            } else if (_res_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) {
+            } else if (_res_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
                 _res_type = "selector_string";
             }
 
@@ -3453,7 +3556,7 @@ function getSelector(options) {
                     }
                 }
 
-                let _mch = _compass.match(/c\d+/g);
+                let _mch = _compass.match(/c-?\d+/g);
                 return _mch ? _childWidget(_mch) : _w;
 
                 // tool function(s) //
@@ -3462,7 +3565,10 @@ function getSelector(options) {
                     let _len = arr.length;
                     for (let i = 0; i < _len; i += 1) {
                         try {
-                            let _idx = +arr[i].match(/\d+/);
+                            let _idx = +arr[i].match(/-?\d+/);
+                            if (_idx < 0) {
+                                _idx += _w.childCount();
+                            }
                             _w = _w.child(_idx);
                         } catch (e) {
                             return null;
@@ -3705,62 +3811,77 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
  * @returns {boolean}
  */
 function clickActionsPipeline(pipeline, options) {
-    options = options || {};
-    let default_strategy = options.default_strategy || "click";
-    let interval = +options.interval || 0;
-    let max_try_times = +options.max_try_times;
-    if (isNaN(max_try_times)) max_try_times = 5;
-    let max_try_times_backup = max_try_times;
+    let _opt = options || {};
+    let _def_stg = _opt.default_strategy || "click";
+    let _itv = +_opt.interval || 0;
+    let _max_times = +_opt.max_try_times;
+    _max_times = isNaN(_max_times) ? 5 : _max_times;
+    let _max_times_bak = _max_times;
 
-    let _getSelector = typeof getSelector === "undefined" ? getSelectorRaw : getSelector;
-    let _clickAction = typeof clickAction === "undefined" ? clickActionRaw : clickAction;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
-    let _surroundWith = typeof surroundWith === "undefined" ? surroundWithRaw : surroundWith;
-    let _debugInfo = _msg => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", options.debug_info_flag);
-    let sel = _getSelector();
+    let _getSelector = (
+        typeof getSelector === "function" ? getSelector : getSelectorRaw
+    );
+    let _clickAction = (
+        typeof clickAction === "function" ? clickAction : clickActionRaw
+    );
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _surroundWith = (
+        typeof surroundWith === "function" ? surroundWith : surroundWithRaw
+    );
+    let _debugInfo = m => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, "", _opt.debug_info_flag);
+    let $_sel = _getSelector();
 
-    let pipeline_name = options.name ? _surroundWith(options.name) : "";
-
-    let pipe = pipeline.filter(value => typeof value !== "undefined").map((value) => {
-        let val = Object.prototype.toString.call(value).slice(8, -1) === "Array" ? value : [value];
-        if (typeof val[1] === "function" || val[1] === null) val.splice(1, 0, null);
-        val[1] = val[1] || default_strategy;
-        return val;
+    let _ppl_name = _opt.name ? _surroundWith(_opt.name) : "";
+    let _pipe = pipeline.filter(value => typeof value !== "undefined").map((value) => {
+        let _v = Object.prototype.toString.call(value).slice(8, -1) === "Array" ? value : [value];
+        if (typeof _v[1] === "function" || _v[1] === null) {
+            _v.splice(1, 0, null);
+        }
+        _v[1] = _v[1] || _def_stg;
+        return _v;
     });
-    pipe.forEach((value, idx, arr) => {
-        if (arr[idx][2] === undefined) arr[idx][2] = function () {
-            if (arr[idx + 1]) return sel.pickup(arr[idx + 1][0]);
-            return !sel.pickup(arr[idx][0]);
-        };
+    _pipe.forEach((value, idx, arr) => {
+        if (arr[idx][2] === undefined) {
+            arr[idx][2] = function () {
+                let _idx = arr[idx + 1] ? idx + 1 : idx;
+                return $_sel.pickup(arr[_idx][0]);
+            };
+        }
         if (typeof arr[idx][2] === "function") {
             let f = arr[idx][2];
             arr[idx][2] = () => f(arr[idx][0]);
         }
     });
 
-    for (let i = 0, len = pipe.length; i < len; i += 1) {
-        max_try_times = max_try_times_backup;
-        let p = pipe[i];
-        let keyword = p[0];
-        let strategy = p[1];
-        let condition = p[2];
-        let kw_keyword = sel.pickup(keyword);
-        let clickOnce = () => condition !== null && _clickAction(kw_keyword, strategy);
+    for (let i = 0, len = _pipe.length; i < len; i += 1) {
+        _max_times = _max_times_bak;
+        let _p = _pipe[i];
+        let _kw = _p[0];
+        let _stg = _p[1];
+        let _cond = _p[2];
+        let _w = $_sel.pickup(_kw);
+        let _clickOnce = () => _cond !== null && _clickAction(_w, _stg);
 
-        clickOnce();
-        while (max_try_times-- > 0 && !_waitForAction(condition === null ? kw_keyword : condition, 1.5e3)) {
-            clickOnce();
-            sleep(interval);
-        }
+        do {
+            _clickOnce();
+            sleep(_itv);
+        } while (_max_times-- > 0 && !_waitForAction(_cond === null ? _w : _cond, 1.5e3));
 
-        if (max_try_times < 0) {
-            _messageAction(pipeline_name + "管道破裂", 3, 1, 0, "up_dash");
-            return _messageAction(_surroundWith(keyword), 3, 0, 1, "dash");
+        if (_max_times < 0) {
+            _messageAction(_ppl_name + "管道破裂", 3, 1, 0, "up_dash");
+            return _messageAction(_surroundWith(_kw), 3, 0, 1, "dash");
         }
     }
 
-    return _debugInfo(pipeline_name + "管道完工") || true;
+    _debugInfo(_ppl_name + "管道完工");
+    return true;
 
     // raw function(s) //
 
@@ -3921,12 +4042,15 @@ function baiduOcr(src, par) {
     _permitCapt();
     let _capt = _par.capt_img || images.captureScreen();
 
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _debugInfo = (_msg) => {
-        if (!_par.debug_info_flag) return null;
-        return (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, "", true);
-    };
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
 
     let _msg = "使用baiduOcr获取数据";
     _debugInfo(_msg);
@@ -4235,7 +4359,7 @@ function baiduOcr(src, par) {
                     return;
                 }
             }
-            _messageAction("截图权限申请失败", 9, 1, 0, 1);
+            _messageAction("截图权限申请失败", 8, 1, 0, 1);
         });
 
         let _req_result = images.requestScreenCapture(false);
@@ -4292,48 +4416,55 @@ function baiduOcr(src, par) {
 
         // tool function(s) //
 
-        // updated: Dec 27, 2019
+        // updated: Aug 29, 2020
         function restartThisEngine(params) {
             let _params = params || {};
 
-            let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-            let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+            let _messageAction = (
+                typeof messageAction === "function" ? messageAction : messageActionRaw
+            );
+            let _debugInfo = (m, fg) => (
+                typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+            )(m, fg, _params.debug_info_flag);
 
-            let _my_engine = engines.myEngine();
-            let _my_engine_id = _my_engine.id;
+            let _my_e = engines.myEngine();
+            let _my_e_id = _my_e.id;
+            let _e_argv = _my_e.execArgv;
 
-            let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
-            let _max_restart_engine_times_params = _params.max_restart_engine_times;
-            let _max_restart_engine_times;
-            if (typeof _max_restart_engine_times_argv === "undefined") {
-                if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
-                else _max_restart_engine_times = _max_restart_engine_times_params;
-            } else _max_restart_engine_times = _max_restart_engine_times_argv;
-
-            _max_restart_engine_times = +_max_restart_engine_times;
-            let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
-
-            if (!_max_restart_engine_times) {
+            let _restart_times_a = _e_argv.max_restart_engine_times;
+            let _restart_times_p = _params.max_restart_engine_times;
+            let _restart_times;
+            if (typeof _restart_times_a === "undefined") {
+                _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
+            } else {
+                _restart_times = +_restart_times_a;
+            }
+            if (!_restart_times) {
                 _messageAction("引擎重启已拒绝", 3);
                 return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
             }
 
+            let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
             _debugInfo("重启当前引擎任务");
-            _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
-            _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
-            let _file_name = _params.new_file || _my_engine.source.toString();
-            if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+            _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
+            _debugInfo(">最大次数: " + _restart_times_bak);
+            let _file_name = _params.new_file || _my_e.source.toString();
+            if (_file_name.match(/^\[remote]/)) {
+                _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+            }
 
-            let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+            let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
             _debugInfo("运行新引擎任务:\n" + _file_path);
-            _runJsFile(_file_path, Object.assign({}, _params, {
-                max_restart_engine_times: _max_restart_engine_times - 1,
-                max_restart_engine_times_backup: _max_restart_engine_times_backup,
-                instant_run_flag: _params.instant_run_flag,
-            }));
+            engines.execScriptFile(_file_path, {
+                arguments: Object.assign({}, _params, {
+                    max_restart_engine_times: _restart_times - 1,
+                    max_restart_engine_times_backup: _restart_times_bak,
+                    instant_run_flag: _params.instant_run_flag,
+                }),
+            });
             _debugInfo("强制停止旧引擎任务");
             // _my_engine.forceStop();
-            engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+            engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
             return true;
 
             // raw function(s) //
@@ -4429,7 +4560,7 @@ function baiduOcr(src, par) {
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 }
 
@@ -4485,15 +4616,14 @@ function classof(source, check_value) {
  */
 function checkSdkAndAJVer(params) {
     let $_app = {};
-
     let _par = params || {};
 
-    let _messageAction = typeof messageAction === "undefined"
-        ? messageActionRaw
-        : messageAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
 
     let _aj_pkg = $_app.cur_autojs_pkg = context.packageName;
     let _aj_ver = _getVerName(_aj_pkg) || "0";

@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Jun 30, 2020
- * @version 1.9.23 Alpha
+ * @since Sep 2, 2020
+ * @version 1.9.23 Alpha2
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -90,8 +90,9 @@ let $$init = {
 
         function checkRootAccess() {
             try {
-                let execCommand = com.stardust.autojs.core.util.ProcessShell.execCommand;
-                global._$_autojs_has_root = execCommand("date", true).code === 0;
+                // let execCommand = com.stardust.autojs.core.util.ProcessShell.execCommand;
+                // global._$_autojs_has_root = execCommand("date", true).code === 0;
+                global._$_autojs_has_root = shell("date", true).code === 0;
             } catch (e) {
                 global._$_autojs_has_root = false;
             }
@@ -207,7 +208,7 @@ let $$init = {
 
             function _checkFunc() {
                 let _max = 3;
-                while (!swipe(1e4, 0, 1e4, 0, 1) && _max--) {
+                while (!press(1e8, 0, 1) && _max--) {
                     sleep(300);
                 }
                 if (_max < 0) {
@@ -270,7 +271,7 @@ let $$init = {
             } else {
                 for (let i = 0; i < 33; i += 1) _split_line += "-";
             }
-            return ~console.log(_split_line + _extra_str);
+            console.log(_split_line + _extra_str);
         }
     },
     global() {
@@ -321,7 +322,7 @@ let $$init = {
                 messageAction: messageAction,
                 messageAct() {
                     return $$flag.msg_details
-                        ? messageAction.apply({}, Object.values(arguments))
+                        ? messageAction.apply(null, Object.values(arguments))
                         : (m, lv) => ![3, 4].includes(lv);
                 },
                 observeToastMessage: observeToastMessage,
@@ -333,6 +334,9 @@ let $$init = {
                 timeRecorder: timeRecorder,
                 waitForAction: waitForAction,
                 waitForAndClickAction: waitForAndClickAction,
+                showSplitLineForDebugInfo: () => {
+                    $$flag.debug_info_avail && showSplitLine();
+                }
             });
         }
 
@@ -354,6 +358,8 @@ let $$init = {
             global.$$sto = {
                 af: require("./Modules/MODULE_STORAGE").create("af"),
                 af_cfg: require("./Modules/MODULE_STORAGE").create("af_cfg"),
+                af_blist: require("./Modules/MODULE_STORAGE").create("af_blist"),
+                af_flist: require("./Modules/MODULE_STORAGE").create("af_flist"),
                 treas: require("./Modules/MODULE_TREASURY_VAULT"),
             };
             global.$$cfg = Object.assign({},
@@ -423,51 +429,67 @@ let $$init = {
                     $$app.init_scr_on = _e_argv.init_scr_on || $$unlk.is_init_screen_on;
                     $$app.init_fg_pkg = _e_argv.init_fg_pkg || currentPackage();
                     $$app.cwp = _getCwp(_my_engine);
-                    $$app.exit = (msg_fg) => {
-                        if (msg_fg !== false) {
+                    $$app.exit = (quiet) => {
+                        if (quiet !== true) {
+                            if ($$init.queue.queue.excl_tasks_all_len > 1) {
+                                debugInfo("移除当前脚本广播监听器");
+                                events.broadcast.removeAllListeners();
+                                debugInfo("发送初始屏幕开关状态广播");
+                                events.broadcast.emit("init_scr_on_state_change", $$app.init_scr_on);
+                            }
+
                             let _s = $$app.task_name + "任务结束";
                             messageAction(_s, 1, 0, 0, "both_n");
                         }
-                        return ui.post(exit);
+                        // exit() might cause ScriptInterruptedException
+                        // as $$app.exit might invoked with a Promise
+                        ui.post(exit);
                     };
 
                     return this;
                 },
                 setTask() {
                     $$app.setPostponedTask = (du, if_toast) => {
-                        if ($$flag.task_deploying) {
-                            return;
-                        }
-                        threadsx.starts(function () {
+                        $$flag.task_deploying || threadsx.starts(function () {
                             $$flag.task_deploying = true;
 
                             let _task_s = $$app.task_name + "任务";
                             let _du_s = du + "分钟";
-
-                            if (!$$F(if_toast)) {
-                                toast(_task_s + "推迟 " + _du_s);
-                            }
-
+                            $$F(if_toast) || toast(_task_s + "推迟 " + _du_s);
                             messageAction("推迟" + _task_s, 1, 0, 0, -1);
                             messageAction("推迟时长: " + _du_s, 1, 0, 0, 1);
 
                             let _ts = $$app.ts + du * 60e3;
                             let _par = {path: $$app.cwp, date: _ts};
-                            let _task = timersx.addDisposableTask(_par);
-
-                            let _suff = "";
-                            if ($$sto.af.get("fg_blist_ctr")) {
-                                _suff = "_auto";
-                            }
-
-                            $$sto.af.put("next_auto_task", {
-                                task_id: _task.id,
-                                timestamp: _ts,
-                                type: "postponed" + _suff,
-                            });
-
-                            ui.post(exit);
+                            let _suff = $$sto.af.get("fg_blist_ctr") ? "_auto" : "";
+                            $$app.setAutoTask(() => (
+                                timersx.addDisposableTask(_par, "wait")
+                            ), _ts, "postponed" + _suff);
+                            exit();
+                        }).join();
+                    };
+                    $$app.setAutoTask = (task_func, timestamp, type, keep_old) => {
+                        if (typeof task_func !== "function") {
+                            throw TypeError(
+                                "$$app.setAutoTask invoked with non-function task param"
+                            );
+                        }
+                        let _old_id = $$app.getAutoTask().task_id;
+                        let _task = task_func.call(null);
+                        let _new_id = _task.id;
+                        $$sto.af.put("next_auto_task", {
+                            task_id: _new_id,
+                            timestamp: timestamp,
+                            type: type,
                         });
+                        if (!keep_old && _old_id && _old_id !== _new_id) {
+                            debugInfo(["移除旧的自动定时任务", "任务ID: " + _old_id]);
+                            timersx.removeTimedTask(_old_id);
+                        }
+                        return _task;
+                    };
+                    $$app.getAutoTask = (def) => {
+                        return $$sto.af.get("next_auto_task", def || {});
                     };
 
                     return this;
@@ -652,7 +674,10 @@ let $$init = {
                             return ref;
                         },
                         save() {
-                            $$sto.af.put("blacklist", this.data);
+                            if (this._is_modified) {
+                                $$sto.af_blist.put("blacklist", this.data);
+                                delete this._is_modified;
+                            }
                             return this;
                         },
                         add(data) {
@@ -675,6 +700,7 @@ let $$init = {
                                 }
                             }
                             this.data.push(data);
+                            this._is_modified = true;
                             this._showMsg.add(data);
                             return this;
                         },
@@ -682,7 +708,7 @@ let $$init = {
                         init() {
                             let _blist_setter = this;
                             blistInitializer().get().clean().message().assign();
-                            return _blist_setter;
+                            return this;
 
                             // tool function(s) //
 
@@ -691,22 +717,34 @@ let $$init = {
                                     _blist_data: [],
                                     _deleted: [],
                                     get() {
-                                        // legacy: {name: {timestamp::, reason::}}
-                                        // modern: [{name::, reason::, timestamp::}]
-                                        this._blist_data = $$sto.af.get("blacklist", []);
-
-                                        // legacy compatibility
-                                        if ($$obj(this._blist_data)) {
-                                            let _data = [];
-                                            Object.keys(this._blist_data).forEach((name) => {
-                                                _data.push(Object.assign(
-                                                    {name: name}, this._blist_data[name]
-                                                ));
-                                            });
-                                            this._blist_data = _data;
-                                        }
-
+                                        this._blist_data = $$sto.af_blist.get("blacklist", []);
+                                        _legacyCompatibility.call(this);
                                         return this;
+
+                                        // tool function(s) //
+
+                                        function _legacyCompatibility() {
+                                            let _old_data = $$sto.af.get("blacklist");
+                                            if (typeof _old_data !== "undefined") {
+                                                // legacy: {name: {timestamp::, reason::}}
+                                                // modern: [{name::, reason::, timestamp::}]
+                                                if ($$obj(_old_data)) {
+                                                    debugInfo("转换传统黑名单数据格式");
+                                                    let _data = [];
+                                                    Object.keys(_old_data).forEach((name) => {
+                                                        _data.push(Object.assign(
+                                                            {name: name}, _old_data[name]
+                                                        ));
+                                                    });
+                                                    _old_data = _data;
+                                                }
+                                                if ($$arr(_old_data)) {
+                                                    debugInfo("转移传统黑名单存储数据");
+                                                    this._blist_data = _old_data;
+                                                }
+                                                $$sto.af.remove("blacklist");
+                                            }
+                                        }
                                     },
                                     clean() {
                                         this._deleted = [];
@@ -717,11 +755,13 @@ let $$init = {
                                             let _o = this._blist_data[i];
                                             if (!$$obj(_o)) {
                                                 this._blist_data.splice(i--, 1);
+                                                this._is_modified = true;
                                                 continue;
                                             }
                                             if (!_o.timestamp || _expired(_o)) {
                                                 this._deleted.push(_o.name);
                                                 this._blist_data.splice(i--, 1);
+                                                this._is_modified = true;
                                             }
                                         }
                                         return this;
@@ -732,6 +772,7 @@ let $$init = {
                                             let _msg = "移除黑名单记录: " + _len + "项";
                                             messageAct(_msg, 1, 0, 0, "both");
                                             this._deleted.forEach(n => messageAct(n, 1, 0, 1));
+                                            showSplitLineForDebugInfo();
                                         }
                                         return this;
                                     },
@@ -1053,7 +1094,7 @@ let $$init = {
                                 if (!$$func(_func)) {
                                     messageAction("启动器计划方案无效", 4, 1, 0, -1);
                                     messageAction("计划: " + aim, 4, 0, 1);
-                                    messageAction("方案: " + _key, 9, 0, 1, 1);
+                                    messageAction("方案: " + _key, 8, 0, 1, 1);
                                 }
 
                                 let _params = $$str(_ele) ? {} : _ele[_key];
@@ -1191,15 +1232,11 @@ let $$init = {
                                 }, par || {}));
                             },
                             close() {
+                                let _par = {shell_acceptable: $$app.has_root};
                                 debugInfo("关闭支付宝");
-
-                                let _pkg = $$app.pkg_name;
-                                let _res = killThisApp(_pkg, {shell_acceptable: true});
-
-                                if (!_res) {
+                                if (!killThisApp($$app.pkg_name, _par)) {
                                     return debugInfo("支付宝关闭超时", 3);
                                 }
-
                                 debugInfo("支付宝关闭完毕");
                                 return $$flag.alipay_closed = true;
                             },
@@ -1306,7 +1343,6 @@ let $$init = {
                                     ));
                                     let _res = !images.findImage(_a, _b);
                                     imagesx.reclaim(_a, _b);
-                                    imagesx.findAFBallsByHough()
                                     _a = _b = null;
                                     return _res;
                                 }
@@ -1764,7 +1800,7 @@ let $$init = {
                             parse(name_str) {
                                 if (!this.isInPage()) {
                                     messageAction("解析用户名信息失败", 4, 1, 0, -1);
-                                    messageAction("当前非账户切换页面", 9, 0, 1, 1);
+                                    messageAction("当前非账户切换页面", 8, 0, 1, 1);
                                 }
 
                                 let _kw = idMatches(/.*list_arrow/);
@@ -1825,13 +1861,13 @@ let $$init = {
                             if (str) {
                                 return this._codec(str, "enc");
                             }
-                            messageAction("编码参数为空", 9, 1, 0, "both");
+                            messageAction("编码参数为空", 8, 1, 0, "both");
                         },
                         decode(str) {
                             if (str) {
                                 return this._codec(str, "dec");
                             }
-                            messageAction("解码参数为空", 9, 1, 0, "both");
+                            messageAction("解码参数为空", 8, 1, 0, "both");
                         },
                         isLoggedIn(name_str) {
                             let _this = this;
@@ -1942,13 +1978,13 @@ let $$init = {
                                 if (!$$obj(usr_inf)) {
                                     let _type = classof(usr_inf);
                                     let _msg = "登录参数类型不正确: " + _type;
-                                    messageAction(_msg, 9, 1, 0, "both");
+                                    messageAction(_msg, 8, 1, 0, "both");
                                 }
 
                                 let {name, abbr, name_raw, direct} = usr_inf;
                                 if (!name && !abbr && !name_raw) {
                                     let _msg = "usr_info参数缺少必要属性";
-                                    messageAction(_msg, 9, 1, 0, "both");
+                                    messageAction(_msg, 8, 1, 0, "both");
                                 }
 
                                 return direct ? true : $$acc.user_list.makeInPage();
@@ -2327,7 +2363,7 @@ let $$init = {
                                                                         let _s = "需要密码时等待用户响应超时";
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
                                                                         messageAction("登录失败", 4, 0, 1);
-                                                                        messageAction(_s, 9, 1, 1, 1);
+                                                                        messageAction(_s, 8, 1, 1, 1);
                                                                     }
                                                                 },
                                                                 button() {
@@ -2349,7 +2385,7 @@ let $$init = {
                                                                         let _s = '等待"登录"按钮消失超时';
                                                                         messageAction("脚本无法继续", 4, 0, 0, -1);
                                                                         messageAction("登录失败", 4, 0, 1);
-                                                                        messageAction(_s, 9, 1, 1, 1);
+                                                                        messageAction(_s, 8, 1, 1, 1);
                                                                     }
                                                                 },
                                                                 flag: () => _res = true,
@@ -2397,7 +2433,7 @@ let $$init = {
                                                     devicex.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
-                                                    messageAction("失败提示信息:" + _err_msg(), 9, 0, 1, 1);
+                                                    messageAction("失败提示信息:" + _err_msg(), 8, 0, 1, 1);
                                                 },
                                             }, {
                                                 remark: "失败提示",
@@ -2409,7 +2445,7 @@ let $$init = {
                                                     devicex.cancelOn();
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
                                                     messageAction("登录失败", 4, 1, 1);
-                                                    messageAction(_fail_msg, 9, 0, 1, 1);
+                                                    messageAction(_fail_msg, 8, 0, 1, 1);
                                                 },
                                             }],
                                             timeout_review: [{
@@ -2419,7 +2455,7 @@ let $$init = {
                                                         return true;
                                                     }
                                                     messageAction("脚本无法继续", 4, 0, 0, -1);
-                                                    messageAction("切换主账户超时", 9, 1, 1, 1);
+                                                    messageAction("切换主账户超时", 8, 1, 1, 1);
                                                 },
                                             }]
                                         };
@@ -2493,7 +2529,9 @@ let $$init = {
                                                     debugInfo("满足" + (_type_map[type] || "未知") + "条件");
                                                     _cond.remark && debugInfo(">" + _cond.remark);
                                                     if (type === "wait") {
-                                                        while (_cond.cond()) sleep(300);
+                                                        while (_cond.cond()) {
+                                                            sleep(300);
+                                                        }
                                                     }
                                                     if ($$func(_cond.feedback)) {
                                                         debugInfo("检测到反馈方法");
@@ -2721,7 +2759,7 @@ let $$init = {
                             }
 
                             messageAction("强制停止脚本", 4, 0, 0, -1);
-                            messageAction("主账户登录失败", 9, 1, 1, 1);
+                            messageAction("主账户登录失败", 8, 1, 1, 1);
 
                             // tool function(s) //
 
@@ -2751,7 +2789,7 @@ let $$init = {
         _b.trigger() && _b.explode();
 
         let _q = queueSetter();
-        _q.trigger() && _q.queue();
+        _q.trigger() && _q.monitor() && _q.queue();
 
         Object.defineProperties(this.queue, {
             bomb: {value: _b},
@@ -2765,16 +2803,20 @@ let $$init = {
         function bombSetter() {
             return {
                 trigger() {
-                    try {
-                        return engines.all().filter((e) => {
-                            let _gap = $$app.ts - e.getTag(_ts_tag);
-                            return e.getTag(_excl_tag) === "af"
-                                && _my_e_id > e.id
-                                && _gap < $$cfg.min_bomb_interval_global;
-                        }).length;
-                    } catch (e) {
-                        // Wrapped java.util.ConcurrentModificationException
-                        // exception happens with a tiny possibility
+                    let _max = 20;
+                    while (_max--) {
+                        try {
+                            return engines.all().filter((e) => {
+                                let _gap = $$app.ts - e.getTag(_ts_tag);
+                                return e.getTag(_excl_tag) === "af"
+                                    && _my_e_id > e.id
+                                    && _gap < $$cfg.min_bomb_interval_global;
+                            }).length;
+                        } catch (e) {
+                            // Wrapped java.util.ConcurrentModificationException
+                            // exception happens with a tiny possibility
+                            sleep(Math.rand([30, 80]));
+                        }
                     }
                 },
                 explode() {
@@ -2788,30 +2830,62 @@ let $$init = {
 
         function queueSetter() {
             return {
-                get excl_tasks() {
+                get excl_tasks_all() {
+                    while (1) {
+                        try {
+                            return engines.all().filter((e) => {
+                                return e.getTag(_excl_tag);
+                            });
+                        } catch (e) {
+                            // Wrapped java.util.ConcurrentModificationException
+                            // exception happens with a small possibility
+                            sleep(Math.rand([20, 50]));
+                        }
+                    }
+                },
+                get excl_tasks_ahead() {
                     while (1) {
                         try {
                             return engines.all().filter((e) => {
                                 return e.getTag(_excl_tag) && e.id < _my_e_id;
                             });
                         } catch (e) {
-                            // FIXME ConcurrentModificationException
-                            // because there is `iterator()` in `bridges.toArray()` ?
-                            sleep(500);
+                            // Wrapped java.util.ConcurrentModificationException
+                            // exception happens with a small possibility
+                            sleep(Math.rand([20, 50]));
                         }
                     }
                 },
-                get excl_tasks_len() {
-                    return this.excl_tasks.length;
+                get excl_tasks_ahead_len() {
+                    return this.excl_tasks_ahead.length;
+                },
+                get excl_tasks_all_len() {
+                    return this.excl_tasks_all.length;
                 },
                 trigger() {
-                    return this.excl_tasks_len;
+                    return this.excl_tasks_ahead_len;
+                },
+                monitor() {
+                    debugInfo("设置广播监听器");
+
+                    events.broadcast.on("init_scr_on_state_change", (v) => {
+                        debugInfo("接收到初始屏幕开关状态广播");
+                        if (!$$init.queue.queue.excl_tasks_ahead_len) {
+                            debugInfo("根据广播消息修改状态参数");
+                            $$app.init_scr_on_from_broadcast = v;
+                        } else {
+                            debugInfo("放弃广播消息");
+                            debugInfo(">当前任务正在排队中");
+                        }
+                    });
+
+                    return this;
                 },
                 queue() {
                     timeRecorder("sc_q"); // script queue
                     timeRecorder("sc_q_total");
 
-                    let _init_que_len = this.excl_tasks_len;
+                    let _init_que_len = this.excl_tasks_ahead_len;
                     let _que_len = _init_que_len;
                     let _sto_max_que_t = $$cfg.max_queue_time_global;
                     debugInfo("排他性任务排队中: " + _que_len + "项");
@@ -2820,7 +2894,7 @@ let $$init = {
                     let _max_que_t = _init_max_que_t;
                     debugInfo("已设置最大排队时间: " + _max_que_t + "分钟");
 
-                    while ((_que_len = this.excl_tasks_len)) {
+                    while ((_que_len = this.excl_tasks_ahead_len)) {
                         if (_que_len !== _init_que_len) {
                             debugInfo("排他性任务队列发生变更", "up");
                             let _amt = _init_que_len + "->" + _que_len;
@@ -2833,7 +2907,7 @@ let $$init = {
                             timeRecorder("sc_q", "save"); // refresh
                         }
                         if (timeRecorder("sc_q", "L", 60e3) >= _max_que_t) {
-                            this.excl_tasks.forEach(e => e.forceStop());
+                            this.excl_tasks_ahead.forEach(e => e.forceStop());
                             debugInfo("强制停止队前所有排他性任务");
                             debugInfo(">已达最大排队等待时间");
                         }
@@ -2871,10 +2945,10 @@ let $$init = {
                     function _inBlist() {
                         let _fg_app_blist = $$cfg.foreground_app_blacklist || [];
                         let _init_pkg = $$app.init_fg_pkg;
-                        for (let i = 0, len = _fg_app_blist.length; i < len; i += 1) {
-                            let [name, pkg] = _fg_app_blist[i].app_combined_name.split("\n");
-                            if (_init_pkg === pkg) {
-                                return $$app.fg_black_app = name;
+                        for (let i = 0, l = _fg_app_blist.length; i < l; i += 1) {
+                            let [_nm, _pkg] = _fg_app_blist[i].app_combined_name.split("\n");
+                            if (_init_pkg === _pkg) {
+                                return $$app.fg_black_app = _nm;
                             }
                         }
                         debugInfo(["前置应用黑名单检测通过:", $$app.init_fg_pkg]);
@@ -3012,21 +3086,30 @@ let $$init = {
                     return _self;
                 },
                 deploy() {
-                    this.task = timersx.addDisposableTask({
-                        path: $$app.cwp,
-                        date: this._next_task_time,
+                    threadsx.starts(function () {
+                        _self.task = timersx.addDisposableTask({
+                            path: $$app.cwp,
+                            date: _self._next_task_time,
+                        });
+                        let _itv = setInterval(function () {
+                            if (_self.task) {
+                                let _id = _self.task.id;
+                                clearInterval(_itv);
+                                $$sto.af.put(_keys.ins_tasks, _self._sto_ids.concat([_id]));
+                                debugInfo(["已设置意外保险定时任务:", "任务ID: " + _id]);
+                            }
+                        }, 360);
                     });
-
-                    $$sto.af.put(_keys.ins_tasks, this._sto_ids.concat([this.task.id]));
-                    debugInfo(["已设置意外保险定时任务:", "任务ID: " + this.task.id]);
 
                     return _self;
                 },
                 monitor() {
                     this._thread = threadsx.starts(function () {
                         setInterval(() => {
-                            _self.task.setMillis(_self._next_task_time);
-                            timersx.updateTimedTask(_self.task);
+                            if (_self.task) {
+                                _self.task.setMillis(_self._next_task_time);
+                                timersx.updateTimedTask(_self.task);
+                            }
                         }, 10e3);
                     });
 
@@ -3040,7 +3123,7 @@ let $$init = {
                 },
                 remove() {
                     let _id = this.id;
-                    if (~_id) {
+                    if (_id > 0) {
                         timersx.removeTimedTask(_id);
                     }
                     return _self;
@@ -3058,8 +3141,7 @@ let $$init = {
                     _max && threadsx.starts(function () {
                         setTimeout(function () {
                             ui.post(() => {
-                                let _s = "超时强制退出";
-                                messageAction(_s, 9, 1, 0, "both_n");
+                                messageAction("超时强制退出", 8, 1, 0, "both_n");
                             });
                         }, _max * 60e3 + 3e3);
                     });
@@ -3184,7 +3266,7 @@ let $$init = {
                                         let _et = timeRecorder("glob_e" + _desc, "L");
                                         if (_et >= _limit) {
                                             messageAction("强制停止脚本", 4, 1, 0, -1);
-                                            messageAction(_desc + "事件解除超时", 9, 1, 1, 1);
+                                            messageAction(_desc + "事件解除超时", 8, 1, 1, 1);
                                         }
                                         sleep(300);
                                     }
@@ -3389,7 +3471,7 @@ let $$init = {
 
                         if (!$$acc.main.login({direct: true})) {
                             messageAction("脚本无法继续", 4, 0, 0, -1);
-                            messageAction("无法登录主账户", 9, 1, 1, 1);
+                            messageAction("无法登录主账户", 8, 1, 1, 1);
                         }
                     });
 
@@ -3591,11 +3673,11 @@ let $$init = {
         if (!$$cfg.auto_unlock_switch) {
             if (!_is_scr_on) {
                 messageAction("脚本无法继续", 4, 0, 0, -1);
-                messageAction("屏幕关闭且自动解锁功能未开启", 9, 1, 1, 1);
+                messageAction("屏幕关闭且自动解锁功能未开启", 8, 1, 1, 1);
             }
             if (!_is_dev_unlk) {
                 messageAction("脚本无法继续", 4, 0, 0, -1);
-                messageAction("设备上锁且自动解锁功能未开启", 9, 1, 1, 1);
+                messageAction("设备上锁且自动解锁功能未开启", 8, 1, 1, 1);
             }
         }
 
@@ -3678,7 +3760,7 @@ let $$init = {
                                 if (!waitForAction(() => _this._sgn_move_on, 60e3)) {
                                     _diag.dismiss();
                                     messageAction("强制结束脚本", 4, 0, 0, -1);
-                                    messageAction("等待参数调整对话框操作超时", 9, 1, 0, 1);
+                                    messageAction("等待参数调整对话框操作超时", 8, 1, 0, 1);
                                 }
                                 if (this._sgn_confirm) {
                                     runJsFile("Ant_Forest_Settings");
@@ -3881,7 +3963,7 @@ let $$init = {
                                     _diag.dismiss();
                                     _thd_et = _diag = null;
                                     messageAction("强制结束脚本", 4, 0, 0, -1);
-                                    messageAction("等待运行提示对话框操作超时", 9, 1, 0, 1);
+                                    messageAction("等待运行提示对话框操作超时", 8, 1, 0, 1);
                                 }
                             },
                         };
@@ -3937,7 +4019,7 @@ let $$init = {
                             }
                         }
                         ~_aim.indexOf("alipay") && $$app.page.alipay.close();
-                        ~_aim.indexOf("app") && $$app.exit(false);
+                        ~_aim.indexOf("app") && $$app.exit(true);
                     },
                     lchRl() {
                         $$app.page.rl.launch(null, {
@@ -3972,7 +4054,8 @@ let $$init = {
                             _thd_swipe.interrupt();
 
                             let _ls_data = _getLstData();
-                            $$sto.af.put("friends_list_data", _ls_data);
+                            $$sto.af.remove("friends_list_data"); // discarded data
+                            $$sto.af_flist.put("friends_list_data", _ls_data);
 
                             let _et = timeRecorder("get_rl_data", "L", "auto");
                             let _sum = _ls_data.list_length + " 项";
@@ -4207,7 +4290,7 @@ let $$init = {
                     if (!(_cmd in this.cmd_list)) {
                         messageAction("脚本无法继续", 4, 0, 0, -1);
                         messageAction("未知的传递指令参数:", 4, 1, 1);
-                        messageAction(_cmd, 9, 0, 1, 1);
+                        messageAction(_cmd, 8, 0, 1, 1);
                     }
                     return true;
                 },
@@ -4397,7 +4480,7 @@ let $$af = {
                     $$af.own = this;
                     return true;
                 }
-                debugInfo(["跳过自己能量检查", "自收功能未开启"]);
+                debugInfo(["跳过自己能量检查", ">自收功能未开启"]);
             },
             init() {
                 debugInfo("开始检查自己能量");
@@ -5013,11 +5096,11 @@ let $$af = {
                 if (!_sw_pick) {
                     let _str_a = "跳过好友能量检查";
                     if (!_sw_help) {
-                        let _str_b = ">收取功能与帮收功能均已关闭";
+                        let _str_b = ">收取功能与帮收功能均未开启";
                         return debugInfo([_str_a, _str_b]);
                     }
                     if (!_chkHelpSect()) {
-                        let _str_b = ">收取功能已关闭";
+                        let _str_b = ">收取功能未开启";
                         let _str_c = ">且当前时间不在帮收有效时段内";
                         return debugInfo([_str_a, _str_b, _str_c]);
                     }
@@ -5227,7 +5310,7 @@ let $$af = {
                                 }
                                 if (!$$flag.dys_pick) {
                                     let _sA = "不再采集收取目标样本";
-                                    let _sB = ">收取功能已关闭";
+                                    let _sB = ">收取功能未开启";
                                     debugInfo([_sA, _sB]);
                                     $$flag.dys_pick = true;
                                 }
@@ -5243,7 +5326,7 @@ let $$af = {
                                 }
                                 if (!$$flag.dys_help) {
                                     let _sA = "不再采集帮收目标样本";
-                                    let _sB = ">帮收功能已关闭";
+                                    let _sB = ">帮收功能未开启";
                                     debugInfo([_sA, _sB]);
                                     $$flag.dys_help = true;
                                 }
@@ -5394,11 +5477,12 @@ let $$af = {
                             );
 
                             if ($$flag.six_review) {
-                                debugInfo("复查当前好友", "both");
+                                debugInfo("复查当前好友");
                                 $$flag.six_review -= 1;
                             } else {
                                 debugInfo("点击" + idt + "目标");
                             }
+                            showSplitLineForDebugInfo();
 
                             // TODO cond: pool diff
                             // avoid touching widgets in rank list
@@ -5417,8 +5501,9 @@ let $$af = {
                                 $$app.fri_drop_by.ic(_nick);
                                 messageAct($$af.nick = _nick, "t");
                             } else {
-                                messageAction("标题采集好友昵称超时", 3, 1, 0, "both");
+                                messageAction("标题采集好友昵称超时", 3, 1);
                             }
+                            showSplitLineForDebugInfo();
                         }
 
                         function _check() {
@@ -5597,27 +5682,61 @@ let $$af = {
                                         _thd_auto_expand.interrupt();
                                         debugInfo("中断态列表自动展开线程");
 
-                                        /* /今天|昨天/ */
+                                        /* /今天|昨天/ or like: "05-23" */
                                         let _date_str = _getDateStr();
                                         debugInfo("捕获动态列表日期字串: " + _date_str);
 
                                         /* like: "03:19" */
-                                        let _idx = $$sel.pickup([_w_cvr, "p2"]).childCount() - 1;
-                                        let _time_str = $$sel.pickup([_w_cvr, "p2c" + _idx], "txt");
+                                        let _time_str = $$sel.pickup([_w_cvr, "p2c-1"], "txt");
                                         debugInfo("捕获动态列表时间字串: " + _time_str);
 
-                                        $$app.blist.add($$af.nick, _invalidTs(), "protect_cover");
+                                        $$app.blist.add($$af.nick, _expiredTs(), "protect_cover");
 
                                         // tool function(s) //
 
-                                        function _invalidTs() {
-                                            let _offset = _date_str.match(/昨天/) ? 0 : 24;
-                                            let _real_h = new Date().getHours() + _offset;
+                                        function _expiredTs() {
+                                            let _offsetHr = _getOffsetHr();
+                                            let _real_h = new Date().getHours() + _offsetHr;
                                             let _new_d = new Date().setHours(_real_h);
                                             _date_str = new Date(_new_d).toDateString();
 
                                             // timestamp when protect cover is invalid
                                             return +new Date(_date_str + " " + _time_str);
+
+                                            // tool function(s) //
+
+                                            function _getOffsetHr() {
+                                                if (_date_str.match(/昨天/)) {
+                                                    return (-24) + 24;
+                                                }
+                                                if (_date_str.match(/今天/)) {
+                                                    return (0) + 24;
+                                                }
+                                                let _d_str = _date_str.match(/\d{2}.\d{2}/)[0];
+                                                if (!_date_str) {
+                                                    debugInfo("动态列表日期字串解析失败", 3);
+                                                    debugInfo("使用默认延时时常: 24小时", 3);
+                                                    return +24;
+                                                }
+                                                // like: 12, 31 (Dec 31)
+                                                let [_MM, _dd] = _d_str.split(/\D/).map(x => +x);
+                                                _MM -= 1;
+                                                // like: Jan 1, 2011
+                                                let _now = new Date();
+                                                let _n_yy = _now.getFullYear();
+                                                let _n_MM = _now.getMonth();
+                                                let _n_dd = _now.getDate();
+                                                let _n_d_str = _now.toDateString();
+                                                // like: 2011
+                                                let _yy = _n_yy;
+                                                if (_MM > _n_MM || _MM === _n_MM && _dd > _n_dd) {
+                                                    // like: 2010
+                                                    _yy -= 1;
+                                                }
+                                                let _used_date = new Date(_yy, _MM, _dd);
+                                                let _hr_gap = (new Date(_n_d_str) - _used_date) / 3.6e6;
+                                                return (_hr_gap) + 24;
+                                            }
                                         }
 
                                         function _getDateStr() {
@@ -5632,15 +5751,13 @@ let $$af = {
                                                     continue;
                                                 }
                                                 if (!_child.childCount()) {
-                                                    let _date_txt = $$sel.pickup(_child, "txt");
-                                                    if (!_date_txt.match(/.天/)) {
-                                                        break;
-                                                    }
-                                                    _date_str = _date_txt;
+                                                    _date_str = $$sel.pickup(_child, "txt");
                                                 } else {
-                                                    let _txt_item = $$sel.pickup(
-                                                        [_child, "c0c1"], "txt"
-                                                    );
+                                                    let _txt_item = $$sel.pickup([_child, "c1c1"], "txt")
+                                                    if (!_txt_item) {
+                                                        // legacy
+                                                        _txt_item = $$sel.pickup([_child, "c0c1"], "txt");
+                                                    }
                                                     if (_txt_item === _txt_cvr) {
                                                         break;
                                                     }
@@ -6599,7 +6716,7 @@ let $$af = {
                 // tool function(s) //
 
                 function _update() {
-                    let _sto_nxt = $$sto.af.get("next_auto_task", {});
+                    let _sto_nxt = $$app.getAutoTask();
                     let _sto_id = _sto_nxt.task_id;
                     if (_sto_id) {
                         let _sto_task = timersx.getTimedTask(_sto_id);
@@ -6613,34 +6730,26 @@ let $$af = {
                     function _updateTask(task) {
                         debugInfo("开始更新自动定时任务");
                         task.setMillis(_next);
-                        timersx.updateTimedTask(task);
-
-                        $$sto.af.put("next_auto_task", {
-                            task_id: _sto_id,
-                            timestamp: _next,
-                            type: _type.name,
-                        });
-                        messageAction(_sxn_str
-                            ? "已更新并顺延自动定时任务"
-                            : "已更新自动定时任务", 1
-                        );
-                        return task;
+                        let _task = $$app.setAutoTask(() => (
+                            timersx.updateTimedTask(task)
+                        ), _next, _type.name);
+                        showSplitLineForDebugInfo();
+                        _sxn_str
+                            ? messageAction("已更新并顺延自动定时任务", 1)
+                            : messageAction("已更新自动定时任务", 1);
+                        return _task;
                     }
                 }
 
                 function _add() {
                     let _par = {path: $$app.cwp, date: _next};
-                    let _task = timersx.addDisposableTask(_par);
-
-                    $$sto.af.put("next_auto_task", {
-                        task_id: _task.id,
-                        timestamp: _next,
-                        type: _type.name,
-                    });
-                    messageAction(_sxn_str
-                        ? "已添加并顺延自动定时任务"
-                        : "已添加自动定时任务", 1
-                    );
+                    let _task = $$app.setAutoTask(() => (
+                        timersx.addDisposableTask(_par, "wait")
+                    ), _next, _type.name);
+                    showSplitLineForDebugInfo();
+                    _sxn_str
+                        ? messageAction("已添加并顺延自动定时任务", 1)
+                        : messageAction("已添加自动定时任务", 1);
                     return _task;
                 }
             }
@@ -6648,7 +6757,7 @@ let $$af = {
     },
     _epilogue_setter: {
         logBackIFN: () => $$acc.logBack(),
-        showRes() {
+        showResult() {
             return new Promise((reso) => {
                 let _swA = $$cfg.message_showing_switch;
                 let _swB = $$cfg.result_showing_switch;
@@ -6662,6 +6771,7 @@ let $$af = {
                 let _e_fri = $$af.emount_c_fri;
                 debugInfo("自己能量收取值: " + _e_own);
                 debugInfo("好友能量收取值: " + _e_fri);
+                showSplitLineForDebugInfo();
 
                 if ($$noNegNum(_e_own) && $$noNegNum(_e_fri)) {
                     let _msg = _eStr(_e_fri, _e_own);
@@ -6697,14 +6807,14 @@ let $$af = {
                         _e_own = -1;
                     }
                     if ($$cfg.floaty_result_switch) {
-                        return _floatyResAsync();
+                        return _floatyResult();
                     }
                     toast(msg);
                     debugInfo("统计结果展示完毕");
 
-                    // promise(s) //
+                    // tool function(s) //
 
-                    function _floatyResAsync() {
+                    function _floatyResult() {
                         debugInfo("开始绘制Floaty");
 
                         $$flag.floaty_fin = 0;
@@ -6748,25 +6858,22 @@ let $$af = {
                             },
                         });
 
-                        let _h = _getHeights();
-                        let _lyt = _getLayouts();
+                        _setFloaty();
 
-                        let _msg_win = floaty.rawWindow(_lyt.msg);
+                        // tool function(s) //
 
-                        return new Promise((reso) => {
-                            ui.post(() => {
-                                let _sum = _e_own + _e_fri;
-                                _sum = _sum < 0 ? "Statistics Failed" : _sum.toString();
-                                _msg_win.text.setText(_sum);
-                                _msg_win.setSize(-2, 0);
-                                waitForAction(() => _msg_win.getWidth() > 0, 5e3);
-                            });
-                            reso(_setFloatyAsync());
-                        });
+                        function _setFloaty() {
+                            let _h = _getHeights();
+                            let _lyt = _getLayouts();
 
-                        // promise(s) //
+                            let _msg_win = floaty.rawWindow(_lyt.msg);
+                            let _sum = _e_own + _e_fri;
+                            _sum = _sum < 0 ? "Statistics Failed" : _sum.toString();
+                            _msg_win.text.setText(_sum);
+                            _msg_win.setSize(-2, 0);
 
-                        function _setFloatyAsync() {
+                            // waitForAction(() => _msg_win.getWidth() > 0, 5e3);
+
                             let _hints = _getHints();
                             let _hint_len = _hints.length;
 
@@ -6828,44 +6935,35 @@ let $$af = {
                             _tt_win.setPosition(_l_pos, _tt_t_pos);
                             _tt_win.setSize(_min_w, _h.tt);
 
-                            _setFloTt(_ctd);
-
-                            return new Promise((reso) => {
-                                debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
-                                timeRecorder("flo_tt");
-                                setIntervalBySetTimeout(_setText, 200, _cond);
-
-                                // tool function(s) //
-
-                                function _setText() {
-                                    let _rmng_t = _tt - timeRecorder("flo_tt", "L");
-                                    let _rmng_ctd = Math.ceil(_rmng_t / 1e3);
-                                    if (_ctd > _rmng_ctd) {
-                                        _ctd = _rmng_ctd;
-                                        _setFloTt(Math.max(0, _ctd));
-                                    }
+                            debugInfo(["Floaty绘制完毕", "开始Floaty倒计时"]);
+                            _setFloTxt(_ctd);
+                            timeRecorder("flo_tt");
+                            setIntervalBySetTimeout(() => {
+                                let _rmng_t = _tt - timeRecorder("flo_tt", "L");
+                                let _rmng_ctd = Math.ceil(_rmng_t / 1e3);
+                                if (_ctd > _rmng_ctd) {
+                                    _ctd = _rmng_ctd;
+                                    _setFloTxt(Math.max(0, _ctd));
                                 }
-
-                                function _cond() {
-                                    if (_ctd <= 0 || $$flag.floaty_fin) {
-                                        if ($$flag.floaty_err) {
-                                            messageAction("此设备可能无法使用Floaty功能", 3, 1);
-                                            messageAction("建议改用Toast方式显示收取结果", 3);
-                                        }
-
-                                        let _pref = $$flag.floaty_err ? "强制" : "";
-                                        debugInfo(_pref + "关闭所有Floaty窗口");
-                                        floaty.closeAll();
-
-                                        if ($$flag.floaty_fin === 0) {
-                                            $$flag.floaty_fin = 1;
-                                            debugInfo(_pref + "发送Floaty消息结束等待信号");
-                                        }
-
-                                        debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
-
-                                        return reso() || true;
+                            }, 200, () => {
+                                if (_ctd <= 0 || $$flag.floaty_fin) {
+                                    if ($$flag.floaty_err) {
+                                        messageAction("此设备可能无法使用Floaty功能", 3, 1);
+                                        messageAction("建议改用Toast方式显示收取结果", 3);
                                     }
+
+                                    let _pref = $$flag.floaty_err ? "强制" : "";
+                                    debugInfo(_pref + "关闭所有Floaty窗口");
+                                    floaty.closeAll();
+
+                                    if ($$flag.floaty_fin === 0) {
+                                        $$flag.floaty_fin = 1;
+                                        debugInfo(_pref + "发送Floaty消息结束等待信号");
+                                    }
+
+                                    debugInfo(["Floaty倒计时结束", "统计结果展示完毕"]);
+
+                                    return reso() || true;
                                 }
                             });
 
@@ -6916,22 +7014,18 @@ let $$af = {
                                 return _res;
                             }
 
-                            function _setFloTt(ctd) {
-                                ui.run(function () {
-                                    try {
-                                        debugInfo("设置倒计时数据文本: " + ctd);
-                                        _tt_win.text.setText(surroundWith(ctd, "(", ")"));
-                                        delete $$flag.floaty_err;
-                                    } catch (e) {
-                                        if (!$$flag.floaty_fin) {
-                                            debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
-                                        }
+                            function _setFloTxt(ctd) {
+                                try {
+                                    debugInfo("设置倒计时数据文本: " + ctd);
+                                    _tt_win.text.setText(surroundWith(ctd, "(", ")"));
+                                    delete $$flag.floaty_err;
+                                } catch (e) {
+                                    if (!$$flag.floaty_fin) {
+                                        debugInfo(["Floaty倒计时文本设置单次失败:", e.message]);
                                     }
-                                });
+                                }
                             }
                         }
-
-                        // tool function(s) //
 
                         function _getLayouts() {
                             return {
@@ -6994,20 +7088,23 @@ let $$af = {
             });
         },
         readyExit() {
-            $$af.cleaner.imgWrapper();
-            $$app.blist.save();
-            $$app.page.rl.pool.clean();
-            $$app.monitor.insurance.interrupt().reset();
-            $$app.page.closeIntelligently();
-            $$app.page.autojs.spring_board.remove();
-            $$flag.glob_e_scr_privilege = true;
-
             return Promise.resolve()
+                .then(_cleanerReady)
                 .then(_floatyReady)
                 .then(_autoTaskReady)
                 .catch(this.err);
 
             // tool function(s) //
+
+            function _cleanerReady() {
+                $$af.cleaner.imgWrapper();
+                $$app.blist.save();
+                $$app.page.rl.pool.clean();
+                $$app.monitor.insurance.interrupt().reset();
+                $$app.page.closeIntelligently();
+                $$app.page.autojs.spring_board.remove();
+                $$flag.glob_e_scr_privilege = true;
+            }
 
             function _floatyReady() {
                 return new Promise((reso) => {
@@ -7076,6 +7173,14 @@ let $$af = {
             }
         },
         scrOffIFN() {
+            if (typeof $$app.init_scr_on_from_broadcast === "boolean") {
+                $$app.init_scr_on = $$app.init_scr_on_from_broadcast;
+            }
+
+            if ($$init.queue.queue.excl_tasks_all_len > 1) {
+                return debugInfo(["跳过关闭屏幕", ">当前存在排他性排队任务"]);
+            }
+
             if ($$app.init_scr_on) {
                 return debugInfo("无需关闭屏幕");
             }
@@ -7107,7 +7212,7 @@ let $$af = {
             function _scrOffByKeyCode() {
                 debugInfo("尝试策略: 模拟电源按键");
 
-                if (_bugModel()) {
+                if (_bugModel() || _noRootAccess()) {
                     return false;
                 }
 
@@ -7133,12 +7238,21 @@ let $$af = {
                     let _len = _bug.length;
                     for (let i = 0; i < _len; i += 1) {
                         if (_brand.match(_bug[i])) {
-                            let _sA = "策略执行失败";
+                            let _sA = "跳过当前策略";
                             let _sB = ">设备型号不支持KeyCode方法";
                             let _sC = ">设备型号: " + _brand;
                             debugInfo([_sA, _sB, _sC]);
                             return true;
                         }
+                    }
+                }
+
+                function _noRootAccess() {
+                    if (!$$app.has_root) {
+                        let _sA = "跳过当前策略";
+                        let _sB = ">设备未获取Root权限";
+                        debugInfo([_sA, _sB]);
+                        return true;
                     }
                 }
             }
@@ -7354,7 +7468,7 @@ let $$af = {
     epilogue() {
         let _ = this._epilogue_setter;
         _.logBackIFN();
-        Promise.all([_.showRes(), _.readyExit()])
+        Promise.all([_.showResult(), _.readyExit()])
             .then(_.scrOffIFN)
             .then(_.exitNow)
             .catch(_.err);

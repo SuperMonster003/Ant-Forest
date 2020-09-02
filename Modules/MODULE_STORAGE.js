@@ -22,7 +22,6 @@ function Storage(name) {
     let _dir = files.getSdcardPath() + "/.local/";
     let _full_path = _dir + name + ".nfe";
     files.createWithDirs(_full_path);
-    let _opened = files.open(_full_path);
     let _readFile = () => files.read(_full_path);
 
     this.contains = _contains;
@@ -89,7 +88,6 @@ function Storage(name) {
         files.write(_full_path, JSON.stringify(
             Object.assign(_old_data, _tmp_data), _replacer, 2
         ));
-        _opened.close();
     }
 
     function _get(key, value) {
@@ -104,8 +102,7 @@ function Storage(name) {
         let _o = _jsonParseFile();
         if (key in _o) {
             delete _o[key];
-            files.write(_full_path, JSON.stringify(_o));
-            _opened.close();
+            files.write(_full_path, JSON.stringify(_o, null, 2));
         }
     }
 

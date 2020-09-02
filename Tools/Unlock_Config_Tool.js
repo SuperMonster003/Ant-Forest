@@ -45,7 +45,6 @@ let {
     alertTitle,
     waitForAction,
     classof,
-    keycode,
 } = require("../Modules/MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
 
 let session_params = {};
@@ -468,7 +467,7 @@ function setPage(title_param, title_bg_color, additions, options) {
             <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
         </linear>
     ));
-    new_view._back_btn_area.on("click", () => keycode(4));
+    new_view._back_btn_area.on("click", () => back());
     new_view._title_text.text(title);
     new_view._title_text.getPaint().setFakeBoldText(true);
     let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
@@ -1018,7 +1017,6 @@ function loadInternalModuleMonsterFunc() {
         alertTitle: alertTitle,
         waitForAction: waitForAction,
         classof: classof,
-        keycode: keycode,
     };
 
     // some may be used by a certain monster function(s) even though not showing up above
@@ -1070,51 +1068,60 @@ function loadInternalModuleMonsterFunc() {
         }
     }
 
+    // updated: Aug 29, 2020
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
         let $_flag = global.$$flag = global.$$flag || {};
-
-        if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+        if ($_flag.no_msg_act_flag) {
+            return !(msg_level in {3: 1, 4: 1});
+        }
 
         let _msg = msg || "";
         if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+            return messageAction.apply(
+                null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
+            );
         }
+        if_toast && toast(_msg);
 
         let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-        let _if_toast = if_toast || false;
         let _if_arrow = if_arrow || false;
         let _if_spl_ln = if_split_line || false;
         _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-        let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-        if (_if_toast) toast(_msg);
-
         let _spl_ln_style = "solid";
         let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
         let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
         let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+        let _showSplitLine = (
+            typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+        );
 
         if (typeof _if_spl_ln === "string") {
-            if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+            if (_if_spl_ln.match(/dash/)) {
+                _spl_ln_style = "dash";
+            }
             if (_if_spl_ln.match(/both|up/)) {
-                if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-                if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-                else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-                else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+                if (!_matchLnStyle()) {
+                    _showSplitLine("", _spl_ln_style);
+                }
+                if (_if_spl_ln.match(/_n|n_/)) {
+                    _if_spl_ln = "\n";
+                } else if (_if_spl_ln.match(/both/)) {
+                    _if_spl_ln = 1;
+                } else if (_if_spl_ln.match(/up/)) {
+                    _if_spl_ln = 0;
+                }
             }
         }
 
         _clearLnStyle();
 
         if (_if_arrow) {
-            if (_if_arrow > 10) {
-                console.warn('-> "if_arrow"参数大于10');
-                _if_arrow = 10;
-            }
+            _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
             _msg = "> " + _msg;
-            for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+            for (let i = 0; i < _if_arrow; i += 1) {
+                _msg = "-" + _msg;
+            }
         }
 
         let _exit_flag = false;
@@ -1172,19 +1179,18 @@ function loadInternalModuleMonsterFunc() {
                     _spl_ln_extra = _if_spl_ln;
                 }
             }
-            if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+            if (!_spl_ln_extra.match(/\n/)) {
+                _saveLnStyle();
+            }
             _showSplitLine(_spl_ln_extra, _spl_ln_style);
         }
 
         if (_throw_flag) {
-            ui.post(function () {
-                throw ("FORCE_STOP");
-            });
+            throw ("forcibly stopped");
+        }
+        if (_exit_flag) {
             exit();
         }
-
-        if (_exit_flag) exit();
-
         return !(_msg_lv in {3: 1, 4: 1});
 
         // raw function(s) //
@@ -1198,23 +1204,11 @@ function loadInternalModuleMonsterFunc() {
             } else {
                 for (let i = 0; i < 33; i += 1) _split_line += "-";
             }
-            return ~console.log(_split_line + _extra_str);
+            console.log(_split_line + _extra_str);
         }
     }
 
-    function showSplitLine(extra_str, style, params) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        return !!~console.log(_split_line + _extra_str);
-    }
-
-    // updated: Aug 2, 2020
+    // updated: Aug 29, 2020
     function waitForAction(f, timeout_or_times, interval, params) {
         let _par = params || {};
         _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
@@ -1248,9 +1242,9 @@ function loadInternalModuleMonsterFunc() {
 
         function _checkF(f) {
             let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let _messageAction = typeof messageAction === "undefined"
-                ? messageActionRaw
-                : messageAction;
+            let _messageAction = (
+                typeof messageAction === "function" ? messageAction : messageActionRaw
+            );
 
             if (typeof f === "function") {
                 return f();
@@ -1319,150 +1313,79 @@ function loadInternalModuleMonsterFunc() {
         }
     }
 
-    function keycode(keycode_name, params_str) {
-        params_str = params_str || "";
+    // updated: Sep 1, 2020
+    function equalObjects(obj_a, obj_b) {
+        let _classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+        let _class_a = _classOf(obj_a);
+        let _class_b = _classOf(obj_b);
+        let _type_a = typeof obj_a;
+        let _type_b = typeof obj_b;
 
-        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        if (!_isTypeMatch(_type_a, _type_b, "object")) {
+            return obj_a === obj_b;
+        }
+        if (_isTypeMatch(_class_a, _class_b, "Null")) {
+            return true;
+        }
 
-        if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
-        let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
-        let first_result = simulateKey();
-        return params_str.match(/double/) ? simulateKey() : first_result;
+        if (_class_a === "Array") {
+            if (_class_b === "Array") {
+                let _len_a = obj_a.length;
+                let _len_b = obj_b.length;
+                if (_len_a === _len_b) {
+                    let _used_b_indices = [];
+                    for (let i = 0, l = obj_a.length; i < l; i += 1) {
+                        if (!_singleArrCheck(i, _used_b_indices)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if (_class_a === "Object") {
+            if (_class_b === "Object") {
+                let _keys_a = Object.keys(obj_a);
+                let _keys_b = Object.keys(obj_b);
+                let _len_a = _keys_a.length;
+                let _len_b = _keys_b.length;
+                if (_len_a !== _len_b) {
+                    return false;
+                }
+                if (!equalObjects(_keys_a, _keys_b)) {
+                    return false;
+                }
+                for (let i in obj_a) {
+                    if (obj_a.hasOwnProperty(i)) {
+                        if (!equalObjects(obj_a[i], obj_b[i])) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
 
         // tool function(s) //
 
-        function keyEvent(keycode_name) {
-            let _key_check = {
-                "26, power": checkPower,
-            };
-            for (let _key in _key_check) {
-                if (_key_check.hasOwnProperty(_key)) {
-                    if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) return _key_check[_key]();
-                }
-            }
-            return shellInputKeyEvent(keycode_name);
-
-            // tool function(s) //
-
-            function shellInputKeyEvent(keycode_name) {
-                let shell_result = false;
-                try {
-                    shell_result = !shell("input keyevent " + keycode_name, true).code;
-                } catch (e) {
-                    // nothing to do here
-                }
-                return shell_result ? true : (!params_str.match(/no.*err(or)?.*(message|msg)/) && !!keyEventFailedMsg());
-
-                // tool function(s) //
-
-                function keyEventFailedMsg() {
-                    messageAction("按键模拟失败", 0);
-                    messageAction("键值: " + keycode_name, 0, 0, 1);
-                }
-            }
-
-            function checkPower() {
-                let isScreenOn = () => device.isScreenOn();
-                let isScreenOff = () => !isScreenOn();
-                if (isScreenOff()) {
-                    device.wakeUp();
-                    let max_try_times_wake_up = 10;
-                    while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
-                    return max_try_times_wake_up >= 0;
-                }
-                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
-            }
+        function _isTypeMatch(a, b, feature) {
+            return a === feature && b === feature;
         }
 
-        function simulateKey() {
-            switch (_tidy_keycode_name) {
-                case "3":
-                case "home":
-                    return ~home();
-                case "4":
-                case "back":
-                    return ~back();
-                case "appSwitch":
-                case "187":
-                case "recent":
-                case "recentApp":
-                    return ~recents();
-                case "powerDialog":
-                case "powerMenu":
-                    return ~powerDialog();
-                case "notification":
-                    return ~notifications();
-                case "quickSetting":
-                    return ~quickSettings();
-                case "splitScreen":
-                    return ~splitScreen();
-                default:
-                    return keyEvent(keycode_name);
-            }
-        }
-
-        // raw function(s) //
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-    }
-
-    function equalObjects(obj_a, obj_b) {
-        let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
-        let class_of_a = classOf(obj_a),
-            class_of_b = classOf(obj_b),
-            type_of_a = typeof obj_a,
-            type_of_b = typeof obj_b;
-        let matchFeature = (a, b, feature) => a === feature && b === feature;
-        if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
-        if (matchFeature(class_of_a, class_of_b, "Null")) return true;
-
-        if (class_of_a === "Array") {
-            if (class_of_b !== "Array") return false;
-            let len_a = obj_a.length,
-                len_b = obj_b.length;
-            if (len_a !== len_b) return false;
-            let used_obj_b_indices = [];
-            for (let i = 0, len = obj_a.length; i < len; i += 1) {
-                if (!function () {
-                    let a = obj_a[i];
-                    for (let j = 0, len_j = obj_b.length; j < len_j; j += 1) {
-                        if (~used_obj_b_indices.indexOf(j)) continue;
-                        if (equalObjects(a, obj_b[j])) {
-                            used_obj_b_indices.push(j);
-                            return true;
-                        }
-                    }
-                }()) return false;
-            }
-            return true;
-        }
-
-        if (class_of_a === "Object") {
-            if (class_of_b !== "Object") return false;
-            let keys_a = Object.keys(obj_a),
-                keys_b = Object.keys(obj_b),
-                len_a = keys_a.length,
-                len_b = keys_b.length;
-            if (len_a !== len_b) return false;
-            if (!equalObjects(keys_a, keys_b)) return false;
-            for (let i in obj_a) {
-                if (obj_a.hasOwnProperty(i)) {
-                    if (!equalObjects(obj_a[i], obj_b[i])) return false;
+        function _singleArrCheck(i, container) {
+            let _a = obj_a[i];
+            for (let i = 0, l = obj_b.length; i < l; i += 1) {
+                if (~container.indexOf(i)) {
+                    continue;
+                }
+                if (equalObjects(_a, obj_b[i])) {
+                    container.push(i);
+                    return true;
                 }
             }
-            return true;
         }
     }
 
@@ -1900,7 +1823,6 @@ function loadInternalModuleStorage() {
             let _dir = files.getSdcardPath() + "/.local/";
             let _full_path = _dir + name + ".nfe";
             files.createWithDirs(_full_path);
-            let _opened = files.open(_full_path);
             let _readFile = () => files.read(_full_path);
 
             this.contains = _contains;
@@ -1967,7 +1889,6 @@ function loadInternalModuleStorage() {
                 files.write(_full_path, JSON.stringify(
                     Object.assign(_old_data, _tmp_data), _replacer, 2
                 ));
-                _opened.close();
             }
 
             function _get(key, value) {
@@ -1982,8 +1903,7 @@ function loadInternalModuleStorage() {
                 let _o = _jsonParseFile();
                 if (key in _o) {
                     delete _o[key];
-                    files.write(_full_path, JSON.stringify(_o));
-                    _opened.close();
+                    files.write(_full_path, JSON.stringify(_o, null, 2));
                 }
             }
 
@@ -2059,12 +1979,12 @@ function _getDisplay(global_assign, params) {
         _glob_asg = _par.global_assign;
     }
 
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
 
     let _W, _H;
     let _disp = {};
@@ -2173,7 +2093,7 @@ function _getDisplay(global_assign, params) {
             // 3: 270°, device is rotated 90 degree clockwise
             let _SCR_O = _win_svc_disp.getRotation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = +_win_svc_disp.maximumSizeDimension;
+            // let _MAX = _win_svc_disp.maximumSizeDimension;
             let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
             let [_UH, _UW] = [_H, _W];
@@ -2200,16 +2120,13 @@ function _getDisplay(global_assign, params) {
                 action_bar_default_height: _dimen("action_bar_default_height"),
             };
         } catch (e) {
-            try {
-                _W = +device.width;
-                _H = +device.height;
-                return _W && _H && {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            } catch (e) {
-            }
+            _W = device.width;
+            _H = device.height;
+            return _W && _H && {
+                WIDTH: _W,
+                HEIGHT: _H,
+                USABLE_HEIGHT: Math.trunc(_H * 0.9),
+            };
         }
     }
 

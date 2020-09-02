@@ -14,6 +14,9 @@
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
+let _init_scr = _isScrOn();
+let _init_unlk = _isUnlk();
+
 _overrideRequire();
 _makeSureImpeded();
 _addObjectValues();
@@ -149,52 +152,60 @@ function _overrideRequire() {
                 // even though not showing up above
                 // monster function(s) //
 
-                // updated: Mar 1, 2020
+                // updated: Aug 29, 2020
                 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                     let $_flag = global.$$flag = global.$$flag || {};
-
-                    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+                    if ($_flag.no_msg_act_flag) {
+                        return !(msg_level in {3: 1, 4: 1});
+                    }
 
                     let _msg = msg || "";
                     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-                        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+                        return messageAction.apply(
+                            null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
+                        );
                     }
+                    if_toast && toast(_msg);
 
                     let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-                    let _if_toast = if_toast || false;
                     let _if_arrow = if_arrow || false;
                     let _if_spl_ln = if_split_line || false;
                     _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-                    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-                    if (_if_toast) toast(_msg);
-
                     let _spl_ln_style = "solid";
                     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
                     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
                     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
                     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+                    let _showSplitLine = (
+                        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+                    );
 
                     if (typeof _if_spl_ln === "string") {
-                        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+                        if (_if_spl_ln.match(/dash/)) {
+                            _spl_ln_style = "dash";
+                        }
                         if (_if_spl_ln.match(/both|up/)) {
-                            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-                            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-                            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-                            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+                            if (!_matchLnStyle()) {
+                                _showSplitLine("", _spl_ln_style);
+                            }
+                            if (_if_spl_ln.match(/_n|n_/)) {
+                                _if_spl_ln = "\n";
+                            } else if (_if_spl_ln.match(/both/)) {
+                                _if_spl_ln = 1;
+                            } else if (_if_spl_ln.match(/up/)) {
+                                _if_spl_ln = 0;
+                            }
                         }
                     }
 
                     _clearLnStyle();
 
                     if (_if_arrow) {
-                        if (_if_arrow > 10) {
-                            console.warn('-> "if_arrow"参数大于10');
-                            _if_arrow = 10;
-                        }
+                        _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
                         _msg = "> " + _msg;
-                        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+                        for (let i = 0; i < _if_arrow; i += 1) {
+                            _msg = "-" + _msg;
+                        }
                     }
 
                     let _exit_flag = false;
@@ -252,24 +263,23 @@ function _overrideRequire() {
                                 _spl_ln_extra = _if_spl_ln;
                             }
                         }
-                        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+                        if (!_spl_ln_extra.match(/\n/)) {
+                            _saveLnStyle();
+                        }
                         _showSplitLine(_spl_ln_extra, _spl_ln_style);
                     }
 
                     if (_throw_flag) {
-                        ui.post(function () {
-                            throw ("FORCE_STOP");
-                        });
+                        throw ("forcibly stopped");
+                    }
+                    if (_exit_flag) {
                         exit();
                     }
-
-                    if (_exit_flag) exit();
-
                     return !(_msg_lv in {3: 1, 4: 1});
                 }
 
                 // updated: Mar 1, 2020
-                function showSplitLine(extra_str, style, params) {
+                function showSplitLine(extra_str, style) {
                     let _extra_str = extra_str || "";
                     let _split_line = "";
                     if (style === "dash") {
@@ -278,7 +288,7 @@ function _overrideRequire() {
                     } else {
                         for (let i = 0; i < 33; i += 1) _split_line += "-";
                     }
-                    return !!~console.log(_split_line + _extra_str);
+                    console.log(_split_line + _extra_str);
                 }
 
                 // updated: Aug 2, 2020
@@ -315,9 +325,9 @@ function _overrideRequire() {
 
                     function _checkF(f) {
                         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                        let _messageAction = typeof messageAction === "undefined"
-                            ? messageActionRaw
-                            : messageAction;
+                        let _messageAction = (
+                            typeof messageAction === "function" ? messageAction : messageActionRaw
+                        );
 
                         if (typeof f === "function") {
                             return f();
@@ -386,42 +396,59 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Mar 1, 2020
+                // updated and modified: Aug 29, 2020
                 function clickAction(f, strategy, params) {
                     let _par = params || {};
                     _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
 
-                    if (typeof f === "undefined" || f === null) return false;
+                    if (typeof f === "undefined" || f === null) {
+                        return false;
+                    }
 
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-                    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+                    let $_str = o => typeof o === "string";
+                    let $_und = o => typeof o === "undefined";
+                    let $_num = o => typeof o === "number";
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
+                    let _waitForAction = (
+                        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                    );
 
                     /**
-                     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
+                     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"
                      */
                     let _type = _checkType(f);
                     let _padding = _checkPadding(_par.padding);
-                    if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+                    if (!(typeof strategy).match(/string|undefined/)) {
+                        _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+                    }
                     let _strategy = (strategy || "click").toString();
                     let _widget_id = 0;
-                    let _w_parent_id = 0;
+                    let _widget_parent_id = 0;
 
-                    let _condition_success = _par.condition_success;
+                    let _cond_succ = _par.condition_success;
 
-                    let _check_time_once = _par.check_time_once || 500;
-                    let _max_check_times = _par.max_check_times || 0;
-                    if (!_max_check_times && _condition_success) _max_check_times = 3;
-
-                    if (typeof _condition_success === "string" && _condition_success.match(/disappear/)) {
-                        _condition_success = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
-                    } else if (typeof _condition_success === "undefined") _condition_success = () => true;
-
-                    while (~_clickOnce() && _max_check_times--) {
-                        if (_waitForAction(() => _condition_success(), _check_time_once, 50)) return true;
+                    let _chk_t_once = _par.check_time_once || 500;
+                    let _max_chk_cnt = _par.max_check_times || 0;
+                    if (!_max_chk_cnt && _cond_succ) {
+                        _max_chk_cnt = 3;
                     }
-                    return _condition_success();
+
+                    if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
+                        _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
+                    } else if ($_und(_cond_succ)) {
+                        _cond_succ = () => true;
+                    }
+
+                    while (~_clickOnce() && _max_chk_cnt--) {
+                        if (_waitForAction(_cond_succ, _chk_t_once, 50)) {
+                            return true;
+                        }
+                    }
+
+                    return _cond_succ();
 
                     // tool function(s) //
 
@@ -431,29 +458,32 @@ function _overrideRequire() {
 
                         if (_type === "UiSelector") {
                             let _w = f.findOnce();
-                            if (_w) {
-                                try {
-                                    _widget_id = _w.toString().match(/@\w+/)[0].slice(1);
-                                } catch (e) {
-                                    _widget_id = 0;
-                                }
-                                if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
-                                    return _w.click();
-                                }
-                                let _bounds = _w.bounds();
-                                _x = _bounds.centerX();
-                                _y = _bounds.centerY();
+                            if (!_w) {
+                                return;
                             }
+                            try {
+                                _widget_id = _w.toString().match(/@\w+/)[0].slice(1);
+                            } catch (e) {
+                                _widget_id = 0;
+                            }
+                            if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
+                                return _w.click();
+                            }
+                            let _bnd = _w.bounds();
+                            _x = _bnd.centerX();
+                            _y = _bnd.centerY();
                         } else if (_type === "UiObject") {
                             try {
-                                _w_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
+                                _widget_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
                             } catch (e) {
-                                _w_parent_id = 0;
+                                _widget_parent_id = 0;
                             }
-                            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) return f.click();
-                            let _bounds = f.bounds();
-                            _x = _bounds.centerX();
-                            _y = _bounds.centerY();
+                            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) {
+                                return f.click();
+                            }
+                            let _bnd = f.bounds();
+                            _x = _bnd.centerX();
+                            _y = _bnd.centerY();
                         } else if (_type === "Bounds") {
                             if (_strategy.match(/^w(idget)?$/)) {
                                 _strategy = "click";
@@ -468,8 +498,11 @@ function _overrideRequire() {
                                 _messageAction("clickAction()控件策略已改为click", 3);
                                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
                             }
-                            _x = f[0];
-                            _y = f[1];
+                            if (Array.isArray(f)) {
+                                [_x, _y] = f;
+                            } else {
+                                [_x, _y] = [f.x, f.y];
+                            }
                         }
                         if (isNaN(_x) || isNaN(_y)) {
                             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -478,51 +511,96 @@ function _overrideRequire() {
                         _x += _padding.x;
                         _y += _padding.y;
 
-                        _strategy.match(/^p(ress)?$/) ? press(_x, _y, _par.press_time || 1) : click(_x, _y);
+                        _strategy.match(/^p(ress)?$/)
+                            ? press(_x, _y, _par.press_time || 1)
+                            : click(_x, _y);
                     }
 
                     function _checkType(f) {
-                        let _checkJavaObject = (o) => {
-                            if (_classof(o) !== "JavaObject") return;
-                            let string = o.toString();
-                            if (string.match(/^Rect\(/)) return "Bounds";
-                            if (string.match(/UiObject/)) return "UiObject";
-                            return "UiSelector";
-                        };
-                        let _checkCoordsArray = (arr) => {
-                            if (_classof(f) !== "Array") return;
-                            if (arr.length !== 2) _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
-                            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
-                            return "CoordsArray";
-                        };
-                        let _type_f = _checkJavaObject(f) || _checkCoordsArray(f);
-                        if (!_type_f) _messageAction("clickAction()f参数类型未知", 8, 1, 0, 1);
+                        let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
+                        if (!_type_f) {
+                            _messageAction("不支持的clickAction()f参数类型: " + _classof(f), 8, 1, 0, 1);
+                        }
                         return _type_f;
+
+                        // tool function(s) //
+
+                        function _chkJavaO(o) {
+                            if (_classof(o) !== "JavaObject") {
+                                return;
+                            }
+                            if (o.getClass().getName().match(/Point$/)) {
+                                return "Points";
+                            }
+                            let string = o.toString();
+                            if (string.match(/^Rect\(/)) {
+                                return "Bounds";
+                            }
+                            if (string.match(/UiObject/)) {
+                                return "UiObject";
+                            }
+                            return "UiSelector";
+                        }
+
+                        function _chkCoords(arr) {
+                            if (_classof(f) !== "Array") {
+                                return;
+                            }
+                            if (arr.length !== 2) {
+                                _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
+                            }
+                            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") {
+                                _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
+                            }
+                            return "CoordsArray";
+                        }
+
+                        function _chkObjXY(o) {
+                            if (_classof(o) === "Object") {
+                                if ($_num(o.x) && $_num(o.y)) {
+                                    return "ObjXY";
+                                }
+                            }
+                        }
                     }
 
                     function _checkPadding(arr) {
-                        if (!arr) return {x: 0, y: 0};
+                        if (!arr) {
+                            return {x: 0, y: 0};
+                        }
 
                         let _coords = [];
-                        if (typeof arr === "number") _coords = [0, arr];
-                        else if (_classof(arr) !== "Array") _messageAction("clickAction()坐标偏移参数类型未知", 8, 1, 0, 1);
-                        else {
-                            let _arr_len = arr.length;
-                            if (_arr_len === 1) _coords = [0, arr[0]];
-                            else if (_arr_len === 2) {
-                                let _arr_param_0 = arr[0];
-                                if (_arr_param_0 === "x") _coords = [arr[1], 0];
-                                else if (_arr_param_0 === "y") _coords = [0, arr[1]];
-                                else _coords = arr;
-                            } else _messageAction("clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1);
+                        if ($_num(arr)) {
+                            _coords = [0, arr];
+                        } else if (_classof(arr) !== "Array") {
+                            return _messageAction(
+                                "clickAction()坐标偏移参数类型未知", 8, 1, 0, 1
+                            );
                         }
-                        let _x = +_coords[0];
-                        let _y = +_coords[1];
-                        if (isNaN(_x) || isNaN(_y)) _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
-                        return {
-                            x: _x,
-                            y: _y,
-                        };
+
+                        let _arr_len = arr.length;
+                        if (_arr_len === 1) {
+                            _coords = [0, arr[0]];
+                        } else if (_arr_len === 2) {
+                            let _par0 = arr[0];
+                            if (_par0 === "x") {
+                                _coords = [arr[1], 0];
+                            } else if (_par0 === "y") {
+                                _coords = [0, arr[1]];
+                            } else {
+                                _coords = arr;
+                            }
+                        } else {
+                            return _messageAction(
+                                "clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1
+                            );
+                        }
+
+                        let [_x, _y] = [+_coords[0], +_coords[1]];
+                        if (!isNaN(_x) && !isNaN(_y)) {
+                            return {x: _x, y: _y};
+                        }
+                        _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
                     }
 
                     function _checkDisappearance() {
@@ -535,27 +613,32 @@ function _overrideRequire() {
                                 if (!_par.condition_success.match(/in.?place/)) {
                                     return !_w;
                                 }
-                                return _w.toString().match(/@\w+/)[0].slice(1) !== _widget_id;
-                            } else if (_type === "UiObject") {
+                                let _mch = _w.toString().match(/@\w+/);
+                                return _mch[0].slice(1) !== _widget_id;
+                            }
+                            if (_type === "UiObject") {
                                 let _w_parent = f.parent();
                                 if (!_w_parent) {
                                     return true;
                                 }
-                                return _w_parent.toString().match(/@\w+/)[0].slice(1) !== _w_parent_id;
+                                let _mch = _w_parent.toString().match(/@\w+/);
+                                return _mch[0].slice(1) !== _widget_parent_id;
                             }
                         } catch (e) {
-                            return true
                         }
                         return true;
                     }
                 }
 
-                // updated: Mar 1, 2020
+                // updated: Aug 29, 2020
+                // modified: no internal raw
                 function keycode(code, params) {
                     let _par = params || {};
                     _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
 
-                    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+                    let _waitForAction = (
+                        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                    );
 
                     if (_par.force_shell) {
                         return keyEvent(code);
@@ -644,31 +727,51 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Mar 1, 2020
+                // updated: Mar 29, 2020
+                // modified: no internal raw
                 function debugInfo(msg, info_flag, forcible_flag) {
                     let $_flag = global.$$flag = global.$$flag || {};
 
-                    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+                    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                    let _showSplitLine = (
+                        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+                    );
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
 
-                    let global_flag = $_flag.debug_info_avail;
-                    if (!global_flag && !forcible_flag) return;
-                    if (global_flag === false || forcible_flag === false) return;
+                    let _glob_fg = $_flag.debug_info_avail;
+                    let _forc_fg = forcible_flag;
+                    if (!_glob_fg && !_forc_fg) {
+                        return;
+                    }
+                    if (_glob_fg === false || _forc_fg === false) {
+                        return;
+                    }
 
-                    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                    let _info_flag_str = (info_flag || "").toString();
+                    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
+                    if (_info_flag_str.match(/Up/)) {
+                        _showSplitLine();
+                    }
+                    if (_info_flag_str.match(/both|up/)) {
+                        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+                        debugInfo("__split_line__" + _dash, "", _forc_fg);
+                    }
 
-                    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
+                    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
+                        msg = setDebugSplitLine(msg);
+                    }
+                    if (_classof(msg) === "Array") {
+                        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+                    } else {
+                        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+                    }
 
-                    let info_flag_str = (info_flag || "").toString();
-                    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-                    if (info_flag_str.match(/Up/)) _showSplitLine();
-                    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-                    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-                    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-                    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
+                    if (_info_flag_str.match("both")) {
+                        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+                        debugInfo("__split_line__" + _dash, "", _forc_fg);
+                    }
 
                     // tool function(s) //
 
@@ -692,9 +795,9 @@ function _overrideRequire() {
                     require("./EXT_IMAGES").load();
                     imagesx.requestScreenCapture();
 
-                    let _messageAction = typeof messageAction === "undefined"
-                        ? messageActionRaw
-                        : messageAction;
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
 
                     let _dir = files.getSdcardPath() + "/.local/Pics/Err/";
                     let _suffix = "_" + _getTimeStr();
@@ -723,7 +826,7 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Jun 18, 2020
+                // updated: Sep 1, 2020
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -1025,7 +1128,7 @@ function _overrideRequire() {
                                     }
                                 }
 
-                                let _mch = _compass.match(/c\d+/g);
+                                let _mch = _compass.match(/c-?\d+/g);
                                 return _mch ? _childWidget(_mch) : _w;
 
                                 // tool function(s) //
@@ -1034,7 +1137,10 @@ function _overrideRequire() {
                                     let _len = arr.length;
                                     for (let i = 0; i < _len; i += 1) {
                                         try {
-                                            let _idx = +arr[i].match(/\d+/);
+                                            let _idx = +arr[i].match(/-?\d+/);
+                                            if (_idx < 0) {
+                                                _idx += _w.childCount();
+                                            }
                                             _w = _w.child(_idx);
                                         } catch (e) {
                                             return null;
@@ -1393,7 +1499,6 @@ function _overrideRequire() {
                     let _dir = files.getSdcardPath() + "/.local/";
                     let _full_path = _dir + name + ".nfe";
                     files.createWithDirs(_full_path);
-                    let _opened = files.open(_full_path);
                     let _readFile = () => files.read(_full_path);
 
                     this.contains = _contains;
@@ -1460,7 +1565,6 @@ function _overrideRequire() {
                         files.write(_full_path, JSON.stringify(
                             Object.assign(_old_data, _tmp_data), _replacer, 2
                         ));
-                        _opened.close();
                     }
 
                     function _get(key, value) {
@@ -1475,8 +1579,7 @@ function _overrideRequire() {
                         let _o = _jsonParseFile();
                         if (key in _o) {
                             delete _o[key];
-                            files.write(_full_path, JSON.stringify(_o));
-                            _opened.close();
+                            files.write(_full_path, JSON.stringify(_o, null, 2));
                         }
                     }
 
@@ -1623,12 +1726,12 @@ function _activeExtension() {
                     _glob_asg = _par.global_assign;
                 }
 
-                let _waitForAction = typeof waitForAction === "undefined"
-                    ? waitForActionRaw
-                    : waitForAction;
-                let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-                    ? debugInfoRaw
-                    : debugInfo)(m, fg, _par.debug_info_flag);
+                let _waitForAction = (
+                    typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                );
+                let _debugInfo = (m, fg) => (
+                    typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+                )(m, fg, _par.debug_info_flag);
 
                 let _W, _H;
                 let _disp = {};
@@ -1737,7 +1840,7 @@ function _activeExtension() {
                         // 3: 270°, device is rotated 90 degree clockwise
                         let _SCR_O = _win_svc_disp.getRotation();
                         let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                        // let _MAX = +_win_svc_disp.maximumSizeDimension;
+                        // let _MAX = _win_svc_disp.maximumSizeDimension;
                         let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
                         let [_UH, _UW] = [_H, _W];
@@ -1764,16 +1867,13 @@ function _activeExtension() {
                             action_bar_default_height: _dimen("action_bar_default_height"),
                         };
                     } catch (e) {
-                        try {
-                            _W = +device.width;
-                            _H = +device.height;
-                            return _W && _H && {
-                                WIDTH: _W,
-                                HEIGHT: _H,
-                                USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                            };
-                        } catch (e) {
-                        }
+                        _W = device.width;
+                        _H = device.height;
+                        return _W && _H && {
+                            WIDTH: _W,
+                            HEIGHT: _H,
+                            USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                        };
                     }
                 }
 
@@ -1857,7 +1957,10 @@ function _err(s) {
     _s.forEach(m => messageAction(m, 4, 0, 1));
     messageAction(_intro, 4, 0, 1, 1);
 
-    captureErrScreen("unlock_failed", 1);
+    captureErrScreen("unlock_failed", {
+        log_level: 1,
+        max_samples: 8,
+    });
 
     if ($_unlk.init_scr) {
         let _suffix = keycode(26) ? "" : "失败";
@@ -1904,8 +2007,8 @@ function _unlkSetter() {
     let _sk = "com\\.smartisanos\\.keyguard:id/";
 
     return {
-        init_scr: _isScrOn(),
-        init_unlk: _isUnlk(),
+        init_scr: _init_scr,
+        init_unlk: _init_unlk,
         prev_cntr: {
             trigger() {
                 _wakeUpIFN();
@@ -2015,10 +2118,9 @@ function _unlkSetter() {
                     devicex.keepOn(3);
                     while (!_lmt()) {
                         let _s = " (" + _ctr + "/" + _max + ")";
-                        debugInfo(_ctr
-                            ? "重试消除解锁页面提示层" + _s
-                            : "尝试消除解锁页面提示层"
-                        );
+                        _ctr
+                            ? debugInfo("重试消除解锁页面提示层" + _s)
+                            : debugInfo("尝试消除解锁页面提示层");
                         debugInfo("滑动时长: " + _time + "毫秒");
                         debugInfo("参数来源: " + (_from_sto ? "本地存储" : "自动计算"));
 
@@ -2150,10 +2252,9 @@ function _unlkSetter() {
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
                             let _s = " (" + _ctr + "/" + _max + ")";
-                            debugInfo(_ctr
-                                ? "重试图案密码解锁" + _s
-                                : "尝试图案密码解锁"
-                            );
+                            _ctr
+                                ? debugInfo("重试图案密码解锁" + _s)
+                                : debugInfo("尝试图案密码解锁");
                             debugInfo("滑动时长: " + _time + "毫秒");
                             debugInfo("滑动策略: " + _stg_map[_stg]);
 
@@ -3117,7 +3218,7 @@ function showSplitLineRaw(extra_str, style) {
     } else {
         for (let i = 0; i < 33; i += 1) _split_line += "-";
     }
-    return ~console.log(_split_line + _extra_str);
+    console.log(_split_line + _extra_str);
 }
 
 function messageActionRaw(msg, lv, if_toast) {

@@ -154,12 +154,12 @@ let ext = {
             _glob_asg = _par.global_assign;
         }
 
-        let _waitForAction = typeof waitForAction === "undefined"
-            ? waitForActionRaw
-            : waitForAction;
-        let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-            ? debugInfoRaw
-            : debugInfo)(m, fg, _par.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
 
         let _W, _H;
         let _disp = {};
@@ -397,7 +397,7 @@ let ext = {
                 // 3: 270°, device is rotated 90 degree clockwise
                 let _SCR_O = _win_svc_disp.getRotation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                // let _MAX = +_win_svc_disp.maximumSizeDimension;
+                // let _MAX = _win_svc_disp.maximumSizeDimension;
                 let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
                 let [_UH, _UW] = [_H, _W];
@@ -424,16 +424,13 @@ let ext = {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
-                try {
-                    _W = +device.width;
-                    _H = +device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                } catch (e) {
-                }
+                _W = device.width;
+                _H = device.height;
+                return _W && _H && {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                };
             }
         }
 
@@ -697,31 +694,50 @@ module.exports.load = () => global.devicex = ext;
 
 // tool function(s) //
 
-// updated: Dec 3, 2019
+// updated: Aug 29, 2019
 function debugInfo(msg, info_flag, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
 
-    let global_flag = $_flag.debug_info_avail;
-    if (!global_flag && !forcible_flag) return;
-    if (global_flag === false || forcible_flag === false) return;
+    let _glob_fg = $_flag.debug_info_avail;
+    let _forc_fg = forcible_flag;
+    if (!_glob_fg && !_forc_fg) {
+        return;
+    }
+    if (_glob_fg === false || _forc_fg === false) {
+        return;
+    }
 
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _info_flag_str = (info_flag || "").toString();
+    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
+    if (_info_flag_str.match(/Up/)) {
+        _showSplitLine();
+    }
+    if (_info_flag_str.match(/both|up/)) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
+    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
+        msg = setDebugSplitLine(msg);
+    }
+    if (_classof(msg) === "Array") {
+        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+    } else {
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+    }
 
-    let info_flag_str = (info_flag || "").toString();
-    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-    if (info_flag_str.match(/Up/)) _showSplitLine();
-    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
+    if (_info_flag_str.match("both")) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
     // raw function(s) //
 
@@ -734,7 +750,7 @@ function debugInfo(msg, info_flag, forcible_flag) {
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -782,52 +798,60 @@ function debugInfo(msg, info_flag, forcible_flag) {
     }
 }
 
-// updated: Apr 25, 2020
+// updated: Aug 29, 2020
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
     let $_flag = global.$$flag = global.$$flag || {};
-
-    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
+    if ($_flag.no_msg_act_flag) {
+        return !(msg_level in {3: 1, 4: 1});
+    }
 
     let _msg = msg || "";
     if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+        return messageAction.apply(
+            null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
+        );
     }
+    if_toast && toast(_msg);
 
     let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-    let _if_toast = if_toast || false;
     let _if_arrow = if_arrow || false;
     let _if_spl_ln = if_split_line || false;
     _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-    if (_if_toast) toast(_msg);
-
     let _spl_ln_style = "solid";
     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
 
     if (typeof _if_spl_ln === "string") {
-        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
+        if (_if_spl_ln.match(/dash/)) {
+            _spl_ln_style = "dash";
+        }
         if (_if_spl_ln.match(/both|up/)) {
-            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+            if (!_matchLnStyle()) {
+                _showSplitLine("", _spl_ln_style);
+            }
+            if (_if_spl_ln.match(/_n|n_/)) {
+                _if_spl_ln = "\n";
+            } else if (_if_spl_ln.match(/both/)) {
+                _if_spl_ln = 1;
+            } else if (_if_spl_ln.match(/up/)) {
+                _if_spl_ln = 0;
+            }
         }
     }
 
     _clearLnStyle();
 
     if (_if_arrow) {
-        if (_if_arrow > 10) {
-            console.warn('-> "if_arrow"参数大于10');
-            _if_arrow = 10;
-        }
+        _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
         _msg = "> " + _msg;
-        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+        for (let i = 0; i < _if_arrow; i += 1) {
+            _msg = "-" + _msg;
+        }
     }
 
     let _exit_flag = false;
@@ -885,19 +909,18 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
                 _spl_ln_extra = _if_spl_ln;
             }
         }
-        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+        if (!_spl_ln_extra.match(/\n/)) {
+            _saveLnStyle();
+        }
         _showSplitLine(_spl_ln_extra, _spl_ln_style);
     }
 
     if (_throw_flag) {
-        ui.post(function () {
-            throw ("FORCE_STOP");
-        });
+        throw ("forcibly stopped");
+    }
+    if (_exit_flag) {
         exit();
     }
-
-    if (_exit_flag) exit();
-
     return !(_msg_lv in {3: 1, 4: 1});
 
     // raw function(s) //
@@ -911,7 +934,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 }
 
@@ -949,9 +972,9 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = typeof messageAction === "undefined"
-            ? messageActionRaw
-            : messageAction;
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
 
         if (typeof f === "function") {
             return f();

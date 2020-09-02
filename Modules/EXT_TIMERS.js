@@ -2,14 +2,14 @@
 
 global.timersx = typeof global.timersx === "object" ? global.timersx : {};
 
-let is_pro = getVerName("current_autojs").match(/[Pp]ro/);
+let is_pro = context.packageName.match(/[Pp]ro/);
 let timing = is_pro
     ? com.stardust.autojs.core.timing
     : org.autojs.autojs.timing;
 let TimedTask = is_pro
     ? timing.TimedTask.Companion
     : timing.TimedTask;
-let timed_task_mgr = is_pro
+let TimedTaskManager = is_pro
     ? timing.TimedTaskManager.Companion.getInstance()
     : timing.TimedTaskManager.getInstance();
 let bridges = require.call(global, "__bridges__");
@@ -22,65 +22,130 @@ let days_ident = [
 ].map(value => value.toString());
 
 let ext = {
-    addDailyTask(task) {
-        let timedTask = TimedTask.dailyTask(
-            parseDateTime("LocalTime", task.time),
-            files.path(task.path),
-            parseConfig(task)
-        );
-        addTask(timedTask);
-        return timedTask;
+    _diffId(id) {
+        try {
+            let task = ext.getTimedTask(id);
+            if (task) {
+                let new_id = task.id;
+                return new_id && new_id !== id;
+            }
+        } catch (e) {
+            console.warn(e.message); //// TEST ////
+            console.warn(e.stack); //// TEST ////
+        }
     },
-    addWeeklyTask(task) {
+    addDailyTask(options, wait_fg) {
+        let opt = options;
+        let task = TimedTask.dailyTask(
+            parseDateTime("LocalTime", opt.time),
+            files.path(opt.path),
+            parseConfig(opt)
+        );
+        let _task = addTask(task);
+        if (!_task) {
+            return null;
+        }
+        if (wait_fg) {
+            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
+    },
+    addWeeklyTask(options, wait_fg) {
+        let opt = options || {};
         let time_flag = 0;
-        for (let i = 0; i < task.daysOfWeek.length; i++) {
-            let day_str = task.daysOfWeek[i].toString();
+        for (let i = 0; i < opt.daysOfWeek.length; i++) {
+            let day_str = opt.daysOfWeek[i].toString();
             let day_idx = days_ident.indexOf(day_str.toLowerCase()) % 7;
             if (!~day_idx) {
-                throw new Error('unknown day: ' + day_str);
+                throw Error('unknown day: ' + day_str);
             }
             time_flag |= TimedTask.getDayOfWeekTimeFlag(day_idx + 1);
         }
-        let timedTask = TimedTask.weeklyTask(
-            parseDateTime("LocalTime", task.time),
+        let task = TimedTask.weeklyTask(
+            parseDateTime("LocalTime", opt.time),
             Number(new java.lang.Long(time_flag)),
-            files.path(task.path),
-            parseConfig(task)
+            files.path(opt.path),
+            parseConfig(opt)
         );
-        addTask(timedTask);
-        return timedTask;
+        let _task = addTask(task);
+        if (!_task) {
+            return null;
+        }
+        if (wait_fg) {
+            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
     },
-    addDisposableTask(task) {
-        let timedTask = TimedTask.disposableTask(
-            parseDateTime("LocalDateTime", task.date),
-            files.path(task.path),
-            parseConfig(task)
+    addDisposableTask(options, wait_fg) {
+        let opt = options || {};
+        let task = TimedTask.disposableTask(
+            parseDateTime("LocalDateTime", opt.date),
+            files.path(opt.path),
+            parseConfig(opt)
         );
-        addTask(timedTask);
-        return timedTask;
+        let _task = addTask(task);
+        if (wait_fg) {
+            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
     },
-    addIntentTask(task) {
-        let intent_task = new timing.IntentTask();
-        intent_task.setScriptPath(files.path(task.path));
-        task.action && intent_task.setAction(task.action);
-        addTask(intent_task);
-        return intent_task;
+    addIntentTask(options, wait_fg) {
+        let opt = options || {};
+        let task = new timing.IntentTask();
+        task.setScriptPath(files.path(opt.path));
+        opt.action && task.setAction(opt.action);
+        let _task = addTask(task);
+        if (!_task) {
+            return null;
+        }
+        if (wait_fg) {
+            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
     },
     getTimedTask(id) {
-        return timed_task_mgr.getTimedTask(id);
+        return TimedTaskManager.getTimedTask(id);
     },
     getIntentTask(id) {
-        return timed_task_mgr.getIntentTask(id);
+        return TimedTaskManager.getIntentTask(id);
     },
-    removeIntentTask(id) {
+    removeIntentTask(id, wait_fg) {
         let task = this.getIntentTask(id);
-        return task && removeTask(task);
+        if (!task) {
+            return null;
+        }
+        let _task = removeTask(task);
+        if (wait_fg) {
+            if (!waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
     },
-    removeTimedTask(id) {
+    removeTimedTask(id, wait_fg) {
         let task = this.getTimedTask(id);
-        return task && removeTask(task);
+        if (!task) {
+            return null;
+        }
+        let _task = removeTask(task);
+        if (wait_fg) {
+            if (!waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
+                return null;
+            }
+        }
+        return _task;
     },
-    updateTimedTask: updateTask,
+    updateTimedTask(task) {
+        return updateTask(task) || null;
+    },
     queryTimedTasks(options) {
         let opt = options || {};
         let sql = '';
@@ -92,13 +157,10 @@ let ext = {
             args.push(path);
         }
         if (is_pro) {
-            return bridges.toArray(timed_task_mgr.queryTimedTasks(sql || null, args));
+            return bridges.toArray(TimedTaskManager.queryTimedTasks(sql || null, args));
         }
-        let list = timed_task_mgr.getAllTasksAsList().toArray();
-        if (path) {
-            list = list.filter(task => task.getScriptPath() === path);
-        }
-        return list;
+        let list = TimedTaskManager.getAllTasksAsList().toArray();
+        return path ? list.filter(task => task.getScriptPath() === path) : list;
     },
     queryIntentTasks(options) {
         let opt = options || {};
@@ -107,13 +169,13 @@ let ext = {
         let append = str => sql += sql.length ? ' AND ' + str : str;
         if (opt.path) {
             append('script_path = ?');
-            args.push(options.path);
+            args.push(opt.path);
         }
         if (opt.action) {
             append('action = ?');
-            args.push(options.action);
+            args.push(opt.action);
         }
-        return bridges.toArray(timed_task_mgr.queryIntentTasks(sql ? sql : null, args));
+        return bridges.toArray(TimedTaskManager.queryIntentTasks(sql || null, args));
     },
 };
 
@@ -151,41 +213,26 @@ function parseDateTime(clazz, date_time) {
 }
 
 function addTask(task) {
-    timed_task_mgr[is_pro ? "addTaskSync" : "addTask"](task);
-    waitForAction(() => task.id !== 0, 1e3, 200);
+    TimedTaskManager[is_pro ? "addTaskSync" : "addTask"](task);
+    return task;
 }
 
 function removeTask(task) {
-    timed_task_mgr[is_pro ? "removeTaskSync" : "removeTask"](task);
-    return waitForAction(() => !ext.getTimedTask(task.id), 1e3, 200);
+    TimedTaskManager[is_pro ? "removeTaskSync" : "removeTask"](task);
+    return task;
 }
 
 function updateTask(task) {
     if (task) {
-        let id = task.id;
         task.setScheduled(false);
-        timed_task_mgr.updateTask(task);
-        if (waitForAction(diffId.bind(null, id), 1e3, 200)) {
-            return task;
-        }
-    }
-
-    // tool function(s) //
-
-    function diffId(id) {
-        try {
-            let new_id = ext.getTimedTask(id).id;
-            return new_id && new_id !== id;
-        } catch (e) {
-            console.warn(e.message); //// TEST ////
-            console.warn(e.stack); //// TEST ////
-        }
+        TimedTaskManager.updateTask(task);
+        return task;
     }
 }
 
 // monster function(s) //
 
-// updated: Aug 2, 2020
+// updated: Aug 29, 2020
 function waitForAction(f, timeout_or_times, interval, params) {
     let _par = params || {};
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
@@ -219,9 +266,9 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
     function _checkF(f) {
         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = typeof messageAction === "undefined"
-            ? messageActionRaw
-            : messageAction;
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
 
         if (typeof f === "function") {
             return f();
@@ -287,61 +334,5 @@ function waitForAction(f, timeout_or_times, interval, params) {
             console.info(_s);
         }
         return true;
-    }
-}
-
-// updated: Jan 21, 2020
-function getVerName(name, params) {
-    let _par = params || {};
-
-    let _parseAppName = typeof global.parseAppName === "undefined" ? parseAppNameRaw : global.parseAppName;
-    let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _par.debug_info_flag);
-
-    name = _handleName(name);
-    let _package_name = _parseAppName(name).package_name;
-    if (!_package_name) return null;
-
-    try {
-        let _installed_packages = context.getPackageManager().getInstalledPackages(0).toArray();
-        for (let i in _installed_packages) {
-            if (_installed_packages.hasOwnProperty(i)) {
-                if (_installed_packages[i].packageName.toString() === _package_name.toString()) {
-                    return _installed_packages[i].versionName;
-                }
-            }
-        }
-    } catch (e) {
-        _debugInfo(e);
-    }
-    return null;
-
-    // tool function(s) //
-
-    function _handleName(name) {
-        if (name.match(/^[Aa]uto\.?js/)) return "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "");
-        if (name === "self") return currentPackage();
-        if (name.match(/^[Cc]urrent.*[Aa]uto.*js/)) return context.packageName;
-        return name;
-    }
-
-    // raw function(s) //
-
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
-    }
-
-    function parseAppNameRaw(name) {
-        let _app_name = !name.match(/.+\..+\./) && app.getPackageName(name) && name;
-        let _package_name = app.getAppName(name) && name;
-        _app_name = _app_name || _package_name && app.getAppName(_package_name);
-        _package_name = _package_name || _app_name && app.getPackageName(_app_name);
-        return {
-            app_name: _app_name,
-            package_name: _package_name,
-        };
     }
 }

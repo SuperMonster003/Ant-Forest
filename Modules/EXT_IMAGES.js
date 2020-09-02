@@ -6,13 +6,7 @@ let Core = org.opencv.core.Core;
 let _rt_img = runtime.getImages();
 
 if (typeof cX === "undefined" || typeof halfW === "undefined") {
-    _getDisplay(true);
-}
-if (typeof debugInfo === "undefined") {
-    debugInfo = _debugInfo;
-}
-if (typeof timeRecorder === "undefined") {
-    timeRecorder = _timeRecorder;
+    getDisplay(true);
 }
 if (typeof Math.std !== "function") {
     Object.assign(Math, {
@@ -1029,6 +1023,7 @@ module.exports.load = () => global.imagesx = ext;
 
 function _requestScreenCapture(landscape) {
     let $$isJvo = x => x && !!x["getClass"];
+    let is_pro = context.packageName.match(/[Pp]ro/);
     let key = "_$_request_screen_capture";
     let flag = global[key];
 
@@ -1041,16 +1036,20 @@ function _requestScreenCapture(landscape) {
         flag = global[key] = threads.atomic(1);
     }
 
-    const ResultAdapter = require.call(global, "result_adapter");
     let javaImages = runtime.getImages();
+    let ResultAdapter = require.call(global, "result_adapter");
     let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
-    let orientation;
-    if (typeof landscape === "boolean") {
-        orientation = landscape ? ScreenCapturer.ORIENTATION_LANDSCAPE : ScreenCapturer.ORIENTATION_PORTRAIT;
-    } else {
-        orientation = ScreenCapturer.ORIENTATION_AUTO;
-    }
-    let result = ResultAdapter.wait(javaImages.requestScreenCapture(orientation));
+
+    let orientation = typeof landscape !== "boolean"
+        ? ScreenCapturer.ORIENTATION_AUTO
+        : landscape
+            ? ScreenCapturer.ORIENTATION_LANDSCAPE
+            : ScreenCapturer.ORIENTATION_PORTRAIT;
+    let adapter = is_pro
+        ? javaImages.requestScreenCapture.call(javaImages, orientation, -1, -1)
+        : javaImages.requestScreenCapture(orientation);
+
+    let result = ResultAdapter.wait(adapter);
     flag.decrementAndGet();
     return result;
 }
@@ -1092,22 +1091,22 @@ function _permitCapt(params) {
 
     let _par = params || {};
     let _debugInfo = (m, fg) => (
-        typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
     )(m, fg, _par.debug_info_flag);
 
     _debugInfo("开始申请截图权限");
 
     let _waitForAction = (
-        typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
     );
     let _messageAction = (
-        typeof messageAction === "undefined" ? messageActionRaw : messageAction
+        typeof messageAction === "function" ? messageAction : messageActionRaw
     );
     let _clickAction = (
-        typeof clickAction === "undefined" ? clickActionRaw : clickAction
+        typeof clickAction === "function" ? clickAction : clickActionRaw
     );
     let _getSelector = (
-        typeof getSelector === "undefined" ? getSelectorRaw : getSelector
+        typeof getSelector === "function" ? getSelector : getSelectorRaw
     );
     let _$$sel = _getSelector();
 
@@ -1180,7 +1179,7 @@ function _permitCapt(params) {
                 return;
             }
         }
-        _messageAction("截图权限申请失败", 9, 1, 0, 1);
+        _messageAction("截图权限申请失败", 8, 1, 0, 1);
     });
 
     let _req_result = _requestScreenCapture(false);
@@ -1273,48 +1272,55 @@ function _permitCapt(params) {
 
     // tool function(s) //
 
-    // updated: Dec 27, 2019
+    // updated: Aug 29, 2019
     function restartThisEngine(params) {
         let _params = params || {};
 
-        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _params.debug_info_flag);
 
-        let _my_engine = engines.myEngine();
-        let _my_engine_id = _my_engine.id;
+        let _my_e = engines.myEngine();
+        let _my_e_id = _my_e.id;
+        let _e_argv = _my_e.execArgv;
 
-        let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
-        let _max_restart_engine_times_params = _params.max_restart_engine_times;
-        let _max_restart_engine_times;
-        if (typeof _max_restart_engine_times_argv === "undefined") {
-            if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
-            else _max_restart_engine_times = _max_restart_engine_times_params;
-        } else _max_restart_engine_times = _max_restart_engine_times_argv;
-
-        _max_restart_engine_times = +_max_restart_engine_times;
-        let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
-
-        if (!_max_restart_engine_times) {
+        let _restart_times_a = _e_argv.max_restart_engine_times;
+        let _restart_times_p = _params.max_restart_engine_times;
+        let _restart_times;
+        if (typeof _restart_times_a === "undefined") {
+            _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
+        } else {
+            _restart_times = +_restart_times_a;
+        }
+        if (!_restart_times) {
             _messageAction("引擎重启已拒绝", 3);
             return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
         }
 
+        let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
         _debugInfo("重启当前引擎任务");
-        _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
-        _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
-        let _file_name = _params.new_file || _my_engine.source.toString();
-        if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+        _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
+        _debugInfo(">最大次数: " + _restart_times_bak);
+        let _file_name = _params.new_file || _my_e.source.toString();
+        if (_file_name.match(/^\[remote]/)) {
+            _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+        }
 
-        let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+        let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
         _debugInfo("运行新引擎任务:\n" + _file_path);
-        _runJsFile(_file_path, Object.assign({}, _params, {
-            max_restart_engine_times: _max_restart_engine_times - 1,
-            max_restart_engine_times_backup: _max_restart_engine_times_backup,
-            instant_run_flag: _params.instant_run_flag,
-        }));
+        engines.execScriptFile(_file_path, {
+            arguments: Object.assign({}, _params, {
+                max_restart_engine_times: _restart_times - 1,
+                max_restart_engine_times_backup: _restart_times_bak,
+                instant_run_flag: _params.instant_run_flag,
+            }),
+        });
         _debugInfo("强制停止旧引擎任务");
         // _my_engine.forceStop();
-        engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+        engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
         return true;
 
         // raw function(s) //
@@ -1378,7 +1384,7 @@ function _reclaim() {
 // monster function(s) //
 
 // updated: Jun 3, 2020
-function _getDisplay(global_assign, params) {
+function getDisplay(global_assign, params) {
     let $_flag = global.$$flag = global.$$flag || {};
     let _par, _glob_asg;
     if (typeof global_assign === "boolean") {
@@ -1389,12 +1395,12 @@ function _getDisplay(global_assign, params) {
         _glob_asg = _par.global_assign;
     }
 
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+    let _debugInfo = (m, fg) => (
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+    )(m, fg, _par.debug_info_flag);
 
     let _W, _H;
     let _disp = {};
@@ -1503,7 +1509,7 @@ function _getDisplay(global_assign, params) {
             // 3: 270°, device is rotated 90 degree clockwise
             let _SCR_O = _win_svc_disp.getRotation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = +_win_svc_disp.maximumSizeDimension;
+            // let _MAX = _win_svc_disp.maximumSizeDimension;
             let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
             let [_UH, _UW] = [_H, _W];
@@ -1530,16 +1536,13 @@ function _getDisplay(global_assign, params) {
                 action_bar_default_height: _dimen("action_bar_default_height"),
             };
         } catch (e) {
-            try {
-                _W = +device.width;
-                _H = +device.height;
-                return _W && _H && {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            } catch (e) {
-            }
+            _W = device.width;
+            _H = device.height;
+            return _W && _H && {
+                WIDTH: _W,
+                HEIGHT: _H,
+                USABLE_HEIGHT: Math.trunc(_H * 0.9),
+            };
         }
     }
 
@@ -1582,31 +1585,50 @@ function _getDisplay(global_assign, params) {
     }
 }
 
-// updated: Jan 13, 2020
-function _debugInfo(msg, info_flag, forcible_flag) {
+// updated: Aug 29, 2020
+function debugInfo(msg, info_flag, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
+    let _messageAction = (
+        typeof messageAction === "function" ? messageAction : messageActionRaw
+    );
 
-    let global_flag = $_flag.debug_info_avail;
-    if (!global_flag && !forcible_flag) return;
-    if (global_flag === false || forcible_flag === false) return;
+    let _glob_fg = $_flag.debug_info_avail;
+    let _forc_fg = forcible_flag;
+    if (!_glob_fg && !_forc_fg) {
+        return;
+    }
+    if (_glob_fg === false || _forc_fg === false) {
+        return;
+    }
 
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+    let _info_flag_str = (info_flag || "").toString();
+    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
+    if (_info_flag_str.match(/Up/)) {
+        _showSplitLine();
+    }
+    if (_info_flag_str.match(/both|up/)) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
+    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
+        msg = setDebugSplitLine(msg);
+    }
+    if (_classof(msg) === "Array") {
+        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+    } else {
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+    }
 
-    let info_flag_str = (info_flag || "").toString();
-    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-    if (info_flag_str.match(/Up/)) _showSplitLine();
-    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
+    if (_info_flag_str.match("both")) {
+        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+        debugInfo("__split_line__" + _dash, "", _forc_fg);
+    }
 
     // raw function(s) //
 
@@ -1619,7 +1641,7 @@ function _debugInfo(msg, info_flag, forcible_flag) {
         } else {
             for (let i = 0; i < 33; i += 1) _split_line += "-";
         }
-        return ~console.log(_split_line + _extra_str);
+        console.log(_split_line + _extra_str);
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -1667,22 +1689,8 @@ function _debugInfo(msg, info_flag, forcible_flag) {
     }
 }
 
-// updated: May 5, 2020
-function _runJsFile(file_name, e_args) {
-    let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js"));
-    if (e_args) {
-        return engines.execScriptFile(_path, {arguments: e_args});
-    }
-    return (global.appx ? appx : app).startActivity({
-        action: "VIEW",
-        packageName: context.packageName,
-        className: "org.autojs.autojs.external.open.RunIntentActivity",
-        data: "file://" + _path,
-    });
-}
-
 // updated: Jun 3, 2020
-function _timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
+function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     global["_$_ts_rec"] = global["_$_ts_rec"] || {};
     let records = global["_$_ts_rec"];
     if (!operation || operation.toString().match(/^(S|save|put)$/)) {
