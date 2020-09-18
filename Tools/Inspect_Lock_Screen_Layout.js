@@ -176,7 +176,7 @@ function updateMethodRequire() {
 }
 
 function checkKeyCodePowerBug() {
-    for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
+    for (let i = 0, l = keycode_power_bug_versions.length; i < l; i += 1) {
         if (device_brand.match(keycode_power_bug_versions[i])) return true;
     }
 }
@@ -286,7 +286,7 @@ function dismissLayer() {
         };
         let cond_special_view = () => {
             let special_view_keys = Object.keys(special_views);
-            for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
+            for (let i = 0, l = special_view_keys.length; i < l; i += 1) {
                 let value = special_views[special_view_keys[i]];
                 if (value[0].exists()) return value[1];
             }

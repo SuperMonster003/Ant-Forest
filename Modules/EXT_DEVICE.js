@@ -140,7 +140,9 @@ let ext = {
            [navigation_bar_height]: number,
            [navigation_bar_height_computed]: number,
            [action_bar_default_height]: number,
-           cYx: cYx, cX: (function((number|*), *=): number), cY: (function((number|*), *=): number)
+           cYx: (function((number|*), number?): number),
+           cX: (function((number|*), number?): number),
+           cY: (function((number|*), number?): number)
      }}
      */
     getDisplay(global_assign, params) {
@@ -180,7 +182,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for x axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 720px display width --//
@@ -221,7 +223,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for y axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 1280px display height --//
@@ -260,7 +262,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for y axis based (and only based) on x axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 720*1280 display (try ignoring the height: 1280) --//

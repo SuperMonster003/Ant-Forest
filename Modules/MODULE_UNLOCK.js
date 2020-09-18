@@ -10,7 +10,7 @@
  * // forcibly disable debugInfo() for not showing debug logs in console
  * require("./MODULE_UNLOCK").unlock(false);
  *
- * @since Jun 23, 2020
+ * @since Sep 14, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -40,20 +40,22 @@ let captureErrScreen = _chkF("captureErrScreen");
 let getSelector = _chkF("getSelector");
 let classof = _chkF("classof");
 
-let _sto = require("./MODULE_STORAGE").create("unlock");
-let _def = require("./MODULE_DEFAULT_CONFIG").unlock;
-let _cfg = Object.assign({}, _def, _sto.get("config", {}));
-
 let $_rex = x => classof(x, "RegExp");
 let $_arr = x => classof(x, "Array");
 let $_jvo = x => classof(x, "JavaObject");
 let $_sel = getSelector();
 let $_unlk = _unlkSetter();
+
+let _sto = require("./MODULE_STORAGE").create("unlock");
+let _def = require("./MODULE_DEFAULT_CONFIG").unlock;
+let _cfg = Object.assign({}, _def, _sto.get("config", {}));
+
 let _intro = device.brand + " " + device.product + " " + device.release;
 let _code = require("./MODULE_PWMAP").decrypt(_cfg.unlock_code) || "";
 let _clean_code = _code.split(/\D+/).join("").split("");
 let _max_try = _cfg.unlock_max_try_times;
 let _pat_sz = _cfg.unlock_pattern_size;
+let _has_root = _checkRootAccess();
 
 module.exports = {
     is_init_screen_on: $_unlk.init_scr,
@@ -826,7 +828,7 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Sep 1, 2020
+                // updated: Sep 18, 2020
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -834,18 +836,17 @@ function _overrideRequire() {
                         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
                     )(_msg, "", _opt.debug_info_flag);
                     let _sel = selector();
-                    _sel.__proto__ = _sel.__proto__ || {};
-                    Object.assign(_sel.__proto__, {
-                        kw_pool: {},
+                    _sel.__proto__ = {
+                        sltr_pool: {},
                         cache_pool: {},
-                        pickup(sel_body, res_type, mem_kw, par) {
+                        pickup(sel_body, res_type, mem_sltr_kw, par) {
                             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
                             let _params = Object.assign({}, _opt, par);
                             let _res_type = (res_type || "").toString();
 
                             if (!_res_type || _res_type.match(/^w(idget)?$/)) {
                                 _res_type = "widget";
-                            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|widgets)$/)) {
+                            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
                                 _res_type = "widgets";
                             } else if (_res_type.match(/^s(el(ector)?)?$/)) {
                                 _res_type = "selector";
@@ -853,7 +854,7 @@ function _overrideRequire() {
                                 _res_type = "exists";
                             } else if (_res_type.match(/^t(xt)?$/)) {
                                 _res_type = "txt";
-                            } else if (_res_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) {
+                            } else if (_res_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
                                 _res_type = "selector_string";
                             }
 
@@ -861,41 +862,39 @@ function _overrideRequire() {
                                 _sel_body.splice(1, 0, "");
                             }
 
-                            let _body = _sel_body[0];
-                            let _additional_sel = _sel_body[1];
-                            let _compass = _sel_body[2];
+                            let [_body, _addi_sel, _compass] = _sel_body;
 
-                            let _kw = _getSelector(_additional_sel);
-                            let _widget = null;
-                            let _w_collection = [];
-                            if (_kw && _kw.toString().match(/UiObject/)) {
-                                _widget = _kw;
+                            let _sltr = _getSelector(_addi_sel);
+                            let _w = null;
+                            let _wc = [];
+                            if (_sltr && _sltr.toString().match(/UiObject/)) {
+                                _w = _sltr;
                                 if (_res_type === "widgets") {
-                                    _w_collection = [_kw];
+                                    _wc = [_sltr];
                                 }
-                                _kw = null;
+                                _sltr = null;
                             } else {
-                                _widget = _kw ? _kw.findOnce() : null;
+                                _w = _sltr ? _sltr.findOnce() : null;
                                 if (_res_type === "widgets") {
-                                    _w_collection = _kw ? _kw.find() : [];
+                                    _wc = _sltr ? _sltr.find() : [];
                                 }
                             }
 
                             if (_compass) {
-                                _widget = _relativeWidget([_kw || _widget, _compass]);
+                                _w = _relativeWidget([_sltr || _w, _compass]);
                             }
 
                             let _res = {
-                                selector: _kw,
-                                widget: _widget,
-                                widgets: _w_collection,
-                                exists: !!_widget,
+                                selector: _sltr,
+                                widget: _w,
+                                widgets: _wc,
+                                exists: !!_w,
                                 get selector_string() {
-                                    return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
+                                    return _sltr ? _sltr.toString().match(/[a-z]+/)[0] : "";
                                 },
                                 get txt() {
-                                    let _text = _widget && _widget.text() || "";
-                                    let _desc = _widget && _widget.desc() || "";
+                                    let _text = _w && _w.text() || "";
+                                    let _desc = _w && _w.desc() || "";
                                     return _desc.length > _text.length ? _desc : _text;
                                 }
                             };
@@ -905,15 +904,12 @@ function _overrideRequire() {
                             }
 
                             try {
-                                if (!_widget) {
-                                    return null;
-                                }
-                                return _widget[_res_type]();
+                                return _w ? _w[_res_type]() : null;
                             } catch (e) {
                                 try {
-                                    return _widget[_res_type];
+                                    return _w[_res_type];
                                 } catch (e) {
-                                    debugInfo(e, 3);
+                                    debugInfo(e.message, 3);
                                     return null;
                                 }
                             }
@@ -921,23 +917,22 @@ function _overrideRequire() {
                             // tool function(s)//
 
                             function _getSelector(addition) {
-                                let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                                if (mem_kw) {
-                                    let _mem_sel = global[_mem_kw_prefix + mem_kw];
-                                    if (_mem_sel) {
-                                        return _mem_sel;
+                                let _mem_key = "_$_mem_sltr_" + mem_sltr_kw;
+                                if (mem_sltr_kw) {
+                                    let _mem_sltr = global[_mem_key];
+                                    if (_mem_sltr) {
+                                        return _mem_sltr;
                                     }
                                 }
-                                let _kw_sel = _getSelFromLayout(addition);
-                                if (mem_kw && _kw_sel) {
-                                    // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
-                                    global[_mem_kw_prefix + mem_kw] = _kw_sel;
+                                let _sltr = _selGenerator();
+                                if (mem_sltr_kw && _sltr) {
+                                    global[_mem_key] = _sltr;
                                 }
-                                return _kw_sel;
+                                return _sltr;
 
                                 // tool function(s) //
 
-                                function _getSelFromLayout(addition) {
+                                function _selGenerator() {
                                     let _prefer = _params.selector_prefer;
                                     let _body_class = _classof(_body);
 
@@ -962,31 +957,19 @@ function _overrideRequire() {
                                     }
 
                                     if (_body_class === "Object") {
-                                        let sel = selector();
-                                        Object.keys(_body).forEach((key) => {
-                                            let _par = _body[key];
-                                            if (classof(_par, "Array")) {
-                                                sel = sel[key].apply(sel, _par);
-                                            } else {
-                                                sel = sel[key](_par);
-                                            }
+                                        let _s = selector();
+                                        Object.keys(_body).forEach((k) => {
+                                            let _arg = _body[k];
+                                            _s = _s[k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                                         });
-                                        return sel;
+                                        return _s;
                                     }
 
                                     // tool function(s) //
 
-                                    function _chkSels(selectors) {
-                                        let _sels = selectors;
-                                        let _arg_len = arguments.length;
-                                        if (_classof(_sels) !== "Array") {
-                                            _sels = [];
-                                            for (let i = 0; i < _arg_len; i += 1) {
-                                                _sels[i] = arguments[i];
-                                            }
-                                        }
-                                        let _sels_len = _sels.length;
-                                        for (let i = 0; i < _sels_len; i += 1) {
+                                    function _chkSels(sels) {
+                                        let _sels = Array.isArray(sels) ? sels : [].slice.call(arguments);
+                                        for (let i = 0, l = _sels.length; i < l; i += 1) {
                                             let _res = _chkSel(_sels[i]);
                                             if (_res) {
                                                 return _res;
@@ -1008,17 +991,14 @@ function _overrideRequire() {
                                                 for (let i = 0; i < _k_len; i += 1) {
                                                     let _k = _keys[i];
                                                     if (!sel[_k]) {
-                                                        let _m = "无效的additional_selector属性值:";
-                                                        _debugInfo([_m, _k], 3);
+                                                        _debugInfo(["无效的additional_selector属性值:", _k], 3);
                                                         return null;
                                                     }
-                                                    let _val = addition[_k];
+                                                    let _arg = addition[_k];
                                                     try {
-                                                        let _arg = _classof(_val) === "Array" ? _val : [_val];
-                                                        sel = sel[_k].apply(sel, _arg);
+                                                        sel = sel[_k].apply(sel, Array.isArray(_arg) ? _arg : [_arg]);
                                                     } catch (e) {
-                                                        let _m = "无效的additional_selector选择器:";
-                                                        _debugInfo([_m, _k], 3);
+                                                        _debugInfo(["无效的additional_selector选择器:", _k], 3);
                                                         return null;
                                                     }
                                                 }
@@ -1034,36 +1014,26 @@ function _overrideRequire() {
                             }
 
                             function _relativeWidget(w_info) {
-                                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                                let _w_info = classof(w_info) === "Array"
-                                    ? w_info.slice()
-                                    : [w_info];
-
-                                let _w = _w_info[0];
-                                let _w_class = classof(_w);
+                                let _w_o = _classof(w_info) === "Array" ? w_info.slice() : [w_info];
+                                let _w = _w_o[0];
+                                let _w_class = _classof(_w);
                                 let _w_str = (_w || "").toString();
 
                                 if (typeof _w === "undefined") {
                                     _debugInfo("relativeWidget的widget参数为Undefined");
                                     return null;
                                 }
-                                if (classof(_w) === "Null") {
-                                    // _debugInfo("relativeWidget的widget参数为Null");
+                                if (_w === null) {
                                     return null;
                                 }
                                 if (_w_str.match(/^Rect\(/)) {
-                                    // _debugInfo("relativeWidget的widget参数为Rect()");
                                     return null;
                                 }
                                 if (_w_class === "JavaObject") {
                                     if (_w_str.match(/UiObject/)) {
-                                        // _debugInfo("relativeWidget的widget参数为UiObject");
                                     } else {
-                                        // _debugInfo("relativeWidget的widget参数为UiSelector");
                                         _w = _w.findOnce();
                                         if (!_w) {
-                                            // _debugInfo("UiSelector查找后返回Null");
                                             return null;
                                         }
                                     }
@@ -1072,103 +1042,95 @@ function _overrideRequire() {
                                     return null;
                                 }
 
-                                let _compass = _w_info[1];
-
+                                let _compass = _w_o[1];
                                 if (!_compass) {
-                                    // _debugInfo("relativeWidget的罗盘参数为空");
                                     return _w;
                                 }
-
                                 _compass = _compass.toString();
 
-                                try {
-                                    if (_compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
-                                        // backwards|negative
-                                        let _rel_mch = _compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/);
-                                        // forwards|positive
-                                        let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
-                                        if (_rel_mch) {
-                                            let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
-                                            let _child_cnt = _w.parent().childCount();
-                                            let _cur_idx = _w.indexInParent();
-                                            _w = _rel_mch[0].match(/\d+[bn]/)
-                                                ? _w.parent().child(_child_cnt - Math.abs(_rel_amt))
-                                                : _w.parent().child(_cur_idx + _rel_amt);
-                                        } else if (_abs_mch) {
-                                            _w = _w.parent().child(
-                                                parseInt(_abs_mch[0].match(/\d+/)[0])
-                                            );
-                                        }
-                                        _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
-                                        if (!_compass) {
-                                            return _w;
-                                        }
-                                    }
-                                } catch (e) {
-                                    return null;
-                                }
-
-                                let _parents = _compass.replace(
-                                    /([Pp])(\d+)/g, ($0, $1, $2) => {
-                                        let _str = "";
-                                        let _max = parseInt($2);
-                                        for (let i = 0; i < _max; i += 1) {
-                                            _str += "p";
-                                        }
-                                        return _str;
-                                    }
-                                ).match(/p*/)[0]; // may be ""
-
-                                if (_parents) {
-                                    let _len = _parents.length;
-                                    for (let i = 0; i < _len; i += 1) {
-                                        if (!(_w = _w.parent())) {
-                                            return null;
-                                        }
-                                    }
-                                }
-
-                                let _mch = _compass.match(/c-?\d+/g);
-                                return _mch ? _childWidget(_mch) : _w;
-
-                                // tool function(s) //
-
-                                function _childWidget(arr) {
-                                    let _len = arr.length;
-                                    for (let i = 0; i < _len; i += 1) {
-                                        try {
-                                            let _idx = +arr[i].match(/-?\d+/);
-                                            if (_idx < 0) {
-                                                _idx += _w.childCount();
+                                while (_compass.length) {
+                                    let _mch_p, _mch_c, _mch_s;
+                                    if ((_mch_p = /^p[p\d]*/.exec(_compass))) {
+                                        let _len = _compass.match(/p\d+|p+(?!\d)/g).reduce((a, b) => (
+                                            a + (/\d/.test(b) ? +b.slice(1) : b.length)
+                                        ), 0);
+                                        while (_len--) {
+                                            if (!(_w = _w.parent())) {
+                                                return null;
                                             }
-                                            _w = _w.child(_idx);
-                                        } catch (e) {
+                                        }
+                                        _compass = _compass.slice(_mch_p[0].length);
+                                        continue;
+                                    }
+                                    if ((_mch_c = /^c-?\d+([>c]?-?\d+)*/.exec(_compass))) {
+                                        let _nums = _mch_c[0].split(/[>c]/);
+                                        for (let s of _nums) {
+                                            if (s.length) {
+                                                let _i = +s;
+                                                let _cc = _w.childCount();
+                                                if (_i < 0) {
+                                                    _i += _cc;
+                                                }
+                                                if (_i < 0 || _i >= _cc) {
+                                                    return null;
+                                                }
+                                                _w = _w.child(_i);
+                                            }
+                                        }
+                                        _compass = _compass.slice(_mch_c[0].length);
+                                        continue;
+                                    }
+                                    if ((_mch_s = /^s[<>]?-?\d+/.exec(_compass))) {
+                                        let _parent = _w.parent();
+                                        if (!_parent) {
                                             return null;
                                         }
+                                        let _idx = _w.indexInParent();
+                                        if (!~_idx) {
+                                            return null;
+                                        }
+                                        let _cc = _parent.childCount();
+                                        let _str = _mch_s[0];
+                                        let _offset = +_str.match(/-?\d+/)[0];
+                                        if (~String.prototype.search.call(_str, ">")) {
+                                            _idx += _offset;
+                                        } else if (~String.prototype.search.call(_str, "<")) {
+                                            _idx -= _offset;
+                                        } else {
+                                            _idx = _offset < 0 ? _offset + _cc : _offset;
+                                        }
+                                        if (_idx < 0 || _idx >= _cc) {
+                                            return null;
+                                        }
+                                        _w = _parent.child(_idx);
+                                        _compass = _compass.slice(_mch_s[0].length);
+                                        continue;
                                     }
-                                    return _w || null;
+
+                                    throw Error("无法解析剩余罗盘参数: " + _compass);
                                 }
+
+                                return _w || null;
                             }
                         },
-                        add(key, sel_body, kw) {
-                            let _kw = typeof kw === "string" ? kw : key;
-                            this.kw_pool[key] = typeof sel_body === "function"
+                        add(key, sel_body, mem) {
+                            let _mem = typeof mem === "string" ? mem : key;
+                            this.sltr_pool[key] = typeof sel_body === "function"
                                 ? type => sel_body(type)
-                                : type => this.pickup(sel_body, type, _kw);
+                                : type => this.pickup(sel_body, type, _mem);
                             return this;
                         },
                         get(key, type) {
-                            let _picker = this.kw_pool[key];
-                            if (!_picker) {
+                            let _sltr = this.sltr_pool[key];
+                            if (!_sltr) {
                                 return null;
                             }
                             if (type && type.toString().match(/cache/)) {
-                                return this.cache_pool[key] = _picker("widget");
+                                return this.cache_pool[key] = _sltr("widget");
                             }
-                            return _picker(type);
+                            return _sltr(type);
                         },
                         getAndCache(key) {
-                            // only "widget" type can be returned
                             return this.get(key, "save_cache");
                         },
                         cache: {
@@ -1194,8 +1156,18 @@ function _overrideRequire() {
                                 _cache && _cache.recycle();
                             },
                         },
-                    });
+                    };
                     return _sel;
+
+                    // raw function(s) //
+
+                    function debugInfoRaw(msg, info_flg) {
+                        if (info_flg) {
+                            let _s = msg || "";
+                            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
+                            console.verbose(_s);
+                        }
+                    }
                 }
 
                 // updated: Mar 1, 2020
@@ -1715,6 +1687,15 @@ function _activeExtension() {
             };
         }
         if (typeof devicex.getDisplay !== "function") {
+            /**
+             * @param [global_assign=true]
+             * @param [params={}]
+             * @returns {{
+             *     cYx: (function(number|*, number?): number),
+             *     cX: (function(number|*, number?): number),
+             *     cY: (function(number|*, number?): number)
+             * }}
+             */
             devicex.getDisplay = function (global_assign, params) {
                 let $_flag = global.$$flag = global.$$flag || {};
                 let _par, _glob_asg;
@@ -1924,6 +1905,7 @@ function _activeExtension() {
 }
 
 function _chkF(s, override_par_num) {
+    /** @type function */
     let _f = (() => {
         let _mon = require("./MODULE_MONSTER_FUNC");
         if (typeof global[s] === "function") {
@@ -2552,9 +2534,7 @@ function _unlkSetter() {
 
                             let _cfm_nod = _cfm_btn("widget");
                             if (_cfm_nod) {
-                                let _txt = _cfm_btn("txt");
-                                let _s = '点击"' + _txt + '"按钮';
-                                debugInfo(_s);
+                                debugInfo('点击"' + _cfm_btn("txt") + '"按钮');
                                 try {
                                     clickAction(_cfm_nod, "w");
                                 } catch (e) {
@@ -2564,11 +2544,13 @@ function _unlkSetter() {
                             if (_this.succ(2)) {
                                 break;
                             }
-                            if (!shell("input keyevent 66", true).code) {
-                                debugInfo("使用Root权限模拟回车键");
-                                sleep(480);
-                                if (_this.succ()) {
-                                    break;
+                            if (_has_root) {
+                                if (!shell("input keyevent 66", true).code) {
+                                    debugInfo("使用Root权限模拟回车键");
+                                    sleep(480);
+                                    if (_this.succ()) {
+                                        break;
+                                    }
                                 }
                             }
                             _ctr += 1;
@@ -2590,18 +2572,51 @@ function _unlkSetter() {
                         }
 
                         function _keypadAssistIFN() {
-                            // brand + product + release
+                            /**
+                             * @example
+                             * let _smp_o = {
+                             *     "_$_EXAMPLE": {
+                             *         // string before keys
+                             *         // number for the length of last pw string
+                             *         prefix: 1,
+                             *         // assistant keys coordination
+                             *         // like: [[x1, y1], [x2, y2], ...],
+                             *         keys: [[100, 200]],
+                             *         // action after keys
+                             *         // UiObject: desc("5") -- widget of a key
+                             *         // Point: [x, y] -- point of a key
+                             *         // String: "5" -- numpad key 5
+                             *         // Number: 5 -- numpad key 5
+                             *         suffix: null,
+                             *     },
+                             * };
+                             */
+                            let _pw_last = _pw[_pw.length - 1];
                             let _smp_o = {
-                                "HUAWEI VOG-AL00 9": {
-                                    // character to press or input before
-                                    // special treatment if needed
-                                    pre_char_refill: 1,
-                                    // keys_coords: [[864, 1706], [1008, 1706]],
-                                    // DEL KEY coordination(s)
-                                    keys_coords: [[1008, 1706]],
-                                    // last password character to
-                                    // press or input if needed in the end
-                                    suf_char_refill: null,
+                                "HUAWEI VOG-AL00 9": {prefix: 1, keys: [[1008, 1706]]},
+                                "HUAWEI ELE-AL00 10": {
+                                    keys: ["DEL"],
+                                    keys_map: (() => {
+                                        let y = [1188, 1350, 1511, 1674, 1835];
+                                        let x = [56, 163, 271, 378, 487, 595, 703, 810, 918, 1027];
+                                        let xs = [109.5, 217, 324.5, 432.5, 541, 649, 756.5, 864, 972.5];
+                                        let [y0, y1, y2, y3, y4] = y;
+                                        let [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9] = x;
+                                        let [xs0, xs1, xs2, xs3, xs4, xs5, xs6, xs7, xs8] = xs;
+                                        return {
+                                            1: [x0, y0], 2: [x1, y0], 3: [x2, y0], 4: [x3, y0], 5: [x4, y0],
+                                            6: [x5, y0], 7: [x6, y0], 8: [x7, y0], 9: [x8, y0], 0: [x9, y0],
+                                            q: [x0, y1], w: [x1, y1], e: [x2, y1], r: [x3, y1], t: [x4, y1],
+                                            y: [x5, y1], u: [x6, y1], i: [x7, y1], o: [x8, y1], p: [x9, y1],
+                                            a: [xs0, y2], s: [xs1, y2], d: [xs2, y2], f: [xs3, y2], g: [xs4, y2],
+                                            h: [xs5, y2], j: [xs6, y2], k: [xs7, y2], l: [xs8, y2], z: [xs1, y3],
+                                            x: [xs2, y3], c: [xs3, y3], v: [xs4, y3], b: [xs5, y3], n: [xs6, y3],
+                                            m: [xs7, y3], ",": [xs1, y4], " ": [xs4, y4], ".": [xs7, y4], del: [x9, y3],
+                                        };
+                                    })(),
+                                    get suffix() {
+                                        return this.keys_map[_pw_last];
+                                    },
                                 },
                             };
                             if (!(_intro in _smp_o)) {
@@ -2610,27 +2625,26 @@ function _unlkSetter() {
                             debugInfo("此设备机型需要按键辅助");
 
                             let _smp = _smp_o[_intro];
-                            let _coords = _smp.keys_coords;
-                            let _keys_len = _coords.length;
-                            if (_keys_len) {
-                                debugInfo("辅助按键共计: " + _keys_len + "项");
-                                _coords.forEach((coord) => {
-                                    let [_x, _y] = coord;
-                                    debugInfo(">(" + _x + ", " + _y + ")");
-                                });
-                            }
-
-                            let _pref = _smp.pre_char_refill;
-                            let _suff = _smp.suf_char_refill;
+                            let _coords = _smp.keys;
+                            let _k_map = _smp.keys_map;
+                            let _pref = _smp.prefix;
+                            let _suff = _smp.suffix;
                             if (!$_und(_pref) && !$_nul(_pref)) {
-                                let _s = _pref.toString();
+                                let _s = "";
+                                if ($_num(_pref)) {
+                                    for (let i = 1; i <= _pref; i += 1) {
+                                        _s += _pw_last;
+                                    }
+                                } else {
+                                    _s = _pref.toString();
+                                }
                                 _this.sel.setText(_pw + _s);
-                                debugInfo("辅助前置填充: " + _s.length + "项");
+                                debugInfo("辅助按键前置填充: " + _s.length + "项");
                             }
 
-                            sleep(300);
-                            _coords.forEach((coord) => {
-                                clickAction(coord);
+                            _coords.forEach((c, i) => {
+                                i || sleep(300);
+                                clickAction(typeof c === "string" ? _k_map[c] : c);
                                 sleep(300);
                             });
 
@@ -2638,19 +2652,19 @@ function _unlkSetter() {
                                 return;
                             }
                             if ($_jvo(_suff)) {
-                                debugInfo("辅助后置填充类型: 控件");
+                                debugInfo("辅助按键后置填充类型: 控件");
                                 return clickAction(_suff);
                             }
                             if ($_arr(_suff)) {
-                                debugInfo("辅助后置填充类型: 坐标");
-                                return click(_suff[0], _suff[1]);
+                                debugInfo("辅助按键后置填充类型: 坐标");
+                                return clickAction(_suff);
                             }
                             if ($_num(_suff) || $_str(_suff)) {
-                                let _kw = "(key.?)?" + _suff;
-                                debugInfo("辅助后置填充类型: 文本");
-                                return clickAction(idMatches(_kw))
-                                    || clickAction(descMatches(_kw))
-                                    || clickAction(textMatches(_kw));
+                                let _rex = "(key.?)?" + _suff;
+                                debugInfo("辅助按键后置填充类型: 文本");
+                                return clickAction(idMatches(_rex))
+                                    || clickAction(descMatches(_rex))
+                                    || clickAction(textMatches(_rex));
                             }
                             return _err("密码解锁失败", "无法判断末位字符类型");
                         }
@@ -2662,15 +2676,15 @@ function _unlkSetter() {
                         ];
                         let _len = _dist.length;
                         for (let i = 0; i < _len; i += 1) {
-                            let _kw = _dist[i];
-                            let _cA1 = () => $_str(_kw);
-                            let _cA2 = () => id(_kw).exists();
+                            let _pattern = _dist[i];
+                            let _cA1 = () => $_str(_pattern);
+                            let _cA2 = () => id(_pattern).exists();
                             let _cA = () => _cA1() && _cA2();
-                            let _cB1 = () => $_rex(_kw);
-                            let _cB2 = () => idMatches(_kw).exists();
+                            let _cB1 = () => $_rex(_pattern);
+                            let _cB2 = () => idMatches(_pattern).exists();
                             let _cB = () => _cB1() && _cB2();
                             if (_cA() || _cB()) {
-                                _this.misjudge = _kw;
+                                _this.misjudge = _pattern;
                                 debugInfo("匹配到误判干扰");
                                 debugInfo("转移至PIN解锁方案");
                                 return true;
@@ -2768,25 +2782,25 @@ function _unlkSetter() {
                         }
 
                         function _clickKeyEnter() {
-                            let _kw = idMatches(_as + "key_enter");
-                            if (_kw.exists()) {
+                            let _sltr = idMatches(_as + "key_enter");
+                            if (_sltr.exists()) {
                                 debugInfo('点击"key_enter"控件');
-                                clickAction(_kw, "w");
+                                clickAction(_sltr, "w");
                                 return _this.succ();
                             }
                         }
 
                         function _unlockPin() {
                             let _num_pad = {
-                                kw(num) {
+                                sltr(num) {
                                     return idMatches(_as + "key" + num);
                                 },
                                 widget(num) {
-                                    return this.kw(num).findOnce();
+                                    return this.sltr(num).findOnce();
                                 },
                                 test() {
-                                    let _kw = n => _num_pad.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _num_pad.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到通用PIN/KEY解锁控件");
                                         return true;
                                     }
@@ -2802,8 +2816,8 @@ function _unlkSetter() {
                             };
                             let _cntr = {
                                 test() {
-                                    let _kw = idMatches(_as + "container");
-                                    let _w = _kw.findOnce();
+                                    let _sltr = idMatches(_as + "container");
+                                    let _w = _sltr.findOnce();
                                     if (_w) {
                                         debugInfo("匹配到通用PIN容器解锁控件");
                                         return this.widget = _w;
@@ -2821,17 +2835,17 @@ function _unlkSetter() {
                                 },
                             };
                             let _inp_view = {
-                                kw(num) {
+                                sltr(num) {
                                     let _num = num.toString();
                                     // miui
                                     return idMatches(_ak + "numeric_inputview").text(_num);
                                 },
                                 widget(num) {
-                                    return this.kw(num).findOnce();
+                                    return this.sltr(num).findOnce();
                                 },
                                 test() {
-                                    let _kw = n => _inp_view.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _inp_view.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到MIUI/PIN解锁控件");
                                         return true;
                                     }
@@ -2846,11 +2860,11 @@ function _unlkSetter() {
                                 },
                             };
                             let _sgl_desc = {
-                                kw(num) {
+                                sltr(num) {
                                     return desc(num);
                                 },
                                 widget(num) {
-                                    let _widget = this.kw(num).findOnce();
+                                    let _widget = this.sltr(num).findOnce();
                                     if (!+num && !_widget) {
                                         return _specialZero();
                                     }
@@ -2872,8 +2886,8 @@ function _unlkSetter() {
                                     }
                                 },
                                 test() {
-                                    let _kw = n => _sgl_desc.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _sgl_desc.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到内容描述PIN解锁控件");
                                         return true;
                                     }
@@ -2951,8 +2965,8 @@ function _unlkSetter() {
                                 let _len = _nums.length;
                                 let _ctr = 9;
                                 for (let i = 0; i < _len; i += 1) {
-                                    let _kw = f(_nums[i]);
-                                    if (!_kw.exists()) {
+                                    let _sltr = f.call(null, _nums[i]);
+                                    if (!_sltr.exists()) {
                                         _ctr -= 1;
                                     }
                                 }
@@ -3119,8 +3133,8 @@ function _unlkSetter() {
                     let _rex = new RegExp(".*(" +
                         "[Tt]ry again in.+|\\d+.*后重试" +
                         ").*");
-                    let _kw = textMatches(_rex);
-                    let _chk = () => _kw.exists();
+                    let _sltr = textMatches(_rex);
+                    let _chk = () => _sltr.exists();
                     if (_chk()) {
                         debugInfo("正在等待重试超时");
                         waitForAction(() => !_chk(), 65e3, 500);
@@ -3129,8 +3143,8 @@ function _unlkSetter() {
 
                 function _chkOKBtn() {
                     let _rex = /OK|确([认定])|好的?/;
-                    let _kw = textMatches(_rex);
-                    let _widget = _kw.findOnce();
+                    let _sltr = textMatches(_rex);
+                    let _widget = _sltr.findOnce();
                     if (_widget) {
                         let _txt = _widget.text();
                         debugInfo('点击"' + _txt + '"按钮');
@@ -3204,6 +3218,17 @@ function _unlock(forc_debug) {
         if ($_func(global.impededBak)) {
             global.$$impeded = global.impededBak;
         }
+    }
+}
+
+function _checkRootAccess() {
+    try {
+        // com.stardust.autojs.core.util.ProcessShell
+        // .execCommand("date", true).code === 0;
+        // code above doesn't work on Auto.js Pro
+        return shell("date", true).code === 0;
+    } catch (e) {
+        return false;
     }
 }
 

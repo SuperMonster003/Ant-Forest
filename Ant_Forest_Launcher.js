@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Sep 2, 2020
- * @version 1.9.23 Alpha2
+ * @since Sep 18, 2020
+ * @version 1.9.23 Alpha3
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -47,39 +47,27 @@ let $$init = {
         }
 
         function checkModulesMap() {
-            let _map = [
+            [
                 "MODULE_MONSTER_FUNC", "MODULE_STORAGE",
                 "MODULE_DEFAULT_CONFIG", "MODULE_PWMAP",
                 "MODULE_TREASURY_VAULT", "MODULE_UNLOCK",
                 "EXT_DIALOGS", "EXT_TIMERS", "EXT_DEVICE",
                 "EXT_APP", "EXT_IMAGES", "EXT_ENGINES"
-            ];
-            let _wanted = [];
-            for (let i = 0, len = _map.length; i < len; i += 1) {
-                let _mod = _map[i];
-                let _path = "./Modules/" + _mod + ".js";
-                _path = _path.replace(/(\.js){2,}/, ".js");
-                files.exists(_path) || _wanted.push(_mod);
-            }
-            let _wanted_len = _wanted.length;
-            if (_wanted_len) {
-                let [line, msg] = [showSplitLineRaw, messageActionRaw];
+            ].filter((mod) => (
+                !files.exists("./Modules/" + mod + ".js")
+            )).some((mod, idx, arr) => {
                 let _str = "";
-
-                void function () {
-                    _str += "脚本无法继续|以下模块缺失或路径错误:|";
-                    _str += "- - - - - - - - - - - - - - - - -|";
-                    _wanted.forEach(n => _str += '-> "' + n + '.js"|');
-                    _str += "- - - - - - - - - - - - - - - - -|";
-                    _str += "请检查或重新放置模块";
-                }();
-
-                line();
-                _str.split("|").forEach(s => msg(s, 4));
-                line();
+                _str += "脚本无法继续|以下模块缺失或路径错误:|";
+                _str += "- - - - - - - - - - - - - - - - -|";
+                arr.forEach(n => _str += '-> "' + n + '"|');
+                _str += "- - - - - - - - - - - - - - - - -|";
+                _str += "请检查或重新放置模块";
+                showSplitLineRaw();
+                _str.split("|").forEach(s => messageActionRaw(s, 4));
+                showSplitLineRaw();
                 toast("模块缺失或路径错误", "Long");
                 exit();
-            }
+            });
         }
 
         function checkSdkAndAJVer() {
@@ -90,8 +78,9 @@ let $$init = {
 
         function checkRootAccess() {
             try {
-                // let execCommand = com.stardust.autojs.core.util.ProcessShell.execCommand;
-                // global._$_autojs_has_root = execCommand("date", true).code === 0;
+                // com.stardust.autojs.core.util.ProcessShell
+                // .execCommand("date", true).code === 0;
+                // code above doesn't work on Auto.js Pro
                 global._$_autojs_has_root = shell("date", true).code === 0;
             } catch (e) {
                 global._$_autojs_has_root = false;
@@ -290,7 +279,8 @@ let $$init = {
 
         debugInfo("Auto.js版本: " + $$app.autojs_ver);
         debugInfo("项目版本: " + $$app.project_ver);
-        debugInfo("安卓系统SDK版本: " + $$app.sdk_ver);
+        debugInfo("安卓SDK版本: " + $$app.sdk_ver);
+        debugInfo("安卓系统版本号: " + device.release);
         debugInfo("Root权限: " + ($$app.has_root ? "有效" : "无效"));
 
         return this;
@@ -298,45 +288,23 @@ let $$init = {
         // tool function(s) //
 
         function setGlobalFunctions() {
-            // any better ideas ?
-
-            let {
-                clickAction, swipeAndShow, setIntervalBySetTimeout, keycode,
-                getSelector, equalObjects, waitForAndClickAction, runJsFile,
-                messageAction, debugInfo, killThisApp, clickActionsPipeline,
-                waitForAction, baiduOcr, launchThisApp, observeToastMessage,
-                showSplitLine, classof, timeRecorder, surroundWith,
-            } = require("./Modules/MODULE_MONSTER_FUNC");
+            require("./Modules/MODULE_MONSTER_FUNC").load([
+                "clickAction", "swipeAndShow", "setIntervalBySetTimeout", "keycode",
+                "getSelector", "equalObjects", "waitForAndClickAction", "runJsFile",
+                "messageAction", "debugInfo", "killThisApp", "clickActionsPipeline",
+                "waitForAction", "baiduOcr", "launchThisApp", "observeToastMessage",
+                "showSplitLine", "classof", "timeRecorder", "surroundWith"
+            ]);
 
             Object.assign(global, {
-                baiduOcr: baiduOcr,
-                classof: classof,
-                clickAction: clickAction,
-                clickActionsPipeline: clickActionsPipeline,
-                debugInfo: debugInfo,
-                equalObjects: equalObjects,
-                getSelector: getSelector,
-                keycode: keycode,
-                killThisApp: killThisApp,
-                launchThisApp: launchThisApp,
-                messageAction: messageAction,
                 messageAct() {
                     return $$flag.msg_details
                         ? messageAction.apply(null, Object.values(arguments))
                         : (m, lv) => ![3, 4].includes(lv);
                 },
-                observeToastMessage: observeToastMessage,
-                runJsFile: runJsFile,
-                setIntervalBySetTimeout: setIntervalBySetTimeout,
-                showSplitLine: showSplitLine,
-                surroundWith: surroundWith,
-                swipeAndShow: swipeAndShow,
-                timeRecorder: timeRecorder,
-                waitForAction: waitForAction,
-                waitForAndClickAction: waitForAndClickAction,
-                showSplitLineForDebugInfo: () => {
-                    $$flag.debug_info_avail && showSplitLine();
-                }
+                showSplitLineForDebugInfo() {
+                    return $$flag.debug_info_avail && showSplitLine();
+                },
             });
         }
 
@@ -352,9 +320,7 @@ let $$init = {
 
             global.$$sel = getSelector();
             global.$$unlk = require("./Modules/MODULE_UNLOCK");
-            global.$$flag = {
-                autojs_has_root: global._$_autojs_has_root,
-            };
+            global.$$flag = {autojs_has_root: global._$_autojs_has_root};
             global.$$sto = {
                 af: require("./Modules/MODULE_STORAGE").create("af"),
                 af_cfg: require("./Modules/MODULE_STORAGE").create("af_cfg"),
@@ -495,17 +461,10 @@ let $$init = {
                     return this;
                 },
                 setParams() {
-                    // unescape() is deprecated (although not strictly)
-                    // let _unESC = s => unescape(s.replace(/(\w{4})/g, "%u$1"));
-                    let _unESC = (s) => s.replace(/.{4}/g, ($0) => (
-                        String.fromCharCode(parseInt($0, 16))
-                    ));
-                    let _local_pics_path = files.getSdcardPath() + "/.local/Pics/";
-                    files.createWithDirs(_local_pics_path);
-
-                    $$app.task_name = surroundWith(_unESC("8682868168EE6797"));
-                    $$app.rl_title = _unESC("2615FE0F0020597D53CB6392884C699C");
-                    $$app.local_pics_path = _local_pics_path;
+                    $$app.task_name = surroundWith(_unEsc("8682868168EE6797"));
+                    $$app.rl_title = _unEsc("2615FE0F0020597D53CB6392884C699C");
+                    $$app.developer = _unTap("434535154232343343441542000003");
+                    $$app.local_pics_path = _getLocalPicsPath();
                     $$app.rex_energy_amt = /^\s*\d+(\.\d+)?(k?g|t)\s*$/;
                     $$app.has_root = $$flag.autojs_has_root;
                     $$app.intent = {
@@ -530,18 +489,20 @@ let $$init = {
                                 saId: 20000067,
                                 url: "https://60000002.h5app.alipay.com/www/listRank.html",
                                 __webview_options__: {
-                                    appClearTop: true,
-                                    startMultApp: true,
-                                    showOptionMenu: true,
-                                    gestureBack: true,
-                                    backBehavior: "back",
-                                    enableCubeView: false,
-                                    enableScrollBar: false,
+                                    transparentTitle: "none", // other options: "auto"
                                     backgroundColor: "-1",
+                                    canPullDown: false, // alias: "NO"
+                                    gestureBack: true, // alias: "YES"
+                                    backBehavior: "back", // other options: "pop"
+                                    enableCubeView: false, // alias: "NO"
+                                    appClearTop: true, // alias: "YES"
+                                    startMultApp: true, // alias: "YES"
+                                    showOptionMenu: true, // alias: "YES"
+                                    enableScrollBar: false, // alias: "NO"
+                                    closeCurrentWindow: true, // alias: "YES"
                                     defaultTitle: $$app.rl_title,
-                                    transparentTitle: "none",
                                 },
-                            }),
+                            }, {exclude: "defaultTitle"}),
                         },
                         acc_man: {
                             action: "VIEW",
@@ -574,21 +535,43 @@ let $$init = {
 
                     // tool function(s) //
 
-                    function _encURIPar(pref, par) {
-                        let _par = par || {};
+                    function _unEsc(s) {
+                        return typeof String.fromCharCode === "function"
+                            ? s.replace(/.{4}/g, $ => String.fromCharCode(parseInt($, 16)))
+                            : unescape(s.replace(/.{4}/g, "%u$&"));
+                    }
+
+                    function _unTap(s) {
+                        // Person of Interest Season 2 Episode 2 at 00:39:03
+                        // Tap code in this episode was "4442112433434433"
+                        let _map = [
+                            ["A", "B", "C", "D", "E"],
+                            ["F", "G", "H", "I", "J"],
+                            ["L", "M", "N", "O", "P"],
+                            ["Q", "R", "S", "T", "U"],
+                            ["V", "W", "X", "Y", "Z"],
+                        ];
+                        return s.match(/../g).reduce((a, b) => {
+                            let [_row, _col] = b;
+                            return a + (+_row ? _map[--_row][--_col] : _col);
+                        }, String());
+                    }
+
+                    function _encURIPar(pref, params, options) {
+                        let _par = params || {};
+                        let _opt = options || {};
                         let _sep = pref.match(/\?/) ? "&" : "?";
 
                         let _parseObj = (o) => {
+                            let _exclude = _opt.exclude || [];
+                            _exclude = Array.isArray(_exclude) ? _exclude : [_exclude];
                             let _res = [];
                             Object.keys(o).forEach((key) => {
                                 let _val = o[key];
                                 if (typeof _val === "object") {
                                     _val = "&" + _parseObj(_val);
                                 }
-                                let _enc_val = encodeURI(_val);
-                                if (global.$$app && $$app.rl_title === _val) {
-                                    _enc_val = _val;
-                                }
+                                let _enc_val = !~_exclude.indexOf(key) ? encodeURI(_val) : _val;
                                 _res.push(key + "=" + _enc_val);
                             });
                             return _res.join("&");
@@ -596,13 +579,19 @@ let $$init = {
 
                         return pref + _sep + _parseObj(_par);
                     }
+
+                    function _getLocalPicsPath() {
+                        let _path = files.getSdcardPath() + "/.local/Pics/";
+                        files.createWithDirs(_path);
+                        return _path;
+                    }
                 },
                 setBlist() {
                     $$app.blist = {
                         _expired: {
                             trigger(o) {
                                 let _ts = o.timestamp;
-                                if (!$$und(_ts) && !$$inf(_ts)) {
+                                if (!$$und(_ts) && !isInfinite(_ts)) {
                                     let _now = new Date();
                                     let _du_ts = _ts - +_now;
                                     return _du_ts <= 0;
@@ -614,13 +603,13 @@ let $$init = {
                                 let _du_ts = _ts - +_now;
                                 let _date_str = _now.toDateString();
                                 let _date_ts = Date.parse(_date_str); // num
-                                let _du_o = new Date(_date_ts + _du_ts);
+                                let _du_d = new Date(_date_ts + _du_ts);
 
                                 let _d_unit = 24 * 3.6e6;
                                 let _d = Math.trunc(_du_ts / _d_unit);
-                                let _h = _du_o.getHours();
-                                let _m = _du_o.getMinutes();
-                                let _s = _du_o.getSeconds();
+                                let _h = _du_d.getHours();
+                                let _m = _du_d.getMinutes();
+                                let _s = _du_d.getSeconds();
 
                                 let _pad = num => ("0" + num).slice(-2);
                                 let _d_str = _d ? _d + "天" : "";
@@ -675,13 +664,13 @@ let $$init = {
                         },
                         save() {
                             if (this._is_modified) {
-                                $$sto.af_blist.put("blacklist", this.data);
+                                $$sto.af_blist.put("blacklist", this.data, "forcible");
                                 delete this._is_modified;
                             }
                             return this;
                         },
                         add(data) {
-                            if ($$len(arguments, 3)) {
+                            if (arguments.length === 3) {
                                 data = {
                                     name: arguments[0],
                                     timestamp: arguments[1],
@@ -755,13 +744,13 @@ let $$init = {
                                             let _o = this._blist_data[i];
                                             if (!$$obj(_o)) {
                                                 this._blist_data.splice(i--, 1);
-                                                this._is_modified = true;
+                                                _blist_setter._is_modified = true;
                                                 continue;
                                             }
                                             if (!_o.timestamp || _expired(_o)) {
                                                 this._deleted.push(_o.name);
                                                 this._blist_data.splice(i--, 1);
-                                                this._is_modified = true;
+                                                _blist_setter._is_modified = true;
                                             }
                                         }
                                         return this;
@@ -916,10 +905,10 @@ let $$init = {
                                         function _alipayHome() {
                                             let _cA = $$app.page.alipay.home;
                                             let _cB = () => {
-                                                let _kw_af_btn = idMatches(/.*home.+search.but.*/);
+                                                let _sltr_af_btn = idMatches(/.*home.+search.but.*/);
                                                 let _par = {click_strategy: "w"};
 
-                                                return waitForAndClickAction(_kw_af_btn, 1.5e3, 80, _par);
+                                                return waitForAndClickAction(_sltr_af_btn, 1.5e3, 80, _par);
                                             };
 
                                             return _cA() && _cB();
@@ -927,9 +916,9 @@ let $$init = {
 
                                         function _search() {
                                             let _text = "蚂蚁森林小程序";
-                                            let _kw_inp_box = idMatches(/.*search.input.box/);
-                                            let _kw_search_confirm = idMatches(/.*search.confirm/);
-                                            let _sel_inp_box = () => $$sel.pickup(_kw_inp_box);
+                                            let _sltr_inp_box = idMatches(/.*search.input.box/);
+                                            let _sltr_search_cfm = idMatches(/.*search.confirm/);
+                                            let _sel_inp_box = () => $$sel.pickup(_sltr_inp_box);
                                             let _sel_search_aim = () => _w_search_aim = $$sel.get("af");
 
                                             if (!waitForAction(_sel_inp_box, 5e3, 80)) {
@@ -939,7 +928,7 @@ let $$init = {
                                             setText(_text);
                                             waitForAction(() => $$sel.pickup(_text), 3e3, 80);
 
-                                            return clickAction(_kw_search_confirm, "w", {
+                                            return clickAction(_sltr_search_cfm, "w", {
                                                 condition_success: _sel_search_aim,
                                                 max_check_times: 10,
                                                 check_time_once: 300,
@@ -1068,7 +1057,7 @@ let $$init = {
                             return _sel_b.clickable().findOnce();
                         },
                         _implement(fs, no_bak) {
-                            for (let i = 0, len = fs.length; i < len; i += 1) {
+                            for (let i = 0, l = fs.length; i < l; i += 1) {
                                 let _checker = fs[i];
                                 if ($$arr(_checker)) {
                                     if (no_bak) {
@@ -1086,7 +1075,7 @@ let $$init = {
                             let _aim = $$app.page._plans.launch[aim];
                             let _share = shared_opt || {};
 
-                            for (let i = 0, len = plans_arr.length; i < len; i += 1) {
+                            for (let i = 0, l = plans_arr.length; i < l; i += 1) {
                                 let _ele = plans_arr[i];
                                 let _key = $$str(_ele) ? _ele : Object.keys(_ele)[0];
                                 let _func = _aim[_key];
@@ -1100,7 +1089,7 @@ let $$init = {
                                 let _params = $$str(_ele) ? {} : _ele[_key];
                                 Object.assign(_params, _share);
 
-                                if (_func.bind(_aim)(_params)) {
+                                if (_func.call(_aim, _params)) {
                                     return true;
                                 }
                             }
@@ -1750,7 +1739,7 @@ let $$init = {
                             .add("input_lbl_code", /密码|Password/)
                         ;
                     }
-                }
+                },
             };
         }
 
@@ -1803,12 +1792,12 @@ let $$init = {
                                     messageAction("当前非账户切换页面", 8, 0, 1, 1);
                                 }
 
-                                let _kw = idMatches(/.*list_arrow/);
-                                waitForAction(() => _kw.exists(), 2e3); // just in case
+                                let _sltr = idMatches(/.*list_arrow/);
+                                waitForAction(() => _sltr.exists(), 2e3); // just in case
                                 sleep(300);
 
                                 // current logged in user abbr (with a list arrow)
-                                let _cur_abbr = $$sel.pickup([_kw, "s-1c0c0"], "txt");
+                                let _cur_abbr = $$sel.pickup([_sltr, "s<1c0>0"], "txt");
                                 // abbr of param "name_str"
                                 let _name_abbr = this.getAbbrFromList(name_str);
                                 // let _is_logged_in = $$acc.isMatchAbbr(name_str, _cur_abbr);
@@ -1824,8 +1813,7 @@ let $$init = {
                             },
                             isInList(name_str) {
                                 let _wc = $$sel.pickup(/.+\*{3,}.+/, "wc");
-
-                                for (let i = 0, len = _wc.length; i < len; i += 1) {
+                                for (let i = 0, l = _wc.length; i < l; i += 1) {
                                     let _w = _wc[i];
                                     let _abbr_name = $$sel.pickup(_w, "txt");
                                     if ($$acc.isMatchAbbr(name_str, _abbr_name)) {
@@ -2523,7 +2511,7 @@ let $$init = {
                                                 "wait": "持续等待",
                                                 "timeout_review": "超时复检成功",
                                             };
-                                            for (let i = 0, len = cond_arr.length; i < len; i += 1) {
+                                            for (let i = 0, l = cond_arr.length; i < l; i += 1) {
                                                 let _cond = cond_arr[i] || {};
                                                 if (_cond.cond && _cond.cond()) {
                                                     debugInfo("满足" + (_type_map[type] || "未知") + "条件");
@@ -2632,7 +2620,7 @@ let $$init = {
                                 let _res;
 
                                 timeRecorder("avt_chk");
-                                _res = _img && _check.bind(this)(_img);
+                                _res = _img && _check.call(this, _img);
                                 $$app.avatar_checked_time = timeRecorder("avt_chk", "L", "auto");
 
                                 if (_res) {
@@ -2656,6 +2644,7 @@ let $$init = {
                                     }
                                 }
                             },
+                            /** @returns {boolean|ImageWrapper} */
                             getAvtClip() {
                                 let _b = null;
                                 waitForAction(() => _b = _getAvtPos(), 8e3, 100);
@@ -2669,7 +2658,7 @@ let $$init = {
                                 if (w < 3 || h < 3) {
                                     messageAction("无法继续匹配当前头像样本", 3, 0, 0, "dash_up");
                                     messageAction("森林主页头像控件数据无效", 3, 0, 1, "dash");
-                                    return;
+                                    return false;
                                 }
 
                                 let _avt_clip;
@@ -2824,7 +2813,7 @@ let $$init = {
                     messageAction("连续运行间隔时长过小", 3, 0, 1);
                     messageAction("触发脚本炸弹预防阈值", 3, 0, 1, 1);
                     exit();
-                }
+                },
             };
         }
 
@@ -3152,9 +3141,8 @@ let $$init = {
                     debugInfo("设置音量键监听器");
 
                     let _keyMsg = (e) => {
-                        let _keyCodeStr = android.view.KeyEvent.keyCodeToString;
                         let _code = e.getKeyCode();
-                        let _name = _keyCodeStr(_code);
+                        let _name = android.view.KeyEvent.keyCodeToString(_code);
                         return _name + " (" + _code + ")";
                     };
 
@@ -3183,14 +3171,10 @@ let $$init = {
 
                     let _constr = constrParamsSetter();
 
-                    let _call_stat = new Monitor(
-                        "通话状态", "2 hr", _constr.phone
-                    );
+                    let _call_stat = new Monitor("通话状态", "2 hr", _constr.phone);
                     _call_stat.valid() && _call_stat.monitor();
 
-                    let _scr_off = new Monitor(
-                        "屏幕关闭", "2 min", _constr.screen
-                    );
+                    let _scr_off = new Monitor("屏幕关闭", "2 min", _constr.screen);
                     _scr_off.valid() && _scr_off.monitor();
 
                     return this;
@@ -3234,7 +3218,7 @@ let $$init = {
                                             return _pref + " (最多" + _suffix + ")";
                                         };
 
-                                        if ($$inf(_lmt)) {
+                                        if (isInfinite(_lmt)) {
                                             return _pref;
                                         }
                                         if (_lmt < 1e3) {
@@ -3304,8 +3288,12 @@ let $$init = {
                         function _handleLimitParam(lmt) {
                             if (!$$str(lmt)) {
                                 lmt = +lmt;
-                                if (lmt < 1e3) lmt *= 1e3; // take as seconds
-                                if (!lmt || lmt <= 0) lmt = Infinity; // endless monitoring
+                                if (lmt < 1e3) {
+                                    lmt *= 1e3; // take as seconds
+                                }
+                                if (!lmt || lmt <= 0) {
+                                    lmt = Infinity; // endless monitoring
+                                }
                                 return lmt;
                             }
                             if (lmt.match(/h((ou)?rs?)?/)) {
@@ -3324,13 +3312,7 @@ let $$init = {
                         }
 
                         function _handleSwitch(sw) {
-                            if ($$bool(sw)) {
-                                return sw;
-                            }
-                            if ($$str(sw)) {
-                                return $$cfg[sw];
-                            }
-                            return true;
+                            return $$bool(sw) ? sw : $$str(sw) ? $$cfg[sw] : true;
                         }
                     }
 
@@ -3617,9 +3599,9 @@ let $$init = {
                     return debugInfo("排行榜底部监测线程结束");
                 }),
                 tree_rainbow: new Monitor("彩虹对话框", function () {
-                    let _kw = idMatches(/.*J.rainbow.close.*/);
+                    let _sltr = idMatches(/.*J.rainbow.close.*/);
                     while (1) {
-                        let _w = _kw.findOnce();
+                        let _w = _sltr.findOnce();
                         if (_w && _w.click()) {
                             debugInfo("关闭主页彩虹对话框");
                         }
@@ -4256,7 +4238,7 @@ let $$init = {
                                     let _txt = "";
                                     let _sel = () => {
                                         let _b = "支付宝账户"; // body
-                                        let _c = "s+1"; // compass
+                                        let _c = "s>1"; // compass
                                         let _res = $$sel.pickup([_b, _c], "txt");
                                         return _txt = _res;
                                     };
@@ -4341,8 +4323,8 @@ let $$af = {
 
                     let _tv = "TextView";
                     let _tab = "tab_description";
-                    let _kw_home = className(_tv).idContains(_tab);
-                    if (waitForAction(_kw_home, 2e3)) {
+                    let _sltr_home = className(_tv).idContains(_tab);
+                    if (waitForAction(_sltr_home, 2e3)) {
                         return true;
                     }
 
@@ -4351,7 +4333,7 @@ let $$af = {
                         let _pkg = $$app.pkg_name;
                         killThisApp(_pkg);
                         app.launch(_pkg);
-                        if (waitForAction(_kw_home, 15e3)) {
+                        if (waitForAction(_sltr_home, 15e3)) {
                             break;
                         }
                     }
@@ -4670,10 +4652,10 @@ let $$af = {
                             let _t_spot = timeRecorder("ctd_own");
                             let _min_own_ripe_ts = Math.mini(_getOwnRipeTs());
 
-                            if (!$$posNum(_min_own_ripe_ts)) {
+                            if (!$$num(_min_own_ripe_ts) || _min_own_ripe_ts <= 0) {
                                 return debugInfo("自己能量最小倒计时数据无效", 3);
                             }
-                            if ($$inf(_min_own_ripe_ts)) {
+                            if (isInfinite(_min_own_ripe_ts)) {
                                 return debugInfo("自己能量倒计时数据为空");
                             }
 
@@ -4741,7 +4723,7 @@ let $$af = {
                                         debugInfo("[ " + _t_str + " ]  ->  " + _m + " min");
                                         return _t_spot + _m * 60e3;
                                     }
-                                }).filter($$fin);
+                                }).filter(isFinite);
 
                                 // thread function(s) //
 
@@ -4989,7 +4971,7 @@ let $$af = {
 
                 function _result() {
                     let _em = $$af.emount_c_own;
-                    if (_em < 0 || $$inf(_em)) {
+                    if (_em < 0 || isInfinite(_em)) {
                         debugInfo("收取值异常: " + _em, 3);
                     } else if (!_em) {
                         debugInfo("无能量球可收取");
@@ -5004,7 +4986,7 @@ let $$af = {
                 let _thrd = $$af.thrd_bg_mon_own;
                 let _ctd_ts = $$af.min_ctd_own;
                 let _thrd_ts = _thrd * 60e3 + 9e3;
-                let _cA = _ctd_ts && $$fin(_ctd_ts);
+                let _cA = _ctd_ts && isFinite(_ctd_ts);
                 let _cB = _ctd_ts - $$app.ts <= _thrd_ts;
                 if (_cA && _cB) {
                     messageAction("开始主页能量球返检监控", 1, 1, 0, 1);
@@ -5121,7 +5103,7 @@ let $$af = {
                     let [_s0, _s1] = $$cfg.help_collect_section;
 
                     if (_s1 <= _s0) {
-                        _s1 = _s1.replace(/\d{2}(?=:)/, $0 => +$0 + 24);
+                        _s1 = _s1.replace(/\d{2}(?=:)/, $ => +$ + 24);
                     }
 
                     let _now_str = $$app.tool.timeStr($$app.now, "hh:mm");
@@ -5214,11 +5196,11 @@ let $$af = {
                             data: "alipays://platformapi/startapp?appId=20000141",
                         });
 
-                        let _kw = className("EditText");
+                        let _sltr = className("EditText");
                         let _nick = "";
-                        let _sel = () => _nick = $$sel.pickup(_kw, "txt");
+                        let _sel = () => _nick = $$sel.pickup(_sltr, "txt");
 
-                        if (!waitForAction(_kw, 4.8e3, 60)) {
+                        if (!waitForAction(_sltr, 4.8e3, 60)) {
                             messageAction("无法获取当前账户昵称", 3, 0, 0, -1);
                             messageAction("进入昵称设置页面超时", 3, 1, 0, 1);
                         } else {
@@ -5230,8 +5212,8 @@ let $$af = {
                         sleep(500);
 
                         if ($$str(_nick, "")) {
-                            let _kw = idMatches(/.*user_name_left/);
-                            let _sel = () => _nick = $$sel.pickup(_kw, "txt");
+                            let _sltr = idMatches(/.*user_name_left/);
+                            let _sel = () => _nick = $$sel.pickup(_sltr, "txt");
 
                             $$app.page.alipay.home({debug_info_flag: false});
                             clickAction($$sel.pickup(["我的", "p1"]), "w");
@@ -5306,7 +5288,7 @@ let $$af = {
                             })(),
                             check() {
                                 if (_fri.trig_pick) {
-                                    return _prop._chkByImgTpl.bind(this)();
+                                    return _prop._chkByImgTpl.call(this);
                                 }
                                 if (!$$flag.dys_pick) {
                                     let _sA = "不再采集收取目标样本";
@@ -5322,7 +5304,7 @@ let $$af = {
                             mult_col: [[cX(38), cYx(35), _col_help]],
                             check() {
                                 if (_fri.trig_help) {
-                                    return _prop._chkByMultCol.bind(this)();
+                                    return _prop._chkByMultCol.call(this);
                                 }
                                 if (!$$flag.dys_help) {
                                     let _sA = "不再采集帮收目标样本";
@@ -5650,14 +5632,14 @@ let $$af = {
                                     function _getTs() {
                                         debugInfo("开始采集能量罩使用时间");
 
-                                        let _kw_lst = className("ListView");
+                                        let _sltr_lst = className("ListView");
                                         let _noChild = w => !w.childCount();
-                                        let _getChild = kw => kw.findOnce().children();
+                                        let _getChild = sltr => sltr.findOnce().children();
                                         let _lastIdx = w => w.parent().childCount() - 1;
                                         let _notLast = w => w.indexInParent() < _lastIdx(w);
                                         let _filter = w => _noChild(w) && _notLast(w);
                                         let _wc = null;
-                                        let _filtered = () => _getChild(_kw_lst).filter(_filter);
+                                        let _filtered = () => _getChild(_sltr_lst).filter(_filter);
                                         let _getWidgets = () => _wc = _filtered().slice(0, 3);
                                         let _sel_cvr = () => $$sel.get("cover_used");
                                         let _max = 8;
@@ -5733,7 +5715,7 @@ let $$af = {
                                                     // like: 2010
                                                     _yy -= 1;
                                                 }
-                                                let _used_date = new Date(_yy, _MM, _dd);
+                                                let _used_date = new Date(_yy, +_MM, +_dd);
                                                 let _hr_gap = (new Date(_n_d_str) - _used_date) / 3.6e6;
                                                 return (_hr_gap) + 24;
                                             }
@@ -5753,7 +5735,7 @@ let $$af = {
                                                 if (!_child.childCount()) {
                                                     _date_str = $$sel.pickup(_child, "txt");
                                                 } else {
-                                                    let _txt_item = $$sel.pickup([_child, "c1c1"], "txt")
+                                                    let _txt_item = $$sel.pickup([_child, "c1c1"], "txt");
                                                     if (!_txt_item) {
                                                         // legacy
                                                         _txt_item = $$sel.pickup([_child, "c0c1"], "txt");
@@ -5888,8 +5870,8 @@ let $$af = {
                                     let _cfg = _config[act];
                                     let _name = _cfg.name;
 
-                                    let _ctr = threads.atomic(0);
-                                    let _res = threads.atomic(-1);
+                                    let _ctr = _atomic(0);
+                                    let _res = _atomic(-1);
 
                                     let _thds = {
                                         // P.K. strategy has been abandoned
@@ -6123,6 +6105,31 @@ let $$af = {
                                             }
                                         }
                                     }
+
+                                    // degradation function(s) //
+
+                                    function _atomic(x) {
+                                        let _res = threads.atomic(x);
+                                        if (classof(_res, "JavaObject")) {
+                                            return _res;
+                                        }
+                                        return {
+                                            _num: x,
+                                            get() {
+                                                return this._num;
+                                            },
+                                            incrementAndGet() {
+                                                return this._num += 1;
+                                            },
+                                            compareAndSet(m, n) {
+                                                if (this._num === m) {
+                                                    this._num = n;
+                                                    return true;
+                                                }
+                                                return false;
+                                            },
+                                        };
+                                    }
                                 }
 
                                 function _db() {
@@ -6191,7 +6198,7 @@ let $$af = {
 
                         if (!_cond) {
                             $$af.min_ctd_fri = Infinity;
-                        } else if ($$inf($$af.min_ctd_fri)) {
+                        } else if (isInfinite($$af.min_ctd_fri)) {
                             _fri._chkMinCtd("cache");
                         }
                     }
@@ -6548,7 +6555,7 @@ let $$af = {
                 : {name: "min_countdown", desc: "最小倒计时"};
             let _next = Math.min(_nxt_min_ctd, _nxt_unintrp);
 
-            if ($$fin(_next)) {
+            if (isFinite(_next)) {
                 // both _type and _next may be affected
                 _chkAutoTaskSect();
                 _setAutoTask();
@@ -6773,7 +6780,7 @@ let $$af = {
                 debugInfo("好友能量收取值: " + _e_fri);
                 showSplitLineForDebugInfo();
 
-                if ($$noNegNum(_e_own) && $$noNegNum(_e_fri)) {
+                if (_e_own >= 0 && _e_fri >= 0) {
                     let _msg = _eStr(_e_fri, _e_own);
                     return reso(_showMsg(_msg));
                 }
@@ -7491,5 +7498,5 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drctn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
+ * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | add: additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | drxn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | oball(s): orange ball(s) | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | sltr: selector | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
  */

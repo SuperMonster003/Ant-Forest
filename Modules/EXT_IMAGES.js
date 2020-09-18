@@ -1022,19 +1022,13 @@ module.exports.load = () => global.imagesx = ext;
 // tool function(s) //
 
 function _requestScreenCapture(landscape) {
-    let $$isJvo = x => x && !!x["getClass"];
-    let is_pro = context.packageName.match(/[Pp]ro/);
-    let key = "_$_request_screen_capture";
-    let flag = global[key];
-
-    if ($$isJvo(flag)) {
-        if (flag) {
-            return true;
-        }
-        flag.incrementAndGet();
-    } else {
-        flag = global[key] = threads.atomic(1);
+    let aj_pkg = context.packageName;
+    let is_pro = aj_pkg.match(/[Pp]ro/);
+    let is_pro_7 = is_pro && app.autojs.versionName.match(/^Pro 7/);
+    if (global._$_request_screen_capture) {
+        return true;
     }
+    global._$_request_screen_capture = threads.atomic(1);
 
     let javaImages = runtime.getImages();
     let ResultAdapter = require.call(global, "result_adapter");
@@ -1045,13 +1039,19 @@ function _requestScreenCapture(landscape) {
         : landscape
             ? ScreenCapturer.ORIENTATION_LANDSCAPE
             : ScreenCapturer.ORIENTATION_PORTRAIT;
-    let adapter = is_pro
-        ? javaImages.requestScreenCapture.call(javaImages, orientation, -1, -1)
-        : javaImages.requestScreenCapture(orientation);
+    let adapter = !is_pro
+        ? javaImages.requestScreenCapture(orientation)
+        : javaImages.requestScreenCapture.apply(javaImages, [
+            orientation /* orientation */,
+            -1, /* width */
+            -1, /* height */
+            false /* isAsync */
+        ].slice(0, is_pro_7 ? 3 : 4));
 
-    let result = ResultAdapter.wait(adapter);
-    flag.decrementAndGet();
-    return result;
+    if (ResultAdapter.wait(adapter)) {
+        return true;
+    }
+    delete global._$_request_screen_capture;
 }
 
 /**
@@ -1075,20 +1075,10 @@ function _requestScreenCapture(landscape) {
  * @return {boolean}
  */
 function _permitCapt(params) {
-    let $_und = x => typeof x === "undefined";
-    let _$$isJvo = x => x && !!x["getClass"];
-    let _key = "_$_ext_images_permit_capt";
-    let _flag = global[_key];
-
-    if (_$$isJvo(_flag)) {
-        if (_flag) {
-            return true;
-        }
-        _flag.incrementAndGet();
-    } else {
-        _flag = global[_key] = threads.atomic(1);
+    if (global._$_request_screen_capture) {
+        return true;
     }
-
+    let $_und = x => typeof x === "undefined";
     let _par = params || {};
     let _debugInfo = (m, fg) => (
         typeof debugInfo === "function" ? debugInfo : debugInfoRaw
@@ -1125,8 +1115,8 @@ function _permitCapt(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
-        let _kw_remember = id("com.android.systemui:id/remember");
-        let _sel_remember = () => _$$sel.pickup(_kw_remember);
+        let _sltr_remember = id("com.android.systemui:id/remember");
+        let _sel_remember = () => _$$sel.pickup(_sltr_remember);
         let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
         let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
 
@@ -1184,7 +1174,6 @@ function _permitCapt(params) {
 
     let _req_result = _requestScreenCapture(false);
     _thread_monitor.join();
-    _flag.decrementAndGet();
     return _req_result;
 
     // raw function(s) //
@@ -1192,17 +1181,18 @@ function _permitCapt(params) {
     function getSelectorRaw() {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let sel = selector();
-        sel.__proto__ = {
-            pickup(filter) {
-                if (classof(filter) === "JavaObject") {
-                    if (filter.toString().match(/UiObject/)) return filter;
-                    return filter.findOnce() || null;
-                }
-                if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
-                if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
-                return null;
-            },
-        };
+        sel.__proto__ = sel.__proto__ || {};
+        if (typeof sel.__proto__.pickup !== "function") {
+            sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
+                ? filter.toString().match(/UiObject/)
+                    ? filter
+                    : filter.findOnce()
+                : typeof filter === "string"
+                    ? desc(filter).findOnce() || text(filter).findOnce()
+                    : classof(filter) === "RegExp"
+                        ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
+                        : null;
+        }
         return sel;
     }
 
@@ -1228,15 +1218,15 @@ function _permitCapt(params) {
         return _check_time >= 0;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -1368,7 +1358,7 @@ function _permitCapt(params) {
 
 // FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
 function _reclaim() {
-    for (let i = 0, len = arguments.length; i < len; i += 1) {
+    for (let i = 0, l = arguments.length; i < l; i += 1) {
         let img = arguments[i];
         if (ext.isImageWrapper(img)) {
             img.recycle();

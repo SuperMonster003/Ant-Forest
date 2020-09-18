@@ -292,7 +292,7 @@ let ext = {
         }
     },
     dismiss() {
-        for (let i = 0, len = arguments.length; i < len; i += 1) {
+        for (let i = 0, l = arguments.length; i < l; i += 1) {
             arguments[i].dismiss();
         }
     },

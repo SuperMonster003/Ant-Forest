@@ -21,7 +21,7 @@ let $$init = {
 
         function checkModulesMap(modules_map) {
             let wanted = [];
-            for (let i = 0, len = modules_map.length; i < len; i += 1) {
+            for (let i = 0, l = modules_map.length; i < l; i += 1) {
                 let module = modules_map[i];
                 let path = "./Modules/" + module + ".js";
                 let file_exists = files.exists(path.replace(/(\.js){2,}/, ".js"));
@@ -461,7 +461,7 @@ let $$init = {
                         };
                         item_view.setHintVisibility = (v) => {
                             item_view["_hint"] && ui.post(() => {
-                                v = v === true ? 0 : v === false ? 8 : v;
+                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
                                 item_view["_hint"].setVisibility(v);
                             });
                         };
@@ -477,7 +477,7 @@ let $$init = {
                         };
                         item_view.setChevronVisibility = (v) => {
                             item_view["_chevron_btn"] && ui.post(() => {
-                                v = v === true ? 0 : v === false ? 8 : v;
+                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
                                 item_view["_chevron_btn"].setVisibility(v);
                             });
                         };
@@ -551,7 +551,9 @@ let $$init = {
                             let sw_view;
                             if (type === "switch") {
                                 sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
-                                if (opt.default_state === false) sw_view._switch.setChecked(false);
+                                if ($$F(opt.default_state)) {
+                                    sw_view._switch.setChecked(false);
+                                }
                             }
                             if (type === "checkbox_switch") {
                                 sw_view = ui.inflate(
@@ -559,7 +561,9 @@ let $$init = {
                                         <checkbox id="_checkbox_switch" checked="true"/>
                                     </vertical>
                                 );
-                                if (opt.default_state === false) sw_view._checkbox_switch.setChecked(false);
+                                if ($$F(opt.default_state)) {
+                                    sw_view._checkbox_switch.setChecked(false);
+                                }
                             }
                             item_view._item_area.addView(sw_view);
                             opt.view = item_view;
@@ -642,7 +646,7 @@ let $$init = {
                             }
                             if (key === "updateOpr") {
                                 dynamic_views.push(item_view);
-                                return (item_view.updateOpr = () => item_data.bind(opt)(item_view))();
+                                return (item_view.updateOpr = () => item_data.call(opt, item_view))();
                             }
                             item_view[key] = item_data.bind(item_view);
                         });
@@ -952,7 +956,7 @@ let $$init = {
             },
             setButtons(p_view, data_source_key_name, button_params_arr) {
                 let buttons_count = 0;
-                for (let i = 2, len = arguments.length; i < len; i += 1) {
+                for (let i = 2, l = arguments.length; i < l; i += 1) {
                     let arg = arguments[i];
                     if (!$$arr(arg)) {
                         continue; // just in case
@@ -1205,7 +1209,7 @@ let $$init = {
                                     _items = _i_len ? _items : ["列表为空"];
                                     _diag_add_from_lst.setItems(_items);
                                     let _fri_lst_ts = _fri_lst.timestamp;
-                                    if ($$inf(_fri_lst_ts)) {
+                                    if (isInfinite(_fri_lst_ts)) {
                                         _fri_lst_ts = -1;
                                     }
                                     _diag_add_from_lst.setContent(
@@ -1233,7 +1237,7 @@ let $$init = {
                                     list_item_listener(item, closeListPage) {
                                         let excluded_data_arrays = [_blist_sel_fri, _tmp_sel_fri];
 
-                                        for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                                        for (let i = 0, l = excluded_data_arrays.length; i < l; i += 1) {
                                             if (~excluded_data_arrays[i].indexOf(item)) {
                                                 return toast("此项已存在于黑名单列表或待添加列表中");
                                             }
@@ -1445,7 +1449,7 @@ let $$init = {
                                     list_item_listener(item, closeListPage) {
                                         let excluded_data_arrays = [blacklist_selected_apps, tmp_selected_apps];
 
-                                        for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                                        for (let i = 0, l = excluded_data_arrays.length; i < l; i += 1) {
                                             if (~excluded_data_arrays[i].indexOf(item)) {
                                                 return toast("此项已存在于黑名单列表或待添加列表中");
                                             }
@@ -2337,7 +2341,7 @@ let $$init = {
                         _diag.on("positive", () => {
                             let sectionStringTransform = () => {
                                 let arr = list_heads[ds_k];
-                                for (let i = 0, len = arr.length; i < len; i += 1) {
+                                for (let i = 0, l = arr.length; i < l; i += 1) {
                                     let o = arr[i];
                                     if ("section" in o) {
                                         return o.stringTransform;
@@ -2471,13 +2475,8 @@ let $$init = {
                         // tool function(s) //
 
                         function _getItems(idx) {
-                            return [
-                                "显示全部收取值",
-                                "不显示零收取值",
-                                "仅显示零收取值"
-                            ].map((v, i) => {
-                                return v + (i === idx ? " (默认值)" : "");
-                            });
+                            return ["显示全部收取值", "不显示零收取值", "仅显示零收取值"]
+                                .map((v, i) => v + (i === idx ? " (默认值)" : ""));
                         }
                     }], ["date_range", "RANGE", "ON", () => {
                         let _ds_k = "stat_list_date_range";
@@ -2553,7 +2552,7 @@ let $$init = {
                                 (() => {
                                     let _du = _today_ts + _1_day_ts - sess_par.list_data_min_ts;
                                     let _days = Math.ceil(_du / _1_day_ts);
-                                    _days = $$inf(_days) ? 0 : _days;
+                                    _days = isInfinite(_days) ? 0 : _days;
                                     return {
                                         item: "全部 (共" + _days + "天)",
                                         range: [0, _today_max_sec],
@@ -2669,7 +2668,7 @@ let $$init = {
                 let check_dependence_result = (() => {
                     if ($$func(dependencies)) return dependencies();
                     if (!classof(deps, "Array")) deps = [deps];
-                    for (let i = 0, len = deps.length; i < len; i += 1) {
+                    for (let i = 0, l = deps.length; i < l; i += 1) {
                         if (sess_cfg[deps[i]]) return true;
                     }
                 })();
@@ -2768,7 +2767,7 @@ let $$init = {
                      */
                     let sub_trees = [];
                     let keys = Object.keys(tree);
-                    for (let i = 0, len = keys.length; i < len; i += 1) {
+                    for (let i = 0, l = keys.length; i < l; i += 1) {
                         let key = keys[i];
                         if (key in pages && !(key in _pages_buffered_name)) {
                             _pages_buffer.push(pages[key]);
@@ -2858,7 +2857,7 @@ let $$init = {
                         let _ls_name = Object.keys(o).filter(k => $$str(o[k]))[0];
                         let _ls_value = obj[_ls_name];
                         _final_o["list_item_name_" + i] = o.stringTransform
-                            ? o.stringTransform.forward.bind(obj)(_ls_value)
+                            ? o.stringTransform.forward.call(obj, _ls_value)
                             : _ls_value;
                         _final_o[_ls_name] = "list_item_name_" + i; // backup
                         _final_o["width_" + i] = o.width ? cX(o.width) + "px" : -2;
@@ -2951,7 +2950,7 @@ let $$init = {
                         let current_child_index = parent.indexOfChild(myself);
                         view_index_padding.forEach((padding) => {
                             let radio_group_view = parent.getChildAt(current_child_index + padding).getChildAt(0);
-                            for (let i = 0, len = radio_group_view.getChildCount(); i < len; i += 1) {
+                            for (let i = 0, l = radio_group_view.getChildCount(); i < l; i += 1) {
                                 let radio_view = radio_group_view.getChildAt(i);
                                 radio_view.setClickable(state);
                                 radio_view.setTextColor(
@@ -3360,7 +3359,7 @@ let $$init = {
                         let _v = sess_cfg[_cfg_conj] || _def_sto_idx;
                         _def_idx = _keys.indexOf(_v.toString());
                     } else if ($$func(_def_idx)) {
-                        _def_idx = _def_idx.bind(this)();
+                        _def_idx = _def_idx.call(this);
                     }
 
                     let _saveValue = _opt.saveValue;
@@ -3382,10 +3381,10 @@ let $$init = {
                         _neu_lsn = () => null;
                     } else if ($$func(_neutral)) {
                         _neu_value = ["了解详情", "hint_btn_bright_color"];
-                        _neu_lsn = d => _neutral.bind(this)(d);
+                        _neu_lsn = d => _neutral.call(this, d);
                     } else if ($$obj(_neutral)) {
                         _neu_value = _neutral.value;
-                        _neu_lsn = d => _neutral.listener.bind(this)(d);
+                        _neu_lsn = d => _neutral.listener.call(this, d);
                     } else {
                         _neu_value = ["使用默认值", "hint_btn_dark_color"];
                         _neu_lsn = d => d.setSelectedIndex(_def_sto_idx);
@@ -3396,10 +3395,10 @@ let $$init = {
                     let _negative = _opt.nagetive || "返回";
                     if ($$func(_negative)) {
                         _neg_value = _negative;
-                        _neg_lsn = d => _negative.bind(this)(d);
+                        _neg_lsn = d => _negative.call(this, d);
                     } else if ($$obj(_negative)) {
                         _neg_value = _negative.value;
-                        _neg_lsn = d => _negative.listener.bind(this)(d);
+                        _neg_lsn = d => _negative.listener.call(this, d);
                     } else {
                         _neg_value = _negative;
                         _neg_lsn = d => d.dismiss();
@@ -3410,11 +3409,11 @@ let $$init = {
                     let _positive = _opt.positive || "确认修改";
                     if ($$func(_positive)) {
                         _pos_value = _positive;
-                        _pos_lsn = d => _positive.bind(this)(d);
+                        _pos_lsn = d => _positive.call(this, d);
                     } else if ($$obj(_positive)) {
                         _pos_value = _positive.value;
                         _pos_lsn = (d) => $$func(_positive.listener)
-                            ? _positive.listener.bind(this)(d)
+                            ? _positive.listener.call(this, d)
                             : (d) => {
                                 _saveValue(d);
                                 d.dismiss();
@@ -3440,7 +3439,7 @@ let $$init = {
                         .on("negative", _neg_lsn)
                         .on("positive", _pos_lsn)
                         .on("single_choice", $$func(_opt.single_choice)
-                            ? (i, v, d) => _opt.single_choice.bind(this)(i, v, d)
+                            ? (i, v, d) => _opt.single_choice.call(this, i, v, d)
                             : () => null)
                         .show();
                 },
@@ -3582,7 +3581,7 @@ let $$init = {
                     let accumulated_step = 1;
                     let tmp_potential_value;
 
-                    for (let i = 1, len = units.length; i < len; i += 1) {
+                    for (let i = 1, l = units.length; i < l; i += 1) {
                         tmp_potential_value = potential_step ? accumulated_step : 0;
                         let unit = units[i];
 
@@ -3709,7 +3708,7 @@ let $$init = {
                         if (isNaN(step_num)) return;
 
                         let diag_content = getStepsStrArrFromDiagContent();
-                        for (let i = 0, len = diag_content.length; i < len; i += 1) {
+                        for (let i = 0, l = diag_content.length; i < l; i += 1) {
                             if (i === step_num) {
                                 diag_content[i] = (mode === "append" ? diag_content[i] : "") + str;
                                 break;
@@ -3739,7 +3738,7 @@ let $$init = {
 
                 excluded_data_arrays = excluded_data_arrays || [];
                 let filterFunc = (str) => {
-                    for (let i = 0, len = excluded_data_arrays.length; i < len; i += 1) {
+                    for (let i = 0, l = excluded_data_arrays.length; i < l; i += 1) {
                         if (~excluded_data_arrays[i].indexOf(str)) return false;
                     }
                     return true;
@@ -4306,7 +4305,7 @@ let $$init = {
                             delete _final_o[_useless];
                         }
                         if (key.match(/^width_\d$/)) {
-                            _final_o[key] = undefined;
+                            delete _final_o[key];
                         }
                     });
 
@@ -4317,13 +4316,12 @@ let $$init = {
                             if (_bw === "__delete__") {
                                 delete _final_o[_aim_k];
                             } else if ($$func(_bw)) {
-                                _final_o[_aim_k] = _bw.bind(_final_o)(_final_o[_aim_k]);
+                                _final_o[_aim_k] = _bw.call(_final_o, _final_o[_aim_k]);
                             }
                         }
                     });
 
-                    // to remove undefined items
-                    new_data.push(Object.assign({}, _final_o));
+                    new_data.push(_final_o);
                 });
                 return new_data;
             },
@@ -4346,34 +4344,13 @@ let $$init = {
         // tool function(s) //
 
         function setGlobalFunctions() {
-            // any better ideas ?
-
-            let {
-                alertTitle, deepCloneObject, smoothScrollView,
-                timedTaskTimeFlagConverter, timeRecorder,
-                setIntervalBySetTimeout, runJsFile,
-                equalObjects, debugInfo,
-                alertContent, waitForAction, surroundWith,
-                classof, messageAction, waitForAndClickAction,
-            } = require("./Modules/MODULE_MONSTER_FUNC");
-
-            Object.assign(global, {
-                waitForAndClickAction: waitForAndClickAction,
-                deepCloneObject: deepCloneObject,
-                alertContent: alertContent,
-                equalObjects: equalObjects,
-                timeRecorder: timeRecorder,
-                surroundWith: surroundWith,
-                alertTitle: alertTitle,
-                runJsFile: runJsFile,
-                classof: classof,
-                debugInfo: debugInfo,
-                waitForAction: waitForAction,
-                messageAction: messageAction,
-                smoothScrollView: smoothScrollView,
-                setIntervalBySetTimeout: setIntervalBySetTimeout,
-                timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
-            });
+            require("./Modules/MODULE_MONSTER_FUNC").load([
+                "alertContent", "waitForAction", "surroundWith",
+                "classof", "messageAction", "setIntervalBySetTimeout",
+                "timedTaskTimeFlagConverter", "waitForAndClickAction",
+                "equalObjects", "deepCloneObject", "smoothScrollView",
+                "runJsFile", "alertTitle", "debugInfo", "timeRecorder",
+            ]);
         }
 
         function setGlobalExtensions() {
@@ -4781,21 +4758,21 @@ $$view.setHomePage($$defs.homepage_title)
         config_conj: "self_collect_switch",
         next_page: "self_collect_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("收取功能", "hint", {
         config_conj: "friend_collect_switch",
         next_page: "friend_collect_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("帮收功能", "hint", {
         config_conj: "help_collect_switch",
         next_page: "help_collect_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("subhead", new Layout("高级功能"))
@@ -4803,28 +4780,28 @@ $$view.setHomePage($$defs.homepage_title)
         config_conj: "auto_unlock_switch",
         next_page: "auto_unlock_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("消息提示", "hint", {
         config_conj: "message_showing_switch",
         next_page: "message_showing_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("定时循环", "hint", {
         config_conj: "timers_switch",
         next_page: "timers_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("账户功能", "hint", {
         config_conj: "account_switch",
         next_page: "account_page",
         updateOpr(view) {
-            $$view.udop.main_sw.bind(this)(view);
+            $$view.udop.main_sw.call(this, view);
         },
     }))
     .add("page", new Layout("数据统计", {
@@ -5365,14 +5342,14 @@ $$view.addPage(["自收功能", "self_collect_page"], function () {
             config_conj: "homepage_monitor_switch",
             next_page: "homepage_monitor_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view, "timers_switch");
+                $$view.udop.main_sw.call(this, view, "timers_switch");
             },
         }))
         .add("page", new Layout("返检监控", "hint", {
             config_conj: "homepage_background_monitor_switch",
             next_page: "homepage_background_monitor_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view);
+                $$view.udop.main_sw.call(this, view);
             },
         }))
         .add("split_line")
@@ -5559,7 +5536,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
                             })
                             .on("positive", (ds) => {
                                 ds.dismiss();
-                                positiveFunc.bind(this)(d);
+                                positiveFunc.call(this, d);
                             })
                             .show();
                     },
@@ -5601,7 +5578,7 @@ $$view.addPage(["排行榜样本采集", "rank_list_samples_collect_page"], func
             config_conj: "rank_list_review_switch",
             next_page: "rank_list_review_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view, "timers_switch");
+                $$view.udop.main_sw.call(this, view, "timers_switch");
             },
         }))
         .add("button", new Layout("截图样本池差异检测阈值", "hint", {
@@ -5691,7 +5668,7 @@ $$view.addPage(["排行榜样本复查", "rank_list_review_page"], function () {
                 "samples_clicked_switch",
                 "difference_switch",
             ];
-            for (let i = 0, len = _samp.length; i < len; i += 1) {
+            for (let i = 0, l = _samp.length; i < l; i += 1) {
                 let _tag = "rank_list_review_" + _samp[i];
                 let _view = $$view.findViewByTag(view, _tag);
                 if (_view._checkbox_switch.checked) {
@@ -5797,7 +5774,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
         .add("button", new Layout("样本池总容量", "hint", {
             config_conj: "forest_balls_pool_limit",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 8);
+                $$view.diag.numSetter.call(this, 1, 8);
             },
             updateOpr(view) {
                 view.setHintText(sess_cfg[this.config_conj].toString());
@@ -5806,7 +5783,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
         .add("button", new Layout("样本采集间隔", "hint", {
             config_conj: "forest_balls_pool_itv",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(50, 500);
+                $$view.diag.numSetter.call(this, 50, 500);
             },
             updateOpr(view) {
                 view.setHintText(sess_cfg[this.config_conj].toString());
@@ -5864,7 +5841,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
         .add("button", new Layout("能量球点击时长", "hint", {
             config_conj: "balls_click_duration",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(10, 500);
+                $$view.diag.numSetter.call(this, 10, 500);
             },
             updateOpr(view) {
                 view.setHintText(sess_cfg[this.config_conj].toString() + " ms");
@@ -5873,7 +5850,7 @@ $$view.addPage(["能量球样本采集", "forest_samples_collect_page"], functio
         .add("button", new Layout("能量球点击间隔", "hint", {
             config_conj: "balls_click_interval",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(10, 500);
+                $$view.diag.numSetter.call(this, 10, 500);
             },
             updateOpr(view) {
                 view.setHintText(sess_cfg[this.config_conj].toString() + " ms");
@@ -5897,7 +5874,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
                 });
             },
             updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
+                $$view.hint.colorSetter.call(this, view);
             },
         }))
         .add("button", new Layout("识别阈值", "hint", {
@@ -5923,7 +5900,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
                 });
             },
             updateOpr(view) {
-                $$view.hint.colorSetter.bind(this)(view);
+                $$view.hint.colorSetter.call(this, view);
             },
         }))
         .add("button", new Layout("识别阈值", "hint", {
@@ -5944,7 +5921,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
         .add("button", new Layout("最大色相值 (无蓝分量)", "hint", {
             config_conj: "homepage_water_ball_max_hue_b0",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(12, 52, {hint_set: "R"});
+                $$view.diag.numSetter.call(this, 12, 52, {hint_set: "R"});
             },
             updateOpr(view) {
                 view.setHintText(sess_cfg[this.config_conj].toString() + "°");
@@ -6211,7 +6188,7 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
             config_conj: "six_balls_review_switch",
             next_page: "six_balls_review_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view);
+                $$view.udop.main_sw.call(this, view);
             },
         }))
         .add("split_line")
@@ -6585,7 +6562,7 @@ $$view.addPage(["消息提示", "message_showing_page"], function () {
                 return _o;
             })()),
             newWindow() {
-                $$view.diag.radioSetter.bind(this)();
+                $$view.diag.radioSetter.call(this);
             },
             updateOpr(view) {
                 view.setHintText(this.map[(sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString()]);
@@ -6666,7 +6643,7 @@ $$view.addPage(["定时循环", "timers_page"], function () {
                 "rank_list_review_switch",
                 "timers_self_manage_switch",
             ];
-            for (let i = 0, len = switches.length; i < len; i += 1) {
+            for (let i = 0, l = switches.length; i < l; i += 1) {
                 if (sess_cfg[switches[i]]) return true;
             }
             dialogsx.builds(["提示", "定时循环子功能需至少选择一个", 0, 0, "返回"]).show();
@@ -6693,7 +6670,7 @@ $$view.addPage(["定时循环", "timers_page"], function () {
             config_conj: "homepage_monitor_switch",
             next_page: "homepage_monitor_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view, "self_collect_switch");
+                $$view.udop.main_sw.call(this, view, "self_collect_switch");
             },
         }))
         .add("page", new Layout("好友排行榜样本复查", "hint", {
@@ -6711,7 +6688,7 @@ $$view.addPage(["定时循环", "timers_page"], function () {
             config_conj: "timers_self_manage_switch",
             next_page: "timers_self_manage_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view);
+                $$view.udop.main_sw.call(this, view);
             },
         }))
         .add("page", new Layout("定时任务控制面板", {
@@ -6815,7 +6792,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                     content: "timers_countdown_check_timed_task_ahead",
                     positiveAdd(d, input, positiveFunc) {
                         let _saveSess = (ds) => {
-                            positiveFunc.bind(this)(d);
+                            positiveFunc.call(this, d);
                             ds && ds.dismiss();
                         };
                         if ($$0(+input)) {
@@ -6888,7 +6865,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
                     content: "timers_countdown_check_timed_task_ahead",
                     positiveAdd(d, input, positiveFunc) {
                         let _saveSess = (ds) => {
-                            positiveFunc.bind(this)(d);
+                            positiveFunc.call(this, d);
                             ds && ds.dismiss();
                         };
                         if ($$0(+input)) {
@@ -6992,7 +6969,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
         .add("button", new Layout("保险任务运行间隔", "hint", {
             config_conj: "timers_insurance_interval",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 10);
+                $$view.diag.numSetter.call(this, 1, 10);
             },
             updateOpr(view) {
                 view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
@@ -7001,7 +6978,7 @@ $$view.addPage(["定时任务自动管理", "timers_self_manage_page"], function
         .add("button", new Layout("最大连续保险次数", "hint", {
             config_conj: "timers_insurance_max_continuous_times",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 5);
+                $$view.diag.numSetter.call(this, 1, 5);
             },
             updateOpr(view) {
                 view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
@@ -7160,7 +7137,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
 
                         let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
                         let reInitDataSource = () => {
-                            $$view.updateDataSource(_ds_k, "re_init", _custom_ds.bind(this)());
+                            $$view.updateDataSource(_ds_k, "re_init", _custom_ds.call(this));
                         };
 
                         let type_info = {
@@ -7172,7 +7149,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                         };
 
                         let keys = Object.keys(type_info);
-                        for (let i = 0, len = keys.length; i < len; i += 1) {
+                        for (let i = 0, l = keys.length; i < l; i += 1) {
                             let key = keys[i];
                             if (type_info[key] === type_code) {
                                 type_code = key;
@@ -7268,7 +7245,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                 ui: {
                     resume() {
                         let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
-                        $$view.updateDataSource(_ds_k, "re_init", _custom_ds.bind(this)());
+                        $$view.updateDataSource(_ds_k, "re_init", _custom_ds.call(this));
                     },
                 }
             },
@@ -7371,7 +7348,7 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                                 closeTimePickerPage({days_of_week: days_of_week, timestamp: getTimeInfoFromPicker(1).timestamp()});
                             } else if (type_str === "disposable") {
                                 let set_time = getTimeInfoFromPicker(0).timestamp();
-                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                if (set_time <= Date.now()) return alert("设置时间需大于当前时间");
                                 closeTimePickerPage(set_time);
                             } else if (type_str === "daily") {
                                 closeTimePickerPage(getTimeInfoFromPicker(1).timestamp());
@@ -7463,7 +7440,7 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                             .on("positive", (d) => {
                                 let sectionStringTransform = () => {
                                     let arr = list_heads[_ds_k];
-                                    for (let i = 0, len = arr.length; i < len; i += 1) {
+                                    for (let i = 0, l = arr.length; i < l; i += 1) {
                                         let o = arr[i];
                                         if ("section" in o) {
                                             return o.stringTransform;
@@ -7553,7 +7530,7 @@ $$view.addPage(["延时接力区间", "timers_uninterrupted_check_sections_page"
                     item_bind(item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $$view.commonItemBindCheckboxClickListener
-                                .bind(this)(checkbox_view, item_holder);
+                                .call(this, checkbox_view, item_holder);
                         });
                     },
                 },
@@ -7827,7 +7804,7 @@ $$view.addPage(["账户功能", "account_page"], function () {
             config_conj: "account_log_back_in_switch",
             next_page: "account_log_back_in_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view);
+                $$view.udop.main_sw.call(this, view);
             },
         }))
         .add("split_line")
@@ -8017,7 +7994,7 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                                         confirm_btn: {
                                             onClickListener(getTimeInfoFromPicker, closeTimePickerPage) {
                                                 let set_time = getTimeInfoFromPicker(0).timestamp();
-                                                if (set_time <= new Date().getTime()) return alert("设置时间需大于当前时间");
+                                                if (set_time <= Date.now()) return alert("设置时间需大于当前时间");
                                                 closeTimePickerPage(set_time);
                                             },
                                         },
@@ -8061,7 +8038,7 @@ $$view.addPage(["收取/帮收黑名单", "collect_blacklist_page"], function ()
                     item_bind(item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $$view.commonItemBindCheckboxClickListener
-                                .bind(this)(checkbox_view, item_holder);
+                                .call(this, checkbox_view, item_holder);
                         });
                     },
                 },
@@ -8123,7 +8100,7 @@ $$view.addPage(["前置应用黑名单", "foreground_app_blacklist_page"], funct
                     item_bind(item_view, item_holder) {
                         item_view._checkbox.on("click", (checkbox_view) => {
                             return $$view.commonItemBindCheckboxClickListener
-                                .bind(this)(checkbox_view, item_holder);
+                                .call(this, checkbox_view, item_holder);
                         });
                     },
                 },
@@ -8186,7 +8163,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
         .add("button", new Layout("排他性任务最大排队时间", "hint", {
             config_conj: "max_queue_time_global",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 120);
+                $$view.diag.numSetter.call(this, 1, 120);
             },
             updateOpr(view) {
                 view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " min");
@@ -8197,7 +8174,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
         .add("button", new Layout("脚本炸弹预防阈值", "hint", {
             config_conj: "min_bomb_interval_global",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(100, 800);
+                $$view.diag.numSetter.call(this, 100, 800);
             },
             updateOpr(view) {
                 view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + " ms");
@@ -8288,7 +8265,7 @@ $$view.addPage(["运行与安全", "script_security_page"], function () {
             config_conj: "phone_call_state_monitor_switch",
             next_page: "phone_call_state_monitor_page",
             updateOpr(view) {
-                $$view.udop.main_sw.bind(this)(view);
+                $$view.udop.main_sw.call(this, view);
             },
         }))
         .ready();

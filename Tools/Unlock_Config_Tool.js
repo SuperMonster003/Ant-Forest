@@ -23,7 +23,7 @@ let _require = require.bind(global); // copy global.require(){}
 
 require = function (path) {
     path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
-    for (let i = 0, len = path.match(/\//g).length; i < len; i += 1) {
+    for (let i = 0, l = path.match(/\//g).length; i < l; i += 1) {
         let _path = path;
         for (let j = 0; j < i; j += 1) _path = _path.replace(/\/\w+?(?=\/)/, "");
         for (let j = 0; j < 3; j += 1) {
@@ -842,7 +842,7 @@ function initUI(status_bar_color) {
 function setButtons(parent_view, data_source_key_name, button_params_arr) {
     let buttons_view = ui.inflate(<horizontal id="btn"/>);
     let buttons_count = 0;
-    for (let i = 2, len = arguments.length; i < len; i += 1) {
+    for (let i = 2, l = arguments.length; i < l; i += 1) {
         let arg = arguments[i];
         if (typeof arg !== "object") continue; // just in case
         buttons_view.btn.addView(getButtonLayout.apply(null, arg));

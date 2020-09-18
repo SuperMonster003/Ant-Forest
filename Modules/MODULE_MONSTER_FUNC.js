@@ -14,7 +14,7 @@ global.$$impeded = (name) => {
     return true;
 };
 
-module.exports = {
+let ext = {
     parseAppName: parseAppName,
     getVerName: getVerName,
     launchThisApp: launchThisApp,
@@ -46,14 +46,33 @@ module.exports = {
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
     baiduOcr: baiduOcr,
     setIntervalBySetTimeout: setIntervalBySetTimeout,
-    classof: classof,
+    classof: _classof,
     checkSdkAndAJVer: checkSdkAndAJVer,
+};
+module.exports = ext;
+module.exports.load = function () {
+    let _args = Array.isArray(arguments[0]) ? arguments[0] : arguments;
+    if (_args.length) {
+        [].forEach.call(_args, k => global[k] = ext[k]);
+    } else {
+        let _load_bak;
+        if (typeof global.load !== "undefined") {
+            _load_bak = global.load;
+        }
+        Object.assign(global, ext);
+        if (typeof _load_bak !== "undefined") {
+            global.load = _load_bak;
+        } else {
+            delete global.load;
+        }
+    }
 };
 
 // tool function(s) //
 
 /**
  * Returns both app name and app package name with either one input
+ * @global
  * @param name {string} - app name or app package name
  * @param {object} [params]
  * @param {boolean} [params.hard_refresh=false] - get app information from global cache by default
@@ -89,6 +108,7 @@ function parseAppName(name, params) {
 
 /**
  * Returns a version name string of an app with either app name or app package name input
+ * @global
  * @param name {string} - app name, app package name or some shortcuts
  * <br>
  *     -- app name - "Alipay" <br>
@@ -179,6 +199,7 @@ function getVerName(name, params) {
 
 /**
  * Launch some app with package name or intent and wait for conditions ready if specified
+ * @global
  * @param {object|string|function|android.content.Intent} trigger - the way of triggering the launcher
  * <br> {object} - activity object -- eg: {action:"VIEW",packageName:"...",className:"..."}
  * <br> {string} - app package name or app name -- eg: _com.eg.android.AlipayGphone" or "Alipay"
@@ -382,7 +403,7 @@ function launchThisApp(trigger, params) {
     function _setAppName() {
         if (typeof _trig === "string") {
             _app_name = !_trig.match(/.+\..+\./) && app.getPackageName(_trig) && _trig;
-            _pkg_name = app.getAppName(_trig) && _trig;
+            _pkg_name = app.getAppName(_trig) && _trig.toString();
         } else {
             _app_name = _par.app_name;
             _pkg_name = _par.package_name;
@@ -608,7 +629,7 @@ function launchThisApp(trigger, params) {
     }
 
     function killThisAppRaw(package_name) {
-        package_name = package_name || curerntPackage();
+        package_name = package_name || currentPackage();
         if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
         if (!shell("am force-stop " + package_name, true).code) return _success(15e3);
         let _max_try_times = 10;
@@ -627,6 +648,7 @@ function launchThisApp(trigger, params) {
 
 /**
  * Close or minimize a certain app
+ * @global
  * @param name=currentPackage() {string}
  * <br>
  *     -- app name - like "Alipay" (not recommended, as long time may cost) <br>
@@ -676,87 +698,109 @@ function killThisApp(name, params) {
     }
     let _parsed_app_name = _parseAppName(_name);
     let _app_name = _parsed_app_name.app_name;
-    let _package_name = _parsed_app_name.package_name;
-    if (!(_app_name && _package_name)) _messageAction("解析应用名称及包名失败", 8, 1, 0, 1);
+    let _pkg_name = _parsed_app_name.package_name;
+    if (!(_app_name && _pkg_name)) {
+        _messageAction("解析应用名称及包名失败", 8, 1, 0, 1);
+    }
 
-    let _shell_acceptable = typeof _par.shell_acceptable === "undefined" && true || _par.shell_acceptable;
-    let _keycode_back_acceptable = typeof _par.keycode_back_acceptable === "undefined" && true || _par.keycode_back_acceptable;
+    let _shell_acceptable = (
+        _par.shell_acceptable === undefined ? true : _par.shell_acceptable
+    );
+    let _keycode_back_acceptable = (
+        _par.keycode_back_acceptable === undefined ? true : _par.keycode_back_acceptable
+    );
     let _keycode_back_twice = _par.keycode_back_twice || false;
-    let _condition_success = _par.condition_success || (() => {
-        let samePkgName = () => currentPackage() === _package_name;
-        return _waitForAction(() => !samePkgName(), 12e3) && !_waitForAction(samePkgName, 3, 150);
+    let _cond_success = _par.condition_success || (() => {
+        let _cond = () => currentPackage() === _pkg_name;
+        return _waitForAction(() => !_cond(), 12e3) && !_waitForAction(_cond, 3, 150);
     });
 
     let _shell_result = false;
-    let _shell_start_timestamp = new Date().getTime();
+    let _shell_start_ts = Date.now();
     let _shell_max_wait_time = _par.shell_max_wait_time || 10e3;
     if (_shell_acceptable) {
         try {
-            _shell_result = !shell("am force-stop " + _package_name, true).code;
+            _shell_result = !shell("am force-stop " + _pkg_name, true).code;
         } catch (e) {
             _debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
         }
-    } else _debugInfo("参数不接受shell()方法");
+    } else {
+        _debugInfo("参数不接受shell()方法");
+    }
 
     if (!_shell_result) {
         if (_keycode_back_acceptable) {
             return _tryMinimizeApp();
-        } else {
-            _debugInfo("参数不接受模拟返回方法");
-            _messageAction('关闭"' + _app_name + '"失败', 4, 1);
-            return _messageAction("无可用的应用关闭方式", 4, 0, 1);
         }
+        _debugInfo("参数不接受模拟返回方法");
+        _messageAction('关闭"' + _app_name + '"失败', 4, 1);
+        return _messageAction("无可用的应用关闭方式", 4, 0, 1);
     }
 
-    if (_waitForAction(_condition_success, _shell_max_wait_time)) {
+    let _et = Date.now() - _shell_start_ts;
+    if (_waitForAction(_cond_success, _shell_max_wait_time)) {
         _debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
-        return _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒") || true;
-    } else {
-        _messageAction('关闭"' + _app_name + '"失败', 4, 1);
-        _debugInfo(">关闭用时: " + (new Date().getTime() - _shell_start_timestamp) + "毫秒");
-        return _messageAction("关闭时间已达最大超时", 4, 0, 1);
+        _debugInfo(">关闭用时: " + _et + "毫秒");
+        return true;
     }
+    _messageAction('关闭"' + _app_name + '"失败', 4, 1);
+    _debugInfo(">关闭用时: " + _et + "毫秒");
+    return _messageAction("关闭时间已达最大超时", 4, 0, 1);
 
     // tool function(s) //
 
     function _tryMinimizeApp() {
         _debugInfo("尝试最小化当前应用");
 
-        let _kw_avail_btns = [
+        let _sltr_avail_btns = [
             idMatches(/.*nav.back|.*back.button/),
             descMatches(/关闭|返回/),
             textMatches(/关闭|返回/),
         ];
 
         let _max_try_times_minimize = 20;
-        let _max_try_times_minimize_backup = _max_try_times_minimize;
+        let _max_try_times_minimize_bak = _max_try_times_minimize;
+        let _back = () => {
+            back();
+            back();
+            if (_keycode_back_twice) {
+                sleep(200);
+                back();
+            }
+        };
 
         while (_max_try_times_minimize--) {
-            let _kw_clicked_flag = false;
-            for (let i = 0, len = _kw_avail_btns.length; i < len; i += 1) {
-                let _kw_avail_btn = _kw_avail_btns[i];
-                if (_kw_avail_btn.exists()) {
-                    _kw_clicked_flag = true;
-                    _clickAction(_kw_avail_btn);
+            let _clicked_flag = false;
+            for (let i = 0, l = _sltr_avail_btns.length; i < l; i += 1) {
+                let _sltr_avail_btn = _sltr_avail_btns[i];
+                if (_sltr_avail_btn.exists()) {
+                    _clicked_flag = true;
+                    _clickAction(_sltr_avail_btn);
                     sleep(300);
                     break;
                 }
             }
-            if (_kw_clicked_flag) continue;
-            ~back() && back();
-            _keycode_back_twice && ~sleep(200) && back();
-            if (_waitForAction(_condition_success, 2e3)) break;
+            if (_clicked_flag) {
+                continue;
+            }
+            _back();
+            if (_waitForAction(_cond_success, 2e3)) {
+                break;
+            }
         }
         if (_max_try_times_minimize < 0) {
-            _debugInfo("最小化应用尝试已达: " + _max_try_times_minimize_backup + "次");
+            _debugInfo("最小化应用尝试已达: " + _max_try_times_minimize_bak + "次");
             _debugInfo("重新仅模拟返回键尝试最小化");
             _max_try_times_minimize = 8;
             while (_max_try_times_minimize--) {
-                ~back() && back();
-                _keycode_back_twice && ~sleep(200) && back();
-                if (_waitForAction(_condition_success, 2e3)) break;
+                _back();
+                if (_waitForAction(_cond_success, 2e3)) {
+                    break;
+                }
             }
-            if (_max_try_times_minimize < 0) return _messageAction("最小化当前应用失败", 4, 1);
+            if (_max_try_times_minimize < 0) {
+                return _messageAction("最小化当前应用失败", 4, 1);
+            }
         }
         _debugInfo("最小化应用成功");
         return true;
@@ -817,15 +861,15 @@ function killThisApp(name, params) {
         return _check_time >= 0;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 
     function parseAppNameRaw(name) {
@@ -842,6 +886,7 @@ function killThisApp(name, params) {
 
 /**
  * Kill or minimize a certain app and launch it with or without conditions (restart)
+ * @global
  * -- This is a combination function which means independent use is not recommended
  * @param intent_or_name {object|string}
  * * <br>
@@ -894,7 +939,7 @@ function restartThisApp(intent_or_name, params) {
     // raw function(s) //
 
     function killThisAppRaw(package_name) {
-        package_name = package_name || curerntPackage();
+        package_name = package_name || currentPackage();
         if (!package_name.match(/.+\..+\./)) package_name = app.getPackageName(package_name) || package_name;
         if (!shell("am force-stop " + package_name, true).code) return _success(15e3);
         let _max_try_times = 10;
@@ -918,6 +963,7 @@ function restartThisApp(intent_or_name, params) {
 
 /**
  * Run a new task in engine and forcibly stop the old one (restart)
+ * @global
  * @param {object} [params]
  * @param {string} [params.new_file] - new engine task name with or without path or file extension name
  * <br>
@@ -1028,6 +1074,7 @@ function restartThisEngine(params) {
 
 /**
  * Run a javascript file via activity by current running Auto.js
+ * @global
  * @param file_name {string} - file name with or without path or file extension name
  * @param {object} [e_args] arguments params for engines - js file will run by startActivity without this param
  * @example
@@ -1050,6 +1097,7 @@ function runJsFile(file_name, e_args) {
 
 /**
  * Handle message - toast, console and actions
+ * @global
  * @param {string} msg - message
  * @param {number|string|object} [msg_level] - message level
  * <br>
@@ -1241,6 +1289,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
 
 /**
  * Show a split line in console (32 bytes)
+ * @global
  * @param {string} [extra_str]
  * <br>
  *     -- "\n" - a new blank line after split line <br>
@@ -1269,6 +1318,7 @@ function showSplitLine(extra_str, style) {
 
 /**
  * Wait some period of time for "f" being TRUE
+ * @global
  * @param f {object|object[]|function|function[]} - if condition of f is not true then waiting
  * <br>
  *     -- function - () => text("abc").exists() - if (!f()) waiting <br>
@@ -1288,9 +1338,9 @@ function showSplitLine(extra_str, style) {
  * @example
  * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80);
  * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2e3, 50);
- * let kw_settings = text("Settings");
- * let condition = () => kw_settings.exists();
- * // waitForAction(kw_settings, 1e3);
+ * let sltr_settings = text("Settings");
+ * let condition = () => sltr_settings.exists();
+ * // waitForAction(sltr_settings, 1e3);
  * // waitForAction(condition, 1e3);
  * waitForAction(() => condition()), 1e3);
  * @return {boolean} - if not timed out
@@ -1401,7 +1451,9 @@ function waitForAction(f, timeout_or_times, interval, params) {
 
 /**
  * Click a certain UiObject or coordinate by click(), press() or UiObject.click()
- * @param {object|array} f - JavaObject or RectBounds or coordinates Array
+ * @global
+ * @param {UiSelector|UiObject|number[]|AndroidRect|{x:number,y:number}|org.opencv.core.Point} f -
+ * JavaObject or RectBounds or coordinates Array
  * <br>
  *     -- text("abc").desc("def") <br>
  *     -- text("abc").desc("def").findOnce()[.parent()] <br>
@@ -1730,6 +1782,7 @@ function clickAction(f, strategy, params) {
 /**
  * Wait for an UiObject showing up and click it
  * -- This is a combination function which means independent use is not recommended
+ * @global
  * @param f {object} - only JavaObject is supported
  * @param {number} [timeout_or_times=10e3]
  * <br>
@@ -1831,20 +1884,21 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
         return _check_time >= 0;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 }
 
 /**
  * Refresh screen objects or current package by a certain strategy
+ * @global
  * @param {string} [strategy]
  * <br>
  *     -- "object[s]"|"alert" - alert() + text(%ok%).click() - may refresh objects only
@@ -1869,15 +1923,15 @@ function refreshObjects(strategy, params) {
         descMatches(/.*/).exists(); // useful or useless ?
 
         let alert_text = _params.custom_alert_text || "Alert for refreshing objects";
-        let kw_alert_text = text(alert_text);
+        let sltr_alert_text = text(alert_text);
         let refreshing_obj_thread = threads.start(function () {
-            kw_alert_text.findOne(1e3);
-            let kw_ok_btn = textMatches(/OK|确./); // may 确认 or something else
-            kw_ok_btn.findOne(2e3).click();
+            sltr_alert_text.findOne(1e3);
+            let sltr_ok_btn = textMatches(/OK|确./); // may 确认 or something else
+            sltr_ok_btn.findOne(2e3).click();
         });
         let shutdownThread = () => {
             refreshing_obj_thread.isAlive() && refreshing_obj_thread.interrupt();
-            if (kw_alert_text.exists()) back();
+            if (sltr_alert_text.exists()) back();
         };
         let thread_alert = threads.start(function () {
             alert(alert_text);
@@ -1931,7 +1985,8 @@ function refreshObjects(strategy, params) {
 
 /**
  * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of "f"
- * @param f {object} - JavaObject
+ * @global
+ * @param {UiSelector|ImageWrapper} f
  * @param {object} [params]
  * @param {number} [params.max_swipe_times=12]
  * @param {number|string} [params.swipe_direction="auto"]
@@ -1965,58 +2020,57 @@ function swipeAndShow(f, params) {
     let _par = params || {};
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(swipeAndShow.name);
 
-    let _swipe_interval = _par.swipe_interval || 150;
-    let _max_swipe_times = _par.max_swipe_times || 12;
-    let _swipe_time = _par.swipe_time || 150;
-    let _condition_meet_sides = parseInt(_par.condition_meet_sides);
-    if (_condition_meet_sides !== 1 || _condition_meet_sides !== 2) _condition_meet_sides = 1;
+    let _swp_itv = _par.swipe_interval || 150;
+    let _swp_max = _par.max_swipe_times || 12;
+    let _swp_time = _par.swipe_time || 150;
+    let _cond_meet_sides = parseInt(_par.condition_meet_sides);
+    if (_cond_meet_sides !== 1 || _cond_meet_sides !== 2) {
+        _cond_meet_sides = 1;
+    }
 
     if (!global.WIDTH || !global.HEIGHT) {
         let _data = getDisplayRaw();
-        global.WIDTH = _data.WIDTH;
-        global.HEIGHT = _data.HEIGHT;
+        [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
     }
 
-    let _swipe_area = _setAreaParams(_par.swipe_area, [0.1, 0.1, 0.9, 0.9]);
+    let _swp_area = _setAreaParams(_par.swipe_area, [0.1, 0.1, 0.9, 0.9]);
     let _aim_area = _setAreaParams(_par.aim_area, [0, 0, -1, -1]);
-    let _swipe_direction = _setSwipeDirection();
+    let _swp_drxn = _setSwipeDirection();
     let _ret = true;
 
-    if (!_swipe_direction || _success()) {
+    if (!_swp_drxn || _success()) {
         return _ret;
     }
-    while (_max_swipe_times--) {
+    while (_swp_max--) {
         if (_swipeAndCheck()) {
             break;
         }
     }
-    if (_max_swipe_times >= 0) {
+    if (_swp_max >= 0) {
         return _ret;
     }
 
     // tool function(s) //
 
-    function isImageType(x) {
-        return typeof x === "object"
-            && x["getClass"]
-            && !!x.toString().match(/ImageWrapper/);
+    function _isImageType(o) {
+        return o instanceof com.stardust.autojs.core.image.ImageWrapper;
     }
 
     function _setSwipeDirection() {
-        let _swp_drctn = _par.swipe_direction;
-        if (typeof _swp_drctn === "string" && _swp_drctn !== "auto") {
-            if (_swp_drctn.match(/$[Lf](eft)?^/)) {
+        let _swp_drxn = _par.swipe_direction;
+        if (typeof _swp_drxn === "string" && _swp_drxn !== "auto") {
+            if (_swp_drxn.match(/$[Lf](eft)?^/)) {
                 return "left";
             }
-            if (_swp_drctn.match(/$[Rr](ight)?^/)) {
+            if (_swp_drxn.match(/$[Rr](ight)?^/)) {
                 return "right";
             }
-            if (_swp_drctn.match(/$[Dd](own)?^/)) {
+            if (_swp_drxn.match(/$[Dd](own)?^/)) {
                 return "down";
             }
             return "up";
         }
-        if (isImageType(f)) {
+        if (_isImageType(f)) {
             return "up";
         }
         let _widget = f.findOnce();
@@ -2078,7 +2132,7 @@ function swipeAndShow(f, params) {
 
     function _swipeAndCheck() {
         _swipe();
-        sleep(_swipe_interval);
+        sleep(_swp_itv);
         if (_success()) {
             return true;
         }
@@ -2086,23 +2140,23 @@ function swipeAndShow(f, params) {
         // tool function(s) //
 
         function _swipe() {
-            let {cl, cr, ct, cb} = _swipe_area;
+            let {cl, cr, ct, cb} = _swp_area;
             let [_cl, _cr, _ct, _cb] = [cl, cr, ct, cb];
-            if (_swipe_direction === "down") {
-                return swipe(_ct.x, _ct.y, _cb.x, _cb.y, _swipe_time);
+            if (_swp_drxn === "down") {
+                return swipe(_ct.x, _ct.y, _cb.x, _cb.y, _swp_time);
             }
-            if (_swipe_direction === "left") {
-                return swipe(_cr.x, _cr.y, _cl.x, _cl.y, _swipe_time);
+            if (_swp_drxn === "left") {
+                return swipe(_cr.x, _cr.y, _cl.x, _cl.y, _swp_time);
             }
-            if (_swipe_direction === "right") {
-                return swipe(_cl.x, _cl.y, _cr.x, _cr.y, _swipe_time);
+            if (_swp_drxn === "right") {
+                return swipe(_cl.x, _cl.y, _cr.x, _cr.y, _swp_time);
             }
-            return swipe(_cb.x, _cb.y, _ct.x, _ct.y, _swipe_time);
+            return swipe(_cb.x, _cb.y, _ct.x, _ct.y, _swp_time);
         }
     }
 
     function _success() {
-        return isImageType(f) ? _chk_img() : _chk_widget();
+        return _isImageType(f) ? _chk_img() : _chk_widget();
 
         // tool function(s) //
 
@@ -2123,30 +2177,30 @@ function swipeAndShow(f, params) {
             }
             let [_left, _top] = [_bnd.left, _bnd.top];
             let [_right, _bottom] = [_bnd.right, _bnd.bottom];
-            if (_condition_meet_sides < 2) {
-                if (_swipe_direction === "up") {
+            if (_cond_meet_sides < 2) {
+                if (_swp_drxn === "up") {
                     return _top < _aim_area.b;
                 }
-                if (_swipe_direction === "down") {
+                if (_swp_drxn === "down") {
                     return _bottom > _aim_area.t;
                 }
-                if (_swipe_direction === "left") {
+                if (_swp_drxn === "left") {
                     return _left < _aim_area.r;
                 }
-                if (_swipe_direction === "right") {
+                if (_swp_drxn === "right") {
                     return _right < _aim_area.l;
                 }
             } else {
-                if (_swipe_direction === "up") {
+                if (_swp_drxn === "up") {
                     return _bottom < _aim_area.b;
                 }
-                if (_swipe_direction === "down") {
+                if (_swp_drxn === "down") {
                     return _top > _aim_area.t;
                 }
-                if (_swipe_direction === "left") {
+                if (_swp_drxn === "left") {
                     return _right < _aim_area.r;
                 }
-                if (_swipe_direction === "right") {
+                if (_swp_drxn === "right") {
                     return _left < _aim_area.l;
                 }
             }
@@ -2299,6 +2353,7 @@ function swipeAndShow(f, params) {
 
 /**
  * Swipe to make a certain specified area, then click it
+ * @global
  * -- This is a combination function which means independent use is not recommended
  * @param f {object} - JavaObject
  * @param {object} [swipe_params]
@@ -2372,33 +2427,38 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
 
     // raw function(s) //
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 
-    function swipeAndShowRaw(kw, params) {
-        let _max_try_times = 10;
-        while (_max_try_times--) {
-            let _widget = kw.findOnce();
-            if (_widget && _widget.bounds().top > 0 && _widget.bounds().bottom < device.height) return true;
-            let _dev_h = device.height;
-            let _dev_w = device.width;
-            swipe(_dev_w * 0.5, _dev_h * 0.8, _dev_w * 0.5, _dev_h * 0.2, params.swipe_time || 150);
-            sleep(params.swipe_interval || 300);
+    function swipeAndShowRaw(sltr, params) {
+        let _max = 10;
+        let _dev_h = device.height;
+        let _dev_w = device.width;
+        let _time = params.swipe_time || 150;
+        let _itv = params.swipe_interval || 300;
+        while (_max--) {
+            let _w = sltr.findOnce();
+            if (_w && _w.bounds().top > 0 && _w.bounds().bottom < device.height) {
+                return true;
+            }
+            swipe(_dev_w * 0.5, _dev_h * 0.8, _dev_w * 0.5, _dev_h * 0.2, _time);
+            sleep(_itv);
         }
-        return _max_try_times >= 0;
+        return _max >= 0;
     }
 }
 
 /**
  * Simulates touch, keyboard or key press events (by shell or functions based on accessibility service)
+ * @global
  * @param code {string|number} - {@link https://developer.android.com/reference/android/view/KeyEvent}
  * @param {object} [params]
  * @param {boolean} [params.force_shell] - don't use accessibility functions like back(), home() or recents()
@@ -2534,6 +2594,7 @@ function keycode(code, params) {
 
 /**
  * Print a message in console with verbose mode for debugging
+ * @global
  * @param msg {string|string[]} - message will be formatted with prefix ">> "
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
@@ -2646,6 +2707,7 @@ function debugInfo(msg, info_flag, forcible_flag) {
 
 /**
  * Returns equivalency of two objects (generalized) or two basic-data-type variables
+ * @global
  * @param {*} obj_a
  * @param {*} obj_b
  * @return {boolean}
@@ -2727,6 +2789,7 @@ function equalObjects(obj_a, obj_b) {
 
 /**
  * Deep clone a certain object (generalized)
+ * @global
  * @param obj {*}
  * @return {*}
  */
@@ -2744,90 +2807,89 @@ function deepCloneObject(obj) {
 
 /**
  * Scroll a page smoothly from pages pool
+ * @global
  * @param shifting {number[]|string} - page shifting -- positive for shifting left and negative for right
  * <br>
  *     - "full_left" - "[WIDTH, 0]" <br>
  *     - "full_right" - "[-WIDTH, 0]" <br>
  *     - [-90, 0] - 90 px right shifting
  * @param {number} [duration=180] - scroll duration
- * @param pages_pool {array} - pool for storing pages (parent views)
- * @param {View} [base_view=ui.main] - specified view for attaching parent views
+ * @param {array} pages_pool - pool for storing pages (parent views)
+ * @param {android.view.View} [base_view=ui.main] - specified view for attaching parent views
  */
 function smoothScrollView(shifting, duration, pages_pool, base_view) {
-    if (pages_pool.length < 2) return;
-    if (global["_$_page_scrolling"]) return;
-
-    global["_$_page_scrolling"] = true;
-    let page_scrolling_flag = true;
-
-    duration = duration || 180;
-    let each_move_time = 10;
-    base_view = base_view || ui.main;
-
-    let len = pages_pool.length;
-    let [main_view, sub_view] = [pages_pool[len - 2], pages_pool[len - 1]];
-    let parent = base_view.getParent();
-
-    if (!WIDTH || !HEIGHT) {
-        let _data = getDisplayRaw();
-        [WIDTH, HEIGHT] = [_data.WIDTH, _data.HEIGHT];
+    if (pages_pool.length < 2 || global._$_page_scrolling) {
+        return;
     }
+    global._$_page_scrolling = true;
 
-    let abs = num => num < 0 ? -num : num;
+    let _is_scrolling = true;
+    let _du = duration || 180;
+    let _each_move_time = 10;
+    let _base_view = base_view || ui.main;
+    let _pool_len = pages_pool.length;
+    let _main_view = pages_pool[_pool_len - 2];
+    let _sub_view = pages_pool[_pool_len - 1];
+    let _parent = _base_view.getParent();
+    let _abs = num => num < 0 ? -num : num;
+
+    if (!global.WIDTH || !global.HEIGHT) {
+        let _data = getDisplayRaw();
+        [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
+    }
 
     try {
         if (shifting === "full_left") {
             shifting = [WIDTH, 0];
-            sub_view && sub_view.scrollBy(-WIDTH, 0);
-            parent.addView(sub_view);
+            _sub_view && _sub_view.scrollBy(-WIDTH, 0);
+            _parent.addView(_sub_view);
         } else if (shifting === "full_right") {
             shifting = [-WIDTH, 0];
         }
 
-        let [dx, dy] = [shifting[0], shifting[1]];
-        let [neg_x, neg_y] = [dx < 0, dy < 0];
-
-        dx = abs(dx);
-        dy = abs(dy);
-
-        let ptx = dx ? Math.ceil(each_move_time * dx / duration) : 0;
-        let pty = dy ? Math.ceil(each_move_time * dy / duration) : 0;
+        let [_dx, _dy] = shifting;
+        let [_neg_x, _neg_y] = [_dx < 0, _dy < 0];
+        [_dx, _dy] = [_abs(_dx), _abs(_dy)];
+        let _ptx = _dx ? Math.ceil(_each_move_time * _dx / _du) : 0;
+        let _pty = _dy ? Math.ceil(_each_move_time * _dy / _du) : 0;
 
         threads.start(function () {
-            let scroll_interval = setInterval(function () {
+            let _itv = setInterval(function () {
                 try {
-                    if (dx <= 0 && dy <= 0) {
-                        clearInterval(scroll_interval);
-                        if ((shifting[0] === -WIDTH && sub_view) && page_scrolling_flag) {
+                    if (_dx <= 0 && _dy <= 0) {
+                        clearInterval(_itv);
+                        if ((shifting[0] === -WIDTH && _sub_view) && _is_scrolling) {
                             ui.post(() => {
-                                sub_view.scrollBy(WIDTH, 0);
-                                parent.removeView(parent.getChildAt(parent.getChildCount() - 1));
+                                let _last_idx = _parent.getChildCount() - 1;
+                                let _last_chd = _parent.getChildAt(_last_idx);
+                                _sub_view.scrollBy(WIDTH, 0);
+                                _parent.removeView(_last_chd);
                             });
                         }
-                        return page_scrolling_flag = false;
+                        return _is_scrolling = false;
                     }
-                    let move_x = ptx ? Math.min(dx, ptx) : 0;
-                    let move_y = pty ? Math.min(dy, pty) : 0;
-                    let scroll_x = neg_x ? -move_x : move_x;
-                    let scroll_y = neg_y ? -move_y : move_y;
+                    let _move_x = _ptx ? Math.min(_dx, _ptx) : 0;
+                    let _move_y = _pty ? Math.min(_dy, _pty) : 0;
+                    let _scroll_x = _neg_x ? -_move_x : _move_x;
+                    let _scroll_y = _neg_y ? -_move_y : _move_y;
                     ui.post(() => {
-                        sub_view && sub_view.scrollBy(scroll_x, scroll_y);
-                        main_view.scrollBy(scroll_x, scroll_y);
+                        _sub_view && _sub_view.scrollBy(_scroll_x, _scroll_y);
+                        _main_view.scrollBy(_scroll_x, _scroll_y);
                     });
-                    dx -= move_x;
-                    dy -= move_y;
+                    _dx -= _move_x;
+                    _dy -= _move_y;
                 } catch (e) {
                     // setInterval will throw Error even if it's in a try() body
                 }
-            }, each_move_time);
+            }, _each_move_time);
         });
 
         threads.start(function () {
-            waitForAction(() => !page_scrolling_flag, 10e3);
-            global["_$_page_scrolling"] = false;
+            waitForAction(() => !_is_scrolling, 10e3);
+            delete global._$_page_scrolling;
         });
     } catch (e) {
-        page_scrolling_flag = false;
+        _is_scrolling = false;
         console.warn(e.message); //// TEST ////
     }
 
@@ -2961,6 +3023,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 
 /**
  * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
+ * @global
  * @param {com.stardust.autojs.core.ui.dialog.JsDialog} dialog
  * @param {string} message - message shown in title view
  * @param {number} [duration=3e3] - time duration before message dismissed (0 for non-auto dismiss)
@@ -3013,6 +3076,7 @@ function alertTitle(dialog, message, duration) {
 
 /**
  * Replace or append a message in dialogs content view
+ * @global
  * @param dialog {com.stardust.autojs.core.ui.dialog.JsDialog}
  * @param message {string} - message shown in content view
  * @param {string} [mode="replace"]
@@ -3036,6 +3100,7 @@ function alertContent(dialog, message, mode) {
 
 /**
  * Observe message(s) from Toast by events.observeToast()
+ * @global
  * @param aim_app_pkg {string}
  * @param aim_msg {RegExp|string} - regular expression or a certain specific string
  * @param {number} [timeout=8e3]
@@ -3092,6 +3157,7 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 
 /**
  * Save current screen capture as a file with a key name and a formatted timestamp
+ * @global
  * @param {string} key_name - a key name as a clip of the file name
  * @param {{}} [options]
  * @param {number|string|null} [options.log_level]
@@ -3183,9 +3249,9 @@ function captureErrScreen(key_name, options) {
 
 /**
  * Returns a UiSelector with additional function(s) bound to its __proto__
+ * @global
  * @param {object} [options]
  * @param {boolean} [options.debug_info_flag]
- * @returns {UiSelector} - with additional function(s)
  */
 function getSelector(options) {
     let _opt = options || {};
@@ -3194,55 +3260,74 @@ function getSelector(options) {
         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
     )(_msg, "", _opt.debug_info_flag);
     let _sel = selector();
-    _sel.__proto__ = _sel.__proto__ || {};
-    Object.assign(_sel.__proto__, {
-        kw_pool: {},
+    _sel.__proto__ = {
+        sltr_pool: {},
         cache_pool: {},
         /**
-         * Returns a selector (UiSelector) or widget (UiObject) or some attribute
-         * If no widgets (UiObjects) were found, returns null or "" or false
-         * If memory_keyword was found in this session memory, use a memorized selector directly without selecting
-         * @memberOf getSelector
-         * @param sel_body {string|RegExp|array} - selector body will be converted into array type
+         * Returns a selector (UiSelector) or widget (UiObject) or some attribute values
+         * If no widgets (UiObject) were found, returns null or "" or false
+         * If memory keyword was found in this session memory, use a memorized selector directly
+         * @function com.stardust.autojs.core.accessibility.UiSelector.prototype.pickup
+         * @param {UiSelector|UiObject|string|RegExp|[]} sel_body
          * <br>
-         *     -- array: [ [selector_body] {*}, <[additional_selectors] {array|object}>, [compass] {string} ]
-         *     -- additional_selectors can be treated as compass by checking its type (whether object or string)
-         * @param {?string} [mem_kw] - to mark this selector widget; better use a keyword without conflict
-         * @param {string} [res_type="widget"] -
-         * "widget" ("w"), "widget_collection" ("wc"), "txt", "text", "desc", "id", "bounds", "exist(s)" and so forth
+         *     -- array mode 1: [selector_body: any, compass: string]
+         *     -- array mode 2: [selector_body: any, additional_sel: array|object, compass: string]
+         * @param {string} [mem_sltr_kw] - memory keyword
+         * @param {"w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string} [res_type="widget"] -
          * <br>
          *     -- "txt": available text()/desc() value or empty string
+         *     -- "clickable": boolean value of widget.clickable()
+         *     -- "wc": widget collection which is traversable
          * @param {object} [par]
-         * @param {string} [par.selector_prefer="desc"] - unique selector you prefer to check first; "text" or "desc"
+         * @param {"desc"|"text"} [par.selector_prefer="desc"] - unique selector you prefer to check first
          * @param {boolean} [par.debug_info_flag]
-         * @returns {UiObject|UiSelector|string|boolean|Rect|*} - default: UiObject
+         * @returns {UiObject|UiSelector|AndroidRect|string|boolean}
          * @example
          * // text/desc/id("abc").findOnce();
-         * // UiObject
-         * pickup("abc");
-         * // same as above
-         * pickup("abc", "w", "my_alphabet");
+         * pickup("abc"); // UiObject
+         * pickup("abc", "w"); // same as above
+         * pickup("abc", "w", "my_alphabet"); // with memory keyword
+         *
          * // text/desc/id("abc");
-         * // UiSelector
-         * pickup("abc", "sel", "my_alphabet");
+         * pickup("abc", "sel", "my_alphabet"); // UiSelector
+         *
          * // text("abc").findOnce()
-         * pickup(text("abc"), "w", "my_alphabet");
-         * // id/text/desc and so forth -- string
-         * pickup(/^abc.+z/, "sel_str", "AtoZ")
-         * // text/desc/id("morning").exists() -- boolean
-         * pickup("morning", "exists");
+         * pickup(text("abc"), "w", "my_alphabet"); // with UiObject selector body
+         *
+         * // get the string of selector
+         * pickup(/^abc.+z/, "sel_str"); // returns "id"|"text"|"desc"...
+         *
+         * // text/desc/id("morning").exists()
+         * pickup("morning", "exists"); // boolean
+         *
          * // text/desc/id("morning").findOnce().parent().parent().child(3).id()
          * pickup(["morning", "p2c3"], "id");
-         * // text/desc/id("hello").findOnce().parent().child(%childCount% - 3)["txt"]
-         * pickup(["hello", "s3b"], "txt");
-         * // text/desc/id("hello").findOnce().parent().child(%%indexInParent% + 2)["txt"]
-         * pickup(["hello", "s+2"], "txt");
-         * // text/desc/id("hello").className("Button").findOnce()
-         * pickup(["hello", {className: "Button"}]);
+         *
+         * // text/desc/id("hello").findOnce().parent().child(%childCount% - 3)["text"|"desc"]
+         * pickup(["hello", "s-3"], "txt");
+         *
+         * // text/desc/id("hello").findOnce().parent().child(%indexInParent% + 2)["text"|"desc"]
+         * pickup(["hello", "s>2"], "txt");
+         *
          * // desc("a").className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
-         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s+1"], "clickable", "back_btn");
+         * pickup([desc("a").className("Button"), {boundsInside: [0, 0, 720, 1000]}, "s>1"], "clickable", "back_btn");
+         *
+         * // className("Button").findOnce()
+         * pickup({className: "Button"});
+         *
+         * // w = className("Button").findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
+         * // w.parent().child(0);
+         * pickup([{className: "Button"}, "p5c1>0>0>0>1s0"]);
+         *
+         * // w = className("Button").findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
+         * // w.parent(w.indexInParent() - 1);
+         * pickup([{className: "Button"}, "p5c1>0>0>0>1s<1"]);
+         *
+         * // w = className("Button").findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
+         * // w.parent().child(w.parent().childCount() - 1);
+         * pickup([{className: "Button"}, "p5c1>0>0>0>1s-1"]);
          */
-        pickup(sel_body, res_type, mem_kw, par) {
+        pickup(sel_body, res_type, mem_sltr_kw, par) {
             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
             let _params = Object.assign({}, _opt, par);
             let _res_type = (res_type || "").toString();
@@ -3262,44 +3347,44 @@ function getSelector(options) {
             }
 
             if (typeof _sel_body[1] === "string") {
+                // take it as "compass" variety
                 _sel_body.splice(1, 0, "");
             }
 
-            let _body = _sel_body[0];
-            let _additional_sel = _sel_body[1];
-            let _compass = _sel_body[2];
+            let [_body, _addi_sel, _compass] = _sel_body;
 
-            let _kw = _getSelector(_additional_sel);
-            let _widget = null;
-            let _w_collection = [];
-            if (_kw && _kw.toString().match(/UiObject/)) {
-                _widget = _kw;
+            let _sltr = _getSelector(_addi_sel);
+            /** @type {UiObject|null} */
+            let _w = null;
+            let _wc = [];
+            if (_sltr && _sltr.toString().match(/UiObject/)) {
+                _w = _sltr;
                 if (_res_type === "widgets") {
-                    _w_collection = [_kw];
+                    _wc = [_sltr];
                 }
-                _kw = null;
+                _sltr = null;
             } else {
-                _widget = _kw ? _kw.findOnce() : null;
+                _w = _sltr ? _sltr.findOnce() : null;
                 if (_res_type === "widgets") {
-                    _w_collection = _kw ? _kw.find() : [];
+                    _wc = _sltr ? _sltr.find() : [];
                 }
             }
 
             if (_compass) {
-                _widget = _relativeWidget([_kw || _widget, _compass]);
+                _w = _relativeWidget([_sltr || _w, _compass]);
             }
 
             let _res = {
-                selector: _kw,
-                widget: _widget,
-                widgets: _w_collection,
-                exists: !!_widget,
+                selector: _sltr,
+                widget: _w,
+                widgets: _wc,
+                exists: !!_w,
                 get selector_string() {
-                    return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
+                    return _sltr ? _sltr.toString().match(/[a-z]+/)[0] : "";
                 },
                 get txt() {
-                    let _text = _widget && _widget.text() || "";
-                    let _desc = _widget && _widget.desc() || "";
+                    let _text = _w && _w.text() || "";
+                    let _desc = _w && _w.desc() || "";
                     return _desc.length > _text.length ? _desc : _text;
                 }
             };
@@ -3309,15 +3394,12 @@ function getSelector(options) {
             }
 
             try {
-                if (!_widget) {
-                    return null;
-                }
-                return _widget[_res_type]();
+                return _w ? _w[_res_type]() : null;
             } catch (e) {
                 try {
-                    return _widget[_res_type];
+                    return _w[_res_type];
                 } catch (e) {
-                    debugInfo(e, 3);
+                    debugInfo(e.message, 3);
                     return null;
                 }
             }
@@ -3325,23 +3407,23 @@ function getSelector(options) {
             // tool function(s)//
 
             function _getSelector(addition) {
-                let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                if (mem_kw) {
-                    let _mem_sel = global[_mem_kw_prefix + mem_kw];
-                    if (_mem_sel) {
-                        return _mem_sel;
+                let _mem_key = "_$_mem_sltr_" + mem_sltr_kw;
+                if (mem_sltr_kw) {
+                    let _mem_sltr = global[_mem_key];
+                    if (_mem_sltr) {
+                        return _mem_sltr;
                     }
                 }
-                let _kw_sel = _getSelFromLayout(addition);
-                if (mem_kw && _kw_sel) {
-                    // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
-                    global[_mem_kw_prefix + mem_kw] = _kw_sel;
+                let _sltr = _selGenerator();
+                if (mem_sltr_kw && _sltr) {
+                    // _debugInfo(["选择器已记录", ">" + mem_sltr_kw, ">" + _sltr]);
+                    global[_mem_key] = _sltr;
                 }
-                return _kw_sel;
+                return _sltr;
 
                 // tool function(s) //
 
-                function _getSelFromLayout(addition) {
+                function _selGenerator() {
                     let _prefer = _params.selector_prefer;
                     let _body_class = _classof(_body);
 
@@ -3366,31 +3448,19 @@ function getSelector(options) {
                     }
 
                     if (_body_class === "Object") {
-                        let sel = selector();
-                        Object.keys(_body).forEach((key) => {
-                            let _par = _body[key];
-                            if (classof(_par, "Array")) {
-                                sel = sel[key].apply(sel, _par);
-                            } else {
-                                sel = sel[key](_par);
-                            }
+                        let _s = selector();
+                        Object.keys(_body).forEach((k) => {
+                            let _arg = _body[k];
+                            _s = _s[k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                         });
-                        return sel;
+                        return _s;
                     }
 
                     // tool function(s) //
 
-                    function _chkSels(selectors) {
-                        let _sels = selectors;
-                        let _arg_len = arguments.length;
-                        if (_classof(_sels) !== "Array") {
-                            _sels = [];
-                            for (let i = 0; i < _arg_len; i += 1) {
-                                _sels[i] = arguments[i];
-                            }
-                        }
-                        let _sels_len = _sels.length;
-                        for (let i = 0; i < _sels_len; i += 1) {
+                    function _chkSels(sels) {
+                        let _sels = Array.isArray(sels) ? sels : [].slice.call(arguments);
+                        for (let i = 0, l = _sels.length; i < l; i += 1) {
                             let _res = _chkSel(_sels[i]);
                             if (_res) {
                                 return _res;
@@ -3412,17 +3482,14 @@ function getSelector(options) {
                                 for (let i = 0; i < _k_len; i += 1) {
                                     let _k = _keys[i];
                                     if (!sel[_k]) {
-                                        let _m = "无效的additional_selector属性值:";
-                                        _debugInfo([_m, _k], 3);
+                                        _debugInfo(["无效的additional_selector属性值:", _k], 3);
                                         return null;
                                     }
-                                    let _val = addition[_k];
+                                    let _arg = addition[_k];
                                     try {
-                                        let _arg = _classof(_val) === "Array" ? _val : [_val];
-                                        sel = sel[_k].apply(sel, _arg);
+                                        sel = sel[_k].apply(sel, Array.isArray(_arg) ? _arg : [_arg]);
                                     } catch (e) {
-                                        let _m = "无效的additional_selector选择器:";
-                                        _debugInfo([_m, _k], 3);
+                                        _debugInfo(["无效的additional_selector选择器:", _k], 3);
                                         return null;
                                     }
                                 }
@@ -3439,44 +3506,19 @@ function getSelector(options) {
 
             /**
              * Returns a relative widget (UiObject) by compass string
-             * @param w_info {array|*} - [widget, compass]
-             * @returns {null|UiObject}
-             * @example
-             * // text("Alipay").findOnce().parent().parent();
-             * relativeWidget([text("Alipay"), "pp"]);
-             * // text("Alipay").findOnce().parent().parent();
-             * relativeWidget([text("Alipay").findOnce(), "p2"]);
-             * // id("abc").findOnce().parent().parent().parent().child(2);
-             * relativeWidget([id("abc"), "p3c2"]);
-             * // id("abc").findOnce().parent().child(5);
-             * // returns an absolute sibling
-             * relativeWidget([id("abc"), "s5"/"s5p"]);
-             * // id("abc").findOnce().parent().child(%childCount% - 5);
-             * // abs sibling
-             * relativeWidget([id("abc"), "s5n"]);
-             * // id("abc").findOnce().parent().child(%indexInParent()% + 3);
-             * // rel sibling
-             * relativeWidget([id("abc"), "s+3"]);
-             * // id("abc").findOnce().parent().child(%indexInParent()% - 2);
-             * // rel sibling
-             * relativeWidget([id("abc"), "s-2"]);
+             * @returns {UiObject|null}
              */
             function _relativeWidget(w_info) {
-                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                let _w_info = classof(w_info) === "Array"
-                    ? w_info.slice()
-                    : [w_info];
-
-                let _w = _w_info[0];
-                let _w_class = classof(_w);
+                let _w_o = _classof(w_info) === "Array" ? w_info.slice() : [w_info];
+                let _w = _w_o[0];
+                let _w_class = _classof(_w);
                 let _w_str = (_w || "").toString();
 
                 if (typeof _w === "undefined") {
                     _debugInfo("relativeWidget的widget参数为Undefined");
                     return null;
                 }
-                if (classof(_w) === "Null") {
+                if (_w === null) {
                     // _debugInfo("relativeWidget的widget参数为Null");
                     return null;
                 }
@@ -3500,93 +3542,102 @@ function getSelector(options) {
                     return null;
                 }
 
-                let _compass = _w_info[1];
-
+                let _compass = _w_o[1];
                 if (!_compass) {
                     // _debugInfo("relativeWidget的罗盘参数为空");
                     return _w;
                 }
-
                 _compass = _compass.toString();
 
-                try {
-                    if (_compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
-                        // backwards|negative
-                        let _rel_mch = _compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/);
-                        // forwards|positive
-                        let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
-                        if (_rel_mch) {
-                            let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
-                            let _child_cnt = _w.parent().childCount();
-                            let _cur_idx = _w.indexInParent();
-                            _w = _rel_mch[0].match(/\d+[bn]/)
-                                ? _w.parent().child(_child_cnt - Math.abs(_rel_amt))
-                                : _w.parent().child(_cur_idx + _rel_amt);
-                        } else if (_abs_mch) {
-                            _w = _w.parent().child(
-                                parseInt(_abs_mch[0].match(/\d+/)[0])
-                            );
-                        }
-                        _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
-                        if (!_compass) {
-                            return _w;
-                        }
-                    }
-                } catch (e) {
-                    return null;
-                }
-
-                let _parents = _compass.replace(
-                    /([Pp])(\d+)/g, ($0, $1, $2) => {
-                        let _str = "";
-                        let _max = parseInt($2);
-                        for (let i = 0; i < _max; i += 1) {
-                            _str += "p";
-                        }
-                        return _str;
-                    }
-                ).match(/p*/)[0]; // may be ""
-
-                if (_parents) {
-                    let _len = _parents.length;
-                    for (let i = 0; i < _len; i += 1) {
-                        if (!(_w = _w.parent())) {
-                            return null;
-                        }
-                    }
-                }
-
-                let _mch = _compass.match(/c-?\d+/g);
-                return _mch ? _childWidget(_mch) : _w;
-
-                // tool function(s) //
-
-                function _childWidget(arr) {
-                    let _len = arr.length;
-                    for (let i = 0; i < _len; i += 1) {
-                        try {
-                            let _idx = +arr[i].match(/-?\d+/);
-                            if (_idx < 0) {
-                                _idx += _w.childCount();
+                while (_compass.length) {
+                    let _mch_p, _mch_c, _mch_s;
+                    // p2 ( .parent().parent() )
+                    // pppp  ( p4 )
+                    // p  ( p1 )
+                    // p4pppp12p  ( p4 ppp p12 p -> 4 + 3 + 12 + 1 -> p20 )
+                    if ((_mch_p = /^p[p\d]*/.exec(_compass))) {
+                        let _len = _compass.match(/p\d+|p+(?!\d)/g).reduce((a, b) => (
+                            a + (/\d/.test(b) ? +b.slice(1) : b.length)
+                        ), 0);
+                        while (_len--) {
+                            if (!(_w = _w.parent())) {
+                                return null;
                             }
-                            _w = _w.child(_idx);
-                        } catch (e) {
+                        }
+                        _compass = _compass.slice(_mch_p[0].length);
+                        continue;
+                    }
+                    // c0c2c0c1  ( .child(0).child(2).child(0).child(1) )
+                    // c0>2>0>1  ( .child(0).child(2).child(0).child(1) )
+                    // c-3  ( .child(childCount()-3) )
+                    // c-3c2c-1  ( .child(childCount()-3).child(2).child(childCount()-1) )
+                    // c1>2>3>0>-1>1  ( c1 c2 c3 c0 c-1 c1 )
+                    if ((_mch_c = /^c-?\d+([>c]?-?\d+)*/.exec(_compass))) {
+                        let _nums = _mch_c[0].split(/[>c]/);
+                        for (let s of _nums) {
+                            if (s.length) {
+                                let _i = +s;
+                                let _cc = _w.childCount();
+                                if (_i < 0) {
+                                    _i += _cc;
+                                }
+                                if (_i < 0 || _i >= _cc) {
+                                    return null;
+                                }
+                                _w = _w.child(_i);
+                            }
+                        }
+                        _compass = _compass.slice(_mch_c[0].length);
+                        continue;
+                    }
+                    // s2  ( .parent().child(2) )
+                    // s-2  ( .parent().child(childCount()-2) )
+                    // s>2  ( .parent().child(idxInParent()+2) )
+                    // s<2  ( .parent().child(idxInParent()-2) )
+                    if ((_mch_s = /^s[<>]?-?\d+/.exec(_compass))) {
+                        let _parent = _w.parent();
+                        if (!_parent) {
                             return null;
                         }
+                        let _idx = _w.indexInParent();
+                        if (!~_idx) {
+                            return null;
+                        }
+                        let _cc = _parent.childCount();
+                        let _str = _mch_s[0];
+                        let _offset = +_str.match(/-?\d+/)[0];
+                        if (~String.prototype.search.call(_str, ">")) {
+                            _idx += _offset;
+                        } else if (~String.prototype.search.call(_str, "<")) {
+                            _idx -= _offset;
+                        } else {
+                            _idx = _offset < 0 ? _offset + _cc : _offset;
+                        }
+                        if (_idx < 0 || _idx >= _cc) {
+                            return null;
+                        }
+                        _w = _parent.child(_idx);
+                        _compass = _compass.slice(_mch_s[0].length);
+                        continue;
                     }
-                    return _w || null;
+
+                    throw Error("无法解析剩余罗盘参数: " + _compass);
                 }
+
+                return _w || null;
             }
         },
-        add(key, sel_body, kw) {
-            let _kw = typeof kw === "string" ? kw : key;
-            this.kw_pool[key] = typeof sel_body === "function"
+        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.add */
+        add(key, sel_body, mem) {
+            let _mem = typeof mem === "string" ? mem : key;
+            this.sltr_pool[key] = typeof sel_body === "function"
                 ? type => sel_body(type)
-                : type => this.pickup(sel_body, type, _kw);
+                : type => this.pickup(sel_body, type, _mem);
             return this;
         },
+        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.get */
         get(key, type) {
-            let _picker = this.kw_pool[key];
+            let _picker = this.sltr_pool[key];
             if (!_picker) {
                 return null;
             }
@@ -3595,6 +3646,7 @@ function getSelector(options) {
             }
             return _picker(type);
         },
+        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.getAndCache */
         getAndCache(key) {
             // only "widget" type can be returned
             return this.get(key, "save_cache");
@@ -3622,7 +3674,7 @@ function getSelector(options) {
                 _cache && _cache.recycle();
             },
         },
-    });
+    };
     return _sel;
 
     // raw function(s) //
@@ -3638,6 +3690,7 @@ function getSelector(options) {
 
 /**
  * Returns a new string with a certain mark surrounded
+ * @global
  * @param target {*} - will be converted to String format
  * @param {*} [mark_left='"'] - will be converted to String format
  * @param {*} [mark_right=mark_left] - will be converted to String format
@@ -3657,6 +3710,7 @@ function surroundWith(target, mark_left, mark_right) {
 
 /**
  * Record a timestamp then get the time gap by a certain keyword
+ * @global
  * @param keyword {string}
  * @param {boolean|number|string} [operation]
  * <br>
@@ -3801,6 +3855,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
 
 /**
  * Function for a series of ordered click actions
+ * @global
  * @param pipeline {array} - object is disordered; use array instead - last item condition: null for self exists; undefined for self disappeared
  * @param {object} [options={}]
  * @param {string} [options.name] - pipeline name
@@ -3860,13 +3915,13 @@ function clickActionsPipeline(pipeline, options) {
         }
     });
 
-    for (let i = 0, len = _pipe.length; i < len; i += 1) {
+    for (let i = 0, l = _pipe.length; i < l; i += 1) {
         _max_times = _max_times_bak;
         let _p = _pipe[i];
-        let _kw = _p[0];
+        let _sel_body = _p[0];
         let _stg = _p[1];
         let _cond = _p[2];
-        let _w = $_sel.pickup(_kw);
+        let _w = $_sel.pickup(_sel_body);
         let _clickOnce = () => _cond !== null && _clickAction(_w, _stg);
 
         do {
@@ -3876,7 +3931,7 @@ function clickActionsPipeline(pipeline, options) {
 
         if (_max_times < 0) {
             _messageAction(_ppl_name + "管道破裂", 3, 1, 0, "up_dash");
-            return _messageAction(_surroundWith(_kw), 3, 0, 1, "dash");
+            return _messageAction(_surroundWith(_sel_body), 3, 0, 1, "dash");
         }
     }
 
@@ -3888,29 +3943,30 @@ function clickActionsPipeline(pipeline, options) {
     function getSelectorRaw() {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let sel = selector();
-        sel.__proto__ = {
-            pickup(filter) {
-                if (classof(filter) === "JavaObject") {
-                    if (filter.toString().match(/UiObject/)) return filter;
-                    return filter.findOnce() || null;
-                }
-                if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
-                if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
-                return null;
-            },
-        };
+        sel.__proto__ = sel.__proto__ || {};
+        if (typeof sel.__proto__.pickup !== "function") {
+            sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
+                ? filter.toString().match(/UiObject/)
+                    ? filter
+                    : filter.findOnce()
+                : typeof filter === "string"
+                    ? desc(filter).findOnce() || text(filter).findOnce()
+                    : classof(filter) === "RegExp"
+                        ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
+                        : null;
+        }
         return sel;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 
     function messageActionRaw(msg, lv, if_toast) {
@@ -3975,6 +4031,7 @@ function clickActionsPipeline(pipeline, options) {
 
 /**
  * Convert a timeFlag into a number array
+ * @global
  * @param timeFlag {number|string} -- often a number (or number string) from 0 - 127
  * @returns {number[]|number}
  * @example
@@ -4002,6 +4059,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
 
 /**
  * Fetching data by calling OCR API from Baidu
+ * @global
  * @typedef {com.stardust.autojs.core.image.ImageWrapper} Image
  * @param src {Array|Image|UiObject|UiObjectCollection} -- will be converted into Image
  * @param {object} [par]
@@ -4093,7 +4151,7 @@ function baiduOcr(src, par) {
     let _res = [];
     let _thds = [];
     let _allDead = () => {
-        for (let i = 0, len = _thds.length; i < len; i += 1) {
+        for (let i = 0, l = _thds.length; i < l; i += 1) {
             if (_thds[i].isAlive()) return;
         }
         return true;
@@ -4205,25 +4263,13 @@ function baiduOcr(src, par) {
         }
 
         function _widgetToImage(widget) {
-            let clipImg = bnd => images.clip(_capt,
-                bnd.left, bnd.top, bnd.width(), bnd.height()
-            );
-            try {
-                // FIXME Nov 11, 2019
-                // there is a strong possibility that `widget.bounds()` would throw an exception
-                // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
-                let bounds = {};
-                let regexp = /.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/;
-                widget.toString().replace(regexp, ($0, $1, $2, $3, $4) => {
-                    bounds = {
-                        left: +$1, top: +$2, right: +$3, bottom: +$4,
-                        width: () => $3 - $1, height: () => $4 - $2,
-                    };
-                });
-                return clipImg(bounds);
-            } catch (e) {
-                // just in case
-            }
+            // FIXME Nov 11, 2019
+            // there is a strong possibility that `widget.bounds()` would throw an exception
+            // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
+            let [$1, $2, $3, $4] = widget.toString()
+                .match(/.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/)
+                .map(x => Number(x)).slice(1);
+            return images.clip(_capt, $1, $2, $3 - $1, $4 - $2);
         }
 
         function _widgetsToImage(widgets) {
@@ -4255,42 +4301,34 @@ function baiduOcr(src, par) {
 
     // monster function(s) //
 
-    // updated: Jun 4, 2020
+    // updated: Sep 12, 2020
     function _permitCapt(params) {
-        let _$$und = x => typeof x === "undefined";
-        let _$$isJvo = x => x && !!x["getClass"];
-        let _key = "_$_request_screen_capture";
-        let _fg = global[_key];
-
-        if (_$$isJvo(_fg)) {
-            if (_fg) return true;
-            _fg.incrementAndGet();
-        } else {
-            global[_key] = threads.atomic(1);
+        if (global._$_request_screen_capture) {
+            return true;
         }
-
+        let $_und = x => typeof x === "undefined";
         let _par = params || {};
         let _debugInfo = (m, fg) => (
-            typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
         )(m, fg, _par.debug_info_flag);
 
         _debugInfo("开始申请截图权限");
 
         let _waitForAction = (
-            typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
         );
         let _messageAction = (
-            typeof messageAction === "undefined" ? messageActionRaw : messageAction
+            typeof messageAction === "function" ? messageAction : messageActionRaw
         );
         let _clickAction = (
-            typeof clickAction === "undefined" ? clickActionRaw : clickAction
+            typeof clickAction === "function" ? clickAction : clickActionRaw
         );
         let _getSelector = (
-            typeof getSelector === "undefined" ? getSelectorRaw : getSelector
+            typeof getSelector === "function" ? getSelector : getSelectorRaw
         );
         let _$$sel = _getSelector();
 
-        if (_$$und(_par.restart_this_engine_flag)) {
+        if ($_und(_par.restart_this_engine_flag)) {
             _par.restart_this_engine_flag = true;
         } else {
             let _self = _par.restart_this_engine_flag;
@@ -4305,8 +4343,8 @@ function baiduOcr(src, par) {
 
         _debugInfo("已开启弹窗监测线程");
         let _thread_prompt = threads.start(function () {
-            let _kw_remember = id("com.android.systemui:id/remember");
-            let _sel_remember = () => _$$sel.pickup(_kw_remember);
+            let _sltr_remember = id("com.android.systemui:id/remember");
+            let _sel_remember = () => _$$sel.pickup(_sltr_remember);
             let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
             let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
 
@@ -4316,15 +4354,15 @@ function baiduOcr(src, par) {
                     _clickAction(_sel_remember(), "w");
                 }
                 if (_waitForAction(_sel_sure, 2e3)) {
-                    let _widget = _sel_sure();
+                    let _w = _sel_sure();
                     let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
 
                     _debugInfo(_act_msg);
-                    _clickAction(_widget, "w");
+                    _clickAction(_w, "w");
 
                     if (!_waitForAction(() => !_sel_sure(), 1e3)) {
                         _debugInfo("尝试click()方法再次" + _act_msg);
-                        _clickAction(_widget, "click");
+                        _clickAction(_w, "click");
                     }
                 }
             }
@@ -4333,7 +4371,7 @@ function baiduOcr(src, par) {
         let _thread_monitor = threads.start(function () {
             if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
                 _thread_prompt.interrupt();
-                return _debugInfo("截图权限申请结果: " + _req_result);
+                return _debugInfo("截图权限申请结果: 成功");
             }
             if (typeof $$flag !== "undefined") {
                 if (!$$flag.debug_info_avail) {
@@ -4362,30 +4400,27 @@ function baiduOcr(src, par) {
             _messageAction("截图权限申请失败", 8, 1, 0, 1);
         });
 
-        let _req_result = images.requestScreenCapture(false);
+        let _req_result = requestScreenCapture(false);
         _thread_monitor.join();
-
-        if (_req_result) {
-            return true;
-        }
-        _fg.decrementAndGet();
+        return _req_result;
 
         // raw function(s) //
 
         function getSelectorRaw() {
             let classof = o => Object.prototype.toString.call(o).slice(8, -1);
             let sel = selector();
-            sel.__proto__ = {
-                pickup(filter) {
-                    if (classof(filter) === "JavaObject") {
-                        if (filter.toString().match(/UiObject/)) return filter;
-                        return filter.findOnce() || null;
-                    }
-                    if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
-                    if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
-                    return null;
-                },
-            };
+            sel.__proto__ = sel.__proto__ || {};
+            if (typeof sel.__proto__.pickup !== "function") {
+                sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
+                    ? filter.toString().match(/UiObject/)
+                        ? filter
+                        : filter.findOnce()
+                    : typeof filter === "string"
+                        ? desc(filter).findOnce() || text(filter).findOnce()
+                        : classof(filter) === "RegExp"
+                            ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
+                            : null;
+            }
             return sel;
         }
 
@@ -4403,20 +4438,51 @@ function baiduOcr(src, par) {
             return _check_time >= 0;
         }
 
-        function clickActionRaw(kw) {
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let _kw = classof(kw) === "Array" ? kw[0] : kw;
-            let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-            if (_key_w) {
-                let _bounds = _key_w.bounds();
-                click(_bounds.centerX(), _bounds.centerY());
-                return true;
+        function messageActionRaw(msg, lv, if_toast) {
+            let _s = msg || " ";
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                let _par = ["[ " + msg + " ]", 1, if_toast];
+                return messageActionRaw.apply({}, _par);
             }
+            let _lv = +lv;
+            if (if_toast) {
+                toast(_s);
+            }
+            if (_lv >= 3) {
+                if (_lv >= 4) {
+                    console.error(_s);
+                    if (_lv >= 8) {
+                        exit();
+                    }
+                } else {
+                    console.warn(_s);
+                }
+                return;
+            }
+            if (_lv === 0) {
+                console.verbose(_s);
+            } else if (_lv === 1) {
+                console.log(_s);
+            } else if (_lv === 2) {
+                console.info(_s);
+            }
+            return true;
+        }
+
+        function clickActionRaw(o) {
+            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _o = _classof(o) === "Array" ? o[0] : o;
+            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+            if (!_w) {
+                return false;
+            }
+            let _bnd = _w.bounds();
+            return click(_bnd.centerX(), _bnd.centerY());
         }
 
         // tool function(s) //
 
-        // updated: Aug 29, 2020
+        // updated: Aug 29, 2019
         function restartThisEngine(params) {
             let _params = params || {};
 
@@ -4508,6 +4574,40 @@ function baiduOcr(src, par) {
                 }
             }
         }
+
+        // updated: Sep 12, 2020
+        function requestScreenCapture(landscape) {
+            let aj_pkg = context.packageName;
+            let is_pro = aj_pkg.match(/[Pp]ro/);
+            let is_pro_7 = is_pro && app.autojs.versionName.match(/^Pro 7/);
+            if (global._$_request_screen_capture) {
+                return true;
+            }
+            global._$_request_screen_capture = threads.atomic(1);
+
+            let javaImages = runtime.getImages();
+            let ResultAdapter = require.call(global, "result_adapter");
+            let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
+
+            let orientation = typeof landscape !== "boolean"
+                ? ScreenCapturer.ORIENTATION_AUTO
+                : landscape
+                    ? ScreenCapturer.ORIENTATION_LANDSCAPE
+                    : ScreenCapturer.ORIENTATION_PORTRAIT;
+            let adapter = !is_pro
+                ? javaImages.requestScreenCapture(orientation)
+                : javaImages.requestScreenCapture.apply(javaImages, [
+                    orientation /* orientation */,
+                    -1, /* width */
+                    -1, /* height */
+                    false /* isAsync */
+                ].slice(0, is_pro_7 ? 3 : 4));
+
+            if (ResultAdapter.wait(adapter)) {
+                return true;
+            }
+            delete global._$_request_screen_capture;
+        }
     }
 
     // raw function(s) //
@@ -4567,6 +4667,7 @@ function baiduOcr(src, par) {
 /**
  * Function for replacing setInterval() and avoiding its "flaws"
  * {@link https://dev.to/akanksha_9560/why-not-to-use-setinterval--2na9}
+ * @global
  * @param func {function}
  * @param {number} [interval=200]
  * @param {number|function} [timeout] -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
@@ -4599,17 +4700,19 @@ function setIntervalBySetTimeout(func, interval, timeout) {
 
 /**
  * Returns the class name of an object or any type of param, or, returns if the result is the same as specified
+ * @global
  * @param source {*} - any type of param
  * @param {string} [check_value]
  * @returns {boolean|string}
  */
-function classof(source, check_value) {
+function _classof(source, check_value) {
     let class_result = Object.prototype.toString.call(source).slice(8, -1);
     return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
 }
 
 /**
  * Check if device is running compatible (relatively) Auto.js version and android sdk version
+ * @global
  * @param {object} [params]
  * @param {boolean} [params.debug_info_flag]
  * @returns {{cur_autojs_name: string, cur_autojs_pkg: string, project_ver: string| number|void, autojs_ver: string|void, sdk_ver: number}}
