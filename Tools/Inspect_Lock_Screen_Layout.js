@@ -182,7 +182,7 @@ function checkKeyCodePowerBug() {
 }
 
 function captSelectorInfo(title) {
-    let split_line = "-----------------------";
+    let split_line = "-".repeat(23);
     let info = "";
     let addSplitLine = no_cr_flag => info += split_line + (no_cr_flag ? "" : "\n");
     let addText = (text, no_cr_flag, split_lines_count) => {

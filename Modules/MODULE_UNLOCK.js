@@ -154,25 +154,32 @@ function _overrideRequire() {
                 // even though not showing up above
                 // monster function(s) //
 
-                // updated: Aug 29, 2020
+                // updated: Sep 20, 2020
                 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                     let $_flag = global.$$flag = global.$$flag || {};
                     if ($_flag.no_msg_act_flag) {
-                        return !(msg_level in {3: 1, 4: 1});
+                        return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
+                    }
+
+                    let _msg_lv = msg_level;
+                    if (typeof _msg_lv === "undefined") {
+                        _msg_lv = 1;
+                    }
+                    if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
+                        _msg_lv = -1;
                     }
 
                     let _msg = msg || "";
-                    if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-                        return messageAction.apply(
-                            null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
-                        );
+                    if (_msg_lv.toString().match(/^t(itle)?$/)) {
+                        _msg = "[ " + msg + " ]";
+                        return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
                     }
+
                     if_toast && toast(_msg);
 
-                    let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
                     let _if_arrow = if_arrow || false;
                     let _if_spl_ln = if_split_line || false;
-                    _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
+                    _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
                     let _spl_ln_style = "solid";
                     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
                     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
@@ -186,13 +193,13 @@ function _overrideRequire() {
                         if (_if_spl_ln.match(/dash/)) {
                             _spl_ln_style = "dash";
                         }
-                        if (_if_spl_ln.match(/both|up/)) {
+                        if (_if_spl_ln.match(/both|up|^2/)) {
                             if (!_matchLnStyle()) {
                                 _showSplitLine("", _spl_ln_style);
                             }
                             if (_if_spl_ln.match(/_n|n_/)) {
                                 _if_spl_ln = "\n";
-                            } else if (_if_spl_ln.match(/both/)) {
+                            } else if (_if_spl_ln.match(/both|^2/)) {
                                 _if_spl_ln = 1;
                             } else if (_if_spl_ln.match(/up/)) {
                                 _if_spl_ln = 0;
@@ -203,15 +210,12 @@ function _overrideRequire() {
                     _clearLnStyle();
 
                     if (_if_arrow) {
-                        _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
-                        _msg = "> " + _msg;
-                        for (let i = 0; i < _if_arrow; i += 1) {
-                            _msg = "-" + _msg;
-                        }
+                        _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
                     }
 
                     let _exit_flag = false;
-                    let _throw_flag = false;
+                    let _show_ex_msg_flag = false;
+
                     switch (_msg_lv) {
                         case 0:
                         case "verbose":
@@ -253,7 +257,7 @@ function _overrideRequire() {
                         case "t":
                             _msg_lv = 4;
                             console.error(_msg);
-                            _throw_flag = true;
+                            _show_ex_msg_flag = true;
                     }
 
                     if (_if_spl_ln) {
@@ -271,26 +275,31 @@ function _overrideRequire() {
                         _showSplitLine(_spl_ln_extra, _spl_ln_style);
                     }
 
-                    if (_throw_flag) {
-                        throw ("forcibly stopped");
+                    if (_show_ex_msg_flag) {
+                        let _msg = "forcibly stopped";
+                        console.error(_msg);
+                        toast(_msg);
                     }
                     if (_exit_flag) {
                         exit();
                     }
-                    return !(_msg_lv in {3: 1, 4: 1});
+
+                    return !~[3, 4].indexOf(_msg_lv);
+
+                    // raw function(s) //
+
+                    function showSplitLineRaw(extra, style) {
+                        console.log((
+                            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+                        ) + (extra || ""));
+                    }
                 }
 
-                // updated: Mar 1, 2020
-                function showSplitLine(extra_str, style) {
-                    let _extra_str = extra_str || "";
-                    let _split_line = "";
-                    if (style === "dash") {
-                        for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                        _split_line += "-";
-                    } else {
-                        for (let i = 0; i < 33; i += 1) _split_line += "-";
-                    }
-                    console.log(_split_line + _extra_str);
+                // updated: Sep 19, 2020
+                function showSplitLine(extra, style) {
+                    console.log((
+                        style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+                    ) + (extra || ""));
                 }
 
                 // updated: Aug 2, 2020
@@ -367,38 +376,33 @@ function _overrideRequire() {
                     // raw function(s) //
 
                     function messageActionRaw(msg, lv, if_toast) {
-                        let _s = msg || " ";
+                        let _msg = msg || " ";
                         if (lv && lv.toString().match(/^t(itle)?$/)) {
-                            let _par = ["[ " + msg + " ]", 1, if_toast];
-                            return messageActionRaw.apply({}, _par);
+                            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
                         }
-                        let _lv = +lv;
-                        if (if_toast) {
-                            toast(_s);
+                        if_toast && toast(_msg);
+                        let _lv = typeof lv === "undefined" ? 1 : lv;
+                        if (_lv >= 4) {
+                            console.error(_msg);
+                            _lv >= 8 && exit();
+                            return false;
                         }
                         if (_lv >= 3) {
-                            if (_lv >= 4) {
-                                console.error(_s);
-                                if (_lv >= 8) {
-                                    exit();
-                                }
-                            } else {
-                                console.warn(_s);
-                            }
-                            return;
+                            console.warn(_msg);
+                            return false;
                         }
                         if (_lv === 0) {
-                            console.verbose(_s);
+                            console.verbose(_msg);
                         } else if (_lv === 1) {
-                            console.log(_s);
+                            console.log(_msg);
                         } else if (_lv === 2) {
-                            console.info(_s);
+                            console.info(_msg);
                         }
                         return true;
                     }
                 }
 
-                // updated and modified: Aug 29, 2020
+                // updated and modified: Sep 30, 2020
                 function clickAction(f, strategy, params) {
                     let _par = params || {};
                     _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
@@ -419,7 +423,7 @@ function _overrideRequire() {
                     );
 
                     /**
-                     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"
+                     * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
                      */
                     let _type = _checkType(f);
                     let _padding = _checkPadding(_par.padding);
@@ -500,11 +504,7 @@ function _overrideRequire() {
                                 _messageAction("clickAction()控件策略已改为click", 3);
                                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
                             }
-                            if (Array.isArray(f)) {
-                                [_x, _y] = f;
-                            } else {
-                                [_x, _y] = [f.x, f.y];
-                            }
+                            [_x, _y] = Array.isArray(f) ? f : [f.x, f.y];
                         }
                         if (isNaN(_x) || isNaN(_y)) {
                             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -514,7 +514,7 @@ function _overrideRequire() {
                         _y += _padding.y;
 
                         _strategy.match(/^p(ress)?$/)
-                            ? press(_x, _y, _par.press_time || 1)
+                            ? press(_x, _y, _par.press_time || _par.pt$ || 1)
                             : click(_x, _y);
                     }
 
@@ -729,9 +729,9 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Mar 29, 2020
-                // modified: no internal raw
-                function debugInfo(msg, info_flag, forcible_flag) {
+                // updated: Sep 19, 2020
+                // modified: no internal raw function(s)
+                function debugInfo(msg, msg_level, forcible_flag) {
                     let $_flag = global.$$flag = global.$$flag || {};
 
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -751,41 +751,34 @@ function _overrideRequire() {
                         return;
                     }
 
-                    let _info_flag_str = (info_flag || "").toString();
-                    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
-                    if (_info_flag_str.match(/Up/)) {
+                    let _msg_lv_str = (msg_level || "").toString();
+                    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
+                    if (_msg_lv_str.match(/Up/)) {
                         _showSplitLine();
                     }
-                    if (_info_flag_str.match(/both|up/)) {
-                        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+                    if (_msg_lv_str.match(/both|up/)) {
+                        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
                         debugInfo("__split_line__" + _dash, "", _forc_fg);
                     }
 
                     if (typeof msg === "string" && msg.match(/^__split_line_/)) {
-                        msg = setDebugSplitLine(msg);
+                        msg = _getLineStr(msg);
                     }
                     if (_classof(msg) === "Array") {
-                        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+                        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
                     } else {
-                        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+                        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
                     }
 
-                    if (_info_flag_str.match("both")) {
-                        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+                    if (_msg_lv_str.match("both")) {
+                        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
                         debugInfo("__split_line__" + _dash, "", _forc_fg);
                     }
 
                     // tool function(s) //
 
-                    function setDebugSplitLine(msg) {
-                        let _msg = "";
-                        if (msg.match(/dash/)) {
-                            for (let i = 0; i < 17; i += 1) _msg += "- ";
-                            _msg += "-";
-                        } else {
-                            for (let i = 0; i < 33; i += 1) _msg += "-";
-                        }
-                        return _msg;
+                    function _getLineStr(msg) {
+                        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
                     }
                 }
 
@@ -828,17 +821,17 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Sep 18, 2020
+                // updated: Sep 29, 2020
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                    let _debugInfo = _msg => (
+                    let _debugInfo = (m, lv) => (
                         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
-                    )(_msg, "", _opt.debug_info_flag);
+                    )(m, lv, _opt.debug_info_flag);
                     let _sel = selector();
                     _sel.__proto__ = {
-                        sltr_pool: {},
-                        cache_pool: {},
+                        _sltr_pool: {},
+                        _cache_pool: {},
                         pickup(sel_body, res_type, mem_sltr_kw, par) {
                             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
                             let _params = Object.assign({}, _opt, par);
@@ -935,6 +928,11 @@ function _overrideRequire() {
                                 function _selGenerator() {
                                     let _prefer = _params.selector_prefer;
                                     let _body_class = _classof(_body);
+                                    let _sel_keys_abbr = {
+                                        bi$: "boundsInside",
+                                        c$: "clickable",
+                                        cn$: "className",
+                                    };
 
                                     if (_body_class === "JavaObject") {
                                         if (_body.toString().match(/UiObject/)) {
@@ -959,8 +957,9 @@ function _overrideRequire() {
                                     if (_body_class === "Object") {
                                         let _s = selector();
                                         Object.keys(_body).forEach((k) => {
-                                            let _arg = _body[k];
-                                            _s = _s[k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
+                                            let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
+                                            let _arg = _body[_k];
+                                            _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                                         });
                                         return _s;
                                     }
@@ -987,18 +986,19 @@ function _overrideRequire() {
                                             }
                                             if (_classof(addition) === "Object") {
                                                 let _keys = Object.keys(addition);
-                                                let _k_len = _keys.length;
-                                                for (let i = 0; i < _k_len; i += 1) {
+                                                for (let i = 0, l = _keys.length; i < l; i += 1) {
                                                     let _k = _keys[i];
-                                                    if (!sel[_k]) {
-                                                        _debugInfo(["无效的additional_selector属性值:", _k], 3);
+                                                    let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
+                                                    if (!sel[_sel_k]) {
+                                                        _debugInfo(["无效的additional_selector属性值:", _sel_k], 3);
                                                         return null;
                                                     }
                                                     let _arg = addition[_k];
+                                                    _arg = Array.isArray(_arg) ? _arg : [_arg];
                                                     try {
-                                                        sel = sel[_k].apply(sel, Array.isArray(_arg) ? _arg : [_arg]);
+                                                        sel = sel[_sel_k].apply(sel, _arg);
                                                     } catch (e) {
-                                                        _debugInfo(["无效的additional_selector选择器:", _k], 3);
+                                                        _debugInfo(["无效的additional_selector选择器:", _sel_k], 3);
                                                         return null;
                                                     }
                                                 }
@@ -1115,18 +1115,18 @@ function _overrideRequire() {
                         },
                         add(key, sel_body, mem) {
                             let _mem = typeof mem === "string" ? mem : key;
-                            this.sltr_pool[key] = typeof sel_body === "function"
+                            this._sltr_pool[key] = typeof sel_body === "function"
                                 ? type => sel_body(type)
                                 : type => this.pickup(sel_body, type, _mem);
                             return this;
                         },
                         get(key, type) {
-                            let _sltr = this.sltr_pool[key];
+                            let _sltr = this._sltr_pool[key];
                             if (!_sltr) {
                                 return null;
                             }
                             if (type && type.toString().match(/cache/)) {
-                                return this.cache_pool[key] = _sltr("widget");
+                                return this._cache_pool[key] = _sltr("widget");
                             }
                             return _sltr(type);
                         },
@@ -1136,23 +1136,23 @@ function _overrideRequire() {
                         cache: {
                             save: (key) => _sel.getAndCache(key),
                             load(key, type) {
-                                let _widget = _sel.cache_pool[key];
+                                let _widget = _sel._cache_pool[key];
                                 if (!_widget) {
                                     return null;
                                 }
-                                return _sel.pickup(_sel.cache_pool[key], type);
+                                return _sel.pickup(_sel._cache_pool[key], type);
                             },
                             refresh(key) {
-                                let _cache = _sel.cache_pool[key];
+                                let _cache = _sel._cache_pool[key];
                                 _cache && _cache.refresh();
                                 this.save(key);
                             },
                             reset(key) {
-                                delete _sel.cache_pool[key];
+                                delete _sel._cache_pool[key];
                                 return _sel.getAndCache(key);
                             },
                             recycle(key) {
-                                let _cache = _sel.cache_pool[key];
+                                let _cache = _sel._cache_pool[key];
                                 _cache && _cache.recycle();
                             },
                         },
@@ -1161,19 +1161,15 @@ function _overrideRequire() {
 
                     // raw function(s) //
 
-                    function debugInfoRaw(msg, info_flg) {
-                        if (info_flg) {
-                            let _s = msg || "";
-                            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                            console.verbose(_s);
-                        }
+                    function debugInfoRaw(msg, msg_lv) {
+                        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
                     }
                 }
 
-                // updated: Mar 1, 2020
-                function classof(source, check_value) {
-                    let class_result = Object.prototype.toString.call(source).slice(8, -1);
-                    return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+                // updated: Sep 28, 2020
+                function classof(source, compare) {
+                    let _s = Object.prototype.toString.call(source).slice(8, -1);
+                    return compare ? _s.toUpperCase() === compare.toUpperCase() : _s;
                 }
             }
 
@@ -1809,29 +1805,16 @@ function _activeExtension() {
                         _W = _win_svc_disp.getWidth();
                         _H = _win_svc_disp.getHeight();
                         if (!(_W * _H)) {
-                            throw Error();
+                            return _raw();
                         }
-
-                        // if the device is rotated 90 degrees counter-clockwise,
-                        // to compensate rendering will be rotated by 90 degrees clockwise
-                        // and thus the returned value here will be Surface#ROTATION_90
-                        // 0: 0°, device is portrait
-                        // 1: 90°, device is rotated 90 degree counter-clockwise
-                        // 2: 180°, device is reverse portrait
-                        // 3: 270°, device is rotated 90 degree clockwise
                         let _SCR_O = _win_svc_disp.getRotation();
                         let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                        // let _MAX = _win_svc_disp.maximumSizeDimension;
                         let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
                         let [_UH, _UW] = [_H, _W];
                         let _dimen = (name) => {
                             let resources = context.getResources();
-                            let resource_id = resources.getIdentifier(name, "dimen", "android");
-                            if (resource_id > 0) {
-                                return resources.getDimensionPixelSize(resource_id);
-                            }
-                            return NaN;
+                            let res_id = resources.getIdentifier(name, "dimen", "android");
+                            return res_id > 0 ? resources.getDimensionPixelSize(res_id) : NaN;
                         };
 
                         _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
@@ -1848,6 +1831,12 @@ function _activeExtension() {
                             action_bar_default_height: _dimen("action_bar_default_height"),
                         };
                     } catch (e) {
+                        return _raw();
+                    }
+                    
+                    // tool function(s) //
+                    
+                    function _raw() {
                         _W = device.width;
                         _H = device.height;
                         return _W && _H && {
@@ -3234,45 +3223,34 @@ function _checkRootAccess() {
 
 // raw function(s) //
 
-function showSplitLineRaw(extra_str, style) {
-    let _extra_str = extra_str || "";
-    let _split_line = "";
-    if (style === "dash") {
-        for (let i = 0; i < 17; i += 1) _split_line += "- ";
-        _split_line += "-";
-    } else {
-        for (let i = 0; i < 33; i += 1) _split_line += "-";
-    }
-    console.log(_split_line + _extra_str);
+function showSplitLineRaw(extra, style) {
+    console.log((
+        style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+    ) + (extra || ""));
 }
 
 function messageActionRaw(msg, lv, if_toast) {
-    let _s = msg || " ";
+    let _msg = msg || " ";
     if (lv && lv.toString().match(/^t(itle)?$/)) {
-        let _par = ["[ " + msg + " ]", 1, if_toast];
-        return messageActionRaw.apply({}, _par);
+        return messageActionRaw("[ " + msg + " ]", 1, if_toast);
     }
-    let _lv = +lv;
-    if (if_toast) {
-        toast(_s);
+    if_toast && toast(_msg);
+    let _lv = typeof lv === "undefined" ? 1 : lv;
+    if (_lv >= 4) {
+        console.error(_msg);
+        _lv >= 8 && exit();
+        return false;
     }
     if (_lv >= 3) {
-        if (_lv >= 4) {
-            console.error(_s);
-            if (_lv >= 8) {
-                exit();
-            }
-        } else {
-            console.warn(_s);
-        }
-        return;
+        console.warn(_msg);
+        return false;
     }
     if (_lv === 0) {
-        console.verbose(_s);
+        console.verbose(_msg);
     } else if (_lv === 1) {
-        console.log(_s);
+        console.log(_msg);
     } else if (_lv === 2) {
-        console.info(_s);
+        console.info(_msg);
     }
     return true;
 }
@@ -3291,10 +3269,6 @@ function waitForActionRaw(cond_func, time_params) {
     return _check_time >= 0;
 }
 
-function debugInfoRaw(msg, info_flg) {
-    if (info_flg) {
-        let _s = msg || "";
-        _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-        console.verbose(_s);
-    }
+function debugInfoRaw(msg, msg_lv) {
+    msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
 }

@@ -1,15 +1,4 @@
 let ext = {
-    /**
-     * Assign some checkers to global object (all started with "$$)
-     * @example
-     * $$bool(0.5 === "0.5"); // false
-     * $$str("1991"); // true
-     * $$und(coffee); // true -- undefined
-     * $$num(0); // true
-     * $$num(20, "<", 28, "<=", Infinity); // true
-     * $$num(20, "<", 28, ">=", 1, ">", -Infinity, "<=", -0, "=", +0); // true
-     * @return void
-     */
     Global() {
         let _classof = (src, chk) => {
             let _s = Object.prototype.toString.call(src).slice(8, -1);
@@ -23,8 +12,15 @@ let ext = {
             ">=": (a, b) => a >= b,
             "=": (a, b) => a === b,
         };
-        let _isNum = x => _classof(x, "Number");
-        let _isStr = b => _classof(b, "String");
+        let _isNum = o => _classof(o, "Number");
+        let _isStr = o => _classof(o, "String");
+        let _monster = (fn) => {
+            if (typeof global[fn] === "function") {
+                return global[fn].call(global);
+            }
+            let _path = files.cwd() + "/Modules/MODULE_MONSTER_FUNC.js";
+            return files.isFile(_path) ? require(_path)[fn]() : null;
+        };
 
         Object.assign(global, {
             $$0: x => x === 0,
@@ -184,6 +180,47 @@ let ext = {
                 }));
             },
         });
+
+        /**
+         * Invoke some functions (returns undefined or $$link only) one by one
+         * @param {function: ()} f
+         * @param {{}} [this_arg]
+         * @example
+         * let a = () => console.log("A");
+         * let s = () => console.log("S");
+         * let d = () => console.log("D");
+         * let f = () => console.log("F");
+         * a(), s(), d(), f();
+         * $$link(a).$(s).$(d).$(f); // same as above
+         * $$link(a)(s)(d)(f); // same as above
+         * @example
+         * let a = () => console.log(1);
+         * function b() {return 2};
+         * let c = () => "ok";
+         * function d() {void 0};
+         * // with two groups of warning messages printed in console
+         * $$link(a).$(b).$(c).$(d);
+         */
+        global.$$link = (f, this_arg) => {
+            if (typeof f !== "function") {
+                throw TypeError("$$link invoked with a non-function param");
+            }
+            if (typeof $$link.$ !== "function") {
+                $$link.$ = (f, this_arg) => $$link(f, this_arg);
+            }
+            let _res = f.call(this_arg);
+            if (_res !== $$link && typeof _res !== "undefined") {
+                console.warn("fx in $$link returns non-undefined");
+                console.warn("-> name: " + (f.name || "<anonymous>"));
+                console.warn("-> returns: " + _res);
+            }
+            return $$link;
+        };
+
+        /** @type ExtendedSelector & UiSelector$ */
+        global.$$sel = _monster("getSelector");
+
+        global.Reflect = global.Reflect || require("./reflect.js");
     },
     String() {
         if (!String.prototype.toTitleCase) {
@@ -191,69 +228,125 @@ let ext = {
                 /**
                  * Converts all the alphabetic characters in a string to title case.
                  * @function String.prototype.toTitleCase
-                 * @see String.prototype.toUpperCase
-                 * @see String.prototype.toLowerCase
-                 * @see String.prototype.slice
+                 * @example
+                 * console.log("hello".toTitleCase()); // "Hello"
+                 * console.log("hello world".toTitleCase()); // "Hello World"
+                 * console.log("JavaScript is AMAZING".toTitleCase()); // "JavaScript Is AMAZING"
                  * @returns {string}
                  */
                 value() {
-                    let _str = this.toString();
-                    if (!_str) {
-                        return "";
-                    }
-                    return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
+                    return this.replace(/(^|\s+)([a-z])/g, ($0, $1, $2) => $1 + $2.toUpperCase());
+                },
+            });
+        }
+        if (!String.prototype.padStart) {
+            /**
+             * Pads the current string with a given string to reach a given length (left padding).
+             * @function String.prototype.padStart
+             * @param {number} target_len
+             * @param {string|number} [pad_str=" "]
+             * @returns {string}
+             */
+            Object.defineProperty(String.prototype, "padStart", {
+                value(target_len, pad_str) {
+                    return _getPadStr.apply(this, arguments) + this.valueOf();
+                },
+            });
+        }
+        if (!String.prototype.padEnd) {
+            Object.defineProperty(String.prototype, "padEnd", {
+                /**
+                 * Pads the current string with a given string to reach a given length (right padding).
+                 * @function String.prototype.padEnd
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @returns {string}
+                 */
+                value(target_len, pad_str) {
+                    return this.valueOf() + _getPadStr.apply(this, arguments);
                 },
             });
         }
         if (!String.prototype.trimStart) {
             Object.defineProperty(String.prototype, "trimStart", {
                 /**
+                 * Removes the leading white space and line terminator characters from a string.
                  * @function String.prototype.trimStart
+                 * @returns {string}
                  */
                 value() {
-                    return this.replace(/^\s*/, "");
+                    return String.prototype.trimLeft.apply(this, arguments);
                 },
             });
         }
         if (!String.prototype.trimEnd) {
             Object.defineProperty(String.prototype, "trimEnd", {
                 /**
+                 * Removes the trailing white space and line terminator characters from a string.
                  * @function String.prototype.trimEnd
+                 * @returns {string}
                  */
                 value() {
-                    return this.replace(/\s*$/, "");
+                    return String.prototype.trimRight.apply(this, arguments);
                 },
             });
         }
-        if (!String.prototype.trimLeft) {
-            Object.defineProperty(String.prototype, "trimLeft", {
+        if (!String.prototype.ts) {
+            Object.defineProperty(String.prototype, "ts", {
                 /**
-                 * @function String.prototype.trimLeft
+                 * @property String.prototype.ts
+                 * @example
+                 * let name = "John"; // must be an global variable
+                 * console.log("`Hello ${name}, time is ${new Date().toLocaleTimeString()}`".ts);
+                 * @returns {string}
                  */
-                value() {
-                    return this.trimStart();
+                get() {
+                    let _s = String(this);
+                    let _bt = '`'; // backtick
+                    if (_s.length < 2 || _s[0] !== _bt || _s[_s.length - 1] !== _bt) {
+                        return _s;
+                    }
+                    let _backticks, _is_internal;
+                    while ((_backticks = _getBackticks(_s))) {
+                        let [_l, _r] = _backticks; // left/right index
+                        let _q = _is_internal ? '"' : ''; // quotation mark
+                        _s = _s.slice(0, _l++) + _q + _parse(_s.slice(_l, _r++)) + _q + _s.slice(_r);
+                    }
+                    return _s;
+
+                    // tool function(s) //
+
+                    function _getBackticks(str) {
+                        let _bts = [];
+                        Object.values(str).forEach((s, i) => s === _bt && _bts.push(i));
+                        let _half_len = _bts.length / 2;
+                        if (_half_len >> 0 !== _half_len) {
+                            throw Error("backticks must come in pairs");
+                        }
+                        _is_internal = _half_len > 1;
+                        return _half_len ? _bts.slice(_half_len - 1, _half_len + 1) : null;
+                    }
+
+                    function _parse(str) {
+                        return str.replace(/\${(.*?)}/g, ($0, $1) => Function("return " + $1)());
+                    }
                 },
+                configurable: true,
             });
         }
-        if (!String.prototype.trimRight) {
-            Object.defineProperty(String.prototype, "trimRight", {
-                /**
-                 * @function String.prototype.trimRight
-                 */
-                value() {
-                    return this.trimEnd();
-                },
-            });
-        }
-        if (!String.prototype.trimBoth) {
-            Object.defineProperty(String.prototype, "trimBoth", {
-                /**
-                 * @function String.prototype.trimBoth
-                 */
-                value() {
-                    return this.trimStart().trimEnd();
-                },
-            });
+
+        // tool function(s) //
+
+        function _getPadStr(target_len, pad_str) {
+            let _tar_len = Number(target_len);
+            let _this_len = this.length;
+            if (_tar_len <= _this_len) {
+                return "";
+            }
+            let _pad_str = pad_str === undefined ? " " : String(pad_str);
+            let _gap = _tar_len - _this_len;
+            let _times = Math.ceil(_gap / _pad_str.length);
+            return _pad_str.repeat(_times).slice(0, _gap);
         }
     },
     Object() {
@@ -261,23 +354,20 @@ let ext = {
             Object.defineProperty(Object, "values", {
                 /**
                  * @function Object.values
-                 * @public
-                 * @static
                  * @param o
                  * @returns {[]}
                  */
                 value(o) {
-                    if (o !== Object(o)) {
-                        throw new TypeError("Object.values called on a non-object");
+                    if (typeof o === "string") {
+                        return o.split("");
                     }
-                    let key;
-                    let value = [];
-                    for (key in o) {
+                    let v = [];
+                    for (let key in o) {
                         if (o.hasOwnProperty(key)) {
-                            value.push(o[key]);
+                            v.push(o[key]);
                         }
                     }
-                    return value;
+                    return v;
                 },
             });
         }
@@ -286,8 +376,6 @@ let ext = {
                 /**
                  * @summary Object.keys(o).length
                  * @function Object.size
-                 * @public
-                 * @static
                  * @param {{}} o
                  * @param {{}} [opt] - additional options
                  * @param {[]} [opt.exclude] - exclude specified keys
@@ -323,8 +411,6 @@ let ext = {
             Object.defineProperty(Object, "getOwnNonEnumerableNames", {
                 /**
                  * @function Object.getOwnNonEnumerableNames
-                 * @public
-                 * @static
                  * @param o
                  * @returns {string[]}
                  */
@@ -339,8 +425,6 @@ let ext = {
             Object.defineProperty(Object, "getNonEnumerableNames", {
                 /**
                  * @function Object.getNonEnumerableNames
-                 * @public
-                 * @static
                  * @param o
                  * @returns {[]}
                  */
@@ -362,8 +446,6 @@ let ext = {
             Object.defineProperty(Object, "getAllPropertyNames", {
                 /**
                  * @function Object.getAllPropertyNames
-                 * @public
-                 * @static
                  * @param o
                  * @returns {[]}
                  */
@@ -385,8 +467,6 @@ let ext = {
             Object.defineProperty(Object, "getOwnPropertyDescriptors", {
                 /**
                  * @function Object.getOwnPropertyDescriptors
-                 * @public
-                 * @static
                  * @param o
                  * @returns {{}}
                  */
@@ -403,8 +483,6 @@ let ext = {
             Object.defineProperty(Object, "assignDescriptors", {
                 /**
                  * @function Object.assignDescriptors
-                 * @public
-                 * @static
                  * @example
                  * let o = {
                  *     a: 1,
@@ -432,8 +510,46 @@ let ext = {
                 },
             });
         }
+        if (!Object.prototype.__proto__) {
+            Object.defineProperty(Object.prototype, "__proto__", {
+                get() {
+                    return Object.getPrototypeOf(Object(this));
+                },
+                set(proto) {
+                    if (Object(proto) !== proto) {
+                        throw TypeError("proto must be an non-primitive type");
+                    }
+                    this.__proto__ = proto;
+                },
+                configurable: true,
+            });
+        }
     },
     Array() {
+        if (!Array.from) {
+            // code from polyfill on the web page below
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
+            // modified by SuperMonster003 at Sep 21, 2020
+            Array.from = function (arrayLike, mapFn, thisArg) {
+                let isFunc = f => typeof f === "function";
+                let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
+                let items = Object(arrayLike);
+                let self = thisArg === undefined ? this : thisArg;
+                if (arrayLike == null) {
+                    throw TypeError("arrayLike of Array.from must be an array-like object");
+                }
+                if (typeof mapFn !== "undefined" && !isFunc(mapFn)) {
+                    throw TypeError("mapFn of Array.from must be a function");
+                }
+                let len = Math.min(Math.max(toInt(items.length), 0), Number.MAX_SAFE_INTEGER);
+                let arr = isFunc(this) ? Object(new this(len)) : new Array(len);
+                arr.length = len;
+                for (let i = 0; i < len; i += 1) {
+                    arr[i] = mapFn ? mapFn.call(self, items[i], i) : items[i];
+                }
+                return arr;
+            };
+        }
         if (!Array.prototype.includes) {
             Object.defineProperty(Array.prototype, "includes", {
                 value(x, i) {
@@ -462,6 +578,32 @@ let ext = {
         }
     },
     Number() {
+        if (!Number.prototype.ICU) {
+            Object.defineProperty(Number.prototype, "ICU", {
+                /**
+                 * 996.ICU - Developers' lives matter
+                 * @name ICU
+                 * @memberOf! Number#
+                 * @constant 996
+                 * @type number
+                 * @example
+                 * (1).ICU; // 996
+                 * (80).ICU; // 996
+                 * (996).ICU; // 996
+                 * Math.random().ICU; // 996
+                 */
+                value: (() => {
+                    let _working_days = 5;
+                    let _weekends = 2;
+                    let _health = "[your health]";
+                    return Math.round(
+                        "Hard working only".split(new RegExp(_health)).map((x) => (
+                            !x ? 996 / _working_days / _weekends - _weekends : x.charCodeAt(0)
+                        )).reduce((x, y) => x + y)
+                    );
+                })(),
+            });
+        }
         if (!Number.prototype.clamp) {
             Object.defineProperty(Number.prototype, "clamp", {
                 /**
@@ -511,33 +653,6 @@ let ext = {
                 },
             });
         }
-        if (!Number.prototype.ICU) {
-            Object.defineProperty(Number.prototype, "ICU", {
-                /**
-                 * 996.ICU - Developers' lives matter
-                 * @name ICU
-                 * @memberOf! Number#
-                 * @constant
-                 * @type number
-                 * @example
-                 * (1).ICU; // 996
-                 * (80).ICU; // 996
-                 * (996).ICU; // 996
-                 * Math.random().ICU; // 996
-                 * @default 996
-                 */
-                value: (() => {
-                    let _working_days = 5;
-                    let _weekends = 2;
-                    let _health = "[your health]";
-                    return Math.round(
-                        "Hard working only".split(new RegExp(_health)).map((x) => (
-                            !x ? 996 / _working_days / _weekends - _weekends : x.charCodeAt(0)
-                        )).reduce((x, y) => x + y)
-                    );
-                })(),
-            });
-        }
         if (!Number.prototype.toFixedNum) {
             Object.defineProperty(Number.prototype, "toFixedNum", {
                 /**
@@ -576,6 +691,46 @@ let ext = {
                     return Number(this.toFixed(num));
                 },
             });
+        }
+        if (!Number.prototype.padStart) {
+            if (String.prototype.padStart) {
+                /**
+                 * Pads the current number with a given string to reach a given length (right padding).
+                 * @function Number.prototype.padStart
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @example
+                 * console.log(Number(9).padStart(4)); // "0009"
+                 * console.log(Number(9).padStart(4, " ")); // "   9"
+                 * @returns {string}
+                 */
+                Object.defineProperty(Number.prototype, "padStart", {
+                    value(target_len, pad_str) {
+                        let _this = this.toString();
+                        return _this.padStart.call(_this, target_len, pad_str || 0);
+                    },
+                });
+            }
+        }
+        if (!Number.prototype.padEnd) {
+            if (String.prototype.padEnd) {
+                /**
+                 * Pads the current number with a given string to reach a given length (right padding).
+                 * @function Number.prototype.padEnd
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @example
+                 * console.log(Number(9).padEnd(4)); // "9000"
+                 * console.log(Number(9).padEnd(4, " ")); // "9   "
+                 * @returns {string}
+                 */
+                Object.defineProperty(Number.prototype, "padEnd", {
+                    value(target_len, pad_str) {
+                        let _this = this.toString();
+                        return _this.padEnd.call(_this, target_len, pad_str || 0);
+                    },
+                });
+            }
         }
     },
     Math() {
@@ -1021,7 +1176,7 @@ let ext = {
              * console.log(Math.logMn(2, 1024)); // 10 -- 2 ^ (10) = 1024
              * console.log(Math.logMn(81, 9)); // 0.5 -- 81 ^ (0.5) = 9
              * @example
-             * console.log(Math.logMn(3, 2187)); // 7 (with default fraction - 13)
+             * console.log(Math.logMn(3, 2187)); // 7 (with default fraction: 13)
              * console.log(Math.logMn(3, 2187, -1)); // 7.000000000000001
              * console.log(Math.logMn(3, 2187, 18)); // 7.000000000000001
              * console.log(Math.logMn(3, 2187, 5)); // 7
@@ -1040,72 +1195,23 @@ let ext = {
     },
     JSON() {
         if (!JSON.isJson) {
-            Object.defineProperty(JSON, "isJson", {
-                /**
-                 * @function JSON.isJson
-                 * @param {string} str - JSON string
-                 * @see JSON.parse
-                 * @see JSON.stringify
-                 * @example
-                 * console.log(JSON.isJson('{}')); // true
-                 * console.log(JSON.isJson('{"a":1,"b":"2"}')); // true
-                 * console.log(JSON.isJson('{"a": 1, "b": "2"}')); // true -- ok with whitespace characters
-                 * console.log(JSON.isJson('{"a": 1, "b": "2",}')); // false -- trailing commas are not supported
-                 * @example
-                 * console.log(JSON.isJson('[]')); // true
-                 * console.log(JSON.isJson('[1,"2",[3]]')); // true
-                 * console.log(JSON.isJson('[1, "2", [3]]')); // true -- ok with whitespace characters
-                 * console.log(JSON.isJson('[1, "2", [3],]')); // false -- trailing commas are not supported
-                 * @example
-                 * let str_a = "{'a':1}";
-                 * let str_b = '{"a":1}';
-                 * if (JSON.isJson(str_a)) {
-                 *     console.log(JSON.parse(str_a));
-                 * }
-                 * if (JSON.isJson(str_b)) {
-                 *     console.log(JSON.parse(str_b));
-                 * }
-                 * @returns {boolean}
-                 */
-                value(str) {
-                    if (typeof str === "string") {
-                        try {
-                            return this.stringify(this.parse(str)).replace(/\s*/g, "") === str.replace(/\s*/g, "");
-                        } catch (e) {
-                            // console.error(e);
-                        }
+            JSON.isJson = function (str) {
+                if (typeof str === "string") {
+                    try {
+                        return JSON.stringify(JSON.parse(str)).replace(/\s*/g, "") === str.replace(/\s*/g, "");
+                    } catch (e) {
+                        // console.error(e);
                     }
-                    return false;
-                },
-            });
+                }
+                return false;
+            };
         }
     },
 };
 
 module.exports.load = function () {
     let _args = Array.isArray(arguments[0]) ? arguments[0] : arguments;
-    let _len = _args.length;
-    let _keys = [];
-
-    if (_len) {
-        for (let i = 0; i < _len; i += 1) {
-            _keys.push(_args[i]);
-        }
-    } else {
-        _keys = Object.keys(ext);
-    }
-
-    let _keys_len = _keys.length;
-    let _toTitleCase = (str) => {
-        let _head = str[0].toUpperCase();
-        let _body = str.slice(1).toLowerCase();
-        return _head + _body;
-    };
-
-    for (let i = 0; i < _keys_len; i += 1) {
-        let _key = _toTitleCase(_keys[i]);
-        if (_key in ext) {
-            ext[_key]();
-        }
-    }
+    let _keys = _args.length ? [].slice.call(_args) : Object.keys(ext);
+    _keys.forEach(k => k in ext && ext[k].call(ext));
+    return ext;
 };

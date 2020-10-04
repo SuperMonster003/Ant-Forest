@@ -74,17 +74,11 @@
                 "因此用户无需手动改回",
         };
 
-        dialogsx
-            .builds([
-                '关于"修改系统设置"权限', _cont.about,
-                "适用场景", "退出", "跳转设置页面", 1
-            ])
+        dialogsx.builds(['关于"修改系统设置"权限', _cont.about,
+            "适用场景", "退出", "跳转设置页面", 1])
             .on("neutral", (d) => {
-                dialogsx
-                    .builds([
-                        "权限在Auto.js的使用场景", _cont.situation,
-                        0, 0, "返回", 1
-                    ])
+                dialogsx.builds(["权限在Auto.js的使用场景",
+                    _cont.situation, 0, 0, "返回", 1])
                     .on("positive", ds => ds.dismiss())
                     .show()
             })

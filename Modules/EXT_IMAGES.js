@@ -56,14 +56,15 @@ let ext = {
         return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
     },
     getMean(capt) {
+        /** @type {number[]} */
         let _v = Core.mean((capt || ext.capt()).getMat()).val;
         let [R, G, B] = _v;
-        let [_R, _G, _B] = [R, G, B].map(x => +x.toFixed(2));
+        let [_R, _G, _B] = [R, G, B].map(x => Number(x.toFixed(2)));
         let _arr = [_R, _G, _B];
         return {
             data: {R: _R, G: _G, B: _B},
             arr: _arr,
-            std: Math.std(_arr),
+            std: Number(Math.std(_arr)),
             string: "[" + _arr.join(", ") + "]",
         };
     },
@@ -274,8 +275,19 @@ let ext = {
 
         return images.matToImage(mat);
     },
+    /**
+     * @typedef {
+     *     EnergyBallsInfoClassified & EnergyBallsDuration & {expand: function(): EnergyBallsInfo[]}
+     * } AfHoughBallsResult
+     */
+    /**
+     * @returns AfHoughBallsResult
+     */
     findAFBallsByHough(param) {
         timeRecorder("hough_beginning");
+        /**
+         * @type {{fill_up_pool: number, img_samples_processing: number}}
+         */
         let _du = {};
         let _par = param || {};
         let _cfg = Object.assign(
@@ -298,7 +310,19 @@ let ext = {
                     : v < 1 ? cX(v) : v
             ));
 
+        /** @type {EnergyBallsInfo[]} */
         let _balls_data = [];
+        /**
+         * @typedef {{
+         *     ripe?: EnergyBallsInfo[],
+         *     orange?: EnergyBallsInfo[],
+         *     naught?: EnergyBallsInfo[],
+         *     water?: EnergyBallsInfo[]
+         * }} EnergyBallsInfoClassified
+         */
+        /**
+         * @type EnergyBallsInfoClassified
+         */
         let _balls_data_o = {};
         let _pool = _par.pool || {
             data: [],
@@ -356,6 +380,15 @@ let ext = {
 
         _dbgRestore();
 
+        /**
+         * @typedef {{
+         *     duration?: {_map: string[][], total: number, showDebugInfo: function(): void}
+         *              & {fill_up_pool: number, img_samples_processing: number}
+         * }} EnergyBallsDuration
+         */
+        /**
+         * @type EnergyBallsDuration
+         */
         let _du_o = _par.duration !== false ? {
             duration: Object.assign({
                 _map: [
@@ -367,7 +400,7 @@ let ext = {
                     ["img_samples_processing", "数据处理"],
                     ["total", "全部用时"],
                 ],
-                total: timeRecorder("hough_beginning", "L"),
+                total: Number(timeRecorder("hough_beginning", "L")),
                 showDebugInfo() {
                     debugInfo("__split_line__dash__");
                     debugInfo("图像填池: " +
@@ -390,6 +423,7 @@ let ext = {
 
         return Object.assign(_balls_data_o, _du_o, {
             expand() {
+                /** @type EnergyBallsInfo[] */
                 let _data = [];
                 for (let i in this) {
                     if (this.hasOwnProperty(i)) {
@@ -615,7 +649,11 @@ let ext = {
 
                 let _proc_key = "img_samples_processing";
                 timeRecorder(_proc_key);
+
+                /** @type {EnergyBallsBasicProp[]} */
                 let _wballs = [];
+
+                /** @type {EnergyBallsBasicProp[]} */
                 let _balls = []
                     .concat(_getBalls(_src_img_stg.gray && _gray))
                     .concat(_getBalls(_adapt_thrd))
@@ -773,6 +811,9 @@ let ext = {
                     }
                 }
 
+                /**
+                 * @typedef {"ripe"|"orange"|"naught"|"water"} EnergyBallsType
+                 */
                 function _addBalls() {
                     _wballs.map(_extProperties).forEach((o) => {
                         _addBall(o, "water");
@@ -801,6 +842,14 @@ let ext = {
                         return imagesx.isRipeBall(o, capt);
                     }
 
+                    /**
+                     * @typedef {EnergyBallsBasicProp & EnergyBallsExtProp} EnergyBallsMixedProp
+                     * @typedef {EnergyBallsMixedProp & {type: EnergyBallsType}} EnergyBallsInfo
+                     */
+                    /**
+                     * @param {EnergyBallsMixedProp} o
+                     * @param {EnergyBallsType} type
+                     */
                     function _addBall(o, type) {
                         let _pri = {orange: 9, ripe: 6, naught: 3};
                         let _data_idx = _getDataIdx(o);
@@ -829,6 +878,16 @@ let ext = {
                         }
                     }
 
+                    /**
+                     * @typedef {{
+                     *     x: number, y: number, r: number,
+                     *     left: number, top: number, right: number, bottom: number,
+                     *     width: function(): number, height: function(): number
+                     * }} EnergyBallsExtProp
+                     */
+                    /**
+                     * @returns EnergyBallsMixedProp
+                     */
                     function _extProperties(o) {
                         let {x: _x, y: _y, r: _r} = o;
                         return Object.assign(o, {
@@ -844,6 +903,23 @@ let ext = {
                     }
                 }
 
+                /**
+                 * @typedef {{
+                 *     x: number,
+                 *     y: number,
+                 *     r: number,
+                 *     mean?: {
+                 *         arr: [number, number, number],
+                 *         std: number,
+                 *         data: {R: number, B: number, G: number},
+                 *         string: string
+                 *     },
+                 *     computed?: boolean
+                 * }} EnergyBallsBasicProp
+                 */
+                /**
+                 * @returns {EnergyBallsBasicProp[]|[]}
+                 */
                 function _getBalls(img, par1, par2) {
                     return !img ? [] : images
                         .findCircles(img, {
@@ -858,13 +934,11 @@ let ext = {
                         .map((o) => {
                             // o.x and o.y are relative,
                             // yet x and y are absolute
-                            let _x = o.x + _l;
-                            let _y = o.y + _t;
-                            let _r = +o.radius.toFixed(2);
+                            let _x = Number(o.x + _l);
+                            let _y = Number(o.y + _t);
+                            let _r = Number(o.radius.toFixed(2));
                             let _d = _r * 2;
-                            let _clip = images.clip(
-                                capt, _x - _r, _y - _r, _d, _d
-                            );
+                            let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
                             let _mean = ext.getMean(_clip);
                             _clip.recycle();
                             _clip = null;
@@ -886,13 +960,12 @@ let ext = {
                 }
 
                 function _filterWball(o) {
-                    if (!o) {
-                        return false;
+                    if (o) {
+                        if (imagesx.isRipeBall(o, capt)) {
+                            return true;
+                        }
+                        return !imagesx.isWaterBall(o, capt, _wballs);
                     }
-                    if (imagesx.isRipeBall(o, capt)) {
-                        return true;
-                    }
-                    return !imagesx.isWaterBall(o, capt, _wballs);
                 }
             }
         }
@@ -1196,12 +1269,8 @@ function _permitCapt(params) {
         return sel;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1230,32 +1299,27 @@ function _permitCapt(params) {
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -1316,42 +1380,33 @@ function _permitCapt(params) {
         // raw function(s) //
 
         function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
+            let _msg = msg || " ";
             if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
             }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
             }
             if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
+                console.warn(_msg);
+                return false;
             }
             if (_lv === 0) {
-                console.verbose(_s);
+                console.verbose(_msg);
             } else if (_lv === 1) {
-                console.log(_s);
+                console.log(_msg);
             } else if (_lv === 2) {
-                console.info(_s);
+                console.info(_msg);
             }
             return true;
         }
 
-        function debugInfoRaw(msg, info_flg) {
-            if (info_flg) {
-                let _s = msg || "";
-                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                console.verbose(_s);
-            }
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     }
 }
@@ -1487,29 +1542,16 @@ function getDisplay(global_assign, params) {
             _W = _win_svc_disp.getWidth();
             _H = _win_svc_disp.getHeight();
             if (!(_W * _H)) {
-                throw Error();
+                return _raw();
             }
-
-            // if the device is rotated 90 degrees counter-clockwise,
-            // to compensate rendering will be rotated by 90 degrees clockwise
-            // and thus the returned value here will be Surface#ROTATION_90
-            // 0: 0°, device is portrait
-            // 1: 90°, device is rotated 90 degree counter-clockwise
-            // 2: 180°, device is reverse portrait
-            // 3: 270°, device is rotated 90 degree clockwise
             let _SCR_O = _win_svc_disp.getRotation();
             let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = _win_svc_disp.maximumSizeDimension;
             let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
             let [_UH, _UW] = [_H, _W];
             let _dimen = (name) => {
                 let resources = context.getResources();
-                let resource_id = resources.getIdentifier(name, "dimen", "android");
-                if (resource_id > 0) {
-                    return resources.getDimensionPixelSize(resource_id);
-                }
-                return NaN;
+                let res_id = resources.getIdentifier(name, "dimen", "android");
+                return res_id > 0 ? resources.getDimensionPixelSize(res_id) : NaN;
             };
 
             _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
@@ -1526,6 +1568,12 @@ function getDisplay(global_assign, params) {
                 action_bar_default_height: _dimen("action_bar_default_height"),
             };
         } catch (e) {
+            return _raw();
+        }
+
+        // tool function(s) //
+
+        function _raw() {
             _W = device.width;
             _H = device.height;
             return _W && _H && {
@@ -1570,13 +1618,13 @@ function getDisplay(global_assign, params) {
         return _check_time >= 0;
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }
 
-// updated: Aug 29, 2020
-function debugInfo(msg, info_flag, forcible_flag) {
+// updated: Sep 19, 2020
+function debugInfo(msg, msg_level, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -1596,86 +1644,68 @@ function debugInfo(msg, info_flag, forcible_flag) {
         return;
     }
 
-    let _info_flag_str = (info_flag || "").toString();
-    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
-    if (_info_flag_str.match(/Up/)) {
+    let _msg_lv_str = (msg_level || "").toString();
+    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
+    if (_msg_lv_str.match(/Up/)) {
         _showSplitLine();
     }
-    if (_info_flag_str.match(/both|up/)) {
-        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+    if (_msg_lv_str.match(/both|up/)) {
+        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
         debugInfo("__split_line__" + _dash, "", _forc_fg);
     }
 
     if (typeof msg === "string" && msg.match(/^__split_line_/)) {
-        msg = setDebugSplitLine(msg);
+        msg = _getLineStr(msg);
     }
     if (_classof(msg) === "Array") {
-        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
     } else {
-        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
     }
 
-    if (_info_flag_str.match("both")) {
-        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+    if (_msg_lv_str.match("both")) {
+        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
         debugInfo("__split_line__" + _dash, "", _forc_fg);
     }
 
     // raw function(s) //
 
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        console.log(_split_line + _extra_str);
+    function showSplitLineRaw(extra, style) {
+        console.log((
+            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+        ) + (extra || ""));
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
     // tool function(s) //
 
-    function setDebugSplitLine(msg) {
-        let _msg = "";
-        if (msg.match(/dash/)) {
-            for (let i = 0; i < 17; i += 1) _msg += "- ";
-            _msg += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _msg += "-";
-        }
-        return _msg;
+    function _getLineStr(msg) {
+        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
     }
 }
 

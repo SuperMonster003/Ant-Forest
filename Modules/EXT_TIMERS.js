@@ -306,32 +306,27 @@ function waitForAction(f, timeout_or_times, interval, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }

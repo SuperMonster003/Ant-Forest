@@ -1068,25 +1068,32 @@ function loadInternalModuleMonsterFunc() {
         }
     }
 
-    // updated: Aug 29, 2020
+    // updated: Sep 20, 2020
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
         let $_flag = global.$$flag = global.$$flag || {};
         if ($_flag.no_msg_act_flag) {
-            return !(msg_level in {3: 1, 4: 1});
+            return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
+        }
+
+        let _msg_lv = msg_level;
+        if (typeof _msg_lv === "undefined") {
+            _msg_lv = 1;
+        }
+        if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
+            _msg_lv = -1;
         }
 
         let _msg = msg || "";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageAction.apply(
-                null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
-            );
+        if (_msg_lv.toString().match(/^t(itle)?$/)) {
+            _msg = "[ " + msg + " ]";
+            return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
         }
+
         if_toast && toast(_msg);
 
-        let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
         let _if_arrow = if_arrow || false;
         let _if_spl_ln = if_split_line || false;
-        _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
+        _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
         let _spl_ln_style = "solid";
         let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
         let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
@@ -1100,13 +1107,13 @@ function loadInternalModuleMonsterFunc() {
             if (_if_spl_ln.match(/dash/)) {
                 _spl_ln_style = "dash";
             }
-            if (_if_spl_ln.match(/both|up/)) {
+            if (_if_spl_ln.match(/both|up|^2/)) {
                 if (!_matchLnStyle()) {
                     _showSplitLine("", _spl_ln_style);
                 }
                 if (_if_spl_ln.match(/_n|n_/)) {
                     _if_spl_ln = "\n";
-                } else if (_if_spl_ln.match(/both/)) {
+                } else if (_if_spl_ln.match(/both|^2/)) {
                     _if_spl_ln = 1;
                 } else if (_if_spl_ln.match(/up/)) {
                     _if_spl_ln = 0;
@@ -1117,15 +1124,12 @@ function loadInternalModuleMonsterFunc() {
         _clearLnStyle();
 
         if (_if_arrow) {
-            _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
-            _msg = "> " + _msg;
-            for (let i = 0; i < _if_arrow; i += 1) {
-                _msg = "-" + _msg;
-            }
+            _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
         }
 
         let _exit_flag = false;
-        let _throw_flag = false;
+        let _show_ex_msg_flag = false;
+
         switch (_msg_lv) {
             case 0:
             case "verbose":
@@ -1167,7 +1171,7 @@ function loadInternalModuleMonsterFunc() {
             case "t":
                 _msg_lv = 4;
                 console.error(_msg);
-                _throw_flag = true;
+                _show_ex_msg_flag = true;
         }
 
         if (_if_spl_ln) {
@@ -1185,26 +1189,23 @@ function loadInternalModuleMonsterFunc() {
             _showSplitLine(_spl_ln_extra, _spl_ln_style);
         }
 
-        if (_throw_flag) {
-            throw ("forcibly stopped");
+        if (_show_ex_msg_flag) {
+            let _msg = "forcibly stopped";
+            console.error(_msg);
+            toast(_msg);
         }
         if (_exit_flag) {
             exit();
         }
-        return !(_msg_lv in {3: 1, 4: 1});
+
+        return !~[3, 4].indexOf(_msg_lv);
 
         // raw function(s) //
 
-        function showSplitLineRaw(extra_str, style) {
-            let _extra_str = extra_str || "";
-            let _split_line = "";
-            if (style === "dash") {
-                for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                _split_line += "-";
-            } else {
-                for (let i = 0; i < 33; i += 1) _split_line += "-";
-            }
-            console.log(_split_line + _extra_str);
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+            ) + (extra || ""));
         }
     }
 
@@ -1282,32 +1283,27 @@ function loadInternalModuleMonsterFunc() {
         // raw function(s) //
 
         function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
+            let _msg = msg || " ";
             if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
             }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
             }
             if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
+                console.warn(_msg);
+                return false;
             }
             if (_lv === 0) {
-                console.verbose(_s);
+                console.verbose(_msg);
             } else if (_lv === 1) {
-                console.log(_s);
+                console.log(_msg);
             } else if (_lv === 2) {
-                console.info(_s);
+                console.info(_msg);
             }
             return true;
         }
@@ -1401,9 +1397,9 @@ function loadInternalModuleMonsterFunc() {
         return new_obj;
     }
 
-    function classof(source, check_value) {
-        let class_result = Object.prototype.toString.call(source).slice(8, -1);
-        return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+    function classof(source, compare) {
+        let _s = Object.prototype.toString.call(source).slice(8, -1);
+        return compare ? _s.toUpperCase() === compare.toUpperCase() : _s;
     }
 }
 
@@ -2164,7 +2160,7 @@ function _getDisplay(global_assign, params) {
         return _check_time >= 0;
     }
 
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }

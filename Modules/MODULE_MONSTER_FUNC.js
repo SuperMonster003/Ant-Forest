@@ -1,17 +1,18 @@
 global.$$impeded = (name) => {
-    let _$$flag = global.$$flag;
-    if (_$$flag && _$$flag.glob_e_trig_counter) {
+    let $_flag = global.$$flag || {};
+    if ($_flag.glob_e_trig_counter) {
         if (name) {
             messageAction("检测到全局事件触发信号", 1, 0, 0, "up_dash");
             messageAction(name + "被迫阻塞", 1, 0, 0, "dash");
         }
-        while (_$$flag.glob_e_trig_counter) sleep(200);
+        while ($_flag.glob_e_trig_counter) {
+            sleep(200);
+        }
         if (name) {
             messageAction("全局事件触发信号全部解除", 1, 0, 0, "up_dash");
             messageAction(name + "解除阻塞", 1, 0, 0, "dash");
         }
     }
-    return true;
 };
 
 let ext = {
@@ -46,7 +47,7 @@ let ext = {
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
     baiduOcr: baiduOcr,
     setIntervalBySetTimeout: setIntervalBySetTimeout,
-    classof: _classof,
+    classof: classof,
     checkSdkAndAJVer: checkSdkAndAJVer,
 };
 module.exports = ext;
@@ -109,32 +110,31 @@ function parseAppName(name, params) {
 /**
  * Returns a version name string of an app with either app name or app package name input
  * @global
- * @param name {string} - app name, app package name or some shortcuts
+ * @param name {"Auto.js"|"Auto.js Pro"|"Current Auto.js"|"Self"|string} - app name, app package name or some shortcuts
  * <br>
- *     -- app name - "Alipay" <br>
- *     -- app package name - "com.eg.android.AlipayGphone" <br>
- *     -- /^[Aa]uto\.?js/ - "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "") <br>
- *     -- /^[Cc]urrent.*[Aa]uto.*js/ - context.packageName <br>
- *     -- "self" - currentPackage()
+ *     -- %app name% - "Alipay" <br>
+ *     -- %app package% - "com.eg.android.AlipayGphone" <br>
+ *     -- "Auto.js" <br>
+ *     -- "Auto.js Pro" <br>
+ *     -- "Current Auto.js" - context.packageName <br>
+ *     -- "Self" - currentPackage()
  * @param {object} [params]
  * @param {boolean} [params.debug_info_flag]
  * @example
  * // app name
  * getVerName("Alipay");
  * // shortcut
- * getVerName("self");
- * // shortcut
- * getVerName("autojs");
- * // shortcut
- * getVerName("autojs pro");
- * // app name
+ * getVerName("Self");
+ * // shortcut (also could be taken as app name)
  * getVerName("Auto.js");
+ * // shortcut
+ * getVerName("Auto.js Pro");
  * // app package name
  * getVerName("org.autojs.autojs");
  * // shortcut
- * getVerName("current autojs");
+ * getVerName("Current Auto.js");
  * @param name
- * @return {null|string}
+ * @return {string}
  */
 function getVerName(name, params) {
     let _par = params || {};
@@ -150,8 +150,8 @@ function getVerName(name, params) {
     let _pkg_name = _parseAppName(_name).package_name;
     if (_pkg_name) {
         try {
-            let _installed_pkgs = context.getPackageManager()
-                .getInstalledPackages(0).toArray();
+            let _pkg_mgr = context.getPackageManager();
+            let _installed_pkgs = _pkg_mgr.getInstalledPackages(0).toArray();
             for (let i in _installed_pkgs) {
                 if (_installed_pkgs.hasOwnProperty(i)) {
                     let _pkg = _installed_pkgs[i].packageName.toString();
@@ -164,25 +164,27 @@ function getVerName(name, params) {
             _debugInfo(e);
         }
     }
-    return null;
+    return "";
 
     // tool function(s) //
 
     function _handleName(name) {
-        if (name.match(/^[Aa]uto\.?js/)) return "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "");
-        if (name === "self") return currentPackage();
-        if (name.match(/^[Cc]urrent.*[Aa]uto.*js/)) return context.packageName;
+        if (name.match(/^[Aa]uto\.?js/)) {
+            return "org.autojs.autojs" + (name.match(/[Pp]ro$/) ? "pro" : "");
+        }
+        if (name.match(/^[Ss]elf$/)) {
+            return currentPackage();
+        }
+        if (name.match(/^[Cc]urrent\s?[Aa]uto\.?js/)) {
+            return context.packageName;
+        }
         return name;
     }
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function parseAppNameRaw(name) {
@@ -512,7 +514,7 @@ function launchThisApp(trigger, params) {
                 _W = _win_svc_disp.getWidth();
                 _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
-                    throw Error();
+                    return _raw();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
@@ -544,6 +546,12 @@ function launchThisApp(trigger, params) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
+                return _raw();
+            }
+
+            // tool function(s) //
+
+            function _raw() {
                 _W = device.width;
                 _H = device.height;
                 return _W && _H && {
@@ -570,48 +578,39 @@ function launchThisApp(trigger, params) {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -809,42 +808,33 @@ function killThisApp(name, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1033,42 +1023,33 @@ function restartThisEngine(params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }
 
@@ -1099,36 +1080,38 @@ function runJsFile(file_name, e_args) {
  * Handle message - toast, console and actions
  * @global
  * @param {string} msg - message
- * @param {number|string|object} [msg_level] - message level
+ * @param {number|"verbose"|"v"|"log"|"l"|"info"|"i"|"warn"|"w"|"error"|"e"|"x"|"t"|"title"|string|null} [msg_level=1] - message level
  * <br>
  *      -- 0/v/verbose - console.verbose(msg) <br>
- *      -- 1/l/log - console.log(msg) <br>
+ *      -- 1/l/log (default) - console.log(msg) <br>
  *      -- 2/i/info - console.info(msg) <br>
  *      -- 3/w/warn - console.warn(msg) <br>
  *      -- 4/e/error - console.error(msg) <br>
  *      -- 8/x - console.error(msg), exit <br>
- *      -- 9/t - console.error(msg), throw Error(), exit <br>
+ *      -- 9/t - console.error(msg), show ex message, exit <br>
  *      -- t/title - msg becomes a title like "[ title ]" <br>
- *      -- *OTHER|DEFAULT* - do not print msg in console
+ *      -- null - do not show message in console
  *
- * @param {number} [if_toast] - if needs toast the message
- * @param {number} [if_arrow] - if needs an arrow (length not more than 10) before msg (not for toast)
+ * @param {number} [if_toast=0] - if toast the message needed
+ * @param {number} [if_arrow=0] - if an arrow before msg needed (not for toast)
  * <br>
  *     -- 1 - "-> I got you now" <br>
  *     -- 2 - "--> I got you now" <br>
  *     -- 3 - "---> I got you now"
- * @param {number|string} [if_split_line] - if needs a split line
+ * @param {number|"both"|"both_dash"|"both_n"|"both_dash_n"|"dash"|"up"|"up_dash"|"2_dash"|string} [if_split_line=0] - if split line(s) needed
  * <br>
- *     -- 0|*DEFAULT* - nothing to show additionally <br>
- *     -- 1 - "------------" - 32-bit hyphen line <br>
- *     -- /dash/ - "- - - - - - " - 32-bit dash line <br>
+ *     -- 0 - nothing to show additionally <br>
+ *     -- 1 - "------------" - hyphen line (length: 33) <br>
+ *     -- 2 - two hyphen lines clamped between message <br>
+ *     -- /dash/ - "- - - - - - " - dash line (length: 35) <br>
+ *     -- /2_dash/ - two dash lines clamped between message <br>
  *     -- /up|-1/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
  * @param {object} [params] reserved
  * @example
- * messageAction("hello"); // nothing will be printed in console
  * messageAction("hello", 1);
+ * messageAction("hello"); // same as above
  * messageAction("hello", 2);
  * messageAction("hello", 3, 1);
  * messageAction("hello", 4, 1);
@@ -1141,26 +1124,33 @@ function runJsFile(file_name, e_args) {
  * messageAction("ERROR", 8, 1, 0, "both_n");
  * messageAction("ERROR", 9, 1, 2, "dash_n");
  * messageAction("only toast", null, 1);
- * @return {boolean} - if msg_level including 3 or 4, then return false; anything else, including undefined, return true
+ * @return {boolean} - whether message level is not warn and error
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
     let $_flag = global.$$flag = global.$$flag || {};
     if ($_flag.no_msg_act_flag) {
-        return !(msg_level in {3: 1, 4: 1});
+        return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
+    }
+
+    let _msg_lv = msg_level;
+    if (typeof _msg_lv === "undefined") {
+        _msg_lv = 1;
+    }
+    if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
+        _msg_lv = -1;
     }
 
     let _msg = msg || "";
-    if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-        return messageAction.apply(
-            null, ["[ " + msg + " ]", 1].concat([].slice.call(arguments, 2))
-        );
+    if (_msg_lv.toString().match(/^t(itle)?$/)) {
+        _msg = "[ " + msg + " ]";
+        return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
     }
+
     if_toast && toast(_msg);
 
-    let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
     let _if_arrow = if_arrow || false;
     let _if_spl_ln = if_split_line || false;
-    _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
+    _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
     let _spl_ln_style = "solid";
     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
@@ -1174,13 +1164,13 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         if (_if_spl_ln.match(/dash/)) {
             _spl_ln_style = "dash";
         }
-        if (_if_spl_ln.match(/both|up/)) {
+        if (_if_spl_ln.match(/both|up|^2/)) {
             if (!_matchLnStyle()) {
                 _showSplitLine("", _spl_ln_style);
             }
             if (_if_spl_ln.match(/_n|n_/)) {
                 _if_spl_ln = "\n";
-            } else if (_if_spl_ln.match(/both/)) {
+            } else if (_if_spl_ln.match(/both|^2/)) {
                 _if_spl_ln = 1;
             } else if (_if_spl_ln.match(/up/)) {
                 _if_spl_ln = 0;
@@ -1191,15 +1181,12 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     _clearLnStyle();
 
     if (_if_arrow) {
-        _if_arrow = Math.max(0, Math.min(_if_arrow, 10));
-        _msg = "> " + _msg;
-        for (let i = 0; i < _if_arrow; i += 1) {
-            _msg = "-" + _msg;
-        }
+        _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
     }
 
     let _exit_flag = false;
-    let _throw_flag = false;
+    let _show_ex_msg_flag = false;
+
     switch (_msg_lv) {
         case 0:
         case "verbose":
@@ -1241,7 +1228,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         case "t":
             _msg_lv = 4;
             console.error(_msg);
-            _throw_flag = true;
+            _show_ex_msg_flag = true;
     }
 
     if (_if_spl_ln) {
@@ -1259,61 +1246,47 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         _showSplitLine(_spl_ln_extra, _spl_ln_style);
     }
 
-    if (_throw_flag) {
-        try {
-            throw ("forcibly stopped");
-        } catch (e) {
-            console.error(e.message);
-            console.error(e.stack);
-        }
+    if (_show_ex_msg_flag) {
+        let _msg = "forcibly stopped";
+        console.error(_msg);
+        toast(_msg);
     }
     if (_exit_flag) {
         exit();
     }
-    return !(_msg_lv in {3: 1, 4: 1});
+
+    return !~[3, 4].indexOf(_msg_lv);
 
     // raw function(s) //
 
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        console.log(_split_line + _extra_str);
+    function showSplitLineRaw(extra, style) {
+        console.log((
+            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+        ) + (extra || ""));
     }
 }
 
 /**
  * Show a split line in console (32 bytes)
  * @global
- * @param {string} [extra_str]
+ * @param {string} [extra]
  * <br>
  *     -- "\n" - a new blank line after split line <br>
  *     -- *OTHER* - unusual use
- * @param {string} [style]
+ * @param {"solid"|"dash"|string} [style="solid"]
  * <br>
- *     -- *DEFAULT* - "--------" - 32 bytes <br>
- *     -- "dash" - "- - - - - " - 32 bytes
+ *     -- "solid" - "---------..." - length: 33 <br>
+ *     -- "dash" - "- - - - - ..." - length: 35
  * @example
  * showSplitLine();
  * showSplitLine("\n");
  * showSplitLine("", "dash");
  * @return {boolean} - always true
  */
-function showSplitLine(extra_str, style) {
-    let _extra_str = extra_str || "";
-    let _split_line = "";
-    if (style === "dash") {
-        for (let i = 0; i < 17; i += 1) _split_line += "- ";
-        _split_line += "-";
-    } else {
-        for (let i = 0; i < 33; i += 1) _split_line += "-";
-    }
-    console.log(_split_line + _extra_str);
+function showSplitLine(extra, style) {
+    console.log((
+        style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+    ) + (extra || ""));
 }
 
 /**
@@ -1418,32 +1391,27 @@ function waitForAction(f, timeout_or_times, interval, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -1452,21 +1420,22 @@ function waitForAction(f, timeout_or_times, interval, params) {
 /**
  * Click a certain UiObject or coordinate by click(), press() or UiObject.click()
  * @global
- * @param {UiSelector|UiObject|number[]|AndroidRect|{x:number,y:number}|org.opencv.core.Point} f -
+ * @param {UiSelector$|UiObject$|number[]|AndroidRect$|{x:number,y:number}|OpencvPoint$} f -
  * JavaObject or RectBounds or coordinates Array
  * <br>
  *     -- text("abc").desc("def") <br>
  *     -- text("abc").desc("def").findOnce()[.parent()] <br>
  *     -- text("abc").desc("def").findOnce()[.parent()].bounds() <br>
  *     -- [106, 39]
- * @param {?string} [strategy] - decide the way of click
+ * @param {"c"|"click"|"p"|"press"|"w"|"widget"} [strategy="click"] - decide the way of click
  * <br>
  *     -- "click"|c|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- "press|p" - press(coord_A, coord_B, press_time); <br>
- *     -- "widget|w" - text("abc").click(); - not available for Bounds or CoordsArray
+ *     -- "widget|w" - text("abc").click(); - not available for Rect or PointLike
  * @param {object|string} [params]
  * @param {number=1} [params.press_time] - only effective for "press" strategy
- * @param {string|function} [params.condition_success=()=>true]
+ * @param {number=1} [params.pt$] - alias of press_time
+ * @param {"disappear"|"disappeared"|"disappear_in_place"|"disappeared_in_place"|string|function():boolean|function} [params.condition_success=function():true]
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
@@ -1497,7 +1466,7 @@ function waitForAction(f, timeout_or_times, interval, params) {
  *     // padding: [+15, -7],
  *     padding: -7,
  * });
- * @return {boolean} if reached max check time;
+ * @return {boolean}
  */
 function clickAction(f, strategy, params) {
     let _par = params || {};
@@ -1519,7 +1488,7 @@ function clickAction(f, strategy, params) {
     );
 
     /**
-     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"
+     * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
      */
     let _type = _checkType(f);
     let _padding = _checkPadding(_par.padding);
@@ -1600,11 +1569,7 @@ function clickAction(f, strategy, params) {
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
             }
-            if (Array.isArray(f)) {
-                [_x, _y] = f;
-            } else {
-                [_x, _y] = [f.x, f.y];
-            }
+            [_x, _y] = Array.isArray(f) ? f : [f.x, f.y];
         }
         if (isNaN(_x) || isNaN(_y)) {
             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -1614,7 +1579,7 @@ function clickAction(f, strategy, params) {
         _y += _padding.y;
 
         _strategy.match(/^p(ress)?$/)
-            ? press(_x, _y, _par.press_time || 1)
+            ? press(_x, _y, _par.press_time || _par.pt$ || 1)
             : click(_x, _y);
     }
 
@@ -1734,32 +1699,27 @@ function clickAction(f, strategy, params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -1840,32 +1800,27 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -1960,12 +1915,8 @@ function refreshObjects(strategy, params) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1986,7 +1937,7 @@ function refreshObjects(strategy, params) {
 /**
  * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of "f"
  * @global
- * @param {UiSelector|ImageWrapper} f
+ * @param {UiSelector$|ImageWrapper$} f
  * @param {object} [params]
  * @param {number} [params.max_swipe_times=12]
  * @param {number|string} [params.swipe_direction="auto"]
@@ -2287,7 +2238,7 @@ function swipeAndShow(f, params) {
                 _W = _win_svc_disp.getWidth();
                 _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
-                    throw Error();
+                    return _raw();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
@@ -2319,6 +2270,12 @@ function swipeAndShow(f, params) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
+                return _raw();
+            }
+
+            // tool function(s) //
+
+            function _raw() {
                 _W = device.width;
                 _H = device.height;
                 return _W && _H && {
@@ -2345,8 +2302,8 @@ function swipeAndShow(f, params) {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     }
 }
@@ -2500,51 +2457,45 @@ function keycode(code, params) {
 
     // tool function(s) //
 
-    function keyEvent(keycode_name) {
-        let _key_check = {
-            "26, power": checkPower,
-        };
-        for (let _key in _key_check) {
-            if (_key_check.hasOwnProperty(_key)) {
+    function keyEvent(keycode) {
+        let _checker = {"26, power": checkPower};
+        for (let _key in _checker) {
+            if (_checker.hasOwnProperty(_key)) {
                 if (~_key.split(/ *, */).indexOf(_tidy_code)) {
-                    return _key_check[_key]();
+                    return _checker[_key].call(null);
                 }
             }
         }
-        return shellInputKeyEvent(keycode_name);
+        return shellInputKeyEvent(keycode);
 
         // tool function(s) //
-
-        function shellInputKeyEvent(keycode_name) {
-            let shell_result = false;
-            try {
-                shell_result = !shell("input keyevent " + keycode_name, true).code;
-            } catch (e) {
-                // nothing to do here
-            }
-            if (shell_result) {
-                return true;
-            }
-            _par.no_err_msg || keyEventFailedMsg();
-
-            // tool function(s) //
-
-            function keyEventFailedMsg() {
-                messageAction("按键模拟失败", 0);
-                messageAction("键值: " + keycode_name, 0, 0, 1);
-            }
-        }
 
         function checkPower() {
             let isScreenOn = () => device.isScreenOn();
             let isScreenOff = () => !isScreenOn();
             if (isScreenOff()) {
-                device.wakeUp();
-                let max_try_times_wake_up = 10;
-                while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
-                return max_try_times_wake_up >= 0;
+                let max = 10;
+                do {
+                    device.wakeUp();
+                } while (!_waitForAction(isScreenOn, 500) && max--);
+                return max >= 0;
             }
-            return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
+            if (!shellInputKeyEvent(keycode)) {
+                return false;
+            }
+            return _waitForAction(isScreenOff, 2.4e3);
+        }
+
+        function shellInputKeyEvent(keycode) {
+            try {
+                return !shell("input keyevent " + keycode, true).code;
+            } catch (e) {
+                if (!_par.no_err_msg) {
+                    messageAction("按键模拟失败", 0);
+                    messageAction("键值: " + keycode, 0, 0, 1);
+                }
+                return false;
+            }
         }
     }
 
@@ -2552,24 +2503,24 @@ function keycode(code, params) {
         switch (_tidy_code) {
             case "3":
             case "home":
-                return ~home();
+                return !!~home();
             case "4":
             case "back":
-                return ~back();
+                return !!~back();
             case "appSwitch":
             case "187":
             case "recent":
             case "recentApp":
-                return ~recents();
+                return !!~recents();
             case "powerDialog":
             case "powerMenu":
-                return ~powerDialog();
+                return !!~powerDialog();
             case "notification":
-                return ~notifications();
+                return !!~notifications();
             case "quickSetting":
-                return ~quickSettings();
+                return !!~quickSettings();
             case "splitScreen":
-                return ~splitScreen();
+                return !!~splitScreen();
             default:
                 return keyEvent(code);
         }
@@ -2595,14 +2546,14 @@ function keycode(code, params) {
 /**
  * Print a message in console with verbose mode for debugging
  * @global
- * @param msg {string|string[]} - message will be formatted with prefix ">> "
+ * @param msg {"__split_line__"|"__split_line__dash__"|string|string[]} - message will be formatted with prefix ">> "
  * <br>
  *     - "sum is much smaller" - ">> sum is much smaller" <br>
  *     - ">sum is much smaller" - ">>> sum is much smaller"
- * @param {string|number} [info_flag] - like: "up"; "Up"; 3; "up_3"; "both_4" -- "Up": black "up line"; "up": grey "up line"
- * @param {boolean} [forcible_flag] - forcibly enable with true value
+ * @param {"up"|"up_2"|"up_3"|"up_4"|"Up"|"Up_2"|"Up_3"|"Up_4"|"both"|"both_2"|"both_3"|"both_4"|"both_dash"|"both_dash_2"|"both_dash_3"|"both_dash_4"|"up_dash"|"Up_both_dash"|string|number} [msg_level=0] - "Up": black up line; "up": grey up line; "Up_dash": not supported
+ * @param {boolean} [forcible_flag=undefined] - forcibly enabled with truthy; forcibly disabled with false (not falsy)
  */
-function debugInfo(msg, info_flag, forcible_flag) {
+function debugInfo(msg, msg_level, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -2622,86 +2573,68 @@ function debugInfo(msg, info_flag, forcible_flag) {
         return;
     }
 
-    let _info_flag_str = (info_flag || "").toString();
-    let _info_flag_msg_lv = +(_info_flag_str.match(/\d/) || [0])[0];
-    if (_info_flag_str.match(/Up/)) {
+    let _msg_lv_str = (msg_level || "").toString();
+    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
+    if (_msg_lv_str.match(/Up/)) {
         _showSplitLine();
     }
-    if (_info_flag_str.match(/both|up/)) {
-        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+    if (_msg_lv_str.match(/both|up/)) {
+        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
         debugInfo("__split_line__" + _dash, "", _forc_fg);
     }
 
     if (typeof msg === "string" && msg.match(/^__split_line_/)) {
-        msg = setDebugSplitLine(msg);
+        msg = _getLineStr(msg);
     }
     if (_classof(msg) === "Array") {
-        msg.forEach(msg => debugInfo(msg, _info_flag_msg_lv, _forc_fg));
+        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
     } else {
-        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _info_flag_msg_lv);
+        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
     }
 
-    if (_info_flag_str.match("both")) {
-        let _dash = _info_flag_str.match(/dash/) ? "dash" : "";
+    if (_msg_lv_str.match("both")) {
+        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
         debugInfo("__split_line__" + _dash, "", _forc_fg);
     }
 
     // raw function(s) //
 
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        console.log(_split_line + _extra_str);
+    function showSplitLineRaw(extra, style) {
+        console.log((
+            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+        ) + (extra || ""));
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
     // tool function(s) //
 
-    function setDebugSplitLine(msg) {
-        let _msg = "";
-        if (msg.match(/dash/)) {
-            for (let i = 0; i < 17; i += 1) _msg += "- ";
-            _msg += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _msg += "-";
-        }
-        return _msg;
+    function _getLineStr(msg) {
+        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
     }
 }
 
@@ -2957,7 +2890,7 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
                 _W = _win_svc_disp.getWidth();
                 _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
-                    throw Error();
+                    return _raw();
                 }
 
                 // left: 1, right: 3, portrait: 0 (or 2 ?)
@@ -2989,6 +2922,12 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
+                return _raw();
+            }
+
+            // tool function(s) //
+
+            function _raw() {
                 _W = device.width;
                 _H = device.height;
                 return _W && _H && {
@@ -3015,8 +2954,8 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     }
 }
@@ -3216,32 +3155,27 @@ function captureErrScreen(key_name, options) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -3256,19 +3190,25 @@ function captureErrScreen(key_name, options) {
 function getSelector(options) {
     let _opt = options || {};
     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _debugInfo = _msg => (
+    let _debugInfo = (m, lv) => (
         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
-    )(_msg, "", _opt.debug_info_flag);
+    )(m, lv, _opt.debug_info_flag);
     let _sel = selector();
+    /**
+     * @typedef {{_cache_pool: {}, add(*, *=, *=): this, cache: {load(*, *=): (null|*), save: (function(*=): *), recycle(*): void, refresh(*=): void, reset(*=): *}, get(*, *=): (null|*), pickup((UiSelector$|UiObject$|string|RegExp|AdditionalSelector|(UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]), ("w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string)=, string=, {selector_prefer?: ("desc"|"text"), debug_info_flag?: boolean}=): (UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean), _sltr_pool: {}, getAndCache(*=): *}} ExtendedSelector
+     */
     _sel.__proto__ = {
-        sltr_pool: {},
-        cache_pool: {},
+        _sltr_pool: {},
+        _cache_pool: {},
         /**
          * Returns a selector (UiSelector) or widget (UiObject) or some attribute values
          * If no widgets (UiObject) were found, returns null or "" or false
          * If memory keyword was found in this session memory, use a memorized selector directly
-         * @function com.stardust.autojs.core.accessibility.UiSelector.prototype.pickup
-         * @param {UiSelector|UiObject|string|RegExp|[]} sel_body
+         * @function UiSelector$.prototype.pickup
+         * @param {
+         *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|
+         *     (UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]
+         * } sel_body
          * <br>
          *     -- array mode 1: [selector_body: any, compass: string]
          *     -- array mode 2: [selector_body: any, additional_sel: array|object, compass: string]
@@ -3281,7 +3221,6 @@ function getSelector(options) {
          * @param {object} [par]
          * @param {"desc"|"text"} [par.selector_prefer="desc"] - unique selector you prefer to check first
          * @param {boolean} [par.debug_info_flag]
-         * @returns {UiObject|UiSelector|AndroidRect|string|boolean}
          * @example
          * // text/desc/id("abc").findOnce();
          * pickup("abc"); // UiObject
@@ -3326,6 +3265,7 @@ function getSelector(options) {
          * // w = className("Button").findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
          * // w.parent().child(w.parent().childCount() - 1);
          * pickup([{className: "Button"}, "p5c1>0>0>0>1s-1"]);
+         * @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean}
          */
         pickup(sel_body, res_type, mem_sltr_kw, par) {
             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
@@ -3354,7 +3294,7 @@ function getSelector(options) {
             let [_body, _addi_sel, _compass] = _sel_body;
 
             let _sltr = _getSelector(_addi_sel);
-            /** @type {UiObject|null} */
+            /** @type {UiObject$|null} */
             let _w = null;
             let _wc = [];
             if (_sltr && _sltr.toString().match(/UiObject/)) {
@@ -3426,6 +3366,11 @@ function getSelector(options) {
                 function _selGenerator() {
                     let _prefer = _params.selector_prefer;
                     let _body_class = _classof(_body);
+                    let _sel_keys_abbr = {
+                        bi$: "boundsInside",
+                        c$: "clickable",
+                        cn$: "className",
+                    };
 
                     if (_body_class === "JavaObject") {
                         if (_body.toString().match(/UiObject/)) {
@@ -3450,8 +3395,9 @@ function getSelector(options) {
                     if (_body_class === "Object") {
                         let _s = selector();
                         Object.keys(_body).forEach((k) => {
-                            let _arg = _body[k];
-                            _s = _s[k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
+                            let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
+                            let _arg = _body[_k];
+                            _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                         });
                         return _s;
                     }
@@ -3478,18 +3424,19 @@ function getSelector(options) {
                             }
                             if (_classof(addition) === "Object") {
                                 let _keys = Object.keys(addition);
-                                let _k_len = _keys.length;
-                                for (let i = 0; i < _k_len; i += 1) {
+                                for (let i = 0, l = _keys.length; i < l; i += 1) {
                                     let _k = _keys[i];
-                                    if (!sel[_k]) {
-                                        _debugInfo(["无效的additional_selector属性值:", _k], 3);
+                                    let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
+                                    if (!sel[_sel_k]) {
+                                        _debugInfo(["无效的additional_selector属性值:", _sel_k], 3);
                                         return null;
                                     }
                                     let _arg = addition[_k];
+                                    _arg = Array.isArray(_arg) ? _arg : [_arg];
                                     try {
-                                        sel = sel[_k].apply(sel, Array.isArray(_arg) ? _arg : [_arg]);
+                                        sel = sel[_sel_k].apply(sel, _arg);
                                     } catch (e) {
-                                        _debugInfo(["无效的additional_selector选择器:", _k], 3);
+                                        _debugInfo(["无效的additional_selector选择器:", _sel_k], 3);
                                         return null;
                                     }
                                 }
@@ -3627,50 +3574,54 @@ function getSelector(options) {
                 return _w || null;
             }
         },
-        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.add */
+        /** @function UiSelector$.prototype.add */
         add(key, sel_body, mem) {
             let _mem = typeof mem === "string" ? mem : key;
-            this.sltr_pool[key] = typeof sel_body === "function"
+            this._sltr_pool[key] = typeof sel_body === "function"
                 ? type => sel_body(type)
                 : type => this.pickup(sel_body, type, _mem);
             return this;
         },
-        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.get */
+        /** @function UiSelector$.prototype.get */
         get(key, type) {
-            let _picker = this.sltr_pool[key];
+            if (!(key in this._sltr_pool)) {
+                throw Error("sel key '" + key + "' not set in pool");
+            }
+            let _picker = this._sltr_pool[key];
             if (!_picker) {
                 return null;
             }
             if (type && type.toString().match(/cache/)) {
-                return this.cache_pool[key] = _picker("widget");
+                return this._cache_pool[key] = _picker("widget");
             }
             return _picker(type);
         },
-        /** @function com.stardust.autojs.core.accessibility.UiSelector.prototype.getAndCache */
+        /** @function UiSelector$.prototype.getAndCache */
         getAndCache(key) {
             // only "widget" type can be returned
             return this.get(key, "save_cache");
         },
+        /** @member UiSelector$.prototype.cache */
         cache: {
             save: (key) => _sel.getAndCache(key),
             load(key, type) {
-                let _widget = _sel.cache_pool[key];
+                let _widget = _sel._cache_pool[key];
                 if (!_widget) {
                     return null;
                 }
-                return _sel.pickup(_sel.cache_pool[key], type);
+                return _sel.pickup(_sel._cache_pool[key], type);
             },
             refresh(key) {
-                let _cache = _sel.cache_pool[key];
+                let _cache = _sel._cache_pool[key];
                 _cache && _cache.refresh();
                 this.save(key);
             },
             reset(key) {
-                delete _sel.cache_pool[key];
+                delete _sel._cache_pool[key];
                 return _sel.getAndCache(key);
             },
             recycle(key) {
-                let _cache = _sel.cache_pool[key];
+                let _cache = _sel._cache_pool[key];
                 _cache && _cache.recycle();
             },
         },
@@ -3679,12 +3630,8 @@ function getSelector(options) {
 
     // raw function(s) //
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }
 
@@ -3970,32 +3917,27 @@ function clickActionsPipeline(pipeline, options) {
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
@@ -4020,12 +3962,8 @@ function clickActionsPipeline(pipeline, options) {
         return str + target + str;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }
 
@@ -4060,8 +3998,7 @@ function timedTaskTimeFlagConverter(timeFlag) {
 /**
  * Fetching data by calling OCR API from Baidu
  * @global
- * @typedef {com.stardust.autojs.core.image.ImageWrapper} Image
- * @param src {Array|Image|UiObject|UiObjectCollection} -- will be converted into Image
+ * @param {[]|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into Image
  * @param {object} [par]
  * @param {boolean} [par.no_toast_msg_flag=false]
  * @param {number} [par.fetch_times=1]
@@ -4439,32 +4376,27 @@ function baiduOcr(src, par) {
         }
 
         function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
+            let _msg = msg || " ";
             if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
             }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
             }
             if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
+                console.warn(_msg);
+                return false;
             }
             if (_lv === 0) {
-                console.verbose(_s);
+                console.verbose(_msg);
             } else if (_lv === 1) {
-                console.log(_s);
+                console.log(_msg);
             } else if (_lv === 2) {
-                console.info(_s);
+                console.info(_msg);
             }
             return true;
         }
@@ -4536,42 +4468,33 @@ function baiduOcr(src, par) {
             // raw function(s) //
 
             function messageActionRaw(msg, lv, if_toast) {
-                let _s = msg || " ";
+                let _msg = msg || " ";
                 if (lv && lv.toString().match(/^t(itle)?$/)) {
-                    let _par = ["[ " + msg + " ]", 1, if_toast];
-                    return messageActionRaw.apply({}, _par);
+                    return messageActionRaw("[ " + msg + " ]", 1, if_toast);
                 }
-                let _lv = +lv;
-                if (if_toast) {
-                    toast(_s);
+                if_toast && toast(_msg);
+                let _lv = typeof lv === "undefined" ? 1 : lv;
+                if (_lv >= 4) {
+                    console.error(_msg);
+                    _lv >= 8 && exit();
+                    return false;
                 }
                 if (_lv >= 3) {
-                    if (_lv >= 4) {
-                        console.error(_s);
-                        if (_lv >= 8) {
-                            exit();
-                        }
-                    } else {
-                        console.warn(_s);
-                    }
-                    return;
+                    console.warn(_msg);
+                    return false;
                 }
                 if (_lv === 0) {
-                    console.verbose(_s);
+                    console.verbose(_msg);
                 } else if (_lv === 1) {
-                    console.log(_s);
+                    console.log(_msg);
                 } else if (_lv === 2) {
-                    console.info(_s);
+                    console.info(_msg);
                 }
                 return true;
             }
 
-            function debugInfoRaw(msg, info_flg) {
-                if (info_flg) {
-                    let _s = msg || "";
-                    _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                    console.verbose(_s);
-                }
+            function debugInfoRaw(msg, msg_lv) {
+                msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
             }
         }
 
@@ -4613,85 +4536,66 @@ function baiduOcr(src, par) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        console.log(_split_line + _extra_str);
+    function showSplitLineRaw(extra, style) {
+        console.log((
+            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+        ) + (extra || ""));
     }
 }
 
 /**
- * Function for replacing setInterval() and avoiding its "flaws"
- * {@link https://dev.to/akanksha_9560/why-not-to-use-setinterval--2na9}
+ * Replacement of setInterval() for avoiding its "flaws"
  * @global
- * @param func {function}
+ * @param {function(): void} func
  * @param {number} [interval=200]
- * @param {number|function} [timeout] -- undefined: no timeout limitation; number|function: stop when timeout|timeout() reached
+ * @param {number|function(): boolean} [timeout] -
+ * undefined: no timeout limitation;
+ * number: stop when timed out;
+ * function: stop when function() returns true
  * @example
  * // print "hello" every 1 second for 5 (or 4 sometimes) times
  * setIntervalBySetTimeout(() => {
  *     console.log("hello");
  * }, 1e3, 5e3);
+ * @see https://dev.to/akanksha_9560/why-not-to-use-setinterval--2na9
  */
 function setIntervalBySetTimeout(func, interval, timeout) {
     let _itv = interval || 200;
     let _init_ts = Date.now();
     let _in_case_ts = _init_ts + 10 * 60e3; // 10 minutes at most
     let _inCase = () => Date.now() < _in_case_ts;
-    let _timeoutReached;
-    if (typeof timeout === "function") {
-        _timeoutReached = () => {
-            return _inCase() && timeout();
-        }
-    } else {
-        _timeoutReached = () => {
-            return _inCase() && Date.now() - _init_ts >= timeout;
-        }
-    }
+    let _timeoutReached = typeof timeout === "function"
+        ? () => _inCase() && timeout()
+        : () => _inCase() && Date.now() - _init_ts >= timeout;
     setTimeout(function fn() {
         func();
         _timeoutReached() || setTimeout(fn, _itv);
@@ -4701,13 +4605,13 @@ function setIntervalBySetTimeout(func, interval, timeout) {
 /**
  * Returns the class name of an object or any type of param, or, returns if the result is the same as specified
  * @global
- * @param source {*} - any type of param
- * @param {string} [check_value]
+ * @param {*} source - any type
+ * @param {"Undefined"|"Null"|"Number"|"String"|"Boolean"|"Symbol"|"Object"|"Array"|"Function"|"RegExp"|"Date"|"Promise"|"JavaObject"|"Error"|"JSON"|"Math"|string} [compare] - note that "JSON"|"Promise" may be "Object" as they're internal modules for environments like Node.js, browsers (maybe not for all) and so forth, but external modules for Rhino-based environments like Auto.js.
  * @returns {boolean|string}
  */
-function _classof(source, check_value) {
-    let class_result = Object.prototype.toString.call(source).slice(8, -1);
-    return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+function classof(source, compare) {
+    let _s = Object.prototype.toString.call(source).slice(8, -1);
+    return compare ? _s.toUpperCase() === compare.toUpperCase() : _s;
 }
 
 /**
@@ -4715,7 +4619,7 @@ function _classof(source, check_value) {
  * @global
  * @param {object} [params]
  * @param {boolean} [params.debug_info_flag]
- * @returns {{cur_autojs_name: string, cur_autojs_pkg: string, project_ver: string| number|void, autojs_ver: string|void, sdk_ver: number}}
+ * @returns {{cur_autojs_name: string, cur_autojs_pkg: string, project_ver: string|number|void, autojs_ver: string|void, sdk_ver: number}}
  */
 function checkSdkAndAJVer(params) {
     let $_app = {};
@@ -4744,8 +4648,8 @@ function checkSdkAndAJVer(params) {
 
     function _getVerName(pkg) {
         try {
-            let _pkgs = context.getPackageManager()
-                .getInstalledPackages(0).toArray();
+            let _pkg_mgr = context.getPackageManager();
+            let _pkgs = _pkg_mgr.getInstalledPackages(0).toArray();
             for (let i in _pkgs) {
                 if (_pkgs.hasOwnProperty(i)) {
                     let _pkg = _pkgs[i];
@@ -4841,88 +4745,87 @@ function checkSdkAndAJVer(params) {
         // tool function(s) //
 
         /**
+         * @param {string} ver
          * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; "": unrecorded
          */
-        function _chkBugs(ver_name) {
-            let _ver = ver_name || "0";
-
+        function _chkBugs(ver) {
             // version ∈ 4.1.1
             // version === Pro 8.+
             // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
             // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
-            if (_ver.match(/^(4\.1\.1.+)$/) ||
-                _ver.match(/^Pro 8\.\d.+$/) ||
-                _ver.match(/^Pro 7\.0\.((0-[46])|(2-4)|(3-7)|(4-1))$/)
+            if (ver.match(/^(4\.1\.1.+)$/) ||
+                ver.match(/^Pro 8\.\d.+$/) ||
+                ver.match(/^Pro 7\.0\.((0-[46])|(2-4)|(3-7)|(4-1))$/)
             ) {
                 return 0; // known normal
             }
 
             // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
-            if (_ver.match(/^4\.1\.0 Alpha[34]$/)) {
+            if (ver.match(/^4\.1\.0 Alpha[34]$/)) {
                 return ["ab_SimpActAuto", "dialogs_not_responded"];
             }
 
             // version === 4.1.0 Alpha(2|5)?
-            if (_ver.match(/^4\.1\.0 Alpha[25]$/)) {
+            if (ver.match(/^4\.1\.0 Alpha[25]$/)) {
                 return ["dialogs_not_responded"];
             }
 
             // 4.0.x versions
-            if (_ver.match(/^4\.0\./)) {
+            if (ver.match(/^4\.0\./)) {
                 return ["dialogs_not_responded", "not_full_function"];
             }
 
             // version === Pro 7.0.0-(1|2)
-            if (_ver.match(/^Pro 7\.0\.0-[12]$/)) {
+            if (ver.match(/^Pro 7\.0\.0-[12]$/)) {
                 return ["ab_relative_path"];
             }
 
             // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
-            if (_ver.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
+            if (ver.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
                 return ["crash_autojs"];
             }
 
             // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-            if (_ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+            if (ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
                 return ["dislocation_floaty", "ab_inflate", "not_full_function"];
             }
 
             // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-            if (_ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+            if (ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
                 return ["un_execArgv", "ab_inflate", "not_full_function"];
             }
 
             // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-            if (_ver.match(/^3\.1\.1 Alpha[34]$/)) {
+            if (ver.match(/^3\.1\.1 Alpha[34]$/)) {
                 return ["ab_inflate", "un_engines", "not_full_function"];
             }
 
             // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (_ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
+            if (ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
                 return ["un_inflate", "un_engines", "not_full_function"];
             }
 
             // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-            if (_ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+            if (ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
                 return ["un_inflate", "un_runtime", "un_engines", "not_full_function"];
             }
 
             // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-            if (_ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+            if (ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
                 return ["ab_cwd", "un_relative_path", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
             }
 
             // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-            if (_ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+            if (ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
                 return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "not_full_function"];
             }
 
             // version <= 3.0.0 Alpha20
-            if (_ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+            if (ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
                 return ["un_cwd", "un_inflate", "un_runtime", "un_engines", "crash_ui_settings", "not_full_function"];
             }
 
-            switch (_ver) {
+            switch (ver) {
                 case "0":
                     return ["failed"];
                 case "4.0.3 Alpha6":
@@ -4962,41 +4865,32 @@ function checkSdkAndAJVer(params) {
     // raw function(s) //
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 }

@@ -43,46 +43,35 @@ let $$init = {
             // raw function(s) //
 
             function messageActionRaw(msg, lv, if_toast) {
-                let _s = msg || " ";
+                let _msg = msg || " ";
                 if (lv && lv.toString().match(/^t(itle)?$/)) {
-                    let _par = ["[ " + msg + " ]", 1, if_toast];
-                    return messageActionRaw.apply({}, _par);
+                    return messageActionRaw("[ " + msg + " ]", 1, if_toast);
                 }
-                let _lv = +lv;
-                if (if_toast) {
-                    toast(_s);
+                if_toast && toast(_msg);
+                let _lv = typeof lv === "undefined" ? 1 : lv;
+                if (_lv >= 4) {
+                    console.error(_msg);
+                    _lv >= 8 && exit();
+                    return false;
                 }
                 if (_lv >= 3) {
-                    if (_lv >= 4) {
-                        console.error(_s);
-                        if (_lv >= 8) {
-                            exit();
-                        }
-                    } else {
-                        console.warn(_s);
-                    }
-                    return;
+                    console.warn(_msg);
+                    return false;
                 }
                 if (_lv === 0) {
-                    console.verbose(_s);
+                    console.verbose(_msg);
                 } else if (_lv === 1) {
-                    console.log(_s);
+                    console.log(_msg);
                 } else if (_lv === 2) {
-                    console.info(_s);
+                    console.info(_msg);
                 }
                 return true;
             }
 
-            function showSplitLineRaw(extra_str, style) {
-                let _extra_str = extra_str || "";
-                let _split_line = "";
-                if (style === "dash") {
-                    for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                    _split_line += "-";
-                } else {
-                    for (let i = 0; i < 33; i += 1) _split_line += "-";
-                }
-                console.log(_split_line + _extra_str);
+            function showSplitLineRaw(extra, style) {
+                console.log((
+                    style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+                ) + (extra || ""));
             }
         }
     },
@@ -4386,7 +4375,6 @@ let $$init = {
             }
 
             let _mod_sto = require("./Modules/MODULE_STORAGE");
-            require("./Modules/EXT_GLOBAL_OBJ").load("Override");
             let $_cfg = _mod_sto.create("af_cfg").get("config", {});
             if ($_cfg.auto_enable_a11y_svc === "ON") {
                 if (_a11y.enable(true)) {
