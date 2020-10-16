@@ -23,7 +23,7 @@ let _require = require.bind(global); // copy global.require(){}
 
 require = function (path) {
     path = "./" + path.replace(/^([./]*)(?=\w)/, "").replace(/(\.js)*$/, "") + ".js"; // "./folderA/folderB/module.js"
-    for (let i = 0, len = path.match(/\//g).length; i < len; i += 1) {
+    for (let i = 0, l = path.match(/\//g).length; i < l; i += 1) {
         let _path = path;
         for (let j = 0; j < i; j += 1) _path = _path.replace(/\/\w+?(?=\/)/, "");
         for (let j = 0; j < 3; j += 1) {
@@ -37,15 +37,10 @@ require = function (path) {
     }
 }; // override global.require(){}
 
-let dialogs = loadInternalModuleDialog(runtime, global);
+let dialogsx = loadInternalModuleDialog();
 
 let {
-    equalObjects,
-    deepCloneObject,
-    alertTitle,
-    waitForAction,
-    classof,
-    keycode,
+    equalObjects, deepCloneObject, alertTitle, waitForAction, classof
 } = require("../Modules/MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
 
 let session_params = {};
@@ -54,7 +49,7 @@ let dynamic_views = [];
 
 let {WIDTH, cX} = (() => {
     let _mod = require("../Modules/EXT_DEVICE");
-    return _mod ? _mod.getDisplay() : _getDisplay();
+    return _mod ? _mod.getDisplay() : {WIDTH: device.width, cX: x => device.width * x};
 })();
 
 let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
@@ -69,7 +64,7 @@ let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
         unlock_dismiss_layer_bottom: 0.8,
         unlock_dismiss_layer_top: 0.2,
         unlock_dismiss_layer_swipe_time: 110,
-    }; // updated at Nov 14, 2019
+    }; // updated: Nov 14, 2019
 
 let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).settings
     || {
@@ -92,7 +87,7 @@ let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).setti
         content_warn_color: "#ad1457",
         hint_btn_dark_color: "#a1887f",
         hint_btn_bright_color: "#26a69a",
-    };  // updated at Nov 14, 2019
+    };  // updated: Nov 14, 2019
 
 let encrypt = (require("../Modules/MODULE_PWMAP") || loadInternalModulePWMAP()).encrypt;
 
@@ -145,13 +140,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_code",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds(["设置锁屏解锁密码", this.config_conj, ["查看示例", "hint_btn_bright_color"], "返回", "确认", 1], {
+            let diag = dialogsx.builds(["设置锁屏解锁密码", this.config_conj, ["查看示例", "hint_btn_bright_color"], "返回", "确认", 1], {
                 inputHint: "密码将以密文形式存储在本地",
             });
             diag.on("neutral", () => {
-                let diag_demo = dialogs.builds(["锁屏密码示例", "unlock_code_demo", ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1]);
+                let diag_demo = dialogsx.builds(["锁屏密码示例", "unlock_code_demo", ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1]);
                 diag_demo.on("neutral", () => {
-                    let diag_simp = dialogs.builds(["图案解锁密码简化", "about_pattern_simplification", 0, 0, "关闭", 1]);
+                    let diag_simp = dialogsx.builds(["图案解锁密码简化", "about_pattern_simplification", 0, 0, "关闭", 1]);
                     diag_simp.on("positive", () => diag_simp.dismiss());
                     diag_simp.show();
                 });
@@ -164,13 +159,13 @@ setHomePage(defs.homepage_title)
                 if (input && input.length < 3) return alertTitle(diag, "密码长度不小于 3 位");
                 if (input && !storage_unlock.get("unlock_code_safe_dialog_prompt_prompted")) {
                     let unlock_code_safe_dialog_prompt_prompted = false;
-                    let diag_prompt = dialogs.builds([
+                    let diag_prompt = dialogsx.builds([
                         "风险提示", "unlock_code_safe_confirm",
                         ["了解详情", "hint_btn_bright_color"], "放弃", ["继续", "caution_btn_color"], 1, 1
                     ]);
                     diag_prompt.on("check", checked => unlock_code_safe_dialog_prompt_prompted = !!checked);
                     diag_prompt.on("neutral", () => {
-                        let diag_about = dialogs.builds([
+                        let diag_about = dialogsx.builds([
                             "设备遗失对策", "about_lost_device_solution",
                             0, 0, "关闭", 1
                         ]).on("positive", diag => diag.dismiss()).show();
@@ -206,13 +201,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_max_try_times",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "设置解锁最大尝试次数", "",
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|5<=x<=50,x∈N}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 let value = +input;
@@ -233,13 +228,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_dismiss_layer_swipe_time",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "提示层页面上滑时长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|110<=x<=1000,x∈N}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 let value = +input;
@@ -258,13 +253,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_dismiss_layer_bottom",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "提示层页面起点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|0.5<=x<=0.95,x∈R+}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 input = +input;
@@ -285,13 +280,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_dismiss_layer_top",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "提示层页面终点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|0.05<=x<=0.3,x∈R+}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 input = +input;
@@ -320,13 +315,13 @@ setHomePage(defs.homepage_title)
         newWindow() {
             let map = this.map;
             let map_keys = Object.keys(map);
-            let diag = dialogs.builds(["图案解锁滑动策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
+            let diag = dialogsx.builds(["图案解锁滑动策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
                 items: map_keys.slice().map(value => map[value]),
                 itemsSelectMode: "single",
                 itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()),
             });
             diag.on("neutral", () => {
-                let diag_about = dialogs.builds(["关于图案解锁滑动策略", "about_unlock_pattern_strategy", 0, 0, "关闭", 1]);
+                let diag_about = dialogsx.builds(["关于图案解锁滑动策略", "about_unlock_pattern_strategy", 0, 0, "关闭", 1]);
                 diag_about.on("positive", () => diag_about.dismiss());
                 diag_about.show();
             });
@@ -347,13 +342,13 @@ setHomePage(defs.homepage_title)
         hint: "加载中...",
         newWindow() {
             let config_conj = this.config_conj();
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "设置图案解锁滑动时长", config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|120<=x<=3000,x∈N}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 let value = +input;
@@ -373,13 +368,13 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_pattern_size",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogs.builds([
+            let diag = dialogsx.builds([
                 "设置图案解锁边长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|3<=x<=6,x∈N}"});
             diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
-            diag.on("positive", dialog => {
+            diag.on("positive", (dialog) => {
                 let input = diag.getInputEditText().getText().toString();
                 if (input === "") return dialog.dismiss();
                 let value = +input;
@@ -396,10 +391,10 @@ setHomePage(defs.homepage_title)
     }))
 ;
 
-ui.emitter.on("back_pressed", e => {
+ui.emitter.on("back_pressed", (e) => {
     if (!needSave()) return;
     e.consumed = true; // make default "back" dysfunctional
-    let diag = dialogs.builds([
+    let diag = dialogsx.builds([
         "自动解锁配置未保存", "确定要退出吗",
         "返回", ["强制退出", "caution_btn_color"], ["保存并退出", "hint_btn_bright_color"], 1,
     ]);
@@ -462,13 +457,14 @@ function setPage(title_param, title_bg_color, additions, options) {
         <linear id="_title_bg" clickable="true">
             <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
                 <linear>
-                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
+                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless"
+                         tint="#ffffff" layout_gravity="center"/>
                 </linear>
             </vertical>
             <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
         </linear>
     ));
-    new_view._back_btn_area.on("click", () => keycode(4));
+    new_view._back_btn_area.on("click", () => back());
     new_view._title_text.text(title);
     new_view._title_text.getPaint().setFakeBoldText(true);
     let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
@@ -546,10 +542,10 @@ function setPage(title_param, title_bg_color, additions, options) {
             let title = item_params["title"];
             let value = item_params["value"];
 
-            title.forEach(val => {
+            title.forEach((val) => {
                 let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
                 radio_view.setText(val);
-                Object.keys(item_params.listener).forEach(listener => {
+                Object.keys(item_params.listener).forEach((listener) => {
                     radio_view.on(listener, item_params.listener[listener].bind(item_params));
                 });
                 radiogroup_view._radiogroup.addView(radio_view);
@@ -590,9 +586,9 @@ function setPage(title_param, title_bg_color, additions, options) {
             item_params.view = new_view;
 
             let listener_ids = item_params["listener"];
-            Object.keys(listener_ids).forEach(id => {
+            Object.keys(listener_ids).forEach((id) => {
                 let listeners = listener_ids[id];
-                Object.keys(listeners).forEach(listener => {
+                Object.keys(listeners).forEach((listener) => {
                     let callback = listeners[listener].bind(item_params);
                     if (id === "ui") ui.emitter.prependListener(listener, callback);
                     else new_view[id].on(listener, callback);
@@ -601,7 +597,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         } else if (type.match(/^options/)) {
             let opt_view = ui.inflate(
                 <vertical id="_chevron_btn">
-                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
+                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31"
+                         bg="?selectableItemBackgroundBorderless" tint="#999999"/>
                 </vertical>
             );
             new_view._item_area.addView(opt_view);
@@ -609,7 +606,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         } else if (type === "button") {
             let help_view = ui.inflate(
                 <vertical id="_info_icon" visibility="gone">
-                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless" tint="#888888"/>
+                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless"
+                         tint="#888888"/>
                 </vertical>
             );
             new_view._item_area.addView(help_view);
@@ -669,7 +667,8 @@ function setPage(title_param, title_bg_color, additions, options) {
             let new_view = ui.inflate(
                 <horizontal>
                     <linear padding="15 10 0 0">
-                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0" tint="{{session_params.info_color}}"/>
+                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0"
+                             tint="{{session_params.info_color}}"/>
                         <text id="_info_text" textSize="13"/>
                     </linear>
                 </horizontal>
@@ -707,12 +706,21 @@ function setPage(title_param, title_bg_color, additions, options) {
                         <list id="_list_data" fastScrollEnabled="true" focusable="true" scrollbars="none">
                             <horizontal>
                                 <horizontal w="{{this.width_0}}">
-                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16" layout_gravity="left|center" clickable="false"/>
-                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0" ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
+                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16"
+                                              layout_gravity="left|center" clickable="false"/>
+                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0"
+                                          ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
                                 </horizontal>
-                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}" visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}" textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}" visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}" visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}"
+                                      visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center"
+                                      gravity="left|center"/>
+                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}"
+                                      visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}"
+                                      visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
                             </horizontal>
                         </list>
                     </vertical>
@@ -753,7 +761,7 @@ function setPage(title_param, title_bg_color, additions, options) {
                     let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
                     session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
                     let tmp_deleted_items_idx = {};
-                    Object.keys(session_params[deleted_items_idx]).forEach(ori_idx_key => {
+                    Object.keys(session_params[deleted_items_idx]).forEach((ori_idx_key) => {
                         tmp_deleted_items_idx[indices_table[ori_idx_key]] = session_params[deleted_items_idx][ori_idx_key];
                     });
                     session_params[deleted_items_idx] = deepCloneObject(tmp_deleted_items_idx);
@@ -776,9 +784,9 @@ function setPage(title_param, title_bg_color, additions, options) {
             item_params.view = new_view;
 
             let listener_ids = item_params["listener"] || [];
-            Object.keys(listener_ids).forEach(id => {
+            Object.keys(listener_ids).forEach((id) => {
                 let listeners = listener_ids[id];
-                Object.keys(listeners).forEach(listener => {
+                Object.keys(listeners).forEach((listener) => {
                     let callback = listeners[listener].bind(item_params);
                     if (id === "ui") ui.emitter.prependListener(listener, callback);
                     else new_view[id].on(listener, callback);
@@ -804,7 +812,8 @@ function setPage(title_param, title_bg_color, additions, options) {
                 <vertical>
                     <horizontal margin="16 8">
                         <text id="_text" gravity="left" layout_gravity="center"/>
-                        <seekbar id="_seekbar" w="*" style="@android:style/Widget.Material.SeekBar" layout_gravity="center"/>
+                        <seekbar id="_seekbar" w="*" style="@android:style/Widget.Material.SeekBar"
+                                 layout_gravity="center"/>
                     </horizontal>
                 </vertical>
             );
@@ -843,7 +852,7 @@ function initUI(status_bar_color) {
 function setButtons(parent_view, data_source_key_name, button_params_arr) {
     let buttons_view = ui.inflate(<horizontal id="btn"/>);
     let buttons_count = 0;
-    for (let i = 2, len = arguments.length; i < len; i += 1) {
+    for (let i = 2, l = arguments.length; i < l; i += 1) {
         let arg = arguments[i];
         if (typeof arg !== "object") continue; // just in case
         buttons_view.btn.addView(getButtonLayout.apply(null, arg));
@@ -889,8 +898,11 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
         function buttonView() {
             return ui.inflate(
                 <vertical margin="13 0">
-                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" h="31" bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
-                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
+                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}"
+                         src="@drawable/{{session_params.button_icon_file_name}}" h="31"
+                         bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
+                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}"
+                          textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
                 </vertical>
             );
         }
@@ -947,307 +959,195 @@ function initStorageConfig() {
 
 // module function(s) //
 
-// updated at Nov 14, 2019
-function loadInternalModuleDialog(__runtime__, scope) {
-    let dialogs = {};
-
-    dialogs.rawInput = function (title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().rawInput(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
-            });
-        }
-        return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+// updated: Aug 8, 2020
+function loadInternalModuleDialog() {
+    let myLooper = android.os.Looper.myLooper;
+    let getMainLooper = android.os.Looper.getMainLooper;
+    let isUiThread = () => myLooper() === getMainLooper();
+    let rtDialogs = () => {
+        let d = runtime.dialogs;
+        return isUiThread() ? d : d.nonUiDialogs;
     };
+    return {
+        build(properties) {
+            let builder = Object.create(runtime.dialogs.newBuilder());
+            builder.thread = threads.currentThread();
+            for (let name in properties) {
+                if (properties.hasOwnProperty(name)) {
+                    applyDialogProperty(builder, name, properties[name]);
+                }
+            }
+            applyOtherDialogProperties(builder, properties);
+            return ui.run(() => builder.buildDialog());
 
-    dialogs.input = function (title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().rawInput(title, prefill, function (str) {
-                    resolve(eval(str));
-                });
-            });
-        }
-        if (callback) {
-            dialogs.rawInput(title, prefill, function (str) {
-                callback(eval(str));
-            });
-            return;
-        }
-        return eval(dialogs.rawInput(title, prefill), callback ? callback : null);
-    };
+            function applyDialogProperty(builder, name, value) {
+                let propertySetters = {
+                    title: null,
+                    titleColor: {adapter: parseColor},
+                    buttonRippleColor: {adapter: parseColor},
+                    icon: null,
+                    content: null,
+                    contentColor: {adapter: parseColor},
+                    contentLineSpacing: null,
+                    items: null,
+                    itemsColor: {adapter: parseColor},
+                    positive: {method: "positiveText"},
+                    positiveColor: {adapter: parseColor},
+                    neutral: {method: "neutralText"},
+                    neutralColor: {adapter: parseColor},
+                    negative: {method: "negativeText"},
+                    negativeColor: {adapter: parseColor},
+                    cancelable: null,
+                    canceledOnTouchOutside: null,
+                    autoDismiss: null
+                };
 
-    dialogs.prompt = dialogs.rawInput;
+                if (!propertySetters.hasOwnProperty(name)) {
+                    return;
+                }
+                let propertySetter = propertySetters[name] || {};
+                if (propertySetter.method === undefined) {
+                    propertySetter.method = name;
+                }
+                if (propertySetter.adapter) {
+                    value = propertySetter.adapter(value);
+                }
+                builder[propertySetter.method].call(builder, value);
+            }
 
-    dialogs.alert = function (title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().alert(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
-            });
-        }
-        return rtDialogs().alert(title, prefill, callback ? callback : null);
-    };
+            function applyOtherDialogProperties(builder, properties) {
+                if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
+                    builder.input(wrapNonNullString(properties.inputHint), wrapNonNullString(properties.inputPrefill),
+                        function (dialog, input) {
+                            input = input.toString();
+                            builder.emit("input_change", builder.dialog, input);
+                        })
+                        .alwaysCallInputCallback();
+                }
+                if (properties.items !== undefined) {
+                    let itemsSelectMode = properties.itemsSelectMode;
+                    if (itemsSelectMode === undefined || itemsSelectMode === 'select') {
+                        builder.itemsCallback(function (dialog, view, position, text) {
+                            builder.emit("item_select", position, text.toString(), builder.dialog);
+                        });
+                    } else if (itemsSelectMode === 'single') {
+                        builder.itemsCallbackSingleChoice(properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
+                            function (dialog, view, which, text) {
+                                builder.emit("single_choice", which, text.toString(), builder.dialog);
+                                return true;
+                            });
+                    } else if (itemsSelectMode === 'multi') {
+                        builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
+                            function (dialog, indices, texts) {
+                                builder.emit("multi_choice",
+                                    toJsArray(indices, (l, i) => parseInt(l[i])),
+                                    toJsArray(texts, (l, i) => l[i].toString()),
+                                    builder.dialog);
+                                return true;
+                            });
+                    } else {
+                        throw new Error("unknown itemsSelectMode " + itemsSelectMode);
+                    }
+                }
+                if (properties.progress !== undefined) {
+                    let progress = properties.progress;
+                    let indeterminate = (progress.max === -1);
+                    builder.progress(indeterminate, progress.max, !!progress.showMinMax);
+                    builder.progressIndeterminateStyle(!!progress.horizontal);
+                }
+                if (properties.checkBoxPrompt !== undefined || properties.checkBoxChecked !== undefined) {
+                    builder.checkBoxPrompt(wrapNonNullString(properties.checkBoxPrompt), !!properties.checkBoxChecked,
+                        function (view, checked) {
+                            builder.getDialog().emit("check", checked, builder.getDialog());
+                        });
+                }
+                if (properties.customView !== undefined) {
+                    let customView = properties.customView;
+                    if (typeof customView === 'xml' || typeof customView === 'string') {
+                        customView = ui.run(() => ui.inflate(customView));
+                    }
+                    let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
+                    builder.customView(customView, wrapInScrollView);
+                }
 
-    dialogs.confirm = function (title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().confirm(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
-            });
-        }
-        return rtDialogs().confirm(title, prefill, callback ? callback : null);
-    };
+                function wrapNonNullString(str) {
+                    if (str == null) {
+                        return "";
+                    }
+                    return str;
+                }
 
-    dialogs.select = function (title, items, callback) {
-        if (items instanceof Array) {
+                function toJsArray(object, adapter) {
+                    let jsArray = [];
+                    let len = object.length;
+                    for (let i = 0; i < len; i++) {
+                        jsArray.push(adapter(object, i));
+                    }
+                    return jsArray;
+                }
+            }
+
+            function parseColor(c) {
+                if (typeof c == 'string') {
+                    return colors.parseColor(c);
+                }
+                return c;
+            }
+        },
+        builds(common, o) {
+            let common_o = {};
+            let defs = typeof global.defs === "undefined" ? require("../Modules/MODULE_DEFAULT_CONFIG").settings : global.defs;
+            let dialog_contents = require("../Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
+
+            if (typeof common === "string") common = [common];
+            let [title_param, content_param, neutral_param, negative_param, positive_param, stay_flag, check_box_param] = common;
+            if (typeof title_param === "object") {
+                common_o.title = title_param[0];
+                common_o.titleColor = title_param[1].match(/_color$/) ? defs[title_param[1]] : title_param[1];
+            } else if (title_param) common_o.title = title_param;
+            if (typeof content_param === "object") {
+                common_o.content = dialog_contents[content_param[0]] || content_param[0];
+                common_o.contentColor = content_param[1].match(/_color$/) ? defs[content_param[1]] : content_param[1];
+            } else if (content_param) common_o.content = dialog_contents[content_param] || content_param;
+            if (typeof neutral_param === "object") {
+                common_o.neutral = neutral_param[0];
+                common_o.neutralColor = neutral_param[1].match(/_color$/) ? defs[neutral_param[1]] : neutral_param[1];
+            } else if (neutral_param) common_o.neutral = neutral_param;
+            if (typeof negative_param === "object") {
+                common_o.negative = negative_param[0];
+                common_o.negativeColor = negative_param[1].match(/_color$/) ? defs[negative_param[1]] : negative_param[1];
+            } else if (negative_param) common_o.negative = negative_param;
+            if (typeof positive_param === "object") {
+                common_o.positive = positive_param[0];
+                common_o.positiveColor = positive_param[1].match(/_color$/) ? defs[positive_param[1]] : positive_param[1];
+            } else if (positive_param) common_o.positive = positive_param;
+            if (stay_flag) {
+                common_o.autoDismiss = false;
+                common_o.canceledOnTouchOutside = false;
+            }
+            if (check_box_param) {
+                common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
+            }
+
+            let final_dialog = this.build(Object.assign({}, common_o, o));
+            global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
+            return final_dialog;
+        },
+        rawInput(title, prefill, callback) {
+            prefill = prefill || "";
             if (isUiThread() && !callback) {
-                return new Promise(function (resolve, reject) {
-                    rtDialogs().select(title, items, function () {
+                return new Promise(function (resolve) {
+                    rtDialogs().rawInput(title, prefill, function () {
                         resolve.apply(null, Array.prototype.slice.call(arguments));
                     });
                 });
             }
-            return rtDialogs().select(title, items, callback ? callback : null);
-        }
-        return rtDialogs().select(title, [].slice.call(arguments, 1), null);
+            return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+        },
     };
-
-    dialogs.singleChoice = function (title, items, index, callback) {
-        index = index || 0;
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().singleChoice(title, index, items, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
-            });
-        }
-        return rtDialogs().singleChoice(title, index, items, callback ? callback : null);
-    };
-
-    dialogs.multiChoice = function (title, items, index, callback) {
-        index = index || [];
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve, reject) {
-                rtDialogs().singleChoice(title, index, items, function (r) {
-                    resolve.apply(null, javaArrayToJsArray(r));
-                });
-            });
-        }
-        if (callback) {
-            return rtDialogs().multiChoice(title, index, items, function (r) {
-                callback(javaArrayToJsArray(r));
-            });
-        }
-        return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, null));
-
-    };
-
-    var propertySetters = {
-        "title": null,
-        "titleColor": {adapter: parseColor},
-        "buttonRippleColor": {adapter: parseColor},
-        "icon": null,
-        "content": null,
-        "contentColor": {adapter: parseColor},
-        "contentLineSpacing": null,
-        "items": null,
-        "itemsColor": {adapter: parseColor},
-        "positive": {method: "positiveText"},
-        "positiveColor": {adapter: parseColor},
-        "neutral": {method: "neutralText"},
-        "neutralColor": {adapter: parseColor},
-        "negative": {method: "negativeText"},
-        "negativeColor": {adapter: parseColor},
-        "cancelable": null,
-        "canceledOnTouchOutside": null,
-        autoDismiss: null
-    };
-
-    dialogs.build = function (properties) {
-        var builder = Object.create(__runtime__.dialogs.newBuilder());
-        builder.thread = threads.currentThread();
-        for (var name in properties) {
-            if (!properties.hasOwnProperty(name)) {
-                continue;
-            }
-            applyDialogProperty(builder, name, properties[name]);
-        }
-        applyOtherDialogProperties(builder, properties);
-        return ui.run(() => builder.buildDialog());
-    }
-
-    dialogs.builds = function (common, o) {
-        let common_o = {};
-        let {dialog_contents} = defs;
-
-        if (typeof common === "string") common = [common];
-        let [title_param, content_param, neutral_param, negative_param, positive_param, stay_flag, check_box_param] = common;
-        if (typeof title_param === "object") {
-            common_o.title = title_param[0];
-            common_o.titleColor = title_param[1].match(/_color$/) ? defs[title_param[1]] : title_param[1];
-        } else if (title_param) common_o.title = title_param;
-        if (typeof content_param === "object") {
-            common_o.content = dialog_contents[content_param[0]] || content_param[0];
-            common_o.contentColor = content_param[1].match(/_color$/) ? defs[content_param[1]] : content_param[1];
-        } else if (content_param) common_o.content = dialog_contents[content_param] || content_param;
-        if (typeof neutral_param === "object") {
-            common_o.neutral = neutral_param[0];
-            common_o.neutralColor = neutral_param[1].match(/_color$/) ? defs[neutral_param[1]] : neutral_param[1];
-        } else if (neutral_param) common_o.neutral = neutral_param;
-        if (typeof negative_param === "object") {
-            common_o.negative = negative_param[0];
-            common_o.negativeColor = negative_param[1].match(/_color$/) ? defs[negative_param[1]] : negative_param[1];
-        } else if (negative_param) common_o.negative = negative_param;
-        if (typeof positive_param === "object") {
-            common_o.positive = positive_param[0];
-            common_o.positiveColor = positive_param[1].match(/_color$/) ? defs[positive_param[1]] : positive_param[1];
-        } else if (positive_param) common_o.positive = positive_param;
-        if (stay_flag) {
-            common_o.autoDismiss = false;
-            common_o.canceledOnTouchOutside = false;
-        }
-        if (check_box_param) {
-            common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
-        }
-
-        let final_dialog = dialogs.build(Object.assign({}, common_o, o));
-        global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
-        return final_dialog;
-    };
-
-    function applyDialogProperty(builder, name, value) {
-        if (!propertySetters.hasOwnProperty(name)) {
-            return;
-        }
-        var propertySetter = propertySetters[name] || {};
-        if (propertySetter.method == undefined) {
-            propertySetter.method = name;
-        }
-        if (propertySetter.adapter) {
-            value = propertySetter.adapter(value);
-        }
-        builder[propertySetter.method].call(builder, value);
-    }
-
-    function applyOtherDialogProperties(builder, properties) {
-        if (properties.inputHint != undefined || properties.inputPrefill != undefined) {
-            builder.input(wrapNonNullString(properties.inputHint), wrapNonNullString(properties.inputPrefill),
-                function (dialog, input) {
-                    input = input.toString();
-                    builder.emit("input_change", builder.dialog, input);
-                })
-                .alwaysCallInputCallback();
-        }
-        if (properties.items != undefined) {
-            var itemsSelectMode = properties.itemsSelectMode;
-            if (itemsSelectMode == undefined || itemsSelectMode == 'select') {
-                builder.itemsCallback(function (dialog, view, position, text) {
-                    builder.emit("item_select", position, text.toString(), builder.dialog);
-                });
-            } else if (itemsSelectMode == 'single') {
-                builder.itemsCallbackSingleChoice(properties.itemsSelectedIndex == undefined ? -1 : properties.itemsSelectedIndex,
-                    function (dialog, view, which, text) {
-                        builder.emit("single_choice", which, text.toString(), builder.dialog);
-                        return true;
-                    });
-            } else if (itemsSelectMode == 'multi') {
-                builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex == undefined ? null : properties.itemsSelectedIndex,
-                    function (dialog, view, indices, texts) {
-                        builder.emit("multi_choice", indices, texts, builder.dialog);
-                        return true;
-                    });
-            } else {
-                throw new Error("unknown itemsSelectMode " + itemsSelectMode);
-            }
-        }
-        if (properties.progress != undefined) {
-            var progress = properties.progress;
-            var indeterminate = (progress.max == -1);
-            builder.progress(indeterminate, progress.max, !!progress.showMinMax);
-            builder.progressIndeterminateStyle(!!progress.horizontal);
-        }
-        if (properties.checkBoxPrompt != undefined || properties.checkBoxChecked != undefined) {
-            builder.checkBoxPrompt(wrapNonNullString(properties.checkBoxPrompt), !!properties.checkBoxChecked,
-                function (view, checked) {
-                    builder.getDialog().emit("check", checked, builder.getDialog());
-                });
-        }
-        if (properties.customView != undefined) {
-            let customView = properties.customView;
-            if (typeof (customView) == 'xml' || typeof (customView) == 'string') {
-                customView = ui.run(() => ui.inflate(customView));
-            }
-            let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
-            builder.customView(customView, wrapInScrollView);
-        }
-    }
-
-    function wrapNonNullString(str) {
-        if (str == null) {
-            return "";
-        }
-        return str;
-    }
-
-    function javaArrayToJsArray(javaArray) {
-        var jsArray = [];
-        var len = javaArray.length;
-        for (var i = 0; i < len; i++) {
-            jsArray.push(javaArray[i]);
-        }
-        return jsArray;
-    }
-
-    function toJsArray(object, adapter) {
-        var jsArray = [];
-        var len = javaArray.length;
-        for (var i = 0; i < len; i++) {
-            jsArray.push(adapter(object, i));
-        }
-        return jsArray;
-    }
-
-    function rtDialogs() {
-        var d = __runtime__.dialogs;
-        if (!isUiThread()) {
-            return d.nonUiDialogs;
-        } else {
-            return d;
-        }
-    }
-
-    function isUiThread() {
-        return android.os.Looper.myLooper() == android.os.Looper.getMainLooper();
-    }
-
-    function parseColor(c) {
-        if (typeof (c) == 'string') {
-            return colors.parseColor(c);
-        }
-        return c;
-    }
-
-    scope.rawInput = dialogs.rawInput.bind(dialogs);
-
-    scope.alert = dialogs.alert.bind(dialogs);
-
-    scope.confirm = dialogs.confirm.bind(dialogs);
-
-    scope.prompt = dialogs.prompt.bind(dialogs);
-
-    return dialogs;
 }
 
-// updated at Jan 21, 2020
+// updated: Jan 21, 2020
 function loadInternalModuleMonsterFunc() {
     return {
         equalObjects: equalObjects,
@@ -1255,7 +1155,6 @@ function loadInternalModuleMonsterFunc() {
         alertTitle: alertTitle,
         waitForAction: waitForAction,
         classof: classof,
-        keycode: keycode,
     };
 
     // some may be used by a certain monster function(s) even though not showing up above
@@ -1307,55 +1206,68 @@ function loadInternalModuleMonsterFunc() {
         }
     }
 
+    // updated: Sep 20, 2020
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
         let $_flag = global.$$flag = global.$$flag || {};
-
-        if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
-
-        let _msg = msg || "";
-        if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-            return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+        if ($_flag.no_msg_act_flag) {
+            return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
         }
 
-        let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-        let _if_toast = if_toast || false;
+        let _msg_lv = msg_level;
+        if (typeof _msg_lv === "undefined") {
+            _msg_lv = 1;
+        }
+        if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
+            _msg_lv = -1;
+        }
+
+        let _msg = msg || "";
+        if (_msg_lv.toString().match(/^t(itle)?$/)) {
+            _msg = "[ " + msg + " ]";
+            return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
+        }
+
+        if_toast && toast(_msg);
+
         let _if_arrow = if_arrow || false;
         let _if_spl_ln = if_split_line || false;
-        _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-        let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-        if (_if_toast) toast(_msg);
-
+        _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
         let _spl_ln_style = "solid";
         let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
         let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
         let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
         let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+        let _showSplitLine = (
+            typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+        );
 
         if (typeof _if_spl_ln === "string") {
-            if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
-            if (_if_spl_ln.match(/both|up/)) {
-                if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-                if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-                else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-                else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+            if (_if_spl_ln.match(/dash/)) {
+                _spl_ln_style = "dash";
+            }
+            if (_if_spl_ln.match(/both|up|^2/)) {
+                if (!_matchLnStyle()) {
+                    _showSplitLine("", _spl_ln_style);
+                }
+                if (_if_spl_ln.match(/_n|n_/)) {
+                    _if_spl_ln = "\n";
+                } else if (_if_spl_ln.match(/both|^2/)) {
+                    _if_spl_ln = 1;
+                } else if (_if_spl_ln.match(/up/)) {
+                    _if_spl_ln = 0;
+                }
             }
         }
 
         _clearLnStyle();
 
         if (_if_arrow) {
-            if (_if_arrow > 10) {
-                console.warn('-> "if_arrow"参数大于10');
-                _if_arrow = 10;
-            }
-            _msg = "> " + _msg;
-            for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+            _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
         }
 
         let _exit_flag = false;
-        let _throw_flag = false;
+        let _show_ex_msg_flag = false;
+
         switch (_msg_lv) {
             case 0:
             case "verbose":
@@ -1397,7 +1309,7 @@ function loadInternalModuleMonsterFunc() {
             case "t":
                 _msg_lv = 4;
                 console.error(_msg);
-                _throw_flag = true;
+                _show_ex_msg_flag = true;
         }
 
         if (_if_spl_ln) {
@@ -1409,64 +1321,58 @@ function loadInternalModuleMonsterFunc() {
                     _spl_ln_extra = _if_spl_ln;
                 }
             }
-            if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+            if (!_spl_ln_extra.match(/\n/)) {
+                _saveLnStyle();
+            }
             _showSplitLine(_spl_ln_extra, _spl_ln_style);
         }
 
-        if (_throw_flag) {
-            ui.post(function () {
-                throw ("FORCE_STOP");
-            });
+        if (_show_ex_msg_flag) {
+            let _msg = "forcibly stopped";
+            console.error(_msg);
+            toast(_msg);
+        }
+        if (_exit_flag) {
             exit();
         }
 
-        if (_exit_flag) exit();
-
-        return !(_msg_lv in {3: 1, 4: 1});
+        return !~[3, 4].indexOf(_msg_lv);
 
         // raw function(s) //
 
-        function showSplitLineRaw(extra_str, style) {
-            let _extra_str = extra_str || "";
-            let _split_line = "";
-            if (style === "dash") {
-                for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                _split_line += "-";
-            } else {
-                for (let i = 0; i < 33; i += 1) _split_line += "-";
-            }
-            return ~console.log(_split_line + _extra_str);
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+            ) + (extra || ""));
         }
     }
 
-    function showSplitLine(extra_str, style, params) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
+    // updated: Aug 29, 2020
+    function waitForAction(f, timeout_or_times, interval, params) {
+        let _par = params || {};
+        _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
+
+        if (typeof timeout_or_times !== "number") {
+            timeout_or_times = 10e3;
         }
-        return !!~console.log(_split_line + _extra_str);
-    }
-
-    function waitForAction(f, timeout_or_times, interval) {
-        if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-        let _timeout = Infinity;
-        let _interval = interval || 200;
         let _times = timeout_or_times;
+        if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+            _times = Infinity;
+        }
+        let _timeout = Infinity;
+        if (timeout_or_times > 100) {
+            _timeout = timeout_or_times;
+        }
+        let _interval = interval || 200;
+        if (_interval >= _timeout) {
+            _times = 1;
+        }
 
-        if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-        if (timeout_or_times > 100) _timeout = timeout_or_times;
-        if (interval >= _timeout) _times = 1;
-
-        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-        let _start_timestamp = +new Date();
+        let _start_ts = Date.now();
         while (!_checkF(f) && --_times) {
-            if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+            if (Date.now() - _start_ts > _timeout) {
+                return false; // timed out
+            }
             sleep(_interval);
         }
         return _times > 0;
@@ -1475,203 +1381,145 @@ function loadInternalModuleMonsterFunc() {
 
         function _checkF(f) {
             let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _messageAction = (
+                typeof messageAction === "function" ? messageAction : messageActionRaw
+            );
 
-            if (typeof f === "function") return f();
-            if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+            if (typeof f === "function") {
+                return f();
+            }
+            if (_classof(f) === "JavaObject") {
+                return f.toString().match(/UiObject/) ? f : f.exists();
+            }
             if (_classof(f) === "Array") {
                 let _arr = f;
-                let _logic_flag = "all";
-                if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-                if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-                for (let i = 0, len = _arr.length; i < len; i += 1) {
-                    if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                    if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                    if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+                let _len = _arr.length;
+                let _logic = "all";
+                if (typeof _arr[_len - 1] === "string") {
+                    _logic = _arr.pop();
                 }
-                return _logic_flag === "all";
+                if (_logic.match(/^(or|one)$/)) {
+                    _logic = "one";
+                }
+                for (let i = 0; i < _len; i += 1) {
+                    let _ele = _arr[i];
+                    if (!(typeof _ele).match(/function|object/)) {
+                        _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                    }
+                    if (_logic === "all" && !_checkF(_ele)) {
+                        return false;
+                    }
+                    if (_logic === "one" && _checkF(_ele)) {
+                        return true;
+                    }
+                }
+                return _logic === "all";
             }
-
-            _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+            _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
         }
 
         // raw function(s) //
 
         function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
+            let _msg = msg || " ";
             if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
             }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
             }
             if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
+                console.warn(_msg);
+                return false;
             }
             if (_lv === 0) {
-                console.verbose(_s);
+                console.verbose(_msg);
             } else if (_lv === 1) {
-                console.log(_s);
+                console.log(_msg);
             } else if (_lv === 2) {
-                console.info(_s);
+                console.info(_msg);
             }
             return true;
         }
     }
 
-    function keycode(keycode_name, params_str) {
-        params_str = params_str || "";
+    // updated: Sep 1, 2020
+    function equalObjects(obj_a, obj_b) {
+        let _classOf = value => Object.prototype.toString.call(value).slice(8, -1);
+        let _class_a = _classOf(obj_a);
+        let _class_b = _classOf(obj_b);
+        let _type_a = typeof obj_a;
+        let _type_b = typeof obj_b;
 
-        let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+        if (!_isTypeMatch(_type_a, _type_b, "object")) {
+            return obj_a === obj_b;
+        }
+        if (_isTypeMatch(_class_a, _class_b, "Null")) {
+            return true;
+        }
 
-        if (params_str.match(/force.*shell/i)) return keyEvent(keycode_name);
-        let _tidy_keycode_name = keycode_name.toString().toLowerCase().replace(/^keycode_|s$/, "").replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
-        let first_result = simulateKey();
-        return params_str.match(/double/) ? simulateKey() : first_result;
+        if (_class_a === "Array") {
+            if (_class_b === "Array") {
+                let _len_a = obj_a.length;
+                let _len_b = obj_b.length;
+                if (_len_a === _len_b) {
+                    let _used_b_indices = [];
+                    for (let i = 0, l = obj_a.length; i < l; i += 1) {
+                        if (!_singleArrCheck(i, _used_b_indices)) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        if (_class_a === "Object") {
+            if (_class_b === "Object") {
+                let _keys_a = Object.keys(obj_a);
+                let _keys_b = Object.keys(obj_b);
+                let _len_a = _keys_a.length;
+                let _len_b = _keys_b.length;
+                if (_len_a !== _len_b) {
+                    return false;
+                }
+                if (!equalObjects(_keys_a, _keys_b)) {
+                    return false;
+                }
+                for (let i in obj_a) {
+                    if (obj_a.hasOwnProperty(i)) {
+                        if (!equalObjects(obj_a[i], obj_b[i])) {
+                            return false;
+                        }
+                    }
+                }
+                return true;
+            }
+            return false;
+        }
 
         // tool function(s) //
 
-        function keyEvent(keycode_name) {
-            let _key_check = {
-                "26, power": checkPower,
-            };
-            for (let _key in _key_check) {
-                if (_key_check.hasOwnProperty(_key)) {
-                    if (~_key.split(/ *, */).indexOf(_tidy_keycode_name)) return _key_check[_key]();
-                }
-            }
-            return shellInputKeyEvent(keycode_name);
-
-            // tool function(s) //
-
-            function shellInputKeyEvent(keycode_name) {
-                let shell_result = false;
-                try {
-                    shell_result = !shell("input keyevent " + keycode_name, true).code;
-                } catch (e) {
-                    // nothing to do here
-                }
-                return shell_result ? true : (!params_str.match(/no.*err(or)?.*(message|msg)/) && !!keyEventFailedMsg());
-
-                // tool function(s) //
-
-                function keyEventFailedMsg() {
-                    messageAction("按键模拟失败", 0);
-                    messageAction("键值: " + keycode_name, 0, 0, 1);
-                }
-            }
-
-            function checkPower() {
-                let isScreenOn = () => device.isScreenOn();
-                let isScreenOff = () => !isScreenOn();
-                if (isScreenOff()) {
-                    device.wakeUp();
-                    let max_try_times_wake_up = 10;
-                    while (!_waitForAction(isScreenOn, 500) && max_try_times_wake_up--) device.wakeUp();
-                    return max_try_times_wake_up >= 0;
-                }
-                return shellInputKeyEvent(keycode_name) ? _waitForAction(isScreenOff, 2.4e3) : false;
-            }
+        function _isTypeMatch(a, b, feature) {
+            return a === feature && b === feature;
         }
 
-        function simulateKey() {
-            switch (_tidy_keycode_name) {
-                case "3":
-                case "home":
-                    return ~home();
-                case "4":
-                case "back":
-                    return ~back();
-                case "appSwitch":
-                case "187":
-                case "recent":
-                case "recentApp":
-                    return ~recents();
-                case "powerDialog":
-                case "powerMenu":
-                    return ~powerDialog();
-                case "notification":
-                    return ~notifications();
-                case "quickSetting":
-                    return ~quickSettings();
-                case "splitScreen":
-                    return ~splitScreen();
-                default:
-                    return keyEvent(keycode_name);
-            }
-        }
-
-        // raw function(s) //
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-    }
-
-    function equalObjects(obj_a, obj_b) {
-        let classOf = value => Object.prototype.toString.call(value).slice(8, -1);
-        let class_of_a = classOf(obj_a),
-            class_of_b = classOf(obj_b),
-            type_of_a = typeof obj_a,
-            type_of_b = typeof obj_b;
-        let matchFeature = (a, b, feature) => a === feature && b === feature;
-        if (!matchFeature(type_of_a, type_of_b, "object")) return obj_a === obj_b;
-        if (matchFeature(class_of_a, class_of_b, "Null")) return true;
-
-        if (class_of_a === "Array") {
-            if (class_of_b !== "Array") return false;
-            let len_a = obj_a.length,
-                len_b = obj_b.length;
-            if (len_a !== len_b) return false;
-            let used_obj_b_indices = [];
-            for (let i = 0, len = obj_a.length; i < len; i += 1) {
-                if (!function () {
-                    let a = obj_a[i];
-                    for (let j = 0, len_j = obj_b.length; j < len_j; j += 1) {
-                        if (~used_obj_b_indices.indexOf(j)) continue;
-                        if (equalObjects(a, obj_b[j])) {
-                            used_obj_b_indices.push(j);
-                            return true;
-                        }
-                    }
-                }()) return false;
-            }
-            return true;
-        }
-
-        if (class_of_a === "Object") {
-            if (class_of_b !== "Object") return false;
-            let keys_a = Object.keys(obj_a),
-                keys_b = Object.keys(obj_b),
-                len_a = keys_a.length,
-                len_b = keys_b.length;
-            if (len_a !== len_b) return false;
-            if (!equalObjects(keys_a, keys_b)) return false;
-            for (let i in obj_a) {
-                if (obj_a.hasOwnProperty(i)) {
-                    if (!equalObjects(obj_a[i], obj_b[i])) return false;
+        function _singleArrCheck(i, container) {
+            let _a = obj_a[i];
+            for (let i = 0, l = obj_b.length; i < l; i += 1) {
+                if (~container.indexOf(i)) {
+                    continue;
+                }
+                if (equalObjects(_a, obj_b[i])) {
+                    container.push(i);
+                    return true;
                 }
             }
-            return true;
         }
     }
 
@@ -1687,13 +1535,13 @@ function loadInternalModuleMonsterFunc() {
         return new_obj;
     }
 
-    function classof(source, check_value) {
-        let class_result = Object.prototype.toString.call(source).slice(8, -1);
-        return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+    function classof(source, compare) {
+        let _s = Object.prototype.toString.call(source).slice(8, -1);
+        return compare ? _s.toUpperCase() === compare.toUpperCase() : _s;
     }
 }
 
-// updated at Nov 14, 2019
+// updated: Nov 14, 2019
 function loadInternalDialogContents() {
     return {
         dialog_contents: {
@@ -1814,7 +1662,7 @@ function loadInternalDialogContents() {
     };
 }
 
-// updated at Jun 24, 2020
+// updated: Jun 24, 2020
 function loadInternalModulePWMAP() {
     let _path = "";
     let _dic = {};
@@ -1872,7 +1720,7 @@ function loadInternalModulePWMAP() {
                 if (_s.match(_rex)) {
                     _res.push(_rand(_s));
                 } else {
-                    let _sglStr = s => {
+                    let _sglStr = (s) => {
                         let _cc = s.charCodeAt(0);
                         let _cc_hex = _cc.toString(16);
                         return _cc_hex.toUpperCase();
@@ -2054,7 +1902,7 @@ function loadInternalModulePWMAP() {
             "请输入要解密的字符串数组" :
             "请输入要加密的字符串";
         while (_max--) {
-            _inp = dialogs.rawInput(
+            _inp = dialogsx.rawInput(
                 "请输入要" + _msg + "的字符串\n" +
                 "点击其他区域放弃输入"
             );
@@ -2088,7 +1936,7 @@ function loadInternalModulePWMAP() {
     }
 }
 
-// updated at Jun 24, 2020
+// updated: Jun 24, 2020
 function loadInternalModuleStorage() {
     return (function () {
         let storages = {};
@@ -2109,7 +1957,6 @@ function loadInternalModuleStorage() {
             let _dir = files.getSdcardPath() + "/.local/";
             let _full_path = _dir + name + ".nfe";
             files.createWithDirs(_full_path);
-            let _opened = files.open(_full_path);
             let _readFile = () => files.read(_full_path);
 
             this.contains = _contains;
@@ -2176,7 +2023,6 @@ function loadInternalModuleStorage() {
                 files.write(_full_path, JSON.stringify(
                     Object.assign(_old_data, _tmp_data), _replacer, 2
                 ));
-                _opened.close();
             }
 
             function _get(key, value) {
@@ -2191,8 +2037,7 @@ function loadInternalModuleStorage() {
                 let _o = _jsonParseFile();
                 if (key in _o) {
                     delete _o[key];
-                    files.write(_full_path, JSON.stringify(_o));
-                    _opened.close();
+                    files.write(_full_path, JSON.stringify(_o, null, 2));
                 }
             }
 
@@ -2254,209 +2099,4 @@ function loadInternalModuleStorage() {
             }
         }
     })();
-}
-
-// updated: May 29, 2020
-function _getDisplay(global_assign, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-    let _par, _glob_asg;
-    if (typeof global_assign === "boolean") {
-        _par = params || {};
-        _glob_asg = global_assign;
-    } else {
-        _par = global_assign || {};
-        _glob_asg = _par.global_assign;
-    }
-
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
-
-    let _W, _H;
-    let _disp = {};
-    let _metrics = new android.util.DisplayMetrics();
-    let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-    let _win_svc_disp = _win_svc.getDefaultDisplay();
-    _win_svc_disp.getRealMetrics(_metrics);
-
-    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        console.error("device.getDisplay()返回结果异常");
-        return {cX: cX, cY: cY, cYx: cYx};
-    }
-    _showDisp();
-    _assignGlob();
-    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
-
-    // tool function(s) //
-
-    function cX(num, base) {
-        return _cTrans(1, +num, base);
-    }
-
-    function cY(num, base) {
-        return _cTrans(-1, +num, base);
-    }
-
-    function cYx(num, base) {
-        num = +num;
-        base = +base;
-        if (num >= 1) {
-            if (!base) {
-                base = 720;
-            } else if (base < 0) {
-                if (!~base) {
-                    base = 720;
-                } else if (base === -2) {
-                    base = 1080;
-                } else {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                }
-            } else if (base < 5) {
-                throw Error(
-                    "base and num params should " +
-                    "both be pixels for cYx()"
-                );
-            }
-            return Math.round(num * _W / base);
-        }
-
-        if (!base || !~base) {
-            base = 16 / 9;
-        } else if (base === -2) {
-            base = 21 / 9;
-        } else if (base < 0) {
-            throw Error(
-                "can not parse base param for cYx()"
-            );
-        } else {
-            base = base < 1 ? 1 / base : base;
-        }
-        return Math.round(num * _W * base);
-    }
-
-    function _cTrans(dxn, num, base) {
-        let _full = ~dxn ? _W : _H;
-        if (isNaN(num)) {
-            throw Error("can not parse num param for cTrans()");
-        }
-        if (Math.abs(num) < 1) {
-            return Math.min(Math.round(num * _full), _full);
-        }
-        let _base = base;
-        if (!base || !~base) {
-            _base = ~dxn ? 720 : 1280;
-        } else if (base === -2) {
-            _base = ~dxn ? 1080 : 1920;
-        }
-        let _ct = Math.round(num * _full / _base);
-        return Math.min(_ct, _full);
-    }
-
-    function _showDisp() {
-        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-            _debugInfo("屏幕宽高: " + _W + " × " + _H);
-            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $_flag.display_params_got = true;
-        }
-    }
-
-    function _getDisp() {
-        try {
-            _W = _win_svc_disp.getWidth();
-            _H = _win_svc_disp.getHeight();
-            if (!(_W * _H)) {
-                throw Error();
-            }
-
-            // if the device is rotated 90 degrees counter-clockwise,
-            // to compensate rendering will be rotated by 90 degrees clockwise
-            // and thus the returned value here will be Surface#ROTATION_90
-            // 0: 0°, device is portrait
-            // 1: 90°, device is rotated 90 degree counter-clockwise
-            // 2: 180°, device is reverse portrait
-            // 3: 270°, device is rotated 90 degree clockwise
-            let _SCR_O = _win_svc_disp.getRotation();
-            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = +_win_svc_disp.maximumSizeDimension;
-            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
-            let [_UH, _UW] = [_H, _W];
-            let _dimen = (name) => {
-                let resources = context.getResources();
-                let resource_id = resources.getIdentifier(name, "dimen", "android");
-                if (resource_id > 0) {
-                    return resources.getDimensionPixelSize(resource_id);
-                }
-                return NaN;
-            };
-
-            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-            return {
-                WIDTH: _W,
-                USABLE_WIDTH: _UW,
-                HEIGHT: _H,
-                USABLE_HEIGHT: _UH,
-                screen_orientation: _SCR_O,
-                status_bar_height: _dimen("status_bar_height"),
-                navigation_bar_height: _dimen("navigation_bar_height"),
-                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                action_bar_default_height: _dimen("action_bar_default_height"),
-            };
-        } catch (e) {
-            try {
-                _W = +device.width;
-                _H = +device.height;
-                return _W && _H && {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            } catch (e) {
-            }
-        }
-    }
-
-    function _assignGlob() {
-        if (_glob_asg) {
-            Object.assign(global, {
-                W: _W, WIDTH: _W,
-                halfW: Math.round(_W / 2),
-                uW: _disp.USABLE_WIDTH,
-                H: _H, HEIGHT: _H,
-                uH: _disp.USABLE_HEIGHT,
-                scrO: _disp.screen_orientation,
-                staH: _disp.status_bar_height,
-                navH: _disp.navigation_bar_height,
-                navHC: _disp.navigation_bar_height_computed,
-                actH: _disp.action_bar_default_height,
-                cX: cX, cY: cY, cYx: cYx,
-            });
-        }
-    }
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-    }
 }

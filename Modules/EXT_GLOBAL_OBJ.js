@@ -1,15 +1,4 @@
 let ext = {
-    /**
-     * Assign some checkers to global object (all started with "$$)
-     * @example
-     * $$bool(0.5 === "0.5"); // false
-     * $$str("1991"); // true
-     * $$und(coffee); // true -- undefined
-     * $$num(0); // true
-     * $$num(20, "<", 28, "<=", Infinity); // true
-     * $$num(20, "<", 28, ">=", 1, ">", -Infinity, "<=", -0, "=", +0); // true
-     * @return void
-     */
     Global() {
         let _classof = (src, chk) => {
             let _s = Object.prototype.toString.call(src).slice(8, -1);
@@ -23,148 +12,110 @@ let ext = {
             ">=": (a, b) => a >= b,
             "=": (a, b) => a === b,
         };
+        let _isNum = o => _classof(o, "Number");
+        let _isStr = o => _classof(o, "String");
+        let _monster = (fn) => {
+            if (typeof global[fn] === "function") {
+                return global[fn].call(global);
+            }
+            let _path = files.cwd() + "/Modules/MODULE_MONSTER_FUNC.js";
+            return files.isFile(_path) ? require(_path)[fn]() : null;
+        };
 
         Object.assign(global, {
             $$0: x => x === 0,
             $$1: x => x === 1,
             $$2: x => x === 2,
             $$num(x) {
-                // do not use arrow function here
-                let _isNum = a => _classof(a, "Number");
-                let _isStr = a => _classof(a, "String");
                 let _args = arguments;
                 let _len = _args.length;
-
-                if (_len === 1) return _isNum(x);
-                if (_len === 2) return x === _args[1];
-
-                for (let i = 1; i < _len; i += 2) {
-                    let _a = _args[i - 1];
-                    let _opr = _args[i]; // operational symbol
-                    let _b = _args[i + 1];
-                    if (!_isStr(_opr) || !_isNum(_b)) return;
-                    if (!(_opr in _compare)) return;
-                    if (!_compare[_opr](_a, _b)) return false;
+                if (_len === 1) {
+                    return _isNum(x);
                 }
-
+                if (_len === 2) {
+                    return x === _args[1];
+                }
+                for (let i = 1; i < _len; i += 2) {
+                    let _opr = _args[i]; // operational symbol
+                    if (!_isStr(_opr) || !(_opr in _compare)) {
+                        return false;
+                    }
+                    let _b = _args[i + 1];
+                    if (!_isNum(_b)) {
+                        return false;
+                    }
+                    let _a = _args[i - 1];
+                    if (!_compare[_opr](_a, _b)) {
+                        return false;
+                    }
+                }
                 return true;
             },
             $$str(x) {
-                let _isStr = a => _classof(a, "String");
                 let _args = arguments;
                 let _len = _args.length;
+                if (_len === 1) {
+                    return _isStr(x);
+                }
+                if (_len === 2) {
+                    return x === _args[1];
+                }
+
                 let _args_arr = [];
-
-                if (_len === 1) return _isStr(x);
-                if (_len === 2) return x === _args[1];
-
                 for (let i = 0; i < _len; i += 1) {
                     _args_arr[i] = _args[i].toString();
                 }
 
                 for (let i = 1; i < _len; i += 2) {
-                    let _a = _args_arr[i - 1];
                     let _opr = _args_arr[i]; // operational symbol
+                    if (!(_opr in _compare)) {
+                        return false;
+                    }
+                    let _a = _args_arr[i - 1];
                     let _b = _args_arr[i + 1];
-                    if (!(_opr in _compare)) return;
-                    if (!_compare[_opr](_a, _b)) return false;
+                    if (!_compare[_opr](_a, _b)) {
+                        return false;
+                    }
                 }
-
                 return true;
             },
             $$bool: x => _classof(x, "Boolean"),
-            // `classof(x, "Undefined")` also fine
             $$und: x => x === void 0,
             $$nul: x => _classof(x, "Null"),
-            // introduced since ES6
-            $$sym: x => _classof(x, "Symbol"),
+            $$symb: x => _classof(x, "Symbol"),
             $$bigint: x => _classof(x, "BigInt"),
-            // primitive (7 types including Symbol and BigInt)
-            $$prim(x) {
-                return this.$$num(x) || this.$$str(x) || this.$$bool(x)
-                    || this.$$nul(x) || this.$$und(x) || this.$$sym(x)
-                    || this.$$bigint(x);
-            },
             $$func: x => _classof(x, "Function"),
-            // `Array.isArray(x);` fine or not ?
-            // i guess it will be fine as long as
-            // the global object is not Window (for a browser)
             $$arr: x => _classof(x, "Array"),
-            // Object only
             $$obj: x => _classof(x, "Object"),
             $$emptyObj: x => _classof(x, "Object") && _keysLen(x, 0),
-            $$noEmptyObj: x => _classof(x, "Object") && !_keysLen(x, 0),
-            // Null; Array; Object
-            $$comObj: x => typeof x === "object",
             $$date: x => _classof(x, "Date"),
-            $$regexp: x => _classof(x, "RegExp"),
-            $$rex: x => _classof(x, "RegExp"),
-            // nullish coalescing operator: ??
-            $$nullish(x) {
-                return this.$$nul(x) || this.$$und(x);
-            },
-            $$fin: x => isFinite(x),
-            $$inf: x => !isFinite(x),
-            $$nan: x => typeof x === "number" && isNaN(x),
-            $$posNum(x) {
-                return this.$$num(x) && x > 0;
-            },
-            $$noPosNum(x) {
-                return this.$$num(x) && x <= 0;
-            },
-            $$natNum(x) {
-                return this.$$zehNum(x) && x >= 0;
-            },
-            $$negNum(x) {
-                return this.$$num(x) && x < 0;
-            },
-            $$noNegNum(x) {
-                return this.$$num(x) && x >= 0;
-            },
-            // `Number.isInteger(x)` since ES6
-            $$zehNum(x) {
-                return this.$$num(x) && (x | 0) === x;
-            },
-            // `!~x` is also cool
-            $$neg1: x => x === -1,
             $$T: x => x === true,
             $$F: x => x === false,
-            $$len(x, n) {
-                if (!_classof(x, "Arguments") && !_classof(x, "Array")) {
-                    throw TypeError("Expected Array or Arguments rather than " + _classof(x));
-                }
-                if (_classof(n, "Number")) return x.length === n;
-                return x.length;
+            isInfinite: x => !isFinite(x),
+            isInteger(x) {
+                // `Number.isInteger(x)` since ES6
+                return this.$$num(x) && (x | 0) === x;
             },
-            // `classof(x, "JavaObject");` also fine
-            __isJvo__: x => !!x["getClass"],
-            _checkJvoType(x, rex) {
-                return this.__isJvo__(x) && !!x.toString().match(rex);
+            isNullish(x) {
+                // nullish coalescing operator: ??
+                return this.$$nul(x) || this.$$und(x);
             },
-            _checkJvoClass(x, rex) {
-                let _classMatch = (x, rex) => x["getClass"].toString().match(rex);
-                return this.__isJvo__(x) && _classMatch(x, rex);
+            isPrimitive(x) {
+                // return x !== Object(x);
+                // dunno code above is okay or not, but i think it's cooler :)
+                return this.$$num(x) || this.$$str(x) || this.$$bool(x)
+                    || this.$$nul(x) || this.$$und(x) || this.$$symb(x)
+                    || this.$$bigint(x);
             },
-            get $$jvo() {
-                return {
-                    isJvo: x => this.__isJvo__(x),
-                    ScriptEngine: x => this._checkJvoType(x, /^ScriptEngine/),
-                    Thread: x => this._checkJvoType(x, /^Thread/),
-                    UiObject: x => this._checkJvoType(x, /UiObject/),
-                    UiObjects: x => this._checkJvoType(x, /UiObjectCollection/),
-                    UiGlobSel: x => this._checkJvoType(x, /UiGlobalSelector/),
-                    JsRawWin: x => this._checkJvoType(x, /JsRawWindow/),
-                    ImageWrapper: x => this._checkJvoType(x, /ImageWrapper/),
-                    Point: x => this._checkJvoType(x, /^{.+}$/),
-                    AtomicLong: x => this._checkJvoClass(x, /AtomicLong/),
-                };
+            isReference(x) {
+                return !this.isPrimitive(x);
             },
         });
         Object.assign(global, {
             /**
              * @summary global.toast
              * @description toast a message in current screen
-             * @memberOf global
+             * @override
              * @param {string|*} [msg=""] -
              * string (or any value with toString() method) to toast
              * @param {boolean|string|number} [if_long=0] -
@@ -215,86 +166,212 @@ let ext = {
                 let _s_handler = new android.os.Handler(
                     android.os.Looper.getMainLooper()
                 );
-                _s_handler.post(function () {
-                    if (if_force && global["_toast_"]) {
-                        global["_toast_"].cancel();
-                        global["_toast_"] = null;
-                    }
-                    global["_toast_"] = android.widget.Toast.makeText(
-                        context, _msg, _if_long
-                    );
-                    global["_toast_"].show();
-                });
+                _s_handler.post(new java.lang.Runnable({
+                    run() {
+                        if (if_force && global["_toast_"]) {
+                            global["_toast_"].cancel();
+                            global["_toast_"] = null;
+                        }
+                        global["_toast_"] = android.widget.Toast.makeText(
+                            context, _msg, _if_long
+                        );
+                        global["_toast_"].show();
+                    },
+                }));
             },
         });
+
+        /**
+         * Invoke some functions (returns undefined or $$link only) one by one
+         * @param {function: ()} f
+         * @param {{}} [this_arg]
+         * @example
+         * let a = () => console.log("A");
+         * let s = () => console.log("S");
+         * let d = () => console.log("D");
+         * let f = () => console.log("F");
+         * a(), s(), d(), f();
+         * $$link(a).$(s).$(d).$(f); // same as above
+         * $$link(a)(s)(d)(f); // same as above
+         * @example
+         * let a = () => console.log(1);
+         * function b() {return 2};
+         * let c = () => "ok";
+         * function d() {void 0};
+         * // with two groups of warning messages printed in console
+         * $$link(a).$(b).$(c).$(d);
+         */
+        global.$$link = (f, this_arg) => {
+            if (typeof f !== "function") {
+                throw TypeError("$$link invoked with a non-function param");
+            }
+            if (typeof $$link.$ !== "function") {
+                $$link.$ = (f, this_arg) => $$link(f, this_arg);
+            }
+            let _res = f.call(this_arg);
+            if (_res !== $$link && typeof _res !== "undefined") {
+                console.warn("fx in $$link returns non-undefined");
+                console.warn("-> name: " + (f.name || "<anonymous>"));
+                console.warn("-> returns: " + _res);
+            }
+            return $$link;
+        };
+
+        /** @type ExtendedSelector & UiSelector$ */
+        global.$$sel = _monster("getSelector");
+
+        global.Reflect = global.Reflect || require("./reflect.js");
     },
     String() {
-        if (!String["toTitleCase"]) {
+        if (!String.prototype.toTitleCase) {
             Object.defineProperty(String.prototype, "toTitleCase", {
-                value: function () {
-                    let _str = this.toString();
-                    if (!_str) {
-                        return "";
-                    }
-                    return _str[0].toUpperCase() + _str.slice(1).toLowerCase();
+                /**
+                 * Converts all the alphabetic characters in a string to title case.
+                 * @function String.prototype.toTitleCase
+                 * @example
+                 * console.log("hello".toTitleCase()); // "Hello"
+                 * console.log("hello world".toTitleCase()); // "Hello World"
+                 * console.log("JavaScript is AMAZING".toTitleCase()); // "JavaScript Is AMAZING"
+                 * @returns {string}
+                 */
+                value() {
+                    return this.replace(/(^|\s+)([a-z])/g, ($0, $1, $2) => $1 + $2.toUpperCase());
                 },
             });
         }
-        if (!String["trimStart"]) {
+        if (!String.prototype.padStart) {
+            /**
+             * Pads the current string with a given string to reach a given length (left padding).
+             * @function String.prototype.padStart
+             * @param {number} target_len
+             * @param {string|number} [pad_str=" "]
+             * @returns {string}
+             */
+            Object.defineProperty(String.prototype, "padStart", {
+                value(target_len, pad_str) {
+                    return _getPadStr.apply(this, arguments) + this.valueOf();
+                },
+            });
+        }
+        if (!String.prototype.padEnd) {
+            Object.defineProperty(String.prototype, "padEnd", {
+                /**
+                 * Pads the current string with a given string to reach a given length (right padding).
+                 * @function String.prototype.padEnd
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @returns {string}
+                 */
+                value(target_len, pad_str) {
+                    return this.valueOf() + _getPadStr.apply(this, arguments);
+                },
+            });
+        }
+        if (!String.prototype.trimStart) {
             Object.defineProperty(String.prototype, "trimStart", {
-                value: function () {
-                    return this.replace(/^\s*/, "");
+                /**
+                 * Removes the leading white space and line terminator characters from a string.
+                 * @function String.prototype.trimStart
+                 * @returns {string}
+                 */
+                value() {
+                    return String.prototype.trimLeft.apply(this, arguments);
                 },
             });
         }
-        if (!String["trimEnd"]) {
+        if (!String.prototype.trimEnd) {
             Object.defineProperty(String.prototype, "trimEnd", {
-                value: function () {
-                    return this.replace(/\s*$/, "");
+                /**
+                 * Removes the trailing white space and line terminator characters from a string.
+                 * @function String.prototype.trimEnd
+                 * @returns {string}
+                 */
+                value() {
+                    return String.prototype.trimRight.apply(this, arguments);
                 },
             });
         }
-        if (!String["trimLeft"]) {
-            Object.defineProperty(String.prototype, "trimLeft", {
-                value: function () {
-                    return this.trimStart();
+        if (!String.prototype.ts) {
+            Object.defineProperty(String.prototype, "ts", {
+                /**
+                 * @property String.prototype.ts
+                 * @example
+                 * let name = "John"; // must be an global variable
+                 * console.log("`Hello ${name}, time is ${new Date().toLocaleTimeString()}`".ts);
+                 * @returns {string}
+                 */
+                get() {
+                    let _s = String(this);
+                    let _bt = '`'; // backtick
+                    if (_s.length < 2 || _s[0] !== _bt || _s[_s.length - 1] !== _bt) {
+                        return _s;
+                    }
+                    let _backticks, _is_internal;
+                    while ((_backticks = _getBackticks(_s))) {
+                        let [_l, _r] = _backticks; // left/right index
+                        let _q = _is_internal ? '"' : ''; // quotation mark
+                        _s = _s.slice(0, _l++) + _q + _parse(_s.slice(_l, _r++)) + _q + _s.slice(_r);
+                    }
+                    return _s;
+
+                    // tool function(s) //
+
+                    function _getBackticks(str) {
+                        let _bts = [];
+                        Object.values(str).forEach((s, i) => s === _bt && _bts.push(i));
+                        let _half_len = _bts.length / 2;
+                        if (_half_len >> 0 !== _half_len) {
+                            throw Error("backticks must come in pairs");
+                        }
+                        _is_internal = _half_len > 1;
+                        return _half_len ? _bts.slice(_half_len - 1, _half_len + 1) : null;
+                    }
+
+                    function _parse(str) {
+                        return str.replace(/\${(.*?)}/g, ($0, $1) => Function("return " + $1)());
+                    }
                 },
+                configurable: true,
             });
         }
-        if (!String["trimRight"]) {
-            Object.defineProperty(String.prototype, "trimRight", {
-                value: function () {
-                    return this.trimEnd();
-                },
-            });
-        }
-        if (!String["trimBoth"]) {
-            Object.defineProperty(String.prototype, "trimBoth", {
-                value: function () {
-                    return this.trimStart().trimEnd();
-                },
-            });
+
+        // tool function(s) //
+
+        function _getPadStr(target_len, pad_str) {
+            let _tar_len = Number(target_len);
+            let _this_len = this.length;
+            if (_tar_len <= _this_len) {
+                return "";
+            }
+            let _pad_str = pad_str === undefined ? " " : String(pad_str);
+            let _gap = _tar_len - _this_len;
+            let _times = Math.ceil(_gap / _pad_str.length);
+            return _pad_str.repeat(_times).slice(0, _gap);
         }
     },
     Object() {
-        if (!Object["values"]) {
+        if (!Object.values) {
             Object.defineProperty(Object, "values", {
-                value: function (o) {
-                    if (o !== Object(o)) {
-                        throw new TypeError("Object.values called on a non-object");
+                /**
+                 * @function Object.values
+                 * @param o
+                 * @returns {[]}
+                 */
+                value(o) {
+                    if (typeof o === "string") {
+                        return o.split("");
                     }
-                    let key;
-                    let value = [];
-                    for (key in o) {
+                    let v = [];
+                    for (let key in o) {
                         if (o.hasOwnProperty(key)) {
-                            value.push(o[key]);
+                            v.push(o[key]);
                         }
                     }
-                    return value;
+                    return v;
                 },
             });
         }
-        if (!Object["size"]) {
+        if (!Object.size) {
             Object.defineProperty(Object, "size", {
                 /**
                  * @summary Object.keys(o).length
@@ -305,7 +382,7 @@ let ext = {
                  * @param {[]} [opt.include] - include specified keys ONLY, and o.exclude will be invalid
                  * @returns {number}
                  */
-                value: function (o, opt) {
+                value(o, opt) {
                     let _opt = opt || {};
                     let _inc = _opt.include;
                     let _exc = _opt.exclude;
@@ -330,11 +407,154 @@ let ext = {
                 },
             });
         }
+        if (!Object.getOwnNonEnumerableNames) {
+            Object.defineProperty(Object, "getOwnNonEnumerableNames", {
+                /**
+                 * @function Object.getOwnNonEnumerableNames
+                 * @param o
+                 * @returns {string[]}
+                 */
+                value(o) {
+                    return Object.getOwnPropertyNames(o).filter(n => (
+                        !o.propertyIsEnumerable(n)
+                    ));
+                },
+            });
+        }
+        if (!Object.getNonEnumerableNames) {
+            Object.defineProperty(Object, "getNonEnumerableNames", {
+                /**
+                 * @function Object.getNonEnumerableNames
+                 * @param o
+                 * @returns {[]}
+                 */
+                value(o) {
+                    let _o = o;
+                    let _res = [];
+                    while (_o !== null) {
+                        let _name = Object.getOwnNonEnumerableNames(_o);
+                        if (!~_res.indexOf(_name)) {
+                            _res = _res.concat(_name);
+                        }
+                        _o = Object.getPrototypeOf(_o);
+                    }
+                    return _res;
+                },
+            });
+        }
+        if (!Object.getAllPropertyNames) {
+            Object.defineProperty(Object, "getAllPropertyNames", {
+                /**
+                 * @function Object.getAllPropertyNames
+                 * @param o
+                 * @returns {[]}
+                 */
+                value(o) {
+                    let _o = o;
+                    let _res = [];
+                    while (_o !== null) {
+                        let _name = Object.getOwnPropertyNames(_o);
+                        if (!~_res.indexOf(_name)) {
+                            _res = _res.concat(_name);
+                        }
+                        _o = Object.getPrototypeOf(_o);
+                    }
+                    return _res;
+                },
+            });
+        }
+        if (!Object.getOwnPropertyDescriptors) {
+            Object.defineProperty(Object, "getOwnPropertyDescriptors", {
+                /**
+                 * @function Object.getOwnPropertyDescriptors
+                 * @param o
+                 * @returns {{}}
+                 */
+                value(o) {
+                    let _descriptor = {};
+                    Object.getOwnPropertyNames(o).forEach((k) => {
+                        _descriptor[k] = Object.getOwnPropertyDescriptor(o, k);
+                    });
+                    return _descriptor;
+                },
+            });
+        }
+        if (!Object.assignDescriptors) {
+            Object.defineProperty(Object, "assignDescriptors", {
+                /**
+                 * @function Object.assignDescriptors
+                 * @example
+                 * let o = {
+                 *     a: 1,
+                 *     b: () => null,
+                 *     get d() {return Date.now()},
+                 * };
+                 * let p = Object.create(null, {
+                 *     a: {value: () => null},
+                 *     b: {value: 2020, enumerable: true},
+                 *     c: {get() {return Date.now()}},
+                 *     e: {get() {return Number(Math.random().toFixed(2))}},
+                 * });
+                 * log(Object.assignDescriptors(o, {}, p, {}, Object.defineProperty({}, "d", {get() {return new Date()}})));
+                 * log(o.a, o.b, o.c, o.d, o.e);
+                 */
+                value() {
+                    let _args = [].slice.call(arguments);
+                    let _o = _args[0];
+                    let _i = _args.length;
+                    while (_i-- > 1) {
+                        let _descriptors = Object.getOwnPropertyDescriptors(_args[_i]);
+                        Object.defineProperties(_o, _descriptors);
+                    }
+                    return _o;
+                },
+            });
+        }
+        if (!Object.prototype.__proto__) {
+            Object.defineProperty(Object.prototype, "__proto__", {
+                /** @type {object|null} */
+                get() {
+                    return Object.getPrototypeOf(Object(this));
+                },
+                /** @type {object|null} */
+                set(proto) {
+                    if (Object(proto) !== proto) {
+                        throw TypeError("proto must be an non-primitive type");
+                    }
+                    this.__proto__ = proto;
+                },
+                configurable: true,
+            });
+        }
     },
     Array() {
-        if (!Array["includes"]) {
+        if (!Array.from) {
+            // code from polyfill on the web page below
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
+            // modified by SuperMonster003 at Sep 21, 2020
+            Array.from = function (arrayLike, mapFn, thisArg) {
+                let isFunc = f => typeof f === "function";
+                let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
+                let items = Object(arrayLike);
+                let self = thisArg === undefined ? this : thisArg;
+                if (arrayLike == null) {
+                    throw TypeError("arrayLike of Array.from must be an array-like object");
+                }
+                if (typeof mapFn !== "undefined" && !isFunc(mapFn)) {
+                    throw TypeError("mapFn of Array.from must be a function");
+                }
+                let len = Math.min(Math.max(toInt(items.length), 0), Number.MAX_SAFE_INTEGER);
+                let arr = isFunc(this) ? Object(new this(len)) : new Array(len);
+                arr.length = len;
+                for (let i = 0; i < len; i += 1) {
+                    arr[i] = mapFn ? mapFn.call(self, items[i], i) : items[i];
+                }
+                return arr;
+            };
+        }
+        if (!Array.prototype.includes) {
             Object.defineProperty(Array.prototype, "includes", {
-                value: function (x, i) {
+                value(x, i) {
                     return this.slice(i).some((v) => {
                         if (typeof x !== "undefined") {
                             return Number.isNaN(x) ? Number.isNaN(v) : x === v;
@@ -343,44 +563,82 @@ let ext = {
                 },
             });
         }
+        if (!Array.prototype.fill) {
+            Object.defineProperty(Array.prototype, "fill", {
+                value(v, start, end) {
+                    let _len = this.length;
+                    let _a = start >> 0;
+                    _a = _a < 0 ? _a + _len : _a > _len ? _len : _a;
+                    let _b = end === undefined ? _len : end >> 0;
+                    _b = _b < 0 ? _b + _len : _b > _len ? _len : _b;
+                    for (let i = _a; i < _b; i += 1) {
+                        this[i] = v;
+                    }
+                    return this;
+                },
+            });
+        }
     },
     Number() {
-        if (!Number["restrict"]) {
-            Object.defineProperty(Number.prototype, "restrict", {
+        if (!Number.prototype.ICU) {
+            Object.defineProperty(Number.prototype, "ICU", {
                 /**
-                 * Returns a number restricted in a certain range
-                 * @function Number.prototype.restrict
+                 * 996.ICU - Developers' lives matter
+                 * @name ICU
+                 * @memberOf! Number#
+                 * @constant 996
+                 * @type number
+                 * @example
+                 * (1).ICU; // 996
+                 * (80).ICU; // 996
+                 * (996).ICU; // 996
+                 * Math.random().ICU; // 996
+                 */
+                value: (() => {
+                    let _working_days = 5;
+                    let _weekends = 2;
+                    let _health = "[your health]";
+                    return Math.round(
+                        "Hard working only".split(new RegExp(_health)).map((x) => (
+                            !x ? 996 / _working_days / _weekends - _weekends : x.charCodeAt(0)
+                        )).reduce((x, y) => x + y)
+                    );
+                })(),
+            });
+        }
+        if (!Number.prototype.clamp) {
+            Object.defineProperty(Number.prototype, "clamp", {
+                /**
+                 * Returns a number clamped to inclusive range of min and max
+                 * @function Number.prototype.clamp
                  * @param {...number|*} [args] -
-                 * restricted range indicated by numbers
+                 * inclusive range indicated by numbers
                  * or values could be converted to numbers
                  * @example
-                 * // 'restrict' often used for a alterable or random number
-                 * Math.rand([-5, 9]).restrict([0, 10]);
-                 * Math.rand([-5, 9]).restrict(0, 10); // also OK but not recommended
+                 * // 'clamp' often used for an alterable or random number
+                 * Math.rand([-5, 9]).clamp([0, 10]);
+                 * Math.rand([-5, 9]).clamp(0, 10); // also OK but not recommended
                  * // different from Math.rand([0.3, 0.5])
-                 * Math.random().restrict([0.3, 0.5]);
+                 * Math.random().clamp([0.3, 0.5]);
                  * // always returns the source number itself
-                 * (9).restrict(); // 9
-                 * (99).restrict(); // 99
+                 * (9).clamp(); // 9
+                 * (99).clamp(); // 99
                  * // always returns the numeric value of param
-                 * (9).restrict([80]); // 80 -- same as restrict([80, 80])
-                 * (99).restrict(["80"]); // 80 -- +"80" -> 80
-                 * // (10).restrict([false, "Hi", [-1], "7"])
-                 * // -> (10).restrict([+false, +"Hi", +[-1], +"7"])
-                 * // -> (10).restrict([0, NaN, -1, 7]) // numeric converted
-                 * // -> (10).restrict([0, -1, 7]) // filtered
-                 * // -> (10).restrict([-1, 0, 7]) // sorted, range: [-1, 7]
+                 * (9).clamp([80]); // 80 -- same as clamp([80, 80])
+                 * (99).clamp(["80"]); // 80 -- +"80" -> 80
+                 * // (10).clamp([false, "Hi", [-1], "7"])
+                 * // -> (10).clamp([+false, +"Hi", +[-1], +"7"])
+                 * // -> (10).clamp([0, NaN, -1, 7]) // numeric converted
+                 * // -> (10).clamp([0, -1, 7]) // filtered
+                 * // -> (10).clamp([-1, 0, 7]) // sorted, range: [-1, 7]
                  * // -> 7
-                 * (10).restrict([false, "Hi", [-1], "7"]); // 7
+                 * (10).clamp([false, "Hi", [-1], "7"]); // 7
                  * @returns {number}
                  */
-                value: function (args) {
+                value(args) {
                     let _num = this.valueOf();
-                    let _args = (!Array.isArray(args)
-                        ? Array.prototype.slice.call(arguments)
-                        : args)
-                        .map(x => +x)
-                        .filter(x => !isNaN(x))
+                    let _args = (!Array.isArray(args) ? [].slice.call(arguments) : args)
+                        .map(x => Number(x)).filter(x => !isNaN(x))
                         .sort((x, y) => x === y ? 0 : x > y ? 1 : -1);
                     let _len = _args.length;
                     if (_len) {
@@ -397,34 +655,7 @@ let ext = {
                 },
             });
         }
-        if (!Number["ICU"]) {
-            Object.defineProperty(Number.prototype, "ICU", {
-                /**
-                 * 996.ICU - Developers' lives matter
-                 * @name ICU
-                 * @memberOf! Number#
-                 * @constant
-                 * @type number
-                 * @example
-                 * (1).ICU; // 996
-                 * (80).ICU; // 996
-                 * (996).ICU; // 996
-                 * Math.random().ICU; // 996
-                 * @default 996
-                 */
-                value: (() => {
-                    let _working_days = 5;
-                    let _weekends = 2;
-                    let _health = "[your health]";
-                    return Math.round(
-                        "Hard working only".split(new RegExp(_health)).map((x) => (
-                            !x ? 996 / _working_days / _weekends - _weekends : x.charCodeAt(0)
-                        )).reduce((x, y) => x + y)
-                    );
-                })(),
-            });
-        }
-        if (!Number["toFixedNum"]) {
+        if (!Number.prototype.toFixedNum) {
             Object.defineProperty(Number.prototype, "toFixedNum", {
                 /**
                  * Returns a number value of Number.prototype.toFixed()
@@ -458,10 +689,50 @@ let ext = {
                  * num_c.toFixedNum(2); //  9.6   -- number
                  * @returns {number}
                  */
-                value: function (num) {
+                value(num) {
                     return Number(this.toFixed(num));
                 },
             });
+        }
+        if (!Number.prototype.padStart) {
+            if (String.prototype.padStart) {
+                /**
+                 * Pads the current number with a given string to reach a given length (right padding).
+                 * @function Number.prototype.padStart
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @example
+                 * console.log(Number(9).padStart(4)); // "0009"
+                 * console.log(Number(9).padStart(4, " ")); // "   9"
+                 * @returns {string}
+                 */
+                Object.defineProperty(Number.prototype, "padStart", {
+                    value(target_len, pad_str) {
+                        let _this = this.toString();
+                        return _this.padStart.call(_this, target_len, pad_str || 0);
+                    },
+                });
+            }
+        }
+        if (!Number.prototype.padEnd) {
+            if (String.prototype.padEnd) {
+                /**
+                 * Pads the current number with a given string to reach a given length (right padding).
+                 * @function Number.prototype.padEnd
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=" "]
+                 * @example
+                 * console.log(Number(9).padEnd(4)); // "9000"
+                 * console.log(Number(9).padEnd(4, " ")); // "9   "
+                 * @returns {string}
+                 */
+                Object.defineProperty(Number.prototype, "padEnd", {
+                    value(target_len, pad_str) {
+                        let _this = this.toString();
+                        return _this.padEnd.call(_this, target_len, pad_str || 0);
+                    },
+                });
+            }
         }
     },
     Math() {
@@ -499,7 +770,6 @@ let ext = {
              * @summary Random Number (zh-CN: 随机数)
              * @description Returns a pseudorandom number between min and max from the 'range' param
              * @function Math.rand
-             * @static
              * @param {*|number[]|number} [range=[0,1]] -
              * range could contains more than 2 numbers
              * or with one number for [0, range]
@@ -566,7 +836,6 @@ let ext = {
              * @summary Sum (zh-CN: 求和)
              * @description Returns a sum of numbers with (or without) fraction digits
              * @function Math.sum
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be summed up
              * @param {?number} [fraction] -
@@ -604,7 +873,6 @@ let ext = {
              * @summary Arithmetic Mean (zh-CN: 算术平均数)
              * @description Returns the average of numbers with (or without) fraction digits
              * @function Math.avg
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be averaged
              * @param {?number} [fraction] -
@@ -724,7 +992,6 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.max(...number[])
              * @function Math.maxi
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
@@ -802,7 +1069,6 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.min(...number[])
              * @function Math.mini
-             * @static
              * @param {number|Array<T>} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
@@ -878,7 +1144,6 @@ let ext = {
              * @summary Distance between two points (zh-CN: 两点间距)
              * @description Returns distance value between two points
              * @function Math.dist
-             * @static
              * @param {number[]} arr1 - a number array with two coordinates
              * @param {number[]} arr2 - another number array with two coordinates
              * @example
@@ -902,33 +1167,53 @@ let ext = {
                     Math.pow(arr2[0] - arr1[0], 2)
                 );
             },
+            /**
+             * Returns the logarithm (with both base and antilogarithm) of two numbers.
+             * @function Math.logMn
+             * @param base
+             * @param antilogarithm
+             * @param [fraction=13]
+             * @example
+             * console.log(Math.logMn(10, 100)); // 2 -- 10 ^ (2) = 100
+             * console.log(Math.logMn(2, 1024)); // 10 -- 2 ^ (10) = 1024
+             * console.log(Math.logMn(81, 9)); // 0.5 -- 81 ^ (0.5) = 9
+             * @example
+             * console.log(Math.logMn(3, 2187)); // 7 (with default fraction: 13)
+             * console.log(Math.logMn(3, 2187, -1)); // 7.000000000000001
+             * console.log(Math.logMn(3, 2187, 18)); // 7.000000000000001
+             * console.log(Math.logMn(3, 2187, 5)); // 7
+             * console.log(Math.logMn(3, 2187, 0)); // 7
+             * @returns {number}
+             */
+            logMn(base, antilogarithm, fraction) {
+                let _frac = typeof fraction === "number" ? fraction : 13;
+                let _result = Math.log(antilogarithm) / Math.log(base);
+                if (isNaN(_result) || !isFinite(_result) || ~_frac) {
+                    return _result;
+                }
+                return Number(_result.toFixed(_frac));
+            },
         });
+    },
+    JSON() {
+        if (!JSON.isJson) {
+            JSON.isJson = function (str) {
+                if (typeof str === "string") {
+                    try {
+                        return JSON.stringify(JSON.parse(str)).replace(/\s*/g, "") === str.replace(/\s*/g, "");
+                    } catch (e) {
+                        // console.error(e);
+                    }
+                }
+                return false;
+            };
+        }
     },
 };
 
 module.exports.load = function () {
-    let _args_len = arguments.length;
-    let _keys = [];
-
-    if (!_args_len) {
-        _keys = Object.keys(ext);
-    } else {
-        for (let i = 0; i < _args_len; i += 1) {
-            _keys.push(arguments[i]);
-        }
-    }
-
-    let _keys_len = _keys.length;
-    let _toTitleCase = str => {
-        let _head = str[0].toUpperCase();
-        let _body = str.slice(1).toLowerCase();
-        return _head + _body;
-    };
-
-    for (let i = 0; i < _keys_len; i += 1) {
-        let _key = _toTitleCase(_keys[i]);
-        if (_key in ext) {
-            ext[_key]();
-        }
-    }
+    let _args = Array.isArray(arguments[0]) ? arguments[0] : arguments;
+    let _keys = _args.length ? [].slice.call(_args) : Object.keys(ext);
+    _keys.forEach(k => k in ext && ext[k].call(ext));
+    return ext;
 };

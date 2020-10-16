@@ -3,7 +3,7 @@ require("../Modules/EXT_GLOBAL_OBJ").load();
 require("../Modules/EXT_DEVICE").load().getDisplay(true);
 require("../Modules/EXT_DIALOGS").load();
 
-dialogs.builds([
+dialogsx.builds([
     "能量球识别测试工具",
     "此测试工具用于识别能量球\n" +
     "手动进入森林页面可查看识别情况\n\n" +
@@ -51,7 +51,7 @@ function _() {
 
     threads.start(function () {
         while (~sleep(10)) {
-            _balls_data = images.findAFBallsByHough().expand();
+            _balls_data = imagesx.findAFBallsByHough().expand();
         }
     });
 

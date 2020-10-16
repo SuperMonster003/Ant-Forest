@@ -2,10 +2,13 @@
 // in auto.js versions like 4.1.0 Alpha5 and 4.1.1 Alpha2
 
 // in another way, extended functions like
-// dialogs.builds(); dialogs.getContentText();
-// could make things easier sometimes
+// dialogsx.builds() and dialogsx.getContentText()
+// could make things easier to some extent
 
-let {myLooper, getMainLooper} = android.os.Looper;
+global.dialogsx = typeof global.dialogsx === "object" ? global.dialogsx : {};
+
+let myLooper = android.os.Looper.myLooper;
+let getMainLooper = android.os.Looper.getMainLooper;
 let isUiThread = () => myLooper() === getMainLooper();
 let rtDialogs = () => {
     let d = runtime.dialogs;
@@ -13,14 +16,16 @@ let rtDialogs = () => {
 };
 
 let ext = {
+    /**
+     * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}
+     */
     build(properties) {
-        var builder = Object.create(runtime.dialogs.newBuilder());
+        let builder = Object.create(runtime.dialogs.newBuilder());
         builder.thread = threads.currentThread();
-        for (var name in properties) {
-            if (!properties.hasOwnProperty(name)) {
-                continue;
+        for (let name in properties) {
+            if (properties.hasOwnProperty(name)) {
+                applyDialogProperty(builder, name, properties[name]);
             }
-            applyDialogProperty(builder, name, properties[name]);
         }
         applyOtherDialogProperties(builder, properties);
         return ui.run(() => builder.buildDialog());
@@ -50,7 +55,7 @@ let ext = {
             if (!propertySetters.hasOwnProperty(name)) {
                 return;
             }
-            var propertySetter = propertySetters[name] || {};
+            let propertySetter = propertySetters[name] || {};
             if (propertySetter.method === undefined) {
                 propertySetter.method = name;
             }
@@ -70,7 +75,7 @@ let ext = {
                     .alwaysCallInputCallback();
             }
             if (properties.items !== undefined) {
-                var itemsSelectMode = properties.itemsSelectMode;
+                let itemsSelectMode = properties.itemsSelectMode;
                 if (itemsSelectMode === undefined || itemsSelectMode === 'select') {
                     builder.itemsCallback(function (dialog, view, position, text) {
                         builder.emit("item_select", position, text.toString(), builder.dialog);
@@ -83,8 +88,11 @@ let ext = {
                         });
                 } else if (itemsSelectMode === 'multi') {
                     builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
-                        function (dialog, view, indices, texts) {
-                            builder.emit("multi_choice", indices, texts, builder.dialog);
+                        function (dialog, indices, texts) {
+                            builder.emit("multi_choice",
+                                toJsArray(indices, (l, i) => parseInt(l[i])),
+                                toJsArray(texts, (l, i) => l[i].toString()),
+                                builder.dialog);
                             return true;
                         });
                 } else {
@@ -92,8 +100,8 @@ let ext = {
                 }
             }
             if (properties.progress !== undefined) {
-                var progress = properties.progress;
-                var indeterminate = (progress.max === -1);
+                let progress = properties.progress;
+                let indeterminate = (progress.max === -1);
                 builder.progress(indeterminate, progress.max, !!progress.showMinMax);
                 builder.progressIndeterminateStyle(!!progress.horizontal);
             }
@@ -105,7 +113,7 @@ let ext = {
             }
             if (properties.customView !== undefined) {
                 let customView = properties.customView;
-                if (typeof (customView) === 'xml' || typeof (customView) === 'string') {
+                if (typeof customView === 'xml' || typeof customView === 'string') {
                     customView = ui.run(() => ui.inflate(customView));
                 }
                 let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
@@ -118,18 +126,30 @@ let ext = {
                 }
                 return str;
             }
+
+            function toJsArray(object, adapter) {
+                let jsArray = [];
+                let len = object.length;
+                for (let i = 0; i < len; i++) {
+                    jsArray.push(adapter(object, i));
+                }
+                return jsArray;
+            }
         }
 
         function parseColor(c) {
-            if (typeof (c) == 'string') {
+            if (typeof c === 'string') {
                 return colors.parseColor(c);
             }
             return c;
         }
     },
+    /**
+     * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}
+     */
     builds(common, o) {
         let common_o = {};
-        let defs = typeof defs === "undefined" ? require("./MODULE_DEFAULT_CONFIG").settings : defs;
+        let defs = typeof global.defs === "undefined" ? require("./MODULE_DEFAULT_CONFIG").settings : global.defs;
         let dialog_contents = require("./MODULE_TREASURY_VAULT").dialog_contents || {};
 
         if (typeof common === "string") common = [common];
@@ -162,7 +182,7 @@ let ext = {
             common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
         }
 
-        let final_dialog = dialogs.build(Object.assign({}, common_o, o));
+        let final_dialog = this.build(Object.assign({}, common_o, o));
         global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
         return final_dialog;
     },
@@ -177,8 +197,8 @@ let ext = {
         }
         return rtDialogs().rawInput(title, prefill, callback ? callback : null);
     },
-    get prompt() {
-        return this.rawInput;
+    prompt(title, prefill, callback) {
+        return this.rawInput(title, prefill, callback);
     },
     input(title, prefill, callback) {
         prefill = prefill || "";
@@ -190,13 +210,15 @@ let ext = {
             });
         }
         if (callback) {
-            dialogs.rawInput(title, prefill, function (str) {
+            this.rawInput(title, prefill, function (str) {
                 callback(eval(str));
             });
             return;
         }
-        return eval(dialogs.rawInput(title, prefill), callback ? callback : null);
-
+        let input_cont = this.rawInput(title, prefill, callback ? callback : null);
+        if (typeof input_cont === "string") {
+            return eval(input_cont);
+        }
     },
     alert(title, prefill, callback) {
         prefill = prefill || "";
@@ -248,29 +270,29 @@ let ext = {
         index = index || [];
         if (isUiThread() && !callback) {
             return new Promise(function (resolve) {
-                rtDialogs().singleChoice(title, index, items, function (r) {
-                    resolve.apply(null, javaArrayToJsArray(r));
+                rtDialogs().multiChoice(title, index, items, function (r) {
+                    resolve(javaArrayToJsArray(r));
                 });
             });
         }
         if (callback) {
-            return rtDialogs().multiChoice(title, index, items, function (r) {
+            return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, function (r) {
                 callback(javaArrayToJsArray(r));
-            });
+            }));
         }
         return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, null));
 
         function javaArrayToJsArray(javaArray) {
-            var jsArray = [];
-            var len = javaArray.length;
-            for (var i = 0; i < len; i++) {
+            let jsArray = [];
+            let len = javaArray.length;
+            for (let i = 0; i < len; i++) {
                 jsArray.push(javaArray[i]);
             }
             return jsArray;
         }
     },
     dismiss() {
-        for (let i = 0, len = arguments.length; i < len; i += 1) {
+        for (let i = 0, l = arguments.length; i < l; i += 1) {
             arguments[i].dismiss();
         }
     },
@@ -278,15 +300,17 @@ let ext = {
         // to prevent dialog from being dismissed
         // by pressing "back" button (usually by accident)
         d.setOnKeyListener(
-            function onKey(diag, key_code, event) {
+            function onKey(diag, key_code) {
                 typeof f === "function" && f();
                 return key_code === android.view.KeyEvent.KEYCODE_BACK;
             }
         );
         return d;
     },
-    getContentText: d => d.getContentView().getText().toString(),
+    getContentText: (d) => {
+        return d.getContentView().getText().toString();
+    },
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.dialogs, ext);
+module.exports.load = () => global.dialogsx = ext;

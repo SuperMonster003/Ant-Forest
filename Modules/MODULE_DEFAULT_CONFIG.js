@@ -50,7 +50,7 @@ module.exports = {
             adapt_thrd: true, // images.adaptiveThreshold(image, 255, "GAUSSIAN_C", "BINARY_INV", 9, 6)
             med_blur: true, // images.medianBlur(image, 9)
             blur: true, // images.blur(image, 9, null, "REPLICATE")
-            blt_fltr: false, // images.bilateralFilter(image, 9, 20, 20, "REPLICATE")
+            blt_fltr: false, // imagesx.bilateralFilter(image, 9, 20, 20, "REPLICATE")
         },
         // strategies for handling cv::houghCircles results
         hough_results_strategy: {
@@ -148,6 +148,8 @@ module.exports = {
         max_queue_time_global: 60,
         // 100 <= x <= 800; exclusive tasks with too small intervals will be taken as bomb tasks
         min_bomb_interval_global: 300,
+        // ant forest timed task will be auto-delayed if battery percentage is lower than specified value
+        min_battery_percentage: 20,
         // decide whether to kill alipay app before script ended
         kill_when_done_switch: false,
         // true value for an intelligent check before killing alipay
@@ -172,7 +174,7 @@ module.exports = {
         prompt_before_running_postponed_minutes_user: 3,
         // specify a path for rank list bottom template locating (*.png)
         rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
-        // ant forest timed task will be auto-delayed for 5 min if current foreground app is in this list
+        // ant forest timed task will be auto-delayed if current foreground app is in this list
         foreground_app_blacklist: [],
         // some others
         stat_list_show_zero: 1, // hide zero

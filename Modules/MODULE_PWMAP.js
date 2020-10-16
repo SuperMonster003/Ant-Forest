@@ -93,7 +93,7 @@ function _exports() {
                 if (_s.match(_rex)) {
                     _res.push(_rand(_s));
                 } else {
-                    let _sglStr = s => {
+                    let _sglStr = (s) => {
                         let _cc = s.charCodeAt(0);
                         let _cc_hex = _cc.toString(16);
                         return _cc_hex.toUpperCase();

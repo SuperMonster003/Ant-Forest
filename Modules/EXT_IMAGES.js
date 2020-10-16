@@ -1,35 +1,12 @@
-let {Mat} = com.stardust.autojs.core.opencv;
-let {Imgproc} = org.opencv.imgproc;
-let {Core, Size} = org.opencv.core;
-let _rt_img = runtime.getImages();
+global.imagesx = typeof global.imagesx === "object" ? global.imagesx : {};
 
-if (typeof cX === "undefined" || typeof halfW === "undefined") {
-    _getDisplay(true);
-}
-if (typeof debugInfo === "undefined") {
-    debugInfo = _debugInfo;
-}
-if (typeof timeRecorder === "undefined") {
-    timeRecorder = _timeRecorder;
-}
-if (typeof Math.std !== "function") {
-    Object.assign(Math, {
-        std(arr) {
-            let _sum = arr.reduce((a, b) => +a + +b);
-            let _len = arr.length;
-            let _avg = _sum / _len;
-            let _acc = 0;
-            for (let i = 0; i < _len; i += 1) {
-                _acc += Math.pow((arr[i] - _avg), 2);
-            }
-            return Math.sqrt(_acc / _len);
-        },
-    });
-}
+require("./MODULE_MONSTER_FUNC").load("debugInfo", "timeRecorder");
+require("./EXT_GLOBAL_OBJ").load("Math");
+require("./EXT_DEVICE").load("getDisplay");
 
 let ext = {
     _initIfNeeded() {
-        _rt_img.initOpenCvIfNeeded();
+        runtime.getImages().initOpenCvIfNeeded();
     },
     _toPointArray(points) {
         let _arr = [];
@@ -60,14 +37,15 @@ let ext = {
         return img_str ? "@" + img_str.match(/\w+/)[0] : "(已提前回收)";
     },
     getMean(capt) {
-        let _v = Core.mean((capt || ext.capt()).getMat()).val;
+        /** @type {number[]} */
+        let _v = org.opencv.core.Core.mean((capt || ext.capt()).getMat()).val;
         let [R, G, B] = _v;
-        let [_R, _G, _B] = [R, G, B].map(x => +x.toFixed(2));
+        let [_R, _G, _B] = [R, G, B].map(x => Number(x.toFixed(2)));
         let _arr = [_R, _G, _B];
         return {
             data: {R: _R, G: _G, B: _B},
             arr: _arr,
-            std: Math.std(_arr),
+            std: Number(Math.std(_arr)),
             string: "[" + _arr.join(", ") + "]",
         };
     },
@@ -105,14 +83,21 @@ let ext = {
         toast(_msg);
         exit();
     },
+    capture() {
+        return this.capt.apply(this);
+    },
+    captureScreen() {
+        return this.capt.apply(this);
+    },
+    requestScreenCapture: _requestScreenCapture,
     tryRequestScreenCapture: _permitCapt, // legacy
-    permitCapt: _permitCapt,
     permit: _permitCapt,
+    permitCapt: _permitCapt,
     matchTpl(capt, tpl, opt) {
         let _capt;
         let _no_capt_fg;
         if (!capt) {
-            _capt = images.capt();
+            _capt = this.capt();
             _no_capt_fg = true;
         } else {
             _capt = capt;
@@ -221,7 +206,7 @@ let ext = {
             throw ("findColorInBounds的color参数无效");
         }
 
-        let _img = img || images.capt();
+        let _img = img || this.capt();
         let _srcMch = rex => src.toString().match(rex);
 
         let _bnd;
@@ -261,18 +246,29 @@ let ext = {
     bilateralFilter(img, d, sigmaColor, sigmaSpace, borderType) {
         this._initIfNeeded();
 
-        let mat = new Mat();
+        let mat = new com.stardust.autojs.core.opencv.Mat();
         let size = d || 0;
         let sc = sigmaColor || 40;
         let ss = sigmaSpace || 20;
-        let type = Core["BORDER_" + (borderType || "DEFAULT")];
+        let type = (org.opencv.core.Core)["BORDER_" + (borderType || "DEFAULT")];
 
-        Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
+        org.opencv.imgproc.Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
 
         return images.matToImage(mat);
     },
+    /**
+     * @typedef {
+     *     EnergyBallsInfoClassified & EnergyBallsDuration & {expand: function(): EnergyBallsInfo[]}
+     * } AfHoughBallsResult
+     */
+    /**
+     * @returns AfHoughBallsResult
+     */
     findAFBallsByHough(param) {
         timeRecorder("hough_beginning");
+        /**
+         * @type {{fill_up_pool: number, img_samples_processing: number}}
+         */
         let _du = {};
         let _par = param || {};
         let _cfg = Object.assign(
@@ -295,7 +291,19 @@ let ext = {
                     : v < 1 ? cX(v) : v
             ));
 
+        /** @type {EnergyBallsInfo[]} */
         let _balls_data = [];
+        /**
+         * @typedef {{
+         *     ripe?: EnergyBallsInfo[],
+         *     orange?: EnergyBallsInfo[],
+         *     naught?: EnergyBallsInfo[],
+         *     water?: EnergyBallsInfo[]
+         * }} EnergyBallsInfoClassified
+         */
+        /**
+         * @type EnergyBallsInfoClassified
+         */
         let _balls_data_o = {};
         let _pool = _par.pool || {
             data: [],
@@ -353,6 +361,15 @@ let ext = {
 
         _dbgRestore();
 
+        /**
+         * @typedef {{
+         *     duration?: {_map: string[][], total: number, showDebugInfo: function(): void}
+         *              & {fill_up_pool: number, img_samples_processing: number}
+         * }} EnergyBallsDuration
+         */
+        /**
+         * @type EnergyBallsDuration
+         */
         let _du_o = _par.duration !== false ? {
             duration: Object.assign({
                 _map: [
@@ -364,7 +381,7 @@ let ext = {
                     ["img_samples_processing", "数据处理"],
                     ["total", "全部用时"],
                 ],
-                total: timeRecorder("hough_beginning", "L"),
+                total: Number(timeRecorder("hough_beginning", "L")),
                 showDebugInfo() {
                     debugInfo("__split_line__dash__");
                     debugInfo("图像填池: " +
@@ -387,6 +404,7 @@ let ext = {
 
         return Object.assign(_balls_data_o, _du_o, {
             expand() {
+                /** @type EnergyBallsInfo[] */
                 let _data = [];
                 for (let i in this) {
                     if (this.hasOwnProperty(i)) {
@@ -415,8 +433,8 @@ let ext = {
         }
 
         function _setWballExtFunction() {
-            if (!images.inTreeArea) {
-                images.inTreeArea = (o) => {
+            if (!imagesx.inTreeArea) {
+                imagesx.inTreeArea = (o) => {
                     // TODO...
                     let _tree_area = {x: halfW, y: cYx(670), r: cX(182)};
                     if (typeof o !== "object" || !o.r) {
@@ -431,9 +449,9 @@ let ext = {
                     return _ct_dist < _ct_dist_min;
                 }
             }
-            if (!images.isWball) {
-                images.isWball = (o, capt, container) => {
-                    let _capt = capt || images.capt();
+            if (!imagesx.isWaterBall) {
+                imagesx.isWaterBall = (o, capt, container) => {
+                    let _capt = capt || ext.capt();
                     let _ctx = o.x;
                     let _cty = o.y;
                     let _offset = o.r / Math.SQRT2;
@@ -468,19 +486,19 @@ let ext = {
                     }
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
 
                     return _result;
                 };
             }
-            if (!images.isRipeBall) {
-                images.isRipeBall = (o, capt, container) => {
-                    if (images.inTreeArea(o)) {
+            if (!imagesx.isRipeBall) {
+                imagesx.isRipeBall = (o, capt, container) => {
+                    if (imagesx.inTreeArea(o)) {
                         return;
                     }
-                    let _capt = capt || images.capt();
+                    let _capt = capt || ext.capt();
                     let _offset = o.r / 4;
                     let _d = _offset * 2;
                     let _color = _cfg.ripe_ball_detect_color;
@@ -490,7 +508,7 @@ let ext = {
                     });
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
 
@@ -502,12 +520,12 @@ let ext = {
                     }
                 };
             }
-            if (!images.isOrangeBall) {
-                images.isOrangeBall = (o, capt, container) => {
-                    if (images.inTreeArea(o)) {
+            if (!imagesx.isOrangeBall) {
+                imagesx.isOrangeBall = (o, capt, container) => {
+                    if (imagesx.inTreeArea(o)) {
                         return false;
                     }
-                    let _capt = capt || images.capt();
+                    let _capt = capt || ext.capt();
                     let _w = cX(115);
                     let _dw = _w / 5 - 1;
                     let _h = cYx(30);
@@ -529,7 +547,7 @@ let ext = {
                     }
 
                     if (!capt) {
-                        images.reclaim(_capt);
+                        ext.reclaim(_capt);
                         _capt = null;
                     }
                     if (_result) {
@@ -612,7 +630,11 @@ let ext = {
 
                 let _proc_key = "img_samples_processing";
                 timeRecorder(_proc_key);
+
+                /** @type {EnergyBallsBasicProp[]} */
                 let _wballs = [];
+
+                /** @type {EnergyBallsBasicProp[]} */
                 let _balls = []
                     .concat(_getBalls(_src_img_stg.gray && _gray))
                     .concat(_getBalls(_adapt_thrd))
@@ -770,6 +792,9 @@ let ext = {
                     }
                 }
 
+                /**
+                 * @typedef {"ripe"|"orange"|"naught"|"water"} EnergyBallsType
+                 */
                 function _addBalls() {
                     _wballs.map(_extProperties).forEach((o) => {
                         _addBall(o, "water");
@@ -781,7 +806,7 @@ let ext = {
                         if (_isRipeBall(o)) {
                             return _addBall(o, "ripe");
                         }
-                        if (!images.inTreeArea(o)) {
+                        if (!imagesx.inTreeArea(o)) {
                             _addBall(o, "naught");
                         }
                     });
@@ -790,14 +815,22 @@ let ext = {
 
                     function _isOrangeBall(o) {
                         if (!_par.no_orange_ball) {
-                            return images.isOrangeBall(o, capt);
+                            return imagesx.isOrangeBall(o, capt);
                         }
                     }
 
                     function _isRipeBall(o) {
-                        return images.isRipeBall(o, capt);
+                        return imagesx.isRipeBall(o, capt);
                     }
 
+                    /**
+                     * @typedef {EnergyBallsBasicProp & EnergyBallsExtProp} EnergyBallsMixedProp
+                     * @typedef {EnergyBallsMixedProp & {type: EnergyBallsType}} EnergyBallsInfo
+                     */
+                    /**
+                     * @param {EnergyBallsMixedProp} o
+                     * @param {EnergyBallsType} type
+                     */
                     function _addBall(o, type) {
                         let _pri = {orange: 9, ripe: 6, naught: 3};
                         let _data_idx = _getDataIdx(o);
@@ -826,6 +859,16 @@ let ext = {
                         }
                     }
 
+                    /**
+                     * @typedef {{
+                     *     x: number, y: number, r: number,
+                     *     left: number, top: number, right: number, bottom: number,
+                     *     width: function(): number, height: function(): number
+                     * }} EnergyBallsExtProp
+                     */
+                    /**
+                     * @returns EnergyBallsMixedProp
+                     */
                     function _extProperties(o) {
                         let {x: _x, y: _y, r: _r} = o;
                         return Object.assign(o, {
@@ -841,6 +884,23 @@ let ext = {
                     }
                 }
 
+                /**
+                 * @typedef {{
+                 *     x: number,
+                 *     y: number,
+                 *     r: number,
+                 *     mean?: {
+                 *         arr: [number, number, number],
+                 *         std: number,
+                 *         data: {R: number, B: number, G: number},
+                 *         string: string
+                 *     },
+                 *     computed?: boolean
+                 * }} EnergyBallsBasicProp
+                 */
+                /**
+                 * @returns {EnergyBallsBasicProp[]|[]}
+                 */
                 function _getBalls(img, par1, par2) {
                     return !img ? [] : images
                         .findCircles(img, {
@@ -852,16 +912,14 @@ let ext = {
                             param2: par2 || 15,
                             region: [_l, _t, _w, _h],
                         })
-                        .map(o => {
+                        .map((o) => {
                             // o.x and o.y are relative,
                             // yet x and y are absolute
-                            let _x = o.x + _l;
-                            let _y = o.y + _t;
-                            let _r = +o.radius.toFixed(2);
+                            let _x = Number(o.x + _l);
+                            let _y = Number(o.y + _t);
+                            let _r = Number(o.radius.toFixed(2));
                             let _d = _r * 2;
-                            let _clip = images.clip(
-                                capt, _x - _r, _y - _r, _d, _d
-                            );
+                            let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
                             let _mean = ext.getMean(_clip);
                             _clip.recycle();
                             _clip = null;
@@ -883,18 +941,17 @@ let ext = {
                 }
 
                 function _filterWball(o) {
-                    if (!o) {
-                        return false;
+                    if (o) {
+                        if (imagesx.isRipeBall(o, capt)) {
+                            return true;
+                        }
+                        return !imagesx.isWaterBall(o, capt, _wballs);
                     }
-                    if (images.isRipeBall(o, capt)) {
-                        return true;
-                    }
-                    return !images.isWball(o, capt, _wballs);
                 }
             }
         }
 
-        // updated at Jun 3, 2020
+        // updated: Jun 3, 2020
         function _$DEFAULT() {
             return {
                 help_ball_detect_color: "#f99137",
@@ -925,7 +982,7 @@ let ext = {
     },
     findAllPointsForColor(img, color, options) {
         this._initIfNeeded();
-        let _finder = _rt_img.colorFinder;
+        let _finder = runtime.getImages().colorFinder;
         let _default_color_threshold = 4;
         let _opt = options || {};
 
@@ -942,8 +999,10 @@ let ext = {
         // compatible with Auto.js Pro versions
         _finder.__proto__ = Object.assign(_finder.__proto__ || {}, {
             findAllPointsForColor(image, color, threshold, rect) {
-                let {Core, Scalar} = org.opencv.core;
-                let {Mat, OpenCVHelper} = com.stardust.autojs.core.opencv;
+                let Core = org.opencv.core.Core;
+                let Scalar = org.opencv.core.Scalar;
+                let Mat = com.stardust.autojs.core.opencv.Mat;
+                let OpenCVHelper = com.stardust.autojs.core.opencv.OpenCVHelper;
 
                 let _screen_metrics = runtime.getScreenMetrics();
 
@@ -965,7 +1024,7 @@ let ext = {
                 // tool function(s) //
 
                 function _findColorInner(image, color, threshold, rect) {
-                    let _bi = Mat();
+                    let _bi = new Mat();
                     let _lower_bound = new Scalar(
                         colors.red(color) - threshold,
                         colors.green(color) - threshold,
@@ -1010,21 +1069,43 @@ let ext = {
         );
     },
 };
-ext.capture = ext.captureCurrentScreen = () => ext.capt();
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.images, ext);
+module.exports.load = () => global.imagesx = ext;
 
 // tool function(s) //
 
-function _newSize(size) {
-    if (!Array.isArray(size)) {
-        size = [size, size];
+function _requestScreenCapture(landscape) {
+    let aj_pkg = context.packageName;
+    let is_pro = aj_pkg.match(/[Pp]ro/);
+    let is_pro_7 = is_pro && app.autojs.versionName.match(/^Pro 7/);
+    if (global._$_request_screen_capture) {
+        return true;
     }
-    if (size.length === 1) {
-        size = [size[0], size[0]];
+    global._$_request_screen_capture = threads.atomic(1);
+
+    let javaImages = runtime.getImages();
+    let ResultAdapter = require.call(global, "result_adapter");
+    let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
+
+    let orientation = typeof landscape !== "boolean"
+        ? ScreenCapturer.ORIENTATION_AUTO
+        : landscape
+            ? ScreenCapturer.ORIENTATION_LANDSCAPE
+            : ScreenCapturer.ORIENTATION_PORTRAIT;
+    let adapter = !is_pro
+        ? javaImages.requestScreenCapture(orientation)
+        : javaImages.requestScreenCapture.apply(javaImages, [
+            orientation /* orientation */,
+            -1, /* width */
+            -1, /* height */
+            false /* isAsync */
+        ].slice(0, is_pro_7 ? 3 : 4));
+
+    if (ResultAdapter.wait(adapter)) {
+        return true;
     }
-    return new Size(size[0], size[1]);
+    delete global._$_request_screen_capture;
 }
 
 /**
@@ -1048,40 +1129,32 @@ function _newSize(size) {
  * @return {boolean}
  */
 function _permitCapt(params) {
-    let _$$und = x => typeof x === "undefined";
-    let _$$isJvo = x => x && !!x["getClass"];
-    let _key = "_$_request_screen_capture";
-    let _fg = global[_key];
-
-    if (_$$isJvo(_fg)) {
-        if (_fg) return true;
-        _fg.incrementAndGet();
-    } else {
-        global[_key] = threads.atomic(1);
+    if (global._$_request_screen_capture) {
+        return true;
     }
-
+    let $_und = x => typeof x === "undefined";
     let _par = params || {};
     let _debugInfo = (m, fg) => (
-        typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
+        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
     )(m, fg, _par.debug_info_flag);
 
     _debugInfo("开始申请截图权限");
 
     let _waitForAction = (
-        typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
     );
     let _messageAction = (
-        typeof messageAction === "undefined" ? messageActionRaw : messageAction
+        typeof messageAction === "function" ? messageAction : messageActionRaw
     );
     let _clickAction = (
-        typeof clickAction === "undefined" ? clickActionRaw : clickAction
+        typeof clickAction === "function" ? clickAction : clickActionRaw
     );
     let _getSelector = (
-        typeof getSelector === "undefined" ? getSelectorRaw : getSelector
+        typeof getSelector === "function" ? getSelector : getSelectorRaw
     );
     let _$$sel = _getSelector();
 
-    if (_$$und(_par.restart_this_engine_flag)) {
+    if ($_und(_par.restart_this_engine_flag)) {
         _par.restart_this_engine_flag = true;
     } else {
         let _self = _par.restart_this_engine_flag;
@@ -1096,8 +1169,8 @@ function _permitCapt(params) {
 
     _debugInfo("已开启弹窗监测线程");
     let _thread_prompt = threads.start(function () {
-        let _kw_remember = id("com.android.systemui:id/remember");
-        let _sel_remember = () => _$$sel.pickup(_kw_remember);
+        let _sltr_remember = id("com.android.systemui:id/remember");
+        let _sel_remember = () => _$$sel.pickup(_sltr_remember);
         let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
         let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
 
@@ -1124,7 +1197,7 @@ function _permitCapt(params) {
     let _thread_monitor = threads.start(function () {
         if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
             _thread_prompt.interrupt();
-            return _debugInfo("截图权限申请结果: " + _req_result);
+            return _debugInfo("截图权限申请结果: 成功");
         }
         if (typeof $$flag !== "undefined") {
             if (!$$flag.debug_info_avail) {
@@ -1150,42 +1223,35 @@ function _permitCapt(params) {
                 return;
             }
         }
-        _messageAction("截图权限申请失败", 9, 1, 0, 1);
+        _messageAction("截图权限申请失败", 8, 1, 0, 1);
     });
 
-    let _req_result = images.requestScreenCapture(false);
+    let _req_result = _requestScreenCapture(false);
     _thread_monitor.join();
-
-    if (_req_result) {
-        return true;
-    }
-    _fg.decrementAndGet();
+    return _req_result;
 
     // raw function(s) //
 
     function getSelectorRaw() {
         let classof = o => Object.prototype.toString.call(o).slice(8, -1);
         let sel = selector();
-        sel.__proto__ = {
-            pickup(filter) {
-                if (classof(filter) === "JavaObject") {
-                    if (filter.toString().match(/UiObject/)) return filter;
-                    return filter.findOnce() || null;
-                }
-                if (typeof filter === "string") return desc(filter).findOnce() || text(filter).findOnce() || null;
-                if (classof(filter) === "RegExp") return descMatches(filter).findOnce() || textMatches(filter).findOnce() || null;
-                return null;
-            },
-        };
+        sel.__proto__ = sel.__proto__ || {};
+        if (typeof sel.__proto__.pickup !== "function") {
+            sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
+                ? filter.toString().match(/UiObject/)
+                    ? filter
+                    : filter.findOnce()
+                : typeof filter === "string"
+                    ? desc(filter).findOnce() || text(filter).findOnce()
+                    : classof(filter) === "RegExp"
+                        ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
+                        : null;
+        }
         return sel;
     }
 
-    function debugInfoRaw(msg, info_flg) {
-        if (info_flg) {
-            let _s = msg || "";
-            _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-            console.verbose(_s);
-        }
+    function debugInfoRaw(msg, msg_lv) {
+        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
     }
 
     function waitForActionRaw(cond_func, time_params) {
@@ -1202,142 +1268,135 @@ function _permitCapt(params) {
         return _check_time >= 0;
     }
 
-    function clickActionRaw(kw) {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _kw = classof(kw) === "Array" ? kw[0] : kw;
-        let _key_w = classof(_kw) === "JavaObject" && _kw.toString().match(/UiObject/) ? _kw : _kw.findOnce();
-        if (_key_w) {
-            let _bounds = _key_w.bounds();
-            click(_bounds.centerX(), _bounds.centerY());
-            return true;
+    function clickActionRaw(o) {
+        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        let _o = _classof(o) === "Array" ? o[0] : o;
+        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+        if (!_w) {
+            return false;
         }
+        let _bnd = _w.bounds();
+        return click(_bnd.centerX(), _bnd.centerY());
     }
 
     function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
+        let _msg = msg || " ";
         if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
+            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
         }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
+        if_toast && toast(_msg);
+        let _lv = typeof lv === "undefined" ? 1 : lv;
+        if (_lv >= 4) {
+            console.error(_msg);
+            _lv >= 8 && exit();
+            return false;
         }
         if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
+            console.warn(_msg);
+            return false;
         }
         if (_lv === 0) {
-            console.verbose(_s);
+            console.verbose(_msg);
         } else if (_lv === 1) {
-            console.log(_s);
+            console.log(_msg);
         } else if (_lv === 2) {
-            console.info(_s);
+            console.info(_msg);
         }
         return true;
     }
 
     // tool function(s) //
 
-    // updated: Dec 27, 2019
+    // updated: Aug 29, 2019
     function restartThisEngine(params) {
         let _params = params || {};
 
-        let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-        let _debugInfo = (_msg, _info_flag) => (typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo)(_msg, _info_flag, _params.debug_info_flag);
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _params.debug_info_flag);
 
-        let _my_engine = engines.myEngine();
-        let _my_engine_id = _my_engine.id;
+        let _my_e = engines.myEngine();
+        let _my_e_id = _my_e.id;
+        let _e_argv = _my_e.execArgv;
 
-        let _max_restart_engine_times_argv = _my_engine.execArgv.max_restart_engine_times;
-        let _max_restart_engine_times_params = _params.max_restart_engine_times;
-        let _max_restart_engine_times;
-        if (typeof _max_restart_engine_times_argv === "undefined") {
-            if (typeof _max_restart_engine_times_params === "undefined") _max_restart_engine_times = 1;
-            else _max_restart_engine_times = _max_restart_engine_times_params;
-        } else _max_restart_engine_times = _max_restart_engine_times_argv;
-
-        _max_restart_engine_times = +_max_restart_engine_times;
-        let _max_restart_engine_times_backup = +_my_engine.execArgv.max_restart_engine_times_backup || _max_restart_engine_times;
-
-        if (!_max_restart_engine_times) {
+        let _restart_times_a = _e_argv.max_restart_engine_times;
+        let _restart_times_p = _params.max_restart_engine_times;
+        let _restart_times;
+        if (typeof _restart_times_a === "undefined") {
+            _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
+        } else {
+            _restart_times = +_restart_times_a;
+        }
+        if (!_restart_times) {
             _messageAction("引擎重启已拒绝", 3);
             return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
         }
 
+        let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
         _debugInfo("重启当前引擎任务");
-        _debugInfo(">当前次数: " + (_max_restart_engine_times_backup - _max_restart_engine_times + 1));
-        _debugInfo(">最大次数: " + _max_restart_engine_times_backup);
-        let _file_name = _params.new_file || _my_engine.source.toString();
-        if (_file_name.match(/^\[remote]/)) _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+        _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
+        _debugInfo(">最大次数: " + _restart_times_bak);
+        let _file_name = _params.new_file || _my_e.source.toString();
+        if (_file_name.match(/^\[remote]/)) {
+            _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
+        }
 
-        let _file_path = files.path(_file_name.match(/\.js$/) ? _file_name : (_file_name + ".js"));
+        let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
         _debugInfo("运行新引擎任务:\n" + _file_path);
-        _runJsFile(_file_path, Object.assign({}, _params, {
-            max_restart_engine_times: _max_restart_engine_times - 1,
-            max_restart_engine_times_backup: _max_restart_engine_times_backup,
-            instant_run_flag: _params.instant_run_flag,
-        }));
+        engines.execScriptFile(_file_path, {
+            arguments: Object.assign({}, _params, {
+                max_restart_engine_times: _restart_times - 1,
+                max_restart_engine_times_backup: _restart_times_bak,
+                instant_run_flag: _params.instant_run_flag,
+            }),
+        });
         _debugInfo("强制停止旧引擎任务");
         // _my_engine.forceStop();
-        engines.all().filter(e => e.id === _my_engine_id).forEach(e => e.forceStop());
+        engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
         return true;
 
         // raw function(s) //
 
         function messageActionRaw(msg, lv, if_toast) {
-            let _s = msg || " ";
+            let _msg = msg || " ";
             if (lv && lv.toString().match(/^t(itle)?$/)) {
-                let _par = ["[ " + msg + " ]", 1, if_toast];
-                return messageActionRaw.apply({}, _par);
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
             }
-            let _lv = +lv;
-            if (if_toast) {
-                toast(_s);
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
             }
             if (_lv >= 3) {
-                if (_lv >= 4) {
-                    console.error(_s);
-                    if (_lv >= 8) {
-                        exit();
-                    }
-                } else {
-                    console.warn(_s);
-                }
-                return;
+                console.warn(_msg);
+                return false;
             }
             if (_lv === 0) {
-                console.verbose(_s);
+                console.verbose(_msg);
             } else if (_lv === 1) {
-                console.log(_s);
+                console.log(_msg);
             } else if (_lv === 2) {
-                console.info(_s);
+                console.info(_msg);
             }
             return true;
         }
 
-        function debugInfoRaw(msg, info_flg) {
-            if (info_flg) {
-                let _s = msg || "";
-                _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-                console.verbose(_s);
-            }
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     }
 }
 
 // FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
 function _reclaim() {
-    for (let i = 0, len = arguments.length; i < len; i += 1) {
+    for (let i = 0, l = arguments.length; i < l; i += 1) {
         let img = arguments[i];
-        if (images.isImageWrapper(img)) {
+        if (ext.isImageWrapper(img)) {
             img.recycle();
         }
         /*
@@ -1346,418 +1405,4 @@ function _reclaim() {
             of this reference typed argument
          */
     }
-}
-
-// monster function(s) //
-
-// updated: Jun 3, 2020
-function _getDisplay(global_assign, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-    let _par, _glob_asg;
-    if (typeof global_assign === "boolean") {
-        _par = params || {};
-        _glob_asg = global_assign;
-    } else {
-        _par = global_assign || {};
-        _glob_asg = _par.global_assign;
-    }
-
-    let _waitForAction = typeof waitForAction === "undefined"
-        ? waitForActionRaw
-        : waitForAction;
-    let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-        ? debugInfoRaw
-        : debugInfo)(m, fg, _par.debug_info_flag);
-
-    let _W, _H;
-    let _disp = {};
-    let _metrics = new android.util.DisplayMetrics();
-    let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-    let _win_svc_disp = _win_svc.getDefaultDisplay();
-    _win_svc_disp.getRealMetrics(_metrics);
-
-    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        console.error("device.getDisplay()返回结果异常");
-        return {cX: cX, cY: cY, cYx: cYx};
-    }
-    _showDisp();
-    _assignGlob();
-    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
-
-    // tool function(s) //
-
-    function cX(num, base) {
-        return _cTrans(1, +num, base);
-    }
-
-    function cY(num, base) {
-        return _cTrans(-1, +num, base);
-    }
-
-    function cYx(num, base) {
-        num = +num;
-        base = +base;
-        if (num >= 1) {
-            if (!base) {
-                base = 720;
-            } else if (base < 0) {
-                if (!~base) {
-                    base = 720;
-                } else if (base === -2) {
-                    base = 1080;
-                } else {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                }
-            } else if (base < 5) {
-                throw Error(
-                    "base and num params should " +
-                    "both be pixels for cYx()"
-                );
-            }
-            return Math.round(num * _W / base);
-        }
-
-        if (!base || !~base) {
-            base = 16 / 9;
-        } else if (base === -2) {
-            base = 21 / 9;
-        } else if (base < 0) {
-            throw Error(
-                "can not parse base param for cYx()"
-            );
-        } else {
-            base = base < 1 ? 1 / base : base;
-        }
-        return Math.round(num * _W * base);
-    }
-
-    function _cTrans(dxn, num, base) {
-        let _full = ~dxn ? _W : _H;
-        if (isNaN(num)) {
-            throw Error("can not parse num param for cTrans()");
-        }
-        if (Math.abs(num) < 1) {
-            return Math.min(Math.round(num * _full), _full);
-        }
-        let _base = base;
-        if (!base || !~base) {
-            _base = ~dxn ? 720 : 1280;
-        } else if (base === -2) {
-            _base = ~dxn ? 1080 : 1920;
-        }
-        let _ct = Math.round(num * _full / _base);
-        return Math.min(_ct, _full);
-    }
-
-    function _showDisp() {
-        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-            _debugInfo("屏幕宽高: " + _W + " × " + _H);
-            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $_flag.display_params_got = true;
-        }
-    }
-
-    function _getDisp() {
-        try {
-            _W = _win_svc_disp.getWidth();
-            _H = _win_svc_disp.getHeight();
-            if (!(_W * _H)) {
-                throw Error();
-            }
-
-            // if the device is rotated 90 degrees counter-clockwise,
-            // to compensate rendering will be rotated by 90 degrees clockwise
-            // and thus the returned value here will be Surface#ROTATION_90
-            // 0: 0°, device is portrait
-            // 1: 90°, device is rotated 90 degree counter-clockwise
-            // 2: 180°, device is reverse portrait
-            // 3: 270°, device is rotated 90 degree clockwise
-            let _SCR_O = _win_svc_disp.getRotation();
-            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = +_win_svc_disp.maximumSizeDimension;
-            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
-            let [_UH, _UW] = [_H, _W];
-            let _dimen = (name) => {
-                let resources = context.getResources();
-                let resource_id = resources.getIdentifier(name, "dimen", "android");
-                if (resource_id > 0) {
-                    return resources.getDimensionPixelSize(resource_id);
-                }
-                return NaN;
-            };
-
-            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-            return {
-                WIDTH: _W,
-                USABLE_WIDTH: _UW,
-                HEIGHT: _H,
-                USABLE_HEIGHT: _UH,
-                screen_orientation: _SCR_O,
-                status_bar_height: _dimen("status_bar_height"),
-                navigation_bar_height: _dimen("navigation_bar_height"),
-                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                action_bar_default_height: _dimen("action_bar_default_height"),
-            };
-        } catch (e) {
-            try {
-                _W = +device.width;
-                _H = +device.height;
-                return _W && _H && {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            } catch (e) {
-            }
-        }
-    }
-
-    function _assignGlob() {
-        if (_glob_asg) {
-            Object.assign(global, {
-                W: _W, WIDTH: _W,
-                halfW: Math.round(_W / 2),
-                uW: _disp.USABLE_WIDTH,
-                H: _H, HEIGHT: _H,
-                uH: _disp.USABLE_HEIGHT,
-                scrO: _disp.screen_orientation,
-                staH: _disp.status_bar_height,
-                navH: _disp.navigation_bar_height,
-                navHC: _disp.navigation_bar_height_computed,
-                actH: _disp.action_bar_default_height,
-                cX: cX, cY: cY, cYx: cYx,
-            });
-        }
-    }
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function debugInfoRaw(msg, info_flag) {
-        if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-    }
-}
-
-// updated: Jan 13, 2020
-function _debugInfo(msg, info_flag, forcible_flag) {
-    let $_flag = global.$$flag = global.$$flag || {};
-
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    let global_flag = $_flag.debug_info_avail;
-    if (!global_flag && !forcible_flag) return;
-    if (global_flag === false || forcible_flag === false) return;
-
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
-
-    let info_flag_str = (info_flag || "").toString();
-    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-    if (info_flag_str.match(/Up/)) _showSplitLine();
-    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        return ~console.log(_split_line + _extra_str);
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
-        }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
-        }
-        if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
-        }
-        if (_lv === 0) {
-            console.verbose(_s);
-        } else if (_lv === 1) {
-            console.log(_s);
-        } else if (_lv === 2) {
-            console.info(_s);
-        }
-        return true;
-    }
-
-    // tool function(s) //
-
-    function setDebugSplitLine(msg) {
-        let _msg = "";
-        if (msg.match(/dash/)) {
-            for (let i = 0; i < 17; i += 1) _msg += "- ";
-            _msg += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _msg += "-";
-        }
-        return _msg;
-    }
-}
-
-// updated: May 5, 2020
-function _runJsFile(file_name, e_args) {
-    let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + ".js"));
-    if (e_args) {
-        return engines.execScriptFile(_path, {arguments: e_args});
-    }
-    return app.startActivity({
-        action: "VIEW",
-        packageName: context.packageName,
-        className: "org.autojs.autojs.external.open.RunIntentActivity",
-        data: "file://" + _path,
-    });
-}
-
-// updated: Jun 3, 2020
-function _timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
-    global["_$_ts_rec"] = global["_$_ts_rec"] || {};
-    let records = global["_$_ts_rec"];
-    if (!operation || operation.toString().match(/^(S|save|put)$/)) {
-        return records[keyword] = +new Date();
-    }
-
-    divisor = divisor || 1;
-
-    let forcible_fixed_num_flag = false;
-    if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
-
-    let prefix = "";
-    let result = +(override_timestamp || new Date()) - records[keyword]; // number
-
-    if (divisor !== "auto") {
-        suffix = suffix || "";
-        result = result / divisor;
-    } else {
-        suffix = suffix || "$$ch";
-        fixed = fixed || [2];
-        forcible_fixed_num_flag = true;
-
-        let getSuffix = (unit_str) => ({
-            ms$$ch: "毫秒", ms$$en: "ms ",
-            sec$$ch: "秒", sec$$en: "s ",
-            min$$ch: "分钟", min$$en: "m ",
-            hour$$ch: "小时", hour$$en: "h ",
-            day$$ch: "天", day$$en: "d ",
-        })[unit_str + suffix];
-
-        let base_unit = {
-            ms: 1,
-            get sec() {
-                return 1e3 * this.ms;
-            },
-            get min() {
-                return 60 * this.sec;
-            },
-            get hour() {
-                return 60 * this.min;
-            },
-            get day() {
-                return 24 * this.hour;
-            }
-        };
-
-        if (result >= base_unit.day) {
-            let _d = ~~(result / base_unit.day);
-            prefix += _d + getSuffix("day");
-            result %= base_unit.day;
-            let _h = ~~(result / base_unit.hour);
-            if (_h) prefix += _h + getSuffix("hour");
-            result %= base_unit.hour;
-            let _min = ~~(result / base_unit.min);
-            if (_min) {
-                result /= base_unit.min;
-                suffix = getSuffix("min");
-            } else {
-                result %= base_unit.min;
-                result /= base_unit.sec;
-                suffix = getSuffix("sec");
-            }
-        } else if (result >= base_unit.hour) {
-            let _hr = ~~(result / base_unit.hour);
-            prefix += _hr + getSuffix("hour");
-            result %= base_unit.hour;
-            let _min = ~~(result / base_unit.min);
-            if (_min) {
-                result /= base_unit.min;
-                suffix = getSuffix("min");
-            } else {
-                result %= base_unit.min;
-                result /= base_unit.sec;
-                suffix = getSuffix("sec");
-            }
-        } else if (result >= base_unit.min) {
-            let _min = ~~(result / base_unit.min);
-            prefix += _min + getSuffix("min");
-            result %= base_unit.min;
-            result /= base_unit.sec;
-            suffix = getSuffix("sec");
-        } else if (result >= base_unit.sec) {
-            result /= base_unit.sec;
-            suffix = getSuffix("sec");
-        } else {
-            result /= base_unit.ms; // yes, i have OCD [:wink:]
-            suffix = getSuffix("ms");
-        }
-    }
-
-    if (typeof fixed !== "undefined" && fixed !== null) {
-        result = result.toFixed(+fixed);  // string
-    }
-
-    if (forcible_fixed_num_flag) result = +result;
-    suffix = suffix.toString().replace(/ *$/g, "");
-
-    let _res;
-    if (!prefix) {
-        _res = result + suffix;
-    } else {
-        _res = prefix + (result ? result + suffix : "");
-    }
-    return _res === "NaN" ? NaN : _res;
 }

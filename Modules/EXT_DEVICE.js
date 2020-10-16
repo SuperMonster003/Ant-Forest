@@ -1,10 +1,12 @@
-let $_dev = global.device = global.device || {};
-$_dev.__proto__ = $_dev.__proto__ || {};
+global.devicex = typeof global.devicex === "object" ? global.devicex : {};
+
+require("./MODULE_MONSTER_FUNC").load("messageAction", "waitForAction", "debugInfo");
 
 let ext = {
     /**
      * device.keepScreenOn()
-     * @param {number} [duration] could be minute (less than 100) or second -- 5 and 300000 both for 5 min
+     * @param {number} [duration=5] -
+     * could be minute (less than 100) or second -- 5 and 300000 both for 5 min
      * @param {object} [params]
      * @param {boolean} [params.debug_info_flag]
      */
@@ -12,7 +14,7 @@ let ext = {
         let _par = params || {};
         let _du = duration || 5;
         _du *= _du < 100 ? 60e3 : 1;
-        $_dev.keepScreenOn(_du);
+        device.keepScreenOn(_du);
         if (_par.debug_info_flag !== false) {
             let _mm = +(_du / 60e3).toFixed(2);
             debugInfo("已设置屏幕常亮");
@@ -26,51 +28,53 @@ let ext = {
      */
     cancelOn(params) {
         let _par = params || {};
-        $_dev.cancelKeepingAwake();
+        device.cancelKeepingAwake();
         if (_par.debug_info_flag !== false) {
             debugInfo("屏幕常亮已取消");
         }
     },
     /**
-     * Vibrate the device with pattern and repeat times
-     * @param pattern {number|array} -- vibrate pattern
-     * <br>
-     * -- odd: delay time; <br>
-     * -- even: vibrate time; <br>
-     * -- nums less than 10 will be multiplied by 1000
-     * @param {number} [repeat=1] -- repeat times
-     * <br>
-     * -- times less than 1 or without number type will be reset to 1
+     * Vibrate the device with a certain pattern
+     * @param {number|number[]} pattern -
+     * an array of longs of times for which to turn the vibrator on or off
+     * @param {number} [repeat=1] -
+     * total repeat times
+     * @param {boolean} [async=true] -
+     * vibrator working asynchronously or not
+     * @see global.device
+     * @see com.stardust.autojs.runtime.api.Device
      * @example
-     * // a pattern and default repeat times (one time)
-     * device.vibrates([0, 0.1, 0.3, 0.1, 0.3, 0.2]);
-     * // pattern could be spread with one-time repeat
-     * device.vibrates(0, 0.1, 0.3, 0.1, 0.3, 0.2);
+     * // async and repeat once
+     * devicex.vibrate(100);
+     * devicex.vibrate([100]);
+     * devicex.vibrate([100, 300, 100, 300, 200]);
      * // repeat twice
-     * device.vibrates([0, 0.1, 0.3, 0.1, 0.3, 0.2, 0.9], 2);
+     * devicex.vibrate(100, 2); // devicex.vibrate([100, 1000], 2)
+     * devicex.vibrate([100, 300, 100, 300, 200], 2);
+     * // sync (not async)
+     * devicex.vibrate([100, 300, 100, 300, 200], 2, false);
+     * // "SOS" in Morse -- zh-CN: SOS 的摩斯编码
+     * devicex.vibrate([100, 60, 100, 60, 100, 200, 200, 60, 200, 60, 200, 200, 100, 60, 100, 60, 100]);
      */
-    vibrates(pattern, repeat) {
-        let _repeat;
-        let _nums = pattern;
-        if (typeof _nums !== "object") {
-            _nums = [];
-            let _len = arguments.length;
-            for (let i = 0; i < _len; i += 1) {
-                _nums[i] = arguments[i];
-            }
-            _repeat = 1;
-        } else {
-            _repeat = parseInt(repeat);
-            if (!_repeat || _repeat < 0) {
-                _repeat = 1;
-            }
-        }
-        while (_repeat--) {
-            let _len = _nums.length;
-            for (let i = 0; i < _len; i += 1) {
-                let arg = +_nums[i];
-                if (arg < 10) arg *= 1e3;
-                i % 2 ? $_dev.vibrate(arg) : sleep(arg);
+    vibrate(pattern, repeat, async) {
+        let _repeat = repeat || 1;
+        let _async = typeof async === "undefined" ? true : !!async;
+        let _pattern = typeof pattern === "number" ? [pattern] : pattern;
+        _async ? threads.start(_vibrate) : _vibrate();
+
+        // tool function(s) //
+
+        function _vibrate() {
+            let _getNum = (num) => num < 10 ? num * 1e3 : num;
+            while (_repeat--) {
+                _pattern.forEach((num, i) => {
+                    let _num = _getNum(num);
+                    let _prev_num = _getNum(_pattern[i - 1] || 0);
+                    i % 2 ? sleep(_num + _prev_num) : device.vibrate(_num);
+                });
+                if (repeat && _pattern.length % 2) {
+                    sleep(1e3); // default off duration
+                }
             }
         }
     },
@@ -87,8 +91,8 @@ let ext = {
      * // even always returns 0
      */
     getCallState() {
-        let {ITelephony} = com.android.internal.telephony;
-        let {ServiceManager} = android.os;
+        let ITelephony = com.android.internal.telephony.ITelephony;
+        let ServiceManager = android.os.ServiceManager;
 
         let _svr_mgr = ITelephony.Stub.asInterface(
             ServiceManager.checkService("phone")
@@ -117,9 +121,9 @@ let ext = {
      *   navigation_bar_height,
      *   navigation_bar_height_computed,
      *   action_bar_default_height,
-     * } = device.getDisplay();
+     * } = devicex.getDisplay();
      * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
-     * device.getDisplay(true); // global assignment
+     * devicex.getDisplay(true); // global assignment
      * console.log(W, H, cX(0.2), cY(0.45), cYx(0.45));
      * console.log(cX(0.2, a)); // a will be ignored
      * console.log(cX(200, 720), cX(200, -1), cX(200)); // all the same
@@ -133,12 +137,14 @@ let ext = {
      * @return {{
            [WIDTH]: number, [USABLE_WIDTH]: number,
            [HEIGHT]: number, [USABLE_HEIGHT]: number,
-           [screen_orientation]: number,
+           [screen_orientation]: ScrOrientation,
            [status_bar_height]: number,
            [navigation_bar_height]: number,
            [navigation_bar_height_computed]: number,
            [action_bar_default_height]: number,
-           cYx: cYx, cX: (function((number|*), *=): number), cY: (function((number|*), *=): number)
+           cYx: (function((number|*), number?): number),
+           cX: (function((number|*), number?): number),
+           cY: (function((number|*), number?): number)
      }}
      */
     getDisplay(global_assign, params) {
@@ -152,22 +158,36 @@ let ext = {
             _glob_asg = _par.global_assign;
         }
 
-        let _waitForAction = typeof waitForAction === "undefined"
-            ? waitForActionRaw
-            : waitForAction;
-        let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-            ? debugInfoRaw
-            : debugInfo)(m, fg, _par.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
 
+        /** @type {number} */
         let _W, _H;
-        let _disp = {};
+        /**
+         * @type {{
+         *     WIDTH: number,
+         *     HEIGHT: number
+         *     USABLE_WIDTH: number,
+         *     USABLE_HEIGHT: number,
+         *     screen_orientation: ScrOrientation,
+         *     navigation_bar_height: number,
+         *     navigation_bar_height_computed: number,
+         *     action_bar_default_height: number,
+         *     status_bar_height: number,
+         * }|{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
+         */
+        let _disp = null;
         let _metrics = new android.util.DisplayMetrics();
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
         _win_svc_disp.getRealMetrics(_metrics);
 
         if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-            console.error("device.getDisplay()返回结果异常");
+            console.error("devicex.getDisplay()返回结果异常");
             return {cX: cX, cY: cY, cYx: cYx};
         }
         _showDisp();
@@ -178,7 +198,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for x axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 720px display width --//
@@ -219,7 +239,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for y axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 1280px display height --//
@@ -258,7 +278,7 @@ let ext = {
 
         /**
          * adaptive coordinate transform for y axis based (and only based) on x axis
-         * @param num {number|*} - pixel num (x) or percentage num (0.x)
+         * @param {number|*} num - pixel num (x) or percentage num (0.x)
          * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
          * @example
          * //-- local device with 720*1280 display (try ignoring the height: 1280) --//
@@ -306,7 +326,7 @@ let ext = {
         function cYx(num, base) {
             num = +num;
             base = +base;
-            if (num >= 1) {
+            if (Math.abs(num) >= 1) {
                 if (!base) {
                     base = 720;
                 } else if (base < 0) {
@@ -315,15 +335,10 @@ let ext = {
                     } else if (base === -2) {
                         base = 1080;
                     } else {
-                        throw Error(
-                            "can not parse base param for cYx()"
-                        );
+                        throw Error("can not parse base param for cYx()");
                     }
                 } else if (base < 5) {
-                    throw Error(
-                        "base and num params should " +
-                        "both be pixels for cYx()"
-                    );
+                    throw Error("base and num params should be both pixels for cYx()");
                 }
                 return Math.round(num * _W / base);
             }
@@ -333,9 +348,7 @@ let ext = {
             } else if (base === -2) {
                 base = 21 / 9;
             } else if (base < 0) {
-                throw Error(
-                    "can not parse base param for cYx()"
-                );
+                throw Error("can not parse base param for cYx()");
             } else {
                 base = base < 1 ? 1 / base : base;
             }
@@ -383,19 +396,24 @@ let ext = {
                 _W = _win_svc_disp.getWidth();
                 _H = _win_svc_disp.getHeight();
                 if (!(_W * _H)) {
-                    throw Error();
+                    return _raw();
                 }
 
-                // if the device is rotated 90 degrees counter-clockwise,
-                // to compensate rendering will be rotated by 90 degrees clockwise
-                // and thus the returned value here will be Surface#ROTATION_90
-                // 0: 0°, device is portrait
-                // 1: 90°, device is rotated 90 degree counter-clockwise
-                // 2: 180°, device is reverse portrait
-                // 3: 270°, device is rotated 90 degree clockwise
+                /**
+                 * if the device is rotated 90 degrees counter-clockwise,
+                 * to compensate rendering will be rotated by 90 degrees clockwise
+                 * and thus the returned value here will be Surface#ROTATION_90
+                 * 0: 0°, device is portrait
+                 * 1: 90°, device is rotated 90 degree counter-clockwise
+                 * 2: 180°, device is reverse portrait
+                 * 3: 270°, device is rotated 90 degree clockwise
+                 * @typedef ScrOrientation
+                 * @type {number}
+                 */
+                /** @type ScrOrientation */
                 let _SCR_O = _win_svc_disp.getRotation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                // let _MAX = +_win_svc_disp.maximumSizeDimension;
+                // let _MAX = _win_svc_disp.maximumSizeDimension;
                 let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
                 let [_UH, _UW] = [_H, _W];
@@ -422,32 +440,51 @@ let ext = {
                     action_bar_default_height: _dimen("action_bar_default_height"),
                 };
             } catch (e) {
-                try {
-                    _W = +device.width;
-                    _H = +device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                } catch (e) {
-                }
+                return _raw();
+            }
+
+            // tool function(s) //
+
+            /**
+             * @returns {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
+             */
+            function _raw() {
+                _W = device.width;
+                _H = device.height;
+                return _W && _H ? {
+                    WIDTH: _W,
+                    HEIGHT: _H,
+                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                } : null;
             }
         }
 
         function _assignGlob() {
             if (_glob_asg) {
                 Object.assign(global, {
+                    /** Screen width */
                     W: _W, WIDTH: _W,
+                    /** Half of screen width */
                     halfW: Math.round(_W / 2),
-                    uW: _disp.USABLE_WIDTH,
+                    /** Usable screen width */
+                    uW: Number(_disp.USABLE_WIDTH),
+                    /** Screen height */
                     H: _H, HEIGHT: _H,
-                    uH: _disp.USABLE_HEIGHT,
-                    scrO: _disp.screen_orientation,
-                    staH: _disp.status_bar_height,
-                    navH: _disp.navigation_bar_height,
-                    navHC: _disp.navigation_bar_height_computed,
-                    actH: _disp.action_bar_default_height,
+                    /** Usable screen height */
+                    uH: Number(_disp.USABLE_HEIGHT),
+                    /**
+                     * Screen orientation
+                     * @type ScrOrientation
+                     */
+                    scrO: Number(_disp.screen_orientation),
+                    /** Status bar height */
+                    staH: Number(_disp.status_bar_height),
+                    /** Navigation bar height */
+                    navH: Number(_disp.navigation_bar_height),
+                    /** Computed navigation bar height */
+                    navHC: Number(_disp.navigation_bar_height_computed),
+                    /** Action bar default height */
+                    actH: Number(_disp.action_bar_default_height),
                     cX: cX, cY: cY, cYx: cYx,
                 });
             }
@@ -469,12 +506,78 @@ let ext = {
             return _check_time >= 0;
         }
 
-        function debugInfoRaw(msg, info_flag) {
-            if (info_flag) console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
         }
     },
+    /**
+     * Control whether the accelerometer will be used to change screen orientation.
+     * @param {number} mode - 1: auto-rotate; 2: portrait
+     * @example
+     * devicex.setRotation(1); // auto rotation on
+     * @example
+     * devicex.setRotation(0); // auto rotation off (stay portrait)
+     * @example
+     * devicex.setRotation(+!devicex.getRotation()); // toggle
+     */
+    setRotation(mode) {
+        let System = android.provider.Settings.System;
+        let _ctx_reso = context.getContentResolver();
+        System.putInt(_ctx_reso, System.ACCELEROMETER_ROTATION, +!!mode);
+    },
+    /**
+     * Returns screen orientation state.
+     * @returns number - 1: auto-rotate; 2: portrait
+     */
+    getRotation() {
+        let System = android.provider.Settings.System;
+        let _ctx_reso = context.getContentResolver();
+        return System.getInt(_ctx_reso, System.ACCELEROMETER_ROTATION, 0);
+    },
+    isIgnoringBatteryOptimizations(pkg_name) {
+        return context.getSystemService(android.content.Context.POWER_SERVICE)
+            .isIgnoringBatteryOptimizations(pkg_name || context.packageName);
+    },
+    requestIgnoreBatteryOptimizations(pkg_name, forcible) {
+        try {
+            if (!forcible && this.isIgnoringBatteryOptimizations()) {
+                return true;
+            }
+            app.startActivity(
+                new android.content.Intent()
+                    .setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    .setData(android.net.Uri.parse("package:" + (pkg_name || context.packageName)))
+            );
+            return this.isIgnoringBatteryOptimizations();
+        } catch (e) {
+            console.warn(e.message);
+            return false;
+        }
+    },
+    isCharging() {
+        let {IntentFilter, Intent} = android.content;
+        let {BatteryManager} = android.os;
+
+        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        let _battery_status = context.registerReceiver(null, _i_filter);
+
+        let _status = _battery_status.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+        return _status === BatteryManager.BATTERY_STATUS_CHARGING
+            || _status === BatteryManager.BATTERY_STATUS_FULL;
+    },
+    getBatteryPercentage() {
+        let {IntentFilter, Intent} = android.content;
+        let {BatteryManager} = android.os;
+
+        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        let _battery_status = context.registerReceiver(null, _i_filter);
+
+        let _level = _battery_status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        let _scale = _battery_status.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        return _level * 100 / _scale;
+    },
     a11y: (() => {
-        let {Secure} = android.provider.Settings;
+        let Secure = android.provider.Settings.Secure;
         let {putInt, getString, putString} = Secure;
         let _ENABL_A11Y_SVC = Secure.ENABLED_ACCESSIBILITY_SERVICES;
         let _A11Y_ENABL = Secure.ACCESSIBILITY_ENABLED;
@@ -560,7 +663,9 @@ let ext = {
                         putString(_ctx_reso, _ENABL_A11Y_SVC, _svc);
                         putInt(_ctx_reso, _A11Y_ENABL, 1);
                         if (!waitForAction(() => _this.state(svc), 2e3)) {
-                            throw Error("Result Exception");
+                            let _m = "Operation timed out";
+                            toast(_m);
+                            console.error(_m);
                         }
                     }
                     return true;
@@ -609,9 +714,7 @@ let ext = {
                     };
                     let _svc;
                     if (_contains()) {
-                        _svc = _enabled_svc.split(":").filter(x => {
-                            return !~svc.indexOf(x);
-                        }).join(":");
+                        _svc = _enabled_svc.split(":").filter(x => !~svc.indexOf(x)).join(":");
                     } else if (forcible) {
                         _svc = _enabled_svc;
                     }
@@ -620,7 +723,9 @@ let ext = {
                         putInt(_ctx_reso, _A11Y_ENABL, 1);
                         _enabled_svc = this._getString();
                         if (!waitForAction(() => !_contains(), 2e3)) {
-                            throw Error("Result Exception");
+                            let _m = "Operation timed out";
+                            toast(_m);
+                            console.error(_m);
                         }
                     }
                     return true;
@@ -669,304 +774,4 @@ let ext = {
 };
 
 module.exports = ext;
-module.exports.load = () => Object.assign(global.device, ext);
-
-// tool function(s) //
-
-// updated: Dec 3, 2019
-function debugInfo(msg, info_flag, forcible_flag) {
-    let $_flag = global.$$flag = global.$$flag || {};
-
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    let global_flag = $_flag.debug_info_avail;
-    if (!global_flag && !forcible_flag) return;
-    if (global_flag === false || forcible_flag === false) return;
-
-    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
-
-    let info_flag_str = (info_flag || "").toString();
-    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-    if (info_flag_str.match(/Up/)) _showSplitLine();
-    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        return ~console.log(_split_line + _extra_str);
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
-        }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
-        }
-        if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
-        }
-        if (_lv === 0) {
-            console.verbose(_s);
-        } else if (_lv === 1) {
-            console.log(_s);
-        } else if (_lv === 2) {
-            console.info(_s);
-        }
-        return true;
-    }
-
-    // tool function(s) //
-
-    function setDebugSplitLine(msg) {
-        let _msg = "";
-        if (msg.match(/dash/)) {
-            for (let i = 0; i < 17; i += 1) _msg += "- ";
-            _msg += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _msg += "-";
-        }
-        return _msg;
-    }
-}
-
-// updated: Apr 25, 2020
-function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-
-    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
-
-    let _msg = msg || "";
-    if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
-    }
-
-    let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-    let _if_toast = if_toast || false;
-    let _if_arrow = if_arrow || false;
-    let _if_spl_ln = if_split_line || false;
-    _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-    if (_if_toast) toast(_msg);
-
-    let _spl_ln_style = "solid";
-    let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
-    let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
-    let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
-    let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
-
-    if (typeof _if_spl_ln === "string") {
-        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
-        if (_if_spl_ln.match(/both|up/)) {
-            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
-        }
-    }
-
-    _clearLnStyle();
-
-    if (_if_arrow) {
-        if (_if_arrow > 10) {
-            console.warn('-> "if_arrow"参数大于10');
-            _if_arrow = 10;
-        }
-        _msg = "> " + _msg;
-        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
-    }
-
-    let _exit_flag = false;
-    let _throw_flag = false;
-    switch (_msg_lv) {
-        case 0:
-        case "verbose":
-        case "v":
-            _msg_lv = 0;
-            console.verbose(_msg);
-            break;
-        case 1:
-        case "log":
-        case "l":
-            _msg_lv = 1;
-            console.log(_msg);
-            break;
-        case 2:
-        case "i":
-        case "info":
-            _msg_lv = 2;
-            console.info(_msg);
-            break;
-        case 3:
-        case "warn":
-        case "w":
-            _msg_lv = 3;
-            console.warn(_msg);
-            break;
-        case 4:
-        case "error":
-        case "e":
-            _msg_lv = 4;
-            console.error(_msg);
-            break;
-        case 8:
-        case "x":
-            _msg_lv = 4;
-            console.error(_msg);
-            _exit_flag = true;
-            break;
-        case 9:
-        case "t":
-            _msg_lv = 4;
-            console.error(_msg);
-            _throw_flag = true;
-    }
-
-    if (_if_spl_ln) {
-        let _spl_ln_extra = "";
-        if (typeof _if_spl_ln === "string") {
-            if (_if_spl_ln.match(/dash/)) {
-                _spl_ln_extra = _if_spl_ln.match(/_n|n_/) ? "\n" : ""
-            } else {
-                _spl_ln_extra = _if_spl_ln;
-            }
-        }
-        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
-        _showSplitLine(_spl_ln_extra, _spl_ln_style);
-    }
-
-    if (_throw_flag) {
-        ui.post(function () {
-            throw ("FORCE_STOP");
-        });
-        exit();
-    }
-
-    if (_exit_flag) exit();
-
-    return !(_msg_lv in {3: 1, 4: 1});
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra_str, style) {
-        let _extra_str = extra_str || "";
-        let _split_line = "";
-        if (style === "dash") {
-            for (let i = 0; i < 17; i += 1) _split_line += "- ";
-            _split_line += "-";
-        } else {
-            for (let i = 0; i < 33; i += 1) _split_line += "-";
-        }
-        return ~console.log(_split_line + _extra_str);
-    }
-}
-
-// updated: Apr 25, 2020
-function waitForAction(f, timeout_or_times, interval, params) {
-    let _par = params || {};
-
-    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-    let _timeout = Infinity;
-    let _interval = interval || 200;
-    let _times = timeout_or_times;
-
-    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-    if (timeout_or_times > 100) _timeout = timeout_or_times;
-    if (interval >= _timeout) _times = 1;
-
-    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-    let _start_timestamp = +new Date();
-    while (!_checkF(f) && --_times) {
-        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
-        sleep(_interval);
-    }
-    return _times > 0;
-
-    // tool function(s) //
-
-    function _checkF(f) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-        if (typeof f === "function") return f();
-        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
-        if (_classof(f) === "Array") {
-            let _arr = f;
-            let _logic_flag = "all";
-            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
-            }
-            return _logic_flag === "all";
-        }
-
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
-    }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _s = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            let _par = ["[ " + msg + " ]", 1, if_toast];
-            return messageActionRaw.apply({}, _par);
-        }
-        let _lv = +lv;
-        if (if_toast) {
-            toast(_s);
-        }
-        if (_lv >= 3) {
-            if (_lv >= 4) {
-                console.error(_s);
-                if (_lv >= 8) {
-                    exit();
-                }
-            } else {
-                console.warn(_s);
-            }
-            return;
-        }
-        if (_lv === 0) {
-            console.verbose(_s);
-        } else if (_lv === 1) {
-            console.log(_s);
-        } else if (_lv === 2) {
-            console.info(_s);
-        }
-        return true;
-    }
-}
+module.exports.load = () => global.devicex = ext;

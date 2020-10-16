@@ -13,6 +13,7 @@ let {
 } = require("../Modules/MODULE_MONSTER_FUNC");
 
 require("../Modules/EXT_IMAGES").load().permit();
+require("../Modules/EXT_DIALOGS").load();
 
 let WIDTH = device.width;
 let HEIGHT = device.height;
@@ -47,7 +48,7 @@ let operation_hint = "请按照以下步骤抓取解锁布局\n\n" +
     "4. 出现布局后 [按提示操作]";
 let operation_hint_manual = operation_hint.replace(/屏幕 \[自动关闭]/, "[手动关闭屏幕]").replace(/ \[自动亮起]/, "等待 [自动亮起]");
 
-let diag = dialogs.build({
+let diag = dialogsx.build({
     title: operation_title,
     content: keycode_power_bug
         ? operation_hint_manual +
@@ -66,7 +67,7 @@ diag.on("positive", () => {
     threads.start(function () {
         if (!keycode_power_bug) {
             if (!keycode(26) || !waitForAction(isScreenOff, 2.4e3)) {
-                let diag_scr_off_failed = dialogs.build({
+                let diag_scr_off_failed = dialogsx.build({
                     title: "自动关闭屏幕失败",
                     content: "请点击 [继续] 按钮后 [手动关屏]\n然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作",
                     neutral: "查看前述提示",
@@ -77,7 +78,7 @@ diag.on("positive", () => {
                     canceledOnTouchOutside: false,
                 });
                 diag_scr_off_failed.on("neutral", () => {
-                    let diag_former_hint = dialogs.build({
+                    let diag_former_hint = dialogsx.build({
                         title: operation_title,
                         content: operation_hint_manual,
                         positive: "返回",
@@ -131,7 +132,7 @@ diag.on("positive", () => {
         device.cancelKeepingAwake();
         setClip(path_base);
 
-        let diag_ok = dialogs.build({
+        let diag_ok = dialogsx.build({
             title: "布局抓取完毕",
             content: '请将"' + path_base + '"目录下的文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n' +
                 "发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n" +
@@ -175,13 +176,13 @@ function updateMethodRequire() {
 }
 
 function checkKeyCodePowerBug() {
-    for (let i = 0, len = keycode_power_bug_versions.length; i < len; i += 1) {
+    for (let i = 0, l = keycode_power_bug_versions.length; i < l; i += 1) {
         if (device_brand.match(keycode_power_bug_versions[i])) return true;
     }
 }
 
 function captSelectorInfo(title) {
-    let split_line = "-----------------------";
+    let split_line = "-".repeat(23);
     let info = "";
     let addSplitLine = no_cr_flag => info += split_line + (no_cr_flag ? "" : "\n");
     let addText = (text, no_cr_flag, split_lines_count) => {
@@ -285,7 +286,7 @@ function dismissLayer() {
         };
         let cond_special_view = () => {
             let special_view_keys = Object.keys(special_views);
-            for (let i = 0, len = special_view_keys.length; i < len; i += 1) {
+            for (let i = 0, l = special_view_keys.length; i < l; i += 1) {
                 let value = special_views[special_view_keys[i]];
                 if (value[0].exists()) return value[1];
             }

@@ -14,14 +14,14 @@
  * console.log(db.rawQryData("select * from ant_forest"));
  * db.clear();
  *
- * @since Apr 16, 2020
+ * @since Sep 14, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
 // FIXME how i wish i could figure out the usage of SimpleCursorAdapter()
 module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) {
-    let {SQLiteDatabase: SQLDb} = android.database.sqlite;
-    let {ContentValues: CV} = android.content;
+    let SQLDb = android.database.sqlite.SQLiteDatabase;
+    let CV = android.content.ContentValues;
 
     files.createWithDirs(db_path);
     let _db = SQLDb.openOrCreateDatabase(files.path(db_path), null);
@@ -29,7 +29,7 @@ module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) 
 
     _init();
 
-    _db.__proto__ = Object.assign(_db.__proto__ || {}, {
+    _db.__proto__ = {
         database_path: db_path,
         table_name: tbl_name,
         table_columns: tbl_columns,
@@ -37,10 +37,10 @@ module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) 
         rawQry: s => _db.rawQuery(s, null),
         rawQryData: sql => _rawQryData(sql),
         clear() {
-            db.execSQL("drop table " + tbl_name);
+            _db.execSQL("drop table " + tbl_name);
             _init();
         },
-    });
+    };
 
     return _db;
 
@@ -78,7 +78,7 @@ module.exports = function SQLiteDatabaseFactory(db_path, tbl_name, tbl_columns) 
     }
 
     function _update() {
-        let sql = "update [" + tbl_name + "] set name='XYZ' where name='ABC' and country='CN'";
+        let sql = "update " + tbl_name + " set name='XYZ' where name='ABC'";
         _db.execSQL(sql);
     }
 

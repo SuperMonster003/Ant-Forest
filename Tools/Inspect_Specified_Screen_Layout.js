@@ -15,20 +15,20 @@ threads.start(function () {
 
             // tool function(s) //
 
-            function _showInfo(keywords) {
-                let _keywords = classof(keywords, "Array") ? keywords.slice() : [keywords];
-                let _info_shown_flag = false;
-                _keywords.forEach((kw) => {
-                    let _wc = selector()[kw + "Matches"](/.+/).find();
+            function _showInfo(sltr) {
+                let _sltr_pref = classof(sltr, "Array") ? sltr.slice() : [sltr];
+                let _info_shown = false;
+                _sltr_pref.forEach((pref) => {
+                    let _wc = selector()[pref + "Matches"](/.+/).find();
                     if (_wc.length) {
-                        console.log("# " + kw + " #");
+                        console.log("# " + pref + " #");
                         showSplitLine();
-                        _wc.forEach(w => console.log(w[kw]()));
+                        _wc.forEach(w => console.log(w[pref]()));
                         showSplitLine();
-                        _info_shown_flag = true;
+                        _info_shown = true;
                     }
                 });
-                if (_info_shown_flag) {
+                if (_info_shown) {
                     return true;
                 }
                 console.log("当前页面未捕获到布局信息");

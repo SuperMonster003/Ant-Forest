@@ -1,7 +1,6 @@
 /**
- * @description
- * module for unlocking device by analyzing UI components with Auto.js <br>
- * a graphic config tool (Unlock_Config_Tool.js) is available for customizing
+ * Module for unlocking device by analyzing UI components with Auto.js <br>
+ * A graphic config tool (Unlock_Config_Tool.js) is available for customizing
  *
  * @example
  * require("./MODULE_UNLOCK").unlock();
@@ -10,14 +9,17 @@
  * // forcibly disable debugInfo() for not showing debug logs in console
  * require("./MODULE_UNLOCK").unlock(false);
  *
- * @since Jun 23, 2020
+ * @since Sep 14, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
+
+let _init_scr = _isScrOn();
+let _init_unlk = _isUnlk();
 
 _overrideRequire();
 _makeSureImpeded();
 _addObjectValues();
-_activeDeviceObj();
+_activeExtension();
 
 let $_und = x => typeof x === "undefined";
 let $_F = x => x === false;
@@ -37,28 +39,24 @@ let captureErrScreen = _chkF("captureErrScreen");
 let getSelector = _chkF("getSelector");
 let classof = _chkF("classof");
 
-let _sto = require("./MODULE_STORAGE").create("unlock");
-let _def = require("./MODULE_DEFAULT_CONFIG").unlock;
-let _cfg = Object.assign({}, _def, _sto.get("config", {}));
-
 let $_rex = x => classof(x, "RegExp");
 let $_arr = x => classof(x, "Array");
 let $_jvo = x => classof(x, "JavaObject");
 let $_sel = getSelector();
 let $_unlk = _unlkSetter();
+
+let _sto = require("./MODULE_STORAGE").create("unlock");
+let _def = require("./MODULE_DEFAULT_CONFIG").unlock;
+let _cfg = Object.assign({}, _def, _sto.get("config", {}));
+
 let _intro = device.brand + " " + device.product + " " + device.release;
 let _code = require("./MODULE_PWMAP").decrypt(_cfg.unlock_code) || "";
 let _clean_code = _code.split(/\D+/).join("").split("");
 let _max_try = _cfg.unlock_max_try_times;
 let _pat_sz = _cfg.unlock_pattern_size;
+let _has_root = _checkRootAccess();
 
-module.exports = {
-    is_init_screen_on: $_unlk.init_scr,
-    is_init_unlocked: $_unlk.init_unlk,
-    isUnlocked: () => _isUnlk(),
-    isLocked: () => !_isUnlk(),
-    unlock: _unlock,
-};
+typeof module === "undefined" ? _execute() : _export();
 
 // tool function(s) //
 
@@ -113,7 +111,7 @@ function _overrideRequire() {
                 MODULE_STORAGE: _storage,
                 MODULE_MONSTER_FUNC: _monster,
                 MODULE_DEFAULT_CONFIG: {
-                    // updated at Nov 14, 2019
+                    // updated: Nov 14, 2019
                     unlock: {
                         unlock_code: null,
                         unlock_max_try_times: 20,
@@ -132,7 +130,7 @@ function _overrideRequire() {
 
             // internal modules //
 
-            // updated at Nov 14, 2019
+            // updated: Nov 14, 2019
             function _monster() {
                 return {
                     messageAction: messageAction,
@@ -149,56 +147,68 @@ function _overrideRequire() {
                 // even though not showing up above
                 // monster function(s) //
 
-                // updated at Mar 1, 2020
+                // updated: Sep 20, 2020
                 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                     let $_flag = global.$$flag = global.$$flag || {};
-
-                    if ($_flag.no_msg_act_flag) return !(msg_level in {3: 1, 4: 1});
-
-                    let _msg = msg || "";
-                    if (msg_level && msg_level.toString().match(/^t(itle)?$/)) {
-                        return messageAction("[ " + msg + " ]", 1, if_toast, if_arrow, if_split_line, params);
+                    if ($_flag.no_msg_act_flag) {
+                        return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
                     }
 
-                    let _msg_lv = typeof msg_level === "number" ? msg_level : -1;
-                    let _if_toast = if_toast || false;
+                    let _msg_lv = msg_level;
+                    if (typeof _msg_lv === "undefined") {
+                        _msg_lv = 1;
+                    }
+                    if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
+                        _msg_lv = -1;
+                    }
+
+                    let _msg = msg || "";
+                    if (_msg_lv.toString().match(/^t(itle)?$/)) {
+                        _msg = "[ " + msg + " ]";
+                        return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
+                    }
+
+                    if_toast && toast(_msg);
+
                     let _if_arrow = if_arrow || false;
                     let _if_spl_ln = if_split_line || false;
-                    _if_spl_ln = ~if_split_line ? _if_spl_ln : "up"; // -1 -> "up"
-
-                    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-
-                    if (_if_toast) toast(_msg);
-
+                    _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
                     let _spl_ln_style = "solid";
                     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
                     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
                     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
                     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
+                    let _showSplitLine = (
+                        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+                    );
 
                     if (typeof _if_spl_ln === "string") {
-                        if (_if_spl_ln.match(/dash/)) _spl_ln_style = "dash";
-                        if (_if_spl_ln.match(/both|up/)) {
-                            if (!_matchLnStyle()) _showSplitLine("", _spl_ln_style);
-                            if (_if_spl_ln.match(/_n|n_/)) _if_spl_ln = "\n";
-                            else if (_if_spl_ln.match(/both/)) _if_spl_ln = 1;
-                            else if (_if_spl_ln.match(/up/)) _if_spl_ln = 0;
+                        if (_if_spl_ln.match(/dash/)) {
+                            _spl_ln_style = "dash";
+                        }
+                        if (_if_spl_ln.match(/both|up|^2/)) {
+                            if (!_matchLnStyle()) {
+                                _showSplitLine("", _spl_ln_style);
+                            }
+                            if (_if_spl_ln.match(/_n|n_/)) {
+                                _if_spl_ln = "\n";
+                            } else if (_if_spl_ln.match(/both|^2/)) {
+                                _if_spl_ln = 1;
+                            } else if (_if_spl_ln.match(/up/)) {
+                                _if_spl_ln = 0;
+                            }
                         }
                     }
 
                     _clearLnStyle();
 
                     if (_if_arrow) {
-                        if (_if_arrow > 10) {
-                            console.warn('-> "if_arrow"参数大于10');
-                            _if_arrow = 10;
-                        }
-                        _msg = "> " + _msg;
-                        for (let i = 0; i < _if_arrow; i += 1) _msg = "-" + _msg;
+                        _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
                     }
 
                     let _exit_flag = false;
-                    let _throw_flag = false;
+                    let _show_ex_msg_flag = false;
+
                     switch (_msg_lv) {
                         case 0:
                         case "verbose":
@@ -240,7 +250,7 @@ function _overrideRequire() {
                         case "t":
                             _msg_lv = 4;
                             console.error(_msg);
-                            _throw_flag = true;
+                            _show_ex_msg_flag = true;
                     }
 
                     if (_if_spl_ln) {
@@ -252,55 +262,65 @@ function _overrideRequire() {
                                 _spl_ln_extra = _if_spl_ln;
                             }
                         }
-                        if (!_spl_ln_extra.match(/\n/)) _saveLnStyle();
+                        if (!_spl_ln_extra.match(/\n/)) {
+                            _saveLnStyle();
+                        }
                         _showSplitLine(_spl_ln_extra, _spl_ln_style);
                     }
 
-                    if (_throw_flag) {
-                        ui.post(function () {
-                            throw ("FORCE_STOP");
-                        });
+                    if (_show_ex_msg_flag) {
+                        let _msg = "forcibly stopped";
+                        console.error(_msg);
+                        toast(_msg);
+                    }
+                    if (_exit_flag) {
                         exit();
                     }
 
-                    if (_exit_flag) exit();
+                    return !~[3, 4].indexOf(_msg_lv);
 
-                    return !(_msg_lv in {3: 1, 4: 1});
-                }
+                    // raw function(s) //
 
-                // updated at Mar 1, 2020
-                function showSplitLine(extra_str, style, params) {
-                    let _extra_str = extra_str || "";
-                    let _split_line = "";
-                    if (style === "dash") {
-                        for (let i = 0; i < 17; i += 1) _split_line += "- ";
-                        _split_line += "-";
-                    } else {
-                        for (let i = 0; i < 33; i += 1) _split_line += "-";
+                    function showSplitLineRaw(extra, style) {
+                        console.log((
+                            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+                        ) + (extra || ""));
                     }
-                    return !!~console.log(_split_line + _extra_str);
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Sep 19, 2020
+                function showSplitLine(extra, style) {
+                    console.log((
+                        style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+                    ) + (extra || ""));
+                }
+
+                // updated: Aug 2, 2020
                 function waitForAction(f, timeout_or_times, interval, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(waitForAction.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
 
-                    if (typeof timeout_or_times !== "number") timeout_or_times = 10e3;
-
-                    let _timeout = Infinity;
-                    let _interval = interval || 200;
+                    if (typeof timeout_or_times !== "number") {
+                        timeout_or_times = 10e3;
+                    }
                     let _times = timeout_or_times;
+                    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
+                        _times = Infinity;
+                    }
+                    let _timeout = Infinity;
+                    if (timeout_or_times > 100) {
+                        _timeout = timeout_or_times;
+                    }
+                    let _interval = interval || 200;
+                    if (_interval >= _timeout) {
+                        _times = 1;
+                    }
 
-                    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) _times = Infinity;
-                    if (timeout_or_times > 100) _timeout = timeout_or_times;
-                    if (interval >= _timeout) _times = 1;
-
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-
-                    let _start_timestamp = +new Date();
+                    let _start_ts = Date.now();
                     while (!_checkF(f) && --_times) {
-                        if (+new Date() - _start_timestamp > _timeout) return false; // timed out
+                        if (Date.now() - _start_ts > _timeout) {
+                            return false; // timed out
+                        }
                         sleep(_interval);
                     }
                     return _times > 0;
@@ -309,62 +329,125 @@ function _overrideRequire() {
 
                     function _checkF(f) {
                         let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                        let _messageAction = (
+                            typeof messageAction === "function" ? messageAction : messageActionRaw
+                        );
 
-                        if (typeof f === "function") return f();
-                        if (_classof(f) === "JavaObject") return f.toString().match(/UiObject/) ? !!f : f.exists();
+                        if (typeof f === "function") {
+                            return f();
+                        }
+                        if (_classof(f) === "JavaObject") {
+                            return f.toString().match(/UiObject/) ? f : f.exists();
+                        }
                         if (_classof(f) === "Array") {
                             let _arr = f;
-                            let _logic_flag = "all";
-                            if (typeof _arr[_arr.length - 1] === "string") _logic_flag = _arr.pop();
-                            if (_logic_flag.match(/^(or|one)$/)) _logic_flag = "one";
-                            for (let i = 0, len = _arr.length; i < len; i += 1) {
-                                if (!(typeof _arr[i]).match(/function|object/)) _messageAction("数组参数中含不合法元素", 8, 1, 0, 1);
-                                if (_logic_flag === "all" && !_checkF(_arr[i])) return false;
-                                if (_logic_flag === "one" && _checkF(_arr[i])) return true;
+                            let _len = _arr.length;
+                            let _logic = "all";
+                            if (typeof _arr[_len - 1] === "string") {
+                                _logic = _arr.pop();
                             }
-                            return _logic_flag === "all";
+                            if (_logic.match(/^(or|one)$/)) {
+                                _logic = "one";
+                            }
+                            for (let i = 0; i < _len; i += 1) {
+                                let _ele = _arr[i];
+                                if (!(typeof _ele).match(/function|object/)) {
+                                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
+                                }
+                                if (_logic === "all" && !_checkF(_ele)) {
+                                    return false;
+                                }
+                                if (_logic === "one" && _checkF(_ele)) {
+                                    return true;
+                                }
+                            }
+                            return _logic === "all";
                         }
+                        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
+                    }
 
-                        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 8, 1, 1, 1);
+                    // raw function(s) //
+
+                    function messageActionRaw(msg, lv, if_toast) {
+                        let _msg = msg || " ";
+                        if (lv && lv.toString().match(/^t(itle)?$/)) {
+                            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
+                        }
+                        if_toast && toast(_msg);
+                        let _lv = typeof lv === "undefined" ? 1 : lv;
+                        if (_lv >= 4) {
+                            console.error(_msg);
+                            _lv >= 8 && exit();
+                            return false;
+                        }
+                        if (_lv >= 3) {
+                            console.warn(_msg);
+                            return false;
+                        }
+                        if (_lv === 0) {
+                            console.verbose(_msg);
+                        } else if (_lv === 1) {
+                            console.log(_msg);
+                        } else if (_lv === 2) {
+                            console.info(_msg);
+                        }
+                        return true;
                     }
                 }
 
-                // updated at Mar 1, 2020
+                // updated and modified: Sep 30, 2020
                 function clickAction(f, strategy, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(clickAction.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
 
-                    if (typeof f === "undefined" || f === null) return false;
+                    if (typeof f === "undefined" || f === null) {
+                        return false;
+                    }
 
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
-                    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+                    let $_str = o => typeof o === "string";
+                    let $_und = o => typeof o === "undefined";
+                    let $_num = o => typeof o === "number";
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
+                    let _waitForAction = (
+                        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                    );
 
                     /**
-                     * @type {string} - "Bounds"|"UiObject"|"UiSelector"|"CoordsArray"
+                     * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
                      */
                     let _type = _checkType(f);
                     let _padding = _checkPadding(_par.padding);
-                    if (!((typeof strategy).match(/string|undefined/))) _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+                    if (!(typeof strategy).match(/string|undefined/)) {
+                        _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
+                    }
                     let _strategy = (strategy || "click").toString();
                     let _widget_id = 0;
-                    let _w_parent_id = 0;
+                    let _widget_parent_id = 0;
 
-                    let _condition_success = _par.condition_success;
+                    let _cond_succ = _par.condition_success;
 
-                    let _check_time_once = _par.check_time_once || 500;
-                    let _max_check_times = _par.max_check_times || 0;
-                    if (!_max_check_times && _condition_success) _max_check_times = 3;
-
-                    if (typeof _condition_success === "string" && _condition_success.match(/disappear/)) {
-                        _condition_success = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
-                    } else if (typeof _condition_success === "undefined") _condition_success = () => true;
-
-                    while (~_clickOnce() && _max_check_times--) {
-                        if (_waitForAction(() => _condition_success(), _check_time_once, 50)) return true;
+                    let _chk_t_once = _par.check_time_once || 500;
+                    let _max_chk_cnt = _par.max_check_times || 0;
+                    if (!_max_chk_cnt && _cond_succ) {
+                        _max_chk_cnt = 3;
                     }
-                    return _condition_success();
+
+                    if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
+                        _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
+                    } else if ($_und(_cond_succ)) {
+                        _cond_succ = () => true;
+                    }
+
+                    while (~_clickOnce() && _max_chk_cnt--) {
+                        if (_waitForAction(_cond_succ, _chk_t_once, 50)) {
+                            return true;
+                        }
+                    }
+
+                    return _cond_succ();
 
                     // tool function(s) //
 
@@ -374,29 +457,32 @@ function _overrideRequire() {
 
                         if (_type === "UiSelector") {
                             let _w = f.findOnce();
-                            if (_w) {
-                                try {
-                                    _widget_id = _w.toString().match(/@\w+/)[0].slice(1);
-                                } catch (e) {
-                                    _widget_id = 0;
-                                }
-                                if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
-                                    return _w.click();
-                                }
-                                let _bounds = _w.bounds();
-                                _x = _bounds.centerX();
-                                _y = _bounds.centerY();
+                            if (!_w) {
+                                return;
                             }
+                            try {
+                                _widget_id = _w.toString().match(/@\w+/)[0].slice(1);
+                            } catch (e) {
+                                _widget_id = 0;
+                            }
+                            if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
+                                return _w.click();
+                            }
+                            let _bnd = _w.bounds();
+                            _x = _bnd.centerX();
+                            _y = _bnd.centerY();
                         } else if (_type === "UiObject") {
                             try {
-                                _w_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
+                                _widget_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
                             } catch (e) {
-                                _w_parent_id = 0;
+                                _widget_parent_id = 0;
                             }
-                            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) return f.click();
-                            let _bounds = f.bounds();
-                            _x = _bounds.centerX();
-                            _y = _bounds.centerY();
+                            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) {
+                                return f.click();
+                            }
+                            let _bnd = f.bounds();
+                            _x = _bnd.centerX();
+                            _y = _bnd.centerY();
                         } else if (_type === "Bounds") {
                             if (_strategy.match(/^w(idget)?$/)) {
                                 _strategy = "click";
@@ -411,8 +497,7 @@ function _overrideRequire() {
                                 _messageAction("clickAction()控件策略已改为click", 3);
                                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
                             }
-                            _x = f[0];
-                            _y = f[1];
+                            [_x, _y] = Array.isArray(f) ? f : [f.x, f.y];
                         }
                         if (isNaN(_x) || isNaN(_y)) {
                             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -421,51 +506,96 @@ function _overrideRequire() {
                         _x += _padding.x;
                         _y += _padding.y;
 
-                        _strategy.match(/^p(ress)?$/) ? press(_x, _y, _par.press_time || 1) : click(_x, _y);
+                        _strategy.match(/^p(ress)?$/)
+                            ? press(_x, _y, _par.press_time || _par.pt$ || 1)
+                            : click(_x, _y);
                     }
 
                     function _checkType(f) {
-                        let _checkJavaObject = o => {
-                            if (_classof(o) !== "JavaObject") return;
-                            let string = o.toString();
-                            if (string.match(/^Rect\(/)) return "Bounds";
-                            if (string.match(/UiObject/)) return "UiObject";
-                            return "UiSelector";
-                        };
-                        let _checkCoordsArray = arr => {
-                            if (_classof(f) !== "Array") return;
-                            if (arr.length !== 2) _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
-                            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
-                            return "CoordsArray";
-                        };
-                        let _type_f = _checkJavaObject(f) || _checkCoordsArray(f);
-                        if (!_type_f) _messageAction("clickAction()f参数类型未知", 8, 1, 0, 1);
+                        let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
+                        if (!_type_f) {
+                            _messageAction("不支持的clickAction()f参数类型: " + _classof(f), 8, 1, 0, 1);
+                        }
                         return _type_f;
+
+                        // tool function(s) //
+
+                        function _chkJavaO(o) {
+                            if (_classof(o) !== "JavaObject") {
+                                return;
+                            }
+                            if (o.getClass().getName().match(/Point$/)) {
+                                return "Points";
+                            }
+                            let string = o.toString();
+                            if (string.match(/^Rect\(/)) {
+                                return "Bounds";
+                            }
+                            if (string.match(/UiObject/)) {
+                                return "UiObject";
+                            }
+                            return "UiSelector";
+                        }
+
+                        function _chkCoords(arr) {
+                            if (_classof(f) !== "Array") {
+                                return;
+                            }
+                            if (arr.length !== 2) {
+                                _messageAction("clickAction()坐标参数非预期值: 2", 8, 1, 0, 1);
+                            }
+                            if (typeof arr[0] !== "number" || typeof arr[1] !== "number") {
+                                _messageAction("clickAction()坐标参数非number", 8, 1, 0, 1);
+                            }
+                            return "CoordsArray";
+                        }
+
+                        function _chkObjXY(o) {
+                            if (_classof(o) === "Object") {
+                                if ($_num(o.x) && $_num(o.y)) {
+                                    return "ObjXY";
+                                }
+                            }
+                        }
                     }
 
                     function _checkPadding(arr) {
-                        if (!arr) return {x: 0, y: 0};
+                        if (!arr) {
+                            return {x: 0, y: 0};
+                        }
 
                         let _coords = [];
-                        if (typeof arr === "number") _coords = [0, arr];
-                        else if (_classof(arr) !== "Array") _messageAction("clickAction()坐标偏移参数类型未知", 8, 1, 0, 1);
-                        else {
-                            let _arr_len = arr.length;
-                            if (_arr_len === 1) _coords = [0, arr[0]];
-                            else if (_arr_len === 2) {
-                                let _arr_param_0 = arr[0];
-                                if (_arr_param_0 === "x") _coords = [arr[1], 0];
-                                else if (_arr_param_0 === "y") _coords = [0, arr[1]];
-                                else _coords = arr;
-                            } else _messageAction("clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1);
+                        if ($_num(arr)) {
+                            _coords = [0, arr];
+                        } else if (_classof(arr) !== "Array") {
+                            return _messageAction(
+                                "clickAction()坐标偏移参数类型未知", 8, 1, 0, 1
+                            );
                         }
-                        let _x = +_coords[0];
-                        let _y = +_coords[1];
-                        if (isNaN(_x) || isNaN(_y)) _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
-                        return {
-                            x: _x,
-                            y: _y,
-                        };
+
+                        let _arr_len = arr.length;
+                        if (_arr_len === 1) {
+                            _coords = [0, arr[0]];
+                        } else if (_arr_len === 2) {
+                            let _par0 = arr[0];
+                            if (_par0 === "x") {
+                                _coords = [arr[1], 0];
+                            } else if (_par0 === "y") {
+                                _coords = [0, arr[1]];
+                            } else {
+                                _coords = arr;
+                            }
+                        } else {
+                            return _messageAction(
+                                "clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1
+                            );
+                        }
+
+                        let [_x, _y] = [+_coords[0], +_coords[1]];
+                        if (!isNaN(_x) && !isNaN(_y)) {
+                            return {x: _x, y: _y};
+                        }
+                        _messageAction("clickAction()坐标偏移计算值不合法", 8, 1, 0, 1);
                     }
 
                     function _checkDisappearance() {
@@ -478,27 +608,32 @@ function _overrideRequire() {
                                 if (!_par.condition_success.match(/in.?place/)) {
                                     return !_w;
                                 }
-                                return _w.toString().match(/@\w+/)[0].slice(1) !== _widget_id;
-                            } else if (_type === "UiObject") {
+                                let _mch = _w.toString().match(/@\w+/);
+                                return _mch[0].slice(1) !== _widget_id;
+                            }
+                            if (_type === "UiObject") {
                                 let _w_parent = f.parent();
                                 if (!_w_parent) {
                                     return true;
                                 }
-                                return _w_parent.toString().match(/@\w+/)[0].slice(1) !== _w_parent_id;
+                                let _mch = _w_parent.toString().match(/@\w+/);
+                                return _mch[0].slice(1) !== _widget_parent_id;
                             }
                         } catch (e) {
-                            return true
                         }
                         return true;
                     }
                 }
 
-                // updated at Mar 1, 2020
+                // updated: Aug 29, 2020
+                // modified: no internal raw
                 function keycode(code, params) {
                     let _par = params || {};
-                    _par.no_impeded || $$impeded(keycode.name);
+                    _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
 
-                    let _waitForAction = typeof waitForAction === "undefined" ? waitForActionRaw : waitForAction;
+                    let _waitForAction = (
+                        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                    );
 
                     if (_par.force_shell) {
                         return keyEvent(code);
@@ -587,53 +722,70 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Mar 1, 2020
-                function debugInfo(msg, info_flag, forcible_flag) {
+                // updated: Sep 19, 2020
+                // modified: no internal raw function(s)
+                function debugInfo(msg, msg_level, forcible_flag) {
                     let $_flag = global.$$flag = global.$$flag || {};
 
-                    let _showSplitLine = typeof showSplitLine === "undefined" ? showSplitLineRaw : showSplitLine;
-                    let _messageAction = typeof messageAction === "undefined" ? messageActionRaw : messageAction;
+                    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                    let _showSplitLine = (
+                        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+                    );
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
 
-                    let global_flag = $_flag.debug_info_avail;
-                    if (!global_flag && !forcible_flag) return;
-                    if (global_flag === false || forcible_flag === false) return;
+                    let _glob_fg = $_flag.debug_info_avail;
+                    let _forc_fg = forcible_flag;
+                    if (!_glob_fg && !_forc_fg) {
+                        return;
+                    }
+                    if (_glob_fg === false || _forc_fg === false) {
+                        return;
+                    }
 
-                    let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                    let _msg_lv_str = (msg_level || "").toString();
+                    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
+                    if (_msg_lv_str.match(/Up/)) {
+                        _showSplitLine();
+                    }
+                    if (_msg_lv_str.match(/both|up/)) {
+                        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
+                        debugInfo("__split_line__" + _dash, "", _forc_fg);
+                    }
 
-                    if (typeof msg === "string" && msg.match(/^__split_line_/)) msg = setDebugSplitLine(msg);
+                    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
+                        msg = _getLineStr(msg);
+                    }
+                    if (_classof(msg) === "Array") {
+                        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
+                    } else {
+                        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
+                    }
 
-                    let info_flag_str = (info_flag || "").toString();
-                    let info_flag_msg_level = +(info_flag_str.match(/\d/) || [0])[0];
-
-                    if (info_flag_str.match(/Up/)) _showSplitLine();
-                    if (info_flag_str.match(/both|up/)) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
-
-                    if (classof(msg) === "Array") msg.forEach(msg => debugInfo(msg, info_flag_msg_level, forcible_flag));
-                    else _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), info_flag_msg_level);
-
-                    if (info_flag_str.match("both")) debugInfo("__split_line__" + (info_flag_str.match(/dash/) ? "dash" : ""), "", forcible_flag);
+                    if (_msg_lv_str.match("both")) {
+                        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
+                        debugInfo("__split_line__" + _dash, "", _forc_fg);
+                    }
 
                     // tool function(s) //
 
-                    function setDebugSplitLine(msg) {
-                        let _msg = "";
-                        if (msg.match(/dash/)) {
-                            for (let i = 0; i < 17; i += 1) _msg += "- ";
-                            _msg += "-";
-                        } else {
-                            for (let i = 0; i < 33; i += 1) _msg += "-";
-                        }
-                        return _msg;
+                    function _getLineStr(msg) {
+                        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
                     }
                 }
 
-                // updated at Jun 5, 2020
+                // updated: Jun 5, 2020
                 function captureErrScreen(key_name, log_level) {
-                    images.requestScreenCapture();
+                    if (!files.isFile("./EXT_IMAGES.js")) {
+                        return;
+                    }
+                    require("./EXT_IMAGES").load();
+                    imagesx.requestScreenCapture();
 
-                    let _messageAction = typeof messageAction === "undefined"
-                        ? messageActionRaw
-                        : messageAction;
+                    let _messageAction = (
+                        typeof messageAction === "function" ? messageAction : messageActionRaw
+                    );
 
                     let _dir = files.getSdcardPath() + "/.local/Pics/Err/";
                     let _suffix = "_" + _getTimeStr();
@@ -641,7 +793,7 @@ function _overrideRequire() {
 
                     try {
                         files.createWithDirs(_path);
-                        images.captureScreen(_path);
+                        imagesx.captureScreen(_path);
                         _messageAction("已存储屏幕截图文件:", log_level);
                         _messageAction(_path, log_level);
                     } catch (e) {
@@ -662,26 +814,25 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated at Jun 18, 2020
+                // updated: Sep 29, 2020
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                    let _debugInfo = _msg => (
+                    let _debugInfo = (m, lv) => (
                         typeof debugInfo === "undefined" ? debugInfoRaw : debugInfo
-                    )(_msg, "", _opt.debug_info_flag);
+                    )(m, lv, _opt.debug_info_flag);
                     let _sel = selector();
-                    _sel.__proto__ = _sel.__proto__ || {};
-                    Object.assign(_sel.__proto__, {
-                        kw_pool: {},
-                        cache_pool: {},
-                        pickup(sel_body, res_type, mem_kw, par) {
+                    _sel.__proto__ = {
+                        _sltr_pool: {},
+                        _cache_pool: {},
+                        pickup(sel_body, res_type, mem_sltr_kw, par) {
                             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
                             let _params = Object.assign({}, _opt, par);
                             let _res_type = (res_type || "").toString();
 
                             if (!_res_type || _res_type.match(/^w(idget)?$/)) {
                                 _res_type = "widget";
-                            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|widgets)$/)) {
+                            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
                                 _res_type = "widgets";
                             } else if (_res_type.match(/^s(el(ector)?)?$/)) {
                                 _res_type = "selector";
@@ -689,7 +840,7 @@ function _overrideRequire() {
                                 _res_type = "exists";
                             } else if (_res_type.match(/^t(xt)?$/)) {
                                 _res_type = "txt";
-                            } else if (_res_type.match(/^s(el(ector)?)?(_?s|S)(tr(ing)?)?$/)) {
+                            } else if (_res_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
                                 _res_type = "selector_string";
                             }
 
@@ -697,41 +848,39 @@ function _overrideRequire() {
                                 _sel_body.splice(1, 0, "");
                             }
 
-                            let _body = _sel_body[0];
-                            let _additional_sel = _sel_body[1];
-                            let _compass = _sel_body[2];
+                            let [_body, _addi_sel, _compass] = _sel_body;
 
-                            let _kw = _getSelector(_additional_sel);
-                            let _widget = null;
-                            let _w_collection = [];
-                            if (_kw && _kw.toString().match(/UiObject/)) {
-                                _widget = _kw;
+                            let _sltr = _getSelector(_addi_sel);
+                            let _w = null;
+                            let _wc = [];
+                            if (_sltr && _sltr.toString().match(/UiObject/)) {
+                                _w = _sltr;
                                 if (_res_type === "widgets") {
-                                    _w_collection = [_kw];
+                                    _wc = [_sltr];
                                 }
-                                _kw = null;
+                                _sltr = null;
                             } else {
-                                _widget = _kw ? _kw.findOnce() : null;
+                                _w = _sltr ? _sltr.findOnce() : null;
                                 if (_res_type === "widgets") {
-                                    _w_collection = _kw ? _kw.find() : [];
+                                    _wc = _sltr ? _sltr.find() : [];
                                 }
                             }
 
                             if (_compass) {
-                                _widget = _relativeWidget([_kw || _widget, _compass]);
+                                _w = _relativeWidget([_sltr || _w, _compass]);
                             }
 
                             let _res = {
-                                selector: _kw,
-                                widget: _widget,
-                                widgets: _w_collection,
-                                exists: !!_widget,
+                                selector: _sltr,
+                                widget: _w,
+                                widgets: _wc,
+                                exists: !!_w,
                                 get selector_string() {
-                                    return _kw ? _kw.toString().match(/[a-z]+/)[0] : "";
+                                    return _sltr ? _sltr.toString().match(/[a-z]+/)[0] : "";
                                 },
                                 get txt() {
-                                    let _text = _widget && _widget.text() || "";
-                                    let _desc = _widget && _widget.desc() || "";
+                                    let _text = _w && _w.text() || "";
+                                    let _desc = _w && _w.desc() || "";
                                     return _desc.length > _text.length ? _desc : _text;
                                 }
                             };
@@ -741,15 +890,12 @@ function _overrideRequire() {
                             }
 
                             try {
-                                if (!_widget) {
-                                    return null;
-                                }
-                                return _widget[_res_type]();
+                                return _w ? _w[_res_type]() : null;
                             } catch (e) {
                                 try {
-                                    return _widget[_res_type];
+                                    return _w[_res_type];
                                 } catch (e) {
-                                    debugInfo(e, 3);
+                                    debugInfo(e.message, 3);
                                     return null;
                                 }
                             }
@@ -757,25 +903,29 @@ function _overrideRequire() {
                             // tool function(s)//
 
                             function _getSelector(addition) {
-                                let _mem_kw_prefix = "_MEM_KW_PREFIX_";
-                                if (mem_kw) {
-                                    let _mem_sel = global[_mem_kw_prefix + mem_kw];
-                                    if (_mem_sel) {
-                                        return _mem_sel;
+                                let _mem_key = "_$_mem_sltr_" + mem_sltr_kw;
+                                if (mem_sltr_kw) {
+                                    let _mem_sltr = global[_mem_key];
+                                    if (_mem_sltr) {
+                                        return _mem_sltr;
                                     }
                                 }
-                                let _kw_sel = _getSelFromLayout(addition);
-                                if (mem_kw && _kw_sel) {
-                                    // _debugInfo(["选择器已记录", ">" + mem_kw, ">" + _kw_sel]);
-                                    global[_mem_kw_prefix + mem_kw] = _kw_sel;
+                                let _sltr = _selGenerator();
+                                if (mem_sltr_kw && _sltr) {
+                                    global[_mem_key] = _sltr;
                                 }
-                                return _kw_sel;
+                                return _sltr;
 
                                 // tool function(s) //
 
-                                function _getSelFromLayout(addition) {
+                                function _selGenerator() {
                                     let _prefer = _params.selector_prefer;
                                     let _body_class = _classof(_body);
+                                    let _sel_keys_abbr = {
+                                        bi$: "boundsInside",
+                                        c$: "clickable",
+                                        cn$: "className",
+                                    };
 
                                     if (_body_class === "JavaObject") {
                                         if (_body.toString().match(/UiObject/)) {
@@ -798,31 +948,20 @@ function _overrideRequire() {
                                     }
 
                                     if (_body_class === "Object") {
-                                        let sel = selector();
-                                        Object.keys(_body).forEach((key) => {
-                                            let _par = _body[key];
-                                            if (classof(_par, "Array")) {
-                                                sel = sel[key].apply(sel, _par);
-                                            } else {
-                                                sel = sel[key](_par);
-                                            }
+                                        let _s = selector();
+                                        Object.keys(_body).forEach((k) => {
+                                            let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
+                                            let _arg = _body[_k];
+                                            _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                                         });
-                                        return sel;
+                                        return _s;
                                     }
 
                                     // tool function(s) //
 
-                                    function _chkSels(selectors) {
-                                        let _sels = selectors;
-                                        let _arg_len = arguments.length;
-                                        if (_classof(_sels) !== "Array") {
-                                            _sels = [];
-                                            for (let i = 0; i < _arg_len; i += 1) {
-                                                _sels[i] = arguments[i];
-                                            }
-                                        }
-                                        let _sels_len = _sels.length;
-                                        for (let i = 0; i < _sels_len; i += 1) {
+                                    function _chkSels(sels) {
+                                        let _sels = Array.isArray(sels) ? sels : [].slice.call(arguments);
+                                        for (let i = 0, l = _sels.length; i < l; i += 1) {
                                             let _res = _chkSel(_sels[i]);
                                             if (_res) {
                                                 return _res;
@@ -840,21 +979,19 @@ function _overrideRequire() {
                                             }
                                             if (_classof(addition) === "Object") {
                                                 let _keys = Object.keys(addition);
-                                                let _k_len = _keys.length;
-                                                for (let i = 0; i < _k_len; i += 1) {
+                                                for (let i = 0, l = _keys.length; i < l; i += 1) {
                                                     let _k = _keys[i];
-                                                    if (!sel[_k]) {
-                                                        let _m = "无效的additional_selector属性值:";
-                                                        _debugInfo([_m, _k], 3);
+                                                    let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
+                                                    if (!sel[_sel_k]) {
+                                                        _debugInfo(["无效的additional_selector属性值:", _sel_k], 3);
                                                         return null;
                                                     }
-                                                    let _val = addition[_k];
+                                                    let _arg = addition[_k];
+                                                    _arg = Array.isArray(_arg) ? _arg : [_arg];
                                                     try {
-                                                        let _arg = _classof(_val) === "Array" ? _val : [_val];
-                                                        sel = sel[_k].apply(sel, _arg);
+                                                        sel = sel[_sel_k].apply(sel, _arg);
                                                     } catch (e) {
-                                                        let _m = "无效的additional_selector选择器:";
-                                                        _debugInfo([_m, _k], 3);
+                                                        _debugInfo(["无效的additional_selector选择器:", _sel_k], 3);
                                                         return null;
                                                     }
                                                 }
@@ -870,36 +1007,26 @@ function _overrideRequire() {
                             }
 
                             function _relativeWidget(w_info) {
-                                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-
-                                let _w_info = classof(w_info) === "Array"
-                                    ? w_info.slice()
-                                    : [w_info];
-
-                                let _w = _w_info[0];
-                                let _w_class = classof(_w);
+                                let _w_o = _classof(w_info) === "Array" ? w_info.slice() : [w_info];
+                                let _w = _w_o[0];
+                                let _w_class = _classof(_w);
                                 let _w_str = (_w || "").toString();
 
                                 if (typeof _w === "undefined") {
                                     _debugInfo("relativeWidget的widget参数为Undefined");
                                     return null;
                                 }
-                                if (classof(_w) === "Null") {
-                                    // _debugInfo("relativeWidget的widget参数为Null");
+                                if (_w === null) {
                                     return null;
                                 }
                                 if (_w_str.match(/^Rect\(/)) {
-                                    // _debugInfo("relativeWidget的widget参数为Rect()");
                                     return null;
                                 }
                                 if (_w_class === "JavaObject") {
                                     if (_w_str.match(/UiObject/)) {
-                                        // _debugInfo("relativeWidget的widget参数为UiObject");
                                     } else {
-                                        // _debugInfo("relativeWidget的widget参数为UiSelector");
                                         _w = _w.findOnce();
                                         if (!_w) {
-                                            // _debugInfo("UiSelector查找后返回Null");
                                             return null;
                                         }
                                     }
@@ -908,137 +1035,138 @@ function _overrideRequire() {
                                     return null;
                                 }
 
-                                let _compass = _w_info[1];
-
+                                let _compass = _w_o[1];
                                 if (!_compass) {
-                                    // _debugInfo("relativeWidget的罗盘参数为空");
                                     return _w;
                                 }
-
                                 _compass = _compass.toString();
 
-                                try {
-                                    if (_compass.match(/s[+\-]?\d+([fbpn](?!\d+))?/)) {
-                                        // backwards|negative
-                                        let _rel_mch = _compass.match(/s[+\-]\d+|s\d+[bn](?!\d+)/);
-                                        // forwards|positive
-                                        let _abs_mch = _compass.match(/s\d+([fp](?!\d+))?/);
-                                        if (_rel_mch) {
-                                            let _rel_amt = parseInt(_rel_mch[0].match(/[+\-]?\d+/)[0]);
-                                            let _child_cnt = _w.parent().childCount();
-                                            let _cur_idx = _w.indexInParent();
-                                            _w = _rel_mch[0].match(/\d+[bn]/)
-                                                ? _w.parent().child(_child_cnt - Math.abs(_rel_amt))
-                                                : _w.parent().child(_cur_idx + _rel_amt);
-                                        } else if (_abs_mch) {
-                                            _w = _w.parent().child(
-                                                parseInt(_abs_mch[0].match(/\d+/)[0])
-                                            );
+                                while (_compass.length) {
+                                    let _mch_p, _mch_c, _mch_s;
+                                    if ((_mch_p = /^p[p\d]*/.exec(_compass))) {
+                                        let _len = _compass.match(/p\d+|p+(?!\d)/g).reduce((a, b) => (
+                                            a + (/\d/.test(b) ? +b.slice(1) : b.length)
+                                        ), 0);
+                                        while (_len--) {
+                                            if (!(_w = _w.parent())) {
+                                                return null;
+                                            }
                                         }
-                                        _compass = _compass.replace(/s[+\-]?\d+([fbpn](?!\d+))?/, "");
-                                        if (!_compass) {
-                                            return _w;
-                                        }
+                                        _compass = _compass.slice(_mch_p[0].length);
+                                        continue;
                                     }
-                                } catch (e) {
-                                    return null;
-                                }
-
-                                let _parents = _compass.replace(
-                                    /([Pp])(\d+)/g, ($0, $1, $2) => {
-                                        let _str = "";
-                                        let _max = parseInt($2);
-                                        for (let i = 0; i < _max; i += 1) {
-                                            _str += "p";
+                                    if ((_mch_c = /^c-?\d+([>c]?-?\d+)*/.exec(_compass))) {
+                                        let _nums = _mch_c[0].split(/[>c]/);
+                                        for (let s of _nums) {
+                                            if (s.length) {
+                                                let _i = +s;
+                                                let _cc = _w.childCount();
+                                                if (_i < 0) {
+                                                    _i += _cc;
+                                                }
+                                                if (_i < 0 || _i >= _cc) {
+                                                    return null;
+                                                }
+                                                _w = _w.child(_i);
+                                            }
                                         }
-                                        return _str;
+                                        _compass = _compass.slice(_mch_c[0].length);
+                                        continue;
                                     }
-                                ).match(/p*/)[0]; // may be ""
-
-                                if (_parents) {
-                                    let _len = _parents.length;
-                                    for (let i = 0; i < _len; i += 1) {
-                                        if (!(_w = _w.parent())) {
+                                    if ((_mch_s = /^s[<>]?-?\d+/.exec(_compass))) {
+                                        let _parent = _w.parent();
+                                        if (!_parent) {
                                             return null;
                                         }
-                                    }
-                                }
-
-                                let _mch = _compass.match(/c\d+/g);
-                                return _mch ? _childWidget(_mch) : _w;
-
-                                // tool function(s) //
-
-                                function _childWidget(arr) {
-                                    let _len = arr.length;
-                                    for (let i = 0; i < _len; i += 1) {
-                                        try {
-                                            let _idx = +arr[i].match(/\d+/);
-                                            _w = _w.child(_idx);
-                                        } catch (e) {
+                                        let _idx = _w.indexInParent();
+                                        if (!~_idx) {
                                             return null;
                                         }
+                                        let _cc = _parent.childCount();
+                                        let _str = _mch_s[0];
+                                        let _offset = +_str.match(/-?\d+/)[0];
+                                        if (~String.prototype.search.call(_str, ">")) {
+                                            _idx += _offset;
+                                        } else if (~String.prototype.search.call(_str, "<")) {
+                                            _idx -= _offset;
+                                        } else {
+                                            _idx = _offset < 0 ? _offset + _cc : _offset;
+                                        }
+                                        if (_idx < 0 || _idx >= _cc) {
+                                            return null;
+                                        }
+                                        _w = _parent.child(_idx);
+                                        _compass = _compass.slice(_mch_s[0].length);
+                                        continue;
                                     }
-                                    return _w || null;
+
+                                    throw Error("无法解析剩余罗盘参数: " + _compass);
                                 }
+
+                                return _w || null;
                             }
                         },
-                        add(key, sel_body, kw) {
-                            let _kw = typeof kw === "string" ? kw : key;
-                            this.kw_pool[key] = typeof sel_body === "function"
+                        add(key, sel_body, mem) {
+                            let _mem = typeof mem === "string" ? mem : key;
+                            this._sltr_pool[key] = typeof sel_body === "function"
                                 ? type => sel_body(type)
-                                : type => this.pickup(sel_body, type, _kw);
+                                : type => this.pickup(sel_body, type, _mem);
                             return this;
                         },
                         get(key, type) {
-                            let _picker = this.kw_pool[key];
-                            if (!_picker) {
+                            let _sltr = this._sltr_pool[key];
+                            if (!_sltr) {
                                 return null;
                             }
                             if (type && type.toString().match(/cache/)) {
-                                return this.cache_pool[key] = _picker("widget");
+                                return this._cache_pool[key] = _sltr("widget");
                             }
-                            return _picker(type);
+                            return _sltr(type);
                         },
                         getAndCache(key) {
-                            // only "widget" type can be returned
                             return this.get(key, "save_cache");
                         },
                         cache: {
                             save: (key) => _sel.getAndCache(key),
                             load(key, type) {
-                                let _widget = _sel.cache_pool[key];
+                                let _widget = _sel._cache_pool[key];
                                 if (!_widget) {
                                     return null;
                                 }
-                                return _sel.pickup(_sel.cache_pool[key], type);
+                                return _sel.pickup(_sel._cache_pool[key], type);
                             },
                             refresh(key) {
-                                let _cache = _sel.cache_pool[key];
+                                let _cache = _sel._cache_pool[key];
                                 _cache && _cache.refresh();
                                 this.save(key);
                             },
                             reset(key) {
-                                delete _sel.cache_pool[key];
+                                delete _sel._cache_pool[key];
                                 return _sel.getAndCache(key);
                             },
                             recycle(key) {
-                                let _cache = _sel.cache_pool[key];
+                                let _cache = _sel._cache_pool[key];
                                 _cache && _cache.recycle();
                             },
                         },
-                    });
+                    };
                     return _sel;
+
+                    // raw function(s) //
+
+                    function debugInfoRaw(msg, msg_lv) {
+                        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+                    }
                 }
 
-                // updated at Mar 1, 2020
-                function classof(source, check_value) {
-                    let class_result = Object.prototype.toString.call(source).slice(8, -1);
-                    return check_value ? class_result.toUpperCase() === check_value.toUpperCase() : class_result;
+                // updated: Sep 28, 2020
+                function classof(source, compare) {
+                    let _s = Object.prototype.toString.call(source).slice(8, -1);
+                    return compare ? _s.toUpperCase() === compare.toUpperCase() : _s;
                 }
             }
 
-            // updated at Jun 24, 2020
+            // updated: Jun 24, 2020
             function _pwmap() {
                 let _path = "";
                 let _dic = {};
@@ -1096,7 +1224,7 @@ function _overrideRequire() {
                             if (_s.match(_rex)) {
                                 _res.push(_rand(_s));
                             } else {
-                                let _sglStr = s => {
+                                let _sglStr = (s) => {
                                     let _cc = s.charCodeAt(0);
                                     let _cc_hex = _cc.toString(16);
                                     return _cc_hex.toUpperCase();
@@ -1278,7 +1406,7 @@ function _overrideRequire() {
                         "请输入要解密的字符串数组" :
                         "请输入要加密的字符串";
                     while (_max--) {
-                        _inp = dialogs.rawInput(
+                        _inp = dialogsx.rawInput(
                             "请输入要" + _msg + "的字符串\n" +
                             "点击其他区域放弃输入"
                         );
@@ -1312,7 +1440,7 @@ function _overrideRequire() {
                 }
             }
 
-            // updated at Jun 24, 2020
+            // updated: Jun 24, 2020
             function _storage() {
                 let storages = {};
 
@@ -1332,7 +1460,6 @@ function _overrideRequire() {
                     let _dir = files.getSdcardPath() + "/.local/";
                     let _full_path = _dir + name + ".nfe";
                     files.createWithDirs(_full_path);
-                    let _opened = files.open(_full_path);
                     let _readFile = () => files.read(_full_path);
 
                     this.contains = _contains;
@@ -1399,7 +1526,6 @@ function _overrideRequire() {
                         files.write(_full_path, JSON.stringify(
                             Object.assign(_old_data, _tmp_data), _replacer, 2
                         ));
-                        _opened.close();
                     }
 
                     function _get(key, value) {
@@ -1414,8 +1540,7 @@ function _overrideRequire() {
                         let _o = _jsonParseFile();
                         if (key in _o) {
                             delete _o[key];
-                            files.write(_full_path, JSON.stringify(_o));
-                            _opened.close();
+                            files.write(_full_path, JSON.stringify(_o, null, 2));
                         }
                     }
 
@@ -1484,7 +1609,7 @@ function _overrideRequire() {
 function _addObjectValues() {
     if (!Object["values"]) {
         Object.defineProperty(Object.prototype, "values", {
-            value: function (o) {
+            value(o) {
                 if (o !== Object(o)) {
                     throw new TypeError("Object.values called on a non-object");
                 }
@@ -1502,7 +1627,7 @@ function _addObjectValues() {
     }
     if (!Object["valuesArr"]) {
         Object.defineProperty(Object.prototype, "valuesArr", {
-            value: function () {
+            value() {
                 if (typeof Object.values === "function") {
                     return Object.values(this);
                 }
@@ -1525,220 +1650,244 @@ function _makeSureImpeded() {
     }
 }
 
-function _activeDeviceObj() {
-    let $_dev = global.device || {};
-    let _ = $_dev.__proto__ = $_dev.__proto__ || {};
-    if (typeof _.keepOn !== "function") {
-        _.keepOn = function (duration, params) {
-            let _par = params || {};
-            let _du = duration || 5;
-            _du *= _du < 100 ? 60e3 : 1;
-            $_dev.keepScreenOn(_du);
-            if (_par.debug_info_flag !== false) {
-                let _mm = +(_du / 60e3).toFixed(2);
-                debugInfo("已设置屏幕常亮");
-                debugInfo(">最大超时时间: " + _mm + "分钟");
-            }
-        };
-    }
-    if (typeof _.cancelOn !== "function") {
-        _.cancelOn = function (params) {
-            let _par = params || {};
-            $_dev.cancelKeepingAwake();
-            if (_par.debug_info_flag !== false) {
-                debugInfo("屏幕常亮已取消");
-            }
-        };
-    }
-    if (typeof _.getDisplay !== "function") {
-        _.getDisplay = function (global_assign, params) {
-            let $_flag = global.$$flag = global.$$flag || {};
-            let _par, _glob_asg;
-            if (typeof global_assign === "boolean") {
-                _par = params || {};
-                _glob_asg = global_assign;
-            } else {
-                _par = global_assign || {};
-                _glob_asg = _par.global_assign;
-            }
+function _activeExtension() {
+    !function _devicex() {
+        global.devicex = typeof global.devicex === "object" ? global.devicex : {};
+        if (typeof devicex.keepOn !== "function") {
+            devicex.keepOn = function (duration, params) {
+                let _par = params || {};
+                let _du = duration || 5;
+                _du *= _du < 100 ? 60e3 : 1;
+                device.keepScreenOn(_du);
+                if (_par.debug_info_flag !== false) {
+                    let _mm = +(_du / 60e3).toFixed(2);
+                    debugInfo("已设置屏幕常亮");
+                    debugInfo(">最大超时时间: " + _mm + "分钟");
+                }
+            };
+        }
+        if (typeof devicex.cancelOn !== "function") {
+            devicex.cancelOn = function (params) {
+                let _par = params || {};
+                device.cancelKeepingAwake();
+                if (_par.debug_info_flag !== false) {
+                    debugInfo("屏幕常亮已取消");
+                }
+            };
+        }
+        if (typeof devicex.getDisplay !== "function") {
+            /**
+             * @param [global_assign=true]
+             * @param [params={}]
+             * @returns {{
+             *     cYx: (function(number|*, number?): number),
+             *     cX: (function(number|*, number?): number),
+             *     cY: (function(number|*, number?): number)
+             * }}
+             */
+            devicex.getDisplay = function (global_assign, params) {
+                let $_flag = global.$$flag = global.$$flag || {};
+                let _par, _glob_asg;
+                if (typeof global_assign === "boolean") {
+                    _par = params || {};
+                    _glob_asg = global_assign;
+                } else {
+                    _par = global_assign || {};
+                    _glob_asg = _par.global_assign;
+                }
 
-            let _waitForAction = typeof waitForAction === "undefined"
-                ? waitForActionRaw
-                : waitForAction;
-            let _debugInfo = (m, fg) => (typeof debugInfo === "undefined"
-                ? debugInfoRaw
-                : debugInfo)(m, fg, _par.debug_info_flag);
+                let _waitForAction = (
+                    typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+                );
+                let _debugInfo = (m, fg) => (
+                    typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+                )(m, fg, _par.debug_info_flag);
 
-            let _W, _H;
-            let _disp = {};
-            let _metrics = new android.util.DisplayMetrics();
-            let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-            let _win_svc_disp = _win_svc.getDefaultDisplay();
-            _win_svc_disp.getRealMetrics(_metrics);
+                let _W, _H;
+                let _disp = {};
+                let _metrics = new android.util.DisplayMetrics();
+                let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+                let _win_svc_disp = _win_svc.getDefaultDisplay();
+                _win_svc_disp.getRealMetrics(_metrics);
 
-            if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-                console.error("device.getDisplay()返回结果异常");
-                return {cX: cX, cY: cY, cYx: cYx};
-            }
-            _showDisp();
-            _assignGlob();
-            return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
+                if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
+                    console.error("devicex.getDisplay()返回结果异常");
+                    return {cX: cX, cY: cY, cYx: cYx};
+                }
+                _showDisp();
+                _assignGlob();
+                return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
 
-            // tool function(s) //
+                // tool function(s) //
 
-            function cX(num, base) {
-                return _cTrans(1, +num, base);
-            }
+                function cX(num, base) {
+                    return _cTrans(1, +num, base);
+                }
 
-            function cY(num, base) {
-                return _cTrans(-1, +num, base);
-            }
+                function cY(num, base) {
+                    return _cTrans(-1, +num, base);
+                }
 
-            function cYx(num, base) {
-                num = +num;
-                base = +base;
-                if (num >= 1) {
-                    if (!base) {
-                        base = 720;
-                    } else if (base < 0) {
-                        if (!~base) {
+                function cYx(num, base) {
+                    num = +num;
+                    base = +base;
+                    if (num >= 1) {
+                        if (!base) {
                             base = 720;
-                        } else if (base === -2) {
-                            base = 1080;
-                        } else {
+                        } else if (base < 0) {
+                            if (!~base) {
+                                base = 720;
+                            } else if (base === -2) {
+                                base = 1080;
+                            } else {
+                                throw Error(
+                                    "can not parse base param for cYx()"
+                                );
+                            }
+                        } else if (base < 5) {
                             throw Error(
-                                "can not parse base param for cYx()"
+                                "base and num params should " +
+                                "both be pixels for cYx()"
                             );
                         }
-                    } else if (base < 5) {
+                        return Math.round(num * _W / base);
+                    }
+
+                    if (!base || !~base) {
+                        base = 16 / 9;
+                    } else if (base === -2) {
+                        base = 21 / 9;
+                    } else if (base < 0) {
                         throw Error(
-                            "base and num params should " +
-                            "both be pixels for cYx()"
+                            "can not parse base param for cYx()"
                         );
+                    } else {
+                        base = base < 1 ? 1 / base : base;
                     }
-                    return Math.round(num * _W / base);
+                    return Math.round(num * _W * base);
                 }
 
-                if (!base || !~base) {
-                    base = 16 / 9;
-                } else if (base === -2) {
-                    base = 21 / 9;
-                } else if (base < 0) {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                } else {
-                    base = base < 1 ? 1 / base : base;
-                }
-                return Math.round(num * _W * base);
-            }
-
-            function _cTrans(dxn, num, base) {
-                let _full = ~dxn ? _W : _H;
-                if (isNaN(num)) {
-                    throw Error("can not parse num param for cTrans()");
-                }
-                if (Math.abs(num) < 1) {
-                    return Math.min(Math.round(num * _full), _full);
-                }
-                let _base = base;
-                if (!base || !~base) {
-                    _base = ~dxn ? 720 : 1280;
-                } else if (base === -2) {
-                    _base = ~dxn ? 1080 : 1920;
-                }
-                let _ct = Math.round(num * _full / _base);
-                return Math.min(_ct, _full);
-            }
-
-            function _showDisp() {
-                if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-                    _debugInfo("屏幕宽高: " + _W + " × " + _H);
-                    _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-                    $_flag.display_params_got = true;
-                }
-            }
-
-            function _getDisp() {
-                try {
-                    _W = _win_svc_disp.getWidth();
-                    _H = _win_svc_disp.getHeight();
-                    if (!(_W * _H)) {
-                        throw Error();
+                function _cTrans(dxn, num, base) {
+                    let _full = ~dxn ? _W : _H;
+                    if (isNaN(num)) {
+                        throw Error("can not parse num param for cTrans()");
                     }
+                    if (Math.abs(num) < 1) {
+                        return Math.min(Math.round(num * _full), _full);
+                    }
+                    let _base = base;
+                    if (!base || !~base) {
+                        _base = ~dxn ? 720 : 1280;
+                    } else if (base === -2) {
+                        _base = ~dxn ? 1080 : 1920;
+                    }
+                    let _ct = Math.round(num * _full / _base);
+                    return Math.min(_ct, _full);
+                }
 
-                    // if the device is rotated 90 degrees counter-clockwise,
-                    // to compensate rendering will be rotated by 90 degrees clockwise
-                    // and thus the returned value here will be Surface#ROTATION_90
-                    // 0: 0°, device is portrait
-                    // 1: 90°, device is rotated 90 degree counter-clockwise
-                    // 2: 180°, device is reverse portrait
-                    // 3: 270°, device is rotated 90 degree clockwise
-                    let _SCR_O = _win_svc_disp.getRotation();
-                    let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                    // let _MAX = +_win_svc_disp.maximumSizeDimension;
-                    let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
+                function _showDisp() {
+                    if ($_flag.debug_info_avail && !$_flag.display_params_got) {
+                        _debugInfo("屏幕宽高: " + _W + " × " + _H);
+                        _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
+                        $_flag.display_params_got = true;
+                    }
+                }
 
-                    let [_UH, _UW] = [_H, _W];
-                    let _dimen = (name) => {
-                        let resources = context.getResources();
-                        let resource_id = resources.getIdentifier(name, "dimen", "android");
-                        if (resource_id > 0) {
-                            return resources.getDimensionPixelSize(resource_id);
-                        }
-                        return NaN;
-                    };
-
-                    _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                    return {
-                        WIDTH: _W,
-                        USABLE_WIDTH: _UW,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: _UH,
-                        screen_orientation: _SCR_O,
-                        status_bar_height: _dimen("status_bar_height"),
-                        navigation_bar_height: _dimen("navigation_bar_height"),
-                        navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                        action_bar_default_height: _dimen("action_bar_default_height"),
-                    };
-                } catch (e) {
+                function _getDisp() {
                     try {
-                        _W = +device.width;
-                        _H = +device.height;
+                        _W = _win_svc_disp.getWidth();
+                        _H = _win_svc_disp.getHeight();
+                        if (!(_W * _H)) {
+                            return _raw();
+                        }
+                        let _SCR_O = _win_svc_disp.getRotation();
+                        let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+                        let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
+                        let [_UH, _UW] = [_H, _W];
+                        let _dimen = (name) => {
+                            let resources = context.getResources();
+                            let res_id = resources.getIdentifier(name, "dimen", "android");
+                            return res_id > 0 ? resources.getDimensionPixelSize(res_id) : NaN;
+                        };
+
+                        _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
+
+                        return {
+                            WIDTH: _W,
+                            USABLE_WIDTH: _UW,
+                            HEIGHT: _H,
+                            USABLE_HEIGHT: _UH,
+                            screen_orientation: _SCR_O,
+                            status_bar_height: _dimen("status_bar_height"),
+                            navigation_bar_height: _dimen("navigation_bar_height"),
+                            navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
+                            action_bar_default_height: _dimen("action_bar_default_height"),
+                        };
+                    } catch (e) {
+                        return _raw();
+                    }
+
+                    // tool function(s) //
+
+                    function _raw() {
+                        _W = device.width;
+                        _H = device.height;
                         return _W && _H && {
                             WIDTH: _W,
                             HEIGHT: _H,
                             USABLE_HEIGHT: Math.trunc(_H * 0.9),
                         };
-                    } catch (e) {
                     }
                 }
-            }
 
-            function _assignGlob() {
-                if (_glob_asg) {
-                    Object.assign(global, {
-                        W: _W, WIDTH: _W,
-                        halfW: Math.round(_W / 2),
-                        uW: _disp.USABLE_WIDTH,
-                        H: _H, HEIGHT: _H,
-                        uH: _disp.USABLE_HEIGHT,
-                        scrO: _disp.screen_orientation,
-                        staH: _disp.status_bar_height,
-                        navH: _disp.navigation_bar_height,
-                        navHC: _disp.navigation_bar_height_computed,
-                        actH: _disp.action_bar_default_height,
-                        cX: cX, cY: cY, cYx: cYx,
+                function _assignGlob() {
+                    if (_glob_asg) {
+                        Object.assign(global, {
+                            W: _W, WIDTH: _W,
+                            halfW: Math.round(_W / 2),
+                            uW: _disp.USABLE_WIDTH,
+                            H: _H, HEIGHT: _H,
+                            uH: _disp.USABLE_HEIGHT,
+                            scrO: _disp.screen_orientation,
+                            staH: _disp.status_bar_height,
+                            navH: _disp.navigation_bar_height,
+                            navHC: _disp.navigation_bar_height_computed,
+                            actH: _disp.action_bar_default_height,
+                            cX: cX, cY: cY, cYx: cYx,
+                        });
+                    }
+                }
+            };
+        }
+        devicex.getDisplay(true);
+    }();
+    !function _dialogsx() {
+        global.dialogsx = typeof global.dialogsx === "object" ? global.dialogsx : {};
+        let myLooper = android.os.Looper.myLooper;
+        let getMainLooper = android.os.Looper.getMainLooper;
+        let isUiThread = () => myLooper() === getMainLooper();
+        let rtDialogs = () => {
+            let d = runtime.dialogs;
+            return isUiThread() ? d : d.nonUiDialogs;
+        };
+        if (typeof dialogsx.rawInput !== "function") {
+            dialogsx.rawInput = function (title, prefill, callback) {
+                prefill = prefill || "";
+                if (isUiThread() && !callback) {
+                    return new Promise(function (resolve) {
+                        rtDialogs().rawInput(title, prefill, function () {
+                            resolve.apply(null, Array.prototype.slice.call(arguments));
+                        });
                     });
                 }
-            }
-        };
-    }
-    $_dev.getDisplay(true);
+                return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+            };
+        }
+    }();
 }
 
 function _chkF(s, override_par_num) {
+    /** @type function */
     let _f = (() => {
         let _mon = require("./MODULE_MONSTER_FUNC");
         if (typeof global[s] === "function") {
@@ -1765,14 +1914,17 @@ function _chkF(s, override_par_num) {
 }
 
 function _err(s) {
-    device.cancelOn();
+    devicex.cancelOn();
     messageAction("解锁失败", 4, 1, 0, -1);
 
     let _s = $_str(s) ? [s] : s;
     _s.forEach(m => messageAction(m, 4, 0, 1));
     messageAction(_intro, 4, 0, 1, 1);
 
-    captureErrScreen("unlock_failed", 1);
+    captureErrScreen("unlock_failed", {
+        log_level: 1,
+        max_samples: 8,
+    });
 
     if ($_unlk.init_scr) {
         let _suffix = keycode(26) ? "" : "失败";
@@ -1819,8 +1971,8 @@ function _unlkSetter() {
     let _sk = "com\\.smartisanos\\.keyguard:id/";
 
     return {
-        init_scr: _isScrOn(),
-        init_unlk: _isUnlk(),
+        init_scr: _init_scr,
+        init_unlk: _init_unlk,
         prev_cntr: {
             trigger() {
                 _wakeUpIFN();
@@ -1847,13 +1999,15 @@ function _unlkSetter() {
                         desc: "MIUI10",
                         selector: idMatches(_as + "((.*lock_screen|notification)_(container.*|panel.*)|keyguard_.*)")
                     },
-                }
+                };
 
                 for (let key in _map) {
-                    let {desc: _desc, selector: _sel} = _map[key];
-                    if (_sel.exists()) {
-                        debugInfo("匹配到" + _desc + "解锁提示层控件");
-                        return (this.trigger = _sel.exists.bind(_sel))();
+                    if (_map.hasOwnProperty(key)) {
+                        let {desc: _desc, selector: _sel} = _map[key];
+                        if (_sel.exists()) {
+                            debugInfo("匹配到" + _desc + "解锁提示层控件");
+                            return (this.trigger = _sel.exists.bind(_sel))();
+                        }
                     }
                 }
 
@@ -1881,8 +2035,10 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let _o = _map[key];
-                        _o.trigger() && _o.handle();
+                        if (_map.hasOwnProperty(key)) {
+                            let _o = _map[key];
+                            _o.trigger() && _o.handle();
+                        }
                     }
                 }
             },
@@ -1923,13 +2079,12 @@ function _unlkSetter() {
 
                     let _max = 30;
                     let _ctr = 0;
-                    device.keepOn(3);
+                    devicex.keepOn(3);
                     while (!_lmt()) {
                         let _s = " (" + _ctr + "/" + _max + ")";
-                        debugInfo(_ctr
-                            ? "重试消除解锁页面提示层" + _s
-                            : "尝试消除解锁页面提示层"
-                        );
+                        _ctr
+                            ? debugInfo("重试消除解锁页面提示层" + _s)
+                            : debugInfo("尝试消除解锁页面提示层");
                         debugInfo("滑动时长: " + _time + "毫秒");
                         debugInfo("参数来源: " + (_from_sto ? "本地存储" : "自动计算"));
 
@@ -1958,7 +2113,7 @@ function _unlkSetter() {
                             debugInfo("参数增量: " + _increment);
                         }
                     }
-                    device.cancelOn();
+                    devicex.cancelOn();
                     debugInfo("解锁页面提示层消除成功");
                     _this.succ_fg = true;
 
@@ -2035,10 +2190,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo("匹配到" + _desc + "图案解锁控件");
-                            return _trigger(_sel, _stg);
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo("匹配到" + _desc + "图案解锁控件");
+                                return _trigger(_sel, _stg);
+                            }
                         }
                     }
 
@@ -2059,10 +2216,9 @@ function _unlkSetter() {
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
                             let _s = " (" + _ctr + "/" + _max + ")";
-                            debugInfo(_ctr
-                                ? "重试图案密码解锁" + _s
-                                : "尝试图案密码解锁"
-                            );
+                            _ctr
+                                ? debugInfo("重试图案密码解锁" + _s)
+                                : debugInfo("尝试图案密码解锁");
                             debugInfo("滑动时长: " + _time + "毫秒");
                             debugInfo("滑动策略: " + _stg_map[_stg]);
 
@@ -2322,10 +2478,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo("匹配到" + _desc + "密码解锁控件");
-                            return _trigger(_sel, _stg);
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo("匹配到" + _desc + "密码解锁控件");
+                                return _trigger(_sel, _stg);
+                            }
                         }
                     }
 
@@ -2358,9 +2516,7 @@ function _unlkSetter() {
 
                             let _cfm_nod = _cfm_btn("widget");
                             if (_cfm_nod) {
-                                let _txt = _cfm_btn("txt");
-                                let _s = '点击"' + _txt + '"按钮';
-                                debugInfo(_s);
+                                debugInfo('点击"' + _cfm_btn("txt") + '"按钮');
                                 try {
                                     clickAction(_cfm_nod, "w");
                                 } catch (e) {
@@ -2370,11 +2526,13 @@ function _unlkSetter() {
                             if (_this.succ(2)) {
                                 break;
                             }
-                            if (!shell("input keyevent 66", true).code) {
-                                debugInfo("使用Root权限模拟回车键");
-                                sleep(480);
-                                if (_this.succ()) {
-                                    break;
+                            if (_has_root) {
+                                if (!shell("input keyevent 66", true).code) {
+                                    debugInfo("使用Root权限模拟回车键");
+                                    sleep(480);
+                                    if (_this.succ()) {
+                                        break;
+                                    }
                                 }
                             }
                             _ctr += 1;
@@ -2396,18 +2554,51 @@ function _unlkSetter() {
                         }
 
                         function _keypadAssistIFN() {
-                            // brand + product + release
+                            /**
+                             * @example
+                             * let _smp_o = {
+                             *     "_$_EXAMPLE": {
+                             *         // string before keys
+                             *         // number for the length of last pw string
+                             *         prefix: 1,
+                             *         // assistant keys coordination
+                             *         // like: [[x1, y1], [x2, y2], ...],
+                             *         keys: [[100, 200]],
+                             *         // action after keys
+                             *         // UiObject: desc("5") -- widget of a key
+                             *         // Point: [x, y] -- point of a key
+                             *         // String: "5" -- numpad key 5
+                             *         // Number: 5 -- numpad key 5
+                             *         suffix: null,
+                             *     },
+                             * };
+                             */
+                            let _pw_last = _pw[_pw.length - 1];
                             let _smp_o = {
-                                "HUAWEI VOG-AL00 9": {
-                                    // character to press or input before
-                                    // special treatment if needed
-                                    pre_char_refill: 1,
-                                    // keys_coords: [[864, 1706], [1008, 1706]],
-                                    // DEL KEY coordination(s)
-                                    keys_coords: [[1008, 1706]],
-                                    // last password character to
-                                    // press or input if needed in the end
-                                    suf_char_refill: null,
+                                "HUAWEI VOG-AL00 9": {prefix: 1, keys: [[1008, 1706]]},
+                                "HUAWEI ELE-AL00 10": {
+                                    keys: ["DEL"],
+                                    keys_map: (() => {
+                                        let y = [1188, 1350, 1511, 1674, 1835];
+                                        let x = [56, 163, 271, 378, 487, 595, 703, 810, 918, 1027];
+                                        let xs = [109.5, 217, 324.5, 432.5, 541, 649, 756.5, 864, 972.5];
+                                        let [y0, y1, y2, y3, y4] = y;
+                                        let [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9] = x;
+                                        let [xs0, xs1, xs2, xs3, xs4, xs5, xs6, xs7, xs8] = xs;
+                                        return {
+                                            1: [x0, y0], 2: [x1, y0], 3: [x2, y0], 4: [x3, y0], 5: [x4, y0],
+                                            6: [x5, y0], 7: [x6, y0], 8: [x7, y0], 9: [x8, y0], 0: [x9, y0],
+                                            q: [x0, y1], w: [x1, y1], e: [x2, y1], r: [x3, y1], t: [x4, y1],
+                                            y: [x5, y1], u: [x6, y1], i: [x7, y1], o: [x8, y1], p: [x9, y1],
+                                            a: [xs0, y2], s: [xs1, y2], d: [xs2, y2], f: [xs3, y2], g: [xs4, y2],
+                                            h: [xs5, y2], j: [xs6, y2], k: [xs7, y2], l: [xs8, y2], z: [xs1, y3],
+                                            x: [xs2, y3], c: [xs3, y3], v: [xs4, y3], b: [xs5, y3], n: [xs6, y3],
+                                            m: [xs7, y3], ",": [xs1, y4], " ": [xs4, y4], ".": [xs7, y4], del: [x9, y3],
+                                        };
+                                    })(),
+                                    get suffix() {
+                                        return this.keys_map[_pw_last];
+                                    },
                                 },
                             };
                             if (!(_intro in _smp_o)) {
@@ -2416,27 +2607,26 @@ function _unlkSetter() {
                             debugInfo("此设备机型需要按键辅助");
 
                             let _smp = _smp_o[_intro];
-                            let _coords = _smp.keys_coords;
-                            let _keys_len = _coords.length;
-                            if (_keys_len) {
-                                debugInfo("辅助按键共计: " + _keys_len + "项");
-                                _coords.forEach((coord) => {
-                                    let [_x, _y] = coord;
-                                    debugInfo(">(" + _x + ", " + _y + ")");
-                                });
-                            }
-
-                            let _pref = _smp.pre_char_refill;
-                            let _suff = _smp.suf_char_refill;
+                            let _coords = _smp.keys;
+                            let _k_map = _smp.keys_map;
+                            let _pref = _smp.prefix;
+                            let _suff = _smp.suffix;
                             if (!$_und(_pref) && !$_nul(_pref)) {
-                                let _s = _pref.toString();
+                                let _s = "";
+                                if ($_num(_pref)) {
+                                    for (let i = 1; i <= _pref; i += 1) {
+                                        _s += _pw_last;
+                                    }
+                                } else {
+                                    _s = _pref.toString();
+                                }
                                 _this.sel.setText(_pw + _s);
-                                debugInfo("辅助前置填充: " + _s.length + "项");
+                                debugInfo("辅助按键前置填充: " + _s.length + "项");
                             }
 
-                            sleep(300);
-                            _coords.forEach((coord) => {
-                                clickAction(coord);
+                            _coords.forEach((c, i) => {
+                                i || sleep(300);
+                                clickAction(typeof c === "string" ? _k_map[c] : c);
                                 sleep(300);
                             });
 
@@ -2444,19 +2634,19 @@ function _unlkSetter() {
                                 return;
                             }
                             if ($_jvo(_suff)) {
-                                debugInfo("辅助后置填充类型: 控件");
+                                debugInfo("辅助按键后置填充类型: 控件");
                                 return clickAction(_suff);
                             }
                             if ($_arr(_suff)) {
-                                debugInfo("辅助后置填充类型: 坐标");
-                                return click(_suff[0], _suff[1]);
+                                debugInfo("辅助按键后置填充类型: 坐标");
+                                return clickAction(_suff);
                             }
                             if ($_num(_suff) || $_str(_suff)) {
-                                let _kw = "(key.?)?" + _suff;
-                                debugInfo("辅助后置填充类型: 文本");
-                                return clickAction(idMatches(_kw))
-                                    || clickAction(descMatches(_kw))
-                                    || clickAction(textMatches(_kw));
+                                let _rex = "(key.?)?" + _suff;
+                                debugInfo("辅助按键后置填充类型: 文本");
+                                return clickAction(idMatches(_rex))
+                                    || clickAction(descMatches(_rex))
+                                    || clickAction(textMatches(_rex));
                             }
                             return _err("密码解锁失败", "无法判断末位字符类型");
                         }
@@ -2468,15 +2658,15 @@ function _unlkSetter() {
                         ];
                         let _len = _dist.length;
                         for (let i = 0; i < _len; i += 1) {
-                            let _kw = _dist[i];
-                            let _cA1 = () => $_str(_kw);
-                            let _cA2 = () => id(_kw).exists();
+                            let _pattern = _dist[i];
+                            let _cA1 = () => $_str(_pattern);
+                            let _cA2 = () => id(_pattern).exists();
                             let _cA = () => _cA1() && _cA2();
-                            let _cB1 = () => $_rex(_kw);
-                            let _cB2 = () => idMatches(_kw).exists();
+                            let _cB1 = () => $_rex(_pattern);
+                            let _cB2 = () => idMatches(_pattern).exists();
                             let _cB = () => _cB1() && _cB2();
                             if (_cA() || _cB()) {
-                                _this.misjudge = _kw;
+                                _this.misjudge = _pattern;
                                 debugInfo("匹配到误判干扰");
                                 debugInfo("转移至PIN解锁方案");
                                 return true;
@@ -2518,13 +2708,15 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            if (_desc.match(/\w$/)) {
-                                _desc += "/";
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel} = _map[key];
+                            if (_sel.exists()) {
+                                if (_desc.match(/\w$/)) {
+                                    _desc += "/";
+                                }
+                                debugInfo("匹配到" + _desc + "PIN解锁控件");
+                                return _trigger(_sel, _stg);
                             }
-                            debugInfo("匹配到" + _desc + "PIN解锁控件");
-                            return _trigger(_sel, _stg);
                         }
                     }
 
@@ -2572,25 +2764,25 @@ function _unlkSetter() {
                         }
 
                         function _clickKeyEnter() {
-                            let _kw = idMatches(_as + "key_enter");
-                            if (_kw.exists()) {
+                            let _sltr = idMatches(_as + "key_enter");
+                            if (_sltr.exists()) {
                                 debugInfo('点击"key_enter"控件');
-                                clickAction(_kw, "w");
+                                clickAction(_sltr, "w");
                                 return _this.succ();
                             }
                         }
 
                         function _unlockPin() {
                             let _num_pad = {
-                                kw(num) {
+                                sltr(num) {
                                     return idMatches(_as + "key" + num);
                                 },
                                 widget(num) {
-                                    return this.kw(num).findOnce();
+                                    return this.sltr(num).findOnce();
                                 },
                                 test() {
-                                    let _kw = n => _num_pad.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _num_pad.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到通用PIN/KEY解锁控件");
                                         return true;
                                     }
@@ -2606,8 +2798,8 @@ function _unlkSetter() {
                             };
                             let _cntr = {
                                 test() {
-                                    let _kw = idMatches(_as + "container");
-                                    let _w = _kw.findOnce();
+                                    let _sltr = idMatches(_as + "container");
+                                    let _w = _sltr.findOnce();
                                     if (_w) {
                                         debugInfo("匹配到通用PIN容器解锁控件");
                                         return this.widget = _w;
@@ -2625,17 +2817,17 @@ function _unlkSetter() {
                                 },
                             };
                             let _inp_view = {
-                                kw(num) {
+                                sltr(num) {
                                     let _num = num.toString();
                                     // miui
                                     return idMatches(_ak + "numeric_inputview").text(_num);
                                 },
                                 widget(num) {
-                                    return this.kw(num).findOnce();
+                                    return this.sltr(num).findOnce();
                                 },
                                 test() {
-                                    let _kw = n => _inp_view.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _inp_view.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到MIUI/PIN解锁控件");
                                         return true;
                                     }
@@ -2650,11 +2842,11 @@ function _unlkSetter() {
                                 },
                             };
                             let _sgl_desc = {
-                                kw(num) {
+                                sltr(num) {
                                     return desc(num);
                                 },
                                 widget(num) {
-                                    let _widget = this.kw(num).findOnce();
+                                    let _widget = this.sltr(num).findOnce();
                                     if (!+num && !_widget) {
                                         return _specialZero();
                                     }
@@ -2676,8 +2868,8 @@ function _unlkSetter() {
                                     }
                                 },
                                 test() {
-                                    let _kw = n => _sgl_desc.kw(n);
-                                    if (_testNumWidgets(_kw)) {
+                                    let _sel = n => _sgl_desc.sltr(n);
+                                    if (_testNumWidgets(_sel)) {
                                         debugInfo("匹配到内容描述PIN解锁控件");
                                         return true;
                                     }
@@ -2755,8 +2947,8 @@ function _unlkSetter() {
                                 let _len = _nums.length;
                                 let _ctr = 9;
                                 for (let i = 0; i < _len; i += 1) {
-                                    let _kw = f(_nums[i]);
-                                    if (!_kw.exists()) {
+                                    let _sltr = f.call(null, _nums[i]);
+                                    if (!_sltr.exists()) {
                                         _ctr -= 1;
                                     }
                                 }
@@ -2784,10 +2976,12 @@ function _unlkSetter() {
                     };
 
                     for (let key in _map) {
-                        let {desc: _desc, selector: _sel, pw_rect: _rect} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo(["匹配到特殊设备解锁方案:", _desc]);
-                            return _trigger(_sel, _stg.bind(null, _rect));
+                        if (_map.hasOwnProperty(key)) {
+                            let {desc: _desc, selector: _sel, pw_rect: _rect} = _map[key];
+                            if (_sel.exists()) {
+                                debugInfo(["匹配到特殊设备解锁方案:", _desc]);
+                                return _trigger(_sel, _stg.bind(null, _rect));
+                            }
                         }
                     }
 
@@ -2871,9 +3065,9 @@ function _unlkSetter() {
                 if (!$_func(this.stg)) {
                     return _err("没有可用的解锁策略");
                 }
-                device.keepOn(5);
+                devicex.keepOn(5);
                 this.stg();
-                device.cancelOn();
+                devicex.cancelOn();
             },
             handle() {
                 return this.trigger() && this.dismiss();
@@ -2921,8 +3115,8 @@ function _unlkSetter() {
                     let _rex = new RegExp(".*(" +
                         "[Tt]ry again in.+|\\d+.*后重试" +
                         ").*");
-                    let _kw = textMatches(_rex);
-                    let _chk = () => _kw.exists();
+                    let _sltr = textMatches(_rex);
+                    let _chk = () => _sltr.exists();
                     if (_chk()) {
                         debugInfo("正在等待重试超时");
                         waitForAction(() => !_chk(), 65e3, 500);
@@ -2930,9 +3124,9 @@ function _unlkSetter() {
                 }
 
                 function _chkOKBtn() {
-                    let _rex = /OK|确(认|定)|好的?/;
-                    let _kw = textMatches(_rex);
-                    let _widget = _kw.findOnce();
+                    let _rex = /OK|确([认定])|好的?/;
+                    let _sltr = textMatches(_rex);
+                    let _widget = _sltr.findOnce();
                     if (_widget) {
                         let _txt = _widget.text();
                         debugInfo('点击"' + _txt + '"按钮');
@@ -3009,47 +3203,62 @@ function _unlock(forc_debug) {
     }
 }
 
+function _checkRootAccess() {
+    try {
+        // com.stardust.autojs.core.util.ProcessShell
+        // .execCommand("date", true).code === 0;
+        // code above doesn't work on Auto.js Pro
+        return shell("date", true).code === 0;
+    } catch (e) {
+        return false;
+    }
+}
+
+function _export() {
+    module.exports = {
+        is_init_screen_on: $_unlk.init_scr,
+        is_init_unlocked: $_unlk.init_unlk,
+        isUnlocked: () => _isUnlk(),
+        isLocked: () => !_isUnlk(),
+        unlock: _unlock,
+    };
+}
+
+function _execute() {
+    util.extend()
+    // TODO dialogsx.builds() -- 1. functional test  2. configuration  3. module usage
+}
+
 // raw function(s) //
 
-function showSplitLineRaw(extra_str, style) {
-    let _extra_str = extra_str || "";
-    let _split_line = "";
-    if (style === "dash") {
-        for (let i = 0; i < 17; i += 1) _split_line += "- ";
-        _split_line += "-";
-    } else {
-        for (let i = 0; i < 33; i += 1) _split_line += "-";
-    }
-    return ~console.log(_split_line + _extra_str);
+function showSplitLineRaw(extra, style) {
+    console.log((
+        style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+    ) + (extra || ""));
 }
 
 function messageActionRaw(msg, lv, if_toast) {
-    let _s = msg || " ";
+    let _msg = msg || " ";
     if (lv && lv.toString().match(/^t(itle)?$/)) {
-        let _par = ["[ " + msg + " ]", 1, if_toast];
-        return messageActionRaw.apply({}, _par);
+        return messageActionRaw("[ " + msg + " ]", 1, if_toast);
     }
-    let _lv = +lv;
-    if (if_toast) {
-        toast(_s);
+    if_toast && toast(_msg);
+    let _lv = typeof lv === "undefined" ? 1 : lv;
+    if (_lv >= 4) {
+        console.error(_msg);
+        _lv >= 8 && exit();
+        return false;
     }
     if (_lv >= 3) {
-        if (_lv >= 4) {
-            console.error(_s);
-            if (_lv >= 8) {
-                exit();
-            }
-        } else {
-            console.warn(_s);
-        }
-        return;
+        console.warn(_msg);
+        return false;
     }
     if (_lv === 0) {
-        console.verbose(_s);
+        console.verbose(_msg);
     } else if (_lv === 1) {
-        console.log(_s);
+        console.log(_msg);
     } else if (_lv === 2) {
-        console.info(_s);
+        console.info(_msg);
     }
     return true;
 }
@@ -3068,10 +3277,6 @@ function waitForActionRaw(cond_func, time_params) {
     return _check_time >= 0;
 }
 
-function debugInfoRaw(msg, info_flg) {
-    if (info_flg) {
-        let _s = msg || "";
-        _s = _s.replace(/^(>*)( *)/, ">>" + "$1 ");
-        console.verbose(_s);
-    }
+function debugInfoRaw(msg, msg_lv) {
+    msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
 }

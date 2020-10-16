@@ -75,7 +75,7 @@ function _setWinCtrl() {
     _win_ctrl.btn_confirm.on("long_click", (e, view) => {
         e.consumed = true;
         _win_ctrl.setSize(0, 0);
-        dialogs
+        dialogsx
             .builds([
                 "提示", "" +
                 "即将将当前的数据保存至\n" +
@@ -120,7 +120,7 @@ function _setWinCtrl() {
         }
     });
     _win_ctrl.btn_help.on("click", () => {
-        dialogs.builds([
+        dialogsx.builds([
             "帮助与提示",
             '"音量减/VOL-"键隐藏/显示控制面板\n\n' +
             '点击"重置"设置会话开始前的数据\n' +
@@ -212,7 +212,7 @@ function _setSeekbar(opt, idx) {
             (title ? title + ": " : "") + src.toString() +
             (unit ? " " + unit : "")
         );
-    }
+    };
 
     update(init);
     new_view._seekbar.setOnSeekBarChangeListener(
