@@ -1,5 +1,7 @@
 global.devicex = typeof global.devicex === "object" ? global.devicex : {};
 
+require("./MODULE_MONSTER_FUNC").load("messageAction", "waitForAction", "debugInfo");
+
 let ext = {
     /**
      * device.keepScreenOn()
@@ -135,7 +137,7 @@ let ext = {
      * @return {{
            [WIDTH]: number, [USABLE_WIDTH]: number,
            [HEIGHT]: number, [USABLE_HEIGHT]: number,
-           [screen_orientation]: number,
+           [screen_orientation]: ScrOrientation,
            [status_bar_height]: number,
            [navigation_bar_height]: number,
            [navigation_bar_height_computed]: number,
@@ -163,8 +165,22 @@ let ext = {
             typeof debugInfo === "function" ? debugInfo : debugInfoRaw
         )(m, fg, _par.debug_info_flag);
 
+        /** @type {number} */
         let _W, _H;
-        let _disp = {};
+        /**
+         * @type {{
+         *     WIDTH: number,
+         *     HEIGHT: number
+         *     USABLE_WIDTH: number,
+         *     USABLE_HEIGHT: number,
+         *     screen_orientation: ScrOrientation,
+         *     navigation_bar_height: number,
+         *     navigation_bar_height_computed: number,
+         *     action_bar_default_height: number,
+         *     status_bar_height: number,
+         * }|{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
+         */
+        let _disp = null;
         let _metrics = new android.util.DisplayMetrics();
         let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
         let _win_svc_disp = _win_svc.getDefaultDisplay();
@@ -310,7 +326,7 @@ let ext = {
         function cYx(num, base) {
             num = +num;
             base = +base;
-            if (num >= 1) {
+            if (Math.abs(num) >= 1) {
                 if (!base) {
                     base = 720;
                 } else if (base < 0) {
@@ -319,15 +335,10 @@ let ext = {
                     } else if (base === -2) {
                         base = 1080;
                     } else {
-                        throw Error(
-                            "can not parse base param for cYx()"
-                        );
+                        throw Error("can not parse base param for cYx()");
                     }
                 } else if (base < 5) {
-                    throw Error(
-                        "base and num params should " +
-                        "both be pixels for cYx()"
-                    );
+                    throw Error("base and num params should be both pixels for cYx()");
                 }
                 return Math.round(num * _W / base);
             }
@@ -337,9 +348,7 @@ let ext = {
             } else if (base === -2) {
                 base = 21 / 9;
             } else if (base < 0) {
-                throw Error(
-                    "can not parse base param for cYx()"
-                );
+                throw Error("can not parse base param for cYx()");
             } else {
                 base = base < 1 ? 1 / base : base;
             }
@@ -399,7 +408,9 @@ let ext = {
                  * 2: 180°, device is reverse portrait
                  * 3: 270°, device is rotated 90 degree clockwise
                  * @typedef ScrOrientation
+                 * @type {number}
                  */
+                /** @type ScrOrientation */
                 let _SCR_O = _win_svc_disp.getRotation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
                 // let _MAX = _win_svc_disp.maximumSizeDimension;
@@ -434,33 +445,46 @@ let ext = {
 
             // tool function(s) //
 
+            /**
+             * @returns {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
+             */
             function _raw() {
                 _W = device.width;
                 _H = device.height;
-                return _W && _H && {
+                return _W && _H ? {
                     WIDTH: _W,
                     HEIGHT: _H,
                     USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
+                } : null;
             }
         }
 
         function _assignGlob() {
             if (_glob_asg) {
                 Object.assign(global, {
+                    /** Screen width */
                     W: _W, WIDTH: _W,
+                    /** Half of screen width */
                     halfW: Math.round(_W / 2),
-                    uW: _disp.USABLE_WIDTH,
+                    /** Usable screen width */
+                    uW: Number(_disp.USABLE_WIDTH),
+                    /** Screen height */
                     H: _H, HEIGHT: _H,
-                    uH: _disp.USABLE_HEIGHT,
+                    /** Usable screen height */
+                    uH: Number(_disp.USABLE_HEIGHT),
                     /**
+                     * Screen orientation
                      * @type ScrOrientation
                      */
-                    scrO: _disp.screen_orientation,
-                    staH: _disp.status_bar_height,
-                    navH: _disp.navigation_bar_height,
-                    navHC: _disp.navigation_bar_height_computed,
-                    actH: _disp.action_bar_default_height,
+                    scrO: Number(_disp.screen_orientation),
+                    /** Status bar height */
+                    staH: Number(_disp.status_bar_height),
+                    /** Navigation bar height */
+                    navH: Number(_disp.navigation_bar_height),
+                    /** Computed navigation bar height */
+                    navHC: Number(_disp.navigation_bar_height_computed),
+                    /** Action bar default height */
+                    actH: Number(_disp.action_bar_default_height),
                     cX: cX, cY: cY, cYx: cYx,
                 });
             }
@@ -529,6 +553,28 @@ let ext = {
             console.warn(e.message);
             return false;
         }
+    },
+    isCharging() {
+        let {IntentFilter, Intent} = android.content;
+        let {BatteryManager} = android.os;
+
+        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        let _battery_status = context.registerReceiver(null, _i_filter);
+
+        let _status = _battery_status.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+        return _status === BatteryManager.BATTERY_STATUS_CHARGING
+            || _status === BatteryManager.BATTERY_STATUS_FULL;
+    },
+    getBatteryPercentage() {
+        let {IntentFilter, Intent} = android.content;
+        let {BatteryManager} = android.os;
+
+        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+        let _battery_status = context.registerReceiver(null, _i_filter);
+
+        let _level = _battery_status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        let _scale = _battery_status.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        return _level * 100 / _scale;
     },
     a11y: (() => {
         let Secure = android.provider.Settings.Secure;
@@ -729,332 +775,3 @@ let ext = {
 
 module.exports = ext;
 module.exports.load = () => global.devicex = ext;
-
-// tool function(s) //
-
-// updated: Sep 19, 2020
-function debugInfo(msg, msg_level, forcible_flag) {
-    let $_flag = global.$$flag = global.$$flag || {};
-
-    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _showSplitLine = (
-        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
-    );
-    let _messageAction = (
-        typeof messageAction === "function" ? messageAction : messageActionRaw
-    );
-
-    let _glob_fg = $_flag.debug_info_avail;
-    let _forc_fg = forcible_flag;
-    if (!_glob_fg && !_forc_fg) {
-        return;
-    }
-    if (_glob_fg === false || _forc_fg === false) {
-        return;
-    }
-
-    let _msg_lv_str = (msg_level || "").toString();
-    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
-    if (_msg_lv_str.match(/Up/)) {
-        _showSplitLine();
-    }
-    if (_msg_lv_str.match(/both|up/)) {
-        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
-        debugInfo("__split_line__" + _dash, "", _forc_fg);
-    }
-
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
-        msg = _getLineStr(msg);
-    }
-    if (_classof(msg) === "Array") {
-        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
-    } else {
-        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
-    }
-
-    if (_msg_lv_str.match("both")) {
-        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
-        debugInfo("__split_line__" + _dash, "", _forc_fg);
-    }
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
-        ) + (extra || ""));
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    // tool function(s) //
-
-    function _getLineStr(msg) {
-        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
-    }
-}
-
-// updated: Sep 20, 2020
-function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-    if ($_flag.no_msg_act_flag) {
-        return !~[3, 4, "warn", "w", "error", "e"].indexOf(msg_level);
-    }
-
-    let _msg_lv = msg_level;
-    if (typeof _msg_lv === "undefined") {
-        _msg_lv = 1;
-    }
-    if (typeof _msg_lv !== "number" && typeof msg_level !== "string") {
-        _msg_lv = -1;
-    }
-
-    let _msg = msg || "";
-    if (_msg_lv.toString().match(/^t(itle)?$/)) {
-        _msg = "[ " + msg + " ]";
-        return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
-    }
-
-    if_toast && toast(_msg);
-
-    let _if_arrow = if_arrow || false;
-    let _if_spl_ln = if_split_line || false;
-    _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? "both" : _if_spl_ln : "up";
-    let _spl_ln_style = "solid";
-    let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
-    let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
-    let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
-    let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
-    let _showSplitLine = (
-        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
-    );
-
-    if (typeof _if_spl_ln === "string") {
-        if (_if_spl_ln.match(/dash/)) {
-            _spl_ln_style = "dash";
-        }
-        if (_if_spl_ln.match(/both|up|^2/)) {
-            if (!_matchLnStyle()) {
-                _showSplitLine("", _spl_ln_style);
-            }
-            if (_if_spl_ln.match(/_n|n_/)) {
-                _if_spl_ln = "\n";
-            } else if (_if_spl_ln.match(/both|^2/)) {
-                _if_spl_ln = 1;
-            } else if (_if_spl_ln.match(/up/)) {
-                _if_spl_ln = 0;
-            }
-        }
-    }
-
-    _clearLnStyle();
-
-    if (_if_arrow) {
-        _msg = "-".repeat(Math.min(_if_arrow, 10)) + "> " + _msg;
-    }
-
-    let _exit_flag = false;
-    let _show_ex_msg_flag = false;
-
-    switch (_msg_lv) {
-        case 0:
-        case "verbose":
-        case "v":
-            _msg_lv = 0;
-            console.verbose(_msg);
-            break;
-        case 1:
-        case "log":
-        case "l":
-            _msg_lv = 1;
-            console.log(_msg);
-            break;
-        case 2:
-        case "i":
-        case "info":
-            _msg_lv = 2;
-            console.info(_msg);
-            break;
-        case 3:
-        case "warn":
-        case "w":
-            _msg_lv = 3;
-            console.warn(_msg);
-            break;
-        case 4:
-        case "error":
-        case "e":
-            _msg_lv = 4;
-            console.error(_msg);
-            break;
-        case 8:
-        case "x":
-            _msg_lv = 4;
-            console.error(_msg);
-            _exit_flag = true;
-            break;
-        case 9:
-        case "t":
-            _msg_lv = 4;
-            console.error(_msg);
-            _show_ex_msg_flag = true;
-    }
-
-    if (_if_spl_ln) {
-        let _spl_ln_extra = "";
-        if (typeof _if_spl_ln === "string") {
-            if (_if_spl_ln.match(/dash/)) {
-                _spl_ln_extra = _if_spl_ln.match(/_n|n_/) ? "\n" : ""
-            } else {
-                _spl_ln_extra = _if_spl_ln;
-            }
-        }
-        if (!_spl_ln_extra.match(/\n/)) {
-            _saveLnStyle();
-        }
-        _showSplitLine(_spl_ln_extra, _spl_ln_style);
-    }
-
-    if (_show_ex_msg_flag) {
-        let _msg = "forcibly stopped";
-        console.error(_msg);
-        toast(_msg);
-    }
-    if (_exit_flag) {
-        exit();
-    }
-
-    return !~[3, 4].indexOf(_msg_lv);
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
-        ) + (extra || ""));
-    }
-}
-
-// updated: Aug 2, 2020
-function waitForAction(f, timeout_or_times, interval, params) {
-    let _par = params || {};
-    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
-
-    if (typeof timeout_or_times !== "number") {
-        timeout_or_times = 10e3;
-    }
-    let _times = timeout_or_times;
-    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
-        _times = Infinity;
-    }
-    let _timeout = Infinity;
-    if (timeout_or_times > 100) {
-        _timeout = timeout_or_times;
-    }
-    let _interval = interval || 200;
-    if (_interval >= _timeout) {
-        _times = 1;
-    }
-
-    let _start_ts = Date.now();
-    while (!_checkF(f) && --_times) {
-        if (Date.now() - _start_ts > _timeout) {
-            return false; // timed out
-        }
-        sleep(_interval);
-    }
-    return _times > 0;
-
-    // tool function(s) //
-
-    function _checkF(f) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = (
-            typeof messageAction === "function" ? messageAction : messageActionRaw
-        );
-
-        if (typeof f === "function") {
-            return f();
-        }
-        if (_classof(f) === "JavaObject") {
-            return f.toString().match(/UiObject/) ? f : f.exists();
-        }
-        if (_classof(f) === "Array") {
-            let _arr = f;
-            let _len = _arr.length;
-            let _logic = "all";
-            if (typeof _arr[_len - 1] === "string") {
-                _logic = _arr.pop();
-            }
-            if (_logic.match(/^(or|one)$/)) {
-                _logic = "one";
-            }
-            for (let i = 0; i < _len; i += 1) {
-                let _ele = _arr[i];
-                if (!(typeof _ele).match(/function|object/)) {
-                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
-                }
-                if (_logic === "all" && !_checkF(_ele)) {
-                    return false;
-                }
-                if (_logic === "one" && _checkF(_ele)) {
-                    return true;
-                }
-            }
-            return _logic === "all";
-        }
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
-    }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-}

@@ -1,7 +1,6 @@
 /**
- * @description
- * module for unlocking device by analyzing UI components with Auto.js <br>
- * a graphic config tool (Unlock_Config_Tool.js) is available for customizing
+ * Module for unlocking device by analyzing UI components with Auto.js <br>
+ * A graphic config tool (Unlock_Config_Tool.js) is available for customizing
  *
  * @example
  * require("./MODULE_UNLOCK").unlock();
@@ -57,13 +56,7 @@ let _max_try = _cfg.unlock_max_try_times;
 let _pat_sz = _cfg.unlock_pattern_size;
 let _has_root = _checkRootAccess();
 
-module.exports = {
-    is_init_screen_on: $_unlk.init_scr,
-    is_init_unlocked: $_unlk.init_unlk,
-    isUnlocked: () => _isUnlk(),
-    isLocked: () => !_isUnlk(),
-    unlock: _unlock,
-};
+typeof module === "undefined" ? _execute() : _export();
 
 // tool function(s) //
 
@@ -1833,9 +1826,9 @@ function _activeExtension() {
                     } catch (e) {
                         return _raw();
                     }
-                    
+
                     // tool function(s) //
-                    
+
                     function _raw() {
                         _W = device.width;
                         _H = device.height;
@@ -3219,6 +3212,21 @@ function _checkRootAccess() {
     } catch (e) {
         return false;
     }
+}
+
+function _export() {
+    module.exports = {
+        is_init_screen_on: $_unlk.init_scr,
+        is_init_unlocked: $_unlk.init_unlk,
+        isUnlocked: () => _isUnlk(),
+        isLocked: () => !_isUnlk(),
+        unlock: _unlock,
+    };
+}
+
+function _execute() {
+    util.extend()
+    // TODO dialogsx.builds() -- 1. functional test  2. configuration  3. module usage
 }
 
 // raw function(s) //

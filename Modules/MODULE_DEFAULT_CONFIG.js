@@ -148,6 +148,8 @@ module.exports = {
         max_queue_time_global: 60,
         // 100 <= x <= 800; exclusive tasks with too small intervals will be taken as bomb tasks
         min_bomb_interval_global: 300,
+        // ant forest timed task will be auto-delayed if battery percentage is lower than specified value
+        min_battery_percentage: 20,
         // decide whether to kill alipay app before script ended
         kill_when_done_switch: false,
         // true value for an intelligent check before killing alipay
@@ -172,7 +174,7 @@ module.exports = {
         prompt_before_running_postponed_minutes_user: 3,
         // specify a path for rank list bottom template locating (*.png)
         rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
-        // ant forest timed task will be auto-delayed for 5 min if current foreground app is in this list
+        // ant forest timed task will be auto-delayed if current foreground app is in this list
         foreground_app_blacklist: [],
         // some others
         stat_list_show_zero: 1, // hide zero

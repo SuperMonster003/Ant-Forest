@@ -113,7 +113,7 @@ let ext = {
             }
             if (properties.customView !== undefined) {
                 let customView = properties.customView;
-                if (typeof (customView) === 'xml' || typeof (customView) === 'string') {
+                if (typeof customView === 'xml' || typeof customView === 'string') {
                     customView = ui.run(() => ui.inflate(customView));
                 }
                 let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
@@ -138,7 +138,7 @@ let ext = {
         }
 
         function parseColor(c) {
-            if (typeof (c) == 'string') {
+            if (typeof c === 'string') {
                 return colors.parseColor(c);
             }
             return c;

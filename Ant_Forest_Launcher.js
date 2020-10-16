@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Oct 4, 2020
- * @version 1.9.23 Alpha4
+ * @since Oct 16, 2020
+ * @version 1.9.23
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -583,7 +583,7 @@ let $$init = {
                                 let _s = _du_date.getSeconds();
                                 let _s_str = (_h || _m ? _s.padStart(2, 0) : _s) + "秒";
 
-                                messageAct(_d_str + _h_str + _m_str + _s_str + "后解除", 1, 0, 2);
+                                messageAct(_d_str + _h_str + _m_str + _s_str + "后解除", 1, 0, 1);
                             }
                         },
                         _showMsg: {
@@ -609,7 +609,9 @@ let $$init = {
                                 this.msg(_map[o.reason]);
                             },
                             expired(o) {
-                                $$app.blist._expired.showMsg(o);
+                                if (Number.isFinite(o.timestamp)) {
+                                    $$app.blist._expired.showMsg(o);
+                                }
                             },
                         },
                         data: [],
@@ -5090,9 +5092,9 @@ let $$af = {
                         }
 
                         function _check() {
-                            if (_inBlist() || _ready()) {
+                            if (!_inBlist() && _ready()) {
                                 _monitor();
-                                _cover() || _collect();
+                                !_cover() && _collect();
                             }
 
                             // main function(s) //
@@ -5876,34 +5878,24 @@ let $$af = {
 
                         function _btmTpl() {
                             let _tpl = $$app.page.rl.btm_tpl.img;
-                            let _h = _tpl.height;
                             if (_tpl) {
-                                let _min = cX(0.04);
-                                let _max = cX(0.18);
-                                let _hh = $$num(_min, "<=", _h, "<=", _max);
-                                return _hh ? _match() : _clear();
-                            }
-
-                            // tool function(s) //
-
-                            function _match() {
-                                let _mch = images.findImage(_rl.capt_img, _tpl, {
-                                    level: 1, region: [0, cY(0.8)],
-                                });
-                                if (_mch) {
-                                    $$app.monitor.rl_bottom.interrupt();
-                                    debugInfo("列表底部条件满足");
-                                    debugInfo(">已匹配列表底部控件图片模板");
-                                    return true;
+                                if ($$num(cX(0.04), "<=", _tpl.height, "<=", cX(0.18))) {
+                                    let _mch = images.findImage(_rl.capt_img, _tpl, {
+                                        level: 1, region: [0, cY(0.8)],
+                                    });
+                                    if (_mch) {
+                                        $$app.monitor.rl_bottom.interrupt();
+                                        debugInfo("列表底部条件满足");
+                                        debugInfo(">已匹配列表底部控件图片模板");
+                                        return true;
+                                    }
+                                } else {
+                                    files.remove($$app.page.rl.btm_tpl.path);
+                                    delete $$app.page.rl.btm_tpl.img;
+                                    debugInfo("列表底部控件图片模板已清除", 3);
+                                    debugInfo(">图片模板高度值异常: " + _tpl.height, 3);
+                                    $$app.monitor.rl_bottom.start();
                                 }
-                            }
-
-                            function _clear() {
-                                files.remove($$app.page.rl.btm_tpl.path);
-                                delete $$app.page.rl.btm_tpl.img;
-                                debugInfo("列表底部控件图片模板已清除", 3);
-                                debugInfo(">图片模板高度值异常: " + _h, 3);
-                                $$app.monitor.rl_bottom.start();
                             }
                         }
 
@@ -5923,22 +5915,30 @@ let $$af = {
                             // tool function(s) //
 
                             function _invtColors() {
+                                //        x0            x1            x2
+                                //        --            --            --
+                                // y0:    XX            G1
+                                // y1:    G2                          G3
+                                // y2:                  G4
+                                // y3:    G5                          G6
+                                // y4:                  W1            W2
+
+                                let _c_green = _color, _c_white = "#ffffff";
+                                let _dx = cX(45), _dy = cYx(9);
+                                let _x0 = 0, _y0 = 0;
+                                let _x1 = _dx, _x2 = _dx * 2;
+                                let _y1 = _dy * 2, _y2 = _dy * 3;
+                                let _y3 = _dy * 4, _y4 = _dy * 6;
+
                                 return _rl.invt_colors = [
-                                    // color matrix:
-                                    //   c   c c c   w
-                                    // [ *   2 _ 4   _ ] -- 0 (cX)
-                                    // [ 0   _ 3 _   6 ] -- 45 (cX)
-                                    // [ _   2 _ 4   6 ] -- 90 (cX)
-                                    // c: color; w: white (-1)
-                                    // 2: 18; 4: 36; 6: 54; ... (cY)
-                                    [0, cYx(18), _color],
-                                    [0, cYx(36), _color],
-                                    [cX(45), 0, _color],
-                                    [cX(45), cYx(27), _color],
-                                    [cX(45), cYx(54), -1],
-                                    [cX(90), cYx(18), _color],
-                                    [cX(90), cYx(36), _color],
-                                    [cX(90), cYx(54), -1],
+                                    [_x1, _y0, _c_green], // G1
+                                    [_x0, _y1, _c_green], // G2
+                                    [_x2, _y1, _c_green], // G3
+                                    [_x1, _y2, _c_green], // G4
+                                    [_x0, _y3, _c_green], // G5
+                                    [_x2, _y3, _c_green], // G6
+                                    [_x1, _y4, _c_white], // W1
+                                    [_x2, _y4, _c_white], // W2
                                 ];
                             }
                         }

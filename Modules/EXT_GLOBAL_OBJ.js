@@ -512,9 +512,11 @@ let ext = {
         }
         if (!Object.prototype.__proto__) {
             Object.defineProperty(Object.prototype, "__proto__", {
+                /** @type {object|null} */
                 get() {
                     return Object.getPrototypeOf(Object(this));
                 },
+                /** @type {object|null} */
                 set(proto) {
                     if (Object(proto) !== proto) {
                         throw TypeError("proto must be an non-primitive type");

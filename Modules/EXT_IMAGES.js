@@ -1,31 +1,12 @@
 global.imagesx = typeof global.imagesx === "object" ? global.imagesx : {};
 
-let Mat = com.stardust.autojs.core.opencv.Mat;
-let Imgproc = org.opencv.imgproc.Imgproc;
-let Core = org.opencv.core.Core;
-let _rt_img = runtime.getImages();
-
-if (typeof cX === "undefined" || typeof halfW === "undefined") {
-    getDisplay(true);
-}
-if (typeof Math.std !== "function") {
-    Object.assign(Math, {
-        std(arr) {
-            let _sum = arr.reduce((a, b) => +a + +b);
-            let _len = arr.length;
-            let _avg = _sum / _len;
-            let _acc = 0;
-            for (let i = 0; i < _len; i += 1) {
-                _acc += Math.pow((arr[i] - _avg), 2);
-            }
-            return Math.sqrt(_acc / _len);
-        },
-    });
-}
+require("./MODULE_MONSTER_FUNC").load("debugInfo", "timeRecorder");
+require("./EXT_GLOBAL_OBJ").load("Math");
+require("./EXT_DEVICE").load("getDisplay");
 
 let ext = {
     _initIfNeeded() {
-        _rt_img.initOpenCvIfNeeded();
+        runtime.getImages().initOpenCvIfNeeded();
     },
     _toPointArray(points) {
         let _arr = [];
@@ -57,7 +38,7 @@ let ext = {
     },
     getMean(capt) {
         /** @type {number[]} */
-        let _v = Core.mean((capt || ext.capt()).getMat()).val;
+        let _v = org.opencv.core.Core.mean((capt || ext.capt()).getMat()).val;
         let [R, G, B] = _v;
         let [_R, _G, _B] = [R, G, B].map(x => Number(x.toFixed(2)));
         let _arr = [_R, _G, _B];
@@ -265,13 +246,13 @@ let ext = {
     bilateralFilter(img, d, sigmaColor, sigmaSpace, borderType) {
         this._initIfNeeded();
 
-        let mat = new Mat();
+        let mat = new com.stardust.autojs.core.opencv.Mat();
         let size = d || 0;
         let sc = sigmaColor || 40;
         let ss = sigmaSpace || 20;
-        let type = Core["BORDER_" + (borderType || "DEFAULT")];
+        let type = (org.opencv.core.Core)["BORDER_" + (borderType || "DEFAULT")];
 
-        Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
+        org.opencv.imgproc.Imgproc.bilateralFilter(img["mat"], mat, size, sc, ss, type);
 
         return images.matToImage(mat);
     },
@@ -1001,7 +982,7 @@ let ext = {
     },
     findAllPointsForColor(img, color, options) {
         this._initIfNeeded();
-        let _finder = _rt_img.colorFinder;
+        let _finder = runtime.getImages().colorFinder;
         let _default_color_threshold = 4;
         let _opt = options || {};
 
@@ -1424,395 +1405,4 @@ function _reclaim() {
             of this reference typed argument
          */
     }
-}
-
-// monster function(s) //
-
-// updated: Jun 3, 2020
-function getDisplay(global_assign, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-    let _par, _glob_asg;
-    if (typeof global_assign === "boolean") {
-        _par = params || {};
-        _glob_asg = global_assign;
-    } else {
-        _par = global_assign || {};
-        _glob_asg = _par.global_assign;
-    }
-
-    let _waitForAction = (
-        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
-    );
-    let _debugInfo = (m, fg) => (
-        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-    )(m, fg, _par.debug_info_flag);
-
-    let _W, _H;
-    let _disp = {};
-    let _metrics = new android.util.DisplayMetrics();
-    let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-    let _win_svc_disp = _win_svc.getDefaultDisplay();
-    _win_svc_disp.getRealMetrics(_metrics);
-
-    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        console.error("devicex.getDisplay()返回结果异常");
-        return {cX: cX, cY: cY, cYx: cYx};
-    }
-    _showDisp();
-    _assignGlob();
-    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
-
-    // tool function(s) //
-
-    function cX(num, base) {
-        return _cTrans(1, +num, base);
-    }
-
-    function cY(num, base) {
-        return _cTrans(-1, +num, base);
-    }
-
-    function cYx(num, base) {
-        num = +num;
-        base = +base;
-        if (num >= 1) {
-            if (!base) {
-                base = 720;
-            } else if (base < 0) {
-                if (!~base) {
-                    base = 720;
-                } else if (base === -2) {
-                    base = 1080;
-                } else {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                }
-            } else if (base < 5) {
-                throw Error(
-                    "base and num params should " +
-                    "both be pixels for cYx()"
-                );
-            }
-            return Math.round(num * _W / base);
-        }
-
-        if (!base || !~base) {
-            base = 16 / 9;
-        } else if (base === -2) {
-            base = 21 / 9;
-        } else if (base < 0) {
-            throw Error(
-                "can not parse base param for cYx()"
-            );
-        } else {
-            base = base < 1 ? 1 / base : base;
-        }
-        return Math.round(num * _W * base);
-    }
-
-    function _cTrans(dxn, num, base) {
-        let _full = ~dxn ? _W : _H;
-        if (isNaN(num)) {
-            throw Error("can not parse num param for cTrans()");
-        }
-        if (Math.abs(num) < 1) {
-            return Math.min(Math.round(num * _full), _full);
-        }
-        let _base = base;
-        if (!base || !~base) {
-            _base = ~dxn ? 720 : 1280;
-        } else if (base === -2) {
-            _base = ~dxn ? 1080 : 1920;
-        }
-        let _ct = Math.round(num * _full / _base);
-        return Math.min(_ct, _full);
-    }
-
-    function _showDisp() {
-        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-            _debugInfo("屏幕宽高: " + _W + " × " + _H);
-            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $_flag.display_params_got = true;
-        }
-    }
-
-    function _getDisp() {
-        try {
-            _W = _win_svc_disp.getWidth();
-            _H = _win_svc_disp.getHeight();
-            if (!(_W * _H)) {
-                return _raw();
-            }
-            let _SCR_O = _win_svc_disp.getRotation();
-            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-            let [_UH, _UW] = [_H, _W];
-            let _dimen = (name) => {
-                let resources = context.getResources();
-                let res_id = resources.getIdentifier(name, "dimen", "android");
-                return res_id > 0 ? resources.getDimensionPixelSize(res_id) : NaN;
-            };
-
-            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-            return {
-                WIDTH: _W,
-                USABLE_WIDTH: _UW,
-                HEIGHT: _H,
-                USABLE_HEIGHT: _UH,
-                screen_orientation: _SCR_O,
-                status_bar_height: _dimen("status_bar_height"),
-                navigation_bar_height: _dimen("navigation_bar_height"),
-                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                action_bar_default_height: _dimen("action_bar_default_height"),
-            };
-        } catch (e) {
-            return _raw();
-        }
-
-        // tool function(s) //
-
-        function _raw() {
-            _W = device.width;
-            _H = device.height;
-            return _W && _H && {
-                WIDTH: _W,
-                HEIGHT: _H,
-                USABLE_HEIGHT: Math.trunc(_H * 0.9),
-            };
-        }
-    }
-
-    function _assignGlob() {
-        if (_glob_asg) {
-            Object.assign(global, {
-                W: _W, WIDTH: _W,
-                halfW: Math.round(_W / 2),
-                uW: _disp.USABLE_WIDTH,
-                H: _H, HEIGHT: _H,
-                uH: _disp.USABLE_HEIGHT,
-                scrO: _disp.screen_orientation,
-                staH: _disp.status_bar_height,
-                navH: _disp.navigation_bar_height,
-                navHC: _disp.navigation_bar_height_computed,
-                actH: _disp.action_bar_default_height,
-                cX: cX, cY: cY, cYx: cYx,
-            });
-        }
-    }
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-    }
-}
-
-// updated: Sep 19, 2020
-function debugInfo(msg, msg_level, forcible_flag) {
-    let $_flag = global.$$flag = global.$$flag || {};
-
-    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _showSplitLine = (
-        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
-    );
-    let _messageAction = (
-        typeof messageAction === "function" ? messageAction : messageActionRaw
-    );
-
-    let _glob_fg = $_flag.debug_info_avail;
-    let _forc_fg = forcible_flag;
-    if (!_glob_fg && !_forc_fg) {
-        return;
-    }
-    if (_glob_fg === false || _forc_fg === false) {
-        return;
-    }
-
-    let _msg_lv_str = (msg_level || "").toString();
-    let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
-    if (_msg_lv_str.match(/Up/)) {
-        _showSplitLine();
-    }
-    if (_msg_lv_str.match(/both|up/)) {
-        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
-        debugInfo("__split_line__" + _dash, "", _forc_fg);
-    }
-
-    if (typeof msg === "string" && msg.match(/^__split_line_/)) {
-        msg = _getLineStr(msg);
-    }
-    if (_classof(msg) === "Array") {
-        msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
-    } else {
-        _messageAction((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "), _msg_lv_num);
-    }
-
-    if (_msg_lv_str.match("both")) {
-        let _dash = _msg_lv_str.match(/dash/) ? "dash" : "";
-        debugInfo("__split_line__" + _dash, "", _forc_fg);
-    }
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
-        ) + (extra || ""));
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    // tool function(s) //
-
-    function _getLineStr(msg) {
-        return msg.match(/dash/) ? "- ".repeat(18).trim() : "-".repeat(33);
-    }
-}
-
-// updated: Jun 3, 2020
-function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
-    global["_$_ts_rec"] = global["_$_ts_rec"] || {};
-    let records = global["_$_ts_rec"];
-    if (!operation || operation.toString().match(/^(S|save|put)$/)) {
-        return records[keyword] = +new Date();
-    }
-
-    divisor = divisor || 1;
-
-    let forcible_fixed_num_flag = false;
-    if (typeof fixed === "object" /* array */) forcible_fixed_num_flag = true;
-
-    let prefix = "";
-    let result = +(override_timestamp || new Date()) - records[keyword]; // number
-
-    if (divisor !== "auto") {
-        suffix = suffix || "";
-        result = result / divisor;
-    } else {
-        suffix = suffix || "$$ch";
-        fixed = fixed || [2];
-        forcible_fixed_num_flag = true;
-
-        let getSuffix = (unit_str) => ({
-            ms$$ch: "毫秒", ms$$en: "ms ",
-            sec$$ch: "秒", sec$$en: "s ",
-            min$$ch: "分钟", min$$en: "m ",
-            hour$$ch: "小时", hour$$en: "h ",
-            day$$ch: "天", day$$en: "d ",
-        })[unit_str + suffix];
-
-        let base_unit = {
-            ms: 1,
-            get sec() {
-                return 1e3 * this.ms;
-            },
-            get min() {
-                return 60 * this.sec;
-            },
-            get hour() {
-                return 60 * this.min;
-            },
-            get day() {
-                return 24 * this.hour;
-            }
-        };
-
-        if (result >= base_unit.day) {
-            let _d = ~~(result / base_unit.day);
-            prefix += _d + getSuffix("day");
-            result %= base_unit.day;
-            let _h = ~~(result / base_unit.hour);
-            if (_h) prefix += _h + getSuffix("hour");
-            result %= base_unit.hour;
-            let _min = ~~(result / base_unit.min);
-            if (_min) {
-                result /= base_unit.min;
-                suffix = getSuffix("min");
-            } else {
-                result %= base_unit.min;
-                result /= base_unit.sec;
-                suffix = getSuffix("sec");
-            }
-        } else if (result >= base_unit.hour) {
-            let _hr = ~~(result / base_unit.hour);
-            prefix += _hr + getSuffix("hour");
-            result %= base_unit.hour;
-            let _min = ~~(result / base_unit.min);
-            if (_min) {
-                result /= base_unit.min;
-                suffix = getSuffix("min");
-            } else {
-                result %= base_unit.min;
-                result /= base_unit.sec;
-                suffix = getSuffix("sec");
-            }
-        } else if (result >= base_unit.min) {
-            let _min = ~~(result / base_unit.min);
-            prefix += _min + getSuffix("min");
-            result %= base_unit.min;
-            result /= base_unit.sec;
-            suffix = getSuffix("sec");
-        } else if (result >= base_unit.sec) {
-            result /= base_unit.sec;
-            suffix = getSuffix("sec");
-        } else {
-            result /= base_unit.ms; // yes, i have OCD [:wink:]
-            suffix = getSuffix("ms");
-        }
-    }
-
-    if (typeof fixed !== "undefined" && fixed !== null) {
-        result = result.toFixed(+fixed);  // string
-    }
-
-    if (forcible_fixed_num_flag) result = +result;
-    suffix = suffix.toString().replace(/ *$/g, "");
-
-    let _res;
-    if (!prefix) {
-        _res = result + suffix;
-    } else {
-        _res = prefix + (result ? result + suffix : "");
-    }
-    return _res === "NaN" ? NaN : _res;
 }

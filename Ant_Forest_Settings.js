@@ -1828,53 +1828,53 @@ let $$init = {
                         text_color && text_widget.setTextColor(colors.parseColor(text_color));
 
                         if (type === "time") {
-                            picker_view.picker_root.addView(ui.inflate(
+                            picker_view["picker_root"].addView(ui.inflate(
                                 <vertical>
                                     <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
                                 </vertical>
                             ));
-                            picker_view.picker.setIs24HourView(java.lang.Boolean.TRUE);
+                            picker_view["picker"].setIs24HourView(java.lang.Boolean.TRUE);
                             if (init) {
-                                if ($$str(init)) init = init.split(/\D+/);
+                                if ($$str(init)) {
+                                    init = init.split(/\D+/);
+                                }
                                 if ($$num(init) && init.toString().match(/^\d{13}$/)) {
                                     let date = new Date(init);
                                     init = [date.getHours(), date.getMinutes()];
                                 }
                                 if ($$arr(init)) {
-                                    $$num(+init[0]) && picker_view.picker.setHour(init[0]);
-                                    $$num(+init[1]) && picker_view.picker.setMinute(init[1]);
+                                    picker_view["picker"].setHour(init[0]);
+                                    picker_view["picker"].setMinute(init[1]);
                                 }
                             }
                         } else if (type === "date") {
-                            picker_view.picker_root.addView(ui.inflate(
+                            picker_view["picker_root"].addView(ui.inflate(
                                 <vertical>
                                     <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
                                 </vertical>
                             ));
-                            let picker_widget = picker_view.picker;
-                            if (init) {
-                                // init:
-                                // 1. 1564483851219 - timestamp
-                                // 2. [2018, 7, 8] - number[]
-                                if ($$num(init) && init.toString().match(/^\d{13}$/)) {
-                                    let date = new Date(init);
-                                    init = [date.getFullYear(), date.getMonth(), date.getDate()];
+                            let date;
+                            if (init > 0 && init.toString().match(/^\d{13}$/)) {
+                                // eg. 1564483851219 - timestamp
+                                date = new Date(init);
+                            } else if (Array.isArray(init)) {
+                                // eg. [2018, 7, 8] - number[]
+                                date = {
+                                    getFullYear: () => init[0],
+                                    getMonth: () => init[1],
+                                    getDate: () => init[2],
                                 }
                             } else {
-                                let now = new Date();
-                                init = [now.getFullYear(), now.getMonth(), now.getDate()];
+                                date = new Date();
                             }
-                            let onDateChangedListener = new android.widget.DatePicker.OnDateChangedListener({
-                                onDateChanged: setTimeStr,
-                            });
-                            let init_params = init.concat(onDateChangedListener);
-                            /**
-                             * @function picker_widget.init
-                             * @constructor android.widget.DatePicker
-                             */
-                            picker_widget.init.apply(picker_widget, init_params);
+                            picker_view["picker"].init(
+                                date.getFullYear(), date.getMonth(), date.getDate(),
+                                new android.widget.DatePicker.OnDateChangedListener({
+                                    onDateChanged: setTimeStr,
+                                })
+                            );
                         } else if (type === "week") {
-                            let weeks_str = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+                            let weeks = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
                             let checkbox_views = ui.inflate(
                                 <vertical id="checkboxes">
                                     <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
@@ -1894,9 +1894,9 @@ let $$init = {
                             );
 
                             for (let i = 0; i < 7; i += 1) {
-                                checkbox_views["week_" + i].setText(weeks_str[i]);
+                                checkbox_views["week_" + i].setText(weeks[i]);
                                 checkbox_views["week_" + i].on("check", (checked, view) => {
-                                    week_checkbox_states[weeks_str.indexOf(view.text)] = checked;
+                                    week_checkbox_states[weeks.indexOf(view.text)] = checked;
                                     threadsx.starts(function () {
                                         let max_try_times = 20;
                                         let interval = setInterval(function () {
@@ -1911,16 +1911,18 @@ let $$init = {
                                 });
                             }
 
-                            picker_view.picker_root.addView(checkbox_views);
+                            picker_view["picker_root"].addView(checkbox_views);
 
                             if (init) {
-                                if ($$num(init)) init = timedTaskTimeFlagConverter(init);
-                                init.forEach(num => picker_view.checkboxes["week_" + num].setChecked(true));
+                                if ($$num(init)) {
+                                    init = timedTaskTimeFlagConverter(init);
+                                }
+                                init.forEach(n => picker_view["checkboxes"]["week_" + n].setChecked(true));
                             }
                         }
 
                         time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
-                        let picker_widget = picker_view.picker;
+                        let picker_widget = picker_view["picker"];
                         if (type === "time") {
                             picker_widget.setOnTimeChangedListener(setTimeStr);
                         }
@@ -7333,7 +7335,10 @@ $$view.addPage(["定时任务控制面板", "timers_control_panel_page"], functi
                             if (type_str === "weekly") {
                                 let days_of_week = getTimeInfoFromPicker(2).daysOfWeek();
                                 if (!days_of_week.length) return alert("需至少选择一个星期");
-                                closeTimePickerPage({days_of_week: days_of_week, timestamp: getTimeInfoFromPicker(1).timestamp()});
+                                closeTimePickerPage({
+                                    days_of_week: days_of_week,
+                                    timestamp: getTimeInfoFromPicker(1).timestamp()
+                                });
                             } else if (type_str === "disposable") {
                                 let set_time = getTimeInfoFromPicker(0).timestamp();
                                 if (set_time <= Date.now()) return alert("设置时间需大于当前时间");

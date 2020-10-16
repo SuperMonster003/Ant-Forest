@@ -40,11 +40,7 @@ require = function (path) {
 let dialogsx = loadInternalModuleDialog();
 
 let {
-    equalObjects,
-    deepCloneObject,
-    alertTitle,
-    waitForAction,
-    classof,
+    equalObjects, deepCloneObject, alertTitle, waitForAction, classof
 } = require("../Modules/MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
 
 let session_params = {};
@@ -53,7 +49,7 @@ let dynamic_views = [];
 
 let {WIDTH, cX} = (() => {
     let _mod = require("../Modules/EXT_DEVICE");
-    return _mod ? _mod.getDisplay() : _getDisplay();
+    return _mod ? _mod.getDisplay() : {WIDTH: device.width, cX: x => device.width * x};
 })();
 
 let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
@@ -461,7 +457,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         <linear id="_title_bg" clickable="true">
             <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
                 <linear>
-                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#ffffff" layout_gravity="center"/>
+                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless"
+                         tint="#ffffff" layout_gravity="center"/>
                 </linear>
             </vertical>
             <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
@@ -600,7 +597,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         } else if (type.match(/^options/)) {
             let opt_view = ui.inflate(
                 <vertical id="_chevron_btn">
-                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31" bg="?selectableItemBackgroundBorderless" tint="#999999"/>
+                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31"
+                         bg="?selectableItemBackgroundBorderless" tint="#999999"/>
                 </vertical>
             );
             new_view._item_area.addView(opt_view);
@@ -608,7 +606,8 @@ function setPage(title_param, title_bg_color, additions, options) {
         } else if (type === "button") {
             let help_view = ui.inflate(
                 <vertical id="_info_icon" visibility="gone">
-                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless" tint="#888888"/>
+                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless"
+                         tint="#888888"/>
                 </vertical>
             );
             new_view._item_area.addView(help_view);
@@ -668,7 +667,8 @@ function setPage(title_param, title_bg_color, additions, options) {
             let new_view = ui.inflate(
                 <horizontal>
                     <linear padding="15 10 0 0">
-                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0" tint="{{session_params.info_color}}"/>
+                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0"
+                             tint="{{session_params.info_color}}"/>
                         <text id="_info_text" textSize="13"/>
                     </linear>
                 </horizontal>
@@ -706,12 +706,21 @@ function setPage(title_param, title_bg_color, additions, options) {
                         <list id="_list_data" fastScrollEnabled="true" focusable="true" scrollbars="none">
                             <horizontal>
                                 <horizontal w="{{this.width_0}}">
-                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16" layout_gravity="left|center" clickable="false"/>
-                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0" ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
+                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16"
+                                              layout_gravity="left|center" clickable="false"/>
+                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0"
+                                          ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
                                 </horizontal>
-                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}" visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}" textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}" visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}" visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}" textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}"
+                                      visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center"
+                                      gravity="left|center"/>
+                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}"
+                                      visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
+                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}"
+                                      visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}"
+                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
                             </horizontal>
                         </list>
                     </vertical>
@@ -803,7 +812,8 @@ function setPage(title_param, title_bg_color, additions, options) {
                 <vertical>
                     <horizontal margin="16 8">
                         <text id="_text" gravity="left" layout_gravity="center"/>
-                        <seekbar id="_seekbar" w="*" style="@android:style/Widget.Material.SeekBar" layout_gravity="center"/>
+                        <seekbar id="_seekbar" w="*" style="@android:style/Widget.Material.SeekBar"
+                                 layout_gravity="center"/>
                     </horizontal>
                 </vertical>
             );
@@ -888,8 +898,11 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
         function buttonView() {
             return ui.inflate(
                 <vertical margin="13 0">
-                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}" src="@drawable/{{session_params.button_icon_file_name}}" h="31" bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
-                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}" gravity="center" textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
+                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}"
+                         src="@drawable/{{session_params.button_icon_file_name}}" h="31"
+                         bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
+                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}"
+                          textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
                 </vertical>
             );
         }
@@ -956,6 +969,131 @@ function loadInternalModuleDialog() {
         return isUiThread() ? d : d.nonUiDialogs;
     };
     return {
+        build(properties) {
+            let builder = Object.create(runtime.dialogs.newBuilder());
+            builder.thread = threads.currentThread();
+            for (let name in properties) {
+                if (properties.hasOwnProperty(name)) {
+                    applyDialogProperty(builder, name, properties[name]);
+                }
+            }
+            applyOtherDialogProperties(builder, properties);
+            return ui.run(() => builder.buildDialog());
+
+            function applyDialogProperty(builder, name, value) {
+                let propertySetters = {
+                    title: null,
+                    titleColor: {adapter: parseColor},
+                    buttonRippleColor: {adapter: parseColor},
+                    icon: null,
+                    content: null,
+                    contentColor: {adapter: parseColor},
+                    contentLineSpacing: null,
+                    items: null,
+                    itemsColor: {adapter: parseColor},
+                    positive: {method: "positiveText"},
+                    positiveColor: {adapter: parseColor},
+                    neutral: {method: "neutralText"},
+                    neutralColor: {adapter: parseColor},
+                    negative: {method: "negativeText"},
+                    negativeColor: {adapter: parseColor},
+                    cancelable: null,
+                    canceledOnTouchOutside: null,
+                    autoDismiss: null
+                };
+
+                if (!propertySetters.hasOwnProperty(name)) {
+                    return;
+                }
+                let propertySetter = propertySetters[name] || {};
+                if (propertySetter.method === undefined) {
+                    propertySetter.method = name;
+                }
+                if (propertySetter.adapter) {
+                    value = propertySetter.adapter(value);
+                }
+                builder[propertySetter.method].call(builder, value);
+            }
+
+            function applyOtherDialogProperties(builder, properties) {
+                if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
+                    builder.input(wrapNonNullString(properties.inputHint), wrapNonNullString(properties.inputPrefill),
+                        function (dialog, input) {
+                            input = input.toString();
+                            builder.emit("input_change", builder.dialog, input);
+                        })
+                        .alwaysCallInputCallback();
+                }
+                if (properties.items !== undefined) {
+                    let itemsSelectMode = properties.itemsSelectMode;
+                    if (itemsSelectMode === undefined || itemsSelectMode === 'select') {
+                        builder.itemsCallback(function (dialog, view, position, text) {
+                            builder.emit("item_select", position, text.toString(), builder.dialog);
+                        });
+                    } else if (itemsSelectMode === 'single') {
+                        builder.itemsCallbackSingleChoice(properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
+                            function (dialog, view, which, text) {
+                                builder.emit("single_choice", which, text.toString(), builder.dialog);
+                                return true;
+                            });
+                    } else if (itemsSelectMode === 'multi') {
+                        builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
+                            function (dialog, indices, texts) {
+                                builder.emit("multi_choice",
+                                    toJsArray(indices, (l, i) => parseInt(l[i])),
+                                    toJsArray(texts, (l, i) => l[i].toString()),
+                                    builder.dialog);
+                                return true;
+                            });
+                    } else {
+                        throw new Error("unknown itemsSelectMode " + itemsSelectMode);
+                    }
+                }
+                if (properties.progress !== undefined) {
+                    let progress = properties.progress;
+                    let indeterminate = (progress.max === -1);
+                    builder.progress(indeterminate, progress.max, !!progress.showMinMax);
+                    builder.progressIndeterminateStyle(!!progress.horizontal);
+                }
+                if (properties.checkBoxPrompt !== undefined || properties.checkBoxChecked !== undefined) {
+                    builder.checkBoxPrompt(wrapNonNullString(properties.checkBoxPrompt), !!properties.checkBoxChecked,
+                        function (view, checked) {
+                            builder.getDialog().emit("check", checked, builder.getDialog());
+                        });
+                }
+                if (properties.customView !== undefined) {
+                    let customView = properties.customView;
+                    if (typeof customView === 'xml' || typeof customView === 'string') {
+                        customView = ui.run(() => ui.inflate(customView));
+                    }
+                    let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
+                    builder.customView(customView, wrapInScrollView);
+                }
+
+                function wrapNonNullString(str) {
+                    if (str == null) {
+                        return "";
+                    }
+                    return str;
+                }
+
+                function toJsArray(object, adapter) {
+                    let jsArray = [];
+                    let len = object.length;
+                    for (let i = 0; i < len; i++) {
+                        jsArray.push(adapter(object, i));
+                    }
+                    return jsArray;
+                }
+            }
+
+            function parseColor(c) {
+                if (typeof c == 'string') {
+                    return colors.parseColor(c);
+                }
+                return c;
+            }
+        },
         builds(common, o) {
             let common_o = {};
             let defs = typeof global.defs === "undefined" ? require("../Modules/MODULE_DEFAULT_CONFIG").settings : global.defs;
@@ -991,7 +1129,7 @@ function loadInternalModuleDialog() {
                 common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
             }
 
-            let final_dialog = dialogs.build(Object.assign({}, common_o, o));
+            let final_dialog = this.build(Object.assign({}, common_o, o));
             global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
             return final_dialog;
         },
@@ -1961,206 +2099,4 @@ function loadInternalModuleStorage() {
             }
         }
     })();
-}
-
-// updated: May 29, 2020
-function _getDisplay(global_assign, params) {
-    let $_flag = global.$$flag = global.$$flag || {};
-    let _par, _glob_asg;
-    if (typeof global_assign === "boolean") {
-        _par = params || {};
-        _glob_asg = global_assign;
-    } else {
-        _par = global_assign || {};
-        _glob_asg = _par.global_assign;
-    }
-
-    let _waitForAction = (
-        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
-    );
-    let _debugInfo = (m, fg) => (
-        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-    )(m, fg, _par.debug_info_flag);
-
-    let _W, _H;
-    let _disp = {};
-    let _metrics = new android.util.DisplayMetrics();
-    let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-    let _win_svc_disp = _win_svc.getDefaultDisplay();
-    _win_svc_disp.getRealMetrics(_metrics);
-
-    if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-        console.error("devicex.getDisplay()返回结果异常");
-        return {cX: cX, cY: cY, cYx: cYx};
-    }
-    _showDisp();
-    _assignGlob();
-    return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
-
-    // tool function(s) //
-
-    function cX(num, base) {
-        return _cTrans(1, +num, base);
-    }
-
-    function cY(num, base) {
-        return _cTrans(-1, +num, base);
-    }
-
-    function cYx(num, base) {
-        num = +num;
-        base = +base;
-        if (num >= 1) {
-            if (!base) {
-                base = 720;
-            } else if (base < 0) {
-                if (!~base) {
-                    base = 720;
-                } else if (base === -2) {
-                    base = 1080;
-                } else {
-                    throw Error(
-                        "can not parse base param for cYx()"
-                    );
-                }
-            } else if (base < 5) {
-                throw Error(
-                    "base and num params should " +
-                    "both be pixels for cYx()"
-                );
-            }
-            return Math.round(num * _W / base);
-        }
-
-        if (!base || !~base) {
-            base = 16 / 9;
-        } else if (base === -2) {
-            base = 21 / 9;
-        } else if (base < 0) {
-            throw Error(
-                "can not parse base param for cYx()"
-            );
-        } else {
-            base = base < 1 ? 1 / base : base;
-        }
-        return Math.round(num * _W * base);
-    }
-
-    function _cTrans(dxn, num, base) {
-        let _full = ~dxn ? _W : _H;
-        if (isNaN(num)) {
-            throw Error("can not parse num param for cTrans()");
-        }
-        if (Math.abs(num) < 1) {
-            return Math.min(Math.round(num * _full), _full);
-        }
-        let _base = base;
-        if (!base || !~base) {
-            _base = ~dxn ? 720 : 1280;
-        } else if (base === -2) {
-            _base = ~dxn ? 1080 : 1920;
-        }
-        let _ct = Math.round(num * _full / _base);
-        return Math.min(_ct, _full);
-    }
-
-    function _showDisp() {
-        if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-            _debugInfo("屏幕宽高: " + _W + " × " + _H);
-            _debugInfo("可用屏幕高度: " + _disp.USABLE_HEIGHT);
-            $_flag.display_params_got = true;
-        }
-    }
-
-    function _getDisp() {
-        try {
-            _W = _win_svc_disp.getWidth();
-            _H = _win_svc_disp.getHeight();
-            if (!(_W * _H)) {
-                throw Error();
-            }
-
-            // if the device is rotated 90 degrees counter-clockwise,
-            // to compensate rendering will be rotated by 90 degrees clockwise
-            // and thus the returned value here will be Surface#ROTATION_90
-            // 0: 0°, device is portrait
-            // 1: 90°, device is rotated 90 degree counter-clockwise
-            // 2: 180°, device is reverse portrait
-            // 3: 270°, device is rotated 90 degree clockwise
-            let _SCR_O = _win_svc_disp.getRotation();
-            let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-            // let _MAX = _win_svc_disp.maximumSizeDimension;
-            let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
-            let [_UH, _UW] = [_H, _W];
-            let _dimen = (name) => {
-                let resources = context.getResources();
-                let resource_id = resources.getIdentifier(name, "dimen", "android");
-                if (resource_id > 0) {
-                    return resources.getDimensionPixelSize(resource_id);
-                }
-                return NaN;
-            };
-
-            _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-            return {
-                WIDTH: _W,
-                USABLE_WIDTH: _UW,
-                HEIGHT: _H,
-                USABLE_HEIGHT: _UH,
-                screen_orientation: _SCR_O,
-                status_bar_height: _dimen("status_bar_height"),
-                navigation_bar_height: _dimen("navigation_bar_height"),
-                navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                action_bar_default_height: _dimen("action_bar_default_height"),
-            };
-        } catch (e) {
-            _W = device.width;
-            _H = device.height;
-            return _W && _H && {
-                WIDTH: _W,
-                HEIGHT: _H,
-                USABLE_HEIGHT: Math.trunc(_H * 0.9),
-            };
-        }
-    }
-
-    function _assignGlob() {
-        if (_glob_asg) {
-            Object.assign(global, {
-                W: _W, WIDTH: _W,
-                halfW: Math.round(_W / 2),
-                uW: _disp.USABLE_WIDTH,
-                H: _H, HEIGHT: _H,
-                uH: _disp.USABLE_HEIGHT,
-                scrO: _disp.screen_orientation,
-                staH: _disp.status_bar_height,
-                navH: _disp.navigation_bar_height,
-                navHC: _disp.navigation_bar_height_computed,
-                actH: _disp.action_bar_default_height,
-                cX: cX, cY: cY, cYx: cYx,
-            });
-        }
-    }
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-    }
 }

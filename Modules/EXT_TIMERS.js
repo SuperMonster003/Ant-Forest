@@ -2,6 +2,8 @@
 
 global.timersx = typeof global.timersx === "object" ? global.timersx : {};
 
+require("./MODULE_MONSTER_FUNC").load("waitForAction");
+
 let is_pro = context.packageName.match(/[Pp]ro/);
 let timing = is_pro
     ? com.stardust.autojs.core.timing
@@ -42,13 +44,8 @@ let ext = {
             parseConfig(opt)
         );
         let _task = addTask(task);
-        if (!_task) {
+        if (!_task || wait_fg && !waitForAction(() => _task.id !== 0, 3e3, 120)) {
             return null;
-        }
-        if (wait_fg) {
-            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
-                return null;
-            }
         }
         return _task;
     },
@@ -70,13 +67,8 @@ let ext = {
             parseConfig(opt)
         );
         let _task = addTask(task);
-        if (!_task) {
+        if (!_task || wait_fg && !waitForAction(() => _task.id !== 0, 3e3, 120)) {
             return null;
-        }
-        if (wait_fg) {
-            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
-                return null;
-            }
         }
         return _task;
     },
@@ -88,10 +80,8 @@ let ext = {
             parseConfig(opt)
         );
         let _task = addTask(task);
-        if (wait_fg) {
-            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
-                return null;
-            }
+        if (wait_fg && !waitForAction(() => _task.id !== 0, 3e3, 120)) {
+            return null;
         }
         return _task;
     },
@@ -101,13 +91,8 @@ let ext = {
         task.setScriptPath(files.path(opt.path));
         opt.action && task.setAction(opt.action);
         let _task = addTask(task);
-        if (!_task) {
+        if (!_task || wait_fg && !waitForAction(() => _task.id !== 0, 3e3, 120)) {
             return null;
-        }
-        if (wait_fg) {
-            if (!waitForAction(() => _task.id !== 0, 3e3, 120)) {
-                return null;
-            }
         }
         return _task;
     },
@@ -123,10 +108,8 @@ let ext = {
             return null;
         }
         let _task = removeTask(task);
-        if (wait_fg) {
-            if (!waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
-                return null;
-            }
+        if (wait_fg && !waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
+            return null;
         }
         return _task;
     },
@@ -136,10 +119,8 @@ let ext = {
             return null;
         }
         let _task = removeTask(task);
-        if (wait_fg) {
-            if (!waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
-                return null;
-            }
+        if (wait_fg && !waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) {
+            return null;
         }
         return _task;
     },
@@ -167,15 +148,22 @@ let ext = {
         let sql = '';
         let args = [];
         let append = str => sql += sql.length ? ' AND ' + str : str;
-        if (opt.path) {
+        let {path, action} = opt;
+        if (path) {
             append('script_path = ?');
-            args.push(opt.path);
+            args.push(path);
         }
-        if (opt.action) {
+        if (action) {
             append('action = ?');
-            args.push(opt.action);
+            args.push(action);
         }
-        return bridges.toArray(TimedTaskManager.queryIntentTasks(sql || null, args));
+        if (is_pro) {
+            return bridges.toArray(TimedTaskManager.queryIntentTasks(sql || null, args));
+        }
+        let list = TimedTaskManager.getAllIntentTasksAsList().toArray();
+        return path || action ? list.filter(task => (
+            !(path && task.getScriptPath() !== path || action && task.getAction() !== action)
+        )) : list;
     },
 };
 
@@ -227,107 +215,5 @@ function updateTask(task) {
         task.setScheduled(false);
         TimedTaskManager.updateTask(task);
         return task;
-    }
-}
-
-// monster function(s) //
-
-// updated: Aug 29, 2020
-function waitForAction(f, timeout_or_times, interval, params) {
-    let _par = params || {};
-    _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
-
-    if (typeof timeout_or_times !== "number") {
-        timeout_or_times = 10e3;
-    }
-    let _times = timeout_or_times;
-    if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
-        _times = Infinity;
-    }
-    let _timeout = Infinity;
-    if (timeout_or_times > 100) {
-        _timeout = timeout_or_times;
-    }
-    let _interval = interval || 200;
-    if (_interval >= _timeout) {
-        _times = 1;
-    }
-
-    let _start_ts = Date.now();
-    while (!_checkF(f) && --_times) {
-        if (Date.now() - _start_ts > _timeout) {
-            return false; // timed out
-        }
-        sleep(_interval);
-    }
-    return _times > 0;
-
-    // tool function(s) //
-
-    function _checkF(f) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = (
-            typeof messageAction === "function" ? messageAction : messageActionRaw
-        );
-
-        if (typeof f === "function") {
-            return f();
-        }
-        if (_classof(f) === "JavaObject") {
-            return f.toString().match(/UiObject/) ? f : f.exists();
-        }
-        if (_classof(f) === "Array") {
-            let _arr = f;
-            let _len = _arr.length;
-            let _logic = "all";
-            if (typeof _arr[_len - 1] === "string") {
-                _logic = _arr.pop();
-            }
-            if (_logic.match(/^(or|one)$/)) {
-                _logic = "one";
-            }
-            for (let i = 0; i < _len; i += 1) {
-                let _ele = _arr[i];
-                if (!(typeof _ele).match(/function|object/)) {
-                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
-                }
-                if (_logic === "all" && !_checkF(_ele)) {
-                    return false;
-                }
-                if (_logic === "one" && _checkF(_ele)) {
-                    return true;
-                }
-            }
-            return _logic === "all";
-        }
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
-    }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
     }
 }

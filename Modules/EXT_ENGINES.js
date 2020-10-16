@@ -22,13 +22,13 @@ let ext = {
         return _o;
     },
     execScript: (name, script, config) => {
-        return runtime.engines.execScript(name, script, fillConfig(config));
+        return runtime.engines.execScript(name, script, _fillConfig(config));
     },
     execScriptFile: (path, config) => {
-        return runtime.engines.execScriptFile(path, fillConfig(config));
+        return runtime.engines.execScriptFile(path, _fillConfig(config));
     },
     execAutoFile: (path, config) => {
-        return runtime.engines.execAutoFile(path, fillConfig(config));
+        return runtime.engines.execAutoFile(path, _fillConfig(config));
     },
 };
 
@@ -37,29 +37,19 @@ module.exports.load = () => global.enginesx = ext;
 
 // tool function(s) //
 
-function fillConfig(c) {
-    let config = new com.stardust.autojs.execution.ExecutionConfig();
-    c = c || {};
-    c.path = c.path || files.cwd();
-    if (c.path) {
-        config.workingDirectory = c.path;
+function _fillConfig(c) {
+    let _cfg = new com.stardust.autojs.execution.ExecutionConfig();
+    let _c = c || {};
+    _cfg.workingDirectory = _c.path || files.cwd();
+    _cfg.delay = _c.delay || 0;
+    _cfg.interval = _c.interval || 0;
+    _cfg.loopTimes = _c.loopTimes === undefined ? 1 : _c.loopTimes;
+    Object.keys(_c.arguments || {}).forEach(k => _cfg.setArgument(k, _c.arguments[k]));
+    if (typeof _c.scriptConfig === "object") {
+        _cfg.scriptConfig = new com.stardust.autojs.project.ScriptConfig(
+            _c.scriptConfig.useFeatures || [],
+            _c.scriptConfig.uiMode === undefined ? false : _c.scriptConfig.uiMode
+        );
     }
-    config.delay = c.delay || 0;
-    config.interval = c.interval || 0;
-    config.loopTimes = (c.loopTimes === undefined) ? 1 : c.loopTimes;
-    if (c.arguments) {
-        let args = c.arguments;
-        for (let key in args) {
-            if (args.hasOwnProperty(key)) {
-                config.setArgument(key, args[key]);
-            }
-        }
-    }
-    if (typeof c.scriptConfig === "object") {
-        let features = c.scriptConfig.useFeatures || [];
-        let uiModeParam = c.scriptConfig.uiMode;
-        let uiMode = typeof uiModeParam === "undefined" ? false : uiModeParam;
-        config.scriptConfig = new com.stardust.autojs.project.ScriptConfig(features, uiMode);
-    }
-    return config;
+    return _cfg;
 }
