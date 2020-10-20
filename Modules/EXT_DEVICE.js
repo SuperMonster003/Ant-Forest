@@ -578,19 +578,14 @@ let ext = {
     },
     a11y: (() => {
         let Secure = android.provider.Settings.Secure;
-        let {putInt, getString, putString} = Secure;
-        let _ENABL_A11Y_SVC = Secure.ENABLED_ACCESSIBILITY_SERVICES;
-        let _A11Y_ENABL = Secure.ACCESSIBILITY_ENABLED;
         let _ctx_reso = context.getContentResolver();
-        let _aj_pkg = context.packageName;
-        let _aj_svc = _aj_pkg + '/com.stardust.autojs' +
+        let _aj_svc = context.packageName + '/com.stardust.autojs' +
             '.core.accessibility.AccessibilityService';
 
         return {
             /**
              * @param args {IArguments}
              * @return {{svc: [string], forcible: boolean}}
-             * @private
              */
             _parseArgs(args) {
                 let _svc = [_aj_svc];
@@ -612,13 +607,10 @@ let ext = {
                     svc: _svc,
                 };
             },
-            /**
-             * @return {string} - enabled services (str forcibly)
-             * @private
-             */
+            /** @return {string} */
             _getString() {
                 // getString() may be null on some Android OS
-                return getString(_ctx_reso, _ENABL_A11Y_SVC) || "";
+                return Secure.getString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || "";
             },
             /**
              * @param {...boolean|string|string[]} [arguments]
@@ -660,8 +652,8 @@ let ext = {
                         _svc = this.enabled_svc;
                     }
                     if (_svc) {
-                        putString(_ctx_reso, _ENABL_A11Y_SVC, _svc);
-                        putInt(_ctx_reso, _A11Y_ENABL, 1);
+                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                         if (!waitForAction(() => _this.state(svc), 2e3)) {
                             let _m = "Operation timed out";
                             toast(_m);
@@ -699,8 +691,8 @@ let ext = {
                     let _args0 = arguments[0];
                     let $_str = x => typeof x === "string";
                     if ($_str(_args0) && _args0.toLowerCase() === "all") {
-                        putString(_ctx_reso, _ENABL_A11Y_SVC, "");
-                        putInt(_ctx_reso, _A11Y_ENABL, 1);
+                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, "");
+                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                         return true;
                     }
                     let {forcible, svc} = this._parseArgs(arguments);
@@ -719,8 +711,8 @@ let ext = {
                         _svc = _enabled_svc;
                     }
                     if (_svc) {
-                        putString(_ctx_reso, _ENABL_A11Y_SVC, _svc);
-                        putInt(_ctx_reso, _A11Y_ENABL, 1);
+                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                         _enabled_svc = this._getString();
                         if (!waitForAction(() => !_contains(), 2e3)) {
                             let _m = "Operation timed out";
@@ -743,28 +735,26 @@ let ext = {
                 return this.disable.apply(this, arguments) && this.enable.apply(this, arguments);
             },
             /**
-             * @param {...boolean|string|string[]} [x]
-             * @see this.enable
-             * @see this.disable
-             * @return {boolean} - !!(all_services_is_running)
+             * @param {string|string[]} [o]
+             * @return {boolean} - all services enabled or not
              */
-            state(x) {
+            state(o) {
                 let _enabled_svc = this.enabled_svc = this._getString();
-                if (typeof x === "undefined") {
-                    x = [_aj_svc];
-                } else if (typeof x === "string") {
-                    x = [x];
+                let _services = [];
+                if (Array.isArray(o)) {
+                    _services = o.slice();
+                } else if (typeof o === "undefined") {
+                    _services = [_aj_svc];
+                } else if (typeof o === "string") {
+                    _services = [o];
+                } else {
+                    throw TypeError("Unknown a11y state type");
                 }
-                for (let i = 0, l = x.length; i < l; i += 1) {
-                    if (!~_enabled_svc.indexOf(x[i])) {
-                        return false;
-                    }
-                }
-                return true;
+                return _services.every(svc => ~_enabled_svc.indexOf(svc));
             },
             /**
-             * @desc returns all running a11y services
-             * @return {string[]} - [] for empty data (rather than "")
+             * Returns all enabled a11y services
+             * @return {string[]} - [] for empty data (rather than falsy)
              */
             services() {
                 return this._getString().split(":").filter(x => !!x);

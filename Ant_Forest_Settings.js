@@ -11,7 +11,7 @@ let $$init = {
             "MODULE_DEFAULT_CONFIG",
             "MODULE_TREASURY_VAULT", "MODULE_PWMAP",
             "MODULE_MONSTER_FUNC", "MODULE_STORAGE",
-            "EXT_DIALOGS", "EXT_TIMERS",
+            "EXT_DIALOGS", "EXT_TIMERS", "EXT_APP",
         ]);
         require("./Modules/MODULE_MONSTER_FUNC").checkSdkAndAJVer();
 
@@ -4345,6 +4345,7 @@ let $$init = {
         }
 
         function setGlobalExtensions() {
+            require("./Modules/EXT_APP").load();
             require("./Modules/EXT_FILES").load();
             require("./Modules/EXT_DEVICE").load();
             require("./Modules/EXT_TIMERS").load();
@@ -5857,7 +5858,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
             subhead_color: $$defs.subhead_highlight_color,
         }))
         .add("button", new Layout("识别色值", "hint", {
-            config_conj: "ripe_ball_detect_color",
+            config_conj: "ripe_ball_detect_color_val",
             newWindow() {
                 $$view.diag.colorSetter.bind(this)({
                     title: "成熟能量球颜色检测色值",
@@ -5883,7 +5884,7 @@ $$view.addPage(["颜色与阈值", "eballs_color_config_page"], function () {
             subhead_color: $$defs.subhead_highlight_color,
         }))
         .add("button", new Layout("识别色值", "hint", {
-            config_conj: "help_ball_detect_color",
+            config_conj: "help_ball_detect_color_val",
             newWindow() {
                 $$view.diag.colorSetter.bind(this)({
                     title: "帮收能量球颜色检测色值",
@@ -6174,13 +6175,6 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
                 view.setHintText(hint_text);
             },
         }))
-        .add("page", new Layout("六球复查", "hint", {
-            config_conj: "six_balls_review_switch",
-            next_page: "six_balls_review_page",
-            updateOpr(view) {
-                $$view.udop.main_sw.call(this, view);
-            },
-        }))
         .add("split_line")
         .add("subhead", new Layout("公用设置"))
         .add("page", new Layout("排行榜样本采集", {
@@ -6188,48 +6182,6 @@ $$view.addPage(["帮收功能", "help_collect_page"], function () {
         }))
         .add("page", new Layout("能量球样本采集", {
             next_page: "forest_samples_collect_page",
-        }))
-        .ready();
-});
-$$view.addPage(["六球复查", "six_balls_review_page"], function () {
-    $$view.setPage(arguments[0])
-        .add("switch", new Layout("总开关", {
-            config_conj: "six_balls_review_switch",
-            listeners: {
-                _switch: {
-                    check(state) {
-                        $$save.session(this.config_conj, !!state);
-                        $$view.showOrHideBySwitch(this, state);
-                    },
-                },
-            },
-            updateOpr(view) {
-                let session_conf = !!sess_cfg[this.config_conj];
-                view._switch.setChecked(session_conf);
-            },
-        }))
-        .add("split_line")
-        .add("subhead", new Layout("基本设置"))
-        .add("button", new Layout("最大连续复查次数", "hint", {
-            config_conj: "six_balls_review_max_continuous_times",
-            newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 8, {
-                    title: "设置最大连续复查次数",
-                });
-            },
-            updateOpr(view) {
-                view.setHintText((sess_cfg[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
-            },
-        }))
-        .add("split_line")
-        .add("subhead", new Layout("帮助与支持"))
-        .add("button", new Layout("了解更多", {
-            newWindow() {
-                dialogsx.builds([
-                    "关于六球复查", "about_six_balls_review",
-                    0, 0, "关闭", 1
-                ]).on("positive", d => d.dismiss()).show();
-            },
         }))
         .ready();
 });
