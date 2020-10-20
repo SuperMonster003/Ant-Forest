@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Oct 16, 2020
- * @version 1.9.23
+ * @since Oct 20, 2020
+ * @version 1.9.24 Beta
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -104,7 +104,7 @@ let $$init = {
                 // do not `require()` before `checkModulesMap()`
                 let _a11y = require("./Modules/EXT_DEVICE").a11y;
                 if (_a11y.state()) {
-                    return true;
+                    return;
                 }
 
                 let _perm = "android.permission.WRITE_SECURE_SETTINGS";
@@ -193,9 +193,9 @@ let $$init = {
             }
 
             function _checkFunc() {
-                let _max = 3;
+                let _max = 24;
                 while (!press(1e8, 0, 1) && _max--) {
-                    sleep(300);
+                    sleep(50);
                 }
                 if (_max < 0) {
                     _line();
@@ -559,7 +559,8 @@ let $$init = {
 
                     function _getLocalPicsPath() {
                         let _path = files.getSdcardPath() + "/.local/Pics/";
-                        return files.createWithDirs(_path) && _path;
+                        files.createWithDirs(_path);
+                        return _path;
                     }
                 },
                 setBlist() {
@@ -1367,7 +1368,7 @@ let $$init = {
                                     }
                                 },
                                 clear() {
-                                    this.data.splice(0, this.len);
+                                    this.data.splice(0);
                                 },
                                 getReady() {
                                     debugInfo("开始能量保护罩检测准备");
@@ -1408,7 +1409,7 @@ let $$init = {
                                     }
                                 },
                                 detectCover() {
-                                    let _color = $$cfg.protect_cover_detect_color;
+                                    let _color = $$cfg.protect_cover_detect_color_val;
                                     let _par = {threshold: $$cfg.protect_cover_detect_threshold};
                                     let _clip = (img) => images.clip(
                                         img, cX(288), cYx(210), cX(142), cYx(44)
@@ -2404,6 +2405,13 @@ let $$init = {
                                     return debugInfo(["跳过主账户头像检查", ">检测到账户登出状态"]);
                                 }
 
+                                // cleaner for legacy bug (caused by v1.9.23)
+                                !function () {
+                                    let _lpp = $$app.local_pics_path;
+                                    let _idx = this._path.indexOf(_lpp) + _lpp.length;
+                                    files.remove(files.path("./false" + this._path.slice(_idx)));
+                                }.call(this);
+
                                 let _img = images.read(path || this._path);
                                 timeRecorder("avt_chk");
                                 let _res = _img && _check.call(this, _img);
@@ -2713,12 +2721,14 @@ let $$init = {
                     }
 
                     function _inBlist() {
+                        let _i_pkg = $$app.init_fg_pkg;
+                        let _passed = "前置应用黑名单检测通过";
                         return ($$cfg.foreground_app_blacklist || []).some((o) => {
-                            let [_nm, _pkg] = o.app_combined_name.split("\n");
-                            if ($$app.init_fg_pkg === _pkg) {
-                                return $$app.fg_black_app = _nm;
+                            let [_name, _pkg] = o.app_combined_name.split("\n");
+                            if (_i_pkg === _pkg) {
+                                return $$app.fg_black_app = _name;
                             }
-                        }) || debugInfo(["前置应用黑名单检测通过:", $$app.init_fg_pkg]);
+                        }) || debugInfo(_i_pkg ? [_passed + ":", _i_pkg] : _passed);
                     }
                 },
                 autoDelay() {
@@ -2738,8 +2748,8 @@ let $$init = {
                     }
 
                     $$sto.af.put("fg_blist_ctr", _ctr);
-                    $$app.setPostponedTask(_time, false); // `exit()` contained
-                    sleep(10e3); // in case task isn't set successfully before exit;
+                    $$app.setPostponedTask(_time, false); // `exit()` included
+                    sleep(10e3); // in case task isn't set successfully before `exit()`
                     exit(); // thoroughly prevent script from going on (main thread)
 
                     // tool function(s) //
@@ -4376,7 +4386,7 @@ let $$af = {
                                     let [_hh, _mm] = _t_str.split(":").map(x => +x);
                                     let _m = _hh * 60 + _mm;
 
-                                    debugInfo("[ " + _t_str + " ]  ->  " + _m + " min");
+                                    debugInfo("[ " + _t_str + " ] -> " + _m + " min");
 
                                     return _t_spot + _m * 60e3;
                                 }).filter(isFinite);
@@ -5053,29 +5063,19 @@ let $$af = {
                         let _next = () => _item = items.pop();
 
                         while (_next()) {
-                            do {
-                                $$link(_enter).$(_intro).$(_check).$(_back);
-                            } while (_coda());
+                            $$link(_enter).$(_intro).$(_check).$(_back).$(_coda);
                         }
 
                         // tool function(s) //
 
                         function _enter() {
-                            clickAction([halfW, _item.item_y], "p", {pt$: 64});
-
-                            if ($$flag.six_review) {
-                                debugInfo("复查当前好友");
-                                $$flag.six_review -= 1;
-                            } else {
-                                debugInfo("点击" + _item.act_desc + "目标");
-                            }
+                            debugInfo("点击" + _item.act_desc + "目标");
                             showSplitLineForDebugInfo();
+                            clickAction([halfW, _item.item_y], "p", {pt$: 64});
 
                             // TODO cond: pool diff
                             // avoid touching widgets in rank list
                             sleep(500);
-
-                            _fri.eballs.reset();
                         }
 
                         function _intro() {
@@ -5092,10 +5092,12 @@ let $$af = {
                         }
 
                         function _check() {
-                            if (!_inBlist() && _ready()) {
-                                _monitor();
-                                !_cover() && _collect();
-                            }
+                            do {
+                                if (!_inBlist() && _ready()) {
+                                    _monitor();
+                                    !_cover() && _collect();
+                                }
+                            } while (_reentry());
 
                             // main function(s) //
 
@@ -5107,7 +5109,20 @@ let $$af = {
                             }
 
                             function _ready() {
+                                if ($$app.thd_info_collect) {
+                                    $$app.thd_info_collect.interrupt();
+                                }
+                                if (!$$num($$flag.six_balls_review_ctr)) {
+                                    $$flag.six_balls_review_ctr = 0;
+                                }
+                                _fri.eballs.reset();
+                                $$app.page.fri.pool.clear();
+
                                 delete $$flag.pick_off_duty;
+                                delete $$flag.avail_clicked;
+                                delete $$flag.avail_clicked_pick;
+                                delete $$flag.avail_clicked_help;
+
                                 return $$app.page.fri.getReady();
                             }
 
@@ -5305,7 +5320,7 @@ let $$af = {
                                 }
 
                                 function _help() {
-                                    _ready() && _click() && _sixRev();
+                                    _ready() && _click();
 
                                     if ($$app.thd_pick) {
                                         $$app.thd_pick.join();
@@ -5332,28 +5347,6 @@ let $$af = {
                                             return true;
                                         }
                                         debugInfo("没有可帮收的能量球");
-                                    }
-
-                                    function _sixRev() {
-                                        if (_fri.eballs.length >= 6) {
-                                            if (!$$cfg.six_balls_review_switch) {
-                                                return debugInfo("六球复查未开启");
-                                            }
-
-                                            if ($$und($$flag.six_review)) {
-                                                $$flag.six_review = 1;
-                                            } else {
-                                                $$flag.six_review += 1;
-                                            }
-
-                                            let _max = $$cfg.six_balls_review_max_continuous_times;
-                                            if ($$flag.six_review > _max) {
-                                                debugInfo(["清除六球复查标记", ">连续复查次数已达上限"]);
-                                                delete $$flag.six_review;
-                                            } else {
-                                                debugInfo("设置六球复查标记: " + $$flag.six_review);
-                                            }
-                                        }
                                     }
                                 }
 
@@ -5544,7 +5537,9 @@ let $$af = {
                                     };
 
                                     _thds.startAll();
-                                    _item.avail_clicked = true;
+                                    $$flag.avail_clicked = true;
+                                    $$flag.avail_clicked_pick = act === "pick";
+                                    $$flag.avail_clicked_help = act === "help";
 
                                     _ready() && $$link(_click).$(_stat);
 
@@ -5640,6 +5635,21 @@ let $$af = {
                                     }
                                 }
                             }
+
+                            function _reentry() {
+                                if ($$flag.avail_clicked_help && _fri.eballs.length >= 6) {
+                                    if (++$$flag.six_balls_review_ctr > 4) {
+                                        debugInfo("连续六球复查次数已达上限", 3);
+                                        debugInfo("不再进行复查", 3);
+                                        return;
+                                    }
+                                    sleep(500);
+                                    debugInfo("__split_line__");
+                                    debugInfo("开始六球复查");
+                                    debugInfo("__split_line__");
+                                    return $$flag.six_balls_review = true;
+                                }
+                            }
                         }
 
                         function _back() {
@@ -5647,16 +5657,15 @@ let $$af = {
                         }
 
                         function _coda() {
-                            if (!_item.avail_clicked) {
+                            if (!$$flag.avail_clicked && !$$flag.six_balls_review) {
                                 messageAct("无能量球可操作", 0, 0, 1);
                             }
                             showSplitLine();
 
-                            delete _item.avail_clicked;
                             delete $$af.nick;
+                            delete $$flag.six_balls_review;
+                            delete $$flag.six_balls_review_ctr;
                             $$app.page.fri.pool.clear();
-
-                            return $$flag.six_review;
                         }
                     }
                 }
@@ -6700,8 +6709,9 @@ let $$af = {
                     function _toast() {
                         toast(
                             "正在尝试关闭屏幕...\n" +
-                            "请勿操作屏幕或按键...\n" +
-                            "此过程可能需要数十秒...", "Long"
+                            "请勿操作音量按键...\n" +
+                            "此过程可能需要数十秒...\n\n" +
+                            "触摸屏幕任意区域可停止关屏", "Long"
                         );
                     }
 
@@ -6738,6 +6748,7 @@ let $$af = {
                                     $$flag.scr_off_intrp_by_usr = true;
                                     _msg("中止屏幕关闭", "检测到屏幕触碰");
                                     _cvr_win.close();
+                                    return false;
                                 },
                             });
                         }

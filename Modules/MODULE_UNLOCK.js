@@ -2281,18 +2281,17 @@ function _unlkSetter() {
                         // tool function(s) //
 
                         function _lmt() {
-                            if (_ctr > _max) {
-                                return _err("图案解锁方案失败");
-                            }
+                            return _ctr > _max && _err("图案解锁方案失败");
                         }
 
                         function _getPts() {
+                            if ($_unlk.unlock_pattern_bounds) {
+                                return $_unlk.unlock_pattern_bounds;
+                            }
+
                             let _bnd = _stable(_this.sel);
                             if (!_bnd) {
-                                return _err(
-                                    "图案解锁方案失败",
-                                    "无法获取点阵布局"
-                                );
+                                return _err(["图案解锁方案失败", "无法获取点阵布局"]);
                             }
 
                             let _sz = _pat_sz;
@@ -2311,13 +2310,12 @@ function _unlkSetter() {
                             }
 
                             if ($_str(_code)) {
-                                let _rex = /[^1-9]+/;
-                                _code = _code.match(_rex)
-                                    ? _code.split(_rex).join("|").split("|")
+                                _code = _code.match(/[^1-9]+/)
+                                    ? _code.split(/[^1-9]+/).join("|").split("|")
                                     : _code.split("");
                             }
 
-                            return _simpl(_code, _sz)
+                            return $_unlk.unlock_pattern_bounds = _simpl(_code, _sz)
                                 .filter(n => +n && _pts[n])
                                 .map(n => [_pts[n].x, _pts[n].y]);
 
@@ -2325,7 +2323,7 @@ function _unlkSetter() {
 
                             function _stable(sel) {
                                 let _res;
-                                let _max = 5;
+                                let _max = 8;
                                 while (_max--) {
                                     try {
                                         _res = _stableBnd();
@@ -2544,13 +2542,9 @@ function _unlkSetter() {
                         // tool function(s) //
 
                         function _lmt() {
-                            if (_ctr > _max) {
-                                return _err([
-                                    "密码解锁方案失败",
-                                    "可能是密码错误",
-                                    "或无法点击密码确认按钮"
-                                ]);
-                            }
+                            return _ctr > _max && _err([
+                                "密码解锁方案失败", "可能是密码错误", "或无法点击密码确认按钮"
+                            ]);
                         }
 
                         function _keypadAssistIFN() {
@@ -2648,7 +2642,7 @@ function _unlkSetter() {
                                     || clickAction(descMatches(_rex))
                                     || clickAction(textMatches(_rex));
                             }
-                            return _err("密码解锁失败", "无法判断末位字符类型");
+                            return _err(["密码解锁失败", "无法判断末位字符类型"]);
                         }
                     }
 
@@ -2755,12 +2749,7 @@ function _unlkSetter() {
                         // tool function(s) //
 
                         function _lmt() {
-                            if (_ctr > _max) {
-                                return _err([
-                                    "PIN解锁方案失败",
-                                    "尝试次数已达上限"
-                                ]);
-                            }
+                            return _ctr > _max && _err(["PIN解锁方案失败", "尝试次数已达上限"]);
                         }
 
                         function _clickKeyEnter() {

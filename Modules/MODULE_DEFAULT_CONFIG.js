@@ -60,28 +60,24 @@ module.exports = {
         },
         // 0 <= x <= 40; the smaller, the stricter;
         ripe_ball_detect_threshold: 13,
-        // color for ripe balls in forest page
-        ripe_ball_detect_color: "#ceff5f",
+        // color for ripe balls in forest page since Oct 16, 2020 around (old value: "#ceff5f")
+        ripe_ball_detect_color_val: "#deff00",
         // 0.06 <= x <= 0.15; minimum distance between two energy balls
         min_balls_distance: 0.09,
         // set false if you do not wanna give a hand; leave it true if you like "surprise"
         help_collect_switch: true,
         // a valid time section of help collect function; default: the whole day
         help_collect_section: ["00:00", "00:00"],
-        // review current friend's forest if help balls have been collected successfully when 6 balls exist
-        six_balls_review_switch: true,
-        // 1 <= x <= 8; max continuous review times for a certain friend
-        six_balls_review_max_continuous_times: 3,
         // color for help icon with a heart pattern
         help_collect_icon_color: "#f99137",
         // 0 <= x <= 66; the smaller, the stricter;
         help_collect_icon_threshold: 10,
         // color for fade-in-and-out help balls in forest page
-        help_ball_detect_color: "#f99137",
+        help_ball_detect_color_val: "#f99137",
         // 23 <= x <= 132; the smaller, the stricter;
         help_ball_detect_threshold: 91,
         // protect cover identifying color from a certain point in countdown area
-        protect_cover_detect_color: "#bef658", // TODO...
+        protect_cover_detect_color_val: "#bef658", // TODO...
         // do not set this value too big in case that green balls will be recognized as protect cover
         protect_cover_detect_threshold: 5, // TODO...
         // set true if you wish your dream's coming true when you are making a sweet dream or snoring

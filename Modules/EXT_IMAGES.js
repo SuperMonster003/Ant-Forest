@@ -271,11 +271,7 @@ let ext = {
          */
         let _du = {};
         let _par = param || {};
-        let _cfg = Object.assign(
-            _$DEFAULT(),
-            global.$$cfg || {},
-            _par.config || {}
-        );
+        let _cfg = Object.assign(_$DEFAULT(), global.$$cfg || {}, _par.config || {});
         let _no_dbg = _par.no_debug_info;
         let _dbg_bak;
         let $_flag = global.$$flag = global.$$flag || {};
@@ -499,9 +495,9 @@ let ext = {
                         return;
                     }
                     let _capt = capt || ext.capt();
-                    let _offset = o.r / 4;
+                    let _offset = o.r * Math.SQRT1_2;
                     let _d = _offset * 2;
-                    let _color = _cfg.ripe_ball_detect_color;
+                    let _color = _cfg.ripe_ball_detect_color_val;
                     let _result = images.findColor(_capt, _color, {
                         region: [o.x - _offset, o.y - _offset, _d, _d],
                         threshold: _cfg.ripe_ball_detect_threshold,
@@ -565,7 +561,7 @@ let ext = {
 
                     function _getColMchPct(region) {
                         let _thrd = _cfg.help_ball_detect_threshold;
-                        let _color = _cfg.help_ball_detect_color;
+                        let _color = _cfg.help_ball_detect_color_val;
 
                         let _cnt = ext.findAllPointsForColor(
                             _capt, _color, {threshold: _thrd, region: region}
@@ -951,12 +947,12 @@ let ext = {
             }
         }
 
-        // updated: Jun 3, 2020
+        // updated: Oct 20, 2020
         function _$DEFAULT() {
             return {
-                help_ball_detect_color: "#f99137",
+                help_ball_detect_color_val: "#f99137",
                 help_ball_detect_threshold: 91,
-                ripe_ball_detect_color: "#ceff5f",
+                ripe_ball_detect_color_val: "#deff00",
                 ripe_ball_detect_threshold: 13,
                 forest_balls_rect_region: [
                     cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)
