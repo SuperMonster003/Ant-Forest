@@ -30,7 +30,7 @@
 > ###### 使用指南
 >
 > > [快速手册](https://www.bilibili.com/video/av91979276/) (视频)  
-> > [项目文档](https://github.com/SuperMonster003/Auto.js_Projects/wiki/%E8%9A%82%E8%9A%81%E6%A3%AE%E6%9E%97-(Ant-Forest)) (图文) (尚未完善)
+> > [项目文档](https://github.com/SuperMonster003/Auto.js_Projects/wiki/%E8%9A%82%E8%9A%81%E6%A3%AE%E6%9E%97-(Ant-Forest)) (文字)
 >
 > ###### 系统需求
 >
@@ -98,13 +98,22 @@
 ******
 ### 版本历史
 ******
-# v1.9.24 Beta
-###### 2020/10/20 - 不兼容旧版 谨慎升级
+# v1.9.24
+###### 2020/11/09 - 不兼容旧版 谨慎升级
+* `新增` 本地日志功能 (默认关闭) _[`issue #310`](https://github.com/SuperMonster003/Auto.js_Projects/issues/310#issuecomment-648965539)_
+* `新增` 支持能量双击卡的识别及处理 _[`issue #403`](https://github.com/SuperMonster003/Auto.js_Projects/issues/403)_
 * `修复` 蚂蚁森林改版后无法识别能量球的问题 (不兼容旧版) _[`issue #401`](https://github.com/SuperMonster003/Auto.js_Projects/issues/401)_
 * `修复` 修改屏幕超时参数关屏策略执行时触碰屏幕导致参数恢复失败的问题
+* `修复` 修改屏幕超时参数关屏策略按下音量键导致参数恢复提前终止的问题 _[`issue #407`](https://github.com/SuperMonster003/Auto.js_Projects/issues/407)_
 * `修复` 主账户头像本地图片路径错误导致匹配失效的问题
+* `修复` 消息提示功能与运行前提示对话框开关联动失效的问题
+* `优化` 能量球识别过滤主页活动按钮区域 (近似区域)
 * `优化` 六球复查采用同页面复查方式并摒弃相关配置 _[`issue #395`](https://github.com/SuperMonster003/Auto.js_Projects/issues/395)_
+* `优化` 解锁模块适配部分MIUI设备 (解锁提示层方案)
 * `优化` 缓存解锁模块图案解锁点阵布局信息以提升执行效率
+* `优化` 项目启动时检查并自动修正异常的设备屏幕超时参数
+* `优化` 配置工具统计功能支持长按删除单个统计条目功能
+* `优化` 配置工具拖动条控件支持长按标题文字恢复默认值功能
 
 # v1.9.23
 ###### 2020/10/16 - 代码重构 谨慎升级

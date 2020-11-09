@@ -2,7 +2,7 @@ global.filesx = typeof global.filesx === "object" ? global.filesx : {};
 
 let ext = {
     zip(input_path, output_path, dialog) {
-        delete global["_$_dialog_streaming_intrp_sgn"];
+        delete global._$_dialog_streaming_intrp_sgn;
 
         let {
             File,
@@ -85,7 +85,11 @@ let ext = {
             if (!dialog) {
                 throw e;
             }
-            alertContent(dialog, "压缩失败:\n" + e, "append");
+            if (typeof dialogsx === "object") {
+                dialogsx.alertContent(dialog, "压缩失败:\n" + e, "append");
+            } else {
+                alert("压缩失败:\n" + e);
+            }
         } finally {
             _zos && _zos.close();
             _cos && _cos.close();
@@ -162,7 +166,7 @@ let ext = {
         }
     },
     unzip(input_path, output_path, within_folder, dialog) {
-        delete global["_$_dialog_streaming_intrp_sgn"];
+        delete global._$_dialog_streaming_intrp_sgn;
 
         let {
             File,
@@ -229,8 +233,8 @@ let ext = {
                     _bos = new BOS(_fos);
                     _bis = new BIS(_zif.getInputStream(_entry));
                     while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
-                        if (global["_$_dialog_streaming_intrp_sgn"]) {
-                            global["_$_dialog_streaming_intrp_sgn"] = false;
+                        if (global._$_dialog_streaming_intrp_sgn) {
+                            global._$_dialog_streaming_intrp_sgn = false;
                             throw Error("用户终止");
                         }
                         _bos.write(_buf_bytes, 0, _read_bytes);
@@ -254,7 +258,11 @@ let ext = {
             if (!dialog) {
                 throw e;
             }
-            alertContent(dialog, "解压失败:\n" + e, "append");
+            if (typeof dialogsx === "object") {
+                dialogsx.alertContent(dialog, "解压失败:\n" + e, "append");
+            } else {
+                alert("解压失败:\n" + e);
+            }
         }
     },
     /**

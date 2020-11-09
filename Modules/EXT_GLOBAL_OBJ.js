@@ -220,7 +220,312 @@ let ext = {
         /** @type ExtendedSelector & UiSelector$ */
         global.$$sel = _monster("getSelector");
 
+        global.$$cvt = _cvtBuilder();
+        global.$$fmt = _fmtBuilder();
+
         global.Reflect = global.Reflect || require("./reflect.js");
+
+        // tool function(s) //
+
+        function _cvtBuilder() {
+            /**
+             * @typedef {number|string} $$cvt$src
+             * @typedef {string} $$cvt$init_unit
+             * @typedef {{
+             *     step?: number, potential_step?: number,
+             *     space?: string|boolean, fixed?: number,
+             *     units?: (number|number[]|string)[], init_unit?: "string",
+             * }} $$cvt$options
+             */
+            /**
+             * @param {$$cvt$src} src
+             * @param {$$cvt$options} [options]
+             * @example
+             * console.log($$cvt(24, {
+             *     units: ["entries", 12, "dozens"], space: true,
+             * })); // "2 dozens"
+             * @returns {string}
+             */
+            let $_cvt = function (src, options) {
+                let {
+                    step: _step, potential_step: _pot_step,
+                    units: _units_ori, init_unit: _init_unit,
+                    space: _space, fixed: _fixed,
+                } = options || {};
+
+                let _src = typeof src === "string"
+                    ? Number(src.split(/,\s*/).join(""))
+                    : Number(src);
+
+                let _units = [];
+                _units_ori.forEach((o) => {
+                    if (typeof o === "string" && o.match(/\w+\|\w+/)) {
+                        o.split("|").reverse().forEach((u, i) => {
+                            i ? _units.push(1, u) : _units.push(u);
+                        });
+                    } else {
+                        _units.push(o);
+                    }
+                });
+
+                let unit_map = {};
+                unit_map[_units[0]] = [1, 1];
+
+                let _accu_step = 1;
+                let _tmp_pot_val;
+
+                for (let i = 1, l = _units.length; i < l; i += 1) {
+                    _tmp_pot_val = _pot_step ? _accu_step : 0;
+                    let _unit = _units[i];
+
+                    if (typeof _unit === "number") {
+                        _tmp_pot_val = _accu_step * (_pot_step || _unit);
+                        _accu_step *= _unit;
+                        _unit = _units[++i];
+                    } else if (Array.isArray(_unit)) {
+                        let _steps = _unit.sort((a, b) => a < b ? 1 : -1);
+                        _tmp_pot_val = _accu_step * _steps[1];
+                        _accu_step *= _steps[0];
+                        _unit = _units[++i];
+                    } else {
+                        _tmp_pot_val = _accu_step * (_pot_step || _step);
+                        _accu_step *= _step;
+                    }
+                    _unit.split("|").forEach(u => unit_map[u] = _tmp_pot_val
+                        ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]
+                    );
+                }
+
+                let _init_u = _init_unit || _units[0];
+                if (~_units.indexOf(_init_u)) {
+                    _src *= unit_map[_init_u][0];
+                }
+
+                let _result = "";
+                Object.keys(unit_map).reverse().some((u) => {
+                    let [_unit_val, _pot_val] = unit_map[u];
+                    if (_src >= _pot_val) {
+                        let res = Number((_src / _unit_val).toFixed(12));
+                        if (typeof _fixed === "number") {
+                            res = ~_fixed ? res.toFixed(_fixed) : res;
+                        } else if (res * 1e3 >> 0 !== res * 1e3) {
+                            res = res.toFixed(2);
+                        }
+                        let _space_str = _space ? _space === true ? " " : _space : "";
+                        return _result = Number(res) + _space_str + u;
+                    }
+                });
+                return _result;
+            };
+
+            /**
+             * Auto-conversion between different digital storage units (smaller to greater)
+             * @param {$$cvt$src} src
+             * @param {$$cvt$init_unit|"B"|"KB"|"MB"|"GB"|"TB"|"PB"|"EB"|"ZB"|"YB"} [init_unit="B"]
+             * @param {$$cvt$options} [options]
+             * @example
+             * console.log($$cvt.bytes(1024)); // "1KB"
+             * console.log($$cvt.bytes(1024, "B")); // "1KB"
+             * console.log($$cvt.bytes(1024, "MB")); // "1GB"
+             * console.log($$cvt.bytes(1047285512)); // "998.77MB"
+             * console.log($$cvt.bytes(1067285512)); // "0.99GB"
+             * console.log($$cvt.bytes(1516171819)); // "1.41GB"
+             * @returns {string}
+             */
+            $_cvt.bytes = function (src, init_unit, options) {
+                return _parse(arguments, {
+                    step: 1024, potential_step: 1000,
+                    units: ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
+                });
+            };
+
+            /**
+             * Auto-conversion between different time units (smaller to greater)
+             * @param {$$cvt$src} src
+             * @param {$$cvt$init_unit|"ms"|"s"|"m"|"h"|"d"} [init_unit="ms"]
+             * @param {$$cvt$options} [options]
+             * @example
+             * console.log($$cvt.time(3.6e6)); // "1h"
+             * console.log($$cvt.time(3.6e6, "ms")); // "1h"
+             * console.log($$cvt.time(3.6e3, "s")); // "1h"
+             * console.log($$cvt.time(3.6e6, "s")); // "41.67d"
+             * console.log($$cvt.time(48, "h")); // "2d"
+             * console.log($$cvt.time(150, "m")); // "2.5h"
+             * @example
+             * console.log("About " + $$cvt.time(Date.now() - new Date(2019, 2, 19), "ms", {fixed: 0})
+             *     + " since Mar 19, 2019"); // like: "About 591d since Mar 19, 2019"
+             * @returns {string}
+             */
+            $_cvt.time = function (src, init_unit, options) {
+                return _parse(arguments, {
+                    step: 60,
+                    units: ["ms", 1e3, "s", "m", "h", 24, "d"],
+                });
+            };
+
+            /**
+             * Auto-conversion between different linear units (smaller to greater)
+             * @param {$$cvt$src} src
+             * @param {$$cvt$init_unit|"am"|"fm"|"pm"|"nm"|"μm"|"um"|"mm"|"cm"|"dm"|"m"|"km"} [init_unit="mm"]
+             * @param {$$cvt$options} [options]
+             * @example
+             * console.log($$cvt.linear(10)); // "1cm"
+             * console.log($$cvt.linear(100)); // "1dm"
+             * console.log($$cvt.linear(1000)); // "1m"
+             * console.log($$cvt.linear(10000)); // "10m"
+             * console.log($$cvt.linear(1e6)); // "1km"
+             * console.log($$cvt.linear(2299, "mm")); // "2.299m"
+             * console.log($$cvt.linear(2299, "cm")); // "22.99m"
+             * console.log($$cvt.linear(2299, "dm")); // "229.9m"
+             * console.log($$cvt.linear(2299, "m")); // "2.299km"
+             * @returns {string}
+             */
+            $_cvt.linear = function (src, init_unit, options) {
+                return _parse(arguments, {
+                    step: 1e3, init_unit: "mm",
+                    units: ["am", "fm", "pm", "nm", "μm|um", "mm", 10, "cm", 10, "dm", 10, "m", "km"],
+                });
+            };
+
+            /**
+             * Auto-conversion between different linear units (smaller to greater)
+             * @param {$$cvt$src} src
+             * @param {
+             *     $$cvt$init_unit|"one"|"hundred"|"thousand"|"million"|"billion"|"trillion"|
+             *     "quadrillion"|"quintillion"|"sextillion"|"septillion"|"octillion"|
+             *     "nonillion"|"decillion"|"undecillion"|"duodecillion"|"tredecillion"|
+             *     "quattuordecillion"|"quindecillion"
+             * } [init_unit="one"]
+             * @param {$$cvt$options} [options]
+             * @example
+             * console.log($$cvt.number(Math.pow(2, 10))); // "1.024 thousand"
+             * console.log($$cvt.number(Math.pow(2, 20))); // "1.05 million"
+             * console.log($$cvt.number(Math.pow(2, 30))); // "1.07 billion"
+             * console.log($$cvt.number(Math.pow(2, 40))); // "1.1 trillion"
+             * @returns {string}
+             */
+            $_cvt.number = function (src, init_unit, options) {
+                return _parse(arguments, {
+                    step: 1e3, space: true,
+                    units: ["one", 100, "hundred", 10, "thousand", "million", "billion",
+                        "trillion", "quadrillion", "quintillion", "sextillion", "septillion",
+                        "octillion", "nonillion", "decillion", "undecillion", "duodecillion",
+                        "tredecillion", "quattuordecillion", "quindecillion"],
+                });
+            };
+
+            return $_cvt;
+
+            // tool function(s) //
+
+            function _parse(args, presets) {
+                let [_src, _init_u, _opt] = args;
+                return $_cvt(_src, Object.assign(
+                    _opt || {}, presets || {}, _init_u === undefined ? {} : {init_unit: _init_u}
+                ));
+            }
+        }
+
+        function _fmtBuilder() {
+            let $_fmt = () => void 0;
+
+            /**
+             *
+             * @param {Date|string|number} [src=Date()]
+             * @param {"d"|"dd"|"h"|"h:m"|"h:m:s"|"h:m:ss"|"h:mm"|"h:mm:s"|"h:mm:ss"|"hh"|"hh:m"|"hh:m:s"|"hh:m:ss"|"hh:mm"|"hh:mm:s"|"hh:mm:ss"|"M"|"m"|"M/d h:m"|"M/d h:m:s"|"M/d h:m:ss"|"M/d h:mm"|"M/d h:mm:s"|"M/d h:mm:ss"|"M/d hh:m"|"M/d hh:m:s"|"M/d hh:m:ss"|"M/d hh:mm"|"M/d hh:mm:s"|"M/d hh:mm:ss"|"M/d"|"M/dd h:m"|"M/dd h:m:s"|"M/dd h:m:ss"|"M/dd h:mm"|"M/dd h:mm:s"|"M/dd h:mm:ss"|"M/dd hh:m"|"M/dd hh:m:s"|"M/dd hh:m:ss"|"M/dd hh:mm"|"M/dd hh:mm:s"|"M/dd hh:mm:ss"|"M/dd"|"m:s"|"m:ss"|"MM"|"mm"|"MM/d h:m"|"MM/d h:m:s"|"MM/d h:m:ss"|"MM/d h:mm"|"MM/d h:mm:s"|"MM/d h:mm:ss"|"MM/d hh:m"|"MM/d hh:m:s"|"MM/d hh:m:ss"|"MM/d hh:mm"|"MM/d hh:mm:s"|"MM/d hh:mm:ss"|"MM/d"|"MM/dd h:m"|"MM/dd h:m:s"|"MM/dd h:m:ss"|"MM/dd h:mm"|"MM/dd h:mm:s"|"MM/dd h:mm:ss"|"MM/dd hh:m"|"MM/dd hh:m:s"|"MM/dd hh:m:ss"|"MM/dd hh:mm"|"MM/dd hh:mm:s"|"MM/dd hh:mm:ss"|"MM/dd"|"mm:s"|"mm:ss"|"s"|"ss"|"yy"|"yy/M"|"yy/M/d h:m"|"yy/M/d h:m:s"|"yy/M/d h:m:ss"|"yy/M/d h:mm"|"yy/M/d h:mm:s"|"yy/M/d h:mm:ss"|"yy/M/d hh:m"|"yy/M/d hh:m:s"|"yy/M/d hh:m:ss"|"yy/M/d hh:mm"|"yy/M/d hh:mm:s"|"yy/M/d hh:mm:ss"|"yy/M/d"|"yy/M/dd h:m"|"yy/M/dd h:m:s"|"yy/M/dd h:m:ss"|"yy/M/dd h:mm"|"yy/M/dd h:mm:s"|"yy/M/dd h:mm:ss"|"yy/M/dd hh:m"|"yy/M/dd hh:m:s"|"yy/M/dd hh:m:ss"|"yy/M/dd hh:mm"|"yy/M/dd hh:mm:s"|"yy/M/dd hh:mm:ss"|"yy/M/dd"|"yy/MM"|"yy/MM/d h:m"|"yy/MM/d h:m:s"|"yy/MM/d h:m:ss"|"yy/MM/d h:mm"|"yy/MM/d h:mm:s"|"yy/MM/d h:mm:ss"|"yy/MM/d hh:m"|"yy/MM/d hh:m:s"|"yy/MM/d hh:m:ss"|"yy/MM/d hh:mm"|"yy/MM/d hh:mm:s"|"yy/MM/d hh:mm:ss"|"yy/MM/d"|"yy/MM/dd h:m"|"yy/MM/dd h:m:s"|"yy/MM/dd h:m:ss"|"yy/MM/dd h:mm"|"yy/MM/dd h:mm:s"|"yy/MM/dd h:mm:ss"|"yy/MM/dd hh:m"|"yy/MM/dd hh:m:s"|"yy/MM/dd hh:m:ss"|"yy/MM/dd hh:mm"|"yy/MM/dd hh:mm:s"|"yy/MM/dd hh:mm:ss"|"yy/MM/dd"|"yyyy"|"yyyy/M"|"yyyy/M/d h:m"|"yyyy/M/d h:m:s"|"yyyy/M/d h:m:ss"|"yyyy/M/d h:mm"|"yyyy/M/d h:mm:s"|"yyyy/M/d h:mm:ss"|"yyyy/M/d hh:m"|"yyyy/M/d hh:m:s"|"yyyy/M/d hh:m:ss"|"yyyy/M/d hh:mm"|"yyyy/M/d hh:mm:s"|"yyyy/M/d hh:mm:ss"|"yyyy/M/d"|"yyyy/M/dd h:m"|"yyyy/M/dd h:m:s"|"yyyy/M/dd h:m:ss"|"yyyy/M/dd h:mm"|"yyyy/M/dd h:mm:s"|"yyyy/M/dd h:mm:ss"|"yyyy/M/dd hh:m"|"yyyy/M/dd hh:m:s"|"yyyy/M/dd hh:m:ss"|"yyyy/M/dd hh:mm"|"yyyy/M/dd hh:mm:s"|"yyyy/M/dd hh:mm:ss"|"yyyy/M/dd"|"yyyy/MM"|"yyyy/MM/d h:m"|"yyyy/MM/d h:m:s"|"yyyy/MM/d h:m:ss"|"yyyy/MM/d h:mm"|"yyyy/MM/d h:mm:s"|"yyyy/MM/d h:mm:ss"|"yyyy/MM/d hh:m"|"yyyy/MM/d hh:m:s"|"yyyy/MM/d hh:m:ss"|"yyyy/MM/d hh:mm"|"yyyy/MM/d hh:mm:s"|"yyyy/MM/d hh:mm:ss"|"yyyy/MM/d"|"yyyy/MM/dd h:m"|"yyyy/MM/dd h:m:s"|"yyyy/MM/dd h:m:ss"|"yyyy/MM/dd h:mm"|"yyyy/MM/dd h:mm:s"|"yyyy/MM/dd h:mm:ss"|"yyyy/MM/dd hh:m"|"yyyy/MM/dd hh:m:s"|"yyyy/MM/dd hh:m:ss"|"yyyy/MM/dd hh:mm"|"yyyy/MM/dd hh:mm:s"|"yyyy/MM/dd hh:mm:ss"|"yyyy/MM/dd"|string} [format="yyyy/MM/dd hh:mm:ss"]
+             */
+            $_fmt.time = function (src, format) {
+                if (!String.prototype.padStart) {
+                    Object.defineProperty(String.prototype, "padStart", {
+                        value(target_len, pad_str) {
+                            let _getPadStr = function (target_len, pad_str) {
+                                let _tar_len = Number(target_len);
+                                let _this_len = this.length;
+                                if (_tar_len <= _this_len) {
+                                    return "";
+                                }
+                                let _pad_str = pad_str === undefined ? " " : String(pad_str);
+                                let _gap = _tar_len - _this_len;
+                                let _times = Math.ceil(_gap / _pad_str.length);
+                                return _pad_str.repeat(_times).slice(0, _gap);
+                            };
+                            return _getPadStr.apply(this, arguments) + this.valueOf();
+                        },
+                    });
+                }
+                if (!Number.prototype.padStart) {
+                    Object.defineProperty(Number.prototype, "padStart", {
+                        value(target_len, pad_str) {
+                            let _this = this.toString();
+                            return _this.padStart.call(_this, target_len, pad_str || 0);
+                        },
+                    });
+                }
+
+                let _date = _parseDate(src || new Date());
+                let _yyyy = _date.getFullYear();
+                let _yy = _yyyy.toString().slice(-2);
+                let _M = _date.getMonth() + 1;
+                let _MM = _M.padStart(2, 0);
+                let _d = _date.getDate();
+                let _dd = _d.padStart(2, 0);
+                let _h = _date.getHours();
+                let _hh = _h.padStart(2, 0);
+                let _m = _date.getMinutes();
+                let _mm = _m.padStart(2, 0);
+                let _s = _date.getSeconds();
+                let _ss = _s.padStart(2, 0);
+
+                let _units = {
+                    yyyy: _yyyy, yy: _yy,
+                    MM: _MM, M: _M,
+                    dd: _dd, d: _d,
+                    hh: _hh, h: _h,
+                    mm: _mm, m: _m,
+                    ss: _ss, s: _s,
+                };
+
+                return _parseFormat(format || "yyyy/MM/dd hh:mm:ss");
+
+                // tool function(s) //
+
+                function _parseDate(t) {
+                    if (t instanceof Date) {
+                        return t;
+                    }
+                    if (typeof t === "number" || typeof t === "string") {
+                        return new Date(t);
+                    }
+                    return new Date();
+                }
+
+                function _parseFormat(str) {
+                    let _str = str.toString();
+                    let _res = "";
+
+                    while (_str.length) {
+                        let _max = 4;
+                        while (_max) {
+                            let _unit = _str.slice(0, _max);
+                            if (_unit in _units) {
+                                _res += _units[_unit];
+                                _str = _str.slice(_max);
+                                break;
+                            }
+                            _max -= 1;
+                        }
+                        if (!_max) {
+                            _res += _str[0];
+                            _str = _str.slice(1);
+                        }
+                    }
+
+                    return _res;
+                }
+            };
+
+            return $_fmt;
+        }
     },
     String() {
         if (!String.prototype.toTitleCase) {
@@ -294,10 +599,23 @@ let ext = {
         if (!String.prototype.ts) {
             Object.defineProperty(String.prototype, "ts", {
                 /**
+                 * A simple polyfill which takes current string as template string
                  * @property String.prototype.ts
                  * @example
-                 * let name = "John"; // must be an global variable
+                 * // `name` must be an global variable
+                 * let name = "John";
+                 * // backticks can't be omitted
                  * console.log("`Hello ${name}, time is ${new Date().toLocaleTimeString()}`".ts);
+                 * @example
+                 * console.log("`9 × 2 = ${9 * 2}`".ts); // "9 × 2 = 18"
+                 * console.log("`9 ÷ 2 = ${9 / 2}`".ts); // "9 ÷ 2 = 4.5"
+                 * @example
+                 * global.SEX = "M", global.NAME = "John";
+                 * console.log("`Hello ${global.SEX[0] === 'M' ? 'Mr.' : 'Mrs.'} ${global.NAME}`".ts);
+                 * @example
+                 * let A = "a", B = "b", C = "c"; // global variables
+                 * console.log("`${A} and ${B} or ${C}`".ts); // "a and b or c"
+                 * console.log("`${A + ` and ${B + ` or ${C}`}`}`".ts); // "a and b or c"
                  * @returns {string}
                  */
                 get() {
@@ -1027,7 +1345,7 @@ let ext = {
              * // examples whose results are not same as Math.max()
              *
              * // Math.maxi([])
-             * // -> Math.max.apply({}, [])
+             * // -> Math.max.apply(null, [])
              * // -> Math.max() -> -Infinity
              * // Math.max([])
              * // -> Math.max(+[])
@@ -1059,7 +1377,7 @@ let ext = {
                 }
 
                 let _filtered = _arr.filter(x => !isNaN(+x));
-                let _max = Math.max.apply({}, _filtered);
+                let _max = Math.max.apply(null, _filtered);
                 let _frac = parseInt(_fraction);
                 return isNaN(_frac) ? _max : +_max.toFixed(_frac);
             },
@@ -1104,7 +1422,7 @@ let ext = {
              * // examples whose results are not same as Math.min()
              *
              * // Math.mini([])
-             * // -> Math.min.apply({}, [])
+             * // -> Math.min.apply(null, [])
              * // -> Math.min() -> Infinity
              * // Math.min([])
              * // -> Math.min(+[])
@@ -1136,7 +1454,7 @@ let ext = {
                 }
 
                 let _filtered = _arr.filter(x => !isNaN(+x));
-                let _min = Math.min.apply({}, _filtered);
+                let _min = Math.min.apply(null, _filtered);
                 let _frac = parseInt(_fraction);
                 return isNaN(_frac) ? _min : +_min.toFixed(_frac);
             },

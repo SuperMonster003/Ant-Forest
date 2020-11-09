@@ -68,7 +68,7 @@ let ext = {
         let _max = 10;
         while (_max--) {
             try {
-                _permitCapt();
+                _permit();
                 let _img = images.captureScreen();
                 // prevent "_img" from being auto-recycled
                 let _copy = images.copy(_img);
@@ -90,9 +90,7 @@ let ext = {
         return this.capt.apply(this);
     },
     requestScreenCapture: _requestScreenCapture,
-    tryRequestScreenCapture: _permitCapt, // legacy
-    permit: _permitCapt,
-    permitCapt: _permitCapt,
+    permit: _permit,
     matchTpl(capt, tpl, opt) {
         let _capt;
         let _no_capt_fg;
@@ -281,11 +279,9 @@ let ext = {
         let _src_img_stg = _cfg.hough_src_img_strategy;
         let _results_stg = _cfg.hough_results_strategy;
         let _min_dist = cX(_cfg.min_balls_distance);
-        let _region = _cfg.forest_balls_rect_region
-            .map((v, i) => (i % 2
-                    ? v < 1 ? cY(v) : v
-                    : v < 1 ? cX(v) : v
-            ));
+        let _region = _cfg.forest_balls_recog_region.map((v, i) => (
+            i % 2 ? v < 1 ? cY(v) : v : v < 1 ? cX(v) : v
+        ));
 
         /** @type {EnergyBallsInfo[]} */
         let _balls_data = [];
@@ -456,8 +452,8 @@ let ext = {
                     let _x_max = _ctx + _offset;
                     let _y_max = _cty + _offset;
                     let _step = 2;
-                    let _hue_max = _cfg.homepage_water_ball_max_hue_b0;
-                    let _cty_max = cYx(626, -2); // TODO...
+                    let _hue_max = _cfg.homepage_wball_max_hue_b0;
+                    let _cty_max = cYx(386);
                     let _result = false;
 
                     if (_cty > _cty_max) {
@@ -792,17 +788,15 @@ let ext = {
                  * @typedef {"ripe"|"orange"|"naught"|"water"} EnergyBallsType
                  */
                 function _addBalls() {
-                    _wballs.map(_extProperties).forEach((o) => {
+                    _wballs.map(_extProps).filter(_filterActBtn).forEach((o) => {
                         _addBall(o, "water");
                     });
-                    _balls.map(_extProperties).forEach((o) => {
+                    _balls.map(_extProps).filter(_filterActBtn).forEach((o) => {
                         if (_isOrangeBall(o)) {
-                            return _addBall(o, "orange");
-                        }
-                        if (_isRipeBall(o)) {
-                            return _addBall(o, "ripe");
-                        }
-                        if (!imagesx.inTreeArea(o)) {
+                            _addBall(o, "orange");
+                        } else if (_isRipeBall(o)) {
+                            _addBall(o, "ripe");
+                        } else if (!imagesx.inTreeArea(o)) {
                             _addBall(o, "naught");
                         }
                     });
@@ -865,7 +859,7 @@ let ext = {
                     /**
                      * @returns EnergyBallsMixedProp
                      */
-                    function _extProperties(o) {
+                    function _extProps(o) {
                         let {x: _x, y: _y, r: _r} = o;
                         return Object.assign(o, {
                             left: _x - _r,
@@ -877,6 +871,15 @@ let ext = {
                             width: () => _r * 2,
                             height: () => _r * 2,
                         });
+                    }
+
+                    function _filterActBtn(o) {
+                        let _x = cX(118), _y = cYx(346);
+
+                        let _inArea = o => o.left < _x && o.top < _y;
+                        let _inSymArea = o => o.right > W - _x && o.top < _y;
+
+                        return !_inArea(o) && !_inSymArea(o);
                     }
                 }
 
@@ -902,7 +905,7 @@ let ext = {
                         .findCircles(img, {
                             dp: 1,
                             minDist: _min_dist,
-                            minRadius: cX(0.06),
+                            minRadius: cX(0.054),
                             maxRadius: cX(0.078),
                             param1: par1 || 15,
                             param2: par2 || 15,
@@ -954,25 +957,18 @@ let ext = {
                 help_ball_detect_threshold: 91,
                 ripe_ball_detect_color_val: "#deff00",
                 ripe_ball_detect_threshold: 13,
-                forest_balls_rect_region: [
-                    cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)
-                ],
+                forest_balls_recog_region: [cX(0.1), cYx(0.15), cX(0.9), cYx(0.45)],
                 hough_src_img_strategy: {
-                    gray: true,
-                    adapt_thrd: true,
-                    med_blur: true,
-                    blur: true,
+                    gray: true, adapt_thrd: true, med_blur: true, blur: true,
                     blt_fltr: false,
                 },
                 hough_results_strategy: {
-                    anti_ovl: true,
-                    symmetrical: true,
-                    linear_itp: true,
+                    anti_ovl: true, symmetrical: true, linear_itp: true,
                 },
                 min_balls_distance: 0.09,
                 forest_balls_pool_limit: 2,
                 forest_balls_pool_itv: 240,
-                homepage_water_ball_max_hue_b0: 44,
+                homepage_wball_max_hue_b0: 42,
             };
         }
     },
@@ -1105,11 +1101,9 @@ function _requestScreenCapture(landscape) {
 }
 
 /**
- * Just an insurance way of images.requestScreenCapture()
- *  to avoid infinite stuck or stalled without any hint or log
- * During this operation, permission prompt window
- *  will be confirmed (with checkbox checked if possible)
- *  automatically with effort
+ * Wrapped images.requestScreenCapture().
+ * Avoid infinite stuck or stalled without any hint and log.
+ * Permission prompt window will be confirmed automatically with effort
  * @param {object} [params]
  * @param {boolean} [params.debug_info_flag]
  * @param {boolean} [params.restart_this_engine_flag=true]
@@ -1121,10 +1115,9 @@ function _requestScreenCapture(landscape) {
  *     -- new file - like "hello.js", "../hello.js" or "hello"
  * @param {boolean} [params.restart_this_engine_params.debug_info_flag]
  * @param {number} [params.restart_this_engine_params.max_restart_engine_times=3]
- *  - max restart times for avoiding infinite recursion
  * @return {boolean}
  */
-function _permitCapt(params) {
+function _permit(params) {
     if (global._$_request_screen_capture) {
         return true;
     }
@@ -1215,8 +1208,10 @@ function _permitCapt(params) {
             } catch (e) {
                 // nothing to do here
             }
-            if (restartThisEngine(_par.restart_this_engine_params)) {
-                return;
+            let _params = _par.restart_this_engine_params;
+            let _avail = typeof restartThisEngine === "function";
+            if (_avail && restartThisEngine(_params)) {
+                return true;
             }
         }
         _messageAction("截图权限申请失败", 8, 1, 0, 1);
@@ -1299,92 +1294,6 @@ function _permitCapt(params) {
             console.info(_msg);
         }
         return true;
-    }
-
-    // tool function(s) //
-
-    // updated: Aug 29, 2019
-    function restartThisEngine(params) {
-        let _params = params || {};
-
-        let _messageAction = (
-            typeof messageAction === "function" ? messageAction : messageActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-        )(m, fg, _params.debug_info_flag);
-
-        let _my_e = engines.myEngine();
-        let _my_e_id = _my_e.id;
-        let _e_argv = _my_e.execArgv;
-
-        let _restart_times_a = _e_argv.max_restart_engine_times;
-        let _restart_times_p = _params.max_restart_engine_times;
-        let _restart_times;
-        if (typeof _restart_times_a === "undefined") {
-            _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
-        } else {
-            _restart_times = +_restart_times_a;
-        }
-        if (!_restart_times) {
-            _messageAction("引擎重启已拒绝", 3);
-            return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
-        }
-
-        let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
-        _debugInfo("重启当前引擎任务");
-        _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
-        _debugInfo(">最大次数: " + _restart_times_bak);
-        let _file_name = _params.new_file || _my_e.source.toString();
-        if (_file_name.match(/^\[remote]/)) {
-            _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
-        }
-
-        let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
-        _debugInfo("运行新引擎任务:\n" + _file_path);
-        engines.execScriptFile(_file_path, {
-            arguments: Object.assign({}, _params, {
-                max_restart_engine_times: _restart_times - 1,
-                max_restart_engine_times_backup: _restart_times_bak,
-                instant_run_flag: _params.instant_run_flag,
-            }),
-        });
-        _debugInfo("强制停止旧引擎任务");
-        // _my_engine.forceStop();
-        engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
-        return true;
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || " ";
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === "undefined" ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-        }
     }
 }
 

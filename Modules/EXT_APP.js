@@ -123,6 +123,29 @@ let ext = {
             context.startActivity(this.intent(o).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         }
     },
+    /**
+     * Returns if Auto.js has attained root access by running a shell command
+     * @returns {boolean}
+     */
+    hasRoot() {
+        try {
+            // 1. com.stardust.autojs.core.util.ProcessShell
+            //    .execCommand("date", true).code === 0;
+            //    code above doesn't work on Auto.js Pro
+            // 2. some devices may stop the script without
+            //    any info or hint in a sudden way without
+            //    this try/catch code block
+            return shell("date", true).code === 0;
+        } catch (e) {
+            return false;
+        }
+    },
+    hasSecure() {
+        let _perm = "android.permission.WRITE_SECURE_SETTINGS";
+        let _chk_perm = context.checkCallingOrSelfPermission(_perm);
+        let _perm_granted = android.content.pm.PackageManager.PERMISSION_GRANTED;
+        return _chk_perm === _perm_granted;
+    }
 };
 
 module.exports = ext;

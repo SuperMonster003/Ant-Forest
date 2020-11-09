@@ -7,28 +7,25 @@
 
 global.dialogsx = typeof global.dialogsx === "object" ? global.dialogsx : {};
 
-let myLooper = android.os.Looper.myLooper;
-let getMainLooper = android.os.Looper.getMainLooper;
-let isUiThread = () => myLooper() === getMainLooper();
-let rtDialogs = () => {
-    let d = runtime.dialogs;
-    return isUiThread() ? d : d.nonUiDialogs;
-};
+let isUiThread = () => android.os.Looper.myLooper() === android.os.Looper.getMainLooper();
+let rtDialogs = () => isUiThread() ? runtime.dialogs : runtime.dialogs.nonUiDialogs;
 
 let ext = {
     /**
+     * Formatted from dialog.build()
      * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}
      */
-    build(properties) {
+    build(props) {
         let builder = Object.create(runtime.dialogs.newBuilder());
         builder.thread = threads.currentThread();
-        for (let name in properties) {
-            if (properties.hasOwnProperty(name)) {
-                applyDialogProperty(builder, name, properties[name]);
-            }
-        }
-        applyOtherDialogProperties(builder, properties);
-        return ui.run(() => builder.buildDialog());
+
+        Object.keys(props).forEach(n => applyDialogProperty(builder, n, props[n]));
+
+        applyOtherDialogProperties(builder, props);
+
+        return ui.run(builder.buildDialog.bind(builder));
+
+        // tool function(s) //
 
         function applyDialogProperty(builder, name, value) {
             let propertySetters = {
@@ -52,27 +49,27 @@ let ext = {
                 autoDismiss: null
             };
 
-            if (!propertySetters.hasOwnProperty(name)) {
-                return;
+            if (propertySetters.hasOwnProperty(name)) {
+                let propertySetter = propertySetters[name] || {};
+                if (propertySetter.method === undefined) {
+                    propertySetter.method = name;
+                }
+                if (propertySetter.adapter) {
+                    value = propertySetter.adapter(value);
+                }
+                builder[propertySetter.method].call(builder, value);
             }
-            let propertySetter = propertySetters[name] || {};
-            if (propertySetter.method === undefined) {
-                propertySetter.method = name;
-            }
-            if (propertySetter.adapter) {
-                value = propertySetter.adapter(value);
-            }
-            builder[propertySetter.method].call(builder, value);
         }
 
         function applyOtherDialogProperties(builder, properties) {
             if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
-                builder.input(wrapNonNullString(properties.inputHint), wrapNonNullString(properties.inputPrefill),
-                    function (dialog, input) {
-                        input = input.toString();
-                        builder.emit("input_change", builder.dialog, input);
-                    })
-                    .alwaysCallInputCallback();
+                builder.input(
+                    wrapNonNullString(properties.inputHint),
+                    wrapNonNullString(properties.inputPrefill),
+                    function (d, input) {
+                        return builder.emit("input_change", builder.dialog, input.toString());
+                    }
+                ).alwaysCallInputCallback();
             }
             if (properties.items !== undefined) {
                 let itemsSelectMode = properties.itemsSelectMode;
@@ -81,13 +78,15 @@ let ext = {
                         builder.emit("item_select", position, text.toString(), builder.dialog);
                     });
                 } else if (itemsSelectMode === 'single') {
-                    builder.itemsCallbackSingleChoice(properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
-                        function (dialog, view, which, text) {
+                    builder.itemsCallbackSingleChoice(
+                        properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
+                        function (d, view, which, text) {
                             builder.emit("single_choice", which, text.toString(), builder.dialog);
                             return true;
                         });
                 } else if (itemsSelectMode === 'multi') {
-                    builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
+                    builder.itemsCallbackMultiChoice(
+                        properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
                         function (dialog, indices, texts) {
                             builder.emit("multi_choice",
                                 toJsArray(indices, (l, i) => parseInt(l[i])),
@@ -101,30 +100,29 @@ let ext = {
             }
             if (properties.progress !== undefined) {
                 let progress = properties.progress;
-                let indeterminate = (progress.max === -1);
-                builder.progress(indeterminate, progress.max, !!progress.showMinMax);
+                builder.progress(progress.max === -1, progress.max, !!progress.showMinMax);
                 builder.progressIndeterminateStyle(!!progress.horizontal);
             }
             if (properties.checkBoxPrompt !== undefined || properties.checkBoxChecked !== undefined) {
-                builder.checkBoxPrompt(wrapNonNullString(properties.checkBoxPrompt), !!properties.checkBoxChecked,
+                builder.checkBoxPrompt(
+                    wrapNonNullString(properties.checkBoxPrompt),
+                    !!properties.checkBoxChecked,
                     function (view, checked) {
-                        builder.getDialog().emit("check", checked, builder.getDialog());
+                        return builder.getDialog().emit("check", checked, builder.getDialog());
                     });
             }
             if (properties.customView !== undefined) {
                 let customView = properties.customView;
+                // noinspection JSTypeOfValues
                 if (typeof customView === 'xml' || typeof customView === 'string') {
                     customView = ui.run(() => ui.inflate(customView));
                 }
-                let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
-                builder.customView(customView, wrapInScrollView);
+                let wrapInScrollView = properties.wrapInScrollView;
+                builder.customView(customView, wrapInScrollView === undefined ? true : wrapInScrollView);
             }
 
             function wrapNonNullString(str) {
-                if (str == null) {
-                    return "";
-                }
-                return str;
+                return str || "";
             }
 
             function toJsArray(object, adapter) {
@@ -138,163 +136,210 @@ let ext = {
         }
 
         function parseColor(c) {
-            if (typeof c === 'string') {
-                return colors.parseColor(c);
-            }
-            return c;
+            return typeof c === 'string' ? colors.parseColor(c) : c;
         }
     },
     /**
+     * @typedef {string|[string, Builds$title_color]} Builds$title
+     * @typedef {string|[string, Builds$content_color]} Builds$content
+     * @typedef {string|[string, Builds$btn_color]|number} Builds$neutral
+     * @typedef {string|[string, Builds$btn_color]|number} Builds$negative
+     * @typedef {string|[string, Builds$btn_color]|number} Builds$positive
+     * @typedef {number|boolean} Builds$keep
+     * @typedef {number|boolean|string} Builds$checkbox
+     * @typedef {"title_default_color"|"title_caution_color"|string} Builds$title_color
+     * @typedef {"content_default_color"|"content_dark_color"|"content_warn_color"|string} Builds$content_color
+     * @typedef {
+     *     "caution_btn_color"|"attraction_btn_color"|"warn_btn_color"|
+     *     "hint_btn_dark_color"|"hint_btn_bright_color"|string
+     * } Builds$btn_color
+     */
+    /**
+     * @param {
+     *     Tuple7<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox>|
+     *     Tuple6<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep>|
+     *     Tuple5<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive>|
+     *     Tuple4<Builds$title, Builds$content, Builds$neutral, Builds$negative>|
+     *     Tuple3<Builds$title, Builds$content, Builds$neutral>|
+     *     Tuple2<Builds$title, Builds$content>|
+     *     Tuple1<Builds$title>|string
+     * } regular_props
+     * @param {DialogsBuildProperties} [ext_props]
      * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}
      */
-    builds(common, o) {
-        let common_o = {};
-        let defs = typeof global.defs === "undefined" ? require("./MODULE_DEFAULT_CONFIG").settings : global.defs;
-        let dialog_contents = require("./MODULE_TREASURY_VAULT").dialog_contents || {};
+    builds(regular_props, ext_props) {
+        let _props = {};
+        let _defs = global.$$def || require("./MODULE_DEFAULT_CONFIG").settings;
+        let _diag_cnt = require("./MODULE_TREASURY_VAULT").dialog_contents || {};
+        let _regular = typeof regular_props === "string" ? [regular_props] : regular_props;
 
-        if (typeof common === "string") common = [common];
-        let [title_param, content_param, neutral_param, negative_param, positive_param, stay_flag, check_box_param] = common;
-        if (typeof title_param === "object") {
-            common_o.title = title_param[0];
-            common_o.titleColor = title_param[1].match(/_color$/) ? defs[title_param[1]] : title_param[1];
-        } else if (title_param) common_o.title = title_param;
-        if (typeof content_param === "object") {
-            common_o.content = dialog_contents[content_param[0]] || content_param[0];
-            common_o.contentColor = content_param[1].match(/_color$/) ? defs[content_param[1]] : content_param[1];
-        } else if (content_param) common_o.content = dialog_contents[content_param] || content_param;
-        if (typeof neutral_param === "object") {
-            common_o.neutral = neutral_param[0];
-            common_o.neutralColor = neutral_param[1].match(/_color$/) ? defs[neutral_param[1]] : neutral_param[1];
-        } else if (neutral_param) common_o.neutral = neutral_param;
-        if (typeof negative_param === "object") {
-            common_o.negative = negative_param[0];
-            common_o.negativeColor = negative_param[1].match(/_color$/) ? defs[negative_param[1]] : negative_param[1];
-        } else if (negative_param) common_o.negative = negative_param;
-        if (typeof positive_param === "object") {
-            common_o.positive = positive_param[0];
-            common_o.positiveColor = positive_param[1].match(/_color$/) ? defs[positive_param[1]] : positive_param[1];
-        } else if (positive_param) common_o.positive = positive_param;
-        if (stay_flag) {
-            common_o.autoDismiss = false;
-            common_o.canceledOnTouchOutside = false;
+        let [$tt, $cnt, $neu, $neg, $pos, $keep, $cbx] = _regular;
+
+        void [
+            ["title", $tt], ["content", $cnt], ["neutral", $neu], ["negative", $neg], ["positive", $pos]
+        ].forEach(arr => _parseColorable.apply(null, arr));
+
+        if ($keep) {
+            _props.autoDismiss = _props.canceledOnTouchOutside = false;
         }
-        if (check_box_param) {
-            common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
+        if ($cbx) {
+            _props.checkBoxPrompt = typeof $cbx === "string" ? $cbx : "不再提示";
         }
 
-        let final_dialog = this.build(Object.assign({}, common_o, o));
-        global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
-        return final_dialog;
+        let _diag = this.build(Object.assign(_props, ext_props));
+
+        global._$_dialogs_pool = global._$_dialogs_pool || [];
+        global._$_dialogs_pool.push(_diag);
+
+        return _diag;
+
+        // tool function(s) //
+
+        function _parseColorable(key, par) {
+            if (Array.isArray(par)) {
+                let [_val, _color] = par;
+                _props[key] = _val;
+                _props[key + "Color"] = _color.match(/_color$/) ? _defs[_color] : _color;
+            } else if (par) {
+                _props[key] = key === "content" ? _diag_cnt[par] || par : par;
+            }
+        }
     },
+    /**
+     * @param {string} title
+     * @param {string} [prefill]
+     * @param {*} [callback]
+     * @returns {Promise<unknown>|any}
+     */
     rawInput(title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().rawInput(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
+        return isUiThread() && !callback ? new Promise((res) => {
+            rtDialogs().rawInput(title, prefill || "", function () {
+                res.apply(null, [].slice.call(arguments));
             });
+        }) : rtDialogs().rawInput(title, prefill || "", callback || null);
+    },
+    input(title, prefill, callback) {
+        if (callback) {
+            return this.rawInput(title, prefill || "", str => callback(eval(str)));
         }
-        return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+        if (isUiThread()) {
+            return new Promise(res => rtDialogs().rawInput(title, prefill || "", s => res(eval(s))));
+        }
+        let input = this.rawInput(title, prefill || "", callback || null);
+        if (typeof input === "string") {
+            return eval(input);
+        }
+    },
+    alert(title, prefill, callback) {
+        return isUiThread() && !callback ? new Promise((res) => {
+            rtDialogs().alert(title, prefill || "", function () {
+                res.apply(null, Array.prototype.slice.call(arguments));
+            });
+        }) : rtDialogs().alert(title, prefill || "", callback || null);
+    },
+    /**
+     * Show a message in dialogs title view (as toast message may be covered by dialog view)
+     * @param {com.stardust.autojs.core.ui.dialog.JsDialog} d
+     * @param {string} msg - message shown in title view
+     * @param {number} [duration=3e3] - time duration before message dismissed (0 for non-auto dismiss)
+     */
+    alertTitle(d, msg, duration) {
+        let _titles = global._$_alert_title_info = global._$_alert_title_info || {};
+        _titles[d] = _titles[d] || {};
+        _titles.message_showing ? ++_titles.message_showing : (_titles.message_showing = 1);
+
+        let _ori_txt = _titles[d].ori_text || "";
+        let _ori_color = _titles[d].ori_text_color || "";
+        let _ori_bg_color = _titles[d].ori_bg_color || "";
+
+        let _ori_view = d.getTitleView();
+        if (!_ori_txt) {
+            _titles[d].ori_text = _ori_txt = _ori_view.getText();
+        }
+        if (!_ori_color) {
+            _titles[d].ori_text_color = _ori_color = _ori_view.getTextColors().colors[0];
+        }
+        if (!_ori_bg_color) {
+            let _ori_view_bg_d = _ori_view.getBackground();
+            _ori_bg_color = _ori_view_bg_d && _ori_view_bg_d.getColor() || -1;
+            _titles[d].ori_bg_color = _ori_bg_color;
+        }
+
+        _setTitle(d, msg, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
+
+        duration === 0 || setTimeout(function () {
+            --_titles.message_showing || _setTitle(d, _ori_txt, _ori_color, _ori_bg_color);
+        }, duration || 3e3);
+
+        // tool function(s) //
+
+        function _setTitle(dialog, text, color, bg) {
+            let _title_view = dialog.getTitleView();
+            _title_view.setText(text);
+            _title_view.setTextColor(color);
+            _title_view.setBackgroundColor(bg);
+        }
+    },
+    /**
+     * Replace or append a message in dialogs content view
+     * @param {com.stardust.autojs.core.ui.dialog.JsDialog} d
+     * @param msg {string} - message shown in content view
+     * @param {boolean|"append"} [is_append=false]
+     * - whether original content is reserved or not
+     */
+    alertContent(d, msg, is_append) {
+        let _ori_view = d.getContentView();
+        let _ori_text = _ori_view.getText().toString();
+        let _is_append = is_append === "append" || is_append === true;
+
+        ui.post(() => {
+            _ori_view.setText((_is_append ? _ori_text + "\n\n" : "") + msg);
+            _ori_view.setTextColor(colors.parseColor("#283593"));
+            _ori_view.setBackgroundColor(colors.parseColor("#e1f5fe"));
+        });
     },
     prompt(title, prefill, callback) {
         return this.rawInput(title, prefill, callback);
     },
-    input(title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().rawInput(title, prefill, function (str) {
-                    resolve(eval(str));
-                });
-            });
-        }
-        if (callback) {
-            this.rawInput(title, prefill, function (str) {
-                callback(eval(str));
-            });
-            return;
-        }
-        let input_cont = this.rawInput(title, prefill, callback ? callback : null);
-        if (typeof input_cont === "string") {
-            return eval(input_cont);
-        }
-    },
-    alert(title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().alert(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
-            });
-        }
-        return rtDialogs().alert(title, prefill, callback ? callback : null);
-    },
     confirm(title, prefill, callback) {
-        prefill = prefill || "";
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().confirm(title, prefill, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
+        return isUiThread() && !callback ? new Promise((res) => {
+            rtDialogs().confirm(title, prefill || "", function () {
+                res.apply(null, Array.prototype.slice.call(arguments));
             });
-        }
-        return rtDialogs().confirm(title, prefill, callback ? callback : null);
+        }) : rtDialogs().confirm(title, prefill || "", callback || null);
     },
     select(title, items, callback) {
         if (items instanceof Array) {
-            if (isUiThread() && !callback) {
-                return new Promise(function (resolve) {
-                    rtDialogs().select(title, items, function () {
-                        resolve.apply(null, Array.prototype.slice.call(arguments));
-                    });
+            return isUiThread() && !callback ? new Promise((res) => {
+                rtDialogs().select(title, items, function () {
+                    res.apply(null, Array.prototype.slice.call(arguments));
                 });
-            }
-            return rtDialogs().select(title, items, callback ? callback : null);
+            }) : rtDialogs().select(title, items, callback || null);
         }
         return rtDialogs().select(title, [].slice.call(arguments, 1), null);
     },
     singleChoice(title, items, index, callback) {
-        index = index || 0;
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().singleChoice(title, index, items, function () {
-                    resolve.apply(null, Array.prototype.slice.call(arguments));
-                });
+        return isUiThread() && !callback ? new Promise((res) => {
+            rtDialogs().singleChoice(title, index || 0, items, function () {
+                res.apply(null, Array.prototype.slice.call(arguments));
             });
-        }
-        return rtDialogs().singleChoice(title, index, items, callback ? callback : null);
+        }) : rtDialogs().singleChoice(title, index || 0, items, callback || null);
     },
-    multiChoice(title, items, index, callback) {
-        index = index || [];
-        if (isUiThread() && !callback) {
-            return new Promise(function (resolve) {
-                rtDialogs().multiChoice(title, index, items, function (r) {
-                    resolve(javaArrayToJsArray(r));
-                });
-            });
-        }
-        if (callback) {
-            return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, function (r) {
-                callback(javaArrayToJsArray(r));
-            }));
-        }
-        return javaArrayToJsArray(rtDialogs().multiChoice(title, index, items, null));
-
-        function javaArrayToJsArray(javaArray) {
+    multiChoice(title, items, indices, callback) {
+        let arr = (javaArr) => {
             let jsArray = [];
-            let len = javaArray.length;
-            for (let i = 0; i < len; i++) {
-                jsArray.push(javaArray[i]);
+            for (let i = 0, l = javaArr.length; i < l; i++) {
+                jsArray.push(javaArr[i]);
             }
             return jsArray;
-        }
+        };
+        return !callback ? isUiThread()
+            ? new Promise(res => rtDialogs().multiChoice(title, indices || [], items, r => res(arr(r))))
+            : arr(rtDialogs().multiChoice(title, indices || [], items, null))
+            : arr(rtDialogs().multiChoice(title, indices || [], items, r => callback(arr(r))));
     },
     dismiss() {
-        for (let i = 0, l = arguments.length; i < l; i += 1) {
-            arguments[i].dismiss();
-        }
+        [].slice.call(arguments).forEach(d => d.dismiss());
     },
     disableBack(d, f) {
         // to prevent dialog from being dismissed
@@ -307,10 +352,81 @@ let ext = {
         );
         return d;
     },
-    getContentText: (d) => {
-        return d.getContentView().getText().toString();
+    getTitleText(d) {
+        return d ? d.getTitleView().getText().toString() : null;
+    },
+    setTitleText(d, str) {
+        d && d.getTitleView().setText(str ? str.toString() : "");
+    },
+    setTitleTextColor(d, color) {
+        d && d.getTitleView().setTextColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    setTitleBackgroundColor(d, color) {
+        d && d.getTitleView().setBackgroundColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    getContentText(d) {
+        return d ? d.getContentView().getText().toString() : null;
+    },
+    setContentText(d, str) {
+        d && d.getContentView().setText(str ? str.toString() : "");
+    },
+    setContentTextColor(d, color) {
+        d && d.getContentView().setTextColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    setContentBackgroundColor(d, color) {
+        d && d.getContentView().setBackgroundColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    getInputText(d) {
+        return d ? d.getInputEditText().getText().toString() : null;
+    },
+    setInputText(d, str) {
+        d && d.getInputEditText().setText(str ? str.toString() : "");
+    },
+    setInputTextColor(d, color) {
+        d && d.getInputEditText().setTextColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    setInputBackgroundColor(d, color) {
+        d && d.getInputEditText().setBackgroundColor(parseColor.apply(null, [].slice.call(arguments, 1)));
+    },
+    clearPool() {
+        (global._$_dialogs_pool || []).map((diag) => {
+            diag.dismiss();
+            diag = null;
+        }).splice(0);
+    },
+    /**
+     * @param {com.stardust.autojs.core.ui.dialog.JsDialog} d
+     * @param {"ALL"|"EMAIL_ADDRESSES"|"MAP_ADDRESSES"|"PHONE_NUMBERS"|"WEB_URLS"} [mask="ALL"]
+     */
+    linkify(d, mask) {
+        if (d) {
+            let _cnt_vw = d.getContentView();
+            let _cnt_text = _cnt_vw.getText().toString();
+            _cnt_vw.setAutoLinkMask(android.text.util.Linkify[mask || "ALL"]);
+            _cnt_vw.setText(_cnt_text);
+        }
     },
 };
 
 module.exports = ext;
 module.exports.load = () => global.dialogsx = ext;
+
+// tool function(s) //
+
+function parseColor(color) {
+    if (arguments.length === 4) {
+        return colors.argb.apply(colors, arguments);
+    }
+    if (arguments.length === 3) {
+        return colors.rgb.apply(colors, arguments);
+    }
+    if (arguments.length === 1) {
+        if (typeof color === "number") {
+            return color;
+        }
+        if (typeof color === "string") {
+            return colors.parseColor(color);
+        }
+    }
+    return -1; // white as default
+}
