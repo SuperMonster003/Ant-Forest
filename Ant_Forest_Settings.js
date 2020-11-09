@@ -3771,12 +3771,12 @@ let $$init = {
                     let diag_restoring = $$tool.getStepsDialog(
                         "恢复中",
                         [conf[mode].first_step_txt, "解压缩", "文件替换", "清理并完成项目恢复"],
-                        "恢复完成"
-                    ).on("positive", (d) => {
+                        "恢复完成");
+                    diag_restoring.on("positive", () => {
                         global._$_dialog_streaming_intrp_sgn = true;
-                        d.dismiss();
-                    }).show();
-
+                        diag_restoring.dismiss();
+                    });
+                    diag_restoring.show();
                     diag_restoring.setStep(1);
                     conf[mode].first_step_func();
 
