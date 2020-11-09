@@ -147,13 +147,17 @@ function parseDateTime(clazz, date_time) {
 }
 
 function addTask(task) {
-    TimedTaskMgr[is_pro ? "addTaskSync" : "addTask"](task);
-    return task;
+    if (task) {
+        TimedTaskMgr[is_pro ? "addTaskSync" : "addTask"](task);
+        return task;
+    }
 }
 
 function removeTask(task) {
-    TimedTaskMgr[is_pro ? "removeTaskSync" : "removeTask"](task);
-    return task;
+    if (task) {
+        TimedTaskMgr[is_pro ? "removeTaskSync" : "removeTask"](task);
+        return task;
+    }
 }
 
 function updateTask(task) {
