@@ -36,8 +36,6 @@ let ext = {
     deepCloneObject: deepCloneObject,
     equalObjects: equalObjects,
     smoothScrollView: smoothScrollView,
-    alertTitle: alertTitle,
-    alertContent: alertContent,
     observeToastMessage: observeToastMessage,
     captureErrScreen: captureErrScreen,
     getSelector: getSelector,
@@ -49,6 +47,7 @@ let ext = {
     setIntervalBySetTimeout: setIntervalBySetTimeout,
     classof: classof,
     checkSdkAndAJVer: checkSdkAndAJVer,
+    stabilizer: stabilizer,
 };
 module.exports = ext;
 module.exports.load = function () {
@@ -2158,16 +2157,14 @@ function swipeAndShow(f, params) {
         }
 
         function _chk_img() {
-            let _capt = (() => {
-                try {
-                    return images.captureScreen();
-                } catch (e) {
-                    images.requestScreenCapture();
-                    sleep(300);
-                    return images.captureScreen();
-                }
-            })();
-            let _mch = images.findImage(_capt, f);
+            if (typeof imagesx === "object") {
+                imagesx.permit();
+            } else if (!global._$_request_screen_capture) {
+                images.requestScreenCapture();
+                global._$_request_screen_capture = true;
+            }
+
+            let _mch = images.findImage(images.captureScreen(), f);
             if (_mch) {
                 return _ret = [_mch.x + f.width / 2, _mch.y + f.height / 2];
             }
@@ -2961,83 +2958,6 @@ function smoothScrollView(shifting, duration, pages_pool, base_view) {
 }
 
 /**
- * Show a message in dialogs title view (an alternative strategy for TOAST message which may be covered by dialogs box)
- * @global
- * @param {com.stardust.autojs.core.ui.dialog.JsDialog} dialog
- * @param {string} message - message shown in title view
- * @param {number} [duration=3e3] - time duration before message dismissed (0 for non-auto dismiss)
- */
-function alertTitle(dialog, message, duration) {
-    global["_$_alert_title_info"] = global["_$_alert_title_info"] || {};
-    let alert_title_info = global["_$_alert_title_info"];
-    alert_title_info[dialog] = alert_title_info[dialog] || {};
-    alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
-
-    let ori_text = alert_title_info[dialog].ori_text || "";
-    let ori_text_color = alert_title_info[dialog].ori_text_color || "";
-    let ori_bg_color = alert_title_info[dialog].ori_bg_color || "";
-
-    let ori_title_view = dialog.getTitleView();
-    if (!ori_text) {
-        ori_text = ori_title_view.getText();
-        alert_title_info[dialog].ori_text = ori_text;
-    }
-    if (!ori_text_color) {
-        ori_text_color = ori_title_view.getTextColors().colors[0];
-        alert_title_info[dialog].ori_text_color = ori_text_color;
-    }
-
-    if (!ori_bg_color) {
-        let bg_color_obj = ori_title_view.getBackground();
-        ori_bg_color = bg_color_obj && bg_color_obj.getColor() || -1;
-        alert_title_info[dialog].ori_bg_color = ori_bg_color;
-    }
-
-    setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
-
-    if (duration === 0) return;
-
-    setTimeout(function () {
-        alert_title_info["message_showing"]--;
-        if (alert_title_info["message_showing"]) return;
-        setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
-    }, duration || 3e3);
-
-    // tool function(s) //
-
-    function setTitleInfo(dialog, text, color, bg) {
-        let title_view = dialog.getTitleView();
-        title_view.setText(text);
-        title_view.setTextColor(color);
-        title_view.setBackgroundColor(bg);
-    }
-}
-
-/**
- * Replace or append a message in dialogs content view
- * @global
- * @param dialog {com.stardust.autojs.core.ui.dialog.JsDialog}
- * @param message {string} - message shown in content view
- * @param {string} [mode="replace"]
- * <br>
- *     -- "replace" - original content will be replaced <br>
- *     -- "append" - original content will be reserved
- */
-function alertContent(dialog, message, mode) {
-    let ori_content_view = dialog.getContentView();
-    let ori_text = ori_content_view.getText().toString();
-    mode = mode || "replace";
-
-    let text = (mode === "append" ? ori_text + "\n\n" : "") + message;
-
-    ui.post(() => {
-        ori_content_view.setText(text);
-        ori_content_view.setTextColor(colors.parseColor("#283593"));
-        ori_content_view.setBackgroundColor(colors.parseColor("#e1f5fe"));
-    });
-}
-
-/**
  * Observe message(s) from Toast by events.observeToast()
  * @global
  * @param aim_app_pkg {string}
@@ -3104,7 +3024,12 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
  * @see messageAction
  */
 function captureErrScreen(key_name, options) {
-    images.requestScreenCapture();
+    if (typeof imagesx === "object") {
+        imagesx.permit();
+    } else if (!global._$_request_screen_capture) {
+        images.requestScreenCapture();
+        global._$_request_screen_capture = true;
+    }
 
     let _opt = options || {};
     let _log_lv = _opt.log_level;
@@ -3195,25 +3120,34 @@ function getSelector(options) {
     )(m, lv, _opt.debug_info_flag);
     let _sel = selector();
     /**
-     * @typedef {{_cache_pool: {}, add(*, *=, *=): this, cache: {load(*, *=): (null|*), save: (function(*=): *), recycle(*): void, refresh(*=): void, reset(*=): *}, get(*, *=): (null|*), pickup((UiSelector$|UiObject$|string|RegExp|AdditionalSelector|(UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]), ("w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string)=, string=, {selector_prefer?: ("desc"|"text"), debug_info_flag?: boolean}=): (UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean), _sltr_pool: {}, getAndCache(*=): *}} ExtendedSelector
+     * @typedef {{_cache_pool: {}, add(*, *=, *=): this, cache: {load(*, *=): (null|*), save: (function(*=): *), recycle(*): void, refresh(*=): void, reset(*=): *}, get(*, *=): (null|*), pickup((UiSelector$|UiObject$|string|RegExp|AdditionalSelector|(UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]), ("w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string)=, string=, {selector_prefer?: ("desc"|"text"), debug_info_flag?: boolean}=): (UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean), _sel_body_pool: {}, getAndCache(*=): *}} ExtendedSelector
      */
     _sel.__proto__ = {
-        _sltr_pool: {},
+        _sel_body_pool: {},
         _cache_pool: {},
+        /**
+         * @typedef {
+         *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|
+         *     (UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]
+         * } UiSelector$pickup$sel_body
+         * @typedef {
+         *     UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean
+         * } UiSelector$pickup$return_value
+         * @typedef {
+         *     "w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string
+         * } UiSelector$pickup$res_type
+         */
         /**
          * Returns a selector (UiSelector) or widget (UiObject) or some attribute values
          * If no widgets (UiObject) were found, returns null or "" or false
          * If memory keyword was found in this session memory, use a memorized selector directly
          * @function UiSelector$.prototype.pickup
-         * @param {
-         *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|
-         *     (UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]
-         * } sel_body
+         * @param {UiSelector$pickup$sel_body} sel_body
          * <br>
          *     -- array mode 1: [selector_body: any, compass: string]
          *     -- array mode 2: [selector_body: any, additional_sel: array|object, compass: string]
          * @param {string} [mem_sltr_kw] - memory keyword
-         * @param {"w"|"widget"|"w_collection"|"widget_collection"|"wcollection"|"widgetcollection"|"w_c"|"widget_c"|"wc"|"widgetc"|"widgets"|"wids"|"s"|"sel"|"selector"|"e"|"exist"|"exists"|"t"|"txt"|"ss"|"sels"|"selectors"|"s_s"|"sel_s"|"selector_s"|"sstr"|"selstr"|"selectorstr"|"s_str"|"sel_str"|"selector_str"|"sstring"|"selstring"|"selectorstring"|"s_string"|"sel_string"|"selector_string"|UiObjectProperties|string} [res_type="widget"] -
+         * @param {UiSelector$pickup$res_type} [res_type="widget"] -
          * <br>
          *     -- "txt": available text()/desc() value or empty string
          *     -- "clickable": boolean value of widget.clickable()
@@ -3265,7 +3199,7 @@ function getSelector(options) {
          * // w = className("Button").findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
          * // w.parent().child(w.parent().childCount() - 1);
          * pickup([{className: "Button"}, "p5c1>0>0>0>1s-1"]);
-         * @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean}
+         * @returns {UiSelector$pickup$return_value}
          */
         pickup(sel_body, res_type, mem_sltr_kw, par) {
             let _sel_body = _classof(sel_body) === "Array" ? sel_body.slice() : [sel_body];
@@ -3395,8 +3329,8 @@ function getSelector(options) {
                     if (_body_class === "Object") {
                         let _s = selector();
                         Object.keys(_body).forEach((k) => {
+                            let _arg = _body[k];
                             let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
-                            let _arg = _body[_k];
                             _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                         });
                         return _s;
@@ -3574,42 +3508,57 @@ function getSelector(options) {
                 return _w || null;
             }
         },
-        /** @function UiSelector$.prototype.add */
+        /**
+         * @function UiSelector$.prototype.add
+         * @param {string} key
+         * @param {UiSelector$pickup$sel_body|(function(string): UiSelector$pickup$return_value)} sel_body
+         * @param {string} [mem]
+         * @example
+         * $$sel.add("list", className("ListView"));
+         *  // recommended
+         * console.log($$sel.get("list", "bounds"));
+         * // NullPointerException may occur
+         * console.log($$sel.get("list").bounds());
+         * // traditional way, and NullPointerException may occur
+         * console.log(className("ListView").findOnce().bounds());
+         * @returns {UiSelector$}
+         */
         add(key, sel_body, mem) {
-            let _mem = typeof mem === "string" ? mem : key;
-            this._sltr_pool[key] = typeof sel_body === "function"
+            this._sel_body_pool[key] = typeof sel_body === "function"
                 ? type => sel_body(type)
-                : type => this.pickup(sel_body, type, _mem);
-            return this;
+                : type => this.pickup(sel_body, type, mem || key);
+            return _sel; // to make method chaining possible
         },
-        /** @function UiSelector$.prototype.get */
+        /**
+         * @function UiSelector$.prototype.get
+         * @param {string} key
+         * @param {UiSelector$pickup$res_type|"cache"} [type]
+         * @example
+         *
+         * @throws {Error} `sel key '${key}' not set in pool`
+         * @returns {UiSelector$pickup$return_value|null}
+         */
         get(key, type) {
-            if (!(key in this._sltr_pool)) {
+            if (!(key in this._sel_body_pool)) {
                 throw Error("sel key '" + key + "' not set in pool");
             }
-            let _picker = this._sltr_pool[key];
-            if (!_picker) {
-                return null;
-            }
-            if (type && type.toString().match(/cache/)) {
-                return this._cache_pool[key] = _picker("widget");
-            }
-            return _picker(type);
+            let _picker = this._sel_body_pool[key];
+            return !_picker ? null : type === "cache"
+                ? (this._cache_pool[key] = _picker("w"))
+                : _picker(type);
         },
         /** @function UiSelector$.prototype.getAndCache */
         getAndCache(key) {
             // only "widget" type can be returned
-            return this.get(key, "save_cache");
+            return this.get(key, "cache");
         },
         /** @member UiSelector$.prototype.cache */
         cache: {
             save: (key) => _sel.getAndCache(key),
+            /** @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean|null} */
             load(key, type) {
-                let _widget = _sel._cache_pool[key];
-                if (!_widget) {
-                    return null;
-                }
-                return _sel.pickup(_sel._cache_pool[key], type);
+                let _cache = _sel._cache_pool[key];
+                return _cache ? _sel.pickup(_cache, type) : null;
             },
             refresh(key) {
                 let _cache = _sel._cache_pool[key];
@@ -4010,10 +3959,10 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * // @see "MODULE_MONSTER_FUNC.js"
  * let sel = getSelector();
  * // [[], [], []] -- 3 groups of data
- * baiduOcr(sel.pickup(/\xa0/, "widgets"), {
+ * console.log(baiduOcr(sel.pickup(/\xa0/, "widgets"), {
  *     fetch_times: 3,
  *     timeout: 12e3
- * });
+ * }));
  */
 function baiduOcr(src, par) {
     let _isRecycled = (img) => {
@@ -4034,7 +3983,13 @@ function baiduOcr(src, par) {
     }
     let _tt_ts = Date.now() + _tt;
 
-    _permitCapt();
+    if (typeof imagesx === "object") {
+        imagesx.permit();
+    } else if (!global._$_request_screen_capture) {
+        images.requestScreenCapture();
+        global._$_request_screen_capture = true;
+    }
+
     let _capt = _par.capt_img || images.captureScreen();
 
     let _messageAction = (
@@ -4188,7 +4143,7 @@ function baiduOcr(src, par) {
                 return _widgetsToImage(img);
             }
             return img;
-        });
+        }).filter(img => !!img);
 
         return _stitchImg(imgs);
 
@@ -4200,13 +4155,17 @@ function baiduOcr(src, par) {
         }
 
         function _widgetToImage(widget) {
-            // FIXME Nov 11, 2019
-            // there is a strong possibility that `widget.bounds()` would throw an exception
-            // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
-            let [$1, $2, $3, $4] = widget.toString()
-                .match(/.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/)
-                .map(x => Number(x)).slice(1);
-            return images.clip(_capt, $1, $2, $3 - $1, $4 - $2);
+            try {
+                // FIXME Nov 11, 2019
+                // there is a strong possibility that `widget.bounds()` would throw an exception
+                // like "Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde"
+                let [$1, $2, $3, $4] = widget.toString()
+                    .match(/.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/)
+                    .map(x => Number(x)).slice(1);
+                return images.clip(_capt, $1, $2, $3 - $1, $4 - $2);
+            } catch (e) {
+                // Wrapped java.lang.IllegalArgumentException: x + width must be <= bitmap.width()
+            }
         }
 
         function _widgetsToImage(widgets) {
@@ -4233,303 +4192,6 @@ function baiduOcr(src, par) {
                 }
             });
             return _stitched;
-        }
-    }
-
-    // monster function(s) //
-
-    // updated: Sep 12, 2020
-    function _permitCapt(params) {
-        if (global._$_request_screen_capture) {
-            return true;
-        }
-        let $_und = x => typeof x === "undefined";
-        let _par = params || {};
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
-
-        _debugInfo("开始申请截图权限");
-
-        let _waitForAction = (
-            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
-        );
-        let _messageAction = (
-            typeof messageAction === "function" ? messageAction : messageActionRaw
-        );
-        let _clickAction = (
-            typeof clickAction === "function" ? clickAction : clickActionRaw
-        );
-        let _getSelector = (
-            typeof getSelector === "function" ? getSelector : getSelectorRaw
-        );
-        let _$$sel = _getSelector();
-
-        if ($_und(_par.restart_this_engine_flag)) {
-            _par.restart_this_engine_flag = true;
-        } else {
-            let _self = _par.restart_this_engine_flag;
-            _par.restart_this_engine_flag = !!_self;
-        }
-        if (!_par.restart_this_engine_params) {
-            _par.restart_this_engine_params = {};
-        }
-        if (!_par.restart_this_engine_params.max_restart_engine_times) {
-            _par.restart_this_engine_params.max_restart_engine_times = 3;
-        }
-
-        _debugInfo("已开启弹窗监测线程");
-        let _thread_prompt = threads.start(function () {
-            let _sltr_remember = id("com.android.systemui:id/remember");
-            let _sel_remember = () => _$$sel.pickup(_sltr_remember);
-            let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
-            let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
-
-            if (_waitForAction(_sel_sure, 5e3)) {
-                if (_waitForAction(_sel_remember, 1e3)) {
-                    _debugInfo('勾选"不再提示"复选框');
-                    _clickAction(_sel_remember(), "w");
-                }
-                if (_waitForAction(_sel_sure, 2e3)) {
-                    let _w = _sel_sure();
-                    let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
-
-                    _debugInfo(_act_msg);
-                    _clickAction(_w, "w");
-
-                    if (!_waitForAction(() => !_sel_sure(), 1e3)) {
-                        _debugInfo("尝试click()方法再次" + _act_msg);
-                        _clickAction(_w, "click");
-                    }
-                }
-            }
-        });
-
-        let _thread_monitor = threads.start(function () {
-            if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
-                _thread_prompt.interrupt();
-                return _debugInfo("截图权限申请结果: 成功");
-            }
-            if (typeof $$flag !== "undefined") {
-                if (!$$flag.debug_info_avail) {
-                    $$flag.debug_info_avail = true;
-                    _debugInfo("开发者测试模式已自动开启", 3);
-                }
-            }
-            if (_par.restart_this_engine_flag) {
-                _debugInfo("截图权限申请结果: 失败", 3);
-                try {
-                    let _m = android.os.Build.MANUFACTURER.toLowerCase();
-                    if (_m.match(/xiaomi/)) {
-                        _debugInfo("__split_line__dash__");
-                        _debugInfo("检测到当前设备制造商为小米", 3);
-                        _debugInfo("可能需要给Auto.js以下权限:", 3);
-                        _debugInfo('>"后台弹出界面"', 3);
-                        _debugInfo("__split_line__dash__");
-                    }
-                } catch (e) {
-                    // nothing to do here
-                }
-                if (restartThisEngine(_par.restart_this_engine_params)) {
-                    return;
-                }
-            }
-            _messageAction("截图权限申请失败", 8, 1, 0, 1);
-        });
-
-        let _req_result = requestScreenCapture(false);
-        _thread_monitor.join();
-        return _req_result;
-
-        // raw function(s) //
-
-        function getSelectorRaw() {
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let sel = selector();
-            sel.__proto__ = sel.__proto__ || {};
-            if (typeof sel.__proto__.pickup !== "function") {
-                sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
-                    ? filter.toString().match(/UiObject/)
-                        ? filter
-                        : filter.findOnce()
-                    : typeof filter === "string"
-                        ? desc(filter).findOnce() || text(filter).findOnce()
-                        : classof(filter) === "RegExp"
-                            ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
-                            : null;
-            }
-            return sel;
-        }
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || " ";
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === "undefined" ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function clickActionRaw(o) {
-            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let _o = _classof(o) === "Array" ? o[0] : o;
-            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-            if (!_w) {
-                return false;
-            }
-            let _bnd = _w.bounds();
-            return click(_bnd.centerX(), _bnd.centerY());
-        }
-
-        // tool function(s) //
-
-        // updated: Aug 29, 2019
-        function restartThisEngine(params) {
-            let _params = params || {};
-
-            let _messageAction = (
-                typeof messageAction === "function" ? messageAction : messageActionRaw
-            );
-            let _debugInfo = (m, fg) => (
-                typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-            )(m, fg, _params.debug_info_flag);
-
-            let _my_e = engines.myEngine();
-            let _my_e_id = _my_e.id;
-            let _e_argv = _my_e.execArgv;
-
-            let _restart_times_a = _e_argv.max_restart_engine_times;
-            let _restart_times_p = _params.max_restart_engine_times;
-            let _restart_times;
-            if (typeof _restart_times_a === "undefined") {
-                _restart_times = typeof _restart_times_p === "undefined" ? 1 : +_restart_times_p;
-            } else {
-                _restart_times = +_restart_times_a;
-            }
-            if (!_restart_times) {
-                _messageAction("引擎重启已拒绝", 3);
-                return !~_messageAction("引擎重启次数已超限", 3, 0, 1);
-            }
-
-            let _restart_times_bak = +_e_argv.max_restart_engine_times_backup || _restart_times;
-            _debugInfo("重启当前引擎任务");
-            _debugInfo(">当前次数: " + (_restart_times_bak - _restart_times + 1));
-            _debugInfo(">最大次数: " + _restart_times_bak);
-            let _file_name = _params.new_file || _my_e.source.toString();
-            if (_file_name.match(/^\[remote]/)) {
-                _messageAction("远程任务不支持重启引擎", 8, 1, 0, 1);
-            }
-
-            let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? "" : ".js"));
-            _debugInfo("运行新引擎任务:\n" + _file_path);
-            engines.execScriptFile(_file_path, {
-                arguments: Object.assign({}, _params, {
-                    max_restart_engine_times: _restart_times - 1,
-                    max_restart_engine_times_backup: _restart_times_bak,
-                    instant_run_flag: _params.instant_run_flag,
-                }),
-            });
-            _debugInfo("强制停止旧引擎任务");
-            // _my_engine.forceStop();
-            engines.all().filter(e => e.id === _my_e_id).forEach(e => e.forceStop());
-            return true;
-
-            // raw function(s) //
-
-            function messageActionRaw(msg, lv, if_toast) {
-                let _msg = msg || " ";
-                if (lv && lv.toString().match(/^t(itle)?$/)) {
-                    return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-                }
-                if_toast && toast(_msg);
-                let _lv = typeof lv === "undefined" ? 1 : lv;
-                if (_lv >= 4) {
-                    console.error(_msg);
-                    _lv >= 8 && exit();
-                    return false;
-                }
-                if (_lv >= 3) {
-                    console.warn(_msg);
-                    return false;
-                }
-                if (_lv === 0) {
-                    console.verbose(_msg);
-                } else if (_lv === 1) {
-                    console.log(_msg);
-                } else if (_lv === 2) {
-                    console.info(_msg);
-                }
-                return true;
-            }
-
-            function debugInfoRaw(msg, msg_lv) {
-                msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-            }
-        }
-
-        // updated: Sep 12, 2020
-        function requestScreenCapture(landscape) {
-            let aj_pkg = context.packageName;
-            let is_pro = aj_pkg.match(/[Pp]ro/);
-            let is_pro_7 = is_pro && app.autojs.versionName.match(/^Pro 7/);
-            if (global._$_request_screen_capture) {
-                return true;
-            }
-            global._$_request_screen_capture = threads.atomic(1);
-
-            let javaImages = runtime.getImages();
-            let ResultAdapter = require.call(global, "result_adapter");
-            let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
-
-            let orientation = typeof landscape !== "boolean"
-                ? ScreenCapturer.ORIENTATION_AUTO
-                : landscape
-                    ? ScreenCapturer.ORIENTATION_LANDSCAPE
-                    : ScreenCapturer.ORIENTATION_PORTRAIT;
-            let adapter = !is_pro
-                ? javaImages.requestScreenCapture(orientation)
-                : javaImages.requestScreenCapture.apply(javaImages, [
-                    orientation /* orientation */,
-                    -1, /* width */
-                    -1, /* height */
-                    false /* isAsync */
-                ].slice(0, is_pro_7 ? 3 : 4));
-
-            if (ResultAdapter.wait(adapter)) {
-                return true;
-            }
-            delete global._$_request_screen_capture;
         }
     }
 
@@ -4892,5 +4554,66 @@ function checkSdkAndAJVer(params) {
 
     function debugInfoRaw(msg, msg_lv) {
         msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+    }
+}
+
+/**
+ * Wait until a generater, which generates variable values, is stable.
+ * And returns the final stable value.
+ * 1. Wait until generator returns different values (not longer than generator_timeout)
+ * 2. Wait until changing value is stable (not longer than stable_threshold each time)
+ * @param {function} num_generator
+ * @param {*} [init_value=NaN]
+ * @param {number} [generator_timeout=3000]
+ * @param {number} [stable_threshold=500]
+ * @example
+ * let a = ["John", "Zach", "Cole", "Eric"];
+ * toastLog("Rolling the dice...");
+ * toastLog(a[stabilizer(() => Math.floor(Math.random() * a.length))] + " is the lucky one");
+ * @returns {number}
+ */
+function stabilizer(num_generator, init_value, generator_timeout, stable_threshold) {
+    let _init = init_value === undefined ? NaN : Number(init_value);
+    let _cond_generator = () => {
+        let _num = Number(num_generator());
+        _init = isNaN(_init) ? _num : _init;
+        return _init !== _num;
+    };
+    let _waitForAction = (
+        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+    );
+
+    if (!_waitForAction(_cond_generator, generator_timeout || 3e3)) {
+        return NaN;
+    }
+
+    let _old = _init, _tmp = NaN;
+    let _cond_stable = () => _old !== (_tmp = num_generator());
+    let _limit = 60e3; // 1 min
+    let _start_ts = Date.now();
+
+    while (_waitForAction(_cond_stable, stable_threshold || 500)) {
+        _old = _tmp;
+        if (Date.now() - _start_ts > _limit) {
+            throw Error("stabilizer has reached max limitation: " + _limit + "ms");
+        }
+    }
+
+    return _old;
+
+    // raw function(s) //
+
+    function waitForActionRaw(cond_func, time_params) {
+        let _cond_func = cond_func;
+        if (!cond_func) return true;
+        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
+        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+        while (!_cond_func() && _check_time >= 0) {
+            sleep(_check_interval);
+            _check_time -= _check_interval;
+        }
+        return _check_time >= 0;
     }
 }

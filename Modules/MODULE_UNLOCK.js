@@ -9,7 +9,7 @@
  * // forcibly disable debugInfo() for not showing debug logs in console
  * require("./MODULE_UNLOCK").unlock(false);
  *
- * @since Sep 14, 2020
+ * @since Oct 24, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -148,6 +148,7 @@ function _overrideRequire() {
                 // monster function(s) //
 
                 // updated: Sep 20, 2020
+                // modified: no internal raw function(s)
                 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
                     let $_flag = global.$$flag = global.$$flag || {};
                     if ($_flag.no_msg_act_flag) {
@@ -278,14 +279,6 @@ function _overrideRequire() {
                     }
 
                     return !~[3, 4].indexOf(_msg_lv);
-
-                    // raw function(s) //
-
-                    function showSplitLineRaw(extra, style) {
-                        console.log((
-                            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
-                        ) + (extra || ""));
-                    }
                 }
 
                 // updated: Sep 19, 2020
@@ -296,6 +289,7 @@ function _overrideRequire() {
                 }
 
                 // updated: Aug 2, 2020
+                // modified: no internal raw function(s)
                 function waitForAction(f, timeout_or_times, interval, params) {
                     let _par = params || {};
                     _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
@@ -364,34 +358,6 @@ function _overrideRequire() {
                             return _logic === "all";
                         }
                         _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
-                    }
-
-                    // raw function(s) //
-
-                    function messageActionRaw(msg, lv, if_toast) {
-                        let _msg = msg || " ";
-                        if (lv && lv.toString().match(/^t(itle)?$/)) {
-                            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-                        }
-                        if_toast && toast(_msg);
-                        let _lv = typeof lv === "undefined" ? 1 : lv;
-                        if (_lv >= 4) {
-                            console.error(_msg);
-                            _lv >= 8 && exit();
-                            return false;
-                        }
-                        if (_lv >= 3) {
-                            console.warn(_msg);
-                            return false;
-                        }
-                        if (_lv === 0) {
-                            console.verbose(_msg);
-                        } else if (_lv === 1) {
-                            console.log(_msg);
-                        } else if (_lv === 2) {
-                            console.info(_msg);
-                        }
-                        return true;
                     }
                 }
 
@@ -626,7 +592,7 @@ function _overrideRequire() {
                 }
 
                 // updated: Aug 29, 2020
-                // modified: no internal raw
+                // modified: no internal raw function(s)
                 function keycode(code, params) {
                     let _par = params || {};
                     _par.no_impeded || typeof $$impeded === "function" && $$impeded(keycode.name);
@@ -815,6 +781,7 @@ function _overrideRequire() {
                 }
 
                 // updated: Sep 29, 2020
+                // modified: no internal raw function(s)
                 function getSelector(options) {
                     let _opt = options || {};
                     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
@@ -1151,12 +1118,6 @@ function _overrideRequire() {
                         },
                     };
                     return _sel;
-
-                    // raw function(s) //
-
-                    function debugInfoRaw(msg, msg_lv) {
-                        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-                    }
                 }
 
                 // updated: Sep 28, 2020
@@ -1346,7 +1307,6 @@ function _overrideRequire() {
                     }
 
                     files.createWithDirs(_path);
-                    files.open(_path);
 
                     // eg: {SCPrMtaB:"A",doaAisDd:"%"}
                     let _res = {};
@@ -1889,6 +1849,7 @@ function _activeExtension() {
 function _chkF(s, override_par_num) {
     /** @type function */
     let _f = (() => {
+        /** @see _overrideRequire */
         let _mon = require("./MODULE_MONSTER_FUNC");
         if (typeof global[s] === "function") {
             return global[s];
@@ -1909,7 +1870,7 @@ function _chkF(s, override_par_num) {
             _aim_par = Object.assign(_aim_par, {no_impeded: true});
         }
         _args[override_par_num] = _aim_par;
-        return _f.apply({}, _args);
+        return _f.apply(null, _args);
     }
 }
 
@@ -1946,10 +1907,9 @@ function _isUnlk() {
 
 function _wakeUpIFN() {
     if (!_isScrOn()) {
-        let [_ctr, _max] = [0, 4];
+        let _ctr = 0, _max = 4;
         while (1) {
-            let _s = " (" + _ctr + "/" + _max + ")";
-            debugInfo(!_ctr ? "尝试唤起设备" : "重试唤起设备" + _s);
+            _debugAct("唤起设备", _ctr, _max);
 
             device.wakeUpIfNeeded();
 
@@ -1981,32 +1941,42 @@ function _unlkSetter() {
                 let _map = {
                     common: {
                         desc: "通用",
-                        selector: idMatches(_as + "preview_container")
+                        selector: idMatches(_as + "preview_container"),
                     },
                     emui: {
                         desc: "EMUI",
-                        selector: idMatches(_as + ".*(keyguard|lock)_indication.*")
+                        selector: idMatches(_as + ".*(keyguard|lock)_indication.*"),
                     },
                     smartisanos: {
                         desc: "锤子科技",
-                        selector: idMatches(_sk + "keyguard_(content|.*view)")
+                        selector: idMatches(_sk + "keyguard_(content|.*view)"),
                     },
                     miui: {
                         desc: "MIUI",
-                        selector: idMatches(_ak + "(.*unlock_screen.*|.*notification_.*(container|view).*)")
+                        selector: idMatches(_ak + "(.*unlock_screen.*|.*notification_.*(container|view).*|dot_digital)"),
                     },
                     miui10: {
                         desc: "MIUI10",
-                        selector: idMatches(_as + "((.*lock_screen|notification)_(container.*|panel.*)|keyguard_.*)")
+                        selector: idMatches(_as + "(.*lock_screen_container|notification_(container|panel).*|keyguard_.*)"),
+                    },
+                    _dismiss_hint_: {
+                        selector: $_sel.pickup(/上滑.{0,4}解锁/, "selector"),
                     },
                 };
 
                 for (let key in _map) {
                     if (_map.hasOwnProperty(key)) {
                         let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel.exists()) {
-                            debugInfo("匹配到" + _desc + "解锁提示层控件");
-                            return (this.trigger = _sel.exists.bind(_sel))();
+                        if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                            if (_sel.exists()) {
+                                if (_desc) {
+                                    debugInfo("匹配到" + _desc + "解锁提示层控件");
+                                } else {
+                                    debugInfo("匹配到解锁提示层文字:");
+                                    debugInfo($_sel.pickup(_sel, "txt"));
+                                }
+                                return (this.trigger = _sel.exists.bind(_sel))();
+                            }
                         }
                     }
                 }
@@ -2017,9 +1987,8 @@ function _unlkSetter() {
                     let _map = {
                         qq_msg_box: {
                             trigger() {
-                                let _cA = () => $_sel.pickup("按住录音");
-                                let _cB = () => idMatches(/com.tencent.mobileqq:id.+/).exists();
-                                return _cA() || _cB();
+                                return $_sel.pickup("按住录音")
+                                    || $_sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
                             },
                             handle() {
                                 let _this = this;
@@ -2034,12 +2003,7 @@ function _unlkSetter() {
                         },
                     };
 
-                    for (let key in _map) {
-                        if (_map.hasOwnProperty(key)) {
-                            let _o = _map[key];
-                            _o.trigger() && _o.handle();
-                        }
-                    }
+                    Object.keys(_map).forEach(k => _map[k].trigger() && _map[k].handle());
                 }
             },
             dismiss() {
@@ -2081,14 +2045,11 @@ function _unlkSetter() {
                     let _ctr = 0;
                     devicex.keepOn(3);
                     while (!_lmt()) {
-                        let _s = " (" + _ctr + "/" + _max + ")";
-                        _ctr
-                            ? debugInfo("重试消除解锁页面提示层" + _s)
-                            : debugInfo("尝试消除解锁页面提示层");
+                        _debugAct("消除解锁页面提示层", _ctr, _max);
                         debugInfo("滑动时长: " + _time + "毫秒");
                         debugInfo("参数来源: " + (_from_sto ? "本地存储" : "自动计算"));
 
-                        gesture.apply({}, [_time].concat(_par));
+                        gesture.apply(null, [_time].concat(_par));
 
                         if (_this.succ()) {
                             break;
@@ -2154,26 +2115,19 @@ function _unlkSetter() {
                 return !this.succ_fg && this.trigger() && this.dismiss();
             },
             succ() {
-                let _this = this;
-                let _cA1 = () => !_this.trigger();
-                let _cA = () => waitForAction(_cA1, 1.5e3);
-                let _cB = () => $_unlk.unlk_view.trigger();
-                return _cA() || _cB();
+                return waitForAction(function () {
+                    return !this.trigger();
+                }.bind(this), 1.5e3) || $_unlk.unlk_view.trigger();
             },
         },
         unlk_view: {
             trigger() {
                 let _this = this;
 
-                if (_isScrOn()) {
-                    return _pattern()
-                        || _password()
-                        || _pin()
-                        || _specials()
-                        || _unmatched();
+                if (!_isScrOn()) {
+                    return debugInfo(["跳过解锁控件检测", ">屏幕未亮起"]);
                 }
-                debugInfo("跳过解锁控件检测");
-                debugInfo(">屏幕未亮起");
+                return _pattern() || _password() || _pin() || _specials() || _unmatched();
 
                 // tool function(s) //
 
@@ -2215,10 +2169,7 @@ function _unlkSetter() {
                         let _ctr = 0;
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
-                            let _s = " (" + _ctr + "/" + _max + ")";
-                            _ctr
-                                ? debugInfo("重试图案密码解锁" + _s)
-                                : debugInfo("尝试图案密码解锁");
+                            _debugAct("图案密码解锁", _ctr, _max);
                             debugInfo("滑动时长: " + _time + "毫秒");
                             debugInfo("滑动策略: " + _stg_map[_stg]);
 
@@ -2236,11 +2187,11 @@ function _unlkSetter() {
                                         let _pts2 = [_pt2[0], _pt2[1]];
                                         _par.push([_t1, _t2, _pts1, _pts2]);
                                     }
-                                    gestures.apply({}, _par);
+                                    gestures.apply(null, _par);
                                 },
                                 solid() {
                                     let _par = [_time].concat(_pts);
-                                    gesture.apply({}, _par);
+                                    gesture.apply(null, _par);
                                 },
                             };
 
@@ -2495,28 +2446,21 @@ function _unlkSetter() {
 
                         let _rex = /确.|完成|[Cc]onfirm|[Ee]nter/;
                         let _cfm_btn = type => $_sel.pickup([_rex, {
-                            className: "Button",
-                            clickable: true,
+                            className: "Button", clickable: true,
                         }], type);
 
                         let _ctr = 0;
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
-                            let _s = " (" + _ctr + "/" + _max + ")";
-                            debugInfo(_ctr
-                                ? "重试密码解锁" + _s
-                                : "尝试密码解锁"
-                            );
-
+                            _debugAct("密码解锁", _ctr, _max);
                             _this.sel.setText(_pw);
-
                             _keypadAssistIFN();
 
-                            let _cfm_nod = _cfm_btn("widget");
-                            if (_cfm_nod) {
+                            let _w_cfm = _cfm_btn("widget");
+                            if (_w_cfm) {
                                 debugInfo('点击"' + _cfm_btn("txt") + '"按钮');
                                 try {
-                                    clickAction(_cfm_nod, "w");
+                                    clickAction(_w_cfm, "w");
                                 } catch (e) {
                                     debugInfo("按钮点击可能未成功", 3);
                                 }
@@ -2524,13 +2468,11 @@ function _unlkSetter() {
                             if (_this.succ(2)) {
                                 break;
                             }
-                            if (_has_root) {
-                                if (!shell("input keyevent 66", true).code) {
-                                    debugInfo("使用Root权限模拟回车键");
-                                    sleep(480);
-                                    if (_this.succ()) {
-                                        break;
-                                    }
+                            if (_has_root && !shell("input keyevent 66", true).code) {
+                                debugInfo("使用Root权限模拟回车键");
+                                sleep(480);
+                                if (_this.succ()) {
+                                    break;
                                 }
                             }
                             _ctr += 1;
@@ -2653,16 +2595,11 @@ function _unlkSetter() {
                         let _len = _dist.length;
                         for (let i = 0; i < _len; i += 1) {
                             let _pattern = _dist[i];
-                            let _cA1 = () => $_str(_pattern);
-                            let _cA2 = () => id(_pattern).exists();
-                            let _cA = () => _cA1() && _cA2();
-                            let _cB1 = () => $_rex(_pattern);
-                            let _cB2 = () => idMatches(_pattern).exists();
-                            let _cB = () => _cB1() && _cB2();
+                            let _cA = () => $_str(_pattern) && id(_pattern).exists();
+                            let _cB = () => $_rex(_pattern) && idMatches(_pattern).exists();
                             if (_cA() || _cB()) {
                                 _this.misjudge = _pattern;
-                                debugInfo("匹配到误判干扰");
-                                debugInfo("转移至PIN解锁方案");
+                                debugInfo(["匹配到误判干扰", "转移至PIN解锁方案"]);
                                 return true;
                             }
                         }
@@ -2722,22 +2659,11 @@ function _unlkSetter() {
                         let _ctr = 0;
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
-                            let _s = " (" + _ctr + "/" + _max + ")";
-                            debugInfo(_ctr
-                                ? "重试PIN解锁" + _s
-                                : "尝试PIN解锁"
-                            );
+                            _debugAct("PIN解锁", _ctr, _max);
 
-                            if ($_func(_this.unlockPin)) {
-                                _this.unlockPin();
-                            } else {
-                                _unlockPin();
-                            }
+                            $_func(_this.unlockPin) ? _this.unlockPin() : _unlockPin();
 
-                            if (_this.succ()) {
-                                break;
-                            }
-                            if (_clickKeyEnter()) {
+                            if (_this.succ() || _clickKeyEnter()) {
                                 break;
                             }
                             _ctr += 1;
@@ -3037,14 +2963,7 @@ function _unlkSetter() {
                         }
                     }
                     debugInfo("已构建拨号盘数字坐标");
-                    _keypads.forEach((pt, i) => {
-                        debugInfo(i + ": (" + pt.x + ", " + pt.y + ")");
-                    });
-
-                    pw.forEach((v) => {
-                        let _pt = _keypads[+v || 11];
-                        click(_pt.x, _pt.y);
-                    });
+                    pw.forEach(v => clickAction(_keypads[v || 11]));
                 }
             },
             dismiss() {
@@ -3078,34 +2997,18 @@ function _unlkSetter() {
                 // tool function(s) //
 
                 function _correct() {
-                    // just for typo avoidance
-                    let _rex_text = new RegExp(
-                        ".*(" +
-                        "重试|不正确|错误|" +
-                        "Incorrect|incorrect|" +
-                        "Retry|retry|" +
-                        "Wrong|wrong" +
-                        ").*"
-                    );
-                    let _txt = $_sel.pickup(_rex_text, "txt");
-                    let _rex_id = new RegExp(
-                        _ak + "phone_locked_textview"
-                    );
-                    if (_txt) {
-                        return _err_shown_fg || debugInfo(_txt, 3);
+                    let _w_bad = $_sel.pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
+                    if (_w_bad) {
+                        return _err_shown_fg || debugInfo($_sel.pickup(_w_bad, "txt"), 3);
                     }
-                    if (idMatches(_rex_id).exists()) {
+                    if (idMatches(new RegExp(_ak + "phone_locked_textview")).exists()) {
                         return _err_shown_fg || debugInfo("密码错误", 3);
                     }
                     return true;
                 }
 
                 function _chkTryAgain() {
-                    let _rex = new RegExp(".*(" +
-                        "[Tt]ry again in.+|\\d+.*后重试" +
-                        ").*");
-                    let _sltr = textMatches(_rex);
-                    let _chk = () => _sltr.exists();
+                    let _chk = () => $_sel.pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
                     if (_chk()) {
                         debugInfo("正在等待重试超时");
                         waitForAction(() => !_chk(), 65e3, 500);
@@ -3113,13 +3016,10 @@ function _unlkSetter() {
                 }
 
                 function _chkOKBtn() {
-                    let _rex = /OK|确([认定])|好的?/;
-                    let _sltr = textMatches(_rex);
-                    let _widget = _sltr.findOnce();
-                    if (_widget) {
-                        let _txt = _widget.text();
-                        debugInfo('点击"' + _txt + '"按钮');
-                        clickAction(_widget, "w");
+                    let _w_ok = $_sel.pickup(/OK|确([认定])|好的?/);
+                    if (_w_ok) {
+                        debugInfo('点击"' + $_sel.pickup(_w_ok, "txt") + '"按钮');
+                        clickAction(_w_ok, "w");
                         sleep(1e3);
                     }
                 }
@@ -3170,11 +3070,7 @@ function _unlock(forc_debug) {
     function _lmtRch() {
         let _max = _max_try;
         let _ctr = $_und(_unlock.ctr) ? _unlock.ctr = 0 : ++_unlock.ctr;
-        if (_ctr > _max) {
-            return _err("解锁尝试次数已达上限");
-        }
-        let _s = " (" + _ctr + "/" + _max + ")";
-        debugInfo(_ctr ? "重试解锁" + _s : "尝试解锁");
+        _ctr > _max ? _err("解锁尝试次数已达上限") : _debugAct("解锁", _ctr, _max);
         sleep(240);
     }
 
@@ -3214,8 +3110,11 @@ function _export() {
 }
 
 function _execute() {
-    util.extend()
     // TODO dialogsx.builds() -- 1. functional test  2. configuration  3. module usage
+}
+
+function _debugAct(act_str, ctr, max) {
+    debugInfo(ctr ? "重试" + act_str + " (" + ctr + "/" + max + ")" : "尝试" + act_str);
 }
 
 // raw function(s) //

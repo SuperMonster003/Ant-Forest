@@ -31,7 +31,7 @@ module.exports = {
         // 1.0 <= x <= 3.0; value should not bigger than homepage_monitor_threshold
         homepage_bg_monitor_threshold: 1,
         // max hue value in HSB mode without blue component for water wall identification
-        homepage_water_ball_max_hue_b0: 44,
+        homepage_wball_max_hue_b0: 42,
         // seriously? i cannot believe it if you turn this switch off
         friend_collect_switch: true,
         // color for collect icon with a hand pattern
@@ -43,7 +43,7 @@ module.exports = {
         // 50 <= x <= 500; interval between two samples when saving into forest balls samples pool
         forest_balls_pool_itv: 240,
         // rectangle region for energy balls recognition in forest page
-        forest_balls_rect_region: [cX(0.1), cYx(0.18), cX(0.9), cYx(0.45)],
+        forest_balls_recog_region: [cX(0.1), cYx(0.15), cX(0.9), cYx(0.45)],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
         hough_src_img_strategy: {
             gray: true, // images.grayscale(image)
@@ -175,6 +175,11 @@ module.exports = {
         // some others
         stat_list_show_zero: 1, // hide zero
         stat_list_date_range: 2, // today
+        global_log_switch: false,
+        global_log_cfg_file_path: "./Log/",
+        global_log_cfg_file_pattern: "%d{yyyy-MM-dd/}%m%n",
+        global_log_cfg_max_backup_size: 7,
+        global_log_cfg_max_file_size: 320, // KB
     },
     unlock: {
         // when we first met, i do not know your name, your age, or, your sexual orientation, wow...
@@ -202,7 +207,7 @@ module.exports = {
         subhead_highlight_color: "#bf360c",
         info_color: "#78909c",
         title_default_color: "#202020",
-        title_caution_color: "#b71c1c",
+        title_caution_color: "#880e4f",
         title_bg_color: "#03a6ef",
         list_title_bg_color: "#afefff",
         btn_on_color: "#ffffff",

@@ -1,12 +1,9 @@
-"ui";
+// noinspection BadExpressionStatementJS
+"ui"; // Auto.js UI mode with global object `activity`
 
 /**
- * @description graphic configuration tool for unlock module
- *
- * @example
- * require("./MODULE_UNLOCK").unlock();
- *
- * @since Jan 9, 2020
+ * Configuration tool for unlock module
+ * @since Nov 4, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -40,15 +37,15 @@ require = function (path) {
 let dialogsx = loadInternalModuleDialog();
 
 let {
-    equalObjects, deepCloneObject, alertTitle, waitForAction, classof
+    equalObjects, deepCloneObject, waitForAction, classof
 } = require("../Modules/MODULE_MONSTER_FUNC") || loadInternalModuleMonsterFunc();
 
-let session_params = {};
+let sess_par = {};
 let view_pages = {};
 let dynamic_views = [];
 
 let {WIDTH, cX} = (() => {
-    let _mod = require("../Modules/EXT_DEVICE");
+    let _mod = require("    /EXT_DEVICE");
     return _mod ? _mod.getDisplay() : {WIDTH: device.width, cX: x => device.width * x};
 })();
 
@@ -66,63 +63,59 @@ let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
         unlock_dismiss_layer_swipe_time: 110,
     }; // updated: Nov 14, 2019
 
-let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).settings
-    || {
-        item_area_width: 0.78,
-        subhead_color: "#03a6ef",
-        subhead_highlight_color: "#bf360c",
-        info_color: "#78909c",
-        title_default_color: "#202020",
-        title_caution_color: "#b71c1c",
-        title_bg_color: "#03a6ef",
-        list_title_bg_color: "#afefff",
-        btn_on_color: "#ffffff",
-        btn_off_color: "#bbcccc",
-        split_line_color: "#bbcccc",
-        caution_btn_color: "#ff3d00",
-        attraction_btn_color: "#7b1fa2",
-        warn_btn_color: "#f57c00",
-        content_default_color: "#757575",
-        content_dark_color: "#546e7a",
-        content_warn_color: "#ad1457",
-        hint_btn_dark_color: "#a1887f",
-        hint_btn_bright_color: "#26a69a",
-    };  // updated: Nov 14, 2019
+let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).settings || {
+    item_area_width: 0.78,
+    subhead_color: "#03a6ef",
+    subhead_highlight_color: "#bf360c",
+    info_color: "#78909c",
+    title_default_color: "#202020",
+    title_caution_color: "#880e4f",
+    title_bg_color: "#03a6ef",
+    list_title_bg_color: "#afefff",
+    btn_on_color: "#ffffff",
+    btn_off_color: "#bbcccc",
+    split_line_color: "#bbcccc",
+    caution_btn_color: "#ff3d00",
+    attraction_btn_color: "#7b1fa2",
+    warn_btn_color: "#f57c00",
+    content_default_color: "#757575",
+    content_dark_color: "#546e7a",
+    content_warn_color: "#ad1457",
+    hint_btn_dark_color: "#a1887f",
+    hint_btn_bright_color: "#26a69a",
+};  // updated: Nov 4, 2020
 
 let encrypt = (require("../Modules/MODULE_PWMAP") || loadInternalModulePWMAP()).encrypt;
-
 let storage_unlock = (require("../Modules/MODULE_STORAGE") || loadInternalModuleStorage()).create("unlock");
-
 let storage_config = initStorageConfig();
-let session_config = deepCloneObject(storage_config);
+let sess_cfg = deepCloneObject(storage_config);
 
-let needSave = () => !equalObjects(session_config, storage_config);
-let saveNow = () => storage_unlock.put("config", storage_config = deepCloneObject(session_config));
+let needSave = () => !equalObjects(sess_cfg, storage_config);
+let saveNow = () => storage_unlock.put("config", storage_config = deepCloneObject(sess_cfg));
 let saveSession = (key, value, quiet_flag) => {
     if (value !== undefined) {
-        if (classof(value, "Object") && classof(session_config[key], "Object")) {
+        if (classof(value, "Object") && classof(sess_cfg[key], "Object")) {
             Object.keys(value).forEach((k) => {
                 let v = value[k];
-                if (typeof v === "object") {
-                    session_config[key][k] = Object.assign({}, session_config[key][k], v);
-                } else {
-                    session_config[key][k] = v;
-                }
+                sess_cfg[key][k] = typeof v === "object" ? Object.assign({}, sess_cfg[key][k], v) : v;
             })
-        } else session_config[key] = value;
+        } else {
+            sess_cfg[key] = value;
+        }
     }
-    if (quiet_flag) return;
-    updateAllValues();
-    threads.start(function () {
-        let btn_save = null;
-        waitForAction(() => btn_save = session_params["homepage_btn_save"], 10e3, 80);
-        ui.post(() => needSave() ? btn_save.switch_on() : btn_save.switch_off());
-    });
+    if (!quiet_flag) {
+        updateAllValues();
+        threads.start(function () {
+            let btn_save = null;
+            waitForAction(() => btn_save = sess_par["homepage_btn_save"], 10e3, 80);
+            ui.post(() => needSave() ? btn_save.switch_on() : btn_save.switch_off());
+        });
+    }
 };
 let updateAllValues = (only_new_flag) => {
-    let raw_idx = session_params.dynamic_views_raw_idx || 0;
+    let raw_idx = sess_par.dynamic_views_raw_idx || 0;
     dynamic_views.slice(only_new_flag ? raw_idx : 0).forEach(view => view.updateOpr(view));
-    if (only_new_flag) session_params.dynamic_views_raw_idx = dynamic_views.length;
+    if (only_new_flag) sess_par.dynamic_views_raw_idx = dynamic_views.length;
 };
 
 let defs = Object.assign({}, DEFAULT_SETTINGS, {
@@ -132,7 +125,10 @@ let defs = Object.assign({}, DEFAULT_SETTINGS, {
     dialog_contents: (require("../Modules/MODULE_TREASURY_VAULT") || loadInternalDialogContents()).dialog_contents,
 });
 
-initUI("#000000");
+ui.layout(<vertical id="main">
+    <frame/>
+</vertical>);
+ui.statusBarColor("#000000");
 
 setHomePage(defs.homepage_title)
     .add("subhead", new Layout("基本设置"))
@@ -140,59 +136,74 @@ setHomePage(defs.homepage_title)
         config_conj: "unlock_code",
         hint: "加载中...",
         newWindow() {
-            let diag = dialogsx.builds(["设置锁屏解锁密码", this.config_conj, ["查看示例", "hint_btn_bright_color"], "返回", "确认", 1], {
-                inputHint: "密码将以密文形式存储在本地",
-            });
-            diag.on("neutral", () => {
-                let diag_demo = dialogsx.builds(["锁屏密码示例", "unlock_code_demo", ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1]);
-                diag_demo.on("neutral", () => {
-                    let diag_simp = dialogsx.builds(["图案解锁密码简化", "about_pattern_simplification", 0, 0, "关闭", 1]);
-                    diag_simp.on("positive", () => diag_simp.dismiss());
-                    diag_simp.show();
-                });
-                diag_demo.on("positive", () => diag_demo.dismiss());
-                diag_demo.show();
-            });
-            diag.on("negative", () => diag.dismiss());
-            diag.on("positive", () => {
-                let input = diag.getInputEditText().getText().toString();
-                if (input && input.length < 3) return alertTitle(diag, "密码长度不小于 3 位");
-                if (input && !storage_unlock.get("unlock_code_safe_dialog_prompt_prompted")) {
-                    let unlock_code_safe_dialog_prompt_prompted = false;
-                    let diag_prompt = dialogsx.builds([
-                        "风险提示", "unlock_code_safe_confirm",
-                        ["了解详情", "hint_btn_bright_color"], "放弃", ["继续", "caution_btn_color"], 1, 1
-                    ]);
-                    diag_prompt.on("check", checked => unlock_code_safe_dialog_prompt_prompted = !!checked);
-                    diag_prompt.on("neutral", () => {
-                        let diag_about = dialogsx.builds([
-                            "设备遗失对策", "about_lost_device_solution",
+            dialogsx
+                .builds([
+                    "设置锁屏解锁密码", this.config_conj,
+                    ["查看示例", "hint_btn_bright_color"], "返回", "确认", 1
+                ], {inputHint: "密码将以密文形式存储在本地"})
+                .on("neutral", () => {
+                    dialogsx.builds([
+                        "锁屏密码示例", "unlock_code_demo",
+                        ["了解点阵简化", "hint_btn_bright_color"], 0, "关闭", 1
+                    ]).on("neutral", () => {
+                        dialogsx.builds([
+                            "图案解锁密码简化", "about_pattern_simplification",
                             0, 0, "关闭", 1
-                        ]).on("positive", diag => diag.dismiss()).show();
-                        let content_view = diag_about.getContentView();
-                        let content_text_ori = content_view.getText().toString();
-                        content_view.setAutoLinkMask(android.text.util.Linkify.WEB_URLS);
-                        content_view.setText(content_text_ori);
-                    });
-                    diag_prompt.on("negative", () => diag_prompt.dismiss());
-                    diag_prompt.on("positive", () => {
-                        if (unlock_code_safe_dialog_prompt_prompted) {
-                            storage_unlock.put("unlock_code_safe_dialog_prompt_prompted", true);
-                        }
+                        ]).on("positive", ds => ds.dismiss()).show();
+                    }).on("positive", (d) => {
+                        d.dismiss();
+                    }).show();
+                })
+                .on("negative", (d) => {
+                    d.dismiss();
+                })
+                .on("positive", (d) => {
+                    let input = dialogsx.getInputText(d);
+                    if (input && input.length < 3) {
+                        return dialogsx.alertTitle(d, "密码长度不小于 3 位");
+                    }
+                    if (input && !storage_unlock.get("unlock_code_safe_dialog_prompt_prompted")) {
+                        let safety_prompted = false;
+                        dialogsx
+                            .builds([
+                                "风险提示", "unlock_code_safe_confirm",
+                                ["了解详情", "hint_btn_bright_color"], "放弃",
+                                ["继续", "caution_btn_color"], 1, 1
+                            ])
+                            .on("check", (checked) => {
+                                safety_prompted = !!checked;
+                            })
+                            .on("neutral", () => {
+                                let diag_about = dialogsx.builds([
+                                    "设备遗失对策", "about_lost_device_solution",
+                                    0, 0, "关闭", 1
+                                ]).on("positive", ds2 => ds2.dismiss()).show();
+                                let cnt_view = diag_about.getContentView();
+                                let cnt_text_bak = cnt_view.getText().toString();
+                                cnt_view.setAutoLinkMask(android.text.util.Linkify.WEB_URLS);
+                                cnt_view.setText(cnt_text_bak);
+                            })
+                            .on("negative", (ds) => {
+                                ds.dismiss();
+                            })
+                            .on("positive", (ds) => {
+                                if (safety_prompted) {
+                                    storage_unlock.put("unlock_code_safe_dialog_prompt_prompted", true);
+                                }
+                                saveSession(this.config_conj, input ? encrypt(input) : "");
+                                d.dismiss();
+                                ds.dismiss();
+                            })
+                            .show();
+                    } else {
                         saveSession(this.config_conj, input ? encrypt(input) : "");
-                        diag.dismiss();
-                        diag_prompt.dismiss();
-                    });
-                    diag_prompt.show();
-                } else {
-                    saveSession(this.config_conj, input ? encrypt(input) : "");
-                    diag.dismiss();
-                }
-            });
-            diag.show();
+                        d.dismiss();
+                    }
+                })
+                .show();
         },
         updateOpr(view) {
-            view._hint.text(session_config[this.config_conj] ? "已设置" : "空");
+            view["_hint"].text(sess_cfg[this.config_conj] ? "已设置" : "空");
         },
     }))
     .add("split_line")
@@ -205,21 +216,21 @@ setHomePage(defs.homepage_title)
                 "设置解锁最大尝试次数", "",
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|5<=x<=50,x∈N}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 let value = +input;
-                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 50 || value < 5) return alertTitle(dialog, "输入值范围不合法");
+                if (isNaN(value)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
+                if (value > 50 || value < 5) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, ~~value);
                 diag.dismiss();
             });
             diag.show();
         },
         updateOpr(view) {
-            view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
+            view["_hint"].text((sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
         },
     }))
     .add("split_line")
@@ -232,21 +243,21 @@ setHomePage(defs.homepage_title)
                 "提示层页面上滑时长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|110<=x<=1000,x∈N}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 let value = +input;
-                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 1000 || value < 110) return alertTitle(dialog, "输入值范围不合法");
+                if (isNaN(value)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
+                if (value > 1000 || value < 110) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, ~~value);
                 diag.dismiss();
             });
             diag.show();
         },
         updateOpr(view) {
-            view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
+            view["_hint"].text((sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString() + " ms");
         },
     }))
     .add("button", new Layout("起点位置", {
@@ -257,23 +268,23 @@ setHomePage(defs.homepage_title)
                 "提示层页面起点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|0.5<=x<=0.95,x∈R+}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 input = +input;
-                if (isNaN(input)) return alertTitle(dialog, "输入值类型不合法");
+                if (isNaN(input)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
                 let value = +(input.toFixed(2));
-                if (value > 0.95 || value < 0.5) return alertTitle(dialog, "输入值范围不合法");
+                if (value > 0.95 || value < 0.5) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, value);
                 diag.dismiss();
             });
             diag.show();
         },
         updateOpr(view) {
-            let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
-            view._hint.text(value.toString() + "% H");
+            let value = (sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
+            view["_hint"].text(value.toString() + "% H");
         },
     }))
     .add("button", new Layout("终点位置", {
@@ -284,23 +295,23 @@ setHomePage(defs.homepage_title)
                 "提示层页面终点位置", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|0.05<=x<=0.3,x∈R+}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 input = +input;
-                if (isNaN(input)) return alertTitle(dialog, "输入值类型不合法");
+                if (isNaN(input)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
                 let value = +(input.toFixed(2));
-                if (value > 0.3 || value < 0.05) return alertTitle(dialog, "输入值范围不合法");
+                if (value > 0.3 || value < 0.05) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, value);
                 diag.dismiss();
             });
             diag.show();
         },
         updateOpr(view) {
-            let value = (session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
-            view._hint.text(value.toString() + "% H");
+            let value = (sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]) * 100;
+            view["_hint"].text(value.toString() + "% H");
         },
     }))
     .add("split_line")
@@ -318,7 +329,7 @@ setHomePage(defs.homepage_title)
             let diag = dialogsx.builds(["图案解锁滑动策略", "", ["了解详情", "hint_btn_bright_color"], "返回", "确认修改", 1], {
                 items: map_keys.slice().map(value => map[value]),
                 itemsSelectMode: "single",
-                itemsSelectedIndex: map_keys.indexOf((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()),
+                itemsSelectedIndex: map_keys.indexOf((sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()),
             });
             diag.on("neutral", () => {
                 let diag_about = dialogsx.builds(["关于图案解锁滑动策略", "about_unlock_pattern_strategy", 0, 0, "关闭", 1]);
@@ -333,12 +344,12 @@ setHomePage(defs.homepage_title)
             diag.show();
         },
         updateOpr(view) {
-            view._hint.text(this.map[(session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()]);
+            view["_hint"].text(this.map[(sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString()]);
         },
     }))
     .add("button", new Layout("滑动时长", {
         config_conj: () => "unlock_pattern_swipe_time_"
-            + (session_config.unlock_pattern_strategy || DEFAULT_UNLOCK.unlock_pattern_strategy),
+            + (sess_cfg.unlock_pattern_strategy || DEFAULT_UNLOCK.unlock_pattern_strategy),
         hint: "加载中...",
         newWindow() {
             let config_conj = this.config_conj();
@@ -346,14 +357,14 @@ setHomePage(defs.homepage_title)
                 "设置图案解锁滑动时长", config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|120<=x<=3000,x∈N}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 let value = +input;
-                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 3000 || value < 120) return alertTitle(dialog, "输入值范围不合法");
+                if (isNaN(value)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
+                if (value > 3000 || value < 120) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(config_conj, ~~value);
                 diag.dismiss();
             });
@@ -361,7 +372,7 @@ setHomePage(defs.homepage_title)
         },
         updateOpr(view) {
             let config_conj = this.config_conj();
-            view._hint.text((session_config[config_conj] || DEFAULT_UNLOCK[config_conj]).toString() + " ms");
+            view["_hint"].text((sess_cfg[config_conj] || DEFAULT_UNLOCK[config_conj]).toString() + " ms");
         },
     }))
     .add("button", new Layout("点阵边长", {
@@ -372,24 +383,23 @@ setHomePage(defs.homepage_title)
                 "设置图案解锁边长", this.config_conj,
                 ["使用默认值", "hint_btn_dark_color"], "返回", "确认修改", 1,
             ], {inputHint: "{x|3<=x<=6,x∈N}"});
-            diag.on("neutral", () => diag.getInputEditText().setText(DEFAULT_UNLOCK[this.config_conj].toString()));
+            diag.on("neutral", () => dialogsx.setInputText(diag, DEFAULT_UNLOCK[this.config_conj].toString()));
             diag.on("negative", () => diag.dismiss());
             diag.on("positive", (dialog) => {
-                let input = diag.getInputEditText().getText().toString();
+                let input = dialogsx.getInputText(diag);
                 if (input === "") return dialog.dismiss();
                 let value = +input;
-                if (isNaN(value)) return alertTitle(dialog, "输入值类型不合法");
-                if (value > 6 || value < 3) return alertTitle(dialog, "输入值范围不合法");
+                if (isNaN(value)) return dialogsx.alertTitle(dialog, "输入值类型不合法");
+                if (value > 6 || value < 3) return dialogsx.alertTitle(dialog, "输入值范围不合法");
                 saveSession(this.config_conj, ~~value);
                 diag.dismiss();
             });
             diag.show();
         },
         updateOpr(view) {
-            view._hint.text((session_config[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
+            view["_hint"].text((sess_cfg[this.config_conj] || DEFAULT_UNLOCK[this.config_conj]).toString());
         },
-    }))
-;
+    }));
 
 ui.emitter.on("back_pressed", (e) => {
     if (!needSave()) return;
@@ -410,15 +420,10 @@ ui.emitter.on("back_pressed", (e) => {
     ;
 });
 events.on("exit", () => {
-    listener.removeAllListeners();
     threads.shutDownAll();
-    global.dialogs_pool.forEach((diag) => {
-        diag.dismiss();
-        diag = null;
-    });
+    dialogsx.clearPool();
     ui.setContentView(ui.inflate(<vertical/>));
     ui.main.getParent().removeAllViews();
-    ui.main.removeAllViews();
     ui.finish();
 });
 
@@ -440,37 +445,41 @@ function setHomePage(home_title, title_bg_color) {
     ));
 
     ui.main.getParent().addView(homepage);
-    homepage._back_btn_area.setVisibility(8);
+    homepage["_back_btn_area"].setVisibility(8);
 
     return homepage;
 }
 
 function setPage(title_param, title_bg_color, additions, options) {
-    let {no_margin_bottom, no_scroll_view, check_page_state} = options || {};
+    let {no_margin_bottom, no_scroll_view} = options || {};
     let title = title_param;
     let view_page_name = "";
     if (classof(title_param, "Array")) [title, view_page_name] = title_param;
-    session_params.page_title = title;
+    sess_par.page_title = title;
     title_bg_color = title_bg_color || defs["title_bg_color"];
     let new_view = ui.inflate(<vertical/>);
+    // noinspection HtmlUnknownTarget
     new_view.addView(ui.inflate(
         <linear id="_title_bg" clickable="true">
             <vertical id="_back_btn_area" marginRight="-22" layout_gravity="center">
                 <linear>
-                    <img src="@drawable/ic_chevron_left_black_48dp" h="31" bg="?selectableItemBackgroundBorderless"
-                         tint="#ffffff" layout_gravity="center"/>
+                    <img src="@drawable/ic_chevron_left_black_48dp" h="31"
+                         bg="?selectableItemBackgroundBorderless"
+                         tint="#ffffff" layout_gravity="center" alt=""/>
                 </linear>
             </vertical>
             <text id="_title_text" textColor="#ffffff" textSize="19" margin="16"/>
         </linear>
     ));
-    new_view._back_btn_area.on("click", () => back());
-    new_view._title_text.text(title);
-    new_view._title_text.getPaint().setFakeBoldText(true);
+    new_view["_back_btn_area"].on("click", () => back());
+    new_view["_title_text"].text(title);
+    new_view["_title_text"].getPaint().setFakeBoldText(true);
     let title_bg = typeof title_bg_color === "string" ? colors.parseColor(title_bg_color) : title_bg_color;
-    new_view._title_bg.setBackgroundColor(title_bg);
+    new_view["_title_bg"].setBackgroundColor(title_bg);
 
-    if (additions) typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
+    if (additions) {
+        typeof additions === "function" ? additions(new_view) : additions.forEach(f => f(new_view));
+    }
 
     if (!no_scroll_view) {
         new_view.addView(ui.inflate(
@@ -486,7 +495,7 @@ function setPage(title_param, title_bg_color, additions, options) {
         ));
     }
     if (!no_margin_bottom) {
-        new_view._page_content_view.addView(ui.inflate(
+        new_view["_page_content_view"].addView(ui.inflate(
             <frame>
                 <frame margin="0 0 0 8"/>
             </frame>
@@ -495,7 +504,7 @@ function setPage(title_param, title_bg_color, additions, options) {
     new_view.add = (type, item_params) => {
         let sub_view = setItem(type, item_params);
         sub_view.view_page_name = view_page_name || null;
-        new_view._page_content_view.addView(sub_view);
+        new_view["_page_content_view"].addView(sub_view);
         if (sub_view.updateOpr) dynamic_views.push(sub_view);
         return new_view;
     };
@@ -512,9 +521,6 @@ function setPage(title_param, title_bg_color, additions, options) {
     function setItem(type, item_params) {
         let new_view = type.match(/^split_line/) && setSplitLine(item_params) ||
             type === "subhead" && setSubHead(item_params) ||
-            type === "info" && setInfo(item_params) ||
-            type === "list" && setList(item_params) ||
-            type === "seekbar" && setSeekbar(item_params) ||
             ui.inflate(
                 <horizontal id="_item_area" padding="16 8" gravity="left|center">
                     <vertical id="_content" w="{{defs.item_area_width}}" h="40" gravity="left|center">
@@ -523,38 +529,18 @@ function setPage(title_param, title_bg_color, additions, options) {
                 </horizontal>
             );
 
-        if (!item_params) return new_view;
+        if (!item_params) {
+            return new_view;
+        }
 
         Object.keys(item_params).forEach((key) => {
-            if (key.match(/listeners/)) return;
             let item_data = item_params[key];
             new_view[key] = typeof item_data === "function" ? item_data.bind(new_view) : item_data;
         });
 
-        if (item_params.view_tag) new_view.setTag(item_params.view_tag);
-
-        if (type === "radio") {
-            new_view._item_area.removeAllViews();
-            let radiogroup_view = ui.inflate(
-                <radiogroup id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"/>
-            );
-            item_params.view = new_view;
-            let title = item_params["title"];
-            let value = item_params["value"];
-
-            title.forEach((val) => {
-                let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
-                radio_view.setText(val);
-                Object.keys(item_params.listener).forEach((listener) => {
-                    radio_view.on(listener, item_params.listener[listener].bind(item_params));
-                });
-                radiogroup_view._radiogroup.addView(radio_view);
-            });
-            new_view.addView(radiogroup_view);
-        }
-
-        let title = item_params["title"];
-        if (typeof title === "string" && new_view._title) new_view._title.text(title);
+        typeof item_params["title"] === "string"
+        && new_view["_title"]
+        && new_view["_title"].text(item_params["title"]);
 
         let hint = item_params["hint"];
         if (hint) {
@@ -563,315 +549,82 @@ function setPage(title_param, title_bg_color, additions, options) {
                     <text id="_hint" textColor="#888888" textSize="13sp"/>
                     <text id="_hint_color_indicator" visibility="gone" textColor="#888888" textSize="13sp"/>
                 </horizontal>);
-            typeof hint === "string" && hint_view._hint.text(hint);
-            if (item_params.hint_text_color) hint_view._hint.setTextColor(item_params.hint_text_color);
-            new_view._content.addView(hint_view);
+            typeof hint === "string" && hint_view["_hint"].text(hint);
+            item_params["hint_text_color"] && hint_view["_hint"].setTextColor(item_params["hint_text_color"]);
+            new_view["_content"].addView(hint_view);
         }
 
-        if (type.match(/.*switch$/)) {
-            let sw_view;
-            if (type === "switch") {
-                sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
-                if (item_params.default_state === false) sw_view._switch.setChecked(false);
-            }
-            if (type === "checkbox_switch") {
-                sw_view = ui.inflate(
-                    <vertical padding="8 0 0 0">
-                        <checkbox id="_checkbox_switch" checked="true"/>
-                    </vertical>
-                );
-                if (item_params.default_state === false) sw_view._checkbox_switch.setChecked(false);
-            }
-            new_view._item_area.addView(sw_view);
-            item_params.view = new_view;
-
-            let listener_ids = item_params["listener"];
-            Object.keys(listener_ids).forEach((id) => {
-                let listeners = listener_ids[id];
-                Object.keys(listeners).forEach((listener) => {
-                    let callback = listeners[listener].bind(item_params);
-                    if (id === "ui") ui.emitter.prependListener(listener, callback);
-                    else new_view[id].on(listener, callback);
-                });
-            });
-        } else if (type.match(/^options/)) {
-            let opt_view = ui.inflate(
-                <vertical id="_chevron_btn">
-                    <img padding="10 0 0 0" src="@drawable/ic_chevron_right_black_48dp" h="31"
-                         bg="?selectableItemBackgroundBorderless" tint="#999999"/>
-                </vertical>
-            );
-            new_view._item_area.addView(opt_view);
-            item_params.view = new_view;
-        } else if (type === "button") {
+        if (type === "button") {
+            // noinspection HtmlUnknownTarget
             let help_view = ui.inflate(
                 <vertical id="_info_icon" visibility="gone">
-                    <img src="@drawable/ic_info_outline_black_48dp" h="22" bg="?selectableItemBackgroundBorderless"
-                         tint="#888888"/>
+                    <img src="@drawable/ic_info_outline_black_48dp" h="22"
+                         bg="?selectableItemBackgroundBorderless" tint="#888888" alt=""/>
                 </vertical>
             );
-            new_view._item_area.addView(help_view);
+            new_view["_item_area"].addView(help_view);
             item_params.view = new_view;
-            new_view._item_area.on("click", () => typeof item_params.showWindow === "function" && item_params.showWindow());
-            if (item_params.infoWindow) {
-                new_view._info_icon.setVisibility(0);
-                new_view._info_icon.on("click", () => item_params.infoWindow());
-            }
+            new_view["_item_area"].on("click", () => {
+                typeof item_params.showWindow === "function" && item_params.showWindow()
+            });
         }
 
-        new_view.setNextPage = (page) => item_params.next_page = page;
-        new_view.getNextPage = () => item_params.next_page;
-        if (item_params.title_text_color) new_view._title.setTextColor(item_params.title_text_color);
         return new_view;
 
         // tool function(s) //
 
         function setSplitLine(item) {
             let line_color = item && item["split_line_color"] || defs["split_line_color"];
-
-            let new_view = ui.inflate(
-                <vertical>
-                    <horizontal id="_line" w="*" h="1sp" margin="16 8">
-                    </horizontal>
-                </vertical>
-            );
+            let new_view = ui.inflate(<vertical>
+                <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
+            </vertical>);
             new_view.setTag(type);
             line_color = typeof line_color === "string" ? colors.parseColor(line_color) : line_color;
-            new_view._line.setBackgroundColor(line_color);
-            new_view._line.setVisibility(type.match(/invisible/) ? 8 : 0);
-
+            new_view["_line"].setBackgroundColor(line_color);
+            new_view["_line"].setVisibility(type.match(/invisible/) ? 8 : 0);
             return new_view;
         }
 
         function setSubHead(item) {
             let title = item["title"];
             let subhead_color = item["subhead_color"] || defs["subhead_color"];
-
             let new_view = ui.inflate(
                 <vertical>
                     <text id="_text" textSize="14" margin="16 8"/>
                 </vertical>
             );
-            new_view._text.text(title);
+            new_view["_text"].text(title);
             let title_color = typeof subhead_color === "string" ? colors.parseColor(subhead_color) : subhead_color;
-            new_view._text.setTextColor(title_color);
-
-            return new_view;
-        }
-
-        function setInfo(item) {
-            let title = item.title;
-            let info_color = item.info_color || defs.info_color;
-            session_params.info_color = info_color;
-
-            let new_view = ui.inflate(
-                <horizontal>
-                    <linear padding="15 10 0 0">
-                        <img src="@drawable/ic_info_outline_black_48dp" h="17" w="17" margin="0 1 4 0"
-                             tint="{{session_params.info_color}}"/>
-                        <text id="_info_text" textSize="13"/>
-                    </linear>
-                </horizontal>
-            );
-            new_view._info_text.text(title);
-            let title_color = typeof info_color === "string" ? colors.parseColor(info_color) : subhead_color;
-            new_view._info_text.setTextColor(title_color);
-
-            return new_view;
-        }
-
-        function setList(item_params) {
-            let list_title_bg_color = item_params["list_title_bg_color"] || defs["list_title_bg_color"];
-            let list_head = item_params["list_head"] || [];
-            list_head.forEach((o, idx) => {
-                let w = o.width;
-                if (!idx && !w) return session_params["list_width_0"] = ~~(0.3 * WIDTH) + "px";
-                session_params["list_width_" + idx] = w ? ~~(w * WIDTH) + "px" : -2;
-            });
-            session_params.list_checkbox = item_params["list_checkbox"];
-            let data_source_key_name = item_params["data_source_key_name"] || "unknown_key_name"; // just a key name
-            let getListItemName = num => list_head[num] && Object.keys(list_head[num])[0] || null;
-
-            // items are expected not more than 4
-            for (let i = 0; i < 4; i += 1) session_params["list_item_name_" + i] = getListItemName(i);
-
-            let new_view = ui.inflate(
-                <vertical>
-                    <horizontal id="_list_title_bg">
-                        <horizontal h="50" w="{{session_params['list_width_0']}}" margin="8 0 0 0">
-                            <checkbox id="_check_all" layout_gravity="left|center" clickable="false"/>
-                        </horizontal>
-                    </horizontal>
-                    <vertical>
-                        <list id="_list_data" fastScrollEnabled="true" focusable="true" scrollbars="none">
-                            <horizontal>
-                                <horizontal w="{{this.width_0}}">
-                                    <checkbox id="_checkbox" checked="{{this.checked}}" h="50" margin="8 0 -16"
-                                              layout_gravity="left|center" clickable="false"/>
-                                    <text text="{{this.list_item_name_0}}" h="50" textSize="15" margin="16 0 0"
-                                          ellipsize="end" lines="1" layout_gravity="left|center" gravity="left|center"/>
-                                </horizontal>
-                                <text text="{{this.list_item_name_1}}" w="{{session_params['list_width_1'] || 1}}"
-                                      visibility="{{session_params['list_item_name_1'] ? 'visible' : 'gone'}}"
-                                      textSize="15" h="50" margin="8 0 0 0" layout_gravity="left|center"
-                                      gravity="left|center"/>
-                                <text text="{{this.list_item_name_2}}" w="{{session_params['list_width_2'] || 1}}"
-                                      visibility="{{session_params['list_item_name_2'] ? 'visible' : 'gone'}}"
-                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
-                                <text text="{{this.list_item_name_3}}" w="{{session_params['list_width_3'] || 1}}"
-                                      visibility="{{session_params['list_item_name_3'] ? 'visible' : 'gone'}}"
-                                      textSize="15" h="50" layout_gravity="left|center" gravity="left|center"/>
-                            </horizontal>
-                        </list>
-                    </vertical>
-                </vertical>
-            );
-
-            updateDataSource(data_source_key_name, "init", item_params.custom_data_source);
-            new_view["_check_all"].setVisibility(android.view.View[item_params["list_checkbox"].toUpperCase()]);
-            new_view["_list_data"].setDataSource(session_params[data_source_key_name]);
-            new_view["_list_title_bg"].attr("bg", list_title_bg_color);
-            new_view.setTag("list_page_view");
-            list_head.forEach((title_obj, idx) => {
-                let data_key_name = Object.keys(title_obj)[0];
-                let list_title_view = idx ? ui.inflate(
-                    <text textSize="15"/>
-                ) : ui.inflate(
-                    <text textSize="15" padding="{{session_params.list_checkbox === 'gone' ? 8 : 0}} 0 0 0"/>
-                );
-
-                list_title_view.setText(title_obj[data_key_name]);
-                list_title_view.on("click", () => {
-                    if (!session_params[data_source_key_name][0]) return;
-                    session_params["list_sort_flag_" + data_key_name] = session_params["list_sort_flag_" + data_key_name]
-                        || (session_params[data_source_key_name][0] < session_params[data_source_key_name][1] ? 1 : -1);
-
-                    let session_data = session_params[data_source_key_name];
-                    session_data = session_data.map((value, idx) => [idx, value]); // to attach indices
-                    session_data.sort((a, b) => {
-                        if (session_params["list_sort_flag_" + data_key_name] > 0) {
-                            return a[1][a[1][data_key_name]] > b[1][b[1][data_key_name]];
-                        } else return a[1][a[1][data_key_name]] < b[1][b[1][data_key_name]];
-                    });
-                    let indices_table = {};
-                    session_data = session_data.map((value, idx) => {
-                        indices_table[value[0]] = idx;
-                        return value[1];
-                    });
-                    let deleted_items_idx = data_source_key_name + "_deleted_items_idx";
-                    session_params[deleted_items_idx] = session_params[deleted_items_idx] || {};
-                    let tmp_deleted_items_idx = {};
-                    Object.keys(session_params[deleted_items_idx]).forEach((ori_idx_key) => {
-                        tmp_deleted_items_idx[indices_table[ori_idx_key]] = session_params[deleted_items_idx][ori_idx_key];
-                    });
-                    session_params[deleted_items_idx] = deepCloneObject(tmp_deleted_items_idx);
-                    session_params[data_source_key_name].splice(0);
-                    session_data.forEach(value => session_params[data_source_key_name].push(value));
-                    session_params["list_sort_flag_" + data_key_name] *= -1;
-                    // updateDataSource(data_source_key_name, "rewrite");
-                });
-
-                if (idx === 0) new_view["_check_all"].getParent().addView(list_title_view);
-                else new_view["_list_title_bg"].addView(list_title_view);
-
-                list_title_view.attr("gravity", "left|center");
-                list_title_view.attr("layout_gravity", "left|center");
-                list_title_view.attr("ellipsize", "end");
-                list_title_view.attr("lines", "1");
-                idx && list_title_view.attr("width", session_params["list_width_" + idx]);
-            });
-
-            item_params.view = new_view;
-
-            let listener_ids = item_params["listener"] || [];
-            Object.keys(listener_ids).forEach((id) => {
-                let listeners = listener_ids[id];
-                Object.keys(listeners).forEach((listener) => {
-                    let callback = listeners[listener].bind(item_params);
-                    if (id === "ui") ui.emitter.prependListener(listener, callback);
-                    else new_view[id].on(listener, callback);
-                });
-            });
-
-            if (item_params.updateOpr) new_view.updateOpr = item_params.updateOpr.bind(new_view);
-
-            return new_view;
-        }
-
-        function setSeekbar(item_params) {
-            let {title, unit, config_conj, nums} = item_params;
-            let [min, max, init] = nums;
-            if (isNaN(+min)) min = 0;
-            if (isNaN(+init)) {
-                let _init = session_config[config_conj] || DEFAULT_AF[config_conj];
-                init = isNaN(+_init) ? min : _init;
-            }
-            if (isNaN(+max)) max = 100;
-
-            let new_view = ui.inflate(
-                <vertical>
-                    <horizontal margin="16 8">
-                        <text id="_text" gravity="left" layout_gravity="center"/>
-                        <seekbar id="_seekbar" w="*" style="@android:style/Widget.Material.SeekBar"
-                                 layout_gravity="center"/>
-                    </horizontal>
-                </vertical>
-            );
-            new_view._seekbar.setMax(max - min);
-            new_view._seekbar.setProgress(init - min);
-
-            let update = (source) => new_view._text.setText((title ? title + ": " : "") + source.toString() + (unit ? " " + unit : ""));
-
-            update(init);
-            new_view._seekbar.setOnSeekBarChangeListener(
-                new android.widget.SeekBar.OnSeekBarChangeListener({
-                    onProgressChanged(seek_bar, progress, from_user) {
-                        let result = progress + min;
-                        update(result);
-                        $$save.session(config_conj, result);
-                    },
-                    onStartTrackingTouch: (seek_bar) => void 0,
-                    onStopTrackingTouch: (seek_bar) => void 0,
-                })
-            );
-
+            new_view["_text"].setTextColor(title_color);
             return new_view;
         }
     }
-}
-
-function initUI(status_bar_color) {
-    ui.layout(
-        <vertical id="main">
-            <frame/>
-        </vertical>
-    );
-    ui.statusBarColor(status_bar_color || "#03a6ef");
 }
 
 function setButtons(parent_view, data_source_key_name, button_params_arr) {
-    let buttons_view = ui.inflate(<horizontal id="btn"/>);
-    let buttons_count = 0;
+    let view = ui.inflate(<horizontal id="btn"/>);
+    let cnt = 0;
     for (let i = 2, l = arguments.length; i < l; i += 1) {
-        let arg = arguments[i];
-        if (typeof arg !== "object") continue; // just in case
-        buttons_view.btn.addView(getButtonLayout.apply(null, arg));
-        buttons_count += 1;
+        if (typeof arguments[i] === "object") {
+            view["btn"].addView(getButtonLayout.apply(null, arguments[i]));
+            cnt += 1;
+        }
     }
-    parent_view._title_text.setWidth(~~((650 - 100 * buttons_count - (session_params.page_title !== defs.homepage_title ? 52 : 5)) * WIDTH / 720));
-    parent_view._title_bg.addView(buttons_view);
+    let width = 650 - 100 * cnt - (sess_par.page_title !== defs.homepage_title ? 52 : 5);
+    parent_view["_title_text"].setWidth(Math.floor(width * WIDTH / 720));
+    parent_view["_title_bg"].addView(view);
 
     // tool function(s) //
 
     function getButtonLayout(button_icon_file_name, button_text, switch_state, btn_click_listener, other_params) {
         other_params = other_params || {};
-        session_params.button_icon_file_name = button_icon_file_name.replace(/^(ic_)?(.*?)(_black_48dp)?$/, "ic_$2_black_48dp");
-        session_params.button_text = button_text;
+        sess_par.button_icon_file_name = button_icon_file_name.replace(/^(ic_)?(.*?)(_black_48dp)?$/, "ic_$2_black_48dp");
+        sess_par.button_text = button_text;
         let btn_text = button_text.toLowerCase();
         let btn_icon_id = "_icon_" + btn_text;
-        session_params.btn_icon_id = btn_icon_id;
+        sess_par.btn_icon_id = btn_icon_id;
         let btn_text_id = "_text_" + btn_text;
-        session_params.btn_text_id = btn_text_id;
+        sess_par.btn_text_id = btn_text_id;
         let def_on_color = defs.btn_on_color;
         let def_off_color = defs.btn_off_color;
         let view = buttonView();
@@ -889,19 +642,20 @@ function setButtons(parent_view, data_source_key_name, button_params_arr) {
         switch_state === "OFF" ? view.switch_off() : view.switch_on();
 
         view[btn_text_id].on("click", () => btn_click_listener && btn_click_listener(view));
-        session_params[data_source_key_name + "_btn_" + btn_text] = view;
+        sess_par[data_source_key_name + "_btn_" + btn_text] = view;
 
         return view;
 
         // tool function(s) //
 
         function buttonView() {
+            // noinspection HtmlUnknownTarget
             return ui.inflate(
                 <vertical margin="13 0">
-                    <img layout_gravity="center" id="{{session_params.btn_icon_id}}"
-                         src="@drawable/{{session_params.button_icon_file_name}}" h="31"
-                         bg="?selectableItemBackgroundBorderless" margin="0 7 0 0"/>
-                    <text w="50" id="{{session_params.btn_text_id}}" text="{{session_params.button_text}}"
+                    <img layout_gravity="center" id="{{sess_par.btn_icon_id}}"
+                         src="@drawable/{{sess_par.button_icon_file_name}}" h="31"
+                         bg="?selectableItemBackgroundBorderless" margin="0 7 0 0" alt=""/>
+                    <text w="50" id="{{sess_par.btn_text_id}}" text="{{sess_par.button_text}}"
                           textSize="10" textStyle="bold" marginTop="-26" h="40" gravity="bottom|center"/>
                 </vertical>
             );
@@ -926,22 +680,6 @@ function Layout(title, params) {
             }
         });
     }
-    if (params.infoWindow) {
-        Object.defineProperties(this, {
-            infoWindow: {
-                get: () => params.infoWindow.bind(this),
-            }
-        });
-    }
-    if (params.listeners) {
-        Object.defineProperties(this, {
-            listener: {
-                get() {
-                    return params.listeners;
-                },
-            },
-        });
-    }
     if (params.updateOpr) {
         Object.defineProperties(this, {
             updateOpr: {
@@ -961,24 +699,21 @@ function initStorageConfig() {
 
 // updated: Aug 8, 2020
 function loadInternalModuleDialog() {
-    let myLooper = android.os.Looper.myLooper;
-    let getMainLooper = android.os.Looper.getMainLooper;
-    let isUiThread = () => myLooper() === getMainLooper();
-    let rtDialogs = () => {
-        let d = runtime.dialogs;
-        return isUiThread() ? d : d.nonUiDialogs;
-    };
+    let isUiThread = () => android.os.Looper.myLooper() === android.os.Looper.getMainLooper();
+    let rtDialogs = () => isUiThread() ? runtime.dialogs : runtime.dialogs.nonUiDialogs;
+
     return {
-        build(properties) {
+        build(props) {
             let builder = Object.create(runtime.dialogs.newBuilder());
             builder.thread = threads.currentThread();
-            for (let name in properties) {
-                if (properties.hasOwnProperty(name)) {
-                    applyDialogProperty(builder, name, properties[name]);
-                }
-            }
-            applyOtherDialogProperties(builder, properties);
-            return ui.run(() => builder.buildDialog());
+
+            Object.keys(props).forEach(n => applyDialogProperty(builder, n, props[n]));
+
+            applyOtherDialogProperties(builder, props);
+
+            return ui.run(builder.buildDialog);
+
+            // tool function(s) //
 
             function applyDialogProperty(builder, name, value) {
                 let propertySetters = {
@@ -1002,27 +737,25 @@ function loadInternalModuleDialog() {
                     autoDismiss: null
                 };
 
-                if (!propertySetters.hasOwnProperty(name)) {
-                    return;
+                if (propertySetters.hasOwnProperty(name)) {
+                    let propertySetter = propertySetters[name] || {};
+                    if (propertySetter.method === undefined) {
+                        propertySetter.method = name;
+                    }
+                    if (propertySetter.adapter) {
+                        value = propertySetter.adapter(value);
+                    }
+                    builder[propertySetter.method].call(builder, value);
                 }
-                let propertySetter = propertySetters[name] || {};
-                if (propertySetter.method === undefined) {
-                    propertySetter.method = name;
-                }
-                if (propertySetter.adapter) {
-                    value = propertySetter.adapter(value);
-                }
-                builder[propertySetter.method].call(builder, value);
             }
 
             function applyOtherDialogProperties(builder, properties) {
                 if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
-                    builder.input(wrapNonNullString(properties.inputHint), wrapNonNullString(properties.inputPrefill),
-                        function (dialog, input) {
-                            input = input.toString();
-                            builder.emit("input_change", builder.dialog, input);
-                        })
-                        .alwaysCallInputCallback();
+                    builder.input(
+                        wrapNonNullString(properties.inputHint),
+                        wrapNonNullString(properties.inputPrefill),
+                        (d, input) => builder.emit("input_change", builder.dialog, input.toString())
+                    ).alwaysCallInputCallback();
                 }
                 if (properties.items !== undefined) {
                     let itemsSelectMode = properties.itemsSelectMode;
@@ -1031,14 +764,16 @@ function loadInternalModuleDialog() {
                             builder.emit("item_select", position, text.toString(), builder.dialog);
                         });
                     } else if (itemsSelectMode === 'single') {
-                        builder.itemsCallbackSingleChoice(properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
-                            function (dialog, view, which, text) {
+                        builder.itemsCallbackSingleChoice(
+                            properties.itemsSelectedIndex === undefined ? -1 : properties.itemsSelectedIndex,
+                            (d, view, which, text) => {
                                 builder.emit("single_choice", which, text.toString(), builder.dialog);
                                 return true;
                             });
                     } else if (itemsSelectMode === 'multi') {
-                        builder.itemsCallbackMultiChoice(properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
-                            function (dialog, indices, texts) {
+                        builder.itemsCallbackMultiChoice(
+                            properties.itemsSelectedIndex === undefined ? null : properties.itemsSelectedIndex,
+                            (dialog, indices, texts) => {
                                 builder.emit("multi_choice",
                                     toJsArray(indices, (l, i) => parseInt(l[i])),
                                     toJsArray(texts, (l, i) => l[i].toString()),
@@ -1051,30 +786,27 @@ function loadInternalModuleDialog() {
                 }
                 if (properties.progress !== undefined) {
                     let progress = properties.progress;
-                    let indeterminate = (progress.max === -1);
-                    builder.progress(indeterminate, progress.max, !!progress.showMinMax);
+                    builder.progress(progress.max === -1, progress.max, !!progress.showMinMax);
                     builder.progressIndeterminateStyle(!!progress.horizontal);
                 }
                 if (properties.checkBoxPrompt !== undefined || properties.checkBoxChecked !== undefined) {
-                    builder.checkBoxPrompt(wrapNonNullString(properties.checkBoxPrompt), !!properties.checkBoxChecked,
-                        function (view, checked) {
-                            builder.getDialog().emit("check", checked, builder.getDialog());
-                        });
+                    builder.checkBoxPrompt(
+                        wrapNonNullString(properties.checkBoxPrompt),
+                        !!properties.checkBoxChecked,
+                        (view, checked) => builder.getDialog().emit("check", checked, builder.getDialog()));
                 }
                 if (properties.customView !== undefined) {
                     let customView = properties.customView;
+                    // noinspection JSTypeOfValues
                     if (typeof customView === 'xml' || typeof customView === 'string') {
                         customView = ui.run(() => ui.inflate(customView));
                     }
-                    let wrapInScrollView = (properties.wrapInScrollView === undefined) ? true : properties.wrapInScrollView;
-                    builder.customView(customView, wrapInScrollView);
+                    let wrapInScrollView = properties.wrapInScrollView;
+                    builder.customView(customView, wrapInScrollView === undefined ? true : wrapInScrollView);
                 }
 
                 function wrapNonNullString(str) {
-                    if (str == null) {
-                        return "";
-                    }
-                    return str;
+                    return str || "";
                 }
 
                 function toJsArray(object, adapter) {
@@ -1088,61 +820,98 @@ function loadInternalModuleDialog() {
             }
 
             function parseColor(c) {
-                if (typeof c == 'string') {
-                    return colors.parseColor(c);
-                }
-                return c;
+                return typeof c === 'string' ? colors.parseColor(c) : c;
             }
         },
-        builds(common, o) {
-            let common_o = {};
-            let defs = typeof global.defs === "undefined" ? require("../Modules/MODULE_DEFAULT_CONFIG").settings : global.defs;
-            let dialog_contents = require("../Modules/MODULE_TREASURY_VAULT").dialog_contents || {};
+        builds(regular_props, ext_props) {
+            let _props = {};
+            let _defs = global.$$def || require("./MODULE_DEFAULT_CONFIG").settings;
+            let _diag_cnt = require("./MODULE_TREASURY_VAULT").dialog_contents || {};
+            let _regular = typeof regular_props === "string" ? [regular_props] : regular_props;
 
-            if (typeof common === "string") common = [common];
-            let [title_param, content_param, neutral_param, negative_param, positive_param, stay_flag, check_box_param] = common;
-            if (typeof title_param === "object") {
-                common_o.title = title_param[0];
-                common_o.titleColor = title_param[1].match(/_color$/) ? defs[title_param[1]] : title_param[1];
-            } else if (title_param) common_o.title = title_param;
-            if (typeof content_param === "object") {
-                common_o.content = dialog_contents[content_param[0]] || content_param[0];
-                common_o.contentColor = content_param[1].match(/_color$/) ? defs[content_param[1]] : content_param[1];
-            } else if (content_param) common_o.content = dialog_contents[content_param] || content_param;
-            if (typeof neutral_param === "object") {
-                common_o.neutral = neutral_param[0];
-                common_o.neutralColor = neutral_param[1].match(/_color$/) ? defs[neutral_param[1]] : neutral_param[1];
-            } else if (neutral_param) common_o.neutral = neutral_param;
-            if (typeof negative_param === "object") {
-                common_o.negative = negative_param[0];
-                common_o.negativeColor = negative_param[1].match(/_color$/) ? defs[negative_param[1]] : negative_param[1];
-            } else if (negative_param) common_o.negative = negative_param;
-            if (typeof positive_param === "object") {
-                common_o.positive = positive_param[0];
-                common_o.positiveColor = positive_param[1].match(/_color$/) ? defs[positive_param[1]] : positive_param[1];
-            } else if (positive_param) common_o.positive = positive_param;
-            if (stay_flag) {
-                common_o.autoDismiss = false;
-                common_o.canceledOnTouchOutside = false;
+            let [$tt, $cnt, $neu, $neg, $pos, $keep, $cbx] = _regular;
+
+            void [
+                ["title", $tt], ["content", $cnt], ["neutral", $neu], ["negative", $neg], ["positive", $pos]
+            ].forEach(arr => _parseColorable.apply(null, arr));
+
+            if ($keep) {
+                _props.autoDismiss = _props.canceledOnTouchOutside = false;
             }
-            if (check_box_param) {
-                common_o.checkBoxPrompt = typeof check_box_param === "string" ? check_box_param : "不再提示";
+            if ($cbx) {
+                _props.checkBoxPrompt = typeof $cbx === "string" ? $cbx : "不再提示";
             }
 
-            let final_dialog = this.build(Object.assign({}, common_o, o));
-            global.dialogs_pool = (global.dialogs_pool || []).concat([final_dialog]);
-            return final_dialog;
+            let _diag = this.build(Object.assign(_props, ext_props));
+
+            global._$_dialogs_pool = global._$_dialogs_pool || [];
+            global._$_dialogs_pool.push(_diag);
+
+            return _diag;
+
+            // tool function(s) //
+
+            function _parseColorable(key, par) {
+                if (Array.isArray(par)) {
+                    let [_val, _color] = par;
+                    _props[key] = _val;
+                    _props[key + "Color"] = _color.match(/_color$/) ? _defs[_color] : _color;
+                } else if (par) {
+                    _props[key] = key === "content" ? _diag_cnt[par] || par : par;
+                }
+            }
         },
         rawInput(title, prefill, callback) {
-            prefill = prefill || "";
-            if (isUiThread() && !callback) {
-                return new Promise(function (resolve) {
-                    rtDialogs().rawInput(title, prefill, function () {
-                        resolve.apply(null, Array.prototype.slice.call(arguments));
-                    });
+            return isUiThread() && !callback ? new Promise((res) => {
+                rtDialogs().rawInput(title, prefill || "", function () {
+                    res.apply(null, [].slice.call(arguments));
                 });
+            }) : rtDialogs().rawInput(title, prefill || "", callback || null);
+        },
+        alertTitle(d, msg, duration) {
+            let _titles = global._$_alert_title_info = global._$_alert_title_info || {};
+            _titles[d] = _titles[d] || {};
+            _titles.message_showing ? ++_titles.message_showing : (_titles.message_showing = 1);
+
+            let _ori_txt = _titles[d].ori_text || "";
+            let _ori_color = _titles[d].ori_text_color || "";
+            let _ori_bg_color = _titles[d].ori_bg_color || "";
+
+            let _ori_view = d.getTitleView();
+            if (!_ori_txt) {
+                _titles[d].ori_text = _ori_txt = _ori_view.getText();
             }
-            return rtDialogs().rawInput(title, prefill, callback ? callback : null);
+            if (!_ori_color) {
+                _titles[d].ori_text_color = _ori_color = _ori_view.getTextColors().colors[0];
+            }
+            if (!_ori_bg_color) {
+                let _ori_view_bg_d = _ori_view.getBackground();
+                _ori_bg_color = _ori_view_bg_d && _ori_view_bg_d.getColor() || -1;
+                _titles[d].ori_bg_color = _ori_bg_color;
+            }
+
+            _setTitle(d, msg, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
+
+            duration === 0 || setTimeout(function () {
+                --_titles.message_showing || _setTitle(d, _ori_txt, _ori_color, _ori_bg_color);
+            }, duration || 3e3);
+
+            // tool function(s) //
+
+            function _setTitle(dialog, text, color, bg) {
+                let _title_view = dialog.getTitleView();
+                _title_view.setText(text);
+                _title_view.setTextColor(color);
+                _title_view.setBackgroundColor(bg);
+            }
+        },
+        getInputText: d => d ? d.getInputEditText().getText().toString() : null,
+        setInputText: (d, s) => d ? d.getInputEditText().setText(s ? s.toString() : "") : void 0,
+        clearPool() {
+            (global._$_dialogs_pool || []).map((diag) => {
+                diag.dismiss();
+                diag = null;
+            }).splice(0);
         },
     };
 }
@@ -1152,59 +921,12 @@ function loadInternalModuleMonsterFunc() {
     return {
         equalObjects: equalObjects,
         deepCloneObject: deepCloneObject,
-        alertTitle: alertTitle,
         waitForAction: waitForAction,
         classof: classof,
     };
 
     // some may be used by a certain monster function(s) even though not showing up above
     // monster function(s) //
-
-    function alertTitle(dialog, message, duration) {
-        global["_$_alert_title_info"] = global["_$_alert_title_info"] || {};
-        let alert_title_info = global["_$_alert_title_info"];
-        alert_title_info[dialog] = alert_title_info[dialog] || {};
-        alert_title_info["message_showing"] ? alert_title_info["message_showing"]++ : (alert_title_info["message_showing"] = 1);
-
-        let ori_text = alert_title_info[dialog].ori_text || "";
-        let ori_text_color = alert_title_info[dialog].ori_text_color || "";
-        let ori_bg_color = alert_title_info[dialog].ori_bg_color || "";
-
-        let ori_title_view = dialog.getTitleView();
-        if (!ori_text) {
-            ori_text = ori_title_view.getText();
-            alert_title_info[dialog].ori_text = ori_text;
-        }
-        if (!ori_text_color) {
-            ori_text_color = ori_title_view.getTextColors().colors[0];
-            alert_title_info[dialog].ori_text_color = ori_text_color;
-        }
-
-        if (!ori_bg_color) {
-            let bg_color_obj = ori_title_view.getBackground();
-            ori_bg_color = bg_color_obj && bg_color_obj.getColor() || -1;
-            alert_title_info[dialog].ori_bg_color = ori_bg_color;
-        }
-
-        setTitleInfo(dialog, message, colors.parseColor("#c51162"), colors.parseColor("#ffeffe"));
-
-        if (duration === 0) return;
-
-        setTimeout(function () {
-            alert_title_info["message_showing"]--;
-            if (alert_title_info["message_showing"]) return;
-            setTitleInfo(dialog, ori_text, ori_text_color, ori_bg_color);
-        }, duration || 3e3);
-
-        // tool function(s) //
-
-        function setTitleInfo(dialog, text, color, bg) {
-            let title_view = dialog.getTitleView();
-            title_view.setText(text);
-            title_view.setTextColor(color);
-            title_view.setBackgroundColor(bg);
-        }
-    }
 
     // updated: Sep 20, 2020
     function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
@@ -1842,7 +1564,6 @@ function loadInternalModulePWMAP() {
         }
 
         files.createWithDirs(_path);
-        files.open(_path);
 
         // eg: {SCPrMtaB:"A",doaAisDd:"%"}
         let _res = {};

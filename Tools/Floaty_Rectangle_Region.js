@@ -5,7 +5,7 @@ require("../Modules/EXT_DEVICE").load().getDisplay(true);
 let [_dx, _dy] = [cX(0.35), cY(0.45)];
 let _rect = [cX(0.35), cY(0.45), cX(0.65), cY(0.55)];
 let [_l, _t, _r, _b] = _rect;
-let _cfg_conj = "forest_balls_rect_region";
+let _cfg_conj = "forest_balls_recog_region";
 let $_sto = require("../Modules/MODULE_STORAGE").create("af_cfg");
 let _o = {
     rect: _rect,
