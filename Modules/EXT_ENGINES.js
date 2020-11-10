@@ -30,6 +30,18 @@ let ext = {
     execAutoFile: (path, config) => {
         return runtime.engines.execAutoFile(path, _fillConfig(config));
     },
+    isRemote() {
+        return !!engines.myEngine().source.name.match(/^\[remote]/);
+    },
+    isLocal() {
+        return !this.isRemote();
+    },
+    makeSureLocal() {
+        if (this.isLocal()) {
+            return true;
+        }
+        throw Error("Script must be running locally rather than remotely");
+    },
 };
 
 module.exports = ext;
