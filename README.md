@@ -99,7 +99,7 @@
 ### 版本历史
 ******
 # v1.9.24
-###### 2020/11/09 - 不兼容旧版 谨慎升级
+###### 2020/11/10 - 不兼容旧版 谨慎升级
 * `新增` 本地日志功能 (默认关闭) _[`issue #310`](https://github.com/SuperMonster003/Auto.js_Projects/issues/310#issuecomment-648965539)_
 * `新增` 支持能量双击卡的识别及处理 _[`issue #403`](https://github.com/SuperMonster003/Auto.js_Projects/issues/403)_
 * `修复` 蚂蚁森林改版后无法识别能量球的问题 (不兼容旧版) _[`issue #401`](https://github.com/SuperMonster003/Auto.js_Projects/issues/401)_

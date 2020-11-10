@@ -19,6 +19,19 @@ let days_ident = [
 ].map(value => value.toString());
 
 let ext = {
+    /**
+     * @param {{
+     *     path: string, time: string|Date|number,
+     *     delay?: number, interval?: number, loopTimes?: number,
+     * }} options
+     * @param {boolean} [wait_fg=false]
+     * @example
+     * timersx.addDailyTask({
+     *     time: Date.now() + 3.6e6,
+     *     path: files.path("./test.js"),
+     * });
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     addDailyTask(options, wait_fg) {
         let _opt = options || {};
         let _task = addTask(TimedTask.dailyTask(
@@ -26,6 +39,21 @@ let ext = {
         ));
         return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {{
+     *     path: string, time: string|Date|number,
+     *     daysOfWeek: (string|number)[],
+     *     delay?: number, interval?: number, loopTimes?: number,
+     * }} options
+     * @param {boolean} [wait_fg=false]
+     * @example
+     * timersx.addWeeklyTask({
+     *     time: Date.now() + 3.6e6,
+     *     path: files.path("./test.js"),
+     *     daysOfWeek: [1, 3, 6, 7],
+     * });
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     addWeeklyTask(options, wait_fg) {
         let _opt = options || {};
         let _time_flag = 0;
@@ -43,13 +71,36 @@ let ext = {
         ));
         return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {{
+     *     path: string, date: string|Date|number,
+     *     delay?: number, interval?: number, loopTimes?: number,
+     * }} options
+     * @param {boolean} [wait_fg=false]
+     * @example
+     * timersx.addDisposableTask({
+     *     path: engines.myEngine().source,
+     *     date: Date.now() + 3.6e6,
+     * });
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     addDisposableTask(options, wait_fg) {
         let _opt = options || {};
         let _task = addTask(TimedTask.disposableTask(
             parseDateTime("LocalDateTime", _opt.date), files.path(_opt.path), parseConfig(_opt)
-        ));
+        )) || null;
         return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {{path: string, action?: string}} options
+     * @param {boolean} [wait_fg=false]
+     * @example
+     * timersx.addIntentTask({
+     *     path: files.path("./test.js"),
+     *     action: "android.intent.action.BATTERY_CHANGED",
+     * });
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     addIntentTask(options, wait_fg) {
         let _opt = options || {};
         let _task = addTask((() => {
@@ -57,26 +108,52 @@ let ext = {
             _i_task.setScriptPath(files.path(_opt.path));
             _opt.action && _i_task.setAction(_opt.action);
             return _i_task;
-        })());
+        })()) || null;
         return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {number} id
+     * @returns {org.autojs.autojs.timing.TimedTask}
+     */
     getTimedTask(id) {
         return TimedTaskMgr.getTimedTask(id);
     },
+    /**
+     * @param {number} id
+     * @returns {org.autojs.autojs.timing.IntentTask}
+     */
     getIntentTask(id) {
         return TimedTaskMgr.getIntentTask(id);
     },
+    /**
+     * @param {number} id
+     * @param {boolean} [wait_fg=false]
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     removeIntentTask(id, wait_fg) {
         let _task = removeTask(this.getIntentTask(id));
         return _task && (!wait_fg || waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {number} id
+     * @param {boolean} [wait_fg=false]
+     * @returns {org.autojs.autojs.timing.TimedTask|null}
+     */
     removeTimedTask(id, wait_fg) {
         let _task = removeTask(this.getTimedTask(id));
         return _task && (!wait_fg || waitForAction(() => !ext.getTimedTask(_task.id), 3e3, 120)) ? _task : null;
     },
+    /**
+     * @param {org.autojs.autojs.timing.TimedTask|*} [task]
+     * @returns {*|org.autojs.autojs.timing.TimedTask|null}
+     */
     updateTimedTask(task) {
         return task && updateTask(task) || null;
     },
+    /**
+     * @param {{path?: string}} [options]
+     * @returns {org.autojs.autojs.timing.TimedTask[]}
+     */
     queryTimedTasks(options) {
         let _opt = options || {};
         let _sql = '';
@@ -88,32 +165,40 @@ let ext = {
             _args.push(_path);
         }
         if (is_pro) {
-            return bridges.toArray(TimedTaskMgr.queryTimedTasks(_sql || null, _args));
+            return bridges.toArray(
+                TimedTaskMgr.queryTimedTasks.call(TimedTaskMgr, _sql || null, _args)
+            );
         }
-        let list = TimedTaskMgr.getAllTasksAsList().toArray();
-        return _path ? list.filter(task => task.getScriptPath() === _path) : list;
+        let _list = TimedTaskMgr.getAllTasksAsList().toArray();
+        return _path ? _list.filter(task => task.getScriptPath() === _path) : _list;
     },
+    /**
+     * @param {{path?: string, action?: string}} [options]
+     * @returns {org.autojs.autojs.timing.IntentTask[]}
+     */
     queryIntentTasks(options) {
         let _opt = options || {};
         let _sql = '';
         let _args = [];
         let _append = str => _sql += _sql.length ? ' AND ' + str : str;
-        let {path, action} = _opt;
-        if (path) {
+        let {path: _path, action: _act} = _opt;
+        if (_path) {
             _append('script_path = ?');
-            _args.push(path);
+            _args.push(_path);
         }
-        if (action) {
+        if (_act) {
             _append('action = ?');
-            _args.push(action);
+            _args.push(_act);
         }
         if (is_pro) {
-            return bridges.toArray(TimedTaskMgr.queryIntentTasks(_sql || null, _args));
+            return bridges.toArray(
+                TimedTaskMgr.queryIntentTasks.call(TimedTaskMgr, _sql || null, _args)
+            );
         }
-        let list = TimedTaskMgr.getAllIntentTasksAsList().toArray();
-        return path || action ? list.filter(task => (
-            !(path && task.getScriptPath() !== path || action && task.getAction() !== action)
-        )) : list;
+        let _list = TimedTaskMgr.getAllIntentTasksAsList().toArray();
+        return _path || _act ? _list.filter(task => (
+            !(_path && task.getScriptPath() !== _path || _act && task.getAction() !== _act)
+        )) : _list;
     },
 };
 
@@ -122,6 +207,13 @@ module.exports.load = () => global.timersx = ext;
 
 // tool function(s) //
 
+/**
+ * @param {object} c
+ * @param {number} [c.delay=0]
+ * @param {number} [c.interval=0]
+ * @param {number} [c.loopTimes=1]
+ * @returns {com.stardust.autojs.execution.ExecutionConfig}
+ */
 function parseConfig(c) {
     let _ec = new com.stardust.autojs.execution.ExecutionConfig();
     _ec.delay = c.delay || 0;
@@ -130,6 +222,11 @@ function parseConfig(c) {
     return _ec;
 }
 
+/**
+ * @param {"LocalTime"|"LocalDateTime"|string} clazz
+ * @param {string|Date|number} date_time
+ * @returns {org.joda.time.DateTime|org.joda.time.LocalDateTime|*}
+ */
 function parseDateTime(clazz, date_time) {
     let _clz = is_pro ? clazz : org.joda.time[clazz];
     let _dt = date_time;
@@ -146,24 +243,39 @@ function parseDateTime(clazz, date_time) {
     throw new Error("cannot parse date time: " + date_time);
 }
 
+/**
+ * @param {org.autojs.autojs.timing.TimedTask} [task]
+ * @returns {org.autojs.autojs.timing.TimedTask|null}
+ */
 function addTask(task) {
-    if (task) {
-        TimedTaskMgr[is_pro ? "addTaskSync" : "addTask"](task);
-        return task;
+    if (!task) {
+        return null;
     }
+    TimedTaskMgr[is_pro ? "addTaskSync" : "addTask"](task);
+    return task;
 }
 
+/**
+ * @param {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} [task]
+ * @returns {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask|null}
+ */
 function removeTask(task) {
-    if (task) {
-        TimedTaskMgr[is_pro ? "removeTaskSync" : "removeTask"](task);
-        return task;
+    if (!task) {
+        return null;
     }
+    TimedTaskMgr[is_pro ? "removeTaskSync" : "removeTask"](task);
+    return task;
 }
 
+/**
+ * @param {org.autojs.autojs.timing.TimedTask} [task]
+ * @returns {org.autojs.autojs.timing.TimedTask|null}
+ */
 function updateTask(task) {
-    if (task) {
-        task.setScheduled(false);
-        TimedTaskMgr.updateTask(task);
-        return task;
+    if (!task) {
+        return null;
     }
+    task.setScheduled(false);
+    TimedTaskMgr.updateTask(task);
+    return task;
 }

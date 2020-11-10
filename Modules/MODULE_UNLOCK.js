@@ -9,7 +9,7 @@
  * // forcibly disable debugInfo() for not showing debug logs in console
  * require("./MODULE_UNLOCK").unlock(false);
  *
- * @since Oct 24, 2020
+ * @since Nov 10, 2020
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -2963,7 +2963,7 @@ function _unlkSetter() {
                         }
                     }
                     debugInfo("已构建拨号盘数字坐标");
-                    pw.forEach(v => clickAction(_keypads[v || 11]));
+                    pw.forEach(v => clickAction(_keypads[Number(v) || 11]));
                 }
             },
             dismiss() {

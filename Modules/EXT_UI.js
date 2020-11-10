@@ -4,7 +4,7 @@ let ext = {
     isUiMode() {
         return typeof activity !== "undefined";
     },
-    checkUiMode() {
+    makeSureUiMode() {
         if (this.isUiMode()) {
             return true;
         }
@@ -18,7 +18,7 @@ let ext = {
      * }} [options]
      */
     init(options) {
-        this.checkUiMode();
+        this.makeSureUiMode();
 
         let _opt = options || {};
 
@@ -50,7 +50,7 @@ let ext = {
      * @see https://developer.android.com/reference/android/app/Activity#setRequestedOrientation(int)
      */
     setRequestedOrientation(requested_orientation) {
-        this.checkUiMode() && activity.setRequestedOrientation(
+        this.makeSureUiMode() && activity.setRequestedOrientation(
             android.content.pm.ActivityInfo["SCREEN_ORIENTATION_" + requested_orientation]
         );
     },

@@ -1,7 +1,7 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Nov 9, 2020
+ * @since Nov 10, 2020
  * @version 1.9.24
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
