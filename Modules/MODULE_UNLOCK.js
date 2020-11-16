@@ -111,7 +111,7 @@ function _overrideRequire() {
                 MODULE_STORAGE: _storage,
                 MODULE_MONSTER_FUNC: _monster,
                 MODULE_DEFAULT_CONFIG: {
-                    // updated: Nov 14, 2019
+                    // updated: Nov 11, 2020
                     unlock: {
                         unlock_code: null,
                         unlock_max_try_times: 20,
@@ -119,6 +119,7 @@ function _overrideRequire() {
                         unlock_pattern_size: 3,
                         unlock_pattern_swipe_time_segmental: 120,
                         unlock_pattern_swipe_time_solid: 200,
+                        unlock_dismiss_layer_strategy: "preferred",
                         unlock_dismiss_layer_bottom: 0.8,
                         unlock_dismiss_layer_top: 0.2,
                         unlock_dismiss_layer_swipe_time: 110,
@@ -380,6 +381,9 @@ function _overrideRequire() {
                     let _waitForAction = (
                         typeof waitForAction === "function" ? waitForAction : waitForActionRaw
                     );
+                    let _showSplitLine = (
+                        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+                    );
 
                     /**
                      * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
@@ -480,7 +484,13 @@ function _overrideRequire() {
                     function _checkType(f) {
                         let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
                         if (!_type_f) {
-                            _messageAction("不支持的clickAction()f参数类型: " + _classof(f), 8, 1, 0, 1);
+                            _showSplitLine();
+                            _messageAction("不支持的clickAction()的目标参数", 4, 1);
+                            _messageAction("参数类型: " + typeof f, 4, 0, 1);
+                            _messageAction("参数类值: " + _classof(f), 4, 0, 1);
+                            _messageAction("参数字串: " + f.toString(), 4, 0, 1);
+                            _showSplitLine();
+                            exit();
                         }
                         return _type_f;
 
@@ -1730,7 +1740,7 @@ function _activeExtension() {
                 function _cTrans(dxn, num, base) {
                     let _full = ~dxn ? _W : _H;
                     if (isNaN(num)) {
-                        throw Error("can not parse num param for cTrans()");
+                        throw Error("Can not parse num param for cTrans()");
                     }
                     if (Math.abs(num) < 1) {
                         return Math.min(Math.round(num * _full), _full);
@@ -1938,72 +1948,83 @@ function _unlkSetter() {
                 _wakeUpIFN();
                 _disturbance();
 
-                let _map = {
-                    common: {
-                        desc: "通用",
-                        selector: idMatches(_as + "preview_container"),
-                    },
-                    emui: {
-                        desc: "EMUI",
-                        selector: idMatches(_as + ".*(keyguard|lock)_indication.*"),
-                    },
-                    smartisanos: {
-                        desc: "锤子科技",
-                        selector: idMatches(_sk + "keyguard_(content|.*view)"),
-                    },
-                    miui: {
-                        desc: "MIUI",
-                        selector: idMatches(_ak + "(.*unlock_screen.*|.*notification_.*(container|view).*|dot_digital)"),
-                    },
-                    miui10: {
-                        desc: "MIUI10",
-                        selector: idMatches(_as + "(.*lock_screen_container|notification_(container|panel).*|keyguard_.*)"),
-                    },
-                    _dismiss_hint_: {
-                        selector: $_sel.pickup(/上滑.{0,4}解锁/, "selector"),
-                    },
-                };
-
-                for (let key in _map) {
-                    if (_map.hasOwnProperty(key)) {
-                        let {desc: _desc, selector: _sel} = _map[key];
-                        if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                            if (_sel.exists()) {
-                                if (_desc) {
-                                    debugInfo("匹配到" + _desc + "解锁提示层控件");
-                                } else {
-                                    debugInfo("匹配到解锁提示层文字:");
-                                    debugInfo($_sel.pickup(_sel, "txt"));
-                                }
-                                return (this.trigger = _sel.exists.bind(_sel))();
+                return _checkStrategy() && [{
+                    desc: "通用",
+                    sel: idMatches(_as + "preview_container"),
+                }, {
+                    desc: "EMUI",
+                    sel: idMatches(_as + ".*(keyguard|lock)_indication.*"),
+                }, {
+                    desc: "锤子科技",
+                    sel: idMatches(_sk + "keyguard_(content|.*view)"),
+                }, {
+                    desc: "MIUI",
+                    sel: idMatches(_ak + "(.*unlock_screen.*|.*notification_.*(container|view).*|dot_digital)"),
+                }, {
+                    desc: "MIUI10",
+                    sel: idMatches(_as + "(.*lock_screen_container|notification_(container|panel).*|keyguard_.*)"),
+                }, {
+                    sel: $_sel.pickup(/上滑.{0,4}解锁/, "selector"),
+                }].some((smp) => {
+                    let {desc: _desc, sel: _sel} = smp;
+                    if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                        if (_sel.exists()) {
+                            if (_desc) {
+                                debugInfo("匹配到" + _desc + "解锁提示层控件");
+                            } else {
+                                debugInfo("匹配到解锁提示层文字:");
+                                debugInfo($_sel.pickup(_sel, "txt"));
                             }
+                            return (this.trigger = _sel.exists.bind(_sel))();
                         }
                     }
-                }
+                });
 
                 // tool function(s) //
 
                 function _disturbance() {
-                    let _map = {
-                        qq_msg_box: {
-                            trigger() {
-                                return $_sel.pickup("按住录音")
-                                    || $_sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
-                            },
-                            handle() {
-                                let _this = this;
-                                debugInfo("匹配到QQ锁屏消息弹框控件");
-
-                                clickAction($_sel.pickup("关闭"), "w");
-
-                                waitForAction(() => !_this.trigger(), 3e3)
-                                    ? debugInfo("关闭弹框控件成功")
-                                    : debugInfo("关闭弹框控件超时", 3);
-                            },
+                    [{
+                        desc: "QQ锁屏消息弹框控件",
+                        trigger() {
+                            return $_sel.pickup("按住录音")
+                                || $_sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
                         },
-                    };
+                        handle() {
+                            clickAction($_sel.pickup("关闭"), "w");
+                            let _cond = this.trigger.bind(this);
+                            waitForAction(_cond, 3e3)
+                                ? debugInfo("关闭弹框控件成功")
+                                : debugInfo("关闭弹框控件超时", 3);
+                        },
+                    }].forEach((o) => {
+                        if (o.trigger()) {
+                            debugInfo(["检测到提示层页面干扰:", o.desc]);
+                            o.handle();
+                        }
+                    });
+                }
 
-                    Object.keys(_map).forEach(k => _map[k].trigger() && _map[k].handle());
+                function _checkStrategy() {
+                    let _stg = _cfg.unlock_dismiss_layer_strategy;
+                    if (_stg === "preferred") {
+                        return true;
+                    }
+                    if (_stg === "disabled") {
+                        if (!$_flag.unlock_dismiss_layer_disabled_hinted) {
+                            debugInfo("解锁页面提示层检测已禁用");
+                            $_flag.unlock_dismiss_layer_disabled_hinted = true;
+                        }
+                        return false;
+                    }
+                    if (_stg === "deferred") {
+                        if (!$_flag.unlock_dismiss_layer_deferred) {
+                            debugInfo("解锁页面提示层检测延迟一次");
+                            $_flag.unlock_dismiss_layer_deferred = true;
+                            return false;
+                        }
+                        return true;
+                    }
+                    throw Error("Unknown unlock dismiss layer strategy: " + _stg);
                 }
             },
             dismiss() {
@@ -2038,18 +2059,17 @@ function _unlkSetter() {
                 }
 
                 function _dismiss() {
-                    let _par = [];
-                    _pts.forEach(y => _par.push([halfW, cY(y)]));
+                    let _par = _pts.map(y => [halfW, cY(y)]);
+                    _par.unshift(_time);
 
-                    let _max = 30;
-                    let _ctr = 0;
+                    let _max = 30, _ctr = 0;
                     devicex.keepOn(3);
                     while (!_lmt()) {
                         _debugAct("消除解锁页面提示层", _ctr, _max);
                         debugInfo("滑动时长: " + _time + "毫秒");
                         debugInfo("参数来源: " + (_from_sto ? "本地存储" : "自动计算"));
 
-                        gesture.apply(null, [_time].concat(_par));
+                        gesture.apply(null, _par);
 
                         if (_this.succ()) {
                             break;
@@ -2075,6 +2095,7 @@ function _unlkSetter() {
                         }
                     }
                     devicex.cancelOn();
+
                     debugInfo("解锁页面提示层消除成功");
                     _this.succ_fg = true;
 
@@ -2091,8 +2112,7 @@ function _unlkSetter() {
 
                 function _storage() {
                     if (_time !== _time_sto) {
-                        let _o = {unlock_dismiss_layer_swipe_time: _time};
-                        _sto.put("config", _o);
+                        _sto.put("config", {unlock_dismiss_layer_swipe_time: _time});
                         debugInfo("存储滑动时长参数: " + _time);
                     }
 
@@ -2106,8 +2126,7 @@ function _unlkSetter() {
                     if (_new_ctr >= 6 && !~_relbl.indexOf(_time)) {
                         debugInfo("当前滑动时长可信度已达标");
                         debugInfo("存储可信滑动时长数据: " + _time);
-                        let _o = {swipe_time_reliable: _relbl.concat(_time)};
-                        _sto.put("config", _o);
+                        _sto.put("config", {swipe_time_reliable: _relbl.concat(_time)});
                     }
                 }
             },
@@ -2132,26 +2151,18 @@ function _unlkSetter() {
                 // tool function(s) //
 
                 function _pattern() {
-                    let _map = {
-                        common: {
-                            desc: "通用",
-                            selector: idMatches(_as + "lockPatternView"),
-                        },
-                        miui: {
-                            desc: "MIUI",
-                            selector: idMatches(_ak + "lockPattern(View)?"),
-                        },
-                    };
-
-                    for (let key in _map) {
-                        if (_map.hasOwnProperty(key)) {
-                            let {desc: _desc, selector: _sel} = _map[key];
-                            if (_sel.exists()) {
-                                debugInfo("匹配到" + _desc + "图案解锁控件");
-                                return _trigger(_sel, _stg);
-                            }
+                    return [{
+                        desc: "通用",
+                        sel: idMatches(_as + "lockPatternView"),
+                    }, {
+                        desc: "MIUI",
+                        sel: idMatches(_ak + "lockPattern(View)?"),
+                    }].some((smp) => {
+                        if (smp.sel.exists()) {
+                            debugInfo("匹配到" + smp.desc + "图案解锁控件");
+                            return _trigger(smp.sel, _stg);
                         }
-                    }
+                    });
 
                     // strategy(ies) //
 
@@ -2190,8 +2201,7 @@ function _unlkSetter() {
                                     gestures.apply(null, _par);
                                 },
                                 solid() {
-                                    let _par = [_time].concat(_pts);
-                                    gesture.apply(null, _par);
+                                    gesture.apply(null, [_time].concat(_pts));
                                 },
                             };
 
@@ -2411,30 +2421,21 @@ function _unlkSetter() {
                         return;
                     }
 
-                    let _map = {
-                        common: {
-                            desc: "通用",
-                            selector: idMatches(".*passwordEntry"),
-                        },
-                        miui: {
-                            desc: "MIUI",
-                            selector: idMatches(_ak + "miui_mixed_password_input_field"),
-                        },
-                        smartisanos: {
-                            desc: "锤子科技",
-                            selector: idMatches(_sk + "passwordEntry(_.+)?").className("EditText"),
-                        },
-                    };
-
-                    for (let key in _map) {
-                        if (_map.hasOwnProperty(key)) {
-                            let {desc: _desc, selector: _sel} = _map[key];
-                            if (_sel.exists()) {
-                                debugInfo("匹配到" + _desc + "密码解锁控件");
-                                return _trigger(_sel, _stg);
-                            }
+                    return [{
+                        desc: "通用",
+                        selector: idMatches(".*passwordEntry"),
+                    }, {
+                        desc: "MIUI",
+                        selector: idMatches(_ak + "miui_mixed_password_input_field"),
+                    }, {
+                        desc: "锤子科技",
+                        selector: idMatches(_sk + "passwordEntry(_.+)?").className("EditText"),
+                    }].some((smp) => {
+                        if (smp.selector.exists()) {
+                            debugInfo("匹配到" + smp.desc + "密码解锁控件");
+                            return _trigger(smp.selector, _stg);
                         }
-                    }
+                    });
 
                     // strategy(ies) //
 
@@ -2444,10 +2445,11 @@ function _unlkSetter() {
                             _pw = _pw.join("");
                         }
 
-                        let _rex = /确.|完成|[Cc]onfirm|[Ee]nter/;
-                        let _cfm_btn = type => $_sel.pickup([_rex, {
-                            className: "Button", clickable: true,
-                        }], type);
+                        let _cfm_btn = (type) => (
+                            $_sel.pickup([/确.|完成|[Cc]onfirm|[Ee]nter/, {
+                                className: "Button", clickable: true,
+                            }], type)
+                        );
 
                         let _ctr = 0;
                         let _max = Math.ceil(_max_try * 0.6);
@@ -2479,6 +2481,7 @@ function _unlkSetter() {
                             sleep(200);
                         }
                         debugInfo("密码解锁成功");
+
                         return true;
 
                         // tool function(s) //
@@ -2490,6 +2493,8 @@ function _unlkSetter() {
                         }
 
                         function _keypadAssistIFN() {
+                            /** @type string */
+                            let _pw_last = _pw[_pw.length - 1];
                             /**
                              * @example
                              * let _smp_o = {
@@ -2509,7 +2514,6 @@ function _unlkSetter() {
                              *     },
                              * };
                              */
-                            let _pw_last = _pw[_pw.length - 1];
                             let _smp_o = {
                                 "HUAWEI VOG-AL00 9": {prefix: 1, keys: [[1008, 1706]]},
                                 "HUAWEI ELE-AL00 10": {
@@ -2550,9 +2554,7 @@ function _unlkSetter() {
                             if (!$_und(_pref) && !$_nul(_pref)) {
                                 let _s = "";
                                 if ($_num(_pref)) {
-                                    for (let i = 1; i <= _pref; i += 1) {
-                                        _s += _pw_last;
-                                    }
+                                    _s += _pw_last.repeat(_pref);
                                 } else {
                                     _s = _pref.toString();
                                 }
@@ -2562,94 +2564,79 @@ function _unlkSetter() {
 
                             _coords.forEach((c, i) => {
                                 i || sleep(300);
-                                clickAction(typeof c === "string" ? _k_map[c] : c);
+                                clickAction($_str(c) ? _k_map[c] : c);
                                 sleep(300);
                             });
 
-                            if (!_suff) {
-                                return;
+                            if (_suff) {
+                                if ($_jvo(_suff)) {
+                                    debugInfo("辅助按键后置填充类型: 控件");
+                                    return clickAction(_suff);
+                                }
+                                if ($_arr(_suff)) {
+                                    debugInfo("辅助按键后置填充类型: 坐标");
+                                    return clickAction(_suff);
+                                }
+                                if ($_num(_suff) || $_str(_suff)) {
+                                    let _rex = "(key.?)?" + _suff;
+                                    debugInfo("辅助按键后置填充类型: 文本");
+                                    return clickAction(idMatches(_rex))
+                                        || clickAction(descMatches(_rex))
+                                        || clickAction(textMatches(_rex));
+                                }
+                                return _err(["密码解锁失败", "无法判断末位字符类型"]);
                             }
-                            if ($_jvo(_suff)) {
-                                debugInfo("辅助按键后置填充类型: 控件");
-                                return clickAction(_suff);
-                            }
-                            if ($_arr(_suff)) {
-                                debugInfo("辅助按键后置填充类型: 坐标");
-                                return clickAction(_suff);
-                            }
-                            if ($_num(_suff) || $_str(_suff)) {
-                                let _rex = "(key.?)?" + _suff;
-                                debugInfo("辅助按键后置填充类型: 文本");
-                                return clickAction(idMatches(_rex))
-                                    || clickAction(descMatches(_rex))
-                                    || clickAction(textMatches(_rex));
-                            }
-                            return _err(["密码解锁失败", "无法判断末位字符类型"]);
                         }
                     }
 
                     function _misjudge() {
-                        let _dist = [
+                        let _triStr = sel => $_str(sel) && id(sel).exists();
+                        let _triRex = sel => $_rex(sel) && idMatches(sel).exists();
+
+                        return [
                             "com.android.systemui:id/lockPattern",
-                        ];
-                        let _len = _dist.length;
-                        for (let i = 0; i < _len; i += 1) {
-                            let _pattern = _dist[i];
-                            let _cA = () => $_str(_pattern) && id(_pattern).exists();
-                            let _cB = () => $_rex(_pattern) && idMatches(_pattern).exists();
-                            if (_cA() || _cB()) {
-                                _this.misjudge = _pattern;
+                        ].some((sel) => {
+                            if (_triStr(sel) || _triRex(sel)) {
+                                _this.misjudge = sel;
                                 debugInfo(["匹配到误判干扰", "转移至PIN解锁方案"]);
                                 return true;
                             }
-                        }
+                        });
                     }
                 }
 
                 function _pin() {
-                    let _map = {
-                        common: {
-                            desc: "通用",
-                            selector: idMatches(_as + "pinEntry"),
-                        },
-                        miui: {
-                            desc: "MIUI",
-                            selector: idMatches(_ak + "numeric_inputview"),
-                        },
-                        emui_10: {
-                            desc: "EMUI10",
-                            selector: idMatches(_as + "fixedPinEntry"),
-                        },
-                        emui: {
-                            desc: "EMUI",
-                            selector: descMatches("[Pp][Ii][Nn] ?(码区域|area)"),
-                        },
-                        meizu: {
-                            desc: "魅族",
-                            selector: idMatches(_as + "lockPattern"),
-                        },
-                        oppo: {
-                            desc: "OPPO",
-                            selector: idMatches(_as + "(coloros.)?keyguard.pin.(six.)?view"),
-                        },
-                        vivo: {
-                            desc: "VIVO",
-                            selector: idMatches(_as + "vivo_pin_view"),
-                        },
-                    };
-
-                    for (let key in _map) {
-                        if (_map.hasOwnProperty(key)) {
-                            let {desc: _desc, selector: _sel} = _map[key];
-                            if (_sel.exists()) {
-                                if (_desc.match(/\w$/)) {
-                                    _desc += "/";
-                                }
-                                debugInfo("匹配到" + _desc + "PIN解锁控件");
-                                return _trigger(_sel, _stg);
+                    return [{
+                        desc: "通用",
+                        sel: idMatches(_as + "pinEntry"),
+                    }, {
+                        desc: "MIUI",
+                        sel: idMatches(_ak + "numeric_inputview"),
+                    }, {
+                        desc: "EMUI10",
+                        sel: idMatches(_as + "fixedPinEntry"),
+                    }, {
+                        desc: "EMUI",
+                        sel: descMatches("[Pp][Ii][Nn] ?(码区域|area)"),
+                    }, {
+                        desc: "魅族",
+                        sel: idMatches(_as + "lockPattern"),
+                    }, {
+                        desc: "OPPO",
+                        sel: idMatches(_as + "(coloros.)?keyguard.pin.(six.)?view"),
+                    }, {
+                        desc: "VIVO",
+                        sel: idMatches(_as + "vivo_pin_view"),
+                    }].some((smp) => {
+                        let _desc = smp.desc;
+                        if (smp.sel.exists()) {
+                            if (_desc.match(/\w$/)) {
+                                _desc += "/";
                             }
+                            debugInfo("匹配到" + _desc + "PIN解锁控件");
+                            return _trigger(smp.sel, _stg);
                         }
-                    }
+                    });
 
                     // tool function(s) //
 
@@ -2703,12 +2690,8 @@ function _unlkSetter() {
                                     }
                                 },
                                 click() {
-                                    let _widget = n => _num_pad.widget(n);
-                                    return _trig(() => {
-                                        _pw.forEach((n) => {
-                                            clickAction(_widget(n), "w");
-                                        });
-                                    });
+                                    let _w = n => _num_pad.widget(n);
+                                    return _trig(() => _pw.forEach(n => clickAction(_w(n), "w")));
                                 },
                             };
                             let _cntr = {
@@ -2748,12 +2731,8 @@ function _unlkSetter() {
                                     }
                                 },
                                 click() {
-                                    let _widget = n => _inp_view.widget(n);
-                                    return _trig(() => {
-                                        _pw.forEach((n) => {
-                                            clickAction(_widget(n), "w");
-                                        });
-                                    });
+                                    let _w = n => _inp_view.widget(n);
+                                    return _trig(() => _pw.forEach(n => clickAction(_w(n), "w")));
                                 },
                             };
                             let _sgl_desc = {
@@ -2790,12 +2769,8 @@ function _unlkSetter() {
                                     }
                                 },
                                 click() {
-                                    let _widget = n => _sgl_desc.widget(n);
-                                    return _trig(() => {
-                                        _pw.forEach((n) => {
-                                            clickAction(_widget(n), "w");
-                                        });
-                                    });
+                                    let _w = n => _sgl_desc.widget(n);
+                                    return _trig(() => _pw.forEach(n => clickAction(_w(n), "w")));
                                 },
                             };
                             let _msj = {
@@ -2850,22 +2825,16 @@ function _unlkSetter() {
                             // tool function(s) //
 
                             function _trig(f) {
-                                _this.unlockPin = () => f();
-                                return f();
+                                return (_this.unlockPin = f.bind(null))();
                             }
 
                             function _testNumWidgets(f) {
                                 // there is no need to check "0"
                                 // as a special treatment will be
                                 // given in getNumsBySingleDesc()
-                                let _nums = "123456789".split("");
-                                let _len = _nums.length;
-                                let _ctr = 9;
-                                for (let i = 0; i < _len; i += 1) {
-                                    let _sltr = f.call(null, _nums[i]);
-                                    if (!_sltr.exists()) {
-                                        _ctr -= 1;
-                                    }
+                                let _ctr = 0;
+                                for (let n of "123456789") {
+                                    _ctr += Number(f(n).exists());
                                 }
                                 return _ctr > 6;
                             }
@@ -2874,38 +2843,21 @@ function _unlkSetter() {
                 }
 
                 function _specials() {
-                    let _map = {
-                        gxzw: {
-                            desc: '"Gxzw"屏下指纹设备',
-                            selector: idMatches(/.*[Gg][Xx][Zz][Ww].*/),
-                            pw_rect: [0.0875, 0.47, 0.9125, 0.788],
-                        },
-                        // testA: {
-                        //     selector: idMatches(/test_test/),
-                        //     pw_rect: [0, 0, 1, 1],
-                        // },
-                        // testB: {
-                        //     selector: idMatches(/test_test_2/),
-                        //     pw_rect: [0, 0.5, 1, 0.9],
-                        // },
-                    };
-
-                    for (let key in _map) {
-                        if (_map.hasOwnProperty(key)) {
-                            let {desc: _desc, selector: _sel, pw_rect: _rect} = _map[key];
-                            if (_sel.exists()) {
-                                debugInfo(["匹配到特殊设备解锁方案:", _desc]);
-                                return _trigger(_sel, _stg.bind(null, _rect));
-                            }
+                    return [{
+                        desc: '"Gxzw"屏下指纹设备',
+                        sel: idMatches(/.*[Gg][Xx][Zz][Ww].*/),
+                        pw_rect: [0.0875, 0.47, 0.9125, 0.788], // [cX, cY, cX, cY]
+                    }].some((smp) => {
+                        if (smp.sel.exists()) {
+                            debugInfo(["匹配到特殊设备解锁方案:", smp.desc]);
+                            return _trigger(smp.sel, _stg.bind(null, smp.pw_rect));
                         }
-                    }
+                    });
 
                     // tool function(s) //
 
                     function _stg(pw_rect) {
-                        let _rect = pw_rect.map((n, i) => {
-                            return i % 2 ? cY(n) : cX(n);
-                        });
+                        let _rect = pw_rect.map((n, i) => i % 2 ? cY(n) : cX(n));
                         let [_l, _t, _r, _b] = _rect;
                         debugInfo("已构建密码区域边界:");
                         debugInfo("Rect(" + _l + ", " + _t + " - " + _r + ", " + _b + ")");
@@ -2920,9 +2872,7 @@ function _unlkSetter() {
                 }
 
                 function _unmatched() {
-                    if (!_isUnlk()) {
-                        debugInfo("未匹配到可用的解锁控件");
-                    }
+                    _isUnlk() || debugInfo("未匹配到可用的解锁控件");
                 }
 
                 function _trigger(sel, stg) {
@@ -2941,11 +2891,10 @@ function _unlkSetter() {
                         _r_w = _r - _l;
                         _r_h = _b - _t;
                     } else {
-                        let _bnd = rect;
-                        _r_l = _bnd.left;
-                        _r_t = _bnd.top;
-                        _r_w = _bnd.width();
-                        _r_h = _bnd.height();
+                        _r_l = rect.left;
+                        _r_t = rect.top;
+                        _r_w = rect.width();
+                        _r_h = rect.height();
                     }
 
                     let _w = Math.trunc(_r_w / 3);

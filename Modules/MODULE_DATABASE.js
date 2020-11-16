@@ -7,7 +7,7 @@
  *     {name: "collect", type: "integer"},
  *     {name: "help", type: "integer"}
  * ]);
- * db.insert$(["Brian J. Smith", +new Date(), 25, 31]);
+ * db.insert$(["Brian J. Smith", Date.now(), 25, 31]);
  * console.log(db.rawQueryData$("select * from ant_forest"));
  * db.clear$();
  * @since Nov 3, 2020

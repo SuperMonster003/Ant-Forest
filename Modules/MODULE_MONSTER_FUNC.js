@@ -1485,6 +1485,9 @@ function clickAction(f, strategy, params) {
     let _waitForAction = (
         typeof messageAction === "function" ? waitForAction : waitForActionRaw
     );
+    let _showSplitLine = (
+        typeof showSplitLine === "function" ? showSplitLine : showSplitLineRaw
+    );
 
     /**
      * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
@@ -1585,7 +1588,13 @@ function clickAction(f, strategy, params) {
     function _checkType(f) {
         let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
         if (!_type_f) {
-            _messageAction("不支持的clickAction()f参数类型: " + _classof(f), 8, 1, 0, 1);
+            _showSplitLine();
+            _messageAction("不支持的clickAction()的目标参数", 4, 1);
+            _messageAction("参数类型: " + typeof f, 4, 0, 1);
+            _messageAction("参数类值: " + _classof(f), 4, 0, 1);
+            _messageAction("参数字串: " + f.toString(), 4, 0, 1);
+            _showSplitLine();
+            exit();
         }
         return _type_f;
 
@@ -1735,6 +1744,12 @@ function clickAction(f, strategy, params) {
             _check_time -= _check_interval;
         }
         return _check_time >= 0;
+    }
+
+    function showSplitLineRaw(extra, style) {
+        console.log((
+            style === "dash" ? "- ".repeat(18).trim() : "-".repeat(33)
+        ) + (extra || ""));
     }
 }
 
@@ -3540,7 +3555,7 @@ function getSelector(options) {
          */
         get(key, type) {
             if (!(key in this._sel_body_pool)) {
-                throw Error("sel key '" + key + "' not set in pool");
+                throw Error("Sel key '" + key + "' not set in pool");
             }
             let _picker = this._sel_body_pool[key];
             return !_picker ? null : type === "cache"
@@ -3646,7 +3661,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
     global["_$_ts_rec"] = global["_$_ts_rec"] || {};
     let records = global["_$_ts_rec"];
     if (!operation || operation.toString().match(/^(S|save|put)$/)) {
-        return records[keyword] = +new Date();
+        return records[keyword] = Date.now();
     }
 
     divisor = divisor || 1;
@@ -3965,14 +3980,6 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * }));
  */
 function baiduOcr(src, par) {
-    let _isRecycled = (img) => {
-        if (!img) return true;
-        try {
-            img.getHeight();
-        } catch (e) {
-            return !!e.message.match(/has been recycled/);
-        }
-    };
     if (!src) {
         return [];
     }
@@ -4011,11 +4018,12 @@ function baiduOcr(src, par) {
     let _thd_token = threads.start(function () {
         while (_max_token--) {
             try {
-                let _url = "https://aip.baidubce.com/oauth/2.0/token" +
+                _token = http.get(
+                    "https://aip.baidubce.com/oauth/2.0/token" +
                     "?grant_type=client_credentials" +
                     "&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE" +
-                    "&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj";
-                _token = http.get(_url).body.json()["access_token"];
+                    "&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj"
+                ).body.json()["access_token"];
                 _debugInfo("access_token准备完毕");
                 break;
             } catch (e) {
@@ -4024,16 +4032,15 @@ function baiduOcr(src, par) {
         }
     });
     _thd_token.join(_tt);
+
+    let _lv = +!_par.no_toast_msg_flag;
+    let _e = s => _messageAction(s, 3, _lv, 0, "both_dash");
     if (_max_token < 0) {
-        let _msg = "baiduOcr获取access_token失败";
-        let _lv = +!_par.no_toast_msg_flag;
-        _messageAction(_msg, 3, _lv, 0, "both_dash");
+        _e("baiduOcr获取access_token失败");
         return [];
     }
     if (_thd_token.isAlive()) {
-        let _msg = "baiduOcr获取access_token超时";
-        let _toast = +!_par.no_toast_msg_flag;
-        _messageAction(_msg, 3, _toast, 0, "both_dash");
+        _e("baiduOcr获取access_token超时");
         return [];
     }
 
@@ -4042,12 +4049,7 @@ function baiduOcr(src, par) {
     let _itv = _par.fetch_interval || 300;
     let _res = [];
     let _thds = [];
-    let _allDead = () => {
-        for (let i = 0, l = _thds.length; i < l; i += 1) {
-            if (_thds[i].isAlive()) return;
-        }
-        return true;
-    };
+    let _allDead = () => _thds.every(thd => !thd.isAlive());
 
     while (_max--) {
         _thds.push(threads.start(function () {
@@ -4063,29 +4065,19 @@ function baiduOcr(src, par) {
                 _img = _stitchImgs(src);
             }
             let _cur = _max_b - _max;
-            let _img_str = "stitched_image";
-            let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
-            _debugInfo(_img_str + _suffix + "准备完毕");
+            let _suffix = _max_b > 1 ? " [" + _cur + "] " : "";
+            _debugInfo("stitched image" + _suffix + "准备完毕");
 
             try {
-                let _url = "https://aip.baidubce.com" +
-                    "/rest/2.0/ocr/v1/general_basic" +
-                    "?access_token=" + _token;
-                let _opt = {
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded'
-                    },
-                    // images.read(img_file) for local file
+                let _words = JSON.parse(http.post("https://aip.baidubce.com/" +
+                    "rest/2.0/ocr/v1/general_basic?access_token=" + _token, {
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
                     image: images.toBase64(_img),
                     image_type: "BASE64",
-                };
-                let _response = http.post(_url, _opt).body.string();
-                let _words = JSON.parse(_response)["words_result"];
+                }).body.string())["words_result"];
                 if (_words) {
-                    let _words_res = _words.map(val => val["words"]);
-                    let _suffix = _max_b > 1 ? "[" + _cur + "]" : "";
                     _debugInfo("数据" + _suffix + "获取成功");
-                    _res.push(_words_res);
+                    _res.push(_words.map(val => val["words"]));
                 }
             } catch (e) {
                 if (!e.message.match(/InterruptedIOException/)) {
@@ -4100,9 +4092,8 @@ function baiduOcr(src, par) {
     }
 
     threads.start(function () {
-        while (sleep(500) || true) {
-            if (_allDead()) break;
-            if (+new Date() >= _tt_ts) {
+        while (!_allDead()) {
+            if (Date.now() >= _tt_ts) {
                 _thds.forEach(thd => thd.interrupt());
 
                 let _msg = "baiduOcr获取数据超时";
@@ -4112,8 +4103,9 @@ function baiduOcr(src, par) {
                 if (_res.length) {
                     _messageAction("已获取的数据可能不完整", 3);
                 }
-                _showSplitLine("", "dash");
+                return _showSplitLine("", "dash");
             }
+            sleep(500);
         }
     });
 
@@ -4193,6 +4185,17 @@ function baiduOcr(src, par) {
             });
             return _stitched;
         }
+    }
+
+    function _isRecycled(img) {
+        if (img) {
+            try {
+                img.getHeight();
+            } catch (e) {
+                return !!e.message.match(/has been recycled/);
+            }
+        }
+        return true;
     }
 
     // raw function(s) //
@@ -4595,7 +4598,7 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
     while (_waitForAction(_cond_stable, stable_threshold || 500)) {
         _old = _tmp;
         if (Date.now() - _start_ts > _limit) {
-            throw Error("stabilizer has reached max limitation: " + _limit + "ms");
+            throw Error("stabilizer() has reached max limitation: " + _limit + "ms");
         }
     }
 

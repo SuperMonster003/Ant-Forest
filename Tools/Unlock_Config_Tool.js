@@ -58,10 +58,11 @@ let DEFAULT_UNLOCK = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).unlock
         unlock_pattern_size: 3,
         unlock_pattern_swipe_time_segmental: 120,
         unlock_pattern_swipe_time_solid: 200,
+        unlock_dismiss_layer_strategy: "preferred",
         unlock_dismiss_layer_bottom: 0.8,
         unlock_dismiss_layer_top: 0.2,
         unlock_dismiss_layer_swipe_time: 110,
-    }; // updated: Nov 14, 2019
+    }; // updated: Nov 11, 2020
 
 let DEFAULT_SETTINGS = (require("../Modules/MODULE_DEFAULT_CONFIG") || {}).settings || {
     item_area_width: 0.78,
@@ -781,7 +782,7 @@ function loadInternalModuleDialog() {
                                 return true;
                             });
                     } else {
-                        throw new Error("unknown itemsSelectMode " + itemsSelectMode);
+                        throw new Error("Unknown itemsSelectMode " + itemsSelectMode);
                     }
                 }
                 if (properties.progress !== undefined) {

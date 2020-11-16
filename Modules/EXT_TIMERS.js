@@ -24,7 +24,7 @@ let ext = {
      *     path: string, time: string|Date|number,
      *     delay?: number, interval?: number, loopTimes?: number,
      * }} options
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @example
      * timersx.addDailyTask({
      *     time: Date.now() + 3.6e6,
@@ -45,7 +45,7 @@ let ext = {
      *     daysOfWeek: (string|number)[],
      *     delay?: number, interval?: number, loopTimes?: number,
      * }} options
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @example
      * timersx.addWeeklyTask({
      *     time: Date.now() + 3.6e6,
@@ -76,7 +76,7 @@ let ext = {
      *     path: string, date: string|Date|number,
      *     delay?: number, interval?: number, loopTimes?: number,
      * }} options
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @example
      * timersx.addDisposableTask({
      *     path: engines.myEngine().source,
@@ -93,7 +93,7 @@ let ext = {
     },
     /**
      * @param {{path: string, action?: string}} options
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @example
      * timersx.addIntentTask({
      *     path: files.path("./test.js"),
@@ -127,7 +127,7 @@ let ext = {
     },
     /**
      * @param {number} id
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
     removeIntentTask(id, wait_fg) {
@@ -136,7 +136,7 @@ let ext = {
     },
     /**
      * @param {number} id
-     * @param {boolean} [wait_fg=false]
+     * @param {boolean|"wait"} [wait_fg=false]
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
     removeTimedTask(id, wait_fg) {
@@ -240,7 +240,7 @@ function parseDateTime(clazz, date_time) {
     if (typeof date_time === 'number') {
         return is_pro ? TimedTask.parseDateTime.call(TimedTask, _clz, _dt) : new _clz(_dt);
     }
-    throw new Error("cannot parse date time: " + date_time);
+    throw new Error("Cannot parse date time: " + date_time);
 }
 
 /**

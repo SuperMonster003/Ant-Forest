@@ -98,29 +98,27 @@ let ext = {
      * a duplicate from Auto.js 4.1.1 Alpha2
      * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @see app.intent
-     * @param {string|android.content.Intent|object} o
+     * @param {string|android.content.Intent|IntentCommonParamsWithRoot} o
      * @returns void
      */
     startActivity(o) {
         if (typeof o === "string") {
-            if (runtime.getProperty("class." + o)) {
-                context.startActivity(
-                    new Intent(
-                        context, runtime.getProperty("class." + o)
-                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                );
-                return;
+            if (!runtime.getProperty("class." + o)) {
+                throw new Error("Class " + o + " not found");
             }
-            throw new Error("class " + o + " not found");
-        }
-        if (o instanceof Intent) {
-            context.startActivity(o.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-            return;
-        }
-        if (o && o.root) {
-            shell("am start " + app.intentToShell(o), true);
+            context.startActivity(new Intent(
+                context, runtime.getProperty("class." + o)
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        } else if (typeof o === "object") {
+            if (o.root) {
+                shell("am start " + app.intentToShell(o), true);
+            } else {
+                context.startActivity(this.intent(o).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            }
+        } else if (o instanceof Intent) {
+            context.startActivity(new Intent(o).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } else {
-            context.startActivity(this.intent(o).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            throw Error("Unknown param for appx.startActivity()");
         }
     },
     /**

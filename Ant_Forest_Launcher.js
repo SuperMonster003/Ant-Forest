@@ -1,8 +1,8 @@
 /**
  * @description alipay ant forest intelligent collection script
  *
- * @since Nov 10, 2020
- * @version 1.9.24
+ * @since Nov 16, 2020
+ * @version 1.9.25
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  *
  * @see {@link https://github.com/SuperMonster003/Ant_Forest}
@@ -353,7 +353,7 @@ let $$init = {
         function setGlobalFlags() {
             let _cnsl_detail = $$cfg.console_log_details;
             let _dbg_info_sw = $$cfg.debug_info_switch;
-            let _msg_show_sw = $$cfg.message_showing_switch;
+            let _msg_show_sw = $$cfg.message_showing_switch && $$cfg.console_log_switch;
             $$flag.msg_details = _cnsl_detail || _dbg_info_sw;
             $$flag.debug_info_avail = _dbg_info_sw && _msg_show_sw;
             $$flag.no_msg_act_flag = !_msg_show_sw;
@@ -436,7 +436,7 @@ let $$init = {
                     };
                     $$app.setAutoTask = (task_func, ts, type, keep_old) => {
                         if (typeof task_func !== "function") {
-                            throw TypeError("setAutoTask invoked with non-function param");
+                            throw TypeError("setAutoTask() invoked with non-function param");
                         }
 
                         let _old_id = $$app.getAutoTask().task_id;
@@ -1190,19 +1190,18 @@ let $$init = {
                         },
                         rl: {
                             get capt_img() {
-                                return this._capt || this.capt();
-                            },
-                            set capt_img(img) {
-                                this._capt = img;
+                                if (this._capt && !imagesx.isRecycled(this._capt)) {
+                                    return this._capt;
+                                }
+                                return this.capt();
                             },
                             capt() {
-                                imagesx.reclaim(this._capt);
-                                return this.capt_img = imagesx.capt();
+                                return this._capt = imagesx.capt("jpg", 90);
                             },
                             pool: {
                                 data: [],
                                 add() {
-                                    this.data.unshift(images.copy($$app.page.rl.capt()));
+                                    this.data.unshift($$app.page.rl.capt());
                                     return this;
                                 },
                                 filter() {
@@ -1214,21 +1213,19 @@ let $$init = {
                                     }
                                     return this;
                                 },
-                                trim() {
+                                trim(kept) {
                                     let _pool = this.data;
-                                    for (let i = _pool.length; i-- > 2;) {
-                                        imagesx.reclaim(_pool[i]);
-                                        _pool[i] = null;
-                                        _pool.splice(i, 1);
+                                    let _idx = _pool.length;
+                                    while (_idx-- > kept) {
+                                        _pool[_idx].recycle();
+                                        _pool[_idx] = null;
+                                        _pool.splice(_idx, 1);
                                     }
                                     return this;
                                 },
                                 clean() {
                                     debugInfo("清理排行榜截图样本池");
-                                    let _pool = this.data;
-                                    while (_pool.length) {
-                                        _pool.shift().recycle();
-                                    }
+                                    this.trim(0);
                                     return this;
                                 },
                                 isDiff() {
@@ -1247,7 +1244,7 @@ let $$init = {
                                 }
                             },
                             btm_tpl: {
-                                path: $$cfg.rank_list_bottom_template_path,
+                                path: $$cfg.rank_list_bottom_template_file_path,
                                 get img() {
                                     if (this._img && !imagesx.isRecycled(this._img)) {
                                         return this._img;
@@ -1368,25 +1365,29 @@ let $$init = {
                                 get filled_up() {
                                     return this.len >= this.limit;
                                 },
-                                add(capt) {
-                                    capt = capt || imagesx.capt();
-                                    this.filled_up && this.reclaimLast();
-                                    debugInfo("添加好友森林采样: " + imagesx.getName(capt));
-                                    this.data.unshift(capt);
+                                get overflow() {
+                                    return this.len > this.limit;
                                 },
-                                reclaimLast() {
-                                    let _c = this.data.pop();
-                                    debugInfo("好友森林采样已达阈值: " + this.limit);
-                                    debugInfo(">移除并回收最旧样本: " + imagesx.getName(_c));
-                                    imagesx.reclaim(_c);
-                                    _c = null;
+                                add(capt) {
+                                    let _capt = capt || imagesx.capt("jpg", 90);
+                                    debugInfo("添加好友森林采样: " + imagesx.getName(_capt));
+                                    this.data.unshift(_capt);
+                                    if (this.overflow) {
+                                        debugInfo("采样样本数量超过阈值: " + this.limit);
+                                        while (this.overflow) {
+                                            let _c = this.data.pop();
+                                            debugInfo(">移除并回收最旧样本: " + imagesx.getName(_c));
+                                            _c.recycle();
+                                            _c = null;
+                                        }
+                                    }
                                 },
                                 reclaimAll() {
                                     if (this.len) {
                                         debugInfo("回收全部好友森林采样");
                                         this.data.forEach((c) => {
                                             let _c_name = imagesx.getName(c);
-                                            imagesx.reclaim(c);
+                                            c.recycle();
                                             debugInfo(">已回收: " + _c_name);
                                             c = null;
                                         });
@@ -1444,7 +1445,12 @@ let $$init = {
                                     );
                                     return this.data.some((img) => {
                                         let _c = !imagesx.isRecycled(img) && _clip(img);
-                                        return _c && images.findColor(_c, _color, _par);
+                                        if (_c) {
+                                            let _pts = images.findColor(_c, _color, _par);
+                                            _c.recycle();
+                                            _c = null;
+                                            return _pts;
+                                        }
                                     }) || debugInfo("颜色识别无保护罩");
                                 },
                             },
@@ -1750,22 +1756,19 @@ let $$init = {
                                 this.abbr = user.abbr;
                                 this.name = user.name;
                                 this.code_raw = user.code_raw;
-
                                 if (!user.name && user.name_raw) {
                                     this.name = $$acc.decode(user.name_raw);
                                 }
-
                                 if (!user.direct && !user.abbr) {
                                     this.abbr = $$acc.user_list.parse(this.name).abbr;
                                 }
-
                                 return true;
                             }
 
                             function _login() {
                                 let _this = this;
                                 let _name_str = _this.abbr || _this.name;
-                                let _loggedIn = () => $$acc.isLoggedIn(_name_str);
+                                let _isLoggedIn = () => $$acc.isLoggedIn(_name_str);
 
                                 return (_byUsrList() || _byInputText()) && _clearFlag();
 
@@ -1789,7 +1792,7 @@ let $$init = {
                                     }
 
                                     function _loginAndCheck() {
-                                        if (_loggedIn()) {
+                                        if (_isLoggedIn()) {
                                             return true;
                                         }
                                         if (!_this.abbr) {
@@ -1816,7 +1819,7 @@ let $$init = {
                                             }],
                                             timeout_review: [{
                                                 remark: "强制账号列表检查",
-                                                cond: () => _loggedIn(),
+                                                cond: () => _isLoggedIn(),
                                             }]
                                         };
 
@@ -1828,7 +1831,7 @@ let $$init = {
                                             if (!_condChecker(_conds)) {
                                                 return false;
                                             }
-                                            if (_loggedIn()) {
+                                            if (_isLoggedIn()) {
                                                 return true;
                                             }
                                         }
@@ -1844,46 +1847,48 @@ let $$init = {
                                     // tool function(s) //
 
                                     function _ready() {
-                                        if (!$$str(_this.name)) {
-                                            return;
+                                        if (waitForAction(_condition, 3e3)) {
+                                            if (!$$acc.isInLoginPg()) {
+                                                let _w = $$sel.get("login_new_acc");
+                                                if (!clickAction($$sel.pickup([_w, "p4"]), "w")) {
+                                                    appx.startActivity($$app.intent.acc_login);
+                                                }
+                                            }
+                                            return _clickOtherBtnIFN();
                                         }
+                                        return messageAction("无法判断当前登录页面状态", 4, 1, 0, 2);
 
-                                        let _cond = () => {
+                                        // tool function(s) //
+
+                                        function _condition() {
                                             if ($$sel.get("acc_logged_out")) {
                                                 clickAction($$sel.pickup(/好的|OK/), "w");
                                             }
                                             return $$acc.isInLoginPg() || $$acc.isInSwAccPg();
-                                        };
-
-                                        if (!waitForAction(_cond, 3e3)) {
-                                            return messageAction("无法判断当前登录页面状态", 4, 1, 0, 2);
                                         }
-
-                                        if (!$$acc.isInLoginPg()) {
-                                            let _w = $$sel.get("login_new_acc");
-                                            if (!clickAction($$sel.pickup([_w, "p4"]), "w")) {
-                                                appx.startActivity($$app.intent.acc_login);
-                                            }
-                                        }
-
-                                        return _clickOtherBtnIFN();
-
-                                        // tool function(s) //
 
                                         function _clickOtherBtnIFN() {
-                                            let _acc, _lbl, _mthd;
+                                            let _acc, _lbl, _mthd1, _mthd2;
                                             let _a = () => _acc = $$sel.get("login_other_acc");
-                                            let _m = () => _mthd = $$sel.get("login_other_mthd_init_pg");
+                                            let _m1 = () => _mthd1 = $$sel.get("login_other_mthd_init_pg");
+                                            let _m2 = () => _mthd2 = $$sel.get("login_other_mthd");
                                             let _lb = () => _lbl = $$sel.get("input_lbl_acc");
 
-                                            waitForAction(() => _a() || _m() || _lb(), 3e3);
+                                            waitForAction(() => _a() || _m1() || _m2() || _lb(), 3e3);
 
                                             if (_acc) {
                                                 debugInfo('点击"换个账号登录"按钮');
                                                 clickAction(_acc, "w");
-                                            } else if (_mthd) {
+                                            } else if (_mthd1) {
                                                 debugInfo('点击"其他登录方式"按钮');
-                                                clickAction(_mthd, "w");
+                                                clickAction(_mthd1, "w");
+                                            } else if (_mthd2) {
+                                                debugInfo('点击"换个方式登录"按钮');
+                                                clickAction(_mthd2, "w");
+                                                sleep(240);
+                                                if (clickAction($$sel.pickup("密码登录"), "w")) {
+                                                    debugInfo('点击"密码登录"选项');
+                                                }
                                             }
 
                                             return waitForAction(_lb, 3e3); // just in case
@@ -1905,6 +1910,15 @@ let $$init = {
                                             // tool function(s) //
 
                                             function _input() {
+                                                threadsx.starts(function () {
+                                                    while (1) {
+                                                        $$sel.pickup({
+                                                            packageName: "com.google.android.gms",
+                                                        }) && back();
+                                                        sleep(1e3);
+                                                    }
+                                                });
+
                                                 let _w_acc = null;
                                                 let _sel_acc = () => _w_acc = $$sel.get("input_lbl_acc");
 
@@ -1921,6 +1935,7 @@ let $$init = {
                                                         let _res = false;
                                                         if (_w) {
                                                             debugInfo('布局树查找可编辑"账号"控件成功');
+                                                            _w.setText(""); // just in case
                                                             _res = _w.setText(name);
                                                         } else {
                                                             debugInfo('布局树查找可编辑"账号"控件失败', 3);
@@ -1928,16 +1943,17 @@ let $$init = {
                                                             let _edit = className("EditText").findOnce();
                                                             _res = _edit && _edit.setText(name);
                                                         }
-                                                        let _suffix = _res ? "成功" : "失败";
-                                                        let _lv = _res ? 0 : 3;
-                                                        debugInfo("控件输入账户名" + _suffix, _lv);
+                                                        if (_res) {
+                                                            debugInfo("控件输入账户名成功");
+                                                        } else {
+                                                            debugInfo("控件输入账户名失败", 3);
+                                                        }
                                                     } else {
-                                                        messageAction(
-                                                            '布局查找"账号"输入项控件失败', 3, 0, 0, "up_dash");
-                                                        messageAction(
-                                                            "尝试盲输", 3, 0, 0, "dash");
+                                                        messageAction('布局查找"账号"输入项控件失败', 3);
+                                                        messageAction("尝试盲输", 3);
                                                         setText(0, name);
                                                     }
+
                                                     if (_cA() && _cB()) {
                                                         break;
                                                     }
@@ -2322,7 +2338,7 @@ let $$init = {
                             _path: $$app.local_pics_path + "main_user_mini_avatar_clip.png",
                             _isTotalGreen(img) {
                                 return imagesx.findAllPointsForColor(
-                                    img, "#30bf6c", {threshold: 2}
+                                    img, "#30bf6c", {threshold: 50}
                                 ).length > img.height * img.width * 0.98;
                             },
                             isValid(path) {
@@ -2337,9 +2353,16 @@ let $$init = {
                                     files.remove(files.path("./false" + this._path.slice(_idx)));
                                 }.call(this);
 
-                                let _img = images.read(path || this._path);
                                 timeRecorder("avt_chk");
-                                let _res = _img && _check.call(this, _img);
+
+                                let _img = images.read(path || this._path);
+                                let _res;
+                                if (_img) {
+                                    _res = _check.call(this, _img);
+                                    _img.recycle();
+                                    _img = null;
+                                }
+
                                 $$app.avatar_checked_time = timeRecorder("avt_chk", "L", "auto");
 
                                 if (_res) {
@@ -2355,8 +2378,6 @@ let $$init = {
                                         let _avt = this.getAvtClip();
                                         if (_avt && images.findImage(_avt, img, {level: 1})) {
                                             this._avt_clip_cached = _avt;
-                                            imagesx.reclaim(_avt);
-                                            _avt = null;
                                             return true;
                                         }
                                     }
@@ -2409,7 +2430,7 @@ let $$init = {
                                     let w_chop = w / Math.SQRT2;
                                     let h_chop = h / Math.SQRT2;
 
-                                    let _scr_capt = imagesx.capt();
+                                    let _scr_capt = imagesx.capt("jpg", 90);
 
                                     // A. get the biggest rectangle area inside the circle (or ellipse)
                                     // B. one pixel from each side of the area was removed
@@ -2418,7 +2439,7 @@ let $$init = {
                                         t + (h - h_chop) / 2 + 1, // y
                                         w_chop - 2, h_chop - 2);  // w, h
 
-                                    imagesx.reclaim(_scr_capt);
+                                    _scr_capt.recycle();
                                     _scr_capt = null;
 
                                     return _clip;
@@ -2428,9 +2449,12 @@ let $$init = {
                                 let _avt_clip = this._avt_clip_cached || this.getAvtClip();
                                 if (_avt_clip) {
                                     images.save(_avt_clip, path || this._path);
-                                    imagesx.reclaim(_avt_clip);
+                                    _avt_clip.recycle();
                                     _avt_clip = null;
-                                    delete this._avt_clip_cached;
+                                    if (this._avt_clip_cached) {
+                                        this._avt_clip_cached.recycle();
+                                        this._avt_clip_cached = null;
+                                    }
                                     return true;
                                 }
                             },
@@ -2453,19 +2477,18 @@ let $$init = {
                             return $$acc.isMatchAbbr(name_str, $$acc.decode(this.name_raw));
                         },
                         login(par) {
-                            if (!this._avail()) {
-                                return;
+                            if (this._avail()) {
+                                if (this._avatar.isValid()) {
+                                    return true;
+                                }
+                                if (_loginMain()) {
+                                    $$app.page.af.launch();
+                                    this._avatar.save();
+                                    return true;
+                                }
+                                messageAction("强制停止脚本", 4, 0, 0, -1);
+                                messageAction("主账户登录失败", 8, 1, 1, 1);
                             }
-                            if (this._avatar.isValid()) {
-                                return true;
-                            }
-                            if (_loginMain()) {
-                                $$app.page.af.launch();
-                                this._avatar.save();
-                                return true;
-                            }
-                            messageAction("强制停止脚本", 4, 0, 0, -1);
-                            messageAction("主账户登录失败", 8, 1, 1, 1);
 
                             // tool function(s) //
 
@@ -3279,12 +3302,14 @@ let $$init = {
 
                         $$flag.rl_bottom_rch = true;
 
-                        let _capt = imagesx.capt();
+                        let _capt = imagesx.capt("jpg", 90);
                         let _clip = images.clip(_capt, _l, _t, _w, _h);
-                        let _path = $$app.page.rl.btm_tpl.path;
-                        $$app.page.rl.btm_tpl.reclaim();
-                        $$app.page.rl.btm_tpl.img = _clip;
-                        images.save(_clip, _path);
+                        let _btm_tpl = $$app.page.rl.btm_tpl;
+
+                        _btm_tpl.reclaim();
+                        _btm_tpl.img = _clip;
+
+                        images.save(_btm_tpl.img, _btm_tpl.path);
                         debugInfo("已存储列表底部控件图片模板");
 
                         imagesx.reclaim(_capt, _clip);
@@ -3930,7 +3955,7 @@ let $$af = {
                 },
                 cleaner: {
                     imgWrapper() {
-                        $$af && Object.keys($$af).forEach(k => imagesx.reclaim($$af[k]));
+                        imagesx.recycleGlobal();
                     },
                     eballs() {
                         $$af.home_balls_info = {};
@@ -4239,14 +4264,25 @@ let $$af = {
                                 function _thdOcr() {
                                     debugInfo("已开启倒计时数据OCR识别线程");
 
-                                    let _capt = imagesx.capt();
-                                    let [_cl, _ct, _cr, _cb] = $$cfg.forest_balls_recog_region;
-                                    let _cw = _cr - _cl;
-                                    let _ch = _cb - _ct;
-                                    let _clip = images.clip(_capt, _cl, _ct, _cw, _ch);
-                                    let _stitched = null;
+                                    let _capt = imagesx.capt("jpg", 95);
 
-                                    let _raw_data = baiduOcr(_stitchImg(), {
+                                    let [_cl, _ct, _cr, _cb] = $$cfg.forest_balls_recog_region;
+                                    let _clip = images.clip(_capt, _cl, _ct, _cr - _cl, _cb - _ct);
+
+                                    let _stitched = (() => {
+                                        let _getClip = (o) => images.clip(_capt,
+                                            o.left, o.top, o.width(), o.height()
+                                        );
+                                        let _img = _getClip(_nor_balls[0]);
+                                        _nor_balls.slice(1).forEach((o) => {
+                                            let _tmp = images.concat(_img, _getClip(o), "BOTTOM");
+                                            _img.recycle();
+                                            _img = _tmp;
+                                        });
+                                        return _img;
+                                    })();
+
+                                    let _raw_data = baiduOcr(_stitched, {
                                         fetch_times: 3,
                                         fetch_interval: 500,
                                         no_toast_msg_flag: true,
@@ -4300,22 +4336,6 @@ let $$af = {
                                     debugInfo("OCR识别线程数据已采纳");
 
                                     return _ctd_data = _proc_data;
-
-                                    // tool function(s) //
-
-                                    // to stitch af home balls image
-                                    function _stitchImg() {
-                                        let _toImg = o => images.clip(_capt,
-                                            o.left, o.top, o.width(), o.height()
-                                        );
-                                        _stitched = _toImg(_nor_balls[0]);
-                                        _nor_balls.slice(1).forEach((o) => {
-                                            _stitched = images.concat.apply(images, [
-                                                _stitched, _toImg(o), "BOTTOM"
-                                            ]);
-                                        });
-                                        return _stitched;
-                                    }
                                 }
 
                                 function _thdToast() {
@@ -4398,9 +4418,12 @@ let $$af = {
                     }
 
                     function _waterBalls() {
+                        if (!$$cfg.homepage_wball_switch) {
+                            return debugInfo("浇水回赠球检测未开启");
+                        }
                         debugInfo("开始检测浇水回赠能量球");
                         let _wb_cache = $$af.eballs("water", {cache: true});
-                        let _wb_info = {lmt: 300, ctr: 0};
+                        let _ctr = 0, _lmt = $$cfg.homepage_wball_check_limit;
                         if (_wb_cache.length) {
                             debugInfo("发现浇水回赠能量球");
                             _wb_cache.forEach(_fetch);
@@ -4408,8 +4431,8 @@ let $$af = {
                                 _fetch();
                             }
                         }
-                        if (_wb_info.ctr > 0) {
-                            debugInfo("收取浇水回赠能量球: " + _wb_info.ctr + "个");
+                        if (_ctr > 0) {
+                            debugInfo("收取浇水回赠能量球: " + _ctr + "个");
                         } else {
                             debugInfo("未发现浇水回赠能量球");
                         }
@@ -4418,36 +4441,29 @@ let $$af = {
                         // tool function(s) //
 
                         function _trig() {
-                            let _res = false;
-                            delete _wb_info.coord;
-                            if (!_wb_info.lmt--) {
-                                messageAction("中断主页浇水回赠能量球检测", 3, 0, 0, -1);
-                                messageAction("已达最大检查次数限制", 3, 0, 1, 1);
-                                return _res;
+                            if (_lmt--) {
+                                let _capt = imagesx.capt("jpg", 90);
+                                _wb_cache.some((coord) => {
+                                    if (imagesx.isWaterBall(coord, _capt)) {
+                                        return _waterBalls.coord = coord;
+                                    }
+                                });
+                                _capt.recycle();
+                                _capt = null;
+                                return true;
                             }
-                            let _capt = imagesx.capt();
-                            for (let coord of _wb_cache) {
-                                if (imagesx.isWaterBall(coord, _capt)) {
-                                    _wb_info.coord = coord;
-                                    _res = true;
-                                    break;
-                                }
-                            }
-                            _capt.recycle();
-                            _capt = null;
-                            return _res;
+                            messageAction("中断主页浇水回赠能量球检测", 3, 0, 0, -1);
+                            messageAction("已达最大检查次数限制", 3, 0, 1, 1);
                         }
 
                         function _fetch(o) {
-                            clickAction(o || _wb_info.coord, "p", {pt$: $$cfg.balls_click_duration});
+                            clickAction(o || _waterBalls.coord, "p", {pt$: $$cfg.balls_click_duration});
                             sleep(240);
 
                             if (_stableEmount()) {
-                                return _wb_info.ctr += 1;
+                                return _ctr += 1;
                             }
-                            debugInfo("浇水回赠能量球点击超时");
-                            debugInfo("可能是能量球误匹配");
-                            _wb_cache = [];
+                            _lmt = +!!debugInfo(["浇水回赠能量球点击超时", "可能是能量球误匹配"]);
                         }
                     }
 
@@ -4505,7 +4521,7 @@ let $$af = {
                                     }
                                     let _result = [];
                                     if (_cache.length) {
-                                        let _capt = imagesx.capt();
+                                        let _capt = imagesx.capt("jpg", 90);
                                         _cache.forEach((o) => {
                                             imagesx.isRipeBall(o, _capt, _result);
                                         });
@@ -4935,9 +4951,8 @@ let $$af = {
                             _t = _y + cYx(76);
 
                             _tar.unshift({
-                                icon_x: _matched.x,
                                 icon_y: _y,
-                                item_y: _y + cYx(16),
+                                item_y: Math.min(_y + cYx(16), uH),
                                 act_desc: this.act_desc,
                             });
                         }
@@ -4960,37 +4975,27 @@ let $$af = {
                     }
 
                     function _chkByImgTpl() {
-                        let _ic_k = "ic_fetch";
-                        let _ic_img = _getIcon(_ic_k);
+                        let _ic_img = _getIcon("ic_fetch");
                         let _capt = $$app.page.rl.capt_img;
-                        let _x = cX(0.85);
-                        let _y = 0;
+                        let _x = cX(0.896);
+                        let _y = cYx(0.09);
                         let _w = _capt.getWidth() - _x;
                         let _h = _capt.getHeight() - _y;
                         let _clip = images.clip(_capt, _x, _y, _w, _h);
-                        let _res = imagesx.matchTpl(_clip, _ic_img, {
-                            name: _ic_k + "_" + W + "p",
-                            max: 20,
-                            range: [28, 30],
-                            threshold_attempt: 0.94,
-                            // region_attempt: [cX(0.8), 0, cX(0.2), uH],
-                            threshold_result: 0.94,
+                        let _res = imagesx.matchTemplate(_clip, _ic_img, {
+                            cache: "ic_fetch_" + W + "p",
+                            max_results: 15,
+                            template_display_width: 1644,
+                            not_null: true,
                         });
                         _clip.recycle();
                         _clip = null;
 
-                        let _tar = [];
-                        if (_res) {
-                            _res.points.forEach((pt) => {
-                                _tar.unshift({
-                                    icon_x: pt.x,
-                                    icon_y: pt.y,
-                                    item_y: pt.y,
-                                    act_desc: this.act_desc,
-                                });
-                            });
-                        }
-                        return _tar;
+                        return _res.points.reverse().map((pt) => ({
+                            icon_y: pt.y + _y,
+                            item_y: Math.min(pt.y + _y + cYx(16), uH),
+                            act_desc: this.act_desc,
+                        }));
 
                         // tool function(s) //
 
@@ -5000,9 +5005,7 @@ let $$af = {
                         }
                     }
 
-                    /**
-                     * @param {"pick"|"help"} ident
-                     */
+                    /** @param {"pick"|"help"} ident */
                     function _getTar(ident) {
                         return _prop[ident].getTar().sort((a, b) => (
                             a.icon_y < b.icon_y ? 1 : -1
@@ -5753,7 +5756,7 @@ let $$af = {
                             let _ctr = $$flag.rl_capt_pool_ctr || 0;
                             let _ctrTrig = () => _ctr && !(_ctr % 4);
 
-                            _pool.add().filter().trim();
+                            _pool.add().filter().trim(2);
 
                             return !_diffLmtRch() && _ctrTrig();
 
@@ -5823,7 +5826,7 @@ let $$af = {
                                             debugInfo(">已匹配列表底部控件");
                                             $$flag.rl_bottom_rch = true;
 
-                                            let _capt = imagesx.capt();
+                                            let _capt = imagesx.capt("jpg", 90);
                                             let _clip = images.clip(_capt,
                                                 _bnd.left, _bnd.top, _w - 3, _h - 3);
                                             let _path = $$app.page.rl.btm_tpl.path;

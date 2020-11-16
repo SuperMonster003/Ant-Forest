@@ -30,6 +30,10 @@ module.exports = {
         homepage_background_monitor_switch: false,
         // 1.0 <= x <= 3.0; value should not bigger than homepage_monitor_threshold
         homepage_bg_monitor_threshold: 1,
+        // set falsy to disable homepage water ball check
+        homepage_wball_switch: true,
+        // just in case of infinite loop check
+        homepage_wball_check_limit: 120,
         // max hue value in HSB mode without blue component for water wall identification
         homepage_wball_max_hue_b0: 42,
         // seriously? i cannot believe it if you turn this switch off
@@ -168,8 +172,8 @@ module.exports = {
         prompt_before_running_postponed_minutes: 0,
         // record user selected value of postponed settings dialog in countdown dialog
         prompt_before_running_postponed_minutes_user: 3,
-        // specify a path for rank list bottom template locating (*.png)
-        rank_list_bottom_template_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.png",
+        // specify a path for rank list bottom template locating (*.jpg)
+        rank_list_bottom_template_file_path: files.getSdcardPath() + "/.local/Pics/rank_list_bottom_template.jpg",
         // ant forest timed task will be auto-delayed if current foreground app is in this list
         foreground_app_blacklist: [],
         // some others
@@ -194,6 +198,8 @@ module.exports = {
         unlock_pattern_swipe_time_segmental: 120,
         // swipe time for pattern unlock each time; may be auto modified
         unlock_pattern_swipe_time_solid: 200,
+        // also, "delay" or "disable" dismiss layer check is optional
+        unlock_dismiss_layer_strategy: "preferred",
         // 0.5 <= x <= 0.95; great value (like 0.95) may cause unexpected object activation
         unlock_dismiss_layer_bottom: 0.8,
         // 0.05 <= x <= 0.3; this value may be not that important

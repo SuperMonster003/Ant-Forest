@@ -95,7 +95,7 @@ let ext = {
                             return true;
                         });
                 } else {
-                    throw new Error("unknown itemsSelectMode " + itemsSelectMode);
+                    throw new Error("Unknown itemsSelectMode " + itemsSelectMode);
                 }
             }
             if (properties.progress !== undefined) {
@@ -156,13 +156,13 @@ let ext = {
      */
     /**
      * @param {
-     *     Tuple7<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox>|
-     *     Tuple6<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep>|
-     *     Tuple5<Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive>|
-     *     Tuple4<Builds$title, Builds$content, Builds$neutral, Builds$negative>|
-     *     Tuple3<Builds$title, Builds$content, Builds$neutral>|
-     *     Tuple2<Builds$title, Builds$content>|
-     *     Tuple1<Builds$title>|string
+     *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox]|
+     *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep]|
+     *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive]|
+     *     [Builds$title, Builds$content, Builds$neutral, Builds$negative]|
+     *     [Builds$title, Builds$content, Builds$neutral]|
+     *     [Builds$title, Builds$content]|
+     *     [Builds$title]|string
      * } regular_props
      * @param {DialogsBuildProperties} [ext_props]
      * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}

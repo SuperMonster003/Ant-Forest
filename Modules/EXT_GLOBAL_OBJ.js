@@ -79,16 +79,15 @@ let ext = {
                 }
                 return true;
             },
-            $$bool: x => _classof(x, "Boolean"),
-            $$und: x => x === void 0,
-            $$nul: x => _classof(x, "Null"),
-            $$symb: x => _classof(x, "Symbol"),
-            $$bigint: x => _classof(x, "BigInt"),
-            $$func: x => _classof(x, "Function"),
+            $$nul: x => x === null,
+            $$und: x => typeof x === "undefined",
+            $$bool: x => typeof x === "boolean",
+            $$symb: x => typeof x === "symbol",
+            $$bigint: x => typeof x === "bigint",
+            $$func: x => typeof x === "function",
             $$arr: x => _classof(x, "Array"),
             $$obj: x => _classof(x, "Object"),
             $$emptyObj: x => _classof(x, "Object") && _keysLen(x, 0),
-            $$date: x => _classof(x, "Date"),
             $$T: x => x === true,
             $$F: x => x === false,
             isInfinite: x => !isFinite(x),
@@ -430,51 +429,24 @@ let ext = {
             let $_fmt = () => void 0;
 
             /**
-             *
              * @param {Date|string|number} [src=Date()]
              * @param {"d"|"dd"|"h"|"h:m"|"h:m:s"|"h:m:ss"|"h:mm"|"h:mm:s"|"h:mm:ss"|"hh"|"hh:m"|"hh:m:s"|"hh:m:ss"|"hh:mm"|"hh:mm:s"|"hh:mm:ss"|"M"|"m"|"M/d h:m"|"M/d h:m:s"|"M/d h:m:ss"|"M/d h:mm"|"M/d h:mm:s"|"M/d h:mm:ss"|"M/d hh:m"|"M/d hh:m:s"|"M/d hh:m:ss"|"M/d hh:mm"|"M/d hh:mm:s"|"M/d hh:mm:ss"|"M/d"|"M/dd h:m"|"M/dd h:m:s"|"M/dd h:m:ss"|"M/dd h:mm"|"M/dd h:mm:s"|"M/dd h:mm:ss"|"M/dd hh:m"|"M/dd hh:m:s"|"M/dd hh:m:ss"|"M/dd hh:mm"|"M/dd hh:mm:s"|"M/dd hh:mm:ss"|"M/dd"|"m:s"|"m:ss"|"MM"|"mm"|"MM/d h:m"|"MM/d h:m:s"|"MM/d h:m:ss"|"MM/d h:mm"|"MM/d h:mm:s"|"MM/d h:mm:ss"|"MM/d hh:m"|"MM/d hh:m:s"|"MM/d hh:m:ss"|"MM/d hh:mm"|"MM/d hh:mm:s"|"MM/d hh:mm:ss"|"MM/d"|"MM/dd h:m"|"MM/dd h:m:s"|"MM/dd h:m:ss"|"MM/dd h:mm"|"MM/dd h:mm:s"|"MM/dd h:mm:ss"|"MM/dd hh:m"|"MM/dd hh:m:s"|"MM/dd hh:m:ss"|"MM/dd hh:mm"|"MM/dd hh:mm:s"|"MM/dd hh:mm:ss"|"MM/dd"|"mm:s"|"mm:ss"|"s"|"ss"|"yy"|"yy/M"|"yy/M/d h:m"|"yy/M/d h:m:s"|"yy/M/d h:m:ss"|"yy/M/d h:mm"|"yy/M/d h:mm:s"|"yy/M/d h:mm:ss"|"yy/M/d hh:m"|"yy/M/d hh:m:s"|"yy/M/d hh:m:ss"|"yy/M/d hh:mm"|"yy/M/d hh:mm:s"|"yy/M/d hh:mm:ss"|"yy/M/d"|"yy/M/dd h:m"|"yy/M/dd h:m:s"|"yy/M/dd h:m:ss"|"yy/M/dd h:mm"|"yy/M/dd h:mm:s"|"yy/M/dd h:mm:ss"|"yy/M/dd hh:m"|"yy/M/dd hh:m:s"|"yy/M/dd hh:m:ss"|"yy/M/dd hh:mm"|"yy/M/dd hh:mm:s"|"yy/M/dd hh:mm:ss"|"yy/M/dd"|"yy/MM"|"yy/MM/d h:m"|"yy/MM/d h:m:s"|"yy/MM/d h:m:ss"|"yy/MM/d h:mm"|"yy/MM/d h:mm:s"|"yy/MM/d h:mm:ss"|"yy/MM/d hh:m"|"yy/MM/d hh:m:s"|"yy/MM/d hh:m:ss"|"yy/MM/d hh:mm"|"yy/MM/d hh:mm:s"|"yy/MM/d hh:mm:ss"|"yy/MM/d"|"yy/MM/dd h:m"|"yy/MM/dd h:m:s"|"yy/MM/dd h:m:ss"|"yy/MM/dd h:mm"|"yy/MM/dd h:mm:s"|"yy/MM/dd h:mm:ss"|"yy/MM/dd hh:m"|"yy/MM/dd hh:m:s"|"yy/MM/dd hh:m:ss"|"yy/MM/dd hh:mm"|"yy/MM/dd hh:mm:s"|"yy/MM/dd hh:mm:ss"|"yy/MM/dd"|"yyyy"|"yyyy/M"|"yyyy/M/d h:m"|"yyyy/M/d h:m:s"|"yyyy/M/d h:m:ss"|"yyyy/M/d h:mm"|"yyyy/M/d h:mm:s"|"yyyy/M/d h:mm:ss"|"yyyy/M/d hh:m"|"yyyy/M/d hh:m:s"|"yyyy/M/d hh:m:ss"|"yyyy/M/d hh:mm"|"yyyy/M/d hh:mm:s"|"yyyy/M/d hh:mm:ss"|"yyyy/M/d"|"yyyy/M/dd h:m"|"yyyy/M/dd h:m:s"|"yyyy/M/dd h:m:ss"|"yyyy/M/dd h:mm"|"yyyy/M/dd h:mm:s"|"yyyy/M/dd h:mm:ss"|"yyyy/M/dd hh:m"|"yyyy/M/dd hh:m:s"|"yyyy/M/dd hh:m:ss"|"yyyy/M/dd hh:mm"|"yyyy/M/dd hh:mm:s"|"yyyy/M/dd hh:mm:ss"|"yyyy/M/dd"|"yyyy/MM"|"yyyy/MM/d h:m"|"yyyy/MM/d h:m:s"|"yyyy/MM/d h:m:ss"|"yyyy/MM/d h:mm"|"yyyy/MM/d h:mm:s"|"yyyy/MM/d h:mm:ss"|"yyyy/MM/d hh:m"|"yyyy/MM/d hh:m:s"|"yyyy/MM/d hh:m:ss"|"yyyy/MM/d hh:mm"|"yyyy/MM/d hh:mm:s"|"yyyy/MM/d hh:mm:ss"|"yyyy/MM/d"|"yyyy/MM/dd h:m"|"yyyy/MM/dd h:m:s"|"yyyy/MM/dd h:m:ss"|"yyyy/MM/dd h:mm"|"yyyy/MM/dd h:mm:s"|"yyyy/MM/dd h:mm:ss"|"yyyy/MM/dd hh:m"|"yyyy/MM/dd hh:m:s"|"yyyy/MM/dd hh:m:ss"|"yyyy/MM/dd hh:mm"|"yyyy/MM/dd hh:mm:s"|"yyyy/MM/dd hh:mm:ss"|"yyyy/MM/dd"|string} [format="yyyy/MM/dd hh:mm:ss"]
              */
             $_fmt.time = function (src, format) {
-                if (!String.prototype.padStart) {
-                    Object.defineProperty(String.prototype, "padStart", {
-                        value(target_len, pad_str) {
-                            let _getPadStr = function (target_len, pad_str) {
-                                let _tar_len = Number(target_len);
-                                let _this_len = this.length;
-                                if (_tar_len <= _this_len) {
-                                    return "";
-                                }
-                                let _pad_str = pad_str === undefined ? " " : String(pad_str);
-                                let _gap = _tar_len - _this_len;
-                                let _times = Math.ceil(_gap / _pad_str.length);
-                                return _pad_str.repeat(_times).slice(0, _gap);
-                            };
-                            return _getPadStr.apply(this, arguments) + this.valueOf();
-                        },
-                    });
-                }
-                if (!Number.prototype.padStart) {
-                    Object.defineProperty(Number.prototype, "padStart", {
-                        value(target_len, pad_str) {
-                            let _this = this.toString();
-                            return _this.padStart.call(_this, target_len, pad_str || 0);
-                        },
-                    });
-                }
-
+                let _pad = n => ("0" + n).slice(-2);
                 let _date = _parseDate(src || new Date());
                 let _yyyy = _date.getFullYear();
                 let _yy = _yyyy.toString().slice(-2);
                 let _M = _date.getMonth() + 1;
-                let _MM = _M.padStart(2, 0);
+                let _MM = _pad(_M);
                 let _d = _date.getDate();
-                let _dd = _d.padStart(2, 0);
+                let _dd = _pad(_d);
                 let _h = _date.getHours();
-                let _hh = _h.padStart(2, 0);
+                let _hh = _pad(_h);
                 let _m = _date.getMinutes();
-                let _mm = _m.padStart(2, 0);
+                let _mm = _pad(_m);
                 let _s = _date.getSeconds();
-                let _ss = _s.padStart(2, 0);
+                let _ss = _pad(_s);
 
                 let _units = {
                     yyyy: _yyyy, yy: _yy,
@@ -639,7 +611,7 @@ let ext = {
                         Object.values(str).forEach((s, i) => s === _bt && _bts.push(i));
                         let _half_len = _bts.length / 2;
                         if (_half_len >> 0 !== _half_len) {
-                            throw Error("backticks must come in pairs");
+                            throw Error("Backticks must come in pairs");
                         }
                         _is_internal = _half_len > 1;
                         return _half_len ? _bts.slice(_half_len - 1, _half_len + 1) : null;
@@ -837,7 +809,7 @@ let ext = {
                 /** @type {object|null} */
                 set(proto) {
                     if (Object(proto) !== proto) {
-                        throw TypeError("proto must be an non-primitive type");
+                        throw TypeError("Proto must be an non-primitive type");
                     }
                     this.__proto__ = proto;
                 },

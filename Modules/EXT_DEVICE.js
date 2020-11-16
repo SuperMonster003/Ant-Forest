@@ -335,10 +335,10 @@ let ext = {
                     } else if (base === -2) {
                         base = 1080;
                     } else {
-                        throw Error("can not parse base param for cYx()");
+                        throw Error("Can not parse base param for cYx()");
                     }
                 } else if (base < 5) {
-                    throw Error("base and num params should be both pixels for cYx()");
+                    throw Error("Base and num params should be both pixels for cYx()");
                 }
                 return Math.round(num * _W / base);
             }
@@ -348,7 +348,7 @@ let ext = {
             } else if (base === -2) {
                 base = 21 / 9;
             } else if (base < 0) {
-                throw Error("can not parse base param for cYx()");
+                throw Error("Can not parse base param for cYx()");
             } else {
                 base = base < 1 ? 1 / base : base;
             }
@@ -368,7 +368,7 @@ let ext = {
         function _cTrans(dxn, num, base) {
             let _full = ~dxn ? _W : _H;
             if (isNaN(num)) {
-                throw Error("can not parse num param for cTrans()");
+                throw Error("Can not parse num param for cTrans()");
             }
             if (Math.abs(num) < 1) {
                 return Math.min(Math.round(num * _full), _full);

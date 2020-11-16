@@ -29,7 +29,7 @@ let $$init = {
                 _str.split("|").forEach(s => messageActionRaw(s, 4));
                 showSplitLineRaw();
                 toast("模块缺失或路径错误", "Long");
-                exit();
+                ui.finish();
             });
 
             // raw function(s) //
@@ -90,7 +90,7 @@ let $$init = {
                         // consume errors msg caused by auto()
                     }
                 }
-                exit();
+                ui.finish();
             }
         }
     },
@@ -291,9 +291,9 @@ let $$init = {
                     numSetter(min, max, opt, addn) {
                         let _opt = opt || {};
                         let _addn = addn || {};
-                        let _cfg_conj = this.config_conj;
-                        if (!_cfg_conj && !_opt.no_this_check) {
-                            throw Error("numSetter()可能绑定了错误的this对象");
+                        let _cfg_conj = _opt.config_conj;
+                        if ($$und(_cfg_conj)) {
+                            _cfg_conj = this.config_conj;
                         }
                         if ($$func(_cfg_conj)) {
                             _cfg_conj = _cfg_conj.call(this);
@@ -304,7 +304,7 @@ let $$init = {
                         let _negative = _opt.negative;
                         let _positive = _opt.positive;
                         let _def_key = _opt.def_key || "af";
-                        let _def_value = _neutral === 0 || $$sto.def[_def_key][_cfg_conj].toString();
+                        let _getDefVal = () => $$sto.def[_def_key][_cfg_conj].toString();
 
                         let _set = _opt.hint_set || "N";
                         let _saveValue = $$func(_opt.saveValue)
@@ -333,7 +333,7 @@ let $$init = {
                                 _content[1] =
                                     "有效值: " + _mini + " [ " + _mini_p + " ] " +
                                     " -  " + _maxi + " [ " + _maxi_p + " ]\n" +
-                                    "默认值: " + _cvt(_def_value) + " [ " + _def_value + " ]";
+                                    "默认值: " + _cvt(_getDefVal()) + " [ " + _getDefVal() + " ]";
                             }
                             if (_content[0]) {
                                 if (_content[1] || _content[2]) {
@@ -351,12 +351,10 @@ let $$init = {
 
                         return dialogsx
                             .builds([
-                                _title, $$und(_content)
-                                    ? _cfg_conj
-                                    : $$nul(_content) ? "" : _content,
-                                _neutral === 0 ? 0 : ["使用默认值", "hint_btn_dark_color"],
-                                _negative === 0 ? 0 : "返回",
-                                _positive === 0 ? 0 : "确认修改",
+                                _title, $$und(_content) ? _cfg_conj : $$nul(_content) ? "" : _content,
+                                $$0(_neutral) || $$nul(_neutral) ? 0 : ["使用默认值", "hint_btn_dark_color"],
+                                $$0(_negative) || $$nul(_negative) ? 0 : "返回",
+                                $$0(_positive) || $$nul(_positive) ? 0 : "确认修改",
                                 1,
                             ], Object.assign({
                                 inputHint: (() => {
@@ -367,7 +365,7 @@ let $$init = {
                             }, _addn))
                             .on("neutral", $$func(_neutral)
                                 ? d => _neutral.call(this, d, s => dialogsx.setInputText(d, s))
-                                : d => dialogsx.setInputText(d, _def_value))
+                                : d => dialogsx.setInputText(d, _getDefVal()))
                             .on("negative", $$func(_negative)
                                 ? d => _negative.call(this, d, _mini, _maxi)
                                 : d => d.dismiss())
@@ -628,6 +626,7 @@ let $$init = {
                         self_collect_page: {
                             homepage_monitor_page: null,
                             homepage_background_monitor_page: null,
+                            homepage_wball_page: null,
                         },
                         friend_collect_page: {
                             rank_list_samples_collect_page: {
@@ -755,17 +754,569 @@ let $$init = {
                     let {no_scroll_view, check_page_state, title_bg_color} = options || {};
                     let [_title_name, _label_name] = $$arr(title) ? title : [title, ""];
 
-                    let page_view = ui.inflate(<vertical/>);
+                    let _page_view = ui.inflate(<vertical/>);
 
-                    page_view.addView(setTitleBarView());
-                    page_view.addView(setContentView());
-                    Object.assign(page_view, setAdditions());
+                    _page_view.addView(_getTitleBarView());
+                    _page_view.addView(_getContentView());
 
-                    return page_view;
+                    _page_view.add = function (type, opt) {
+                        if (type === "list") {
+                            _page_view.hideContentMarginTop();
+                        }
+
+                        let item_view;
+                        if (type.match(/^(.+_)?split_line/)) {
+                            item_view = setSplitLine(opt);
+                        } else if (type === "subhead") {
+                            item_view = setSubHead(opt);
+                        } else if (type === "blank") {
+                            item_view = setBlank(opt);
+                        } else if (type === "info") {
+                            item_view = setInfo(opt);
+                        } else if (type === "list") {
+                            item_view = setList(opt);
+                        } else if (type === "seekbar") {
+                            item_view = setSeekbar(opt);
+                        } else {
+                            item_view = ui.inflate(
+                                <horizontal id="_item_area" padding="16 8" gravity="left|center">
+                                    <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
+                                              gravity="left|center">
+                                        <text id="_title" textColor="#111111" textSize="16"/>
+                                    </vertical>
+                                </horizontal>
+                            );
+                        }
+
+                        if (!$$obj(opt)) {
+                            _page_view.content_view.addView(item_view);
+                            return _page_view;
+                        }
+
+                        item_view.setNextPage = p => opt.next_page = p;
+                        item_view.getNextPage = () => opt.next_page;
+                        item_view.setHintText = (s) => {
+                            item_view["_hint"] && ui.post(() => {
+                                item_view["_hint"].text(s);
+                            });
+                        };
+                        item_view.setHintTextColor = (c) => {
+                            item_view["_hint"] && item_view["_hint"].setTextColor(
+                                typeof c === "string" ? colors.parseColor(c) : c
+                            );
+                        };
+                        item_view.setHintVisibility = (v) => {
+                            item_view["_hint"] && ui.post(() => {
+                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
+                                item_view["_hint"].setVisibility(v);
+                            });
+                        };
+                        item_view.setTitleText = (s) => {
+                            item_view["_title"] && ui.post(() => {
+                                item_view["_title"].text(s);
+                            });
+                        };
+                        item_view.setTitleTextColor = (c) => {
+                            item_view["_title"] && item_view["_title"].setTextColor(
+                                typeof c === "string" ? colors.parseColor(c) : c
+                            );
+                        };
+                        item_view.setChevronVisibility = (v) => {
+                            item_view["_chevron_btn"] && ui.post(() => {
+                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
+                                item_view["_chevron_btn"].setVisibility(v);
+                            });
+                        };
+                        item_view.page_view = _page_view;
+
+                        let hint = opt.hint;
+                        if (hint) {
+                            let _hint_view = ui.inflate(
+                                <horizontal id="_hints">
+                                    <horizontal>
+                                        <text id="_hint" textSize="13sp"/>
+                                    </horizontal>
+                                </horizontal>
+                            );
+                            let _getHintView = (text) => {
+                                let _view = ui.inflate(
+                                    <horizontal>
+                                        <text id="_sub_hint" textSize="13sp"/>
+                                    </horizontal>
+                                );
+                                let _col = text.match(/#[\da-fA-F]{6,}/);
+                                let _hint = _view["_sub_hint"];
+                                if (_col) {
+                                    _hint.setText("\u25D1"); // "◑"
+                                    _hint.setTextColor(colors.parseColor(_col[0]));
+                                } else {
+                                    _hint.setText(text);
+                                    _hint.setTextColor(colors.parseColor("#888888"));
+                                }
+                                return _view;
+                            };
+
+                            item_view.setHints = function () {
+                                let _arg_len = arguments.length;
+                                let _views = [];
+                                for (let i = 0; i < _arg_len; i += 1) {
+                                    _views[i] = _getHintView.call({}, arguments[i]);
+                                }
+                                _hint_view["_hints"].removeAllViews();
+                                _views.forEach(v => _hint_view["_hints"].addView(v));
+                            };
+
+                            if ($$str(hint)) {
+                                _hint_view["_hint"].setText(hint);
+                            }
+                            item_view["_content"].addView(_hint_view);
+                        }
+
+                        if (type === "radio") {
+                            item_view["_item_area"].removeAllViews();
+                            let radiogroup_view = ui.inflate(
+                                <radiogroup id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"/>
+                            );
+                            opt.view = item_view;
+                            let title = opt.title;
+
+                            title.forEach((val) => {
+                                let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
+                                radio_view.setText(val);
+                                Object.keys(opt.listeners).forEach((listener) => {
+                                    radio_view.on(listener, opt.listeners[listener].bind(opt));
+                                });
+                                radiogroup_view["_radiogroup"].addView(radio_view);
+                            });
+                            item_view.addView(radiogroup_view);
+                        }
+
+                        item_view.setTitleText(opt.title);
+
+                        if (type.match(/.*switch$/)) {
+                            let sw_view;
+                            if (type === "switch") {
+                                sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
+                                if ($$F(opt.default_state)) {
+                                    sw_view["_switch"].setChecked(false);
+                                }
+                            }
+                            if (type === "checkbox_switch") {
+                                sw_view = ui.inflate(
+                                    <vertical padding="8 0 0 0">
+                                        <checkbox id="_checkbox_switch" checked="true"/>
+                                    </vertical>
+                                );
+                                if ($$F(opt.default_state)) {
+                                    sw_view["_checkbox_switch"].setChecked(false);
+                                }
+                            }
+                            item_view["_item_area"].addView(sw_view);
+                            opt.view = item_view;
+
+                            let listener_ids = opt.listeners;
+                            Object.keys(listener_ids).forEach((id) => {
+                                let listeners = listener_ids[id];
+                                Object.keys(listeners).forEach((listener) => {
+                                    let callback = listeners[listener].bind(opt);
+                                    if (id === "ui") ui.emitter.prependListener(listener, callback);
+                                    else item_view[id].on(listener, callback);
+                                });
+                            });
+                        } else if (type.match(/^page/)) {
+                            // noinspection HtmlUnknownTarget
+                            let _page_enter_view = ui.inflate(
+                                <vertical id="_chevron_btn">
+                                    <img src="@drawable/ic_chevron_right_black_48dp"
+                                         bg="?selectableItemBackgroundBorderless"
+                                         tint="#999999" h="31" paddingLeft="10" alt=""/>
+                                </vertical>
+                            );
+                            item_view["_item_area"].addView(_page_enter_view);
+                            opt.view = item_view;
+                            item_view.setClickListener = (listener) => {
+                                if (!listener) listener = () => null;
+                                item_view["_item_area"].removeAllListeners("click");
+                                item_view["_item_area"].on("click", listener);
+                            };
+                            item_view.restoreClickListener = () => item_view.setClickListener(() => {
+                                let next_page = opt.next_page;
+                                let opt_listeners = opt.listeners;
+                                let opt_listeners_f = opt_listeners && opt_listeners.click;
+                                let _next_page_view = next_page && $$view.pages[next_page];
+                                if ($$func(opt_listeners_f)) {
+                                    opt_listeners_f(item_view, _next_page_view);
+                                }
+                                if (_next_page_view) {
+                                    $$view.page.jump("next", next_page);
+                                }
+                            });
+                            item_view.setClickListener();
+                            item_view.setChevronVisibility(8);
+                            let sub_page_ready_interval = setInterval(function () {
+                                if ($$ses["ready_signal_" + opt.next_page]) {
+                                    ui.post(() => {
+                                        item_view.restoreClickListener();
+                                        item_view.setChevronVisibility(0);
+                                    });
+                                    clearInterval(sub_page_ready_interval);
+                                }
+                            }, 100);
+                        } else if (type === "button") {
+                            // noinspection HtmlUnknownTarget
+                            let help_view = ui.inflate(
+                                <vertical id="_info_icon" visibility="gone">
+                                    <img src="@drawable/ic_info_outline_black_48dp"
+                                         bg="?selectableItemBackgroundBorderless"
+                                         h="22" tint="#888888" alt=""/>
+                                </vertical>
+                            );
+                            item_view["_item_area"].addView(help_view);
+                            opt.view = item_view;
+                            item_view["_item_area"].on("click", () => opt.newWindow());
+                            if (opt.infoWindow) {
+                                item_view["_info_icon"].setVisibility(0);
+                                item_view["_info_icon"].on("click", () => opt.infoWindow());
+                            }
+                        }
+
+                        if (opt.view_tag) {
+                            item_view.setTag(opt.view_tag);
+                        }
+
+                        _page_view.content_view.addView(item_view);
+
+                        Object.keys(opt).forEach((key) => {
+                            if (!key.match(/listeners/)) {
+                                let item_data = opt[key];
+                                if (!$$func(item_data)) {
+                                    return item_view[key] = item_data;
+                                }
+                                if (key === "updateOpr") {
+                                    $$view.dyn_pages.push(item_view);
+                                    return (item_view.updateOpr = () => item_data.call(opt, item_view))();
+                                }
+                                item_view[key] = item_data.bind(item_view);
+                            }
+                        });
+
+                        return _page_view;
+
+                        // tool function(s) //
+
+                        function setBlank(h) {
+                            let new_view = ui.inflate(
+                                <vertical>
+                                    <horizontal id="_blank" w="*" h="1sp" margin="16 8"/>
+                                </vertical>
+                            );
+                            new_view.setTag(type);
+                            new_view.setVisibility(4);
+                            new_view["_blank"].attr("height", h || 0);
+                            return new_view;
+                        }
+
+                        function setSplitLine(options) {
+                            let line_color = options && options.split_line_color || $$def.split_line_color;
+
+                            let new_view = ui.inflate(
+                                <vertical>
+                                    <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
+                                </vertical>
+                            );
+                            new_view.setTag(type);
+                            line_color = $$str(line_color) ? colors.parseColor(line_color) : line_color;
+                            new_view["_line"].setBackgroundColor(line_color);
+                            if (type.match(/invisible/)) {
+                                new_view.setVisibility(8);
+                            }
+
+                            return new_view;
+                        }
+
+                        function setSubHead(options) {
+                            let title = options.title;
+                            let subhead_color = options.subhead_color || $$def.subhead_color;
+
+                            let new_view = ui.inflate(
+                                <vertical>
+                                    <text id="_text" textSize="14" margin="16 8"/>
+                                </vertical>
+                            );
+                            new_view["_text"].text(title);
+                            let title_color = $$str(subhead_color) ? colors.parseColor(subhead_color) : subhead_color;
+                            new_view["_text"].setTextColor(title_color);
+
+                            return new_view;
+                        }
+
+                        function setInfo(options) {
+                            let title = options.title;
+                            let subhead_color = options.subhead_color || $$def.subhead_color;
+                            let info_color = options.info_color || $$def.info_color;
+                            $$ses.info_color = info_color;
+
+                            // noinspection HtmlUnknownTarget
+                            let new_view = ui.inflate(
+                                <horizontal>
+                                    <linear padding="15 10 0 0">
+                                        <img src="@drawable/ic_info_outline_black_48dp"
+                                             h="17" w="17" margin="0 1 4 0"
+                                             tint="{{$$ses.info_color}}" alt=""/>
+                                        <text id="_info_text" textSize="13"/>
+                                    </linear>
+                                </horizontal>
+                            );
+                            new_view["_info_text"].text(title);
+                            let title_color = $$str(info_color) ? colors.parseColor(info_color) : subhead_color;
+                            new_view["_info_text"].setTextColor(title_color);
+
+                            return new_view;
+                        }
+
+                        function setList(options) {
+                            let list_title_bg_color = options.list_title_bg_color || $$def.list_title_bg_color;
+                            let list_head = options.list_head || [];
+                            if ($$str(list_head)) {
+                                list_head = $$cfg.list_heads[list_head];
+                            }
+                            list_head.forEach((o, idx) => {
+                                let w = o.width;
+                                if (!idx && !w) {
+                                    return $$ses.list_width_0 = cX(0.3) + "px";
+                                }
+                                $$ses["list_width_" + idx] = w ? cX(w) + "px" : -2;
+                            });
+                            $$ses.list_checkbox = options.list_checkbox;
+                            let ds_k = options.data_source_key_name || "unknown_key_name"; // just a key name
+                            let getListItemName = (num) => {
+                                if (list_head[num]) {
+                                    return Object.keys(list_head[num])[0];
+                                }
+                                return null;
+                            };
+
+                            // items are expected not more than 4
+                            for (let i = 0; i < 4; i += 1) {
+                                $$ses["list_item_name_" + i] = getListItemName(i);
+                            }
+
+                            let list_view = ui.inflate(
+                                <vertical>
+                                    <horizontal id="_list_title_bg">
+                                        <horizontal h="50" w="{{$$ses['list_width_0']}}" margin="8 0 0 0">
+                                            <checkbox id="_check_all" layout_gravity="left|center"
+                                                      clickable="false"/>
+                                        </horizontal>
+                                    </horizontal>
+                                    <vertical>
+                                        <list id="_list_data" focusable="true" scrollbars="none">
+                                            <horizontal>
+                                                <horizontal w="{{this.width_0}}">
+                                                    <checkbox id="_checkbox" layout_gravity="left|center"
+                                                              checked="{{this.checked}}" clickable="false"
+                                                              h="50" margin="8 0 -16"/>
+                                                    <text text="{{this.list_item_name_0}}" textSize="15"
+                                                          h="50" margin="16 0 0" w="*"
+                                                          gravity="left|center"/>
+                                                </horizontal>
+                                                <horizontal w="{{$$ses['list_width_1'] || 1}}" margin="8 0 0 0">
+                                                    <text text="{{this.list_item_name_1}}"
+                                                          visibility="{{$$ses['list_item_name_1'] ? 'visible' : 'gone'}}"
+                                                          textSize="15" h="50" gravity="left|center"/>
+                                                </horizontal>
+                                                <horizontal w="{{$$ses['list_width_2'] || 1}}">
+                                                    <text text="{{this.list_item_name_2}}"
+                                                          visibility="{{$$ses['list_item_name_2'] ? 'visible' : 'gone'}}"
+                                                          textSize="15" h="50" gravity="left|center"/>
+                                                </horizontal>
+                                                <horizontal w="{{$$ses['list_width_3'] || 1}}">
+                                                    <text text="{{this.list_item_name_3}}"
+                                                          visibility="{{$$ses['list_item_name_3'] ? 'visible' : 'gone'}}"
+                                                          textSize="15" h="50" gravity="left|center"/>
+                                                </horizontal>
+                                            </horizontal>
+                                        </list>
+                                    </vertical>
+                                </vertical>
+                            );
+
+                            $$view.updateDataSource(ds_k, "init", options.custom_data_source);
+                            list_view["_check_all"].setVisibility(
+                                android.view.View[options.list_checkbox.toUpperCase()]
+                            );
+                            list_view["_list_data"].setDataSource($$ses[ds_k]);
+                            list_view["_list_title_bg"].attr("bg", list_title_bg_color);
+                            list_view.setTag("list_page_view");
+                            list_head.forEach((title_obj, idx) => {
+                                let data_key_name = Object.keys(title_obj)[0];
+                                let list_title_view = idx ? ui.inflate(
+                                    <text textSize="15"/>
+                                ) : ui.inflate(
+                                    <text textSize="15"
+                                          padding="{{$$ses.list_checkbox === 'gone' ? 8 : 0}} 0 0 0"/>
+                                );
+
+                                list_title_view.setText(title_obj[data_key_name]);
+                                list_title_view.on("click", () => {
+                                    if (!$$ses[ds_k][0]) {
+                                        return;
+                                    }
+
+                                    let _sort_k = "list_sort_flag_" + data_key_name;
+                                    if ($$und($$ses[_sort_k])) {
+                                        let [a, b] = $$ses[ds_k];
+                                        if (a === b) {
+                                            $$ses[_sort_k] = 0;
+                                        }
+                                        $$ses[_sort_k] = a < b ? 1 : -1;
+                                    }
+
+                                    let _sess_data = $$ses[ds_k].map((v, idx) => [idx, v]);
+                                    _sess_data.sort((a, b) => {
+                                        let _is_num = (title_obj.sort || {}).type === "number";
+                                        let _a = a[1][a[1][data_key_name]];
+                                        let _b = b[1][b[1][data_key_name]];
+                                        if (_is_num) {
+                                            [_a, _b] = [+_a, +_b];
+                                        }
+                                        if (_a === _b) {
+                                            return 0;
+                                        }
+                                        if ($$ses[_sort_k] > 0) {
+                                            return _a > _b ? 1 : -1;
+                                        }
+                                        return _a < _b ? 1 : -1;
+                                    });
+                                    let _indices = {};
+                                    _sess_data = _sess_data.map((v, i) => {
+                                        _indices[v[0]] = i;
+                                        return v[1];
+                                    });
+                                    let _del_idx_k = ds_k + "_deleted_items_idx";
+                                    $$ses[_del_idx_k] = $$ses[_del_idx_k] || {};
+                                    let _tmp_del_idx = {};
+                                    Object.keys($$ses[_del_idx_k]).forEach((ori_idx_key) => {
+                                        _tmp_del_idx[_indices[ori_idx_key]] = $$ses[_del_idx_k][ori_idx_key];
+                                    });
+                                    $$ses[_del_idx_k] = deepCloneObject(_tmp_del_idx);
+                                    $$ses[ds_k].splice(0);
+                                    _sess_data.forEach(v => $$ses[ds_k].push(v));
+                                    $$ses[_sort_k] *= -1;
+                                    // updateDataSource(data_source_key_name, "rewrite");
+                                });
+
+                                if ($$0(idx)) {
+                                    list_view["_check_all"].getParent().addView(list_title_view);
+                                } else {
+                                    list_view["_list_title_bg"].addView(list_title_view);
+                                }
+
+                                list_title_view.attr("layout_gravity", "right|center");
+                                idx && list_title_view.attr("width", $$ses["list_width_" + idx]);
+                            });
+
+                            options.view = list_view;
+
+                            let listener_ids = options.listeners || [];
+                            Object.keys(listener_ids).forEach((id) => {
+                                let listeners = listener_ids[id];
+                                Object.keys(listeners).forEach((listener) => {
+                                    let callback = listeners[listener].bind(options);
+                                    if (id === "ui") ui.emitter.prependListener(listener, callback);
+                                    else list_view[id].on(listener, callback);
+                                });
+                            });
+
+                            return list_view;
+                        }
+
+                        function setSeekbar(options) {
+                            let {title, unit, config_conj, nums, inc} = options;
+                            let _def = $$sto.def.af[config_conj];
+                            let [min, max, init] = nums;
+                            if (isNaN(+min)) {
+                                min = 0;
+                            }
+                            if (isNaN(+init)) {
+                                let _init = $$cfg.ses[config_conj] || _def;
+                                init = isNaN(+_init) ? min : _init;
+                            }
+                            if (isNaN(+max)) {
+                                max = 100;
+                            }
+                            if (isNaN(+inc)) {
+                                inc = 1;
+                            }
+
+                            let _new_view = ui.inflate(
+                                <vertical>
+                                    <horizontal margin="16 8">
+                                        <text id="_text" gravity="left" layout_gravity="center"/>
+                                        <seekbar id="_seekbar" w="*" layout_gravity="center"
+                                                 style="@android:style/Widget.Material.SeekBar"/>
+                                    </horizontal>
+                                </vertical>
+                            );
+                            /** @type android.widget.AbsSeekBar */
+                            let _seekbar = _new_view["_seekbar"];
+                            _seekbar.setMax(Math.ceil((max - min) / inc));
+                            _seekbar.setProgress(Math.ceil((init - min) / inc));
+
+                            let update = src => _new_view["_text"].setText(
+                                (title ? title + ": " : "") + src.toString() +
+                                (unit ? " " + unit : ""));
+
+                            _new_view["_text"].on("long_click", (e) => {
+                                e.consumed = true;
+                                _seekbar.setProgress(Math.ceil((_def - min) / inc));
+                            });
+
+                            update(init);
+
+                            _new_view["_seekbar"].setOnSeekBarChangeListener(
+                                new android.widget.SeekBar.OnSeekBarChangeListener({
+                                    onProgressChanged(seek_bar, progress) {
+                                        let result = Math.min(progress * inc + min, max);
+                                        update(result);
+                                        $$save.session(config_conj, result);
+                                    },
+                                    onStartTrackingTouch: () => void 0,
+                                    onStopTrackingTouch: () => void 0,
+                                })
+                            );
+
+                            return _new_view;
+                        }
+                    };
+                    _page_view.ready = function () {
+                        if (_label_name) {
+                            $$ses["ready_signal_" + _label_name] = true;
+                        } else {
+                            messageAction("页面标签不存在:", 3, 0, 0, -1);
+                            messageAction(_title_name, 3, 0, 0, 1);
+                        }
+                        return _page_view;
+                    };
+                    _page_view.checkPageState = function () {
+                        if ($$func(check_page_state)) {
+                            return check_page_state(_page_view.content_view);
+                        }
+                        return true;
+                    };
+
+                    _page_view.page_title_name = _title_name;
+
+                    if (_label_name) {
+                        $$view.pages[_label_name] = _page_view;
+                        _page_view.setTag(_page_view.page_label_name = _label_name);
+                    }
+
+                    return _page_view;
 
                     // tool function(s) //
 
-                    function setTitleBarView() {
+                    function _getTitleBarView() {
                         // noinspection HtmlUnknownTarget
                         let _title_bar_view = ui.inflate(
                             <linear id="_title_bg" clickable="true">
@@ -779,7 +1330,9 @@ let $$init = {
                             </linear>
                         );
 
-                        _title_bar_view["_back_btn_area"].on("click", () => $$view.checkPageState() && $$view.page.jump("back"));
+                        _title_bar_view["_back_btn_area"].on("click", () => {
+                            return $$view.checkPageState() && $$view.page.jump("back");
+                        });
                         _title_bar_view["_title_text"].setText(_title_name);
                         _title_bar_view["_title_text"].getPaint().setFakeBoldText(true);
                         _title_bar_view["_title_bg"].setBackgroundColor((() => {
@@ -790,593 +1343,28 @@ let $$init = {
                             return _color;
                         })());
 
-                        if (addn_func) $$func(addn_func)
-                            ? addn_func(_title_bar_view)
-                            : addn_func.forEach(f => f(_title_bar_view));
+                        $$func(addn_func) && addn_func(_title_bar_view)
+                        $$arr(addn_func) && addn_func.forEach(f => f(_title_bar_view));
 
-                        return page_view.title_bar_view = _title_bar_view;
+                        return _page_view.title_bar_view = _title_bar_view;
                     }
 
-                    function setContentView() {
-                        let _content_view_frame = ui.inflate(no_scroll_view ? <vertical/> : <ScrollView/>);
-                        let _content_view = ui.inflate(
+                    function _getContentView() {
+                        let _cnt_view_frame = ui.inflate(
+                            no_scroll_view ? <vertical/> : <ScrollView/>
+                        );
+                        let _cnt_view = ui.inflate(
                             <vertical>
                                 <frame id="_page_content_margin_top" h="8"/>
                             </vertical>
                         );
-                        page_view.hideContentMarginTop = () => {
-                            _content_view["_page_content_margin_top"].setVisibility(8);
+
+                        _page_view.hideContentMarginTop = () => {
+                            _cnt_view["_page_content_margin_top"].setVisibility(8);
                         };
-                        _content_view_frame.addView(page_view.content_view = _content_view);
-                        return _content_view_frame;
-                    }
+                        _cnt_view_frame.addView(_page_view.content_view = _cnt_view);
 
-                    function setAdditions() {
-                        return {
-                            add: addItemViewToPage,
-                            ready: ready,
-                            page_title_name: _title_name,
-                            page_label_name: checkPageLabel(),
-                            checkPageState: checkPageState,
-                        };
-
-                        function addItemViewToPage(type, opt) {
-                            if (type === "list") {
-                                page_view.hideContentMarginTop();
-                            }
-
-                            let item_view;
-                            if (type.match(/^(.+_)?split_line/)) {
-                                item_view = setSplitLine(opt);
-                            } else if (type === "subhead") {
-                                item_view = setSubHead(opt);
-                            } else if (type === "blank") {
-                                item_view = setBlank(opt);
-                            } else if (type === "info") {
-                                item_view = setInfo(opt);
-                            } else if (type === "list") {
-                                item_view = setList(opt);
-                            } else if (type === "seekbar") {
-                                item_view = setSeekbar(opt);
-                            } else {
-                                item_view = ui.inflate(
-                                    <horizontal id="_item_area" padding="16 8" gravity="left|center">
-                                        <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
-                                                  gravity="left|center">
-                                            <text id="_title" textColor="#111111" textSize="16"/>
-                                        </vertical>
-                                    </horizontal>
-                                );
-                            }
-
-                            if (!$$obj(opt)) {
-                                page_view.content_view.addView(item_view);
-                                return page_view;
-                            }
-
-                            item_view.setNextPage = p => opt.next_page = p;
-                            item_view.getNextPage = () => opt.next_page;
-                            item_view.setHintText = (s) => {
-                                item_view["_hint"] && ui.post(() => {
-                                    item_view["_hint"].text(s);
-                                });
-                            };
-                            item_view.setHintTextColor = (c) => {
-                                item_view["_hint"] && item_view["_hint"].setTextColor(
-                                    typeof c === "string" ? colors.parseColor(c) : c
-                                );
-                            };
-                            item_view.setHintVisibility = (v) => {
-                                item_view["_hint"] && ui.post(() => {
-                                    v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                    item_view["_hint"].setVisibility(v);
-                                });
-                            };
-                            item_view.setTitleText = (s) => {
-                                item_view["_title"] && ui.post(() => {
-                                    item_view["_title"].text(s);
-                                });
-                            };
-                            item_view.setTitleTextColor = (c) => {
-                                item_view["_title"] && item_view["_title"].setTextColor(
-                                    typeof c === "string" ? colors.parseColor(c) : c
-                                );
-                            };
-                            item_view.setChevronVisibility = (v) => {
-                                item_view["_chevron_btn"] && ui.post(() => {
-                                    v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                    item_view["_chevron_btn"].setVisibility(v);
-                                });
-                            };
-                            item_view.page_view = page_view;
-
-                            let hint = opt.hint;
-                            if (hint) {
-                                let _hint_view = ui.inflate(
-                                    <horizontal id="_hints">
-                                        <horizontal>
-                                            <text id="_hint" textSize="13sp"/>
-                                        </horizontal>
-                                    </horizontal>
-                                );
-                                let _getHintView = (text) => {
-                                    let _view = ui.inflate(
-                                        <horizontal>
-                                            <text id="_sub_hint" textSize="13sp"/>
-                                        </horizontal>
-                                    );
-                                    let _col = text.match(/#[\da-fA-F]{6,}/);
-                                    let _hint = _view["_sub_hint"];
-                                    if (_col) {
-                                        _hint.setText("\u25D1"); // "◑"
-                                        _hint.setTextColor(colors.parseColor(_col[0]));
-                                    } else {
-                                        _hint.setText(text);
-                                        _hint.setTextColor(colors.parseColor("#888888"));
-                                    }
-                                    return _view;
-                                };
-
-                                item_view.setHints = function () {
-                                    let _arg_len = arguments.length;
-                                    let _views = [];
-                                    for (let i = 0; i < _arg_len; i += 1) {
-                                        _views[i] = _getHintView.call({}, arguments[i]);
-                                    }
-                                    _hint_view["_hints"].removeAllViews();
-                                    _views.forEach(v => _hint_view["_hints"].addView(v));
-                                };
-
-                                if ($$str(hint)) {
-                                    _hint_view["_hint"].setText(hint);
-                                }
-                                item_view["_content"].addView(_hint_view);
-                            }
-
-                            if (type === "radio") {
-                                item_view["_item_area"].removeAllViews();
-                                let radiogroup_view = ui.inflate(
-                                    <radiogroup id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"/>
-                                );
-                                opt.view = item_view;
-                                let title = opt.title;
-
-                                title.forEach((val) => {
-                                    let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
-                                    radio_view.setText(val);
-                                    Object.keys(opt.listeners).forEach((listener) => {
-                                        radio_view.on(listener, opt.listeners[listener].bind(opt));
-                                    });
-                                    radiogroup_view["_radiogroup"].addView(radio_view);
-                                });
-                                item_view.addView(radiogroup_view);
-                            }
-
-                            item_view.setTitleText(opt.title);
-
-                            if (type.match(/.*switch$/)) {
-                                let sw_view;
-                                if (type === "switch") {
-                                    sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
-                                    if ($$F(opt.default_state)) {
-                                        sw_view["_switch"].setChecked(false);
-                                    }
-                                }
-                                if (type === "checkbox_switch") {
-                                    sw_view = ui.inflate(
-                                        <vertical padding="8 0 0 0">
-                                            <checkbox id="_checkbox_switch" checked="true"/>
-                                        </vertical>
-                                    );
-                                    if ($$F(opt.default_state)) {
-                                        sw_view["_checkbox_switch"].setChecked(false);
-                                    }
-                                }
-                                item_view["_item_area"].addView(sw_view);
-                                opt.view = item_view;
-
-                                let listener_ids = opt.listeners;
-                                Object.keys(listener_ids).forEach((id) => {
-                                    let listeners = listener_ids[id];
-                                    Object.keys(listeners).forEach((listener) => {
-                                        let callback = listeners[listener].bind(opt);
-                                        if (id === "ui") ui.emitter.prependListener(listener, callback);
-                                        else item_view[id].on(listener, callback);
-                                    });
-                                });
-                            } else if (type.match(/^page/)) {
-                                // noinspection HtmlUnknownTarget
-                                let _page_enter_view = ui.inflate(
-                                    <vertical id="_chevron_btn">
-                                        <img src="@drawable/ic_chevron_right_black_48dp"
-                                             bg="?selectableItemBackgroundBorderless"
-                                             tint="#999999" h="31" paddingLeft="10" alt=""/>
-                                    </vertical>
-                                );
-                                item_view["_item_area"].addView(_page_enter_view);
-                                opt.view = item_view;
-                                item_view.setClickListener = (listener) => {
-                                    if (!listener) listener = () => null;
-                                    item_view["_item_area"].removeAllListeners("click");
-                                    item_view["_item_area"].on("click", listener);
-                                };
-                                item_view.restoreClickListener = () => item_view.setClickListener(() => {
-                                    let next_page = opt.next_page;
-                                    let opt_listeners = opt.listeners;
-                                    let opt_listeners_f = opt_listeners && opt_listeners.click;
-                                    let _next_page_view = next_page && $$view.pages[next_page];
-                                    if ($$func(opt_listeners_f)) {
-                                        opt_listeners_f(item_view, _next_page_view);
-                                    }
-                                    if (_next_page_view) {
-                                        $$view.page.jump("next", next_page);
-                                    }
-                                });
-                                item_view.setClickListener();
-                                item_view.setChevronVisibility(8);
-                                let sub_page_ready_interval = setInterval(function () {
-                                    if ($$ses["ready_signal_" + opt.next_page]) {
-                                        ui.post(() => {
-                                            item_view.restoreClickListener();
-                                            item_view.setChevronVisibility(0);
-                                        });
-                                        clearInterval(sub_page_ready_interval);
-                                    }
-                                }, 100);
-                            } else if (type === "button") {
-                                // noinspection HtmlUnknownTarget
-                                let help_view = ui.inflate(
-                                    <vertical id="_info_icon" visibility="gone">
-                                        <img src="@drawable/ic_info_outline_black_48dp"
-                                             bg="?selectableItemBackgroundBorderless"
-                                             h="22" tint="#888888" alt=""/>
-                                    </vertical>
-                                );
-                                item_view["_item_area"].addView(help_view);
-                                opt.view = item_view;
-                                item_view["_item_area"].on("click", () => opt.newWindow());
-                                if (opt.infoWindow) {
-                                    item_view["_info_icon"].setVisibility(0);
-                                    item_view["_info_icon"].on("click", () => opt.infoWindow());
-                                }
-                            }
-
-                            if (opt.view_tag) {
-                                item_view.setTag(opt.view_tag);
-                            }
-
-                            page_view.content_view.addView(item_view);
-
-                            Object.keys(opt).forEach((key) => {
-                                if (!key.match(/listeners/)) {
-                                    let item_data = opt[key];
-                                    if (!$$func(item_data)) {
-                                        return item_view[key] = item_data;
-                                    }
-                                    if (key === "updateOpr") {
-                                        $$view.dyn_pages.push(item_view);
-                                        return (item_view.updateOpr = () => item_data.call(opt, item_view))();
-                                    }
-                                    item_view[key] = item_data.bind(item_view);
-                                }
-                            });
-
-                            return page_view;
-
-                            // tool function(s) //
-
-                            function setBlank(h) {
-                                let new_view = ui.inflate(
-                                    <vertical>
-                                        <horizontal id="_blank" w="*" h="1sp" margin="16 8"/>
-                                    </vertical>
-                                );
-                                new_view.setTag(type);
-                                new_view.setVisibility(4);
-                                new_view["_blank"].attr("height", h || 0);
-                                return new_view;
-                            }
-
-                            function setSplitLine(options) {
-                                let line_color = options && options.split_line_color || $$def.split_line_color;
-
-                                let new_view = ui.inflate(
-                                    <vertical>
-                                        <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
-                                    </vertical>
-                                );
-                                new_view.setTag(type);
-                                line_color = $$str(line_color) ? colors.parseColor(line_color) : line_color;
-                                new_view["_line"].setBackgroundColor(line_color);
-                                if (type.match(/invisible/)) {
-                                    new_view.setVisibility(8);
-                                }
-
-                                return new_view;
-                            }
-
-                            function setSubHead(options) {
-                                let title = options.title;
-                                let subhead_color = options.subhead_color || $$def.subhead_color;
-
-                                let new_view = ui.inflate(
-                                    <vertical>
-                                        <text id="_text" textSize="14" margin="16 8"/>
-                                    </vertical>
-                                );
-                                new_view["_text"].text(title);
-                                let title_color = $$str(subhead_color) ? colors.parseColor(subhead_color) : subhead_color;
-                                new_view["_text"].setTextColor(title_color);
-
-                                return new_view;
-                            }
-
-                            function setInfo(options) {
-                                let title = options.title;
-                                let subhead_color = options.subhead_color || $$def.subhead_color;
-                                let info_color = options.info_color || $$def.info_color;
-                                $$ses.info_color = info_color;
-
-                                // noinspection HtmlUnknownTarget
-                                let new_view = ui.inflate(
-                                    <horizontal>
-                                        <linear padding="15 10 0 0">
-                                            <img src="@drawable/ic_info_outline_black_48dp"
-                                                 h="17" w="17" margin="0 1 4 0"
-                                                 tint="{{$$ses.info_color}}" alt=""/>
-                                            <text id="_info_text" textSize="13"/>
-                                        </linear>
-                                    </horizontal>
-                                );
-                                new_view["_info_text"].text(title);
-                                let title_color = $$str(info_color) ? colors.parseColor(info_color) : subhead_color;
-                                new_view["_info_text"].setTextColor(title_color);
-
-                                return new_view;
-                            }
-
-                            function setList(options) {
-                                let list_title_bg_color = options.list_title_bg_color || $$def.list_title_bg_color;
-                                let list_head = options.list_head || [];
-                                if ($$str(list_head)) {
-                                    list_head = $$cfg.list_heads[list_head];
-                                }
-                                list_head.forEach((o, idx) => {
-                                    let w = o.width;
-                                    if (!idx && !w) {
-                                        return $$ses.list_width_0 = cX(0.3) + "px";
-                                    }
-                                    $$ses["list_width_" + idx] = w ? cX(w) + "px" : -2;
-                                });
-                                $$ses.list_checkbox = options.list_checkbox;
-                                let ds_k = options.data_source_key_name || "unknown_key_name"; // just a key name
-                                let getListItemName = (num) => {
-                                    if (list_head[num]) {
-                                        return Object.keys(list_head[num])[0];
-                                    }
-                                    return null;
-                                };
-
-                                // items are expected not more than 4
-                                for (let i = 0; i < 4; i += 1) {
-                                    $$ses["list_item_name_" + i] = getListItemName(i);
-                                }
-
-                                let list_view = ui.inflate(
-                                    <vertical>
-                                        <horizontal id="_list_title_bg">
-                                            <horizontal h="50" w="{{$$ses['list_width_0']}}" margin="8 0 0 0">
-                                                <checkbox id="_check_all" layout_gravity="left|center"
-                                                          clickable="false"/>
-                                            </horizontal>
-                                        </horizontal>
-                                        <vertical>
-                                            <list id="_list_data" focusable="true" scrollbars="none">
-                                                <horizontal>
-                                                    <horizontal w="{{this.width_0}}">
-                                                        <checkbox id="_checkbox" layout_gravity="left|center"
-                                                                  checked="{{this.checked}}" clickable="false"
-                                                                  h="50" margin="8 0 -16"/>
-                                                        <text text="{{this.list_item_name_0}}" textSize="15"
-                                                              h="50" margin="16 0 0" w="*"
-                                                              gravity="left|center"/>
-                                                    </horizontal>
-                                                    <horizontal w="{{$$ses['list_width_1'] || 1}}" margin="8 0 0 0">
-                                                        <text text="{{this.list_item_name_1}}"
-                                                              visibility="{{$$ses['list_item_name_1'] ? 'visible' : 'gone'}}"
-                                                              textSize="15" h="50" gravity="left|center"/>
-                                                    </horizontal>
-                                                    <horizontal w="{{$$ses['list_width_2'] || 1}}">
-                                                        <text text="{{this.list_item_name_2}}"
-                                                              visibility="{{$$ses['list_item_name_2'] ? 'visible' : 'gone'}}"
-                                                              textSize="15" h="50" gravity="left|center"/>
-                                                    </horizontal>
-                                                    <horizontal w="{{$$ses['list_width_3'] || 1}}">
-                                                        <text text="{{this.list_item_name_3}}"
-                                                              visibility="{{$$ses['list_item_name_3'] ? 'visible' : 'gone'}}"
-                                                              textSize="15" h="50" gravity="left|center"/>
-                                                    </horizontal>
-                                                </horizontal>
-                                            </list>
-                                        </vertical>
-                                    </vertical>
-                                );
-
-                                $$view.updateDataSource(ds_k, "init", options.custom_data_source);
-                                list_view["_check_all"].setVisibility(
-                                    android.view.View[options.list_checkbox.toUpperCase()]
-                                );
-                                list_view["_list_data"].setDataSource($$ses[ds_k]);
-                                list_view["_list_title_bg"].attr("bg", list_title_bg_color);
-                                list_view.setTag("list_page_view");
-                                list_head.forEach((title_obj, idx) => {
-                                    let data_key_name = Object.keys(title_obj)[0];
-                                    let list_title_view = idx ? ui.inflate(
-                                        <text textSize="15"/>
-                                    ) : ui.inflate(
-                                        <text textSize="15" padding="{{$$ses.list_checkbox === 'gone' ? 8 : 0}} 0 0 0"/>
-                                    );
-
-                                    list_title_view.setText(title_obj[data_key_name]);
-                                    list_title_view.on("click", () => {
-                                        if (!$$ses[ds_k][0]) {
-                                            return;
-                                        }
-
-                                        let _sort_k = "list_sort_flag_" + data_key_name;
-                                        if ($$und($$ses[_sort_k])) {
-                                            let [a, b] = $$ses[ds_k];
-                                            if (a === b) {
-                                                $$ses[_sort_k] = 0;
-                                            }
-                                            $$ses[_sort_k] = a < b ? 1 : -1;
-                                        }
-
-                                        let _sess_data = $$ses[ds_k].map((v, idx) => [idx, v]);
-                                        _sess_data.sort((a, b) => {
-                                            let _is_num = (title_obj.sort || {}).type === "number";
-                                            let _a = a[1][a[1][data_key_name]];
-                                            let _b = b[1][b[1][data_key_name]];
-                                            if (_is_num) {
-                                                [_a, _b] = [+_a, +_b];
-                                            }
-                                            if (_a === _b) {
-                                                return 0;
-                                            }
-                                            if ($$ses[_sort_k] > 0) {
-                                                return _a > _b ? 1 : -1;
-                                            }
-                                            return _a < _b ? 1 : -1;
-                                        });
-                                        let _indices = {};
-                                        _sess_data = _sess_data.map((v, i) => {
-                                            _indices[v[0]] = i;
-                                            return v[1];
-                                        });
-                                        let _del_idx_k = ds_k + "_deleted_items_idx";
-                                        $$ses[_del_idx_k] = $$ses[_del_idx_k] || {};
-                                        let _tmp_del_idx = {};
-                                        Object.keys($$ses[_del_idx_k]).forEach((ori_idx_key) => {
-                                            _tmp_del_idx[_indices[ori_idx_key]] = $$ses[_del_idx_k][ori_idx_key];
-                                        });
-                                        $$ses[_del_idx_k] = deepCloneObject(_tmp_del_idx);
-                                        $$ses[ds_k].splice(0);
-                                        _sess_data.forEach(v => $$ses[ds_k].push(v));
-                                        $$ses[_sort_k] *= -1;
-                                        // updateDataSource(data_source_key_name, "rewrite");
-                                    });
-
-                                    if ($$0(idx)) {
-                                        list_view["_check_all"].getParent().addView(list_title_view);
-                                    } else {
-                                        list_view["_list_title_bg"].addView(list_title_view);
-                                    }
-
-                                    list_title_view.attr("layout_gravity", "right|center");
-                                    idx && list_title_view.attr("width", $$ses["list_width_" + idx]);
-                                });
-
-                                options.view = list_view;
-
-                                let listener_ids = options.listeners || [];
-                                Object.keys(listener_ids).forEach((id) => {
-                                    let listeners = listener_ids[id];
-                                    Object.keys(listeners).forEach((listener) => {
-                                        let callback = listeners[listener].bind(options);
-                                        if (id === "ui") ui.emitter.prependListener(listener, callback);
-                                        else list_view[id].on(listener, callback);
-                                    });
-                                });
-
-                                return list_view;
-                            }
-
-                            function setSeekbar(options) {
-                                let {title, unit, config_conj, nums, inc} = options;
-                                let _def = $$sto.def.af[config_conj];
-                                let [min, max, init] = nums;
-                                if (isNaN(+min)) {
-                                    min = 0;
-                                }
-                                if (isNaN(+init)) {
-                                    let _init = $$cfg.ses[config_conj] || _def;
-                                    init = isNaN(+_init) ? min : _init;
-                                }
-                                if (isNaN(+max)) {
-                                    max = 100;
-                                }
-                                if (isNaN(+inc)) {
-                                    inc = 1;
-                                }
-
-                                let _new_view = ui.inflate(
-                                    <vertical>
-                                        <horizontal margin="16 8">
-                                            <text id="_text" gravity="left" layout_gravity="center"/>
-                                            <seekbar id="_seekbar" w="*" layout_gravity="center"
-                                                     style="@android:style/Widget.Material.SeekBar"/>
-                                        </horizontal>
-                                    </vertical>
-                                );
-                                /** @type android.widget.AbsSeekBar */
-                                let _seekbar = _new_view["_seekbar"];
-                                _seekbar.setMax(Math.ceil((max - min) / inc));
-                                _seekbar.setProgress(Math.ceil((init - min) / inc));
-
-                                let update = src => _new_view["_text"].setText(
-                                    (title ? title + ": " : "") + src.toString() +
-                                    (unit ? " " + unit : ""));
-
-                                _new_view["_text"].on("long_click", (e) => {
-                                    e.consumed = true;
-                                    _seekbar.setProgress(Math.ceil((_def - min) / inc));
-                                });
-
-                                update(init);
-
-                                _new_view["_seekbar"].setOnSeekBarChangeListener(
-                                    new android.widget.SeekBar.OnSeekBarChangeListener({
-                                        onProgressChanged(seek_bar, progress) {
-                                            let result = Math.min(progress * inc + min, max);
-                                            update(result);
-                                            $$save.session(config_conj, result);
-                                        },
-                                        onStartTrackingTouch: () => void 0,
-                                        onStopTrackingTouch: () => void 0,
-                                    })
-                                );
-
-                                return _new_view;
-                            }
-                        }
-
-                        function ready() {
-                            if (_label_name) {
-                                $$ses["ready_signal_" + _label_name] = true;
-                            } else {
-                                messageAction("页面标签不存在:", 3, 0, 0, -1);
-                                messageAction(_title_name, 3, 0, 0, 1);
-                            }
-                            return page_view;
-                        }
-
-                        function checkPageState() {
-                            if ($$func(check_page_state)) {
-                                return check_page_state;
-                            }
-                            if ($$func(check_page_state)) {
-                                return check_page_state(page_view.content_view);
-                            }
-                            return true;
-                        }
-
-                        function checkPageLabel() {
-                            if (_label_name) {
-                                $$view.pages[_label_name] = page_view;
-                                page_view.setTag(_label_name);
-                                return _label_name;
-                            }
-                        }
+                        return _cnt_view_frame;
                     }
                 },
                 setButtons(p_view, data_source_key_name, button_params_arr) {
@@ -2907,7 +2895,7 @@ let $$init = {
                             let _ds_k = "stat_list_date_range";
                             let _range = $$ses[_ds_k];
                             let _sess_sel_idx = $$und(_range) ? $$cfg.ses[_ds_k] : _range;
-                            let _positive_func = (d) => _posDefault(d);
+                            let _positive_func = d => _posDefault(d);
                             let _diag = dialogsx
                                 .builds([
                                     "日期统计范围", "",
@@ -3091,19 +3079,25 @@ let $$init = {
                  * @param {function|string|string[]} [dependencies]
                  */
                 checkDependency(view, dependencies) {
-                    ($$func(dependencies) ? dependencies.call(null) : (
-                            Array.isArray(dependencies) ? dependencies : [dependencies]
-                        ).some(dep => $$cfg.ses[dep])
-                    ) ? setViewEnabled(view) : setViewDisabled(view, dependencies);
+                    let _deps = dependencies || [];
+                    (() => {
+                        if ($$func(_deps)) {
+                            return _deps.call(null);
+                        }
+                        if (!classof(_deps, "Array")) {
+                            _deps = [_deps];
+                        }
+                        return _deps.some((dep) => $$cfg.ses[dep]);
+                    })() ? setViewEnabled(view) : setViewDisabled(view, _deps);
+
 
                     // tool function(s) //
 
                     function setViewDisabled(view, dependencies) {
-                        let {title} = $$ses;
                         let hint_text = "";
-                        if (!hint_text && classof(dependencies, "Array")) {
+                        if (classof(dependencies, "Array")) {
                             dependencies.forEach(conj_text => {
-                                hint_text += title[conj_text] + " ";
+                                hint_text += $$ses.title[conj_text] + " ";
                             });
                             if (dependencies.length > 1) {
                                 hint_text += "均";
@@ -3282,11 +3276,10 @@ let $$init = {
 
                     function _act() {
                         ui.post(() => {
-                            hide_when_checked = !!hide_when_checked; // boolean
-                            state = !!state; // boolean
-
-                            let switch_state_key_name = o.config_conj + "_switch_states";
-                            if (!$$ses[switch_state_key_name]) $$ses[switch_state_key_name] = [];
+                            let sw_state_key = o.config_conj + "_switch_states";
+                            if (!$$ses[sw_state_key]) {
+                                $$ses[sw_state_key] = [];
+                            }
 
                             let myself = o.view;
                             let parent = myself.getParent();
@@ -3298,31 +3291,29 @@ let $$init = {
                                 if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
                                     break;
                                 }
-                                state === hide_when_checked ? hide(child_view) : reveal(child_view);
+                                !!state === !!hide_when_checked ? hide(child_view) : reveal(child_view);
                             }
 
                             // tool function(s) //
 
                             function hide(view) {
-                                $$ses[switch_state_key_name].push(view.visibility);
+                                $$ses[sw_state_key].push(view.visibility);
                                 view.setVisibility(8);
                             }
 
                             function reveal(view) {
-                                if (!$$ses[switch_state_key_name].length) return;
-                                view.setVisibility($$ses[switch_state_key_name].shift());
+                                if ($$ses[sw_state_key].length) {
+                                    view.setVisibility($$ses[sw_state_key].shift());
+                                }
                             }
                         });
                     }
 
                     function _ready() {
-                        if (!_lbl) {
-                            return true;
-                        }
-                        return $$ses["ready_signal_" + _lbl];
+                        return _lbl ? $$ses["ready_signal_" + _lbl] : true;
                     }
                 },
-                weakOrStrongBySwitch(o, state, view_index_padding) {
+                weakOrStrongBySwitch(o, state, idx_offset) {
                     let _lbl = o.view.page_view.page_label_name;
                     setIntervalBySetTimeout(_act, 80, _ready);
 
@@ -3330,30 +3321,24 @@ let $$init = {
 
                     function _act() {
                         ui.post(() => {
-                            if (!classof(view_index_padding, "Array")) {
-                                view_index_padding = [view_index_padding || 1];
+                            if (!classof(idx_offset, "Array")) {
+                                idx_offset = [idx_offset || 1];
                             }
-                            let myself = o.view;
-                            let parent = myself.getParent();
-                            let current_child_index = parent.indexOfChild(myself);
-                            view_index_padding.forEach((padding) => {
-                                let radio_group_view = parent.getChildAt(current_child_index + padding).getChildAt(0);
+                            let p = o.view.getParent();
+                            let cur_i = p.indexOfChild(o.view);
+                            idx_offset.forEach((offset) => {
+                                let radio_group_view = p.getChildAt(cur_i + offset).getChildAt(0);
                                 for (let i = 0, l = radio_group_view.getChildCount(); i < l; i += 1) {
-                                    let radio_view = radio_group_view.getChildAt(i);
-                                    radio_view.setClickable(state);
-                                    radio_view.setTextColor(
-                                        colors.parseColor(state ? "#000000" : "#b0bec5")
-                                    );
+                                    let v = radio_group_view.getChildAt(i);
+                                    v.setClickable(state);
+                                    v.setTextColor(colors.parseColor(state ? "#000000" : "#b0bec5"));
                                 }
                             });
                         });
                     }
 
                     function _ready() {
-                        if (!_lbl) {
-                            return true;
-                        }
-                        return $$ses["ready_signal_" + _lbl];
+                        return _lbl ? $$ses["ready_signal_" + _lbl] : true;
                     }
                 },
                 /**
@@ -4511,18 +4496,15 @@ let $$init = {
                     _f();
                     delete $$ses.back_btn_consumed_func;
                 }
-                return;
-            }
-
-            if ($$view.checkPageState()) {
-                let _one_rolling = $$view.page.rolling.length === 1;
-                let _need_save = $$save.trigger();
-                return _one_rolling ? _need_save ? quitConfirm() : quitNow() : $$view.page.jump("back");
+            } else if ($$view.checkPageState()) {
+                $$view.page.rolling.length === 1
+                    ? $$save.trigger() ? _quitConfirm() : _quitNow()
+                    : $$view.page.jump("back");
             }
 
             // tool function(s) //
 
-            function quitConfirm() {
+            function _quitConfirm() {
                 dialogsx
                     .builds([
                         "设置未保存", "确定要退出吗",
@@ -4532,17 +4514,17 @@ let $$init = {
                         d.dismiss();
                     })
                     .on("negative", () => {
-                        quitNow();
+                        _quitNow();
                     })
                     .on("positive", (d) => {
                         $$save.config();
                         toast("已保存");
-                        quitNow(d);
+                        _quitNow(d);
                     })
                     .show();
             }
 
-            function quitNow(diag) {
+            function _quitNow(diag) {
                 diag && diag.dismiss();
                 if ($$sto.af.get("af_postponed")) {
                     toast("配置结束\n即将运行蚂蚁森林");
@@ -4550,9 +4532,7 @@ let $$init = {
                     $$sto.af.remove("af_postponed");
                     $$sto.af.put("config_prompted", true);
                 }
-                // do not use ui.post(exit)
-                // as events.on("exit") won't be triggered
-                exit();
+                ui.finish();
             }
         });
 
@@ -4731,11 +4711,12 @@ $$view.setHomePage($$def.homepage_title)
                         ])
                         .on("positive", (ds) => {
                             $$init.config("reset");
+
                             dialogsx.builds([
                                 "还原完毕", "", 0, 0, "确定"
                             ]).on("positive", ds2 => dialogsx.dismiss(ds2, ds, d)).show();
                         })
-                        .on("negative", (ds) => ds.dismiss())
+                        .on("negative", ds => ds.dismiss())
                         .show();
                 })
                 .show();
@@ -5156,6 +5137,13 @@ $$view.page.new("自收功能", "self_collect_page", (t) => {
                 $$view.udop.main_sw.call(this, view);
             },
         }))
+        .add("page", new Layout("浇水回赠能量球检测", "hint", {
+            config_conj: "homepage_wball_switch",
+            next_page: "homepage_wball_page",
+            updateOpr(view) {
+                $$view.udop.main_sw.call(this, view);
+            },
+        }))
         .add("split_line")
         .add("subhead", new Layout("公用设置"))
         .add("page", new Layout("能量球样本采集", {
@@ -5184,7 +5172,7 @@ $$view.page.new("主页能量球循环监测", "homepage_monitor_page", (t) => {
         .add("button", new Layout("监测阈值", "hint", {
             config_conj: "homepage_monitor_threshold",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 3, {
+                $$view.diag.numSetter.call(this, 1, 3, {
                     title: "主页能量球循环监测阈值",
                     positiveAddn(d, input) {
                         let _min = $$cfg.ses.homepage_bg_monitor_threshold;
@@ -5232,7 +5220,7 @@ $$view.page.new("主页能量球返检监控", "homepage_background_monitor_page
         .add("button", new Layout("返检阈值", "hint", {
             config_conj: "homepage_bg_monitor_threshold",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(1, 3, {
+                $$view.diag.numSetter.call(this, 1, 3, {
                     title: "主页能量球返检阈值",
                     hint_set: "R",
                     positiveAddn(d, input) {
@@ -5253,6 +5241,50 @@ $$view.page.new("主页能量球返检监控", "homepage_background_monitor_page
             },
             updateOpr(view) {
                 view.setHintText($$cfg.ses[this.config_conj].toString() + " min");
+            },
+        }))
+        .ready();
+});
+$$view.page.new("浇水回赠能量球检测", "homepage_wball_page", (t) => {
+    $$view.setPage(t)
+        .add("switch", new Layout("总开关", {
+            config_conj: "homepage_wball_switch",
+            listeners: {
+                _switch: {
+                    check(state) {
+                        $$save.session(this.config_conj, !!state);
+                        $$view.showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr(view) {
+                view["_switch"].setChecked(!!$$cfg.ses[this.config_conj]);
+            },
+        }))
+        .add("split_line")
+        .add("subhead", new Layout("基本设置"))
+        .add("button", new Layout("最大检查次数", "hint", {
+            config_conj: "homepage_wball_check_limit",
+            newWindow() {
+                $$view.diag.numSetter.call(this, 10, 300, {
+                    title: "浇水回赠球最大检查次数",
+                    content: "通常无需修改此参数\n" +
+                        "仅用于避免功能失效等原因造成的无限循环",
+                });
+            },
+            updateOpr(view) {
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString());
+            },
+        }))
+        .add("split_line")
+        .add("subhead", new Layout("高级设置"))
+        .add("button", new Layout("最大色相值 (无蓝分量)", "hint", {
+            config_conj: "homepage_wball_max_hue_b0",
+            newWindow() {
+                $$view.diag.numSetter.call(this, 12, 52, {hint_set: "R"});
+            },
+            updateOpr(view) {
+                view.setHintText($$cfg.ses[this.config_conj].toString() + "°");
             },
         }))
         .ready();
@@ -5291,7 +5323,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
             newWindow() {
                 let _icon_h = cYx(46);
                 let _safe = (uH - staH - actH - _icon_h);
-                $$view.diag.numSetter.bind(this)(0.4, 0.9, {
+                $$view.diag.numSetter.call(this, 0.4, 0.9, {
                     title: "设置排行榜页面滑动距离",
                     hint_set: "R",
                     distance: "H",
@@ -5352,7 +5384,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
         .add("button", new Layout("滑动时长", "hint", {
             config_conj: "rank_list_swipe_time",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(100, 800, {
+                $$view.diag.numSetter.call(this, 100, 800, {
                     title: "设置排行榜页面滑动时长",
                 });
             },
@@ -5363,7 +5395,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
         .add("button", new Layout("滑动间隔", "hint", {
             config_conj: "rank_list_swipe_interval",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(100, 800, {
+                $$view.diag.numSetter.call(this, 100, 800, {
                     title: "设置排行榜页面滑动间隔",
                 });
             },
@@ -5385,7 +5417,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
         .add("button", new Layout("截图样本池差异检测阈值", "hint", {
             config_conj: "rank_list_capt_pool_diff_check_threshold",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(5, 800, {
+                $$view.diag.numSetter.call(this, 5, 800, {
                     title: "排行榜截图差异检测阈值",
                 });
             },
@@ -5395,7 +5427,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
         }))
         .add("button", new Layout("列表底部控件图片模板", "hint", {
             newWindow() {
-                let _path = $$cfg.sto.rank_list_bottom_template_path;
+                let _path = $$cfg.sto.rank_list_bottom_template_file_path;
                 let _diag = dialogsx
                     .builds([
                         "排行榜底部控件图片模板", "",
@@ -5449,7 +5481,7 @@ $$view.page.new("排行榜样本采集", "rank_list_samples_collect_page", (t) =
                 }
             },
             updateOpr(view) {
-                let file_exists_flag = files.exists($$cfg.sto.rank_list_bottom_template_path);
+                let file_exists_flag = files.exists($$cfg.sto.rank_list_bottom_template_file_path);
                 view.setHintText(file_exists_flag ? "已生成" : "暂未生成");
             },
         }))
@@ -5590,7 +5622,7 @@ $$view.page.new("能量球样本采集", "forest_samples_collect_page", (t) => {
         .add("button", new Layout("能量球识别区域", "hint", {
             config_conj: "forest_balls_recog_region",
             newWindow() {
-                $$view.diag.rectSetter.bind(this)({
+                $$view.diag.rectSetter.call(this, {
                     title: "森林页面能量球识别区域",
                 });
             },
@@ -5609,7 +5641,7 @@ $$view.page.new("能量球样本采集", "forest_samples_collect_page", (t) => {
         .add("button", new Layout("能量球最小球心间距", "hint", {
             config_conj: "min_balls_distance",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0.06, 0.15, {
+                $$view.diag.numSetter.call(this, 0.06, 0.15, {
                     title: "设置能量球最小球心间距",
                     hint_set: "R",
                     distance: "W",
@@ -5666,7 +5698,7 @@ $$view.page.new("颜色与阈值", "eballs_color_config_page", (t) => {
         .add("button", new Layout("识别色值", "hint", {
             config_conj: "ripe_ball_detect_color_val",
             newWindow() {
-                $$view.diag.colorSetter.bind(this)({
+                $$view.diag.colorSetter.call(this, {
                     title: "成熟能量球颜色检测色值",
                 });
             },
@@ -5677,7 +5709,7 @@ $$view.page.new("颜色与阈值", "eballs_color_config_page", (t) => {
         .add("button", new Layout("识别阈值", "hint", {
             config_conj: "ripe_ball_detect_threshold",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 40, {
+                $$view.diag.numSetter.call(this, 0, 40, {
                     title: "成熟能量球颜色检测阈值",
                 });
             },
@@ -5692,7 +5724,7 @@ $$view.page.new("颜色与阈值", "eballs_color_config_page", (t) => {
         .add("button", new Layout("识别色值", "hint", {
             config_conj: "help_ball_detect_color_val",
             newWindow() {
-                $$view.diag.colorSetter.bind(this)({
+                $$view.diag.colorSetter.call(this, {
                     title: "帮收能量球颜色检测色值",
                 });
             },
@@ -5703,7 +5735,7 @@ $$view.page.new("颜色与阈值", "eballs_color_config_page", (t) => {
         .add("button", new Layout("识别阈值", "hint", {
             config_conj: "help_ball_detect_threshold",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(23, 230, {
+                $$view.diag.numSetter.call(this, 23, 230, {
                     title: "帮收能量球颜色检测阈值",
                 });
             },
@@ -6086,7 +6118,7 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
         .add("button", new Layout("最大尝试次数", "hint", {
             config_conj: "unlock_max_try_times",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(5, 50, {
+                $$view.diag.numSetter.call(this, 5, 50, {
                     title: "设置解锁最大尝试次数",
                     def_key: "unlock",
                     content: "",
@@ -6098,10 +6130,33 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
         }))
         .add("split_line")
         .add("subhead", new Layout("提示层页面设置", {subhead_color: "#bf360c"}))
+        .add("button", new Layout("检测方式", "hint", {
+            config_conj: "unlock_dismiss_layer_strategy",
+            map: {
+                preferred: "优先",
+                deferred: "滞后",
+                disabled: "禁用",
+            },
+            newWindow() {
+                $$view.diag.radioSetter.call(this, {
+                    title: "图案解锁滑动策略",
+                    def_key: "unlock",
+                    neutral() {
+                        dialogsx.builds([
+                            "关于提示层页面检测方式", "about_unlock_dismiss_layer_strategy",
+                            0, 0, "关闭", 1
+                        ]).on("positive", ds => ds.dismiss()).show();
+                    },
+                });
+            },
+            updateOpr(view) {
+                view.setHintText(this.map[($$cfg.ses[this.config_conj] || $$sto.def.unlock[this.config_conj])]);
+            },
+        }))
         .add("button", new Layout("上滑时长", "hint", {
             config_conj: "unlock_dismiss_layer_swipe_time",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(110, 1e3, {
+                $$view.diag.numSetter.call(this, 110, 1e3, {
                     title: "提示层页面上滑时长",
                     def_key: "unlock",
                 });
@@ -6113,7 +6168,7 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
         .add("button", new Layout("起点位置", "hint", {
             config_conj: "unlock_dismiss_layer_bottom",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0.5, 0.95, {
+                $$view.diag.numSetter.call(this, 0.5, 0.95, {
                     title: "提示层页面起点位置",
                     hint_set: "R",
                     def_key: "unlock",
@@ -6130,7 +6185,7 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
         .add("button", new Layout("终点位置", "hint", {
             config_conj: "unlock_dismiss_layer_top",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0.05, 0.3, {
+                $$view.diag.numSetter.call(this, 0.05, 0.3, {
                     title: "提示层页面终点位置",
                     hint_set: "R",
                     def_key: "unlock",
@@ -6153,7 +6208,7 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
                 solid: "连续路径", // gesture()
             },
             newWindow() {
-                $$view.diag.radioSetter.bind(this)({
+                $$view.diag.radioSetter.call(this, {
                     title: "图案解锁滑动策略",
                     def_key: "unlock",
                     neutral() {
@@ -6169,23 +6224,30 @@ $$view.page.new("自动解锁", "auto_unlock_page", (t) => {
             },
         }))
         .add("button", new Layout("滑动时长", "hint", {
+            getConfigConj() {
+                let _key = "unlock_pattern_strategy";
+                let _stg = $$cfg.ses[_key] || $$sto.def.unlock[_key];
+                return "unlock_pattern_swipe_time_" + _stg;
+            },
             newWindow() {
-                $$view.diag.numSetter.bind(this)(120, 3e3, {
+                let _getConfigConj = this.getConfigConj.bind(this);
+                $$view.diag.numSetter.call(this, 120, 3e3, {
+                    get config_conj() {
+                        return _getConfigConj();
+                    },
                     title: "设置图案解锁滑动时长",
                     def_key: "unlock",
                 });
             },
             updateOpr(view) {
-                let _key = "unlock_pattern_strategy";
-                let _stg = $$cfg.ses[_key] || $$sto.def.unlock[_key];
-                let _cfg_conj = "unlock_pattern_swipe_time_" + _stg;
+                let _cfg_conj = this.getConfigConj();
                 view.setHintText(($$cfg.ses[_cfg_conj] || $$sto.def.unlock[_cfg_conj]).toString() + " ms");
             },
         }))
         .add("button", new Layout("点阵边长", "hint", {
             config_conj: "unlock_pattern_size",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(3, 6, {
+                $$view.diag.numSetter.call(this, 3, 6, {
                     title: "设置图案解锁边长",
                     def_key: "unlock",
                 });
@@ -6277,7 +6339,7 @@ $$view.page.new("消息提示", "message_showing_page", (t) => {
         .add("button", new Layout("对话框倒计时时长", "hint", {
             config_conj: "prompt_before_running_countdown_seconds",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(3, 30, {
+                $$view.diag.numSetter.call(this, 3, 30, {
                     title: "提示对话框倒计时时长",
                 });
             },
@@ -6689,7 +6751,7 @@ $$view.page.new("定时任务自动管理", "timers_self_manage_page", (t) => {
         .add("button", new Layout("定时任务提前运行", "hint", {
             config_conj: "timers_countdown_check_own_timed_task_ahead",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 3, {
+                $$view.diag.numSetter.call(this, 0, 3, {
                     content: "timers_countdown_check_timed_task_ahead",
                     positiveAddn(d, input, positiveFunc) {
                         let _saveSess = (ds) => {
@@ -6761,7 +6823,7 @@ $$view.page.new("定时任务自动管理", "timers_self_manage_page", (t) => {
         .add("button", new Layout("定时任务提前运行", "hint", {
             config_conj: "timers_countdown_check_friends_timed_task_ahead",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 5, {
+                $$view.diag.numSetter.call(this, 0, 5, {
                     content: "timers_countdown_check_timed_task_ahead",
                     positiveAddn(d, input, positiveFunc) {
                         let _saveSess = (ds) => {
@@ -7285,7 +7347,7 @@ $$view.page.new("定时任务控制面板", "timers_control_panel_page", (t) => 
                             } else {
                                 return;
                             }
-                            timersx.updateTimedTask(current_task, "wait");
+                            timersx.updateTimedTask(current_task);
                             return current_task;
                         }
                     }
@@ -7388,10 +7450,9 @@ $$view.page.new("延时接力区间", "timers_uninterrupted_check_sections_page"
 
                                 if (_pref === "间隔") {
                                     $$view.diag.numSetter(1, 600, {
-                                        no_this_check: true,
                                         title: "修改" + _pref,
                                         content: null,
-                                        neutral: 0,
+                                        neutral: null,
                                         positive(d, min, max) {
                                             let _n = $$view.diag.checkInputRange(d, min, max);
                                             if (_n) {
@@ -7746,7 +7807,7 @@ $$view.page.new("旧账户回切", "account_log_back_in_page", (t) => {
         .add("button", new Layout("最大连续回切次数", "hint", {
             config_conj: "account_log_back_in_max_continuous_times",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(0, 10, {
+                $$view.diag.numSetter.call(this, 0, 10, {
                     title: "设置最大连续回切次数",
                 });
             },
@@ -8051,7 +8112,7 @@ $$view.page.new("运行与安全", "script_security_page", (t) => {
         .add("button", new Layout("单次运行最大时间", "hint", {
             config_conj: "max_running_time_global",
             newWindow() {
-                $$view.diag.numSetter.bind(this)(5, 90, {
+                $$view.diag.numSetter.call(this, 5, 90, {
                     title: "脚本单次运行最大时间",
                 });
             },
@@ -8086,7 +8147,7 @@ $$view.page.new("运行与安全", "script_security_page", (t) => {
                 OFF: "禁用自动开启",
             },
             newWindow() {
-                $$view.diag.radioSetter.bind(this)({
+                $$view.diag.radioSetter.call(this, {
                     neutral() {
                         dialogsx
                             .builds([
@@ -8139,7 +8200,7 @@ $$view.page.new("运行与安全", "script_security_page", (t) => {
                 OFF: "关闭跳板",
             },
             newWindow() {
-                $$view.diag.radioSetter.bind(this)({
+                $$view.diag.radioSetter.call(this, {
                     neutral() {
                         dialogsx.builds([
                             "关于启动跳板", "about_app_launch_springboard",
@@ -8372,126 +8433,132 @@ $$view.page.new("项目备份还原", "local_project_backup_restore_page", (t) =
                     view.setHintText("正在准备数据...");
                     return;
                 }
-                let amount = $$cfg.ses.project_backup_info.length;
-                view.setHintText(amount ? "共计备份:  " + amount + " 项" : "无备份");
-                view.setNextPage("restore_projects_from_local_page");
+                let _ds_k = "project_backup_info";
+                let _view_tag = this.view_tag;
+                let _amt = ($$cfg.ses[_ds_k] = $$cfg.ses[_ds_k] || []).length;
+                view.setHintText(_amt ? "共计备份:  " + _amt + " 项" : "无备份");
+                view.setNextPage(_view_tag);
 
-                let view_tag = this.view_tag;
-                threadsx.starts(function () {
-                    if (waitForAction(() => $$view.pages[view_tag], 5e3) && !$$ses.restore_proj_from_local_page_created) {
-                        $$ses.restore_proj_from_local_page_created = true;
-                        ui.post(() => {
-                            $$view.pages[view_tag]
-                                .add("list", new Layout("/*本地项目还原*/", {
-                                    list_head: "project_backup_info",
-                                    data_source_key_name: "project_backup_info",
-                                    list_checkbox: "gone",
-                                    get tool_box() {
-                                        return {
-                                            deleteItem(diag_p, idx) {
-                                                diag_p && diag_p.dismiss();
+                if ($$und($$ses.restore_proj_from_local_page_building)) {
+                    $$ses.restore_proj_from_local_page_building = threads.atomic(0);
+                }
+                let _building = $$ses.restore_proj_from_local_page_building;
+                if (!_building.get()) {
+                    _building.incrementAndGet();
+                    threadsx.starts(function () {
+                        waitForAction(() => $$view.pages[_view_tag], 5e3)
+                            ? ui.post(createPageView)
+                            : _building.decrementAndGet();
+                    });
+                }
+
+                // tool function(s) //
+
+                function createPageView() {
+                    $$view.pages[_view_tag]
+                        .add("list", new Layout("/*本地项目还原*/", {
+                            list_head: _ds_k,
+                            data_source_key_name: _ds_k,
+                            list_checkbox: "gone",
+                            deleteItem(diag_p, idx) {
+                                diag_p && diag_p.dismiss();
+                                dialogsx
+                                    .builds([
+                                        "删除备份", "确定删除此备份吗\n此操作无法撤销",
+                                        0, "放弃", ["删除", "caution_btn_color"], 1,
+                                    ])
+                                    .on("negative", (d) => {
+                                        d.dismiss();
+                                        diag_p && diag_p.show();
+                                    })
+                                    .on("positive", (d) => {
+                                        d.dismiss();
+                                        $$view.updateDataSource(_ds_k, "splice", [idx, 1], {
+                                            is_quiet: true,
+                                            sync_data_source: true,
+                                        });
+                                        $$view.updateViewByTag(_view_tag);
+                                        $$sto.af_backup.put("project", $$cfg.ses[_ds_k]);
+                                        files.remove($$cfg.ses[_ds_k][idx].file_path);
+                                    })
+                                    .show();
+                            },
+                            listeners: {
+                                _list_data: {
+                                    item_long_click(e, item, idx) {
+                                        e.consumed = true;
+                                        this.deleteItem(null, idx);
+                                    },
+                                    item_click(item, idx) {
+                                        let _ds_k = this.data_source_key_name;
+                                        let _details = [];
+                                        let _cur_data = $$cfg.ses[_ds_k][idx] || {};
+                                        let _map = {
+                                            version_name: "版本",
+                                            timestamp: "时间",
+                                            file_path: "路径",
+                                            remark: "备注",
+                                        };
+                                        Object.keys(_map).forEach((k) => {
+                                            if (k in _cur_data) {
+                                                let _val = _cur_data[k];
+                                                if (k === "timestamp") {
+                                                    _val = $$tool.getTimeStrFromTs(_val, "time_str_full");
+                                                }
+                                                _val && _details.push(_map[k] + ": " + _val);
+                                            }
+                                        });
+                                        dialogsx
+                                            .builds([
+                                                "备份详情", _details.join("\n\n"),
+                                                ["删除此备份", "caution_btn_color"], "返回",
+                                                ["还原此备份", "warn_btn_color"], 1,
+                                            ])
+                                            .on("positive", (d) => {
+                                                d.dismiss();
                                                 dialogsx
                                                     .builds([
-                                                        "删除备份", "确定删除此备份吗\n此操作无法撤销",
-                                                        0, "放弃", ["删除", "caution_btn_color"], 1,
-                                                    ])
-                                                    .on("negative", (d) => {
-                                                        d.dismiss();
-                                                        diag_p && diag_p.show();
-                                                    })
-                                                    .on("positive", (d) => {
-                                                        d.dismiss();
-                                                        let _file_path = $$cfg.ses.project_backup_info[idx].file_path;
-                                                        $$view.updateDataSource("project_backup_info", "splice", [idx, 1], {
-                                                            is_quiet: true,
-                                                            sync_data_source: true,
-                                                        });
-                                                        $$view.updateViewByTag("restore_projects_from_local_page");
-                                                        // write to storage right away
-                                                        $$sto.af_backup.put("project", $$cfg.ses.project_backup_info);
-                                                        files.remove(_file_path);
-                                                    })
-                                                    .show();
-                                            }
-                                        };
-                                    },
-                                    listeners: {
-                                        _list_data: {
-                                            item_long_click(e, item, idx) {
-                                                e.consumed = true;
-                                                this.tool_box.deleteItem(null, idx);
-                                            },
-                                            item_click(item, idx) {
-                                                let {data_source_key_name: _ds_k, tool_box} = this;
-                                                let backup_details = [];
-                                                let single_session_data = $$cfg.ses[_ds_k][idx] || {};
-                                                let map = {
-                                                    version_name: "版本",
-                                                    timestamp: "时间",
-                                                    file_path: "路径",
-                                                    remark: "备注",
-                                                };
-                                                Object.keys(map).forEach((k) => {
-                                                    if (k in single_session_data) {
-                                                        let label_name = map[k];
-                                                        let value = single_session_data[k];
-                                                        if (k === "timestamp") {
-                                                            value = $$tool.getTimeStrFromTs(value, "time_str_full");
-                                                        }
-                                                        value && backup_details.push(label_name + ": " + value);
-                                                    }
-                                                });
-                                                backup_details = backup_details.join("\n\n");
-                                                let diag = dialogsx.builds([
-                                                    "备份详情", backup_details,
-                                                    ["删除此备份", "caution_btn_color"], "返回", ["还原此备份", "warn_btn_color"], 1,
-                                                ]);
-                                                diag.on("positive", () => {
-                                                    diag.dismiss();
-                                                    let diag_confirm = dialogsx.builds([
                                                         "还原本地备份", "restore_from_local",
                                                         0, "放弃", ["还原", "caution_btn_color"], 1,
-                                                    ]);
-                                                    diag_confirm.on("negative", () => {
-                                                        diag_confirm.dismiss();
-                                                        diag.show();
-                                                    });
-                                                    diag_confirm.on("positive", () => {
-                                                        diag_confirm.dismiss();
-                                                        $$tool.restoreProjectFiles(single_session_data.file_path);
-                                                    });
-                                                    diag_confirm.show();
-                                                });
-                                                diag.on("negative", () => diag.dismiss());
-                                                diag.on("neutral", () => tool_box.deleteItem(diag, idx));
-                                                diag.show();
-                                            },
-                                            item_bind(item_view) {
-                                                item_view["_checkbox"].setVisibility(8);
-                                            },
-                                        },
+                                                    ])
+                                                    .on("negative", (ds) => {
+                                                        ds.dismiss();
+                                                        d.show();
+                                                    })
+                                                    .on("positive", (ds) => {
+                                                        ds.dismiss();
+                                                        $$tool.restoreProjectFiles(_cur_data.file_path);
+                                                    })
+                                                    .show();
+                                            })
+                                            .on("negative", d => d.dismiss())
+                                            .on("neutral", d => this.deleteItem(d, idx))
+                                            .show();
                                     },
-                                }))
-                                .add("info", new Layout("dynamic_info", {
-                                    view_tag: "restore_projects_from_local_page",
-                                    updateOpr(view) {
-                                        view["_info_text"].setText($$cfg.ses.project_backup_info.length
-                                            ? "点击列表项可还原项目或删除备份项目"
-                                            : "暂无备份项目"
-                                        );
+                                    item_bind(item_view) {
+                                        item_view["_checkbox"].setVisibility(8);
                                     },
-                                }))
-                                .add("info", new Layout("长按列表项可删除备份项目", {
-                                    view_tag: "restore_projects_from_local_page",
-                                    updateOpr(view) {
-                                        view.setVisibility($$cfg.ses.project_backup_info.length ? 0 : 8);
-                                    },
-                                }))
-                                .add("blank")
-                                .ready();
-                        });
-                    }
-                });
+                                },
+                            },
+                        }))
+                        .add("info", new Layout("dynamic_info", {
+                            view_tag: _view_tag,
+                            updateOpr(view) {
+                                view["_info_text"].setText($$cfg.ses[_ds_k].length
+                                    ? "点击列表项可还原项目或删除备份项目"
+                                    : "暂无备份项目"
+                                );
+                            },
+                        }))
+                        .add("info", new Layout("长按列表项可删除备份项目", {
+                            view_tag: _view_tag,
+                            updateOpr(view) {
+                                view.setVisibility($$cfg.ses[_ds_k].length ? 0 : 8);
+                            },
+                        }))
+                        .add("blank")
+                        .ready();
+                }
             },
         }))
         .add("page", new Layout("从服务器还原", "hint", {

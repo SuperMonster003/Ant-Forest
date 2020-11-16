@@ -6,11 +6,11 @@ require("./EXT_DEVICE").load("getDisplay");
 
 let ext = {
     _initIfNeeded() {
-        runtime.getImages().initOpenCvIfNeeded();
+        return runtime.getImages().initOpenCvIfNeeded();
     },
     _toPointArray(points) {
-        let _arr = [];
-        for (let i = 0; i < points.length; i++) {
+        let _arr = [], _len = points.length;
+        for (let i = 0; i < _len; i++) {
             _arr[i] = points[i];
         }
         return _arr;
@@ -25,7 +25,7 @@ let ext = {
         let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
         let r = new org.opencv.core.Rect(x, y, width, height);
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
-            throw new Error("out of region: " +
+            throw new Error("Out of region: " +
                 "region = [" + [x, y, width, height] + "], " +
                 "image.size = [" + [img.width, img.height] + "]"
             );
@@ -38,7 +38,7 @@ let ext = {
     },
     getMean(capt) {
         /** @type {number[]} */
-        let _v = org.opencv.core.Core.mean((capt || ext.capt()).getMat()).val;
+        let _v = org.opencv.core.Core.mean((capt || this.capt()).getMat()).val;
         let [R, G, B] = _v;
         let [_R, _G, _B] = [R, G, B].map(x => Number(x.toFixed(2)));
         let _arr = [_R, _G, _B];
@@ -50,29 +50,53 @@ let ext = {
         };
     },
     isRecycled(img) {
-        if (!img) return true;
+        if (!img) {
+            throw Error("img is required for imagesx.isRecycled()");
+        }
         try {
             img.getHeight();
+            return false;
         } catch (e) {
             return !!e.message.match(/has been recycled/);
         }
     },
-    isImageWrapper: (img) => {
-        return img
-            && typeof img === "object"
-            && img["getClass"]
-            && img.toString().match(/ImageWrapper/);
+    recycleGlobal() {
+        let $_af = global.$$af = global.$$af || {};
+        Object.keys($_af).forEach((k) => {
+            if (this.isImageWrapper($_af[k])) {
+                $_af[k].recycle();
+                $_af[k] = null;
+            }
+        });
     },
-    reclaim: _reclaim,
-    capt() {
+    isImageWrapper(img) {
+        return img instanceof com.stardust.autojs.core.image.ImageWrapper;
+    },
+    reclaim() {
+        [].slice.call(arguments).forEach(i => this.isImageWrapper(i) && i.recycle());
+    },
+    /**
+     * @param {"png"|"jpg"|"jpeg"|"webp"} [format="png"]
+     * @param {number} [quality=100]
+     * @returns {ImageWrapper$}
+     */
+    capt(format, quality) {
         let _max = 10;
         while (_max--) {
             try {
-                _permit();
+                this.permit();
                 let _img = images.captureScreen();
+
+                format = format || "png";
+                quality = quality || 100;
+
                 // prevent "_img" from being auto-recycled
-                let _copy = images.copy(_img);
-                _reclaim(_img);
+                let _copy = format !== "png" || quality !== 100 ? images.fromBytes(
+                    images.toBytes(images.copy(_img), format, quality)
+                ) : images.copy(_img);
+
+                this.reclaim(_img);
+
                 return _copy;
             } catch (e) {
                 sleep(240);
@@ -84,117 +108,319 @@ let ext = {
         exit();
     },
     capture() {
-        return this.capt.apply(this);
+        return this.capt();
     },
     captureScreen() {
-        return this.capt.apply(this);
+        return this.capt();
     },
-    requestScreenCapture: _requestScreenCapture,
-    permit: _permit,
-    matchTpl(capt, tpl, opt) {
-        let _capt;
-        let _no_capt_fg;
-        if (!capt) {
-            _capt = this.capt();
-            _no_capt_fg = true;
+    requestScreenCapture(landscape) {
+        let _aj_pkg = context.packageName;
+        let _is_pro = _aj_pkg.match(/[Pp]ro/);
+        let _is_pro_7 = _is_pro && app.autojs.versionName.match(/^Pro 7/);
+        if (global._$_request_screen_capture) {
+            return true;
+        }
+        global._$_request_screen_capture = threads.atomic(1);
+
+        let javaImages = runtime.getImages();
+        let ResultAdapter = require.call(global, "result_adapter");
+        let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
+
+        let _orientation = typeof landscape !== "boolean"
+            ? ScreenCapturer.ORIENTATION_AUTO
+            : landscape
+                ? ScreenCapturer.ORIENTATION_LANDSCAPE
+                : ScreenCapturer.ORIENTATION_PORTRAIT;
+        let _adapter = !_is_pro
+            ? javaImages.requestScreenCapture(_orientation)
+            : javaImages.requestScreenCapture.apply(javaImages, [
+                _orientation /* orientation */,
+                -1, /* width */
+                -1, /* height */
+                false /* isAsync */
+            ].slice(0, _is_pro_7 ? 3 : 4));
+
+        if (ResultAdapter.wait(_adapter)) {
+            return true;
+        }
+        delete global._$_request_screen_capture;
+    },
+    permit(params) {
+        if (global._$_request_screen_capture) {
+            return true;
+        }
+        let $_und = x => typeof x === "undefined";
+        let _par = params || {};
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === "function" ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
+
+        _debugInfo("开始申请截图权限");
+
+        let _waitForAction = (
+            typeof waitForAction === "function" ? waitForAction : waitForActionRaw
+        );
+        let _messageAction = (
+            typeof messageAction === "function" ? messageAction : messageActionRaw
+        );
+        let _clickAction = (
+            typeof clickAction === "function" ? clickAction : clickActionRaw
+        );
+        let _getSelector = (
+            typeof getSelector === "function" ? getSelector : getSelectorRaw
+        );
+        let _$$sel = _getSelector();
+
+        if ($_und(_par.restart_this_engine_flag)) {
+            _par.restart_this_engine_flag = true;
         } else {
-            _capt = capt;
+            let _self = _par.restart_this_engine_flag;
+            _par.restart_this_engine_flag = !!_self;
+        }
+        if (!_par.restart_this_engine_params) {
+            _par.restart_this_engine_params = {};
+        }
+        if (!_par.restart_this_engine_params.max_restart_engine_times) {
+            _par.restart_this_engine_params.max_restart_engine_times = 3;
         }
 
-        let _opt = opt || {};
+        _debugInfo("已开启弹窗监测线程");
 
-        let _name = _opt.name;
+        let _thread_prompt = threads.start(function () {
+            let _sltr_remember = id("com.android.systemui:id/remember");
+            let _sel_remember = () => _$$sel.pickup(_sltr_remember);
+            let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
+            let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
+
+            if (_waitForAction(_sel_sure, 5e3)) {
+                if (_waitForAction(_sel_remember, 1e3)) {
+                    _debugInfo('勾选"不再提示"复选框');
+                    _clickAction(_sel_remember(), "w");
+                }
+                if (_waitForAction(_sel_sure, 2e3)) {
+                    let _w = _sel_sure();
+                    let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
+
+                    _debugInfo(_act_msg);
+                    _clickAction(_w, "w");
+
+                    if (!_waitForAction(() => !_sel_sure(), 1e3)) {
+                        _debugInfo("尝试click()方法再次" + _act_msg);
+                        _clickAction(_w, "click");
+                    }
+                }
+            }
+        });
+
+        let _thread_monitor = threads.start(function () {
+            if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
+                _thread_prompt.interrupt();
+                return _debugInfo("截图权限申请结果: 成功");
+            }
+            if (typeof $$flag !== "undefined") {
+                if (!$$flag.debug_info_avail) {
+                    $$flag.debug_info_avail = true;
+                    _debugInfo("开发者测试模式已自动开启", 3);
+                }
+            }
+            if (_par.restart_this_engine_flag) {
+                _debugInfo("截图权限申请结果: 失败", 3);
+                try {
+                    let _m = android.os.Build.MANUFACTURER.toLowerCase();
+                    if (_m.match(/xiaomi/)) {
+                        _debugInfo("__split_line__dash__");
+                        _debugInfo("检测到当前设备制造商为小米", 3);
+                        _debugInfo("可能需要给Auto.js以下权限:", 3);
+                        _debugInfo('>"后台弹出界面"', 3);
+                        _debugInfo("__split_line__dash__");
+                    }
+                } catch (e) {
+                    // nothing to do here
+                }
+                let _params = _par.restart_this_engine_params;
+                let _avail = typeof restartThisEngine === "function";
+                if (_avail && restartThisEngine(_params)) {
+                    return true;
+                }
+            }
+            _messageAction("截图权限申请失败", 8, 1, 0, 1);
+        });
+
+        let _req_result = this.requestScreenCapture(false);
+
+        _thread_monitor.join();
+
+        return _req_result;
+
+        // raw function(s) //
+
+        function getSelectorRaw() {
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let sel = selector();
+            sel.__proto__ = sel.__proto__ || {};
+            if (typeof sel.__proto__.pickup !== "function") {
+                sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
+                    ? filter.toString().match(/UiObject/)
+                        ? filter
+                        : filter.findOnce()
+                    : typeof filter === "string"
+                        ? desc(filter).findOnce() || text(filter).findOnce()
+                        : classof(filter) === "RegExp"
+                            ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
+                            : null;
+            }
+            return sel;
+        }
+
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
+            let _check_interval = typeof time_params === "object" && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+
+        function clickActionRaw(o) {
+            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _o = _classof(o) === "Array" ? o[0] : o;
+            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+            if (!_w) {
+                return false;
+            }
+            let _bnd = _w.bounds();
+            return click(_bnd.centerX(), _bnd.centerY());
+        }
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || " ";
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw("[ " + msg + " ]", 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === "undefined" ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+    },
+    /**
+     * @param {ImageWrapper$|null} img - should be recycled manually if needed
+     * @param {ImageWrapper$|null} template - should be recycled manually if needed
+     * @param {{}} [options]
+     * @param {string} [options.cache] - when cache name is given (like "abc"), the file named "abc.jpg" in the path files.getSdcardPath() + "/.local/Pics/" will be: a, directly as template image -- "abc.jpg" exists already; b, generated when matched -- "abc.jpg" not exists; when not given, new matching will be made each time, regardless of the existence of storage file with the same name
+     * @param {number[]} [options.template_display_width=720] - screen display width of the template; see {@link getDisplay} -> {@link cX}
+     * @param {number} [options.max_results=5] - max matched results; see {@link images.matchTemplate}
+     * @param {number} [options.threshold_find=0.9] - see {@link images.findImage}
+     * @param {number[]} [options.region_find=[0, 0, W, H]] - see {@link images.findImage}
+     * @param {number} [options.threshold_match=0.9] - see {@link images.matchTemplate}
+     * @param {boolean} [options.not_null] - null result will be replaced by {points: []}
+     * @example
+     * let _clip = imagesx.capt();
+     * let _ic_img = images.read("./Test/test.jpg");
+     * console.log(imagesx.matchTemplate(_clip, _ic_img, {
+     *     template_display_width: 1080,
+     * }));
+     * console.log(imagesx.matchTemplate(_clip, _ic_img, {
+     *     cache: "icon_test",
+     *     max_results: 15,
+     *     template_display_width: 1080,
+     *     threshold_find: 0.95,
+     *     threshold_match: 0.95,
+     *     not_null: true,
+     * }).points);
+     * @returns {Autojs.MatchingResult|{points: []}|null}
+     */
+    matchTemplate(img, template, options) {
+        let _no_img_fg = !img;
+        let _img = img || this.capt();
+        let _opt = options || {};
+
+        let _cache = _opt.cache;
+        let _ext_name = "jpg";
         let _path = "";
-        let _res_range = [];
-        if (_name) {
+        if (_cache) {
             let _dir = files.getSdcardPath() + "/.local/Pics/";
             files.createWithDirs(_dir);
-            _path = _dir + _name + ".png";
+            let _mch = _cache.match(/\.(jpe?g|png|webp)$/);
+            if (_mch) {
+                _ext_name = _mch[1];
+                _path = _dir + _cache;
+            } else {
+                _path = _dir + _cache + "." + _ext_name;
+            }
         }
 
-        let _tpl = _bySto(_name) || _byAttempt(tpl);
+        let _tpl = _byCache(_cache) || _byResize(template);
         if (_tpl) {
-            let _par = {};
-            let _max = _opt.max;
-            let _thrd = _opt.threshold_result;
-            if (_max) {
-                _par.max = _max;
+            let _res = images.matchTemplate(_img, _tpl, {
+                max: _opt.max_results,
+                threshold: _opt.threshold_match,
+            });
+            if (_no_img_fg) {
+                _img.recycle();
+                _img = null;
             }
-            if (_thrd) {
-                _par.threshold = _thrd;
+            if (_res) {
+                return _res;
             }
-
-            let _res = images.matchTemplate(_capt, _tpl, _par);
-            if (!_res_range[0]) {
-                let _w = _tpl.getWidth() * 720 / W;
-                _res_range[0] = +_w.toFixed(2);
-            }
-            _res.range = _res_range;
-
-            if (_no_capt_fg) {
-                _capt.recycle();
-                _capt = null;
-            }
-
-            return _res;
         }
-        return null;
+
+        return _opt.not_null ? {points: []} : null;
 
         // tool function(s) //
 
-        function _bySto(name) {
-            if (!name || !files.exists(_path)) {
-                return;
+        function _byCache(name) {
+            if (name && files.exists(_path)) {
+                global.$$af = global.$$af || {};
+                let _key = "_$_img_cache_" + name;
+                return $$af[_key] = $$af[_key] || images.read(_path);
             }
-            let _af = typeof $$af !== "undefined";
-            let _key = "img_" + name;
-            if (_af && $$af[_key]) {
-                return $$af[_key];
-            }
-            let _img = images.read(_path);
-            if (!_af) {
-                $$af = {};
-            }
-            return $$af[_key] = _img;
         }
 
-        function _byAttempt(tpl) {
+        function _byResize(tpl) {
             if (!tpl) {
-                return null;
+                throw Error("Template image is required when no cache found");
             }
-            let _range = _opt.range || [0, 0];
-            let [_min, _max] = _range.map(x => cX(x));
-            for (let i = _min; i <= _max; i += 1) {
-                let _w = tpl.getWidth();
-                let _h = tpl.getHeight();
-                let _new_w = i || _w;
-                let _new_h = Math.trunc(_h / _w * i);
+            let [_w, _h] = [tpl.getWidth(), tpl.getHeight()];
+            let _w_mid = cX(_w, _opt.template_display_width);
+            let [_w_min, _w_max] = [_w_mid - 1, _w_mid + 1];
+            for (let i = _w_min; i <= _w_max; i += 1) {
                 for (let j = 0; j <= 1; j += 1) {
-                    let _resized = images.resize(
-                        tpl, [_new_w, _new_h + j], "LANCZOS4"
-                    );
-                    let _recycleNow = () => {
-                        _resized.recycle();
-                        _resized = null;
-                    };
-                    let _par = {};
-                    let _thrd = _opt.threshold_attempt;
-                    let _region = _opt.region_attempt;
-                    if (_thrd) {
-                        _par.threshold = _thrd;
-                    }
-                    if (_region) {
-                        _par.region = _region;
-                    }
-                    if (images.findImage(_capt, _resized, _par)) {
-                        if (_name) {
-                            debugInfo("已存储模板: " + _name);
-                            images.save(_resized, _path);
+                    let _resized = images.resize(tpl, [i, i * _h / _w + j], "LANCZOS4");
+                    let _par = {threshold: _opt.threshold_find, region: _opt.region_find};
+                    if (images.findImage(_img, _resized, _par)) {
+                        if (_cache) {
+                            debugInfo("已存储缓存模板: " + _cache);
+                            images.save(_resized, _path, _ext_name, 80);
                         }
-                        _res_range = [+(i * 720 / W).toFixed(2), j];
                         return _resized;
                     }
-                    _recycleNow();
+                    _resized.recycle();
+                    _resized = null;
                 }
             }
         }
@@ -219,7 +445,7 @@ let ext = {
         } else if (_srcMch(/UiObject/)) {
             _bnd = src.bounds();
         } else {
-            throw Error("findColorInBounds的src参数类型无效");
+            throw Error("findColorInBounds()的src参数类型无效");
         }
 
         let _x = _bnd.left;
@@ -272,6 +498,7 @@ let ext = {
         let _cfg = Object.assign(_$DEFAULT(), global.$$cfg || {}, _par.config || {});
         let _no_dbg = _par.no_debug_info;
         let _dbg_bak;
+        let _this = this;
         let $_flag = global.$$flag = global.$$flag || {};
 
         _dbgBackup();
@@ -308,18 +535,18 @@ let ext = {
                 return this.len >= this.limit;
             },
             add(capt) {
-                capt = capt || ext.capt();
+                capt = capt || _this.capt();
                 this.filled_up && this.reclaimLast();
-                let _img_name = ext.getName(capt);
+                let _img_name = _this.getName(capt);
                 debugInfo("添加森林页面采样: " + _img_name);
                 this.data.unshift(capt);
             },
             reclaimLast() {
                 let _last = this.data.pop();
-                let _img_name = ext.getName(_last);
+                let _img_name = _this.getName(_last);
                 debugInfo("森林页面采样已达阈值: " + this.limit);
                 debugInfo(">移除并回收最旧样本: " + _img_name);
-                ext.reclaim(_last);
+                _this.reclaim(_last);
                 _last = null;
             },
             reclaimAll() {
@@ -328,8 +555,8 @@ let ext = {
                 }
                 debugInfo("回收全部森林页面采样");
                 this.data.forEach((capt) => {
-                    let _img_name = ext.getName(capt);
-                    ext.reclaim(capt);
+                    let _img_name = _this.getName(capt);
+                    _this.reclaim(capt);
                     debugInfo(">已回收: " + _img_name);
                     capt = null;
                 });
@@ -342,7 +569,7 @@ let ext = {
         };
         let _capt = null;
         let _capture = (t) => {
-            _capt = ext.capt();
+            _capt = _this.capt();
             sleep(t || 0);
             return _capt;
         };
@@ -443,7 +670,7 @@ let ext = {
             }
             if (!imagesx.isWaterBall) {
                 imagesx.isWaterBall = (o, capt, container) => {
-                    let _capt = capt || ext.capt();
+                    let _capt = capt || _this.capt();
                     let _ctx = o.x;
                     let _cty = o.y;
                     let _offset = o.r / Math.SQRT2;
@@ -478,7 +705,7 @@ let ext = {
                     }
 
                     if (!capt) {
-                        ext.reclaim(_capt);
+                        _this.reclaim(_capt);
                         _capt = null;
                     }
 
@@ -490,7 +717,7 @@ let ext = {
                     if (imagesx.inTreeArea(o)) {
                         return;
                     }
-                    let _capt = capt || ext.capt();
+                    let _capt = capt || _this.capt();
                     let _offset = o.r * Math.SQRT1_2;
                     let _d = _offset * 2;
                     let _color = _cfg.ripe_ball_detect_color_val;
@@ -500,7 +727,7 @@ let ext = {
                     });
 
                     if (!capt) {
-                        ext.reclaim(_capt);
+                        _this.reclaim(_capt);
                         _capt = null;
                     }
 
@@ -517,7 +744,7 @@ let ext = {
                     if (imagesx.inTreeArea(o)) {
                         return false;
                     }
-                    let _capt = capt || ext.capt();
+                    let _capt = capt || _this.capt();
                     let _w = cX(115);
                     let _dw = _w / 5 - 1;
                     let _h = cYx(30);
@@ -539,7 +766,7 @@ let ext = {
                     }
 
                     if (!capt) {
-                        ext.reclaim(_capt);
+                        _this.reclaim(_capt);
                         _capt = null;
                     }
                     if (_result) {
@@ -559,7 +786,7 @@ let ext = {
                         let _thrd = _cfg.help_ball_detect_threshold;
                         let _color = _cfg.help_ball_detect_color_val;
 
-                        let _cnt = ext.findAllPointsForColor(
+                        let _cnt = _this.findAllPointsForColor(
                             _capt, _color, {threshold: _thrd, region: region}
                         ).length;
                         let _total = _w * _h;
@@ -597,8 +824,8 @@ let ext = {
             // tool function(s) //
 
             function _parse(capt) {
-                if (!capt || ext.isRecycled(capt)) {
-                    capt = ext.capt();
+                if (!capt || _this.isRecycled(capt)) {
+                    capt = _this.capt();
                 }
                 let [_l, _t, _r, _b] = _region;
                 let [_w, _h] = [_r - _l, _b - _t];
@@ -617,7 +844,7 @@ let ext = {
                     () => images.blur(_gray, 9, [-1, -1], "REPLICATE")
                 );
                 let _blt_fltr = _getImg("blt_fltr", _src_img_stg.blt_fltr,
-                    () => ext.bilateralFilter(_gray, 9, 20, 20, "REPLICATE")
+                    () => _this.bilateralFilter(_gray, 9, 20, 20, "REPLICATE")
                 );
 
                 let _proc_key = "img_samples_processing";
@@ -660,7 +887,7 @@ let ext = {
                 }
 
                 function _reclaimImages() {
-                    ext.reclaim(_gray, _adapt_thrd, _med_blur, _blur, _blt_fltr);
+                    _this.reclaim(_gray, _adapt_thrd, _med_blur, _blur, _blt_fltr);
                     _gray = _adapt_thrd = _med_blur = _blur = _blt_fltr = null;
                 }
 
@@ -919,7 +1146,7 @@ let ext = {
                             let _r = Number(o.radius.toFixed(2));
                             let _d = _r * 2;
                             let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
-                            let _mean = ext.getMean(_clip);
+                            let _mean = _this.getMean(_clip);
                             _clip.recycle();
                             _clip = null;
                             return {x: _x, y: _y, r: _r, mean: _mean};
@@ -1064,250 +1291,3 @@ let ext = {
 
 module.exports = ext;
 module.exports.load = () => global.imagesx = ext;
-
-// tool function(s) //
-
-function _requestScreenCapture(landscape) {
-    let aj_pkg = context.packageName;
-    let is_pro = aj_pkg.match(/[Pp]ro/);
-    let is_pro_7 = is_pro && app.autojs.versionName.match(/^Pro 7/);
-    if (global._$_request_screen_capture) {
-        return true;
-    }
-    global._$_request_screen_capture = threads.atomic(1);
-
-    let javaImages = runtime.getImages();
-    let ResultAdapter = require.call(global, "result_adapter");
-    let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
-
-    let orientation = typeof landscape !== "boolean"
-        ? ScreenCapturer.ORIENTATION_AUTO
-        : landscape
-            ? ScreenCapturer.ORIENTATION_LANDSCAPE
-            : ScreenCapturer.ORIENTATION_PORTRAIT;
-    let adapter = !is_pro
-        ? javaImages.requestScreenCapture(orientation)
-        : javaImages.requestScreenCapture.apply(javaImages, [
-            orientation /* orientation */,
-            -1, /* width */
-            -1, /* height */
-            false /* isAsync */
-        ].slice(0, is_pro_7 ? 3 : 4));
-
-    if (ResultAdapter.wait(adapter)) {
-        return true;
-    }
-    delete global._$_request_screen_capture;
-}
-
-/**
- * Wrapped images.requestScreenCapture().
- * Avoid infinite stuck or stalled without any hint and log.
- * Permission prompt window will be confirmed automatically with effort
- * @param {object} [params]
- * @param {boolean} [params.debug_info_flag]
- * @param {boolean} [params.restart_this_engine_flag=true]
- * @param {object} [params.restart_this_engine_params]
- * @param {string} [params.restart_this_engine_params.new_file]
- *  - new engine task name with or without path or file extension name
- * <br>
- *     -- *DEFAULT* - old engine task <br>
- *     -- new file - like "hello.js", "../hello.js" or "hello"
- * @param {boolean} [params.restart_this_engine_params.debug_info_flag]
- * @param {number} [params.restart_this_engine_params.max_restart_engine_times=3]
- * @return {boolean}
- */
-function _permit(params) {
-    if (global._$_request_screen_capture) {
-        return true;
-    }
-    let $_und = x => typeof x === "undefined";
-    let _par = params || {};
-    let _debugInfo = (m, fg) => (
-        typeof debugInfo === "function" ? debugInfo : debugInfoRaw
-    )(m, fg, _par.debug_info_flag);
-
-    _debugInfo("开始申请截图权限");
-
-    let _waitForAction = (
-        typeof waitForAction === "function" ? waitForAction : waitForActionRaw
-    );
-    let _messageAction = (
-        typeof messageAction === "function" ? messageAction : messageActionRaw
-    );
-    let _clickAction = (
-        typeof clickAction === "function" ? clickAction : clickActionRaw
-    );
-    let _getSelector = (
-        typeof getSelector === "function" ? getSelector : getSelectorRaw
-    );
-    let _$$sel = _getSelector();
-
-    if ($_und(_par.restart_this_engine_flag)) {
-        _par.restart_this_engine_flag = true;
-    } else {
-        let _self = _par.restart_this_engine_flag;
-        _par.restart_this_engine_flag = !!_self;
-    }
-    if (!_par.restart_this_engine_params) {
-        _par.restart_this_engine_params = {};
-    }
-    if (!_par.restart_this_engine_params.max_restart_engine_times) {
-        _par.restart_this_engine_params.max_restart_engine_times = 3;
-    }
-
-    _debugInfo("已开启弹窗监测线程");
-    let _thread_prompt = threads.start(function () {
-        let _sltr_remember = id("com.android.systemui:id/remember");
-        let _sel_remember = () => _$$sel.pickup(_sltr_remember);
-        let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
-        let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
-
-        if (_waitForAction(_sel_sure, 5e3)) {
-            if (_waitForAction(_sel_remember, 1e3)) {
-                _debugInfo('勾选"不再提示"复选框');
-                _clickAction(_sel_remember(), "w");
-            }
-            if (_waitForAction(_sel_sure, 2e3)) {
-                let _w = _sel_sure();
-                let _act_msg = '点击"' + _sel_sure("txt") + '"按钮';
-
-                _debugInfo(_act_msg);
-                _clickAction(_w, "w");
-
-                if (!_waitForAction(() => !_sel_sure(), 1e3)) {
-                    _debugInfo("尝试click()方法再次" + _act_msg);
-                    _clickAction(_w, "click");
-                }
-            }
-        }
-    });
-
-    let _thread_monitor = threads.start(function () {
-        if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
-            _thread_prompt.interrupt();
-            return _debugInfo("截图权限申请结果: 成功");
-        }
-        if (typeof $$flag !== "undefined") {
-            if (!$$flag.debug_info_avail) {
-                $$flag.debug_info_avail = true;
-                _debugInfo("开发者测试模式已自动开启", 3);
-            }
-        }
-        if (_par.restart_this_engine_flag) {
-            _debugInfo("截图权限申请结果: 失败", 3);
-            try {
-                let _m = android.os.Build.MANUFACTURER.toLowerCase();
-                if (_m.match(/xiaomi/)) {
-                    _debugInfo("__split_line__dash__");
-                    _debugInfo("检测到当前设备制造商为小米", 3);
-                    _debugInfo("可能需要给Auto.js以下权限:", 3);
-                    _debugInfo('>"后台弹出界面"', 3);
-                    _debugInfo("__split_line__dash__");
-                }
-            } catch (e) {
-                // nothing to do here
-            }
-            let _params = _par.restart_this_engine_params;
-            let _avail = typeof restartThisEngine === "function";
-            if (_avail && restartThisEngine(_params)) {
-                return true;
-            }
-        }
-        _messageAction("截图权限申请失败", 8, 1, 0, 1);
-    });
-
-    let _req_result = _requestScreenCapture(false);
-    _thread_monitor.join();
-    return _req_result;
-
-    // raw function(s) //
-
-    function getSelectorRaw() {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let sel = selector();
-        sel.__proto__ = sel.__proto__ || {};
-        if (typeof sel.__proto__.pickup !== "function") {
-            sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
-                ? filter.toString().match(/UiObject/)
-                    ? filter
-                    : filter.findOnce()
-                : typeof filter === "string"
-                    ? desc(filter).findOnce() || text(filter).findOnce()
-                    : classof(filter) === "RegExp"
-                        ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
-                        : null;
-        }
-        return sel;
-    }
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || "").replace(/^(>*)( *)/, ">>" + "$1 "));
-    }
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === "JavaObject") _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === "object" && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === "object" && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function clickActionRaw(o) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _o = _classof(o) === "Array" ? o[0] : o;
-        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-        if (!_w) {
-            return false;
-        }
-        let _bnd = _w.bounds();
-        return click(_bnd.centerX(), _bnd.centerY());
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-}
-
-// FIXME seems like this is not effective to avoid OOM @ Dec 3, 2019
-function _reclaim() {
-    for (let i = 0, l = arguments.length; i < l; i += 1) {
-        let img = arguments[i];
-        if (ext.isImageWrapper(img)) {
-            img.recycle();
-        }
-        /*
-            `img = null;` is not necessary
-            as which only modified the point
-            of this reference typed argument
-         */
-    }
-}
