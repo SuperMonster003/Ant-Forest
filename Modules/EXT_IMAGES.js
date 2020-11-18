@@ -2,7 +2,7 @@ global.imagesx = typeof global.imagesx === "object" ? global.imagesx : {};
 
 require("./MODULE_MONSTER_FUNC").load("debugInfo", "timeRecorder");
 require("./EXT_GLOBAL_OBJ").load("Math");
-require("./EXT_DEVICE").load("getDisplay");
+require("./EXT_DEVICE").load().getDisplay(true);
 
 let ext = {
     _initIfNeeded() {
@@ -169,7 +169,7 @@ let ext = {
         let _getSelector = (
             typeof getSelector === "function" ? getSelector : getSelectorRaw
         );
-        let _$$sel = _getSelector();
+        let $_sel = _getSelector();
 
         if ($_und(_par.restart_this_engine_flag)) {
             _par.restart_this_engine_flag = true;
@@ -188,9 +188,9 @@ let ext = {
 
         let _thread_prompt = threads.start(function () {
             let _sltr_remember = id("com.android.systemui:id/remember");
-            let _sel_remember = () => _$$sel.pickup(_sltr_remember);
+            let _sel_remember = () => $_sel.pickup(_sltr_remember);
             let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
-            let _sel_sure = type => _$$sel.pickup(_rex_sure, type);
+            let _sel_sure = type => $_sel.pickup(_rex_sure, type);
 
             if (_waitForAction(_sel_sure, 5e3)) {
                 if (_waitForAction(_sel_remember, 1e3)) {
@@ -255,21 +255,34 @@ let ext = {
         // raw function(s) //
 
         function getSelectorRaw() {
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let sel = selector();
-            sel.__proto__ = sel.__proto__ || {};
-            if (typeof sel.__proto__.pickup !== "function") {
-                sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
-                    ? filter.toString().match(/UiObject/)
-                        ? filter
-                        : filter.findOnce()
-                    : typeof filter === "string"
-                        ? desc(filter).findOnce() || text(filter).findOnce()
-                        : classof(filter) === "RegExp"
-                            ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
-                            : null;
-            }
-            return sel;
+            let _sel = selector();
+            _sel.__proto__ = {
+                pickup(sel_body, res_type) {
+                    if (sel_body === undefined || sel_body === null) {
+                        return null;
+                    }
+                    if (!(res_type === undefined || res_type === "w" || res_type === "widget")) {
+                        throw Error("getSelectorRaw()返回对象的pickup方法不支持结果筛选类型");
+                    }
+                    if (arguments.length > 2) {
+                        throw Error("getSelectorRaw()返回对象的pickup方法不支持复杂参数传入");
+                    }
+                    if (typeof sel_body === "string") {
+                        return desc(sel_body).findOnce() || text(sel_body).findOnce();
+                    }
+                    if (sel_body instanceof RegExp) {
+                        return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
+                    }
+                    if (sel_body instanceof com.stardust.automator.UiObject) {
+                        return sel_body;
+                    }
+                    if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                        return sel_body.findOnce();
+                    }
+                    throw Error("getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体");
+                },
+            };
+            return _sel;
         }
 
         function debugInfoRaw(msg, msg_lv) {

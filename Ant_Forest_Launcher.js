@@ -865,8 +865,7 @@ let $$init = {
                                         }
 
                                         function _search() {
-                                            let _sel = () => $$sel.pickup(idMatches(/.*search.input.box/));
-                                            if (waitForAction(_sel, 5e3, 80)) {
+                                            if (waitForAction(idMatches(/.*search.input.box/), 5e3, 80)) {
                                                 let _text = "蚂蚁森林小程序";
                                                 setText(_text);
                                                 waitForAction(() => $$sel.pickup(_text), 3e3, 80);
@@ -1586,7 +1585,7 @@ let $$init = {
                                 }
 
                                 let _sltr = idMatches(/.*list_arrow/);
-                                waitForAction(() => _sltr.exists(), 2e3); // just in case
+                                waitForAction(_sltr, 2e3); // just in case
                                 sleep(300);
 
                                 // current logged in user abbr (with a list arrow)
@@ -4806,15 +4805,14 @@ let $$af = {
                             data: "alipays://platformapi/startapp?appId=20000141",
                         });
 
-                        let _sltr = className("EditText");
                         let _nick = "";
-                        let _sel = () => _nick = $$sel.pickup(_sltr, "txt");
-
-                        if (!waitForAction(_sltr, 4.8e3, 60)) {
+                        if (!waitForAction(className("EditText"), 4.8e3, 60)) {
                             messageAction("无法获取当前账户昵称", 3, 0, 0, -1);
                             messageAction("进入昵称设置页面超时", 3, 1, 0, 1);
                         } else {
-                            waitForAction(_sel, 480, 60);
+                            waitForAction(() => (
+                                _nick = $$sel.pickup(className("EditText"), "txt")
+                            ), 480, 60);
                             $$app.page.back();
                         }
 
@@ -4825,8 +4823,9 @@ let $$af = {
                             $$app.page.alipay.home({debug_info_flag: false});
                             clickAction($$sel.pickup(["我的", "p1"]), "w");
 
-                            let _sltr = idMatches(/.*user_name_left/);
-                            waitForAction(() => _nick = $$sel.pickup(_sltr, "txt"), 2.4e3);
+                            waitForAction(() => (
+                                _nick = $$sel.pickup(idMatches(/.*user_name_left/), "txt")
+                            ), 2.4e3);
 
                             _nick = _nick.slice(-2);
                         }
@@ -5042,8 +5041,10 @@ let $$af = {
 
                         function _intro() {
                             let _nick = "";
-                            let _sel = () => _nick = $$sel.get("fri_frst_tt", "txt");
-                            if (waitForAction(_sel, 20e3, 80)) {
+                            waitForAction(() => (
+                                _nick = $$sel.get("fri_frst_tt", "txt")
+                            ), 20e3, 80);
+                            if (_nick) {
                                 _nick = _nick.replace(/的蚂蚁森林$/, "");
                                 $$app.fri_drop_by.ic(_nick);
                                 messageAct($$af.nick = _nick, "t");
@@ -5847,8 +5848,7 @@ let $$af = {
                             }
 
                             function _chkDozing() {
-                                let _sel = () => $$sel.pickup(/.*打瞌睡.*/);
-                                if (waitForAction(_sel, 2, 360)) {
+                                if (waitForAction(/.*打瞌睡.*/, 2, 360)) {
                                     let _w = $$sel.pickup("再试一次");
                                     waitForAndClickAction(_w, 12e3, 600, {click_strategy: "w"});
                                     delete $$flag.rl_bottom_rch;

@@ -1289,174 +1289,163 @@ function showSplitLine(extra, style) {
 }
 
 /**
- * Wait some period of time for "f" being TRUE
- * @global
- * @param f {object|object[]|function|function[]} - if condition of f is not true then waiting
- * <br>
- *     -- function - () => text("abc").exists() - if (!f()) waiting <br>
- *     -- JavaObject - text("abc") - equals to "() => text("abc").exists()" <br>
- *     -- Array - [obj(s), func(s), logic_flag] - a multi-condition array <br>
- *         -- logic_flag <br>
- *         --- "and"|"all"|*DEFAULT* - meet all conditions <br>
- *         --- "or"|"one" - meet any one condition
- * @param {number} [timeout_or_times=10e3]
- * <br>
- *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
- *     -- 0|Infinity - always wait until f is true <br>
- *     -- less than 100 - take as times
- * @param {number} [interval=200]
- * @param {object} [params]
- * @param {boolean} [params.no_impeded]
- * @example
- * waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), "or"], 500, 80);
- * waitForAction([text("Settings"), text("Exit"), () => !text("abc").exists(), "and"], 2e3, 50);
- * let sltr_settings = text("Settings");
- * let condition = () => sltr_settings.exists();
- * // waitForAction(sltr_settings, 1e3);
- * // waitForAction(condition, 1e3);
- * waitForAction(() => condition()), 1e3);
- * @return {boolean} - if not timed out
+ * @typedef {";all"|";and"|";one"|";or"} waitForAction$condition$logic_flag
  */
-function waitForAction(f, timeout_or_times, interval, params) {
-    let _par = params || {};
+/**
+ * Wait a period of time until "condition" is met
+ * @global
+ * @param condition {
+ *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|(
+ *         UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|
+ *         waitForAction$condition$logic_flag
+ *     )[]
+ * } - if condition is not true then waiting
+ * @param {number} [timeout_or_times=10e3] - if < 100, takes as times
+ * @param {number} [interval=200]
+ * @param {object} [options]
+ * @param {boolean} [options.no_impeded=false]
+ * @example
+ * log(waitForAction("文件"));
+ * log(waitForAction("文件", 10e3));
+ * log(waitForAction("文件", 10e3, 200));
+ * @example
+ * log(waitForAction("文件"));
+ * log(waitForAction(text("文件")));
+ * log(waitForAction(() => text("文件").exists()));
+ * @example
+ * if (waitForAction(() => Date.now() > new Date(2021, 0), 0, 100)) {
+ *     toastLog("Welcome to 2021");
+ * }
+ * @example
+ * log(waitForAction([() => text("Settings").exists(), () => text("Exit").exists(), ";or"], 5e3, 80));
+ * log(waitForAction([text("Settings"), text("Exit"), ";or"], 5e3, 80)); // same as above
+ * log(waitForAction(["Settings", "Exit", ";or"], 5e3, 80)); // same as above
+ * // do not invoke like the way as below, unless you know what this exactly means
+ * log(waitForAction([text("Settings").findOnce(), text("Exit").findOnce(), ";or"], 5e3, 80));
+ * @return {boolean} - whether "condition" is met before timed out or not
+ */
+function waitForAction(condition, timeout_or_times, interval, options) {
+    let _par = options || {};
     _par.no_impeded || typeof $$impeded === "function" && $$impeded(waitForAction.name);
 
+    let $_sel = (typeof getSelector === "function" ? getSelector : getSelectorRaw)();
+
     if (typeof timeout_or_times !== "number") {
-        timeout_or_times = 10e3;
+        timeout_or_times = Number(timeout_or_times) || 10e3;
     }
+
     let _times = timeout_or_times;
     if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
         _times = Infinity;
     }
+
     let _timeout = Infinity;
     if (timeout_or_times > 100) {
         _timeout = timeout_or_times;
     }
-    let _interval = interval || 200;
-    if (_interval >= _timeout) {
+
+    let _itv = interval || 200;
+    if (_itv >= _timeout) {
         _times = 1;
     }
 
     let _start_ts = Date.now();
-    while (!_checkF(f) && --_times) {
+    while (!_check(condition) && --_times) {
         if (Date.now() - _start_ts > _timeout) {
             return false; // timed out
         }
-        sleep(_interval);
+        sleep(_itv);
     }
     return _times > 0;
 
     // tool function(s) //
 
-    function _checkF(f) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _messageAction = (
-            typeof messageAction === "function" ? messageAction : messageActionRaw
-        );
+    function _check(condition) {
+        if (typeof condition === "function") {
+            return condition();
+        }
+        if (!Array.isArray(condition)) {
+            return $_sel.pickup(condition);
+        }
+        if (condition === undefined || condition === null) {
+            return false;
+        }
 
-        if (typeof f === "function") {
-            return f();
+        let _rexA = s => typeof s === "string" && s.match(/^;(a(ll|nd))$/);
+        let _rexO = s => typeof s === "string" && s.match(/^;(o(r|ne))$/);
+
+        let _arr = condition.slice();
+
+        let _logic = ";all";
+        let _last = _arr[_arr.length - 1];
+        if (_rexA(_last) || _rexO(_last)) {
+            _logic = _arr.pop();
         }
-        if (_classof(f) === "JavaObject") {
-            return f.toString().match(/UiObject/) ? f : f.exists();
+
+        for (let i = 0, l = _arr.length; i < l; i += 1) {
+            if (_rexA(_logic) && !_check(_arr[i])) {
+                return false;
+            }
+            if (_rexO(_logic) && _check(_arr[i])) {
+                return true;
+            }
         }
-        if (_classof(f) === "Array") {
-            let _arr = f;
-            let _len = _arr.length;
-            let _logic = "all";
-            if (typeof _arr[_len - 1] === "string") {
-                _logic = _arr.pop();
-            }
-            if (_logic.match(/^(or|one)$/)) {
-                _logic = "one";
-            }
-            for (let i = 0; i < _len; i += 1) {
-                let _ele = _arr[i];
-                if (!(typeof _ele).match(/function|object/)) {
-                    _messageAction("数组参数中含不合法元素", 9, 1, 0, 1);
-                }
-                if (_logic === "all" && !_checkF(_ele)) {
-                    return false;
-                }
-                if (_logic === "one" && _checkF(_ele)) {
-                    return true;
-                }
-            }
-            return _logic === "all";
-        }
-        _messageAction('"waitForAction"传入f参数不合法\n\n' + f.toString() + '\n', 9, 1, 0, 1);
+
+        return _rexA(_logic);
     }
 
     // raw function(s) //
 
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || " ";
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw("[ " + msg + " ]", 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === "undefined" ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
+    function getSelectorRaw() {
+        let _sel = selector();
+        _sel.__proto__ = {
+            pickup(sel_body, res_type) {
+                if (sel_body === undefined || sel_body === null) {
+                    return null;
+                }
+                if (!(res_type === undefined || res_type === "w" || res_type === "widget")) {
+                    throw Error("getSelectorRaw()返回对象的pickup方法不支持结果筛选类型");
+                }
+                if (arguments.length > 2) {
+                    throw Error("getSelectorRaw()返回对象的pickup方法不支持复杂参数传入");
+                }
+                if (typeof sel_body === "string") {
+                    return desc(sel_body).findOnce() || text(sel_body).findOnce();
+                }
+                if (sel_body instanceof RegExp) {
+                    return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
+                }
+                if (sel_body instanceof com.stardust.automator.UiObject) {
+                    return sel_body;
+                }
+                if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    return sel_body.findOnce();
+                }
+                throw Error("getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体");
+            },
+        };
+        return _sel;
     }
 }
 
 /**
- * Click a certain UiObject or coordinate by click(), press() or UiObject.click()
+ * Click UiObject or coordinate by click(), press() or UiObject.click().
+ * Accessibility service is needed.
  * @global
- * @param {UiSelector$|UiObject$|number[]|AndroidRect$|{x:number,y:number}|OpencvPoint$} f -
- * JavaObject or RectBounds or coordinates Array
- * <br>
- *     -- text("abc").desc("def") <br>
- *     -- text("abc").desc("def").findOnce()[.parent()] <br>
- *     -- text("abc").desc("def").findOnce()[.parent()].bounds() <br>
- *     -- [106, 39]
+ * @param {UiSelector$|UiObject$|number[]|AndroidRect$|{x:number,y:number}|OpencvPoint$} o
  * @param {"c"|"click"|"p"|"press"|"w"|"widget"} [strategy="click"] - decide the way of click
- * <br>
- *     -- "click"|c|*DEFAULT* - click(coord_A, coord_B); <br>
- *     -- "press|p" - press(coord_A, coord_B, press_time); <br>
- *     -- "widget|w" - text("abc").click(); - not available for Rect or PointLike
- * @param {object|string} [params]
- * @param {number=1} [params.press_time] - only effective for "press" strategy
- * @param {number=1} [params.pt$] - alias of press_time
- * @param {"disappear"|"disappeared"|"disappear_in_place"|"disappeared_in_place"|string|function():boolean|function} [params.condition_success=function():true]
- * <br>
- *     -- *DEFAULT* - () => true <br>
- *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
- *     -- /disappear(ed)?.*in.?place/ - (f) => #some widget info changed#; - disappeared in place <br>
- *     -- func - (f) => func(f);
- * @param {number} [params.check_time_once=500]
- * @param {number} [params.max_check_times=0]
- * <br>
- *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
- *     --- example: (this is not usage) <br>
- *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
- *     -- return max_check_times >= 0;
- * @param {number|array} [params.padding]
- * <br>
- *     -- ["x", -10]|[-10, 0] - x=x-10; <br>
- *     -- ["y", 69]|[0, 69]|[69]|69 - y=y+69;
- * @see waitForAction
+ * @param {object|string} [options]
+ * @param {number} [options.press_time=1] - only effective for "press" strategy
+ * @param {number} [options.pt$=1] - alias of press_time
+ * @param {"disappear"|"disappear_in_place"|function():boolean|null} [options.condition_success=function():true]
+ * @param {number} [options.check_time_once=500]
+ * @param {number} [options.max_check_times=0] - if condition_success is specified, default will be 3
+ * @param {number|number[]|("x"|"y"|number)[]} [options.padding] - eg: ["x",-10]|[-10,0]; ["y",69]|[0,69]|[69]|69
  * @example
  * text("Settings").find().forEach(w => clickAction(w));
  * text("Settings").find().forEach(w => clickAction(w.bounds()));
  * clickAction(text("Settings"), "widget", {
- *     condition_success: "disappeared in place",
+ *     condition_success: "disappear_in_place",
  *     max_check_times: 5,
  * });
  * clickAction(text("Settings"), "press", {
@@ -1467,17 +1456,16 @@ function waitForAction(f, timeout_or_times, interval, params) {
  * });
  * @return {boolean}
  */
-function clickAction(f, strategy, params) {
-    let _par = params || {};
-    _par.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
+function clickAction(o, strategy, options) {
+    let _opt = options || {};
+    _opt.no_impeded || typeof $$impeded === "function" && $$impeded(clickAction.name);
 
-    if (typeof f === "undefined" || f === null) {
+    if (o === undefined || o === null) {
         return false;
     }
 
     let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
     let $_str = o => typeof o === "string";
-    let $_und = o => typeof o === "undefined";
     let $_num = o => typeof o === "number";
     let _messageAction = (
         typeof messageAction === "function" ? messageAction : messageActionRaw
@@ -1492,27 +1480,24 @@ function clickAction(f, strategy, params) {
     /**
      * @type {"Bounds"|"UiObject"|"UiSelector"|"CoordsArray"|"ObjXY"|"Points"}
      */
-    let _type = _checkType(f);
-    let _padding = _checkPadding(_par.padding);
-    if (!(typeof strategy).match(/string|undefined/)) {
-        _messageAction("clickAction()的策略参数无效", 8, 1, 0, 1);
-    }
-    let _strategy = (strategy || "click").toString();
+    let _type = _checkType(o);
+    let _padding = _parsePadding(_opt.padding);
+    let _stg = strategy || "click";
     let _widget_id = 0;
     let _widget_parent_id = 0;
 
-    let _cond_succ = _par.condition_success;
+    let _cond_succ = _opt.condition_success;
 
-    let _chk_t_once = _par.check_time_once || 500;
-    let _max_chk_cnt = _par.max_check_times || 0;
+    let _chk_t_once = _opt.check_time_once || 500;
+    let _max_chk_cnt = _opt.max_check_times || 0;
     if (!_max_chk_cnt && _cond_succ) {
         _max_chk_cnt = 3;
     }
 
-    if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
-        _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
-    } else if ($_und(_cond_succ)) {
+    if (_cond_succ === undefined || _cond_succ === null) {
         _cond_succ = () => true;
+    } else if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
+        _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
     }
 
     while (~_clickOnce() && _max_chk_cnt--) {
@@ -1530,7 +1515,7 @@ function clickAction(f, strategy, params) {
         let _y = 0 / 0;
 
         if (_type === "UiSelector") {
-            let _w = f.findOnce();
+            let _w = o.findOnce();
             if (!_w) {
                 return;
             }
@@ -1539,7 +1524,7 @@ function clickAction(f, strategy, params) {
             } catch (e) {
                 _widget_id = 0;
             }
-            if (_strategy.match(/^w(idget)?$/) && _w.clickable() === true) {
+            if (_stg.match(/^w(idget)?$/) && _w.clickable() === true) {
                 return _w.click();
             }
             let _bnd = _w.bounds();
@@ -1547,31 +1532,31 @@ function clickAction(f, strategy, params) {
             _y = _bnd.centerY();
         } else if (_type === "UiObject") {
             try {
-                _widget_parent_id = f.parent().toString().match(/@\w+/)[0].slice(1);
+                _widget_parent_id = o.parent().toString().match(/@\w+/)[0].slice(1);
             } catch (e) {
                 _widget_parent_id = 0;
             }
-            if (_strategy.match(/^w(idget)?$/) && f.clickable() === true) {
-                return f.click();
+            if (_stg.match(/^w(idget)?$/) && o.clickable() === true) {
+                return o.click();
             }
-            let _bnd = f.bounds();
+            let _bnd = o.bounds();
             _x = _bnd.centerX();
             _y = _bnd.centerY();
         } else if (_type === "Bounds") {
-            if (_strategy.match(/^w(idget)?$/)) {
-                _strategy = "click";
+            if (_stg.match(/^w(idget)?$/)) {
+                _stg = "click";
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对Rect对象应用widget策略", 3, 0, 1);
             }
-            _x = f.centerX();
-            _y = f.centerY();
+            _x = o.centerX();
+            _y = o.centerY();
         } else {
-            if (_strategy.match(/^w(idget)?$/)) {
-                _strategy = "click";
+            if (_stg.match(/^w(idget)?$/)) {
+                _stg = "click";
                 _messageAction("clickAction()控件策略已改为click", 3);
                 _messageAction("无法对坐标组应用widget策略", 3, 0, 1);
             }
-            [_x, _y] = Array.isArray(f) ? f : [f.x, f.y];
+            [_x, _y] = Array.isArray(o) ? o : [o.x, o.y];
         }
         if (isNaN(_x) || isNaN(_y)) {
             _messageAction("clickAction()内部坐标值无效", 4, 1);
@@ -1580,8 +1565,8 @@ function clickAction(f, strategy, params) {
         _x += _padding.x;
         _y += _padding.y;
 
-        _strategy.match(/^p(ress)?$/)
-            ? press(_x, _y, _par.press_time || _par.pt$ || 1)
+        _stg.match(/^p(ress)?$/)
+            ? press(_x, _y, _opt.press_time || _opt.pt$ || 1)
             : click(_x, _y);
     }
 
@@ -1639,39 +1624,35 @@ function clickAction(f, strategy, params) {
         }
     }
 
-    function _checkPadding(arr) {
+    function _parsePadding(arr) {
         if (!arr) {
             return {x: 0, y: 0};
         }
 
         let _coords = [];
-        if ($_num(arr)) {
+        if (typeof arr === "number") {
             _coords = [0, arr];
-        } else if (_classof(arr) !== "Array") {
-            return _messageAction(
-                "clickAction()坐标偏移参数类型未知", 8, 1, 0, 1
-            );
+        } else if (!Array.isArray(arr)) {
+            return _messageAction("clickAction()坐标偏移参数类型未知", 8, 1, 0, 1);
         }
 
         let _arr_len = arr.length;
         if (_arr_len === 1) {
             _coords = [0, arr[0]];
         } else if (_arr_len === 2) {
-            let _par0 = arr[0];
-            if (_par0 === "x") {
-                _coords = [arr[1], 0];
-            } else if (_par0 === "y") {
-                _coords = [0, arr[1]];
+            let [_ele, _val] = arr;
+            if (_ele === "x") {
+                _coords = [_val, 0];
+            } else if (_ele === "y") {
+                _coords = [0, _val];
             } else {
-                _coords = arr;
+                _coords = [_ele, _val];
             }
         } else {
-            return _messageAction(
-                "clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1
-            );
+            return _messageAction("clickAction()坐标偏移参数数组个数不合法", 8, 1, 0, 1);
         }
 
-        let [_x, _y] = [+_coords[0], +_coords[1]];
+        let [_x, _y] = _coords.map(n => Number(n));
         if (!isNaN(_x) && !isNaN(_y)) {
             return {x: _x, y: _y};
         }
@@ -1681,18 +1662,18 @@ function clickAction(f, strategy, params) {
     function _checkDisappearance() {
         try {
             if (_type === "UiSelector") {
-                let _w = f.findOnce();
+                let _w = o.findOnce();
                 if (!_w) {
                     return true;
                 }
-                if (!_par.condition_success.match(/in.?place/)) {
+                if (!_opt.condition_success.match(/in.?place/)) {
                     return !_w;
                 }
                 let _mch = _w.toString().match(/@\w+/);
                 return _mch[0].slice(1) !== _widget_id;
             }
             if (_type === "UiObject") {
-                let _w_parent = f.parent();
+                let _w_parent = o.parent();
                 if (!_w_parent) {
                     return true;
                 }
@@ -3852,21 +3833,34 @@ function clickActionsPipeline(pipeline, options) {
     // raw function(s) //
 
     function getSelectorRaw() {
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let sel = selector();
-        sel.__proto__ = sel.__proto__ || {};
-        if (typeof sel.__proto__.pickup !== "function") {
-            sel.__proto__.pickup = filter => classof(filter) === "JavaObject"
-                ? filter.toString().match(/UiObject/)
-                    ? filter
-                    : filter.findOnce()
-                : typeof filter === "string"
-                    ? desc(filter).findOnce() || text(filter).findOnce()
-                    : classof(filter) === "RegExp"
-                        ? descMatches(filter).findOnce() || textMatches(filter).findOnce()
-                        : null;
-        }
-        return sel;
+        let _sel = selector();
+        _sel.__proto__ = {
+            pickup(sel_body, res_type) {
+                if (sel_body === undefined || sel_body === null) {
+                    return null;
+                }
+                if (!(res_type === undefined || res_type === "w" || res_type === "widget")) {
+                    throw Error("getSelectorRaw()返回对象的pickup方法不支持结果筛选类型");
+                }
+                if (arguments.length > 2) {
+                    throw Error("getSelectorRaw()返回对象的pickup方法不支持复杂参数传入");
+                }
+                if (typeof sel_body === "string") {
+                    return desc(sel_body).findOnce() || text(sel_body).findOnce();
+                }
+                if (sel_body instanceof RegExp) {
+                    return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
+                }
+                if (sel_body instanceof com.stardust.automator.UiObject) {
+                    return sel_body;
+                }
+                if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    return sel_body.findOnce();
+                }
+                throw Error("getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体");
+            },
+        };
+        return _sel;
     }
 
     function clickActionRaw(o) {
@@ -4188,14 +4182,15 @@ function baiduOcr(src, par) {
     }
 
     function _isRecycled(img) {
-        if (img) {
-            try {
-                img.getHeight();
-            } catch (e) {
-                return !!e.message.match(/has been recycled/);
-            }
+        if (!img) {
+            return true;
         }
-        return true;
+        try {
+            img.getHeight();
+            return false;
+        } catch (e) {
+            return !!e.message.match(/has been recycled/);
+        }
     }
 
     // raw function(s) //
