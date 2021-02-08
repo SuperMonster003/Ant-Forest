@@ -240,7 +240,7 @@ let ext = {
                         _bos.write(_buf_bytes, 0, _read_bytes);
                     }
                     if (dialog) {
-                        _uncompr_sz += _entry_file.length();
+                        _uncompr_sz += _entry.length();
                         dialog.setProgressNum(_uncompr_sz / _t_file_sz * 100);
                     }
                 } catch (e) {

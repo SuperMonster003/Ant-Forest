@@ -83,7 +83,7 @@ Auto.js 的自动操作主要基于控件与坐标
 ##### 软件安装
 
 - 免费版本 [4.1.1 Alpha2](https://github.com/SuperMonster002/Hello_Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7%5D(b69a4e23).apk?raw=true)
-- 其他版本详见 [README.md](https://github.com/SuperMonster003/Auto.js_Projects/tree/Ant_Forest#autojs%E5%8F%AF%E7%94%A8%E7%89%88%E6%9C%AC)
+- 其他版本详见 [README.md](https://github.com/SuperMonster003/Ant-Forest/tree/Ant_Forest#autojs%E5%8F%AF%E7%94%A8%E7%89%88%E6%9C%AC)
 
 ##### 开启无障碍服务
 
@@ -111,13 +111,13 @@ Auto.js 的自动操作主要基于控件与坐标
 
 ##### 下载项目包
 
-- [最新版本](https://github.com/SuperMonster003/Auto.js_Projects/archive/Ant_Forest.zip) (推荐)
-- [所有版本](https://github.com/SuperMonster003/Auto.js_Projects/releases)
+- [最新版本](https://github.com/SuperMonster003/Ant-Forest/archive/Ant_Forest.zip) (推荐)
+- [所有版本](https://github.com/SuperMonster003/Ant-Forest/releases)
   
 ##### 解压项目
 
 - 使用文件管理器解压 "zip" 格式的项目包
-- 得到 "Auto.js_Projects-Ant_Forest" 文件夹 (作为项目目录)
+- 得到 "Ant-Forest-Ant_Forest" 文件夹 (作为项目目录)
 - 项目目录可更改目录名 (如 Ant_Forest)
 - 项目目录内应包含 "Modules" 等文件夹
 - 项目目录内应包含 "js" 格式的文件
