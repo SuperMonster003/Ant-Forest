@@ -113,9 +113,10 @@ let ext = {
      */
     getProjectLocalPath(is_with_creation) {
         let _cwd = files.cwd();
-        if (!this.isProjectLike(_cwd)) {
-            _cwd = new java.io.File(_cwd).getParent();
+        if (this.isProjectLike(_cwd)) {
+            return _cwd;
         }
+        _cwd = new java.io.File(_cwd).getParent();
         if (this.isProjectLike(_cwd)) {
             return _cwd;
         }
