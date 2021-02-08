@@ -2,9 +2,9 @@
 *.exe
 *.zip
 *.html
-/!BAK
+/.bak
 /.git
 /.github
 /.idea
-/Tools/Accessibility_Settings.js
-/Declarations
+/tools/accessibility-settings.js
+/declarations
