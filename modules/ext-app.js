@@ -677,7 +677,7 @@ let ext = {
                         },
                     }, {is_async: true});
                     waitForAction(() => _result || _error, 0, 120);
-                    _result && resolve(resolve);
+                    _result && resolve(_result);
                     _error && reject(_error);
                 }),
             }, {
@@ -967,6 +967,8 @@ let ext = {
                         let _bak_path = require('./mod-default-config').settings.local_backup_path;
                         let _full_path = _bak_path + java.io.File.separator + _file_name + '.zip';
 
+                        let _result = null;
+                        let _error = null;
                         httpx.okhttp3Request(source, _full_path, {
                             onStart() {
                                 let _l = _cont_len / 1024;
@@ -982,10 +984,18 @@ let ext = {
                             },
                             onDownloadSuccess(r) {
                                 dialogsx.clearProgressNumberFormat(d);
-                                resolve({zip_src_file: r.downloaded_path});
+                                _result = {zip_src_file: r.downloaded_path};
                             },
-                            onDownloadFailure: e => reject(e),
+                            onDownloadFailure(e) {
+                                _error = e;
+                            },
                         }, {is_async: true});
+
+                        threads.start(function () {
+                            waitForAction(() => _result || _error, 0, 120);
+                            _result && resolve(_result);
+                            _error && reject(_error);
+                        });
                     }),
                 },
             },
