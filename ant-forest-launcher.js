@@ -2950,7 +2950,7 @@ let $$init = {
                                         ['种树', {className: 'Button'}, 'p1c0'],
                                         [idMatches(/.*home.*panel/), 'c0>0>0'],
                                     ].some((kw) => {
-                                        if (!!(_bnd = $$sel.pickup(kw, 'bounds'))) {
+                                        if (_bnd = $$sel.pickup(kw, 'bounds')) {
                                             debugInfo('森林主页头像控件定位成功');
                                             return true;
                                         }
