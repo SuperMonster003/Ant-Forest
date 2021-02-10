@@ -1909,17 +1909,17 @@ let $$init = {
                                         ds.dismiss();
                                         timeRecorder('update_dialog_uphold');
                                     }).on('positive', (ds) => {
+                                        let _clearFlags = () => {
+                                            delete $$flag.update_dialog_deploying;
+                                            delete $$flag.update_dialog_uphold;
+                                        };
                                         appx.deployProject(_newest, {
                                             onDeployStart() {
                                                 ds.dismiss();
                                                 $$flag.update_dialog_deploying = true;
                                             },
-                                            onDeploySuccess() {
-                                                delete $$flag.update_dialog_uphold;
-                                            },
-                                            onDeployFailure() {
-                                                delete $$flag.update_dialog_uphold;
-                                            },
+                                            onDeploySuccess: () => _clearFlags(),
+                                            onDeployFailure: () => _clearFlags(),
                                         });
                                     }).show());
                                 }).show());
@@ -6680,14 +6680,13 @@ let $$af = {
                             clearInterval(_itv);
                             resolve(true);
                         };
+                        let _tt = () => ($$flag.update_dialog_deploying ? 5 : 1) * 60e3;
                         let _itv = setInterval(() => {
-                            if (!$$flag.update_dialog_deploying) {
-                                if (!$$flag.update_dialog_uphold) {
-                                    _fin('检测到更新对话框结束信号');
-                                }
-                                if (timeRecorder('update_dialog_uphold', 'L') > 60e3) {
-                                    _fin('放弃等待更新对话框结束信号');
-                                }
+                            if (!$$flag.update_dialog_uphold) {
+                                _fin('检测到更新对话框结束信号');
+                            }
+                            if (timeRecorder('update_dialog_uphold', 'L') > _tt()) {
+                                _fin('放弃等待更新对话框结束信号');
                             }
                         }, 200);
                     }) : true;
