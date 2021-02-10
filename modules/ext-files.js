@@ -90,6 +90,29 @@ let ext = {
         }
     },
     /**
+     * Run a javascript file via activity by current running Auto.js
+     * @param file_name {'launcher$'|'settings$'|string} - file name with or without path or file extension name
+     * @param {
+     *     Object.<string,any>&{cmd?:AntForestLauncherCommand}
+     * } [e_args] arguments params for engines - js file will run by startActivity without this param
+     * @example
+     * filesx.run('file');
+     * filesx.run('../folder/time.js');
+     * filesx.run('ant-forest-launcher', {cmd: 'get_current_account_name'});
+     */
+    run(file_name, e_args) {
+        if (file_name.match(/^(launcher|settings)\$$/)) {
+            file_name = 'ant-forest-' + file_name.slice(0, -1) + '.js';
+        }
+        let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + '.js'));
+        return !e_args ? app.startActivity({
+            action: 'VIEW',
+            packageName: context.packageName,
+            className: 'org.autojs.autojs.external.open.RunIntentActivity',
+            data: 'file://' + _path,
+        }) : engines.execScriptFile(_path, {arguments: e_args});
+    },
+    /**
      * Zip a file or a directory by java.io.FileOutputStream
      * @param {string} input_path
      * @param {string|null} [output_path]

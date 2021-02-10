@@ -42,7 +42,7 @@ function _encrypt(input) {
     _initDic();
     let _input = arguments.length ? input : _userInput('enc');
     let _pwr = Math.max(Math.min(_cfg.encrypt_power, 2), 1);
-    let _rex = /[A-Za-z0-9`~!@#$%^&*()_+=\-\[\]}{'\\;:\/?.>,<| ]/;
+    let _rex = /[A-Za-z0-9`~!@#$%^&*()_+=\-[\]}{'\\;:/?.>,<| ]/;
 
     let _thd_mon = _thdMonitor('enc');
     let _encrypted = _enc(_input);

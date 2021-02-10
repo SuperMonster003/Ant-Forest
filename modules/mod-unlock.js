@@ -16,7 +16,6 @@ let _init_unlk = _isUnlk();
 
 _overrideRequire();
 _makeSureImpeded();
-_addObjectValues();
 _activeExtension();
 
 let $_und = x => typeof x === 'undefined';
@@ -33,7 +32,6 @@ let clickAction = _chkF('clickAction', 2);
 
 let messageAction = _chkF('messageAction');
 let debugInfo = _chkF('debugInfo');
-let captureErrScreen = _chkF('captureErrScreen');
 let getSelector = _chkF('getSelector');
 let classof = _chkF('classof');
 
@@ -65,6 +63,7 @@ function _overrideRequire() {
     global._$_require = require.bind(global);
 
     // override global.require
+    // noinspection JSValidateTypes
     require = function (path) {
         _initPath();
         if (!global['_$_module_' + path]) {
@@ -105,7 +104,7 @@ function _overrideRequire() {
         }
 
         function _fromInternal() {
-            let _mch = path.match(/[^\/]+(?=\.js)/);
+            let _mch = path.match(/[^/]+(?=\.js)/);
             if (!_mch) {
                 throw Error('Specified module doesn\'t exist');
             }
@@ -143,7 +142,6 @@ function _overrideRequire() {
                     keycode: keycode,
                     clickAction: clickAction,
                     debugInfo: debugInfo,
-                    captureErrScreen: captureErrScreen,
                     getSelector: getSelector,
                     classof: classof,
                 };
@@ -600,6 +598,7 @@ function _overrideRequire() {
                                 return _mch[0].slice(1) !== _widget_parent_id;
                             }
                         } catch (e) {
+                            // nothing to do here
                         }
                         return true;
                     }
@@ -755,62 +754,6 @@ function _overrideRequire() {
                     }
                 }
 
-                // updated: Dec 6, 2020
-                function captureErrScreen(key_name, options) {
-                    if (typeof imagesx === 'object') {
-                        imagesx.permit();
-                    } else if (!global._$_request_screen_capture) {
-                        images.requestScreenCapture();
-                        global._$_request_screen_capture = true;
-                    }
-
-                    let _opt = options || {};
-                    let _log_lv = _opt.log_level;
-                    let _max_smp = _opt.max_samples || 10;
-                    let _messageAction = (
-                        typeof messageAction === 'function' ? messageAction : messageActionRaw
-                    );
-
-                    let _dir = files.getSdcardPath() + '/.local/pics/err/';
-                    let _suffix = '_' + _getTimeStr();
-                    let _path = _dir + key_name + _suffix + '.png';
-
-                    try {
-                        files.createWithDirs(_path);
-                        images.captureScreen(_path);
-                        if (_log_lv !== null && _log_lv !== undefined) {
-                            _messageAction('已存储屏幕截图文件:', _log_lv);
-                            _messageAction(_path, _log_lv);
-                        }
-                        _removeRedundant();
-                    } catch (e) {
-                        _messageAction(e.message, 3);
-                    }
-
-                    // tool function(s) //
-
-                    function _getTimeStr() {
-                        let _now = new Date();
-                        let _pad = n => (n < 10 ? '0' : '') + n;
-                        return _now.getFullYear() +
-                            _pad(_now.getMonth() + 1) +
-                            _pad(_now.getDate()) +
-                            _pad(_now.getHours()) +
-                            _pad(_now.getMinutes()) +
-                            _pad(_now.getSeconds());
-                    }
-
-                    function _removeRedundant() {
-                        files.listDir(_dir, function (name) {
-                            return !!~name.indexOf(key_name);
-                        }).sort((a, b) => {
-                            return a === b ? 0 : a > b ? -1 : 1;
-                        }).slice(_max_smp).forEach((name) => {
-                            files.remove(_dir + name);
-                        });
-                    }
-                }
-
                 // updated: Sep 29, 2020
                 // modified: no internal raw function(s)
                 function getSelector(options) {
@@ -821,7 +764,7 @@ function _overrideRequire() {
                     )(m, lv, _opt.debug_info_flag);
                     let _sel = selector();
                     _sel.__proto__ = {
-                        _sltr_pool: {},
+                        _sel_body_pool: {},
                         _cache_pool: {},
                         pickup(sel_body, res_type, mem_sltr_kw, par) {
                             let _sel_body = _classof(sel_body) === 'Array' ? sel_body.slice() : [sel_body];
@@ -948,8 +891,8 @@ function _overrideRequire() {
                                     if (_body_class === 'Object') {
                                         let _s = selector();
                                         Object.keys(_body).forEach((k) => {
+                                            let _arg = _body[k];
                                             let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
-                                            let _arg = _body[_k];
                                             _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
                                         });
                                         return _s;
@@ -1021,8 +964,7 @@ function _overrideRequire() {
                                     return null;
                                 }
                                 if (_w_class === 'JavaObject') {
-                                    if (_w_str.match(/UiObject/)) {
-                                    } else {
+                                    if (!_w_str.match(/UiObject/)) {
                                         _w = _w.findOnce();
                                         if (!_w) {
                                             return null;
@@ -1058,6 +1000,9 @@ function _overrideRequire() {
                                         for (let s of _nums) {
                                             if (s.length) {
                                                 let _i = +s;
+                                                if (!_w) {
+                                                    return null;
+                                                }
                                                 let _cc = _w.childCount();
                                                 if (_i < 0) {
                                                     _i += _cc;
@@ -1105,33 +1050,28 @@ function _overrideRequire() {
                             }
                         },
                         add(key, sel_body, mem) {
-                            let _mem = typeof mem === 'string' ? mem : key;
-                            this._sltr_pool[key] = typeof sel_body === 'function'
+                            this._sel_body_pool[key] = typeof sel_body === 'function'
                                 ? type => sel_body(type)
-                                : type => this.pickup(sel_body, type, _mem);
-                            return this;
+                                : type => this.pickup(sel_body, type, mem || key);
+                            return _sel; // to make method chaining possible
                         },
                         get(key, type) {
-                            let _sltr = this._sltr_pool[key];
-                            if (!_sltr) {
-                                return null;
+                            if (!(key in this._sel_body_pool)) {
+                                throw Error('Sel key \'' + key + '\' not set in pool');
                             }
-                            if (type && type.toString().match(/cache/)) {
-                                return this._cache_pool[key] = _sltr('widget');
-                            }
-                            return _sltr(type);
+                            let _picker = this._sel_body_pool[key];
+                            return !_picker ? null : type === 'cache'
+                                ? (this._cache_pool[key] = _picker('w'))
+                                : _picker(type);
                         },
                         getAndCache(key) {
-                            return this.get(key, 'save_cache');
+                            return this.get(key, 'cache');
                         },
                         cache: {
                             save: (key) => _sel.getAndCache(key),
                             load(key, type) {
-                                let _widget = _sel._cache_pool[key];
-                                if (!_widget) {
-                                    return null;
-                                }
-                                return _sel.pickup(_sel._cache_pool[key], type);
+                                let _cache = _sel._cache_pool[key];
+                                return _cache ? _sel.pickup(_cache, type) : null;
                             },
                             refresh(key) {
                                 let _cache = _sel._cache_pool[key];
@@ -1187,7 +1127,7 @@ function _overrideRequire() {
                     let _empty = !arguments.length;
                     let _input = _empty && _userInput(0) || input;
                     let _pwr = Math.min(_cfg.encrypt_power, 2) || 1;
-                    let _rex = /[A-Za-z0-9`~!@#$%^&*()_+=\-\[\]}{'\\;:\/?.>,<| ]/;
+                    let _rex = /[A-Za-z0-9`~!@#$%^&*()_+=\-[\]}{'\\;:/?.>,<| ]/;
 
                     let _thd_mon = _thdMonitor(0);
                     let _encrypted = _enc(_input);
@@ -1601,44 +1541,6 @@ function _restoreRequire() {
     require = global._$_require;
 }
 
-function _addObjectValues() {
-    if (!Object['values']) {
-        Object.defineProperty(Object.prototype, 'values', {
-            value(o) {
-                if (o !== Object(o)) {
-                    throw new TypeError('Object.values called on a non-object');
-                }
-                let key;
-                let value = [];
-                for (key in o) {
-                    if (o.hasOwnProperty(key)) {
-                        value.push(o[key]);
-                    }
-                }
-                return value;
-            },
-            enumerable: false,
-        });
-    }
-    if (!Object['valuesArr']) {
-        Object.defineProperty(Object.prototype, 'valuesArr', {
-            value() {
-                if (typeof Object.values === 'function') {
-                    return Object.values(this);
-                }
-                let values = [];
-                for (let key in this) {
-                    if (this.hasOwnProperty(key)) {
-                        values.push(this[key]);
-                    }
-                }
-                return values;
-            },
-            enumerable: false,
-        });
-    }
-}
-
 function _makeSureImpeded() {
     if (typeof global.$$impeded === 'undefined') {
         global.$$impeded = () => void 0;
@@ -1885,7 +1787,7 @@ function _chkF(s, override_par_num) {
     }
 
     return function () {
-        let _args = Object.values(arguments);
+        let _args = [].slice.call(arguments);
         let _aim_par = _args[override_par_num];
         if ($_und(_aim_par)) {
             _aim_par = {no_impeded: true};
@@ -1904,19 +1806,74 @@ function _err(s) {
     ($_str(s) ? [s] : s).forEach(m => messageAction(m, 4, 0, 1));
     messageAction(_intro, 4, 0, 1, 1);
 
-    captureErrScreen('unlock_failed', {
-        log_level: 1,
-        max_samples: 8,
-    });
+    captureErrScreen('unlock_failed', {log_level: 1});
 
     if ($_unlk.init_scr) {
-        let _suffix = keycode(26) ? '' : '失败';
-        let _msg = '自动关闭屏幕' + _suffix;
-        messageAction(_msg, 1, 0, 0, 1);
+        messageAction('自动关闭屏幕' + (keycode(26) ? '' : '失败'), 1, 0, 0, 1);
     }
 
     exit();
     sleep(3.6e3);
+
+    // tool function(s) //
+
+    /**
+     * Save current screen capture as a file with a key name and a formatted timestamp
+     * @param {string} key_name - a key name as a clip of the file name
+     * @param {{}} [options]
+     * @param {number|string|null} [options.log_level]
+     * @param {number} [options.max_samples=10]
+     */
+    function captureErrScreen(key_name, options) {
+        if (typeof imagesx === 'object') {
+            imagesx.permit();
+        } else if (!global._$_request_screen_capture) {
+            images.requestScreenCapture();
+            global._$_request_screen_capture = true;
+        }
+
+        let _opt = options || {};
+        let _log_lv = _opt.log_level;
+        let _max_smp = _opt.max_samples || 10;
+
+        let _dir = files.getSdcardPath() + '/.local/pics/err/';
+        let _path = _dir + key_name + '_' + _getTimeStr() + '.png';
+
+        try {
+            files.createWithDirs(_path);
+            images.captureScreen(_path);
+            if (_log_lv !== null && _log_lv !== undefined) {
+                messageAction('已存储屏幕截图文件:', _log_lv);
+                messageAction(_path, _log_lv);
+            }
+            _removeRedundant();
+        } catch (e) {
+            messageAction(e.message, 3);
+        }
+
+        // tool function(s) //
+
+        function _getTimeStr() {
+            let _now = new Date();
+            let _pad = n => (n < 10 ? '0' : '') + n;
+            return _now.getFullYear() +
+                _pad(_now.getMonth() + 1) +
+                _pad(_now.getDate()) +
+                _pad(_now.getHours()) +
+                _pad(_now.getMinutes()) +
+                _pad(_now.getSeconds());
+        }
+
+        function _removeRedundant() {
+            files.listDir(_dir, function (name) {
+                return !!~name.indexOf(key_name);
+            }).sort((a, b) => {
+                return a === b ? 0 : a > b ? -1 : 1;
+            }).slice(_max_smp).forEach((name) => {
+                files.remove(_dir + name);
+            });
+        }
+    }
 }
 
 function _isScrOn() {
@@ -2047,7 +2004,8 @@ function _unlkSetter() {
                 let _from_sto = !!_time_sto;
                 let _pts = [_btm, _top];
                 let _time = _time_sto; // copy
-                let _relbl = _cfg.swipe_time_reliable || [];
+                /** @type {number[]} */
+                let _reliable = _cfg.swipe_time_reliable || [];
                 let _chances = 3;
                 let _t_pool = _cfg.continuous_swipe || {};
 
@@ -2058,7 +2016,7 @@ function _unlkSetter() {
                 // tool function(s) //
 
                 function _init() {
-                    if (~_relbl.indexOf(_time)) {
+                    if (~_reliable.indexOf(_time)) {
                         _chances = Infinity;
                         debugInfo('当前滑动时长参数可信');
                     }
@@ -2135,10 +2093,10 @@ function _unlkSetter() {
                     _sto.put('config', {continuous_swipe: _t_pool});
                     debugInfo('存储连续成功滑动次数: ' + _new_ctr);
 
-                    if (_new_ctr >= 6 && !~_relbl.indexOf(_time)) {
+                    if (_new_ctr >= 6 && !~_reliable.indexOf(_time)) {
                         debugInfo('当前滑动时长可信度已达标');
                         debugInfo('存储可信滑动时长数据: ' + _time);
-                        _sto.put('config', {swipe_time_reliable: _relbl.concat(_time)});
+                        _sto.put('config', {swipe_time_reliable: _reliable.concat(_time)});
                     }
                 }
             },
@@ -2496,7 +2454,7 @@ function _unlkSetter() {
 
                         function _lmt() {
                             return _ctr > _max && _err([
-                                '密码解锁方案失败', '可能是密码错误', '或无法点击密码确认按钮'
+                                '密码解锁方案失败', '可能是密码错误', '或无法点击密码确认按钮',
                             ]);
                         }
 

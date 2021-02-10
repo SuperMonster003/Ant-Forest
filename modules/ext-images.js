@@ -13,7 +13,7 @@ let _ext = {
             'left': (l, r) => l.point.x - r.point.x,
             'top': (l, r) => l.point.y - r.point.y,
             'right': (l, r) => r.point.x - l.point.x,
-            'bottom': (l, r) => r.point.y - l.point.y
+            'bottom': (l, r) => r.point.y - l.point.y,
         };
 
         function _F(list) {
@@ -243,7 +243,7 @@ let _ext = {
         let _adapter = !_is_pro
             ? javaImages.requestScreenCapture(_orientation)
             : javaImages.requestScreenCapture.apply(javaImages, [
-                _orientation, -1, /* width */ -1, /* height */ false /* isAsync */
+                _orientation, -1, /* width */ -1, /* height */ false, /* isAsync */
             ].slice(0, _is_pro_7 ? 3 : 4));
 
         if (ResultAdapter.wait(_adapter)) {
@@ -277,17 +277,17 @@ let _ext = {
         );
         let $_sel = _getSelector();
 
-        if ($_und(_par.restart_this_engine_flag)) {
-            _par.restart_this_engine_flag = true;
+        if ($_und(_par.restart_e_flag)) {
+            _par.restart_e_flag = true;
         } else {
-            let _self = _par.restart_this_engine_flag;
-            _par.restart_this_engine_flag = !!_self;
+            let _self = _par.restart_e_flag;
+            _par.restart_e_flag = !!_self;
         }
-        if (!_par.restart_this_engine_params) {
-            _par.restart_this_engine_params = {};
+        if (!_par.restart_e_params) {
+            _par.restart_e_params = {};
         }
-        if (!_par.restart_this_engine_params.max_restart_engine_times) {
-            _par.restart_this_engine_params.max_restart_engine_times = 3;
+        if (!_par.restart_e_params.max_restart_e_times) {
+            _par.restart_e_params.max_restart_e_times = 3;
         }
 
         _debugInfo('已开启弹窗监测线程');
@@ -329,7 +329,7 @@ let _ext = {
                     _debugInfo('开发者测试模式已自动开启', 3);
                 }
             }
-            if (_par.restart_this_engine_flag) {
+            if (_par.restart_e_flag) {
                 _debugInfo('截图权限申请结果: 失败', 3);
                 try {
                     let _m = android.os.Build.MANUFACTURER.toLowerCase();
@@ -343,10 +343,8 @@ let _ext = {
                 } catch (e) {
                     // nothing to do here
                 }
-                let _params = _par.restart_this_engine_params;
-                let _avail = typeof restartThisEngine === 'function';
-                if (_avail && restartThisEngine(_params)) {
-                    return true;
+                if (files.exists('./ext-engines')) {
+                    return require('./ext-engines').restart(_par.restart_e_params);
                 }
             }
             _messageAction('截图权限申请失败', 8, 1, 0, 1);
@@ -523,12 +521,12 @@ let _ext = {
 
         function _byBase64() {
             if (typeof template === 'string') {
-                let $_sto = global.$$sto = global.$$sto || {};
-                let _treas = $_sto.treas || require('./mod-treasury-vault');
-                /** @type _Base64Image */
-                let _img = _treas.image_base64_data[template];
-                if (_img) {
+                try {
+                    /** @type _Base64Image */
+                    let _img = require('./mod-treasury-vault').image_base64_data[template];
                     return _microResize(_img.getImage(), _img.src_dev_width);
+                } catch (e) {
+                    // nothing to do here
                 }
             }
         }

@@ -55,11 +55,11 @@ diag.on('positive', () => {
                     .builds([
                         '自动关闭屏幕失败', '请点击 [继续] 按钮后 [手动关屏]\n' +
                         '然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作',
-                        ['查看前述提示', 'hint'], 'Q', 'N', 1
+                        ['查看前述提示', 'hint'], 'Q', 'N', 1,
                     ])
                     .on('neutral', () => {
                         dialogsx.builds([
-                            operation_title, operation_hint_manual, 0, 0, 'B', 1
+                            operation_title, operation_hint_manual, 0, 0, 'B', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     })
                     .on('negative', (d) => {
@@ -87,7 +87,7 @@ diag.on('positive', () => {
         }
         sleep(1e3);
 
-        device.keepScreenOn();
+        devicex.keepOn(3);
 
         info += captSelectorInfo('Container View');
         captureScreen(path_container_page);
@@ -122,7 +122,7 @@ diag.on('positive', () => {
             '如有请 [不要提交] 或 [修改后提交]\n\n' +
             '文件路径已复制到剪贴板中\n' +
             '[返回键] 可退出布局分析页面',
-            0, 0, 'X', 1
+            0, 0, 'X', 1,
         ]).on('positive', d => d.dismiss()).show();
     });
 });

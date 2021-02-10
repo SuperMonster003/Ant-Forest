@@ -23,7 +23,7 @@ let $_cvt = function () {
         let {
             step: _step, potential_step: _pot_step,
             units: _units_ori, init_unit: _init_unit,
-            space: _space, fixed: _fixed
+            space: _space, fixed: _fixed,
         } = options || {};
 
         let _src = typeof src === 'string'
@@ -106,9 +106,9 @@ let $_cvt = function () {
      * @returns {string}
      */
     $_cvt.bytes = function (src, init_unit, options) {
-        return _parse(arguments, {
+        return _parse(src, init_unit, options, {
             step: 1024, potential_step: 1000,
-            units: ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
+            units: ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
         });
     };
 
@@ -139,7 +139,7 @@ let $_cvt = function () {
             dd: _dd, d: _d,
             hh: _hh, h: _h,
             mm: _mm, m: _m,
-            ss: _ss, s: _s
+            ss: _ss, s: _s,
         };
 
         return _parseFormat(format || 'yyyy/MM/dd hh:mm:ss');
@@ -218,10 +218,11 @@ let $_cvt = function () {
 
     // tool function(s) //
 
-    function _parse(args, presets) {
-        let [_src, _init_u, _opt] = args;
-        return $_cvt(_src, Object.assign(
-            _opt || {}, presets || {}, _init_u === undefined ? {} : {init_unit: _init_u}));
+    function _parse(src, init_unit, options, presets) {
+        return $_cvt(src, Object.assign(
+            init_unit === undefined ? {} : {init_unit: init_unit},
+            presets || {}, options || {}
+        ));
     }
 }();
 
@@ -236,7 +237,7 @@ let $appx = {
         {name: 'jsconfig.json'},
         {name: 'project.json', necessary: true},
         {name: 'LICENSE'},
-        {name: 'README.md'}
+        {name: 'README.md'},
     ],
     _project_step: {
         download: '下载数据包',
@@ -246,7 +247,7 @@ let $appx = {
         files_update: '项目文件替换',
         files_ready: '项目文件就绪',
         finish_deploy: '清理并完成部署',
-        finish_restore: '清理并完成项目恢复'
+        finish_restore: '清理并完成项目恢复',
     },
     /**
      * @async
@@ -307,7 +308,7 @@ let $appx = {
         let _cont_len = -1;
         $httpx.getContentLength(_url, function (value) {
             _diag_dn.setStepDesc(1, '  [ ' + $_cvt.bytes(_cont_len = value, 'B', {
-                fixed: 1, space: true
+                fixed: 1, space: true,
             }) + ' ]', true);
         }, {timeout: 15e3, concurrence: 15});
 
@@ -374,12 +375,12 @@ let $appx = {
                             }
                             resolve(Object.assign(v, {
                                 unzipped_files_path: r.unzipped_path,
-                                unzipped_proj_path: _path
+                                unzipped_proj_path: _path,
                             }));
                         },
-                        onUnzipFailure: e => reject(e)
+                        onUnzipFailure: e => reject(e),
                     }, {to_archive_name_folder: true, is_delete_source: true});
-                })
+                }),
             }, {
                 desc: _steps.backup,
                 action: (v, d) => new Promise((resolve, reject) => {
@@ -390,9 +391,9 @@ let $appx = {
                     _appx.backupProject({
                         onBackupProgress: o => d.setProgressData(o),
                         onBackupSuccess: r => resolve(Object.assign(v, {backup: r})),
-                        onBackupFailure: e => reject(e)
+                        onBackupFailure: e => reject(e),
                     }, {remark: '版本升级前的自动备份', is_save_storage: true});
-                })
+                }),
             }, {
                 desc: _steps.files_update,
                 action: (v, d) => new Promise((resolve, reject) => {
@@ -400,19 +401,19 @@ let $appx = {
                     $filesx.copy(v.unzipped_proj_path, _tar, {is_unbundled: true}, {
                         onCopyProgress: o => d.setProgressData(o),
                         onCopySuccess: () => resolve(Object.assign(v, {tar_proj_path: _tar})),
-                        onCopyFailure: e => reject(e)
+                        onCopyFailure: e => reject(e),
                     });
-                })
+                }),
             }, {
                 desc: _steps.finish_deploy,
                 action: (v, d) => new Promise((resolve, reject) => {
                     $filesx.deleteByList(v.unzipped_files_path, {is_async: true}, {
                         onDeleteProgress: o => d.setProgressData(o),
                         onDeleteSuccess: () => resolve({target_path: v.tar_proj_path}),
-                        onDeleteFailure: e => reject(e)
+                        onDeleteFailure: e => reject(e),
                     });
-                })
-            }]
+                }),
+            }],
         }).act();
     },
     /**
@@ -447,7 +448,7 @@ let $appx = {
             version_name: _ver_name,
             version_code: _ver_code,
             main: _main,
-            path: _path
+            path: _path,
         };
     },
     /**
@@ -482,7 +483,7 @@ let $appx = {
                 $dialogsx.setProgressColorTheme(_p_diag = $dialogsx.build({
                     content: '正在获取版本信息...',
                     progress: {max: -1, showMinMax: false, horizontal: true},
-                    positive: 'I'
+                    positive: 'I',
                 }).on('positive', (d) => {
                     d.dismiss();
                     global._$_get_proj_releases_interrupted = true;
@@ -516,7 +517,7 @@ let $appx = {
                 if (_p_diag) {
                     _p_diag.dismiss();
                     $dialogsx.builds([
-                        '失败', '版本信息获取失败', 0, 0, 'X', 1
+                        '失败', '版本信息获取失败', 0, 0, 'X', 1,
                     ]).on('positive', d => d.dismiss()).show();
                 }
                 return [];
@@ -538,7 +539,7 @@ let $appx = {
                 let _labels = {
                     name: '标题',
                     tag_name: '标签',
-                    body: '内容描述'
+                    body: '内容描述',
                 };
                 let _cvt_date = $_cvt.date(
                     new Date(o.published_at), 'yyyy/MM/dd hh:mm:ss'
@@ -602,7 +603,7 @@ let $appx = {
         }
         _diag = $dialogsx
             .builds([
-                '历史更新', '处理中...', [_neu_act, 'hint'], '\xa0', 'B', 1
+                '历史更新', '处理中...', [_neu_act, 'hint'], '\xa0', 'B', 1,
             ])
             .on('neutral', _neu_cbk)
             .on('positive', $dialogsx.dismiss)
@@ -644,7 +645,7 @@ let $appx = {
                     .replace(/(\[\d+])+/g, ($) => (
                         ' ' + $.split(/\[]/).join(',').replace(/\d+/g, '#$&')
                     ))
-                    .replace(/(\s*\n\s*){2,}/g, '\n')
+                    .replace(/(\s*\n\s*){2,}/g, '\n'),
             }));
 
             _onSuccess(_res);
@@ -739,12 +740,12 @@ let $appx = {
                             _items.push('v' + i + '.x');
                         }
                         return _items;
-                    })()
+                    })(),
                 })
                 .on('positive', $dialogsx.dismiss)
                 .on('item_select', (idx) => {
                     _appx.getProjectChangelog(idx + 1, {
-                        is_show_dialog: true, no_earlier: true
+                        is_show_dialog: true, no_earlier: true,
                     });
                 })
                 .show();
@@ -902,7 +903,7 @@ let $appx = {
                         path: _bak_dest_path,
                         timestamp: _now_ts,
                         version_name: _local_ver_name,
-                        remark: _opt.remark || '手动备份'
+                        remark: _opt.remark || '手动备份',
                     };
                     if (typeof _d_cbk.onSuccess === 'function') {
                         _d_cbk.onSuccess(_data);
@@ -1051,7 +1052,7 @@ let $appx = {
          */
         function _getRelease() {
             return _this.getProjectReleases(Object.assign(options || {}, {
-                max_items: 1, per_page: 1
+                max_items: 1, per_page: 1,
             }))[0];
         }
     }
@@ -1442,7 +1443,7 @@ let $filesx = {
                 let _progress = _cbk.onUnzipProgress || _cbk.onProgress;
                 if (typeof _progress === 'function') {
                     _progress({
-                        processed: _processed_bytes += _entry_size, total: _i_file_size
+                        processed: _processed_bytes += _entry_size, total: _i_file_size,
                     });
                 }
             }
@@ -1971,13 +1972,13 @@ let $dialogsx = {
         title: {
             default: '#212121', // Auto.js 4.1.1 Alpha2
             caution: '#880e4f',
-            alert: ['#c51162', '#ffeffe']
+            alert: ['#c51162', '#ffeffe'],
         },
         /** @typedef {'default'|'warn'|'alert'} DialogsxColorContent */
         content: {
             default: '#757575', // Auto.js 4.1.1 Alpha2
             warn: '#ad1457',
-            alert: ['#283593', '#e1f5fe']
+            alert: ['#283593', '#e1f5fe'],
         },
         /**
          * @typedef {
@@ -1995,7 +1996,7 @@ let $dialogsx = {
             finish: ['#00c853', '#dcedc8', '#009624'],
             success: ['#00c853', '#dcedc8', '#009624'],
             error: ['#1565c0', '#bbdefb', '#003c8f'],
-            failure: ['#1565c0', '#bbdefb', '#003c8f']
+            failure: ['#1565c0', '#bbdefb', '#003c8f'],
         },
         /**
          * @typedef {
@@ -2015,7 +2016,7 @@ let $dialogsx = {
             finish: '#009624',
             success: '#009624',
             error: '#003c8f',
-            failure: '#003c8f'
+            failure: '#003c8f',
         }
     },
     _text: {
@@ -2038,10 +2039,10 @@ let $dialogsx = {
             F: '完成', B: '返回', Q: '放弃', X: '退出',
             I: '终止', K: '确定', S: '确认',
             C: '关闭', D: '删除', N: '继续',
-            M: '确认修改', R: '设为默认值'
+            M: '确认修改', R: '设为默认值',
         },
         no_more_prompt: '不再提示',
-        user_interrupted: '用户终止'
+        user_interrupted: '用户终止',
     },
     /**
      * Substitution of dialog.build()
@@ -2079,7 +2080,7 @@ let $dialogsx = {
                 negativeColor: {adapter: $colorsx.toInt},
                 cancelable: null,
                 canceledOnTouchOutside: null,
-                autoDismiss: null
+                autoDismiss: null,
             };
 
             if (propertySetters.hasOwnProperty(name)) {
@@ -2196,14 +2197,14 @@ let $dialogsx = {
      */
     builds(props, ext) {
         let [
-            $tt, $cnt, $neu, $neg, $pos, $keep, $cbx
+            $tt, $cnt, $neu, $neg, $pos, $keep, $cbx,
         ] = typeof props === 'string' ? [props] : props;
 
         let _props = {
             autoDismiss: !$keep,
             canceledOnTouchOutside: !$keep,
             checkBoxPrompt: $cbx ? typeof $cbx === 'string'
-                ? $cbx : this._text.no_more_prompt : undefined
+                ? $cbx : this._text.no_more_prompt : undefined,
         };
 
         void [
@@ -2211,7 +2212,7 @@ let $dialogsx = {
             ['content', $cnt, this._colors.content],
             ['neutral', $neu, this._colors.button, this._text._btn],
             ['negative', $neg, this._colors.button, this._text._btn],
-            ['positive', $pos, this._colors.button, this._text._btn]
+            ['positive', $pos, this._colors.button, this._text._btn],
         ].forEach(arr => _parseAndColorUp.apply(null, arr));
 
         return this.build(Object.assign(_props, ext));
@@ -2449,7 +2450,7 @@ let $dialogsx = {
 
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setStepDesc: {
                     value(step_num, desc, is_append) {
@@ -2469,7 +2470,7 @@ let $dialogsx = {
                         }
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setProgressData: {
                     value(data) {
@@ -2479,7 +2480,7 @@ let $dialogsx = {
                         }
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setFailureData: {
                     value(error) {
@@ -2489,7 +2490,7 @@ let $dialogsx = {
                         _$dialogsx.alertContent(this, error, 'append');
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 }
             });
 
@@ -2546,7 +2547,7 @@ let $dialogsx = {
     buildProgress(config) {
         let _$dialogsx = this;
         return Object.create(this.builds([
-                config.title || '', config.content || config.desc || '', 0, 0, 'I', 1
+                config.title || '', config.content || config.desc || '', 0, 0, 'I', 1,
             ], {progress: {max: 100, showMinMax: !!config.show_min_max}}),
             /**
              * @typedef {{
@@ -2620,7 +2621,7 @@ let $dialogsx = {
 
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setStepDesc: {
                     value(desc, is_append) {
@@ -2633,14 +2634,14 @@ let $dialogsx = {
                         }
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setProgressData: {
                     value(data) {
                         this.setProgress(data.processed / data.total * 100);
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 },
                 setFailureData: {
                     value(error) {
@@ -2649,7 +2650,7 @@ let $dialogsx = {
                         _$dialogsx.alertContent(this, error, 'append');
                         return this;
                     },
-                    enumerable: true
+                    enumerable: true,
                 }
             });
     },
@@ -2715,8 +2716,8 @@ let $dialogsx = {
      * @param {...(JsDialog$|MaterialDialog$)} [d]
      */
     dismiss(d) {
-        [].slice.call(arguments).forEach((d) => {
-            typeof d === 'object' && d.dismiss && d.dismiss();
+        (Array.isArray(d) ? d : [].slice.call(arguments)).forEach((o) => {
+            typeof o === 'object' && o.dismiss && o.dismiss();
         });
     },
     /**
@@ -2765,11 +2766,11 @@ $dialogsx.builds(['项目部署',
             '自动收取好友能量', '自动收取/监测自己能量', '收取结果统计/展示',
             '控制台消息提示', '自动解锁屏幕', '定时任务与循环监测', '多任务自动排队',
             '脚本运行安全', '事件监测与处理', '黑名单机制', '项目管理', '账户功能',
-            '统计功能', '图形化配置工具'
+            '统计功能', '图形化配置工具',
         ].map(s => '· ' + s).join('\n') + '\n\n' +
         '- 项目作者 -' + '\n' + '· SuperMonster003' + '\n\n' +
         '- 项目链接 -' + '\n' + '· https://github.com/SuperMonster003/Ant-Forest',
-        0, 0, '返回', 1
+        0, 0, '返回', 1,
     ]).on('positive', ds => ds.dismiss()).show(), 'WEB_URLS');
 }).on('negative', (d) => {
     d.dismiss();
@@ -2778,7 +2779,7 @@ $dialogsx.builds(['项目部署',
     d.dismiss();
     $appx.getProjectReleases({
         min_version_name: 'v2.0.1',
-        show_progress_dialog: true
+        show_progress_dialog: true,
     }, function (releases) {
         if (!releases.length) {
             exit();
@@ -2788,24 +2789,24 @@ $dialogsx.builds(['项目部署',
         $dialogsx
             .builds([
                 '选择项目版本', '选择希望部署的项目版本',
-                ['版本历史', 'hint'], ['X', 'warn'], '下一步', 1
+                ['版本历史', 'hint'], ['X', 'warn'], '下一步', 1,
             ], {
                 items: [
                     '最新版本 (' + _newest_ver_n + ')',
-                    '其他版本'
+                    '其他版本',
                 ],
                 itemsSelectMode: 'single',
-                itemsSelectedIndex: 0
+                itemsSelectedIndex: 0,
             })
             .on('neutral', () => {
                 $appx.getProjectChangelog(_newest_ver_n.match(/v(\d+)/)[1], {
-                    is_show_dialog: true
+                    is_show_dialog: true,
                 });
             })
             .on('negative', (d) => {
                 $dialogsx.builds([
                     '提示', '项目部署尚未完成\n确定要退出吗',
-                    0, 'B', ['确定退出', 'caution'], 1
+                    0, 'B', ['确定退出', 'caution'], 1,
                 ]).on('negative', (ds) => {
                     ds.dismiss();
                 }).on('positive', (ds) => {
@@ -2821,11 +2822,11 @@ $dialogsx.builds(['项目部署',
                         _deployVersion(_newest);
                     })
                     : $dialogsx.builds([
-                        '选择其他项目版本', '', 0, '上一步', '下一步', 1
+                        '选择其他项目版本', '', 0, '上一步', '下一步', 1,
                     ], {
                         items: releases.slice(1).map(o => o.version_name),
                         itemsSelectMode: 'single',
-                        itemsSelectedIndex: 0
+                        itemsSelectedIndex: 0,
                     }).on('negative', (ds) => {
                         ds.dismiss();
                         d.show();
@@ -2853,25 +2854,51 @@ function _deployVersion(version) {
                 '.' + _tar.slice(_root.length + _tar.search(_root)));
             d.on('positive', (d) => {
                 d.dismiss();
-                $dialogsx
-                    .builds(['项目使用声明', [
-                        '代码完全公开', '杜绝恶意代码', '项目永久免费', '欢迎提议反馈'
-                    ].map(s => '· ' + s).join('\n'),
-                        0, 0, ['F', 'finish'], 1, '立即运行项目'
-                    ])
-                    .on('positive', (d) => {
+                if (engines.myEngine().source.name.match(/^Ant.Forest.+er/)) {
+                    _showHintForLegacy();
+                } else {
+                    _showStatement();
+                }
+
+                // tool function(s) //
+
+                function _showHintForLegacy() {
+                    dialogs.build({
+                        title: '新项目使用提示',
+                        content: '可能需要在Auto.js程序主页下拉刷新才能看到新项目\n' +
+                            '新项目默认是以"Ant-Forest-003"命名的蓝色目录 进入目录可运行新项目\n' +
+                            '对于当前目录下的旧项目文件 若无保留需要 可全部移除\n' +
+                            '移除时需谨慎 避免误删可能存在的项目以外的重要文件',
+                        positive: '下一步',
+                        autoDismiss: false,
+                        canceledOnTouchOutside: false,
+                    }).on('positive', (d) => {
                         d.dismiss();
-                        if (d.isPromptCheckBoxChecked()) {
-                            let _pkg = context.getPackageName();
-                            app.startActivity({
-                                packageName: _pkg,
-                                className: _pkg + '.external.open.RunIntentActivity',
-                                data: 'file://' + _tar + '/ant-forest-launcher.js'
-                            });
-                        }
-                        exit();
-                    })
-                    .show();
+                        _showStatement();
+                    }).show();
+                }
+
+                function _showStatement() {
+                    $dialogsx
+                        .builds(['项目使用声明', [
+                            '代码完全公开', '杜绝恶意代码', '项目永久免费', '欢迎提议反馈',
+                        ].map(s => '· ' + s).join('\n'),
+                            0, 0, ['F', 'finish'], 1, '立即运行项目',
+                        ])
+                        .on('positive', (d) => {
+                            d.dismiss();
+                            if (d.isPromptCheckBoxChecked()) {
+                                let _pkg = context.getPackageName();
+                                app.startActivity({
+                                    packageName: _pkg,
+                                    className: _pkg + '.external.open.RunIntentActivity',
+                                    data: 'file://' + _tar + '/ant-forest-launcher.js',
+                                });
+                            }
+                            exit();
+                        })
+                        .show();
+                }
             });
         }
     }, {on_interrupt_btn_text: 'X', success_title: '项目部署完成'});

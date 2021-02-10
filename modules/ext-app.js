@@ -16,7 +16,7 @@ let ext = {
         {name: 'jsconfig.json'},
         {name: 'project.json', necessary: true},
         {name: 'LICENSE'},
-        {name: 'README.md'}
+        {name: 'README.md'},
     ],
     _project_step: {
         download: '下载数据包',
@@ -33,6 +33,14 @@ let ext = {
      */
     isAutoJsPro() {
         return (this.isAutoJsPro = () => !!this.getAutoJsPkgName().match(/pro/))();
+    },
+    /**
+     * @example
+     * console.log(appx.getAutoJsName()); // like: 'Auto.js'
+     * @returns {string}
+     */
+    getAutoJsName() {
+        return 'Auto.js' + (this.isAutoJsPro() ? ' Pro' : '');
     },
     /**
      * @example
@@ -55,7 +63,7 @@ let ext = {
             for (let i in _pkgs) {
                 if (_pkgs.hasOwnProperty(i)) {
                     let _pkg = _pkgs[i];
-                    if (_pkg.packageName.toString() === _aj_pkg) {
+                    if (_pkg.packageName === _aj_pkg) {
                         return (this.getAutoJsVerName = () => _pkg.versionName)();
                     }
                 }
@@ -66,12 +74,71 @@ let ext = {
         return '';
     },
     /**
+     * @param {string} source
      * @example
-     * console.log(appx.getAutoJsName()); // like: 'Auto.js'
-     * @returns {string}
+     * let _pkg = 'com.eg.android.AlipayGphone';
+     * let _app = 'Alipay';
+     * console.log(appx.getAppPkgName(_app)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getAppName(_pkg)); // "Alipay"
+     * console.log(appx.getAppPkgName(_pkg)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getAppName(_app)); // "Alipay"
+     * @returns {string|null}
      */
-    getAutoJsName() {
-        return 'Auto.js' + (this.isAutoJsPro() ? ' Pro' : '');
+    getAppName(source) {
+        if (source) {
+            if (source.match(/.+\..+\./)) {
+                return app.getAppName(source);
+            }
+            if (app.getPackageName(source)) {
+                return source;
+            }
+        }
+        return null;
+    },
+    /**
+     * @param {string} source
+     * @example
+     * let _pkg = 'com.eg.android.AlipayGphone';
+     * let _app = 'Alipay';
+     * console.log(appx.getAppPkgName(_app)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getAppName(_pkg)); // "Alipay"
+     * console.log(appx.getAppPkgName(_pkg)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getAppName(_app)); // "Alipay"
+     * @returns {string|null}
+     */
+    getAppPkgName(source) {
+        if (source) {
+            if (!source.match(/.+\..+\./)) {
+                return app.getPackageName(source);
+            }
+            if (app.getAppName(source)) {
+                return source;
+            }
+        }
+        return null;
+    },
+    /**
+     * Returns the version name of an app with app name or package name
+     * @param {'current'|string} source - app name or app package name
+     * @return {string|null}
+     */
+    getAppVerName(source) {
+        let _src = source === 'current' ? currentPackage() : source;
+        let _pkg_name = this.getAppPkgName(_src);
+        if (_pkg_name) {
+            try {
+                /** @type android.content.pm.PackageInfo[] */
+                let _i_pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+                _i_pkgs.some((i_pkg) => {
+                    if (i_pkg.packageName === _pkg_name) {
+                        return i_pkg.versionName;
+                    }
+                });
+            } catch (e) {
+                // nothing to do here
+            }
+        }
+        return null;
     },
     /**
      * @example
@@ -205,7 +272,7 @@ let ext = {
                 if (_p_diag) {
                     _p_diag.dismiss();
                     dialogsx.builds([
-                        '失败', '版本信息获取失败', 0, 0, 'X', 1
+                        '失败', '版本信息获取失败', 0, 0, 'X', 1,
                     ]).on('positive', d => d.dismiss()).show();
                 }
                 return [];
@@ -1132,9 +1199,7 @@ let ext = {
             let _$a = [$1, $2, $3].map(s => Number('0x' + s)).join('.');
             let _$4 = Number('0x' + $4);
             let _$b = '';
-            if (_$4 === 0xff) {
-
-            } else if (_$4 <= _max_alpha) {
+            if (_$4 <= _max_alpha) {
                 _$b = ' Alpha' + (_$4 === 1 ? '' : _$4);
             } else if (_$4 < 0xff) {
                 _$4 -= _max_alpha;
@@ -1145,14 +1210,18 @@ let ext = {
     },
     /**
      * @param {string} ver
+     * @example
+     * console.log(appx.parseVerName('2.0.4')); // "v2.0.4"
+     * console.log(appx.parseVerName('v2.0.4')); // "v2.0.4"
+     * console.log(appx.parseVerName('v2.0.4a7')); // "v2.0.4 Alpha7"
+     * console.log(appx.parseVerName('v2.0.4 a7')); // "v2.0.4 Alpha7"
+     * console.log(appx.parseVerName('v2.0.4 alpha7')); // "v2.0.4 Alpha7"
+     * console.log(appx.parseVerName('2.0.4 alpha 7')); // "v2.0.4 Alpha7"
      * @returns {string}
      */
     parseVerName(ver) {
         let _rex = /^v?\d+\.\d+\.\d+\s*(a(lpha)?|b(eta)?)?\s*\d*$/i;
-        if (!ver.match(_rex)) {
-            return '';
-        }
-        return this.parseVerHex(this.getVerHex(ver));
+        return ver.match(_rex) ? this.parseVerHex(this.getVerHex(ver)) : '';
     },
     /**
      * Returns if 1st version is newer than 2nd version
@@ -1423,6 +1492,34 @@ let ext = {
     /**
      * A duplicate from Auto.js 4.1.1 Alpha2
      * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
+     * @see app.intent
+     * @param {string|android.content.Intent|IntentCommonParamsWithRoot} o
+     * @returns void
+     */
+    startActivity(o) {
+        let _fl = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+        if (o instanceof android.content.Intent) {
+            context.startActivity(new android.content.Intent(o).addFlags(_fl));
+        } else if (typeof o === 'object') {
+            if (o.root) {
+                shell('am start ' + app.intentToShell(o), true);
+            } else {
+                context.startActivity(this.intent(o).addFlags(_fl));
+            }
+        } else if (typeof o === 'string') {
+            if (!runtime.getProperty('class.' + o)) {
+                throw new Error('Class ' + o + ' not found');
+            }
+            context.startActivity(new android.content.Intent(
+                context, runtime.getProperty('class.' + o)
+            ).addFlags(_fl));
+        } else {
+            throw Error('Unknown param for appx.startActivity()');
+        }
+    },
+    /**
+     * A duplicate from Auto.js 4.1.1 Alpha2
+     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @param {IntentCommonParams} o
      * @returns {android.content.Intent}
      */
@@ -1494,32 +1591,651 @@ let ext = {
         }
     },
     /**
-     * A duplicate from Auto.js 4.1.1 Alpha2
-     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
-     * @see app.intent
-     * @param {string|android.content.Intent|IntentCommonParamsWithRoot} o
-     * @returns void
+     * @typedef {Object} Appx$Launch$Options
+     * @property {string} [package_name]
+     * @property {string} [app_name]
+     * @property {string} [task_name]
+     * @property {function():*} [condition_launch]
+     * @property {function():*} [condition_ready]
+     * @property {function():*} [disturbance]
+     * @property {boolean} [debug_info_flag]
+     * @property {boolean} [is_show_greeting=true]
+     * @property {boolean} [no_message_flag]
+     * @property {number} [global_retry_times=2]
+     * @property {number} [launch_retry_times=3]
+     * @property {number} [ready_retry_times=5]
+     * @property {number} [screen_orientation] - portrait: 0, landscape: 1
      */
-    startActivity(o) {
-        let _fl = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
-        if (o instanceof android.content.Intent) {
-            context.startActivity(new android.content.Intent(o).addFlags(_fl));
-        } else if (typeof o === 'object') {
-            if (o.root) {
-                shell('am start ' + app.intentToShell(o), true);
-            } else {
-                context.startActivity(this.intent(o).addFlags(_fl));
-            }
-        } else if (typeof o === 'string') {
-            if (!runtime.getProperty('class.' + o)) {
-                throw new Error('Class ' + o + ' not found');
-            }
-            context.startActivity(new android.content.Intent(
-                context, runtime.getProperty('class.' + o)
-            ).addFlags(_fl));
-        } else {
-            throw Error('Unknown param for appx.startActivity()');
+    /**
+     * Launch some app with package name or intent and wait for conditions ready if specified
+     * @param {IntentCommonParamsWithRoot|string|function|android.content.Intent} trigger
+     * @param {Appx$Launch$Options} [options]
+     * @example
+     * appx.launch('com.eg.android.AlipayGphone');
+     * appx.launch('com.eg.android.AlipayGphone', {
+     *    task_name: '\u652F\u4ED8\u5B9D\u6D4B\u8BD5',
+     *    // is_show_greeting: true,
+     *    // no_message_flag: false,
+     *    debug_info_flag: true,
+     * });
+     * appx.launch({
+     *     action: 'VIEW',
+     *     data: 'alipays://platformapi/startapp?appId=60000002&appClearTop=false&startMultApp=YES',
+     * }, {
+     *     package_name: 'com.eg.android.AlipayGphone',
+     *     task_name: '\u8682\u8681\u68EE\u6797',
+     *     debug_info_flag: true,
+     *     condition_launch: () => currentPackage().match(/AlipayGphone/),
+     *     condition_ready: () => descMatches(/../).find().size() > 6,
+     *     launch_retry_times: 4,
+     *     screen_orientation: 0,
+     * });
+     * @return {boolean}
+     */
+    launch(trigger, options) {
+        let _opt = options || {};
+        _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.launch.name);
+
+        let $_und = x => typeof x === 'undefined';
+        let _messageAction = (
+            typeof messageAction === 'function' ? messageAction : messageActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
+        )(m, fg, _opt.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
+        );
+
+        let _trig = trigger || 0;
+        if (!~['object', 'string', 'function'].indexOf(typeof _trig)) {
+            _messageAction('应用启动目标参数无效', 8, 1, 0, 1);
         }
+
+        let _pkg_name = '';
+        let _app_name = '';
+        let _task_name = _opt.task_name || '';
+        let _1st_launch = true;
+
+        _setAppName();
+
+        _pkg_name = _pkg_name || _opt.package_name;
+        _app_name = _app_name || _opt.app_name;
+
+        let _name = (_task_name || _app_name).replace(/^["']+|["']+$/g, '');
+
+        _debugInfo('启动目标名称: ' + _name);
+        _debugInfo('启动参数类型: ' + typeof _trig);
+
+        let _cond_ready = _opt.condition_ready;
+        let _cond_launch = _opt.condition_launch;
+        let _dist = _opt.disturbance;
+        let _thd_dist;
+        let _max_retry = _opt.global_retry_times || 2;
+        let _max_retry_b = _max_retry;
+        let _is_show_greeting = _opt.is_show_greeting;
+
+        if (typeof _is_show_greeting === 'undefined') {
+            _is_show_greeting = true;
+        }
+
+        if (!_cond_launch) {
+            _cond_launch = () => currentPackage() === _pkg_name;
+        }
+
+        if (_dist) {
+            _debugInfo('已开启干扰排除线程');
+            _thd_dist = threads.start(function () {
+                while (1) {
+                    sleep(1.2e3);
+                    _dist();
+                }
+            });
+        }
+
+        while (_max_retry--) {
+            let _max_lch = _opt.launch_retry_times || 3;
+            let _max_lch_b = _max_lch;
+
+            if (!_opt.no_message_flag) {
+                let _msg = _task_name
+                    ? '重新开始"' + _task_name + '"任务'
+                    : '重新启动"' + _app_name + '"应用';
+                if (!_1st_launch) {
+                    _messageAction(_msg, null, 1);
+                } else if (_is_show_greeting) {
+                    _messageAction(_msg.replace(/重新/g, ''), 1, 1, 0, 'both');
+                }
+            }
+
+            while (_max_lch--) {
+                if (typeof _trig === 'object') {
+                    _debugInfo('加载intent参数启动应用');
+                    (global.appx ? appx : app).startActivity(_trig);
+                } else if (typeof _trig === 'string') {
+                    _debugInfo('加载应用包名参数启动应用');
+                    if (!app.launchPackage(_pkg_name)) {
+                        _debugInfo('加载应用名称参数启动应用');
+                        app.launchApp(_app_name);
+                    }
+                } else {
+                    _debugInfo('使用触发器方法启动应用');
+                    _trig();
+                }
+
+                _waitForScrOrReady();
+
+                let _succ = _waitForAction(_cond_launch, 5e3, 800);
+                _debugInfo('应用启动' + (
+                    _succ ? '成功' : '超时 (' + (_max_lch_b - _max_lch) + '/' + _max_lch_b + ')'
+                ));
+                if (_succ) {
+                    break;
+                }
+                _debugInfo('>' + currentPackage());
+            }
+
+            if (_max_lch < 0) {
+                _messageAction('打开"' + _app_name + '"失败', 8, 1, 0, 1);
+            }
+
+            if ($_und(_cond_ready)) {
+                _debugInfo('未设置启动完成条件参数');
+                break;
+            }
+
+            _1st_launch = false;
+            _debugInfo('开始监测启动完成条件');
+
+            let _max_ready = _opt.ready_retry_times || 3;
+            let _max_ready_b = _max_ready;
+
+            while (!_waitForAction(_cond_ready, 8e3) && _max_ready--) {
+                let _ctr = '(' + (_max_ready_b - _max_ready) + '/' + _max_ready_b + ')';
+                if (typeof _trig === 'object') {
+                    _debugInfo('重新启动Activity ' + _ctr);
+                    (global.appx ? appx : app).startActivity(_trig);
+                } else {
+                    _debugInfo('重新启动应用 ' + _ctr);
+                    app.launchPackage(_trig);
+                }
+            }
+
+            if (_max_ready >= 0) {
+                _debugInfo('启动完成条件监测完毕');
+                break;
+            }
+
+            _debugInfo('尝试关闭"' + _app_name + '"应用: ' +
+                '(' + (_max_retry_b - _max_retry) + '/' + _max_retry_b + ')'
+            );
+            this.kill(_pkg_name);
+        }
+
+        if (_thd_dist) {
+            _thd_dist.interrupt();
+            _debugInfo('干扰排除线程结束');
+            _thd_dist = null;
+        }
+
+        if (_max_retry < 0) {
+            _messageAction('"' + _name + '"初始状态准备失败', 8, 1, 0, 1);
+        }
+        _debugInfo('"' + _name + '"初始状态准备完毕');
+
+        return true;
+
+        // tool function(s) //
+
+        function _setAppName() {
+            if (typeof _trig === 'string') {
+                _app_name = !_trig.match(/.+\..+\./) && app.getPackageName(_trig) && _trig;
+                _pkg_name = app.getAppName(_trig) && _trig.toString();
+            } else {
+                _app_name = _opt.app_name;
+                _pkg_name = _opt.package_name;
+                if (!_pkg_name && typeof _trig === 'object') {
+                    _pkg_name = _trig.packageName || _trig.data && _trig.data.match(/^alipays/i) && 'com.eg.android.AlipayGphone';
+                }
+            }
+            _app_name = _app_name || _pkg_name && app.getAppName(_pkg_name);
+            _pkg_name = _pkg_name || _app_name && app.getPackageName(_app_name);
+            if (!_app_name && !_pkg_name) {
+                _messageAction('未找到应用', 4, 1);
+                _messageAction(_trig, 8, 0, 1, 1);
+            }
+        }
+
+        function _waitForScrOrReady() {
+            let _isHoriz = () => {
+                let _disp = getDisplayRaw();
+                return _disp.WIDTH > _disp.HEIGHT;
+            };
+            let _isVert = () => {
+                let _disp = getDisplayRaw();
+                return _disp.WIDTH < _disp.HEIGHT;
+            };
+            let _scr_o_par = _opt.screen_orientation;
+            if (_scr_o_par === 1 && _isVert()) {
+                _debugInfo('需等待屏幕方向为横屏');
+                if (_waitForAction(_isHoriz, 8e3, 80)) {
+                    _debugInfo('屏幕方向已就绪');
+                    sleep(500);
+                } else {
+                    _messageAction('等待屏幕方向变化超时', 4);
+                }
+            } else if (_scr_o_par === 0 && _isHoriz()) {
+                _debugInfo('需等待屏幕方向为竖屏');
+                if (_waitForAction(_isVert, 8e3, 80)) {
+                    _debugInfo('屏幕方向已就绪');
+                    sleep(500);
+                } else {
+                    _messageAction('等待屏幕方向变化超时', 4);
+                }
+            }
+        }
+
+        // raw function(s) //
+
+        function getDisplayRaw(params) {
+            let $_flag = global.$$flag = global.$$flag || {};
+            let _par = params || {};
+
+            let _waitForAction = (
+                typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
+            );
+            let _debugInfo = (m, fg) => (
+                typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
+            )(m, fg, _par.debug_info_flag);
+            let $_str = x => typeof x === 'string';
+
+            let _W, _H;
+            let _disp = {};
+            let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+            let _win_svc_disp = _win_svc.getDefaultDisplay();
+
+            if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
+                return console.error('getDisplayRaw()返回结果异常');
+            }
+            _showDisp();
+            return Object.assign(_disp, {
+                cX: _cX,
+                cY: _cY,
+            });
+
+            // tool function(s) //
+
+            function _cX(num) {
+                let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
+                let _x = Math.round(num * _unit);
+                return Math.min(_x, _W);
+            }
+
+            function _cY(num, aspect_ratio) {
+                let _ratio = aspect_ratio;
+                if (!~_ratio) _ratio = '16:9'; // -1
+                if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
+                    let _split = _ratio.split(':');
+                    _ratio = _split[0] / _split[1];
+                }
+                _ratio = _ratio || _H / _W;
+                _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
+                let _h = _W * _ratio;
+                let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
+                let _y = Math.round(num * _unit);
+                return Math.min(_y, _H);
+            }
+
+            function _showDisp() {
+                if (!$_flag.display_params_got) {
+                    _debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
+                    _debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
+                    $_flag.display_params_got = true;
+                }
+            }
+
+            function _getDisp() {
+                try {
+                    _W = _win_svc_disp.getWidth();
+                    _H = _win_svc_disp.getHeight();
+                    if (!(_W * _H)) {
+                        return _raw();
+                    }
+
+                    // left: 1, right: 3, portrait: 0 (or 2 ?)
+                    let _SCR_O = _win_svc_disp.getOrientation();
+                    let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+                    let _MAX = _win_svc_disp.maximumSizeDimension;
+
+                    let [_UH, _UW] = [_H, _W];
+                    let _dimen = (name) => {
+                        let resources = context.getResources();
+                        let resource_id = resources.getIdentifier(name, 'dimen', 'android');
+                        if (resource_id > 0) {
+                            return resources.getDimensionPixelSize(resource_id);
+                        }
+                        return NaN;
+                    };
+
+                    _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
+
+                    return {
+                        WIDTH: _W,
+                        USABLE_WIDTH: _UW,
+                        HEIGHT: _H,
+                        USABLE_HEIGHT: _UH,
+                        screen_orientation: _SCR_O,
+                        status_bar_height: _dimen('status_bar_height'),
+                        navigation_bar_height: _dimen('navigation_bar_height'),
+                        navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
+                        action_bar_default_height: _dimen('action_bar_default_height'),
+                    };
+                } catch (e) {
+                    return _raw();
+                }
+
+                // tool function(s) //
+
+                function _raw() {
+                    _W = device.width;
+                    _H = device.height;
+                    return _W && _H && {
+                        WIDTH: _W,
+                        HEIGHT: _H,
+                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
+                    };
+                }
+            }
+
+            // raw function(s) //
+
+            function waitForActionRaw(cond_func, time_params) {
+                let _cond_func = cond_func;
+                if (!cond_func) return true;
+                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+                if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
+                let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
+                let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
+                while (!_cond_func() && _check_time >= 0) {
+                    sleep(_check_interval);
+                    _check_time -= _check_interval;
+                }
+                return _check_time >= 0;
+            }
+
+            function debugInfoRaw(msg, msg_lv) {
+                msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
+            }
+        }
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || ' ';
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === 'undefined' ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
+            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+    },
+    /**
+     * @typedef {Object} Appx$Kill$Options
+     * @property {boolean} [shell_acceptable=true]
+     * @property {number} [shell_max_wait_time=10e3]
+     * @property {boolean} [keycode_back_acceptable=true]
+     * @property {boolean} [keycode_back_twice=false]
+     * @property {function():boolean} [condition_success]
+     * @property {boolean} [debug_info_flag=false]
+     */
+    /**
+     * Close or minimize a certain app
+     * @param {string} [source]
+     * @param {Appx$Kill$Options} [options]
+     * @example
+     * appx.kill('Alipay');
+     * appx.kill('com.eg.android.AlipayGphone', {
+     *    shell_acceptable: false,
+     *    debug_info_flag: true,
+     * });
+     * @returns {boolean}
+     */
+    kill(source, options) {
+        let _par = options || {};
+        _par.no_impeded || typeof $$impeded === 'function' && $$impeded(this.kill.name);
+
+        let _messageAction = (
+            typeof messageAction === 'function' ? messageAction : messageActionRaw
+        );
+        let _debugInfo = (m, fg) => (
+            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
+        )(m, fg, _par.debug_info_flag);
+        let _waitForAction = (
+            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
+        );
+        let _clickAction = (
+            typeof clickAction === 'function' ? clickAction : clickActionRaw
+        );
+
+        let _src = source || '';
+        if (!_src) {
+            _src = currentPackage();
+            _messageAction('自动使用currentPackage()返回值', 3);
+            _messageAction('appx.kill()未指定name参数', 3, 0, 1);
+            _messageAction('注意: 此返回值可能不准确', 3, 0, 1);
+        }
+        let _app_name = this.getAppName(_src);
+        let _pkg_name = this.getAppPkgName(_src);
+        if (!_app_name || !_pkg_name) {
+            _messageAction('解析应用名称及包名失败', 8, 1, 0, 1);
+        }
+
+        let _shell_acceptable = (
+            _par.shell_acceptable === undefined ? true : _par.shell_acceptable
+        );
+        let _keycode_back_acceptable = (
+            _par.keycode_back_acceptable === undefined ? true : _par.keycode_back_acceptable
+        );
+        let _keycode_back_twice = _par.keycode_back_twice || false;
+        let _cond_success = _par.condition_success || (() => {
+            let _cond = () => currentPackage() === _pkg_name;
+            return _waitForAction(() => !_cond(), 12e3) && !_waitForAction(_cond, 3, 150);
+        });
+
+        let _shell_result = false;
+        let _shell_start_ts = Date.now();
+        let _shell_max_wait_time = _par.shell_max_wait_time || 10e3;
+        if (_shell_acceptable) {
+            try {
+                _shell_result = !shell('am force-stop ' + _pkg_name, true).code;
+            } catch (e) {
+                _debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
+            }
+        } else {
+            _debugInfo('参数不接受shell()方法');
+        }
+
+        if (!_shell_result) {
+            if (_keycode_back_acceptable) {
+                return _tryMinimizeApp();
+            }
+            _debugInfo('参数不接受模拟返回方法');
+            _messageAction('关闭"' + _app_name + '"失败', 4, 1);
+            return _messageAction('无可用的应用关闭方式', 4, 0, 1);
+        }
+
+        let _et = Date.now() - _shell_start_ts;
+        if (_waitForAction(_cond_success, _shell_max_wait_time)) {
+            _debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
+            _debugInfo('>关闭用时: ' + _et + '毫秒');
+            return true;
+        }
+        _messageAction('关闭"' + _app_name + '"失败', 4, 1);
+        _debugInfo('>关闭用时: ' + _et + '毫秒');
+        return _messageAction('关闭时间已达最大超时', 4, 0, 1);
+
+        // tool function(s) //
+
+        function _tryMinimizeApp() {
+            _debugInfo('尝试最小化当前应用');
+
+            let _sltr_avail_btns = [
+                idMatches(/.*nav.back|.*back.button/),
+                descMatches(/关闭|返回/),
+                textMatches(/关闭|返回/),
+            ];
+
+            let _max_try_times_minimize = 20;
+            let _max_try_times_minimize_bak = _max_try_times_minimize;
+            let _back = () => {
+                back();
+                back();
+                if (_keycode_back_twice) {
+                    sleep(200);
+                    back();
+                }
+            };
+
+            while (_max_try_times_minimize--) {
+                let _clicked_flag = false;
+                for (let i = 0, l = _sltr_avail_btns.length; i < l; i += 1) {
+                    let _sltr_avail_btn = _sltr_avail_btns[i];
+                    if (_sltr_avail_btn.exists()) {
+                        _clicked_flag = true;
+                        _clickAction(_sltr_avail_btn);
+                        sleep(300);
+                        break;
+                    }
+                }
+                if (_clicked_flag) {
+                    continue;
+                }
+                _back();
+                if (_waitForAction(_cond_success, 2e3)) {
+                    break;
+                }
+            }
+            if (_max_try_times_minimize < 0) {
+                _debugInfo('最小化应用尝试已达: ' + _max_try_times_minimize_bak + '次');
+                _debugInfo('重新仅模拟返回键尝试最小化');
+                _max_try_times_minimize = 8;
+                while (_max_try_times_minimize--) {
+                    _back();
+                    if (_waitForAction(_cond_success, 2e3)) {
+                        break;
+                    }
+                }
+                if (_max_try_times_minimize < 0) {
+                    return _messageAction('最小化当前应用失败', 4, 1);
+                }
+            }
+            _debugInfo('最小化应用成功');
+            return true;
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || ' ';
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === 'undefined' ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+
+        function debugInfoRaw(msg, msg_lv) {
+            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
+        }
+
+        function waitForActionRaw(cond_func, time_params) {
+            let _cond_func = cond_func;
+            if (!cond_func) return true;
+            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
+            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
+            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
+            while (!_cond_func() && _check_time >= 0) {
+                sleep(_check_interval);
+                _check_time -= _check_interval;
+            }
+            return _check_time >= 0;
+        }
+
+        function clickActionRaw(o) {
+            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
+            let _o = _classof(o) === 'Array' ? o[0] : o;
+            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
+            if (!_w) {
+                return false;
+            }
+            let _bnd = _w.bounds();
+            return click(_bnd.centerX(), _bnd.centerY());
+        }
+    },
+    /**
+     * Kill or minimize an app and launch it with options
+     * @param {string} [source]
+     * @param {{
+     *     kill?: Appx$Kill$Options,
+     *     launch?: Appx$Launch$Options,
+     * }} [options]
+     * @return {boolean}
+     */
+    restart(source, options) {
+        let _src = source || currentPackage();
+        let _opt = options || {};
+        return this.kill(_src, _opt.kill) && this.launch(_src, _opt.launch);
     },
     /**
      * Returns if Auto.js has attained root access by running a shell command
@@ -1613,17 +2329,11 @@ let ext = {
         let _getState = k => typeof _opt[k] === 'function' ? _opt[k]() : _opt[k];
 
         let _pkg_mgr = context.getPackageManager();
-        let _getApps = () => {
-            if (global._$_installed_apps && !_opt.force_refresh) {
-                return global._$_installed_apps;
-            }
-            return global._$_installed_apps = _pkg_mgr.getInstalledApplications(0).toArray();
-        };
-        let _items = _getApps().map((o) => ({
+        let _items = _pkg_mgr.getInstalledApplications(0).toArray().map((o) => ({
             app_name: o.loadLabel(_pkg_mgr),
             pkg_name: o.packageName,
             is_enabled: o.enabled,
-            is_system: o.isSystemApp(),
+            is_system: this.isSystemApp(o),
         })).filter(_include);
 
         let _is_system = _getState('is_system');
@@ -1681,6 +2391,19 @@ let ext = {
                 new org.autojs.autojs.model.script.ScriptFile(_file)
             )
         );
+    },
+    /**
+     * @param {android.content.pm.ApplicationInfo} source
+     * @returns {boolean}
+     */
+    isSystemApp(source) {
+        if (!(source instanceof android.content.pm.ApplicationInfo)) {
+            throw Error('Source must be the instance of ApplicationInfo');
+        }
+        if (typeof source.isSystemApp === 'function') {
+            return source.isSystemApp();
+        }
+        return (source.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) !== 0;
     },
 };
 

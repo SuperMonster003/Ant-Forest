@@ -354,7 +354,7 @@ let ext = {
              * @returns {string}
              */
             $_cvt.bytes = function (src, init_unit, options) {
-                return _parse(arguments, {
+                return _parse(src, init_unit, options, {
                     step: 1024, potential_step: 1000,
                     units: ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'],
                 });
@@ -378,7 +378,7 @@ let ext = {
              * @returns {string}
              */
             $_cvt.time = function (src, init_unit, options) {
-                return _parse(arguments, {
+                return _parse(src, init_unit, options, {
                     step: 60,
                     units: ['ms', 1e3, 's', 'm', 'h', 24, 'd'],
                 });
@@ -402,7 +402,7 @@ let ext = {
              * @returns {string}
              */
             $_cvt.linear = function (src, init_unit, options) {
-                return _parse(arguments, {
+                return _parse(src, init_unit, options, {
                     step: 1e3, init_unit: 'mm',
                     units: ['am', 'fm', 'pm', 'nm', 'μm|um', 'mm', 10, 'cm', 10, 'dm', 10, 'm', 'km'],
                 });
@@ -426,7 +426,7 @@ let ext = {
              * @returns {string}
              */
             $_cvt.number = function (src, init_unit, options) {
-                return _parse(arguments, {
+                return _parse(src, init_unit, options, {
                     step: 1e3, space: true,
                     units: ['one', 100, 'hundred', 10, 'thousand', 'million', 'billion',
                         'trillion', 'quadrillion', 'quintillion', 'sextillion', 'septillion',
@@ -588,10 +588,10 @@ let ext = {
 
             // tool function(s) //
 
-            function _parse(args, presets) {
-                let [_src, _init_u, _opt] = args;
-                return $_cvt(_src, Object.assign(
-                    _opt || {}, presets || {}, _init_u === undefined ? {} : {init_unit: _init_u}
+            function _parse(src, init_unit, options, presets) {
+                return $_cvt(src, Object.assign(
+                    init_unit === undefined ? {} : {init_unit: init_unit},
+                    presets || {}, options || {}
                 ));
             }
         }
@@ -867,7 +867,7 @@ let ext = {
                 /**
                  * @function Object.assignDescriptors
                  * @param {{}} o
-                 * @param {...{}} o_with_descriptors
+                 * @param {...{}} descriptors
                  * @example
                  * let o = {
                  *     a: 1,
@@ -883,12 +883,14 @@ let ext = {
                  * log(Object.assignDescriptors(o, {}, p, {}, Object.defineProperty({}, 'd', {get() {return new Date()}})));
                  * log(o.a, o.b, o.c, o.d, o.e);
                  */
-                value(o, o_with_descriptors) {
-                    let _args = [].slice.call(arguments);
-                    let _i = _args.length;
-                    while (_i-- > 1) {
-                        let _descriptors = Object.getOwnPropertyDescriptors(_args[_i]);
-                        Object.defineProperties(o, _descriptors);
+                value(o, descriptors) {
+                    if (descriptors !== undefined) {
+                        let _args = [].slice.call(arguments);
+                        let _i = _args.length;
+                        while (_i-- > 1) {
+                            let _descriptors = Object.getOwnPropertyDescriptors(_args[_i]);
+                            Object.defineProperties(o, _descriptors);
+                        }
                     }
                     return o;
                 },

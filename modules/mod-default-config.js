@@ -181,6 +181,8 @@ module.exports = {
         global_log_cfg_file_pattern: '%d{yyyy-MM-dd/}%m%n',
         global_log_cfg_max_backup_size: 7,
         global_log_cfg_max_file_size: 320, // KB
+        e_dblclick_switch: false,
+        e_rain_switch: false,
     },
     unlock: {
         // when we first met, i do not know your name, your age, or, your sexual orientation, wow...

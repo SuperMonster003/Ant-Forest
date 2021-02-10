@@ -16,8 +16,12 @@
             let path = args[0] || '';
             path = './' + path.replace(/^([./]*)(?=\w)/, '').replace(/(\.js)*$/, '') + '.js';
             for (let i = 0; ; i += 1) {
-                if (files.exists(path)) return [path];
-                if (i === 3) return [args[0]];
+                if (files.exists(path)) {
+                    return [path];
+                }
+                if (i === 3) {
+                    return [args[0]];
+                }
                 path = '.' + path;
             }
         });
@@ -76,7 +80,7 @@
 
         dialogsx.builds(['关于"修改系统设置"权限', _cont.about,
             '适用场景', 'X', '跳转设置页面', 1])
-            .on('neutral', (d) => {
+            .on('neutral', () => {
                 dialogsx.builds(['权限在Auto.js的使用场景',
                     _cont.situation, 0, 0, 'B', 1])
                     .on('positive', ds => ds.dismiss())

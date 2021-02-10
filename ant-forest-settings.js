@@ -109,9 +109,8 @@ let $$init = {
             require('./modules/mod-monster-func').load([
                 'classof', 'messageAction', 'setIntervalBySetTimeout',
                 'timedTaskTimeFlagConverter', 'waitForAndClickAction',
-                'equalObjects', 'deepCloneObject', 'smoothScrollPage',
-                'runJsFile', 'debugInfo', 'timeRecorder',
-                'waitForAction', 'surroundWith',
+                'equalObjects', 'deepCloneObject', 'debugInfo',
+                'timeRecorder', 'waitForAction', 'surroundWith',
             ]);
         }
 
@@ -194,7 +193,7 @@ let $$init = {
                             backward: str => $$tool.timeStrToSection(str),
                         },
                     }, {
-                        interval: '间隔 (分)'
+                        interval: '间隔 (分)',
                     }],
                     timed_tasks: [{
                         type: '任务类型', width: 0.47, stringTransform: {
@@ -404,7 +403,7 @@ let $$init = {
                         dialogsx
                             .builds([
                                 _title, _cfg_conj,
-                                '使用默认值', 'Q', 'M', 1
+                                '使用默认值', 'Q', 'M', 1,
                             ], {inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%'})
                             .on('neutral', (d) => {
                                 dialogsx.setInputText(d, $$sto.def[_def_key][_cfg_conj].join(','));
@@ -545,7 +544,7 @@ let $$init = {
                         return dialogsx
                             .builds([
                                 _title, _content,
-                                _neu_value, _neg_value, _pos_value, 1
+                                _neu_value, _neg_value, _pos_value, 1,
                             ], {
                                 items: _keys.slice().map(k => _map[k]),
                                 itemsSelectMode: 'single',
@@ -681,14 +680,14 @@ let $$init = {
                                 global._$_page_scrolling_locked = true;
                                 let _pool = this.rolling;
                                 if (drxn.match(/back|previous|last/)) {
-                                    smoothScrollPage('right', {
+                                    uix.smoothScrollPage('right', {
                                         onSuccess() {
                                             _pool.pop();
                                             delete global._$_page_scrolling_locked;
                                         },
                                     }, {pages_pool: _pool});
                                 } else {
-                                    smoothScrollPage('left', {
+                                    uix.smoothScrollPage('left', {
                                         onStart: () => _pool.push($$view.pages[nxt]),
                                         onSuccess() {
                                             delete global._$_page_scrolling_locked;
@@ -1457,7 +1456,7 @@ let $$init = {
                                 ]);
                                 _diag.on('neutral', () => {
                                     dialogsx.builds([
-                                        '查看恢复列表', '', 0, 0, 'B', 1
+                                        '查看恢复列表', '', 0, 0, 'B', 1,
                                     ], {
                                         content: '共计 ' + _blist_bak.length + ' 项',
                                         items: (() => {
@@ -1685,7 +1684,7 @@ let $$init = {
                                         return;
                                     }
                                     dialogsx.builds([
-                                        '确认移除此项吗', '', 0, 'B', 'S', 1
+                                        '确认移除此项吗', '', 0, 'B', 'S', 1,
                                     ]).on('negative', (d) => {
                                         d.dismiss();
                                     }).on('positive', (d) => {
@@ -1709,7 +1708,7 @@ let $$init = {
                                         : _diag_def_cnt;
                                     _diag.setContent(_cnt_info);
                                 }
-                            }]
+                            }],
                         ];
                     }
 
@@ -1844,10 +1843,11 @@ let $$init = {
                                         ds.setContent('当前可添加的应用总数: ... ...');
                                         ds.setSelectedIndices([]);
                                         threadsx.start(function () {
-                                            let _items = appx.getInstalledApplications({
-                                                is_system: !!dialogsx.getActionButton(ds, 'negative').match(/隐藏/),
-                                                exclude: _blist_selected.concat(_tmp_selected),
-                                            }).getJointStrArr();
+                                            let _opt = {exclude: _blist_selected.concat(_tmp_selected)};
+                                            if (dialogsx.getActionButton(ds, 'negative').match(/显示/)) {
+                                                _opt.is_system = false;
+                                            }
+                                            let _items = appx.getInstalledApplications(_opt).getJointStrArr();
                                             ui.post(function () {
                                                 ds.setSelectedIndices([]);
                                                 ds.setItems(_items.length ? _items : ['列表为空']);
@@ -1928,7 +1928,7 @@ let $$init = {
                                         : '从列表中选择并添加应用\n或检索选择并添加应用';
                                     diag.setContent(content_info);
                                 }
-                            }]
+                            }],
                         ];
                     }
                 },
@@ -1936,7 +1936,7 @@ let $$init = {
                     let _info_input_view = null;
                     let _input_views_o = {};
                     let {
-                        InputType, SpannableString, style, Spanned, SpannedString
+                        InputType, SpannableString, style, Spanned, SpannedString,
                     } = android.text;
 
                     let _par = params || {};
@@ -2648,7 +2648,7 @@ let $$init = {
                                     is_empty_prompt = false;
                                     dialogsx.builds([
                                         '空列表提示', '当前列表为空\n可能需要点击"刷新"按钮\n刷新后列表将自动更新',
-                                        0, 0, 'K', 1
+                                        0, 0, 'K', 1,
                                     ]).on('positive', ds2 => ds2.dismiss()).show();
                                 }
                                 ui.post(() => {
@@ -2867,7 +2867,7 @@ let $$init = {
                             dialogsx
                                 .builds([
                                     '收取值筛选', '',
-                                    ['R', 'hint'], 'B', 'K', 1
+                                    ['R', 'hint'], 'B', 'K', 1,
                                 ], {
                                     items: _getItems($$sto.af_cfg.get('config', {})[_ds_k]),
                                     itemsSelectMode: 'single',
@@ -2905,7 +2905,7 @@ let $$init = {
                             let _diag = dialogsx
                                 .builds([
                                     '日期统计范围', '',
-                                    ['R', 'hint'], 'B', 'K', 1
+                                    ['R', 'hint'], 'B', 'K', 1,
                                 ], {
                                     items: _getItems({def: $$sto.af_cfg.get('config', {})[_ds_k]}),
                                     itemsSelectMode: 'single',
@@ -3011,7 +3011,7 @@ let $$init = {
                                             item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
                                             range: [_today_sec - _1_day_sec * 29, _today_max_sec],
                                         };
-                                    })()
+                                    })(),
                                 ];
                                 if (!$$und(_def_idx)) {
                                     return _items.map((o, i) => {
@@ -3571,7 +3571,7 @@ let $$init = {
                     if (dialog_prompt) {
                         dialogsx.builds([
                             '刷新好友列表提示', '即将尝试打开"支付宝"\n自动获取最新的好友列表信息\n在此期间请勿操作设备',
-                            0, 'Q', '开始刷新', 1
+                            0, 'Q', '开始刷新', 1,
                         ]).on('negative', (diag) => {
                             diag.dismiss();
                         }).on('positive', (diag) => {
@@ -3588,7 +3588,7 @@ let $$init = {
                         if ($$func(onTrigger)) {
                             onTrigger();
                         }
-                        runJsFile('ant-forest-launcher', {cmd: 'get_rank_list_names'});
+                        filesx.run('launcher$', {cmd: 'get_rank_list_names'});
                         threadsx.start(function () {
                             waitForAndClickAction(text('打开'), 3.5e3, 300, {click_strategy: 'w'});
                         });
@@ -3908,7 +3908,7 @@ let $$init = {
                                     d.dismiss();
                                     dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
-                                        0, 'Q', ['确定忽略', 'caution'], 1
+                                        0, 'Q', ['确定忽略', 'caution'], 1,
                                     ]).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
@@ -4033,7 +4033,7 @@ $$view.setHomePage($$def.homepage_title)
                                         ['要删除以下用户的所有统计数据吗?\n\n' +
                                         '用户昵称:\n' + _name +
                                         '\n\n此操作无法撤销', 'warn'],
-                                        0, 'Q', ['S', 'caution'], 1
+                                        0, 'Q', ['S', 'caution'], 1,
                                     ]).on('negative', (d) => {
                                         d.dismiss();
                                     }).on('positive', (d) => {
@@ -4059,12 +4059,12 @@ $$view.setHomePage($$def.homepage_title)
                 .builds([
                     '还原初始设置', 'restore_all_settings',
                     ['了解内部配置', 'hint'],
-                    'Q', ['全部还原', 'warn'], 1
+                    'Q', ['全部还原', 'warn'], 1,
                 ])
                 .on('neutral', () => {
                     dialogsx.builds([
                         '保留内部配置', 'keep_internal_config',
-                        0, 0, 'C', 1
+                        0, 0, 'C', 1,
                     ]).on('positive', d => d.dismiss()).show();
                 })
                 .on('negative', (d) => {
@@ -4074,13 +4074,13 @@ $$view.setHomePage($$def.homepage_title)
                     dialogsx
                         .builds([
                             '全部还原', '确定要还原全部设置吗',
-                            0, 'Q', ['全部还原', 'caution'], 1
+                            0, 'Q', ['全部还原', 'caution'], 1,
                         ])
                         .on('positive', (ds) => {
                             $$init.config('reset');
 
                             dialogsx.builds([
-                                '还原完毕', '', 0, 0, 'K'
+                                '还原完毕', '', 0, 0, 'K',
                             ]).on('positive', ds2 => dialogsx.dismiss(ds2, ds, d)).show();
                         })
                         .on('negative', ds => ds.dismiss())
@@ -4169,7 +4169,7 @@ $$view.setHomePage($$def.homepage_title)
                                 dialogsx
                                     .builds([
                                         _new_ver_name, _new_ver.brief_info_str,
-                                        ['查看历史更新', 'hint'], 'B', ['立即更新', 'attraction'], 1
+                                        ['查看历史更新', 'hint'], 'B', ['立即更新', 'attraction'], 1,
                                     ])
                                     .on('neutral', () => {
                                         appx.getProjectChangelog(_new_ver_name.match(/v(\d+)/)[1], {
@@ -4261,7 +4261,7 @@ $$view.setHomePage($$def.homepage_title)
                     let _recycle = [
                         {name: 'avatar', src: _local_avt || _avt_det.getImage(), desc: _local_avt_txt},
                         {name: 'alipay', src: _qr_alipay_dnt.getImage(), desc: _dnt_txt},
-                        {name: 'wechat', src: _qr_wechat_dnt.getImage(), desc: _dnt_txt}
+                        {name: 'wechat', src: _qr_wechat_dnt.getImage(), desc: _dnt_txt},
                     ];
 
                     _setAnm('vanish');
@@ -4378,7 +4378,7 @@ $$view.setHomePage($$def.homepage_title)
                             }
                         });
                     } catch (e) {
-                        // nothing to do here...
+                        // nothing to do here
                     }
                 });
 
@@ -4507,7 +4507,7 @@ $$view.page.new('主页能量球循环监测', 'homepage_monitor_page', (t) => {
                             '返检阈值: ' + _min + '\n\n' +
                             '监测阈值不可小于返检阈值\n' +
                             '可设置更大的监测阈值\n' +
-                            '或设置更小的返检阈值', 0, 0, 'B'
+                            '或设置更小的返检阈值', 0, 0, 'B',
                         ]).show();
                     },
                 });
@@ -4556,7 +4556,7 @@ $$view.page.new('主页能量球返检监控', 'homepage_background_monitor_page
                             '监测阈值: ' + _max + '\n\n' +
                             '返检阈值不可大于监测阈值\n' +
                             '可设置更小的返检阈值\n' +
-                            '或设置更大的监测阈值', 0, 0, 'B'
+                            '或设置更大的监测阈值', 0, 0, 'B',
                         ]).show();
                     },
                 });
@@ -4652,7 +4652,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
                     neutral() {
                         dialogsx.builds([
                             '关于排行榜页面滑动策略', 'about_rank_list_scan_strategy',
-                            0, 0, 'C', 1
+                            0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
                 });
@@ -4677,7 +4677,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
                             '0.6: 每次滑动 60% 屏幕距离',
                             true,
                             '安全值: ' + _safe + ' [ ' +
-                            (_safe / H).toFixedNum(2) + ' ]'
+                            (_safe / H).toFixedNum(2) + ' ]',
                         ],
                         positiveAddn(d, input, positiveFunc) {
                             if (input <= _safe) {
@@ -4902,7 +4902,7 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
             newWindow() {
                 dialogsx.builds([
                     '关于排行榜样本复查', 'about_rank_list_review',
-                    0, 0, 'C', 1
+                    0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -5213,7 +5213,7 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
             newWindow() {
                 dialogsx.builds([
                     '关于能量球识别与定位', 'about_eballs_recognition',
-                    0, 0, 'C', 1
+                    0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -5244,16 +5244,16 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                 dialogsx
                     .builds([
                         '设置锁屏解锁密码', _cfg_conj,
-                        ['查看示例', 'hint'], 'B', 'S', 1
+                        ['查看示例', 'hint'], 'B', 'S', 1,
                     ], {inputHint: '密码将以密文形式存储在本地'})
                     .on('neutral', () => {
                         dialogsx.builds([
                             '锁屏密码示例', 'unlock_code_demo',
-                            ['了解点阵简化', 'hint'], 0, 'C', 1
+                            ['了解点阵简化', 'hint'], 0, 'C', 1,
                         ]).on('neutral', () => {
                             dialogsx.builds([
                                 '图案解锁密码简化', 'about_pattern_simplification',
-                                0, 0, 'C', 1
+                                0, 0, 'C', 1,
                             ]).on('positive', ds2 => ds2.dismiss()).show();
                         }).on('positive', ds => ds.dismiss()).show();
                     })
@@ -5274,7 +5274,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                             .builds([
                                 '风险提示', 'unlock_code_safe_confirm',
                                 ['了解详情', 'hint'],
-                                'Q', ['N', 'caution'], 1, 1
+                                'Q', ['N', 'caution'], 1, 1,
                             ])
                             .on('check', (c) => {
                                 _unlk_safe_fg = !!c;
@@ -5282,7 +5282,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                             .on('neutral', () => {
                                 dialogsx.linkify(dialogsx.builds([
                                     '设备遗失对策', 'about_lost_device_solution',
-                                    0, 0, 'C', 1
+                                    0, 0, 'C', 1,
                                 ]).on('positive', ds2 => ds2.dismiss()).show(), 'WEB_URLS');
                             })
                             .on('negative', (ds) => {
@@ -5341,7 +5341,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                     neutral() {
                         dialogsx.builds([
                             '关于提示层页面检测方式', 'about_unlock_dismiss_layer_strategy',
-                            0, 0, 'C', 1
+                            0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
                 });
@@ -5411,7 +5411,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                     neutral() {
                         dialogsx.builds([
                             '关于图案解锁滑动策略', 'about_unlock_pattern_strategy',
-                            0, 0, 'C', 1
+                            0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
                 });
@@ -5655,7 +5655,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             newWindow() {
                 dialogsx.builds([
                     '关于消息提示配置', 'about_message_showing_function',
-                    0, 0, 'C', 1
+                    0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -5711,7 +5711,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
 
                 dialogsx
                     .builds(['本地日志文件路径', _buildContent(),
-                            ['使用默认值', 'reset'], 'B', 'M', 1
+                            ['使用默认值', 'reset'], 'B', 'M', 1,
                         ], {inputHint: '输入路径'}
                     )
                     .on('input_change', d => d.setContent(_buildContent(d.getInputEditText())))
@@ -5805,7 +5805,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                         '%m%n\n%d - [%p::%c::%C] - %m%n\n%d{yyyy-MM-dd HH:mm}%m%n\n\n' +
                         '详情参阅:\nhttp://logging.apache.org/log4j/1.2/apidocs/org/apache/' +
                         'log4j/PatternLayout.html',
-                            ['使用默认值', 'reset'], 'B', 'M', 1
+                            ['使用默认值', 'reset'], 'B', 'M', 1,
                         ], {inputHint: '输入日志写入模式'}
                     )
                     .on('neutral', d => dialogsx.setInputText(d, $$sto.def.af[_cfg_conj].toString()))
@@ -5827,7 +5827,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
             newWindow() {
                 dialogsx.builds([
                     '关于本地日志功能', 'about_global_log_page',
-                    0, 0, 'C', 1
+                    0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -5921,10 +5921,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                     }
                 }
 
-                dialogsx.builds([
-                    '提示', '自动管理机制需至少选择一个',
-                    0, 0, 'B'
-                ]).show();
+                dialogsx.builds(['提示', '自动管理机制需至少选择一个',0, 0, 'B']).show();
             }
 
             function _chkAutoUnlockSw() {
@@ -5934,7 +5931,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                 let timers_prefer_auto_unlock_dialog_prompt_prompted = false;
                 let diag = dialogsx.builds([
                     ['请注意', 'caution'],
-                    'timers_prefer_auto_unlock', 0, 0, ' OK ', 1, 1
+                    'timers_prefer_auto_unlock', 0, 0, ' OK ', 1, 1,
                 ]);
                 diag.on('check', checked => timers_prefer_auto_unlock_dialog_prompt_prompted = !!checked);
                 diag.on('positive', () => {
@@ -6001,7 +5998,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                                 .builds([
                                     ['请注意', 'caution'],
                                     'timers_ahead_prefer_monitor_own',
-                                    0, 'Q', ['K', 'warn'], 1
+                                    0, 'Q', ['K', 'warn'], 1,
                                 ])
                                 .on('negative', ds => ds.dismiss())
                                 .on('positive', ds => _saveSess(ds))
@@ -6010,7 +6007,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                             dialogsx
                                 .builds([
                                     ['请注意', 'caution'], '',
-                                    0, 'Q', ['K', 'warn'], 1
+                                    0, 'Q', ['K', 'warn'], 1,
                                 ], {
                                     content: '当前设置值: ' + input + '\n' +
                                         '主页能量球监测阈值: ' + _hp_mon_thrd + '\n\n' +
@@ -6074,7 +6071,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                                 .builds([
                                     ['请注意', 'caution'],
                                     'timers_ahead_prefer_rank_list_threshold_review',
-                                    0, 'Q', ['K', 'warn'], 1
+                                    0, 'Q', ['K', 'warn'], 1,
                                 ])
                                 .on('negative', ds => ds.dismiss())
                                 .on('positive', ds => _saveSess(ds))
@@ -6083,7 +6080,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                             dialogsx
                                 .builds([
                                     ['请注意', 'caution'], '',
-                                    0, 'Q', ['K', 'warn'], 1
+                                    0, 'Q', ['K', 'warn'], 1,
                                 ], {
                                     content: '当前设置值: ' + input + '\n' +
                                         '排行榜样本复查最小倒计时阈值: ' + _thrd + '\n\n' +
@@ -6185,7 +6182,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                 let _diag = dialogsx
                     .builds([
                         '有效时段管理', '',
-                        '添加时段', 'Q', 'S', 1
+                        '添加时段', 'Q', 'S', 1,
                     ], {
                         items: ['\xa0'],
                     })
@@ -6408,13 +6405,13 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                         '仅以下类型的任务可供编辑:\n\n' +
                                         '1. 一次性任务\n2. 每日任务\n3. 每周任务\n\n' +
                                         '自动管理的任务不提供编辑功能',
-                                        0, 0, 'B', 1
+                                        0, 0, 'B', 1,
                                     ]).on('positive', ds => ds.dismiss()).show();
                                 }
                                 if (!timersx.getTimedTask(task_id)) {
                                     return dialogsx.builds([
                                         '无法编辑', '该任务ID不存在\n可能是任务已自动完成或被删除',
-                                        0, 0, 'B', 1
+                                        0, 0, 'B', 1,
                                     ]).on('positive', ds => ds.dismiss()).show();
                                 }
                                 d.dismiss();
@@ -6485,7 +6482,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
             neutral() {
                 dialogsx.builds([
                     '关于定时任务类型设置', 'about_timed_task_type',
-                    0, 0, 'C', 1
+                    0, 0, 'C', 1,
                 ]).on('positive', ds => ds.dismiss()).show();
             },
             positive: {value: '下一步', listeners: () => null},
@@ -6545,7 +6542,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                 if (!days_of_week.length) return alert('需至少选择一个星期');
                                 closeTimePickerPage({
                                     days_of_week: days_of_week,
-                                    timestamp: getTimeInfoFromPicker(1).timestamp()
+                                    timestamp: getTimeInfoFromPicker(1).timestamp(),
                                 });
                             } else if (type_str === 'disposable') {
                                 let set_time = getTimeInfoFromPicker(0).timestamp();
@@ -6632,7 +6629,7 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                         let {data_source_key_name: _ds_k} = this;
                         let edit_item_diag = dialogsx.builds([
                             '编辑列表项', '点击需要编辑的项',
-                            0, 'B', 'S', 1
+                            0, 'B', 'S', 1,
                         ], {items: ['\xa0']});
 
                         refreshItems();
@@ -6791,7 +6788,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
             dialogsx
                 .builds([
                     '提示', '当前未设置主账户信息\n继续返回将关闭账户功能',
-                    0, '放弃返回', ['继续返回', 'warn'], 1
+                    0, '放弃返回', ['继续返回', 'warn'], 1,
                 ])
                 .on('positive', () => {
                     view['_switch'].setChecked(false);
@@ -6833,7 +6830,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                 $$view.setInfoInputView({
                     input_views: [{
                         type: 'account', text: '账户',
-                        hint_text: '未设置', init: _acc_n
+                        hint_text: '未设置', init: _acc_n,
                     }, {
                         type: 'password', text: '密码',
                         hint_text: () => _acc_c ? '已设置 (点击修改)' : '未设置',
@@ -6845,12 +6842,12 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                 dialogsx
                                     .builds([
                                         '信息录入提示', 'account_info_hint',
-                                        ['了解密码存储', 'hint'], 0, 'C', 1
+                                        ['了解密码存储', 'hint'], 0, 'C', 1,
                                     ])
                                     .on('neutral', () => {
                                         dialogsx.builds([
                                             '密码存储方式', 'how_password_stores',
-                                            0, 0, 'C', 1
+                                            0, 0, 'C', 1,
                                         ]).on('positive', ds => ds.dismiss()).show();
                                     })
                                     .on('positive', d => d.dismiss())
@@ -6877,7 +6874,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                             '提示', '未设置账户时\n' +
                                             '已存在的密码数据将被销毁\n' +
                                             '主账户信息恢复为"未设置"状态\n' +
-                                            '确定继续吗', 0, 'B', 'K', 1
+                                            '确定继续吗', 0, 'B', 'K', 1,
                                         ]);
                                         diag_confirm.on('negative', () => diag_confirm.dismiss());
                                         diag_confirm.on('positive', () => {
@@ -6912,13 +6909,13 @@ $$view.page.new('账户功能', 'account_page', (t) => {
 
                                     let diag = dialogsx.builds([
                                         '主账户信息销毁', 'destroy_main_account_info',
-                                        0, 'B', ['销毁', 'warn']
+                                        0, 'B', ['销毁', 'warn'],
                                     ]);
                                     diag.on('negative', () => diag.dismiss());
                                     diag.on('positive', () => {
                                         let diag_confirm = dialogsx.builds([
                                             '确认销毁吗', '此操作本次会话无法撤销\n销毁后需在首页"保存"生效',
-                                            0, 'Q', ['S', 'caution'], 1
+                                            0, 'Q', ['S', 'caution'], 1,
                                         ]);
                                         diag_confirm.on('negative', () => diag_confirm.dismiss());
                                         diag_confirm.on('positive', () => {
@@ -6941,7 +6938,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                 onClickListener(input_views_obj) {
                                     let diag = dialogsx.builds([
                                         '从支付宝录入信息', 'get_account_name_from_alipay',
-                                        0, 'B', '开始获取', 1
+                                        0, 'B', '开始获取', 1,
                                     ]);
                                     diag.on('negative', () => diag.dismiss());
                                     diag.on('positive', () => {
@@ -6949,7 +6946,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                         $$sto.af.remove(storage_key_name);
                                         toast('即将打开"支付宝"采集当前账户名');
                                         diag.dismiss();
-                                        runJsFile('ant-forest-launcher', {cmd: 'get_current_account_name'});
+                                        filesx.run('launcher$', {cmd: 'get_current_acc_name'});
                                         threadsx.start(function () {
                                             waitForAndClickAction(text('打开'), 3.5e3, 300, {click_strategy: 'w'});
                                         });
@@ -6982,7 +6979,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                                             '提示', '自动填入账户名失败\n' +
                                                             '账户名已复制到剪切板\n' +
                                                             '可手动粘贴至"账户"输入框内',
-                                                            0, 0, 'B', 1
+                                                            0, 0, 'B', 1,
                                                         ]);
                                                         diag.on('negative', () => diag.dismiss());
                                                         diag.show();
@@ -6999,7 +6996,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                 onClickListener() {
                                     dialogsx.builds(['从账户库录入信息', '此功能暂未完成开发', 0, 0, 'B']).show();
                                 },
-                            }]
+                            }],
                         ],
                     },
                 });
@@ -7035,7 +7032,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
         .add('button', new Layout('了解详情', {
             newWindow() {
                 dialogsx.builds([
-                    '关于账户功能', 'about_account_function', 0, 0, 'C', 1
+                    '关于账户功能', 'about_account_function', 0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -7127,7 +7124,7 @@ $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
         .add('button', new Layout('了解详情', {
             newWindow() {
                 dialogsx.builds([
-                    '关于黑名单管理', 'about_blacklist', 0, 0, 'C', 1
+                    '关于黑名单管理', 'about_blacklist', 0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -7416,7 +7413,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                                 '关于自动开启无障碍服务', 'about_auto_enable_a11y_svc',
                                 ['复制授权指令', 'hint'],
                                 ['测试权限', 'hint'],
-                                'C', 1
+                                'C', 1,
                             ])
                             .on('neutral', () => {
                                 let _pkg = context.packageName;
@@ -7436,7 +7433,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                                         '权限测试结果', '测试' + (_res ? '' : '未') + '通过\n\n' +
                                         '此设备' + (_res ? '拥有' : '没有') + '以下权限:\n' +
                                         'WRITE_SECURE_SETTINGS',
-                                        0, 0, 'C', 1
+                                        0, 0, 'C', 1,
                                     ])
                                     .on('positive', (d) => {
                                         d.dismiss();
@@ -7466,7 +7463,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                     neutral() {
                         dialogsx.builds([
                             '关于启动跳板', 'about_app_launch_springboard',
-                            0, 0, 'C', 1
+                            0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
                 });
@@ -7553,7 +7550,7 @@ $$view.page.new('支付宝应用及页面保留', 'kill_when_done_page', (t) => 
         .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
-                    '关于支付宝应用保留', 'about_kill_when_done', 0, 0, 'C', 1
+                    '关于支付宝应用保留', 'about_kill_when_done', 0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))
@@ -7627,6 +7624,46 @@ $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
         }))
         .ready();
 });
+$$view.page.new('能量双击卡', 'e_dblclick_page', (t) => {
+    $$view.setPage(t)
+        .add('switch', new Layout('总开关', {
+            config_conj: 'e_dblclick_switch',
+            listeners: {
+                _switch: {
+                    check(state) {
+                        $$save.session(this.config_conj, !!state);
+                        $$view.showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr(view) {
+                view['_switch'].setChecked(!!$$cfg.ses[this.config_conj]);
+            },
+        }))
+        .add('split_line')
+        .add('subhead', new Layout('基本设置'))
+        .ready();
+});
+$$view.page.new('能量雨', 'e_rain_page', (t) => {
+    $$view.setPage(t)
+        .add('switch', new Layout('总开关', {
+            config_conj: 'e_rain_switch',
+            listeners: {
+                _switch: {
+                    check(state) {
+                        $$save.session(this.config_conj, !!state);
+                        $$view.showOrHideBySwitch(this, state);
+                    },
+                },
+            },
+            updateOpr(view) {
+                view['_switch'].setChecked(!!$$cfg.ses[this.config_conj]);
+            },
+        }))
+        .add('split_line')
+        .add('subhead', new Layout('高级设置'))
+        .ready();
+});
 $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('备份', {color: 'highlight'}))
@@ -7638,7 +7675,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                 $$ses.local_restore_page_updated && dialogsx
                     .builds([
                         _title, 'backup_to_local',
-                        ['添加备注', 'hint'], 'Q', '开始备份', 1
+                        ['添加备注', 'hint'], 'Q', '开始备份', 1,
                     ])
                     .on('neutral', (d) => {
                         d.dismiss();
@@ -7646,7 +7683,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                             .builds([
                                 '为备份添加备注',
                                 '添加备注用于区分不同的项目备份\n留空可删除备注',
-                                [_remark ? '删除备注' : 0, 'caution'], 'Q', 'K', 1
+                                [_remark ? '删除备注' : 0, 'caution'], 'Q', 'K', 1,
                             ], {
                                 inputPrefill: _remark,
                             })
@@ -7919,7 +7956,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                             {key: 'name', desc: '标题'},
                                                             {key: 'tag_name', desc: '标签'},
                                                             {key: 'published_at', desc: '发布'},
-                                                            {key: 'body', desc: '内容描述'}
+                                                            {key: 'body', desc: '内容描述'},
                                                         ].forEach((o) => {
                                                             let _k = o.key;
                                                             if (_k in _list_item) {
@@ -8139,7 +8176,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
         .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
-                    '关于自动检查更新', 'about_update_auto_check', 0, 0, 'C', 1
+                    '关于自动检查更新', 'about_update_auto_check', 0, 0, 'C', 1,
                 ]).on('positive', d => d.dismiss()).show();
             },
         }))

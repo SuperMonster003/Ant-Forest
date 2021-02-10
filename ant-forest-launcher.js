@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Feb 8, 2021
- * @version 2.0.1
+ * @since Feb 11, 2021
+ * @version 2.0.2
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -47,14 +47,21 @@ let $$init = {
 
         function checkModulesMap() {
             void [
-                'mod-treasury-vault', 'mod-database',
-                'mod-monster-func', 'mod-default-config',
-                'mod-pwmap', 'mod-storage', 'mod-unlock',
-                'ext-engines', 'ext-dialogs', 'ext-images', 'ext-timers',
-                'ext-app', 'ext-threads', 'ext-global', 'ext-device'
-            ].filter((mod) => (
-                !files.exists('./modules/' + mod + '.js')
-            )).some((mod, idx, arr) => {
+                'mod-treasury-vault', 'mod-database', 'mod-monster-func',
+                'mod-default-config', 'mod-pwmap', 'mod-storage', 'mod-unlock',
+                'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
+                'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
+            ].filter((mod) => {
+                let _path = './modules/' + mod + '.js';
+                if (files.exists(_path)) {
+                    let _mod = require(_path);
+                    if (typeof _mod.load === 'function') {
+                        _mod.load.call(_mod);
+                    }
+                    return false;
+                }
+                return true;
+            }).some((mod, idx, arr) => {
                 let _str = '';
                 _str += '脚本无法继续|以下模块缺失或路径错误:|';
                 _str += '- - - - - - - - - - - - - - - - -|';
@@ -70,8 +77,8 @@ let $$init = {
         }
 
         function checkSdkAndAJVer() {
-            // do not `require()` before `checkModulesMap()`
-            require('./modules/ext-app').checkSdkAndAJVer();
+            // do not use before `checkModulesMap()`
+            appx.checkSdkAndAJVer();
         }
 
         function checkProviderSettings() {
@@ -96,8 +103,8 @@ let $$init = {
         }
 
         function checkRootAccess() {
-            global._$_autojs_has_root = require('./modules/ext-app').hasRoot();
-            global._$_autojs_has_secure = require('./modules/ext-app').hasSecure();
+            global._$_autojs_has_root = appx.hasRoot();
+            global._$_autojs_has_secure = appx.hasSecure();
         }
 
         function checkAccessibility() {
@@ -111,8 +118,8 @@ let $$init = {
             // tool function(s) //
 
             function _checkSvc() {
-                // do not `require()` before `checkModulesMap()`
-                let _a11y = require('./modules/ext-device').a11y;
+                // do not use before `checkModulesMap()`
+                let _a11y = devicex.a11y;
                 if (_a11y.state()) {
                     return;
                 }
@@ -120,7 +127,6 @@ let $$init = {
                 let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
                 let _pkg_n_perm = context.packageName + ' ' + _perm;
 
-                let _mod_mon = require('./modules/mod-monster-func');
                 let _mod_sto = require('./modules/mod-storage');
                 let $_cfg = _mod_sto.create('af_cfg').get('config', {});
                 if ($_cfg.auto_enable_a11y_svc === 'ON') {
@@ -184,10 +190,10 @@ let $$init = {
                         _msg('已自动开启无障碍服务');
                         _msg('尝试一次项目重启操作');
                         _line();
-                        _mod_mon.restartThisEngine({
-                            debug_info_flag: 'forcible',
+                        enginesx.restart({
+                            debug_info_flag: true,
                             instant_run_flag: false,
-                            max_restart_engine_times: 1,
+                            max_restart_e_times: 1,
                         });
                         sleep(5e3);
                         exit();
@@ -250,13 +256,14 @@ let $$init = {
     },
     global() {
         setGlobalFunctions();
-        setGlobalExtensions();
         setGlobalObjects();
         setGlobalFlags();
         setGlobalLog();
 
         debugInfo('开发者测试日志已启用', 'Up_both_dash');
         debugInfo('设备型号: ' + device.brand + ' ' + device.product);
+
+        devicex.getDisplay(true);
 
         appSetter().setEngine().setTask().setParams().setBlist().setPages().setLayout().init();
         accSetter().setParams().setMain();
@@ -273,12 +280,11 @@ let $$init = {
 
         function setGlobalFunctions() {
             require('./modules/mod-monster-func').load([
+                'messageAction', 'debugInfo', 'timeRecorder', 'clickActionsPipeline',
+                'getSelector', 'equalObjects', 'waitForAndClickAction', 'stabilizer',
                 'clickAction', 'swipeAndShow', 'setIntervalBySetTimeout', 'keycode',
-                'getSelector', 'equalObjects', 'waitForAndClickAction', 'runJsFile',
-                'messageAction', 'debugInfo', 'killThisApp', 'clickActionsPipeline',
-                'waitForAction', 'baiduOcr', 'launchThisApp', 'observeToastMessage',
-                'showSplitLine', 'classof', 'timeRecorder',
-                'surroundWith', 'stabilizer'
+                'waitForAction', 'baiduOcr', 'observeToastMessage', 'showSplitLine',
+                'classof', 'surroundWith',
             ]);
             global.messageAct = function () {
                 return $$flag.msg_details
@@ -288,18 +294,6 @@ let $$init = {
             global.showSplitLineForDebugInfo = () => {
                 $$flag.debug_info_avail && showSplitLine();
             };
-        }
-
-        function setGlobalExtensions() {
-            require('./modules/ext-ui').load();
-            require('./modules/ext-app').load();
-            require('./modules/ext-dialogs').load();
-            require('./modules/ext-threads').load();
-            require('./modules/ext-engines').load();
-            require('./modules/ext-global').load();
-            require('./modules/ext-timers').load();
-            require('./modules/ext-images').load();
-            require('./modules/ext-device').load().getDisplay(true);
         }
 
         function setGlobalObjects() {
@@ -313,7 +307,6 @@ let $$init = {
                 af_cfg: require('./modules/mod-storage').create('af_cfg'),
                 af_blist: require('./modules/mod-storage').create('af_blist'),
                 af_flist: require('./modules/mod-storage').create('af_flist'),
-                treas: require('./modules/mod-treasury-vault'),
             };
             global.$$cfg = Object.assign({},
                 require('./modules/mod-default-config').af,
@@ -324,7 +317,7 @@ let $$init = {
                 files.getSdcardPath() + '/.local/ant_forest.db', 'ant_forest', [
                     {name: 'name', not_null: true},
                     {name: 'timestamp', type: 'integer', primary_key: true},
-                    {name: 'pick', type: 'integer'}
+                    {name: 'pick', type: 'integer'},
                 ]
             );
             global.$$app = {
@@ -447,7 +440,7 @@ let $$init = {
                         let _new_id = _task.id;
 
                         $$sto.af.put('next_auto_task', {
-                            task_id: _new_id, timestamp: ts, type: type
+                            task_id: _new_id, timestamp: ts, type: type,
                         });
 
                         if (!keep_old && _old_id && _old_id !== _new_id) {
@@ -769,7 +762,7 @@ let $$init = {
                                     _launcher(trigger, shared_opt) {
                                         $$app.monitor.launch_confirm.start(0);
                                         $$app.monitor.permission_allow.start(0);
-                                        let _res = launchThisApp(trigger, Object.assign({
+                                        let _res = appx.launch(trigger, Object.assign({
                                             task_name: $$app.task_name,
                                             package_name: $$app.alipay_pkg,
                                             no_message_flag: true,
@@ -878,7 +871,7 @@ let $$init = {
                                 },
                                 rl: {
                                     _launcher(trigger, shared_opt) {
-                                        return launchThisApp(trigger, Object.assign({}, {
+                                        return appx.launch(trigger, Object.assign({}, {
                                             task_name: '好友排行榜',
                                             package_name: $$app.alipay_pkg,
                                             screen_orientation: 0,
@@ -1022,11 +1015,11 @@ let $$init = {
                                     debugInfo('开始部署启动跳板');
 
                                     let _aj_name = $$app.autojs_name;
-                                    let _res = launchThisApp($$app.autojs_pkg, {
+                                    let _res = appx.launch($$app.autojs_pkg, {
                                         app_name: _aj_name,
                                         debug_info_flag: false,
                                         no_message_flag: true,
-                                        first_time_run_message_flag: false,
+                                        is_show_greeting: false,
                                         condition_ready() {
                                             return $$app.page.autojs.is_fg;
                                         },
@@ -1111,7 +1104,7 @@ let $$init = {
                             home(par) {
                                 $$app.monitor.launch_confirm.start(0);
                                 $$app.monitor.permission_allow.start(0);
-                                let _res = launchThisApp($$app.alipay_pkg, Object.assign({
+                                let _res = appx.launch($$app.alipay_pkg, Object.assign({
                                     app_name: '支付宝',
                                     no_message_flag: true,
                                     screen_orientation: 0,
@@ -1126,12 +1119,13 @@ let $$init = {
                             },
                             close() {
                                 debugInfo('关闭支付宝');
-                                let _par = {shell_acceptable: $$app.has_root};
-                                if (!killThisApp($$app.alipay_pkg, _par)) {
-                                    return debugInfo('支付宝关闭超时', 3);
+                                if (appx.kill($$app.alipay_pkg, {
+                                    shell_acceptable: $$app.has_root,
+                                })) {
+                                    debugInfo('支付宝关闭完毕');
+                                    return $$flag.alipay_closed = true;
                                 }
-                                debugInfo('支付宝关闭完毕');
-                                return $$flag.alipay_closed = true;
+                                return debugInfo('支付宝关闭超时', 3);
                             },
                             isInPage() {
                                 return $$sel.get('alipay_home');
@@ -1612,7 +1606,7 @@ let $$init = {
                                 $$app.layout.closeAll();
 
                                 if ($$app.next_auto_task_ts) {
-                                    runJsFile('./tools/show-next-auto-task-countdown-dialog', {
+                                    filesx.run('./tools/show-next-auto-task-countdown-dialog', {
                                         timestamp: $$app.next_auto_task_ts,
                                     });
                                 }
@@ -1773,7 +1767,7 @@ let $$init = {
                                     // Stay hydrated (多喝水)
                                     'WATER.drink().drink()',
                                     // Enjoy your life (享受生活)
-                                    '!~LIFE.search(ENJOYABLE)'
+                                    '!~LIFE.search(ENJOYABLE)',
                                 ];
 
                                 debugInfo('随机挑选提示语');
@@ -1875,12 +1869,12 @@ let $$init = {
                                     '本地版本: ' + $$app.project_ver_name + '\n' +
                                     '最新版本: ' + _newest_ver,
                                     ['忽略此版本', 'warn'], 'X',
-                                    ['查看更新', 'attraction'], 1
+                                    ['查看更新', 'attraction'], 1,
                                 ]).on('neutral', (d) => {
                                     d.dismiss();
                                     dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
-                                        0, 'Q', ['确定忽略', 'caution'], 1
+                                        0, 'Q', ['确定忽略', 'caution'], 1,
                                     ]).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
@@ -2345,7 +2339,7 @@ let $$init = {
                                             timeout_review: [{
                                                 remark: '强制账号列表检查',
                                                 cond: () => _isLoggedIn(),
-                                            }]
+                                            }],
                                         };
 
                                         for (let i = 0; i < 3; i += 1) {
@@ -2613,7 +2607,7 @@ let $$init = {
                                                 function _thdUserAct() {
                                                     let _d = dialogsx.builds([
                                                         '需要密码', 'login_password_needed',
-                                                        0, 0, 'K', 1
+                                                        0, 0, 'K', 1,
                                                     ]).on('positive', d => d.dismiss()).show();
 
                                                     _flag = _waitForCode() && _waitForBtn();
@@ -2708,7 +2702,7 @@ let $$init = {
                                                     messageAction('脚本无法继续', 4, 0, 0, -1);
                                                     messageAction('切换主账户超时', 8, 1, 1, 1);
                                                 },
-                                            }]
+                                            }],
                                         };
 
                                         return _condChecker(_conds);
@@ -2903,9 +2897,18 @@ let $$init = {
                                 // tool function(s) //
 
                                 function _check(img) {
-                                    if (this.checkGreen(img)) {
-                                        let _avt = this.getAvtClip();
-                                        let _res = _avt && imagesx.findImage(_avt, img, {
+                                    if (!imagesx.isImageWrapper(img)) {
+                                        return false;
+                                    }
+                                    let _avt = this.getAvtClip();
+                                    if (!imagesx.isImageWrapper(_avt)) {
+                                        return false;
+                                    }
+                                    let _w = w => $$num(cX(26), '<=', w, '<=', _avt.getWidth());
+                                    let _h = h => $$num(cX(26), '<=', h, '<=', _avt.getHeight());
+                                    let _g = img => this.checkGreen(img);
+                                    if (_w(img.getWidth()) && _h(img.getHeight()) && _g(img)) {
+                                        let _res = imagesx.findImage(_avt, img, {
                                             level: 1,
                                             compress_level: 2,
                                         });
@@ -2914,6 +2917,7 @@ let $$init = {
                                             return true;
                                         }
                                     }
+                                    return false;
                                 }
                             },
                             /** @returns {boolean|ImageWrapper$} */
@@ -2950,7 +2954,7 @@ let $$init = {
                                         ['种树', {className: 'Button'}, 'p1c0'],
                                         [idMatches(/.*home.*panel/), 'c0>0>0'],
                                     ].some((kw) => {
-                                        if (!!(_bnd = $$sel.pickup(kw, 'bounds'))) {
+                                        if ((_bnd = $$sel.pickup(kw, 'bounds'))) {
                                             debugInfo('森林主页头像控件定位成功');
                                             return true;
                                         }
@@ -3822,12 +3826,14 @@ let $$init = {
                     let _sel = () => $$sel.get('reload_fst_page');
                     let _click = () => clickAction(_sel(), 'w');
 
-                    while (sleep(3e3) || true) {
+                    while (1) {
+                        sleep(3e3);
                         _click() && sleep(5e3);
                     }
                 }),
                 af_home_in_page: new Monitor('森林主页页面', function () {
-                    while (sleep(360) || true) {
+                    while (1) {
+                        sleep(360);
                         $$flag.af_home_in_page = !!$$app.page.af.isInPage();
                     }
                 }),
@@ -3866,11 +3872,12 @@ let $$init = {
                             },
                         });
 
-                        while (sleep(120) || true) {
+                        while (1) {
                             if (_sel()) {
                                 debugInfo('已定位排行榜可滚动控件');
                                 return true;
                             }
+                            sleep(120);
                         }
                     }
 
@@ -3878,7 +3885,8 @@ let $$init = {
                         _rl_end_w = null;
                         debugInfo('开始监测列表底部控件描述文本');
 
-                        while (sleep(120) || true) {
+                        while (1) {
+                            sleep(120);
                             let _child_cnt;
                             let _child_w = _list_w;
                             while ((_child_cnt = _child_w.childCount())) {
@@ -3896,7 +3904,8 @@ let $$init = {
                     function _height() {
                         debugInfo('开始监测列表底部控件屏幕高度');
 
-                        while (sleep(120) || true) {
+                        while (1) {
+                            sleep(120);
                             if (_rl_end_w.bounds().height() >= cX(0.04)) {
                                 _rl_end_w.recycle();
                                 debugInfo('列表底部控件高度满足条件');
@@ -4159,7 +4168,7 @@ let $$init = {
                                         1, '记住设置且不再提示'], {
                                         items: _map_keys.map(v => _map[v]),
                                         itemsSelectMode: 'single',
-                                        itemsSelectedIndex: _map_keys.indexOf((_cfg.user_min))
+                                        itemsSelectedIndex: _map_keys.indexOf((_cfg.user_min)),
                                     })
                                     .on('negative', (ds) => {
                                         ds.dismiss();
@@ -4228,179 +4237,179 @@ let $$init = {
         // tool function(s) //
 
         function cmdSetter() {
-            return {
-                cmd: $$app.my_engine_argv.cmd,
-                // property must be set as a getter
-                // or be set outside of this object
-                get cmd_list() {
-                    let _cmd = this.commands;
-                    return {
-                        launch_rank_list: _cmd.lchRl.bind(_cmd),
-                        get_rank_list_names: _cmd.friList.bind(_cmd),
-                        get_current_account_name: _cmd.curAccName.bind(_cmd),
-                    };
+            let _cmd = $$app.my_engine_argv.cmd;
+            /**
+             * @typedef {
+             *     'launch_rank_list'|'get_rank_list_names'|'get_current_acc_name'
+             * } AntForestLauncherCommand
+             */
+            let _commands = {
+                launch_rank_list() {
+                    $$app.page.rl.launch({is_show_greeting: false});
+                    _quit('app');
                 },
-                commands: {
-                    _quit() {
-                        let _aim = Array.from(arguments, s => s.toLowerCase());
-                        _aim = _aim.length ? _aim : ['alipay', 'app'];
-                        _aim.includes('alipay') && $$app.page.alipay.close();
-                        _aim.includes('app') && $$app.exit(true);
-                    },
-                    lchRl() {
-                        $$app.page.rl.launch({first_time_run_message_flag: false});
-                        this._quit('app');
-                    },
-                    friList() {
-                        _launch() && _collect();
-                        this._quit();
+                get_rank_list_names() {
+                    _launch() && _collect();
+                    _quit();
 
-                        // tool function(s) //
+                    // tool function(s) //
 
-                        function _launch() {
-                            timeRecorder('get_rl_data', 'save');
-                            return $$app.page.rl.launch({first_time_run_message_flag: false});
-                        }
+                    function _launch() {
+                        timeRecorder('get_rl_data', 'save');
+                        return $$app.page.rl.launch({is_show_greeting: false});
+                    }
 
-                        function _collect() {
-                            $$app.task_name = surroundWith('好友列表数据采集');
-                            messageAction('正在采集好友列表数据', 1, 1, 0, 2);
+                    function _collect() {
+                        $$app.task_name = surroundWith('好友列表数据采集');
+                        messageAction('正在采集好友列表数据', 1, 1, 0, 2);
 
-                            let _thd_swipe = threadsx.start(_thdSwipe);
-                            $$app.monitor.rl_bottom.start().join(5 * 60e3);
-                            _thd_swipe.interrupt();
+                        let _thd_swipe = threadsx.start(_thdSwipe);
+                        $$app.monitor.rl_bottom.start().join(5 * 60e3);
+                        _thd_swipe.interrupt();
 
-                            let _ls_data = _getListData();
-                            $$sto.af.remove('friends_list_data'); // discarded data
-                            $$sto.af_flist.put('friends_list_data', _ls_data);
+                        let _ls_data = _getListData();
+                        $$sto.af.remove('friends_list_data'); // discarded data
+                        $$sto.af_flist.put('friends_list_data', _ls_data);
 
-                            let _et = timeRecorder('get_rl_data', 'L', 'auto');
-                            let _sum = _ls_data.list_length + ' 项';
-                            messageAction('采集完毕', 1, 1, 0, -1);
-                            messageAction('用时 ' + _et, 1, 0, 1);
-                            messageAction('总计 ' + _sum, 1, 0, 1, 1);
-
-                            // tool function(s) //
-
-                            function _getListData() {
-                                let _data = [];
-                                $$sel.pickup($$app.rex_energy_amt, 'wc').slice(1).forEach((w, i) => {
-                                    let _nick = $$sel.pickup([w, 'p2c2>0>0'], 'txt');
-                                    let _rank = i < 3 ? i + 1 : $$sel.pickup([w, 'p2c0>0'], 'txt');
-                                    _data.push({rank_num: _rank.toString(), nickname: _nick});
-                                });
-
-                                let _max_len = _data[_data.length - 1].rank_num.length;
-                                let _pad = new Array(_max_len).join('0');
-                                _data.map(o => o.rank_num = (_pad + o.rank_num).slice(-_max_len));
-
-                                return {
-                                    timestamp: $$app.ts,
-                                    list_data: _data,
-                                    list_length: _data.length,
-                                };
-                            }
-
-                            // thread function(s) //
-
-                            function _thdSwipe() {
-                                let _dist = $$cfg.rank_list_swipe_distance;
-                                if (_dist < 1) {
-                                    _dist = Math.trunc(_dist * H);
-                                }
-                                let _top = Math.trunc((uH - _dist) / 2);
-                                while (!$$flag.rl_bottom_rch) {
-                                    swipe(halfW, uH - _top, halfW, _top, 150);
-                                }
-                            }
-                        }
-                    },
-                    curAccName() {
-                        timeRecorder('cur_acc_nm');
-
-                        let _name = _byPipeline() || '';
-                        messageAction('采集完毕');
-
-                        let _sto_key = 'collected_current_account_name';
-                        $$sto.af.remove(_sto_key);
-                        $$sto.af.put(_sto_key, _name);
-
-                        let _et = timeRecorder('cur_acc_nm', 'L', 'auto');
+                        let _et = timeRecorder('get_rl_data', 'L', 'auto');
+                        let _sum = _ls_data.list_length + ' 项';
+                        messageAction('采集完毕', 1, 1, 0, -1);
                         messageAction('用时 ' + _et, 1, 0, 1);
-
-                        this._quit();
+                        messageAction('总计 ' + _sum, 1, 0, 1, 1);
 
                         // tool function(s) //
 
-                        function _byPipeline() {
-                            let _name = '';
-                            let _thd_get_name = threadsx.start(_thdGetName);
-                            let _thd_mon_logout = threadsx.start(_thdMonLogout);
+                        function _getListData() {
+                            let _data = [];
+                            $$sel.pickup($$app.rex_energy_amt, 'wc').slice(1).forEach((w, i) => {
+                                let _nick = $$sel.pickup([w, 'p2c2>0>0'], 'txt');
+                                let _rank = i < 3 ? i + 1 : $$sel.pickup([w, 'p2c0>0'], 'txt');
+                                _data.push({rank_num: _rank.toString(), nickname: _nick});
+                            });
 
-                            waitForAction(() => _name || $$flag.acc_logged_out, 12e3);
+                            let _max_len = _data[_data.length - 1].rank_num.length;
+                            let _pad = new Array(_max_len).join('0');
+                            _data.map(o => o.rank_num = (_pad + o.rank_num).slice(-_max_len));
 
-                            _thd_get_name.interrupt();
-                            _thd_mon_logout.interrupt();
+                            return {
+                                timestamp: $$app.ts,
+                                list_data: _data,
+                                list_length: _data.length,
+                            };
+                        }
 
-                            if (_name) {
-                                return _name;
+                        // thread function(s) //
+
+                        function _thdSwipe() {
+                            let _dist = $$cfg.rank_list_swipe_distance;
+                            if (_dist < 1) {
+                                _dist = Math.trunc(_dist * H);
                             }
-
-                            if ($$flag.acc_logged_out) {
-                                messageAction('账户已登出', 3, 1, 0, '2_dash');
-                                delete $$flag.acc_logged_out;
-                            }
-
-                            // thread function(s) //
-
-                            function _thdGetName() {
-                                $$app.task_name = surroundWith('采集当前账户名');
-                                $$app.page.alipay.home();
-
-                                messageAction('正在采集当前账户名', 1, 0, 0, -1);
-
-                                clickActionsPipeline([
-                                    [['我的', 'p1']],
-                                    [idMatches(/.*userinfo_view/)],
-                                    [['个人主页', 'p4']],
-                                    ['支付宝账户', null]], {
-                                    name: '支付宝个人主页',
-                                    default_strategy: 'widget',
-                                });
-
-                                let _txt = '';
-                                let _sel = () => $$sel.pickup(['支付宝账户', 's>1'], 'txt');
-                                waitForAction(() => _txt = _sel(), 2e3);
-
-                                return _name = _txt ? $$acc.encode(_txt) : '';
-                            }
-
-                            function _thdMonLogout() {
-                                delete $$flag.acc_logged_out;
-                                while (!$$acc.isInLoginPg() && !$$sel.get('acc_logged_out')) {
-                                    sleep(500);
-                                }
-                                $$flag.acc_logged_out = true;
+                            let _top = Math.trunc((uH - _dist) / 2);
+                            while (!$$flag.rl_bottom_rch) {
+                                swipe(halfW, uH - _top, halfW, _top, 150);
                             }
                         }
-                    },
+                    }
                 },
+                get_current_acc_name() {
+                    timeRecorder('cur_acc_nm');
+
+                    let _name = _byPipeline() || '';
+                    messageAction('采集完毕');
+
+                    let _sto_key = 'collected_current_account_name';
+                    $$sto.af.remove(_sto_key);
+                    $$sto.af.put(_sto_key, _name);
+
+                    let _et = timeRecorder('cur_acc_nm', 'L', 'auto');
+                    messageAction('用时 ' + _et, 1, 0, 1);
+
+                    _quit();
+
+                    // tool function(s) //
+
+                    function _byPipeline() {
+                        let _name = '';
+                        let _thd_get_name = threadsx.start(_thdGetName);
+                        let _thd_mon_logout = threadsx.start(_thdMonLogout);
+
+                        waitForAction(() => _name || $$flag.acc_logged_out, 12e3);
+
+                        _thd_get_name.interrupt();
+                        _thd_mon_logout.interrupt();
+
+                        if (_name) {
+                            return _name;
+                        }
+
+                        if ($$flag.acc_logged_out) {
+                            messageAction('账户已登出', 3, 1, 0, '2_dash');
+                            delete $$flag.acc_logged_out;
+                        }
+
+                        // thread function(s) //
+
+                        function _thdGetName() {
+                            $$app.task_name = surroundWith('采集当前账户名');
+                            $$app.page.alipay.home();
+
+                            messageAction('正在采集当前账户名', 1, 0, 0, -1);
+
+                            clickActionsPipeline([
+                                [['我的', 'p1']],
+                                [idMatches(/.*userinfo_view/)],
+                                [['个人主页', 'p4']],
+                                ['支付宝账户', null]], {
+                                name: '支付宝个人主页',
+                                default_strategy: 'widget',
+                            });
+
+                            let _txt = '';
+                            let _sel = () => $$sel.pickup(['支付宝账户', 's>1'], 'txt');
+                            waitForAction(() => _txt = _sel(), 2e3);
+
+                            return _name = _txt ? $$acc.encode(_txt) : '';
+                        }
+
+                        function _thdMonLogout() {
+                            delete $$flag.acc_logged_out;
+                            while (!$$acc.isInLoginPg() && !$$sel.get('acc_logged_out')) {
+                                sleep(500);
+                            }
+                            $$flag.acc_logged_out = true;
+                        }
+                    }
+                },
+            };
+
+            return {
                 trigger() {
-                    if (this.cmd) {
-                        if (this.cmd in this.cmd_list) {
+                    if (_cmd) {
+                        if (_cmd in _commands) {
                             return true;
                         }
                         messageAction('脚本无法继续', 4, 0, 0, -1);
                         messageAction('未知的传递指令参数:', 4, 1, 1);
-                        messageAction(this.cmd, 8, 0, 1, 1);
+                        messageAction(_cmd, 8, 0, 1, 1);
                     }
                 },
                 exec() {
-                    debugInfo(['执行传递指令:', this.cmd]);
-                    this.cmd_list[this.cmd]();
+                    debugInfo(['执行传递指令:', _cmd]);
+                    _commands[_cmd]();
                     sleep(4e3);
                 },
             };
+
+            // tool function(s) //
+
+            /** @param {...('alipay'|'app')} [aim] */
+            function _quit(aim) {
+                let _aim = Array.from(arguments, s => s.toLowerCase());
+                _aim = _aim.length ? _aim : ['alipay', 'app'];
+                _aim.includes('alipay') && $$app.page.alipay.close();
+                _aim.includes('app') && $$app.exit(true);
+            }
         }
     },
 };
@@ -4524,23 +4533,18 @@ let $$af = {
                         }
 
                         let _sltr = className('TextView').idContains('tab_description');
-                        if (waitForAction(_sltr, 2e3)) {
-                            return true;
-                        }
-
-                        let _max = 5;
-                        while (_max--) {
-                            killThisApp($$app.alipay_pkg);
-                            app.launch($$app.alipay_pkg);
-                            if (waitForAction(_sltr, 15e3)) {
-                                break;
+                        if (!waitForAction(_sltr, 3e3)) {
+                            let _max = 5;
+                            do {
+                                appx.restart($$app.alipay_pkg);
+                            } while (_max-- || !waitForAction(_sltr, 15e3));
+                            if (_max < 0) {
+                                messageAction('Language switched failed', 4, 1);
+                                messageAction('Homepage failed to get ready', 4, 0, 1);
+                                return false;
                             }
                         }
-                        if (_max >= 0) {
-                            return true;
-                        }
-                        messageAction('Language switched failed', 4, 1);
-                        messageAction('Homepage failed to get ready', 4, 0, 1);
+                        return true;
                     }
                 }
             }
@@ -5390,10 +5394,9 @@ let $$af = {
                      * @returns FriTar
                      */
                     function _getTar(ident) {
-                        return !$$flag.rl_bottom_rch ?
-                            _prop[ident].getTar().sort((a, b) => (
-                                a.icon_y < b.icon_y ? 1 : -1
-                            )) : [];
+                        return _prop[ident].getTar().sort((a, b) => (
+                            a.icon_y < b.icon_y ? 1 : -1
+                        ));
                     }
                 }
 

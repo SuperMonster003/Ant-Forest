@@ -196,8 +196,8 @@ function _setCtdText(t) {
     }, Math.max(3e3, _aim_ts - Date.now()));
 }
 
-function _exitNow(toast_msg) {
+function _exitNow(msg) {
     _diag.dismiss();
-    toast_msg && toast(toast_msg);
+    typeof msg === 'string' && toast(msg);
     exit();
 }

@@ -264,7 +264,7 @@ let ext = {
      */
     builds(props, ext) {
         let [
-            $tt, $cnt, $neu, $neg, $pos, $keep, $cbx
+            $tt, $cnt, $neu, $neg, $pos, $keep, $cbx,
         ] = typeof props === 'string' ? [props] : props;
 
         let _props = {
@@ -277,11 +277,11 @@ let ext = {
         void [
             ['title', $tt, this._colors.title],
             ['content', $cnt, this._colors.content,
-                require('./mod-treasury-vault').dialog_contents || {}
+                require('./mod-treasury-vault').dialog_contents || {},
             ],
             ['neutral', $neu, this._colors.button, this._text._btn],
             ['negative', $neg, this._colors.button, this._text._btn],
-            ['positive', $pos, this._colors.button, this._text._btn]
+            ['positive', $pos, this._colors.button, this._text._btn],
         ].forEach(arr => _parseAndColorUp.apply(null, arr));
 
         return this.build(Object.assign(_props, ext));
@@ -481,8 +481,8 @@ let ext = {
      * @param {...(JsDialog$|MaterialDialog$)} [d]
      */
     dismiss(d) {
-        [].slice.call(arguments).forEach((d) => {
-            typeof d === 'object' && d.dismiss && d.dismiss();
+        (Array.isArray(d) ? d : [].slice.call(arguments)).forEach((o) => {
+            typeof o === 'object' && o.dismiss && o.dismiss();
         });
     },
     /**
