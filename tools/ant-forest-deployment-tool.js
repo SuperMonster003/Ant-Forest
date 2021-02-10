@@ -349,16 +349,18 @@ let $appx = {
                         onDownloadSuccess(r) {
                             $dialogsx.clearProgressNumberFormat(d);
                             // FIXME `resolve(r)` will make a suspension with a small possibility
-                            _result = r;
+                            resolve(_result = r);
                         },
                         onDownloadFailure(e) {
                             // FIXME `reject(e)` will make a suspension with a small possibility
-                            _error = e;
+                            reject(_error = e);
                         },
                     }, {is_async: true});
-                    _waitForAction(() => _result || _error, 0, 120);
-                    _result && resolve(_result);
-                    _error && reject(_error);
+                    $threadsx.start(function () {
+                        _waitForAction(() => _result || _error, 0, 120);
+                        _result && resolve(_result);
+                        _error && reject(_error);
+                    });
                 }),
             }, {
                 desc: _steps.decompress,
@@ -465,7 +467,7 @@ let $appx = {
         if (typeof callback !== 'function') {
             return _getReleases();
         }
-        threads.start(function () {
+        $threadsx.start(function () {
             callback(_getReleases());
         });
 
@@ -609,7 +611,7 @@ let $appx = {
             .on('positive', $dialogsx.dismiss)
             .show();
 
-        threads.start(_getLog);
+        $threadsx.start(_getLog);
 
         // tool function(s) //
 
@@ -1041,7 +1043,7 @@ let $appx = {
         if (typeof callback !== 'function') {
             return _getRelease();
         }
-        threads.start(function () {
+        $threadsx.start(function () {
             callback(_getRelease());
         });
 
@@ -1090,7 +1092,7 @@ let $httpx = {
         let _sum_bytes = threads.atomic(-1);
 
         let _executor = function (resolve) {
-            let _thd = threads.start(function () {
+            let _thd = $threadsx.start(function () {
                 try {
                     let _cxn = new java.net.URL(url).openConnection();
                     _cxn.setRequestProperty('Accept-Encoding', 'identity');
@@ -1104,7 +1106,7 @@ let $httpx = {
                     // nothing to do here
                 }
             });
-            threads.start(function () {
+            $threadsx.start(function () {
                 while (1) {
                     if (_sum_bytes.get() > 0) {
                         return _thd.interrupt();
@@ -1155,7 +1157,7 @@ let $httpx = {
         if (!url) {
             return _onFailure('url for $httpx.okhttp3Request() is required');
         }
-        _opt.is_async === undefined || _opt.is_async ? threads.start(_request) : _request();
+        _opt.is_async === undefined || _opt.is_async ? $threadsx.start(_request) : _request();
 
         // tool function(s) //
 
@@ -1491,7 +1493,7 @@ let $filesx = {
         let _total = 1;
 
         try {
-            return _opt.is_async ? threads.start(_parseLv1Depth) : _parseLv1Depth();
+            return _opt.is_async ? $threadsx.start(_parseLv1Depth) : _parseLv1Depth();
         } catch (e) {
             _onFailure(e);
         }
@@ -1557,7 +1559,7 @@ let $filesx = {
         if (_opt.is_async) {
             return _act();
         }
-        threads.start(_act);
+        $threadsx.start(_act);
 
         // tool function(s) //
 
@@ -1841,7 +1843,7 @@ let $filesx = {
         if (!_opt.is_async) {
             return _act();
         }
-        threads.start(_act);
+        $threadsx.start(_act);
 
         // tool function(s) //
 
@@ -1936,7 +1938,7 @@ let $threadsx = {
      */
     start(f, no_err_msg) {
         try {
-            return threads.start(f);
+            return $threadsx.start(f);
         } catch (e) {
             let _regexp = /(Script)?InterruptedEx|script exiting/;
             if (!e.message.match(_regexp) && !no_err_msg) {

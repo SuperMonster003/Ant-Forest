@@ -4,6 +4,7 @@ require('./ext-global').load('Global');
 require('./ext-files').load();
 require('./ext-dialogs').load();
 require('./ext-http').load();
+require('./ext-threads').load();
 
 let ext = {
     _project_structure: [
@@ -220,7 +221,7 @@ let ext = {
         if (typeof callback !== 'function') {
             return _getReleases();
         }
-        threads.start(function () {
+        threadsx.start(function () {
             callback(_getReleases());
         });
 
@@ -334,7 +335,7 @@ let ext = {
         if (typeof callback !== 'function') {
             return _getRelease();
         }
-        threads.start(function () {
+        threadsx.start(function () {
             callback(_getRelease());
         });
 
@@ -362,7 +363,7 @@ let ext = {
         if (typeof callback !== 'function') {
             return _getRelease();
         }
-        threads.start(function () {
+        threadsx.start(function () {
             callback(_getRelease());
         });
 
@@ -421,7 +422,7 @@ let ext = {
             .on('positive', dialogsx.dismiss)
             .show();
 
-        threads.start(_getLog);
+        threadsx.start(_getLog);
 
         // tool function(s) //
 
@@ -720,32 +721,34 @@ let ext = {
                 action: (v, d) => new Promise((resolve, reject) => {
                     let _result = null;
                     let _error = null;
-                    $httpx.okhttp3Request(_url, _full_path, {
+                    httpx.okhttp3Request(_url, _full_path, {
                         onStart() {
                             let _l = _cont_len / 1024;
                             let _p = _l < 0 ? '' : '0KB/' + _l.toFixed(1) + 'KB';
-                            $dialogsx.setProgressNumberFormat(d, _p);
+                            dialogsx.setProgressNumberFormat(d, _p);
                         },
                         onDownloadProgress(o) {
                             let _p = o.processed / 1024;
                             o.total = Math.max(o.total, _cont_len);
                             let _t = o.total / 1024;
-                            $dialogsx.setProgressNumberFormat(d, '%.1fKB/%.1fKB', [_p, _t]);
+                            dialogsx.setProgressNumberFormat(d, '%.1fKB/%.1fKB', [_p, _t]);
                             d.setProgressData(o);
                         },
                         onDownloadSuccess(r) {
-                            $dialogsx.clearProgressNumberFormat(d);
+                            dialogsx.clearProgressNumberFormat(d);
                             // FIXME `resolve(r)` will make a suspension with a certain possibility
-                            _result = r;
+                            resolve(_result = r);
                         },
                         onDownloadFailure(e) {
                             // FIXME `reject(e)` will make a suspension with a certain possibility
-                            _error = e;
+                            reject(_error = e);
                         },
                     }, {is_async: true});
-                    waitForAction(() => _result || _error, 0, 120);
-                    _result && resolve(_result);
-                    _error && reject(_error);
+                    threadsx.start(function () {
+                        waitForAction(() => _result || _error, 0, 120);
+                        _result && resolve(_result);
+                        _error && reject(_error);
+                    });
                 }),
             }, {
                 desc: _steps.decompress,
@@ -1051,14 +1054,14 @@ let ext = {
                             },
                             onDownloadSuccess(r) {
                                 dialogsx.clearProgressNumberFormat(d);
-                                _result = {zip_src_file: r.downloaded_path};
+                                resolve(_result = {zip_src_file: r.downloaded_path});
                             },
                             onDownloadFailure(e) {
-                                _error = e;
+                                reject(_error = e);
                             },
                         }, {is_async: true});
 
-                        threads.start(function () {
+                        threadsx.start(function () {
                             waitForAction(() => _result || _error, 0, 120);
                             _result && resolve(_result);
                             _error && reject(_error);
@@ -1685,7 +1688,7 @@ let ext = {
 
         if (_dist) {
             _debugInfo('已开启干扰排除线程');
-            _thd_dist = threads.start(function () {
+            _thd_dist = threadsx.start(function () {
                 while (1) {
                     sleep(1.2e3);
                     _dist();

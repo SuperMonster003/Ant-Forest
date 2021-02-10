@@ -1860,24 +1860,27 @@ let $$init = {
                                 debugInfo('发送Floaty结束等待信号');
                                 $$flag.floaty_result_fin = true;
                                 $$flag.cover_user_touched = true;
+                                $$flag.update_dialog_uphold = true;
                                 $$app.layout.closeAll();
 
                                 let _newest = $$app.newest_release;
                                 let _newest_ver = _newest.version_name;
 
-                                dialogsx.builds(['项目更新',
+                                dialogsx.disableBack(dialogsx.builds(['项目更新',
                                     '本地版本: ' + $$app.project_ver_name + '\n' +
                                     '最新版本: ' + _newest_ver,
                                     ['忽略此版本', 'warn'], 'X',
                                     ['查看更新', 'attraction'], 1,
                                 ]).on('neutral', (d) => {
                                     d.dismiss();
-                                    dialogsx.builds([
+                                    timeRecorder('update_dialog_uphold');
+                                    dialogsx.disableBack(dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
                                         0, 'Q', ['确定忽略', 'caution'], 1,
                                     ]).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
+                                        timeRecorder('update_dialog_uphold');
                                     }).on('positive', (ds) => {
                                         ds.dismiss();
                                         let _k = 'update_ignore_list';
@@ -1885,29 +1888,41 @@ let $$init = {
                                         _new[_k] = $$cfg[_k].concat([_newest_ver]);
                                         $$sto.af_cfg.put('config', _new);
                                         $$toast('已忽略当前版本', 'Long');
-                                    }).show();
+                                        delete $$flag.update_dialog_uphold;
+                                    }).show());
                                 }).on('negative', (d) => {
                                     d.dismiss();
-                                    exit(); // just in case
+                                    delete $$flag.update_dialog_uphold;
                                 }).on('positive', (d) => {
                                     d.dismiss();
-                                    dialogsx.builds([
+                                    timeRecorder('update_dialog_uphold');
+                                    dialogsx.disableBack(dialogsx.builds([
                                         '版本详情', _newest.brief_info_str,
                                         ['浏览器查看', 'hint'], 'B',
                                         ['立即更新', 'attraction'], 1,
                                     ]).on('neutral', (ds) => {
                                         ds.dismiss();
                                         app.openUrl(_newest.html_url);
+                                        timeRecorder('update_dialog_uphold');
                                     }).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
+                                        timeRecorder('update_dialog_uphold');
                                     }).on('positive', (ds) => {
                                         appx.deployProject(_newest, {
-                                            onDeployStart: () => ds.dismiss(),
-                                            onDeploySuccess: () => $$app.exit(),
+                                            onDeployStart() {
+                                                ds.dismiss();
+                                                $$flag.update_dialog_deploying = true;
+                                            },
+                                            onDeploySuccess() {
+                                                delete $$flag.update_dialog_uphold;
+                                            },
+                                            onDeployFailure() {
+                                                delete $$flag.update_dialog_uphold;
+                                            },
                                         });
-                                    }).show();
-                                }).show();
+                                    }).show());
+                                }).show());
                             },
                         },
                         screen_turning_off: {
@@ -6626,7 +6641,7 @@ let $$af = {
 
             function _floatyReady() {
                 if ($$flag.floaty_result_set) {
-                    return _cond() || new Promise((reso) => {
+                    return new Promise((reso) => {
                         debugInfo('监测Floaty结束等待信号');
                         timeRecorder('floaty_result_waiting');
                         setIntervalBySetTimeout(function () {
@@ -6640,7 +6655,8 @@ let $$af = {
                         }, 200, function () {
                             if (_cond()) {
                                 debugInfo('检测到Floaty结束等待信号');
-                                return reso() || true;
+                                reso(_updateDialogAsync());
+                                return true;
                             }
                         });
                     });
@@ -6653,6 +6669,28 @@ let $$af = {
                         $$app.layout.closeAll('without_cover');
                         return true;
                     }
+                }
+
+                function _updateDialogAsync() {
+                    return $$flag.update_dialog_uphold ? new Promise((resolve) => {
+                        debugInfo('等待更新对话框结束信号');
+                        timeRecorder('update_dialog_uphold');
+                        let _fin = (msg) => {
+                            debugInfo(msg);
+                            clearInterval(_itv);
+                            resolve(true);
+                        };
+                        let _itv = setInterval(() => {
+                            if (!$$flag.update_dialog_deploying) {
+                                if (!$$flag.update_dialog_uphold) {
+                                    _fin('检测到更新对话框结束信号');
+                                }
+                                if (timeRecorder('update_dialog_uphold', 'L') > 60e3) {
+                                    _fin('放弃等待更新对话框结束信号');
+                                }
+                            }
+                        }, 200);
+                    }) : true;
                 }
             }
 
