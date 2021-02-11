@@ -1938,7 +1938,7 @@ let $threadsx = {
      */
     start(f, no_err_msg) {
         try {
-            return $threadsx.start(f);
+            return threads.start(f);
         } catch (e) {
             let _regexp = /(Script)?InterruptedEx|script exiting/;
             if (!e.message.match(_regexp) && !no_err_msg) {
