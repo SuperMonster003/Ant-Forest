@@ -1,0 +1,15 @@
+{
+    "name": "Ant-Forest-003",
+    "main": "ant-forest-launcher.js", 
+    "ignore": [
+        "build"
+    ],
+    "packageName": "com.sm003.ant.forest",
+    "versionName": "2.0.2",
+    "versionCode": 368,
+    "launchConfig": {
+        "displaySplash": false,
+        "hideLogs": false,
+        "stableMode": false 
+    }
+}
