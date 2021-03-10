@@ -104,13 +104,14 @@ Auto.js 的自动操作主要基于控件与坐标
 
 ##### 下载项目
 
-- [项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) (推荐)
-- [最新版本数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip)
-- [所有版本数据包](https://github.com/SuperMonster003/Ant-Forest/releases)
+- [项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) (*.js) (推荐)
+- [最新版本数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip) (*.zip)
+- [所有版本数据包](https://github.com/SuperMonster003/Ant-Forest/releases) (*.zip)
 
 ##### 直接部署项目
 
 - 注: 此步骤仅针对项目部署工具 (不适用于项目数据包)
+- 注: 浏览器可能会直接浏览文件内容 需另存为或下载得到js格式文件
 - 使用 `Auto.js` 直接运行或导入后运行项目部署工具即可
   
 ##### 解压项目
