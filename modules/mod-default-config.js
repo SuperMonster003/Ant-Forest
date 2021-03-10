@@ -1,7 +1,3 @@
-if (!global.cYx || !global.cX) {
-    require('./ext-device').getDisplay(true);
-}
-
 module.exports = {
     af: {
         // project description
@@ -49,7 +45,7 @@ module.exports = {
         // 50 <= x <= 500; interval between two samples when saving into forest balls samples pool
         forest_balls_pool_itv: 240,
         // rectangle region for energy balls recognition in forest page
-        forest_balls_recog_region: [cX(0.1), cYx(0.15), cX(0.9), cYx(0.45)],
+        eballs_recognition_region: [0.1 /* cX */, 0.15 /* cYx */, 0.9 /* cX */, 0.45 /* cYx */],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
         hough_src_img_strategy: {
             gray: true, // images.grayscale(image)

@@ -5,11 +5,11 @@ require('../modules/ext-device').load().getDisplay(true);
 let [_dx, _dy] = [cX(0.35), cY(0.45)];
 let _rect = [cX(0.35), cY(0.45), cX(0.65), cY(0.55)];
 let [_l, _t, _r, _b] = _rect;
-let _cfg_conj = 'forest_balls_recog_region';
 let $_sto = require('../modules/mod-storage').create('af_cfg');
 let _o = {
     rect: _rect,
-    af_rect: $_sto.get('config', {})[_cfg_conj],
+    af_rect: $_sto.get('config', {}).eballs_recognition_region
+        .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true)),
     seekbar: [
         {title: '左', range: [_l - _dx, _l + _dx, _l]},
         {title: '上', range: [_t - _dy, _t + _dy, _t]},
@@ -94,9 +94,10 @@ function _setWinCtrl() {
             .on('positive', (d) => {
                 d.dismiss();
 
-                let _data = {};
-                _data[_cfg_conj] = _sess_rect;
-                $_sto.put('config', _data);
+                $_sto.put('config', {
+                    eballs_recognition_region: _sess_rect
+                        .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true)),
+                });
 
                 toast('数据已存入项目配置文件');
                 _clearAll();

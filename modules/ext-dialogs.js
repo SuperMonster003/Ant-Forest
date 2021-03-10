@@ -248,9 +248,7 @@ let ext = {
      * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive
      * @typedef {number|boolean} Builds$keep
      * @typedef {number|boolean|string} Builds$checkbox
-     */
-    /**
-     * @param {
+     * @typedef {
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox]|
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep]|
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive]|
@@ -258,8 +256,15 @@ let ext = {
      *     [Builds$title, Builds$content, Builds$neutral]|
      *     [Builds$title, Builds$content]|
      *     [Builds$title]|string
-     * } props
-     * @param {DialogsBuildProperties} [ext]
+     * } Builds$Properties
+     * @typedef {DialogsBuildProperties & {
+     *     disable_back?: boolean|Function,
+     *     linkify?: Dialogsx$Linkify$Mask,
+     * }} Builds$Extensions
+     */
+    /**
+     * @param {Builds$Properties} props
+     * @param {Builds$Extensions} [ext]
      * @returns {JsDialog$}
      */
     builds(props, ext) {
@@ -274,6 +279,8 @@ let ext = {
                 ? $cbx : this._text.no_more_prompt : undefined,
         };
 
+        let _ext = ext || {};
+
         void [
             ['title', $tt, this._colors.title],
             ['content', $cnt, this._colors.content,
@@ -284,16 +291,27 @@ let ext = {
             ['positive', $pos, this._colors.button, this._text._btn],
         ].forEach(arr => _parseAndColorUp.apply(null, arr));
 
-        return this.build(Object.assign(_props, ext));
+        let _diag = this.build(Object.assign(_props, _ext));
+
+        if (_ext.linkify) {
+            this.linkify(_diag);
+        }
+        if (_ext.disable_back) {
+            this.disableBack(_diag, _ext.disable_back);
+        }
+
+        return _diag;
 
         // tool function(s) //
 
         function _parseAndColorUp(key, data, color_lib, text_lib) {
-            let [_text, _color] = Array.isArray(data) ? data : [data];
-            if (_text) {
-                _props[key] = text_lib && text_lib[_text] || _text;
+            if (!_ext[key]) {
+                let [_text, _color] = Array.isArray(data) ? data : [data];
+                if (_text) {
+                    _ext[key] = text_lib && text_lib[_text] || _text;
+                }
+                _ext[key + 'Color'] = color_lib[_color] || _color || color_lib.default;
             }
-            _props[key + 'Color'] = color_lib[_color] || _color || color_lib.default;
         }
     },
     /**
@@ -487,7 +505,7 @@ let ext = {
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
-     * @param {function} [f]
+     * @param {Function} [f]
      * @returns {JsDialog$|MaterialDialog$}
      */
     disableBack(d, f) {
@@ -621,8 +639,11 @@ let ext = {
         });
     },
     /**
+     * @typedef {'ALL'|'EMAIL_ADDRESSES'|'MAP_ADDRESSES'|'PHONE_NUMBERS'|'WEB_URLS'} Dialogsx$Linkify$Mask
+     */
+    /**
      * @param {JsDialog$|MaterialDialog$} d
-     * @param {'ALL'|'EMAIL_ADDRESSES'|'MAP_ADDRESSES'|'PHONE_NUMBERS'|'WEB_URLS'} [mask='ALL']
+     * @param {Dialogsx$Linkify$Mask} [mask='ALL']
      */
     linkify(d, mask) {
         if (d) {
@@ -657,13 +678,9 @@ let ext = {
      * @returns {string}
      */
     getActionButton(d, action) {
-        if (d instanceof com.stardust.autojs.core.ui.dialog.JsDialog) {
-            return d.getActionButton(action);
-        }
-        if (d instanceof com.afollestad.materialdialogs.MaterialDialog) {
-            return d.getActionButton(this.getDialogAction(action)).getText().toString();
-        }
-        throw TypeError('Unknown d of dialogsx.getActionButton');
+        return d instanceof com.afollestad.materialdialogs.MaterialDialog
+            ? d.getActionButton(this.getDialogAction(action)).getText().toString()
+            : d.getActionButton(action);
     },
     /**
      * Compatible for MaterialDialog.setActionButton()
@@ -673,19 +690,15 @@ let ext = {
      * @param {string|null} title
      */
     setActionButton(d, action, title, color) {
-        if (d instanceof com.stardust.autojs.core.ui.dialog.JsDialog) {
-            return ui.run(() => {
+        return d instanceof com.afollestad.materialdialogs.MaterialDialog
+            ? ui.run(() => {
+                d.setActionButton(this.getDialogAction(action), title);
+                color && this.setActionButtonColor(d, action, color);
+            })
+            : ui.run(() => {
                 d.setActionButton(action, title);
                 color && this.setActionButtonColor(d, action, color);
             });
-        }
-        if (d instanceof com.afollestad.materialdialogs.MaterialDialog) {
-            return ui.run(() => {
-                d.setActionButton(this.getDialogAction(action), title);
-                color && this.setActionButtonColor(d, action, color);
-            });
-        }
-        throw TypeError('Unknown d of dialogsx.setActionButton');
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
@@ -698,6 +711,223 @@ let ext = {
             colorsx.toInt(this._colors.wrap(color, 'button'))
         );
         d.getActionButton(_action).setTextColor(_csl);
+    },
+    /**
+     * @param {Builds$Properties} props
+     * @param {Builds$Extensions & {
+     *     timeout?: number,
+     *     timeout_button?: DialogActionButton,
+     *     onNeutral?: function(d:BuildCountdownExtendedJsDialog),
+     *     onNegative?: function(d:BuildCountdownExtendedJsDialog),
+     *     onPositive?: function(d:BuildCountdownExtendedJsDialog),
+     *     onTimeout?: function(d:BuildCountdownExtendedJsDialog):DialogActionButton|DialogActionButton,
+     *     onPause?: function(d:BuildCountdownExtendedJsDialog)|{
+     *         title?: string|[RegExp|string,string],
+     *         content?: string|[RegExp|string,string],
+     *         neutral?: string|[RegExp|string,string],
+     *         negative?: string|[RegExp|string,string],
+     *         positive?: string|[RegExp|string,string],
+     *     },
+     * }} ext
+     * @returns {BuildCountdownExtendedJsDialog}
+     */
+    buildCountdown(props, ext) {
+        let _ext = Object.assign({
+            disable_back: () => _act.pause(100),
+        }, ext);
+
+        let _onNeutral = _ext.onNeutral || (r => r);
+        let _onNegative = _ext.onNegative || (r => r);
+        let _onPositive = _ext.onPositive || (r => r);
+
+        let _onTimeout = _ext.onTimeout;
+        if (typeof _onTimeout !== 'function' && typeof _onTimeout !== 'string') {
+            throw Error('onTimeout for dialogsx.buildCountdown() must be specified');
+        }
+
+        let _signal = 0;
+        let _sec = _ext.timeout || 5;
+        if (_sec > 100) {
+            _sec = Math.round(_sec / 1e3);
+        }
+
+        let _act = {
+            neutral() {
+                this.pause(300);
+                _onNeutral(_diag);
+            },
+            negative() {
+                this.pause(300);
+                _onNegative(_diag);
+            },
+            positive() {
+                _signal = 1;
+                this.pause(100);
+                _onPositive(_diag);
+            },
+            pause(interval) {
+                _thd_et.interrupt();
+                setTimeout(() => {
+                    if (typeof _ext.onPause === 'function') {
+                        return _ext.onPause(_diag);
+                    }
+                    if (typeof _ext.onPause === 'object') {
+                        let _p = _ext.onPause;
+                        if (typeof _p.action === 'function') {
+                            _p.action(_diag);
+                        }
+                        void [{
+                            key: 'title',
+                            get(d) {
+                                return dialogsx.getTitleText(d);
+                            },
+                            set(d, k, v) {
+                                dialogsx.setTitleText(d, v);
+                            },
+                        }, {
+                            key: 'content',
+                            get(d) {
+                                return dialogsx.getContentText(d);
+                            },
+                            set(d, k, v) {
+                                dialogsx.setContentText(d, v);
+                            },
+                        }, {
+                            key: 'neutral',
+                            get(d, k) {
+                                return dialogsx.getActionButton(d, k);
+                            },
+                            set(d, k, v) {
+                                dialogsx.setActionButton(d, k, v);
+                            },
+                        }, {
+                            key: 'negative',
+                            get(d, k) {
+                                return dialogsx.getActionButton(d, k);
+                            },
+                            set(d, k, v) {
+                                dialogsx.setActionButton(d, k, v);
+                            },
+                        }, {
+                            key: 'positive',
+                            get(d, k) {
+                                return dialogsx.getActionButton(d, k);
+                            },
+                            set(d, k, v) {
+                                dialogsx.setActionButton(d, k, v);
+                            },
+                        }].forEach((o) => {
+                            let _k = o.key;
+                            if (_p[_k]) {
+                                if (Array.isArray(_p[_k])) {
+                                    let [_s, _r] = _p[_k];
+                                    o.set(_diag, _k, o.get(_diag, _k).replace(_s, _r));
+                                } else {
+                                    o.set(_diag, _k, _p[_k]);
+                                }
+                            } else {
+                                if (_ext[_k]) {
+                                    o.set(_diag, _k, _ext[_k]);
+                                }
+                            }
+                        });
+                    }
+                }, interval || 800);
+            },
+            /** @param {BuildCountdownExtendedBlockOptions} [o] */
+            block(o) {
+                let _o = o || {};
+                let _onStart = _o.onStart || (r => r);
+                let _onTimeout = _o.onTimeout || (r => r);
+                let _onUnblock = _o.onUnblock || (r => r);
+                let _start = Date.now();
+                let _timeout = _o.timeout || 1;
+                if (_timeout < 100) {
+                    _timeout *= 60e3;
+                }
+
+                _onStart(_diag);
+
+                while (!_signal) {
+                    if (Date.now() - _start > _timeout) {
+                        this.pause(100);
+                        _onTimeout(_diag);
+                    }
+                    sleep(120);
+                }
+
+                _onUnblock(_diag);
+            },
+        };
+
+        let _diag = Object.create(dialogsx.builds(props, _ext)
+                .on('neutral', () => _act.neutral())
+                .on('negative', () => _act.negative())
+                .on('positive', () => _act.positive())
+        );
+
+        /**
+         * @typedef {{
+         *     timeout?: number,
+         *     onStart?: function(d:BuildCountdownExtendedJsDialog),
+         *     onTimeout?: function(d:BuildCountdownExtendedJsDialog),
+         *     onUnblock?: function(d:BuildCountdownExtendedJsDialog),
+         * }} BuildCountdownExtendedBlockOptions
+         * @typedef {{
+         *     act: function(): BuildCountdownExtendedJsDialog,
+         *     block: function(o:BuildCountdownExtendedBlockOptions): BuildCountdownExtendedJsDialog,
+         * }} BuildCountdownExtended
+         */
+        /** @typedef {JsDialog$ & BuildCountdownExtended} BuildCountdownExtendedJsDialog */
+        let _diag_ext = {
+            act() {
+                _diag.isShowing() || _diag.show();
+                return _diag_mixed;
+            },
+            /**
+             * @param {BuildCountdownExtendedBlockOptions} [o]
+             * @returns {BuildCountdownExtendedJsDialog}
+             */
+            block(o) {
+                _act.block(o);
+                return _diag_mixed;
+            },
+        };
+
+        let _diag_mixed = Object.assign(_diag, _diag_ext);
+
+        let _thd_et = threads.start(function () {
+            let _cont = dialogsx.getContentText(_diag);
+            let _rex = /%timeout%/;
+            let _setContent = _cont.match(_rex) ? function (t) {
+                _diag.setContent(_cont.replace(_rex, t.toString()));
+            } : (r => r);
+
+            let _btn = _ext.timeout_button;
+            let _btn_str = _btn && _diag.getActionButton(_btn);
+            let _setButton = _btn ? function (t) {
+                _diag.setActionButton(_btn, _btn_str + '  [ ' + t + ' ]');
+            } : (r => r);
+
+            let _itv = 1e3;
+            while (1) {
+                _setContent(_sec);
+                _setButton(_sec);
+                if (_sec <= 0) {
+                    break;
+                }
+                _sec -= _itv / 1e3;
+                sleep(_itv);
+            }
+
+            let _act_tar = _onTimeout;
+            if (typeof _act_tar === 'function') {
+                _act_tar = _onTimeout(_diag);
+            }
+            _act[_act_tar].call(_act);
+        });
+
+        return _diag_mixed;
     },
     /**
      * Build a dialog with flow steps
@@ -766,163 +996,156 @@ let ext = {
     buildFlow(config) {
         let _dialogsx = this;
 
-        return Object.create(this.builds([
-                config.title || '', config.steps.map((step, i) => (
-                    '\u3000 ' + ++i + '. ' + step.desc
-                )).join('\n'), 0, 0, 'I', 1], {
-                progress: {max: 100, showMinMax: !!config.show_min_max},
-            }),
-            /**
-             * @typedef {{
-             *     act:function():BuildFlowExtendedJsDialog,
-             *     setStepDesc:function(step_num:string|number,desc:string,is_append:boolean=false):BuildFlowExtendedJsDialog,
-             *     setProgressData:function({processed:number,total:number}):BuildFlowExtendedJsDialog,
-             *     setFailureData:function(error:string|Error):BuildFlowExtendedJsDialog,
-             * }} BuildFlowExtended
-             */
-            /** @typedef {JsDialog$ & BuildFlowExtended} BuildFlowExtendedJsDialog */
-            {
-                act: {
-                    value() {
-                        let _promise = new Promise((resolve) => {
-                            this.on('positive', () => {
-                                global._$_dialog_flow_interrupted = true;
-                            });
-                            if (typeof config.onStart === 'function') {
-                                config.onStart(config.initial_value, this);
-                            }
-                            resolve(config.initial_value);
-                        });
+        let _diag = Object.create(_dialogsx.builds([
+            config.title || '', config.steps.map((step, i) => (
+                '\u3000 ' + ++i + '. ' + step.desc
+            )).join('\n'), 0, 0, 'I', 1], {
+            progress: {max: 100, showMinMax: !!config.show_min_max},
+        }));
 
-                        config.steps.forEach((step, idx) => {
-                            _promise = _promise.then((value) => {
-                                if (global._$_dialog_flow_interrupted) {
-                                    throw Error(_dialogsx._text.user_interrupted);
-                                }
-                                let _fin = (result) => {
-                                    this.setProgress(100);
-                                    _setStepsFinished.call(this, idx + 1);
-                                    step.onSuccess && step.onSuccess(value);
-                                    return result;
-                                };
-                                this.setProgress(0);
-                                _setStepOnProgress.call(this, idx + 1);
-                                let _result = step.action(value, this);
-                                if (_result instanceof Promise) {
-                                    _result = _result.then(_fin);
-                                    return _result;
-                                }
-                                return _fin(_result);
-                            }, step.onFailure);
-                        });
+        /**
+         * @typedef {{
+         *     act:function():BuildFlowExtendedJsDialog,
+         *     setStepDesc:function(step_num:number,desc:string,is_append:boolean=false):BuildFlowExtendedJsDialog,
+         *     setProgressData:function({processed:number,total:number}):BuildFlowExtendedJsDialog,
+         *     setFailureData:function(error:string|Error):BuildFlowExtendedJsDialog,
+         * }} BuildFlowExtended
+         */
+        /** @typedef {JsDialog$ & BuildFlowExtended} BuildFlowExtendedJsDialog */
+        let _diag_ext = {
+            act() {
+                let _promise = new Promise((resolve) => {
+                    _diag.on('positive', () => {
+                        global._$_dialog_flow_interrupted = true;
+                    });
+                    if (typeof config.onStart === 'function') {
+                        config.onStart(config.initial_value, _diag);
+                    }
+                    resolve(config.initial_value);
+                });
 
-                        _promise = _promise.then((res) => {
-                            if (global._$_dialog_flow_interrupted) {
-                                throw Error(_dialogsx._text.user_interrupted);
-                            }
-                            _dialogsx.setProgressColorTheme(this, 'finish');
-
-                            _setStepsFinished.call(this, 'all');
-
-                            this.removeAllListeners('positive');
-                            this.setActionButton('positive', _dialogsx._text._btn.F);
-                            this.on('positive', d => d.dismiss());
-
-                            let _title = config.success_title;
-                            _title && _dialogsx.setTitleText(this, _title);
-
-                            let _cont = config.success_content;
-                            _cont && _dialogsx.appendContentText(this, '\n\n' + _cont);
-
-                            delete global._$_dialog_flow_interrupted;
-
-                            if (typeof config.onSuccess === 'function') {
-                                config.onSuccess(res, this);
-                            }
-                        });
-
-                        _promise.catch((err) => {
-                            _dialogsx.setProgressColorTheme(this, 'error');
-
-                            this.removeAllListeners('positive');
-                            this.setActionButton('positive', _dialogsx
-                                ._text._btn[config.on_interrupt_btn_text || 'B']
-                            );
-                            this.on('positive', d => d.dismiss());
-
-                            _dialogsx.alertContent(this, err, 'append');
-
-                            delete global._$_dialog_flow_interrupted;
-
-                            if (typeof config.onFailure === 'function') {
-                                config.onFailure(err, this);
-                            }
-                        });
-
-                        this.isShowing() || this.show();
-
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setStepDesc: {
-                    value(step_num, desc, is_append) {
-                        if (step_num < 1) {
-                            throw Error('step_num is less than 1');
+                config.steps.forEach((step, idx) => {
+                    _promise = _promise.then((value) => {
+                        if (global._$_dialog_flow_interrupted) {
+                            throw Error(_dialogsx._text.user_interrupted);
                         }
-                        if (step_num >= config.steps.length) {
-                            throw Error('step_num must be less than steps length');
+                        let _fin = (result) => {
+                            _diag.setProgress(100);
+                            _setStepsFinished(idx + 1);
+                            step.onSuccess && step.onSuccess(value);
+                            return result;
+                        };
+                        _diag.setProgress(0);
+                        _setStepOnProgress(idx + 1);
+                        let _result = step.action(value, _diag);
+                        if (_result instanceof Promise) {
+                            _result = _result.then(_fin);
+                            return _result;
                         }
-                        let _step_num = step_num.toString();
-                        let _view = this.getContentView();
-                        let _content = _view.getText().toString();
-                        let _aim_str = config.steps[_step_num - 1].desc;
-                        if (_content.match(_aim_str)) {
-                            let _text = (is_append ? _aim_str : '') + (desc || '');
-                            _view.setText(_content.replace(_aim_str, _text));
-                        }
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setProgressData: {
-                    value(data) {
-                        if (typeof data === 'object') {
-                            let _num = data.processed / data.total * 100 || 0;
-                            this.setProgress(Math.min(Math.max(0, _num), 100));
-                        }
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setFailureData: {
-                    value(error) {
-                        this.setActionButton('positive', _dialogsx._text._btn.B);
-                        this.removeAllListeners('positive');
-                        this.on('positive', d => d.dismiss());
-                        _dialogsx.alertContent(this, error, 'append');
-                        return this;
-                    },
-                    enumerable: true,
-                },
-            });
+                        return _fin(_result);
+                    }, step.onFailure);
+                });
+
+                _promise = _promise.then((res) => {
+                    if (global._$_dialog_flow_interrupted) {
+                        throw Error(_dialogsx._text.user_interrupted);
+                    }
+                    _dialogsx.setProgressColorTheme(_diag, 'finish');
+
+                    _setStepsFinished('all');
+
+                    _diag.removeAllListeners('positive');
+                    _diag.setActionButton('positive', _dialogsx._text._btn.F);
+                    _diag.on('positive', d => d.dismiss());
+
+                    let _title = config.success_title;
+                    _title && _dialogsx.setTitleText(_diag, _title);
+
+                    let _cont = config.success_content;
+                    _cont && _dialogsx.appendContentText(_diag, '\n\n' + _cont);
+
+                    delete global._$_dialog_flow_interrupted;
+
+                    if (typeof config.onSuccess === 'function') {
+                        config.onSuccess(res, _diag);
+                    }
+                });
+
+                _promise.catch((err) => {
+                    _dialogsx.setProgressColorTheme(_diag, 'error');
+
+                    _diag.removeAllListeners('positive');
+                    _diag.setActionButton('positive', _dialogsx
+                        ._text._btn[config.on_interrupt_btn_text || 'B']
+                    );
+                    _diag.on('positive', d => d.dismiss());
+
+                    _dialogsx.alertContent(_diag, err, 'append');
+
+                    delete global._$_dialog_flow_interrupted;
+
+                    if (typeof config.onFailure === 'function') {
+                        config.onFailure(err, _diag);
+                    }
+                });
+
+                _diag.isShowing() || _diag.show();
+
+                return _diag_mixed;
+            },
+            setStepDesc(step_num, desc, is_append) {
+                if (step_num < 1) {
+                    throw Error('step_num is less than 1');
+                }
+                if (step_num >= config.steps.length) {
+                    throw Error('step_num must be less than steps length');
+                }
+                let _step_num = step_num.toString();
+                let _view = _diag.getContentView();
+                let _content = _view.getText().toString();
+                let _aim_str = config.steps[_step_num - 1].desc;
+                if (_content.match(_aim_str)) {
+                    let _text = (is_append ? _aim_str : '') + (desc || '');
+                    _view.setText(_content.replace(_aim_str, _text));
+                }
+                return _diag_mixed;
+            },
+            setProgressData(data) {
+                if (typeof data === 'object') {
+                    let _num = data.processed / data.total * 100 || 0;
+                    _diag.setProgress(Math.min(Math.max(0, _num), 100));
+                }
+                return _diag_mixed;
+            },
+            setFailureData(error) {
+                _diag.setActionButton('positive', _dialogsx._text._btn.B);
+                _diag.removeAllListeners('positive');
+                _diag.on('positive', d => d.dismiss());
+                _dialogsx.alertContent(_diag, error, 'append');
+                return _diag_mixed;
+            },
+        };
+
+        let _diag_mixed = Object.assign(_diag, _diag_ext);
+
+        return _diag_mixed;
 
         // tool function(s) //
 
         function _setStepsFinished(ctr) {
             let _ctr = ctr === 'all' || !ctr ? Infinity : ctr;
-            let _cont = _dialogsx.getContentText(this);
+            let _cont = _dialogsx.getContentText(_diag);
             let _rex = /^(. )(\d)(?=\.)/gm;
-            _dialogsx.setContentText(this, _cont.replace(_rex, ($0, $1, $2) => (
+            _dialogsx.setContentText(_diag, _cont.replace(_rex, ($0, $1, $2) => (
                 ($2 <= _ctr ? '\u2714 ' : $1) + $2
             )));
         }
 
         function _setStepOnProgress(num) {
             let _num = num.toString();
-            let _cont = _dialogsx.getContentText(this);
+            let _cont = _dialogsx.getContentText(_diag);
             let _rex = /^(. )(\d)(?=\.)/gm;
-            _dialogsx.setContentText(this, _cont.replace(_rex, ($0, $1, $2) => (
+            _dialogsx.setContentText(_diag, _cont.replace(_rex, ($0, $1, $2) => (
                 ($2 === _num ? '\u25b6 ' : $1) + $2
             )));
         }
@@ -959,113 +1182,106 @@ let ext = {
      */
     buildProgress(config) {
         let _dialogsx = this;
-        return Object.create(this.builds([
-                config.title || '', config.content || config.desc || '', 0, 0, 'I', 1,
-            ], {progress: {max: 100, showMinMax: !!config.show_min_max}}),
-            /**
-             * @typedef {{
-             *     act:function():BuildProgressExtendedJsDialog,
-             *     setStepDesc:function(desc:string,is_append:boolean=false):BuildProgressExtendedJsDialog,
-             *     setProgressData:function({processed:number,total:number}):BuildProgressExtendedJsDialog,
-             *     setFailureData:function(error:string|Error):BuildProgressExtendedJsDialog,
-             * }} BuildProgressExtended
-             */
-            /** @typedef {JsDialog$ & BuildProgressExtended} BuildProgressExtendedJsDialog */
-            {
-                act: {
-                    value() {
-                        Promise.resolve(config.initial_value)
-                            .then((value) => {
-                                if (typeof config.onStart === 'function') {
-                                    config.onStart(config.initial_value, this);
-                                }
-                                return value;
-                            })
-                            .then((value) => {
-                                this.on('positive', () => {
-                                    global._$_dialog_flow_interrupted = true;
-                                });
-                                if (global._$_dialog_flow_interrupted) {
-                                    throw Error(_dialogsx._text.user_interrupted);
-                                }
-                                return config.action(value, this);
-                            })
-                            .then((res) => {
-                                if (global._$_dialog_flow_interrupted) {
-                                    throw Error(_dialogsx._text.user_interrupted);
-                                }
-                                _dialogsx.setProgressColorTheme(this, 'finish');
+        let _diag = Object.create(_dialogsx.builds([
+            config.title || '', config.content || config.desc || '', 0, 0, 'I', 1,
+        ], {progress: {max: 100, showMinMax: !!config.show_min_max}}));
 
-                                this.setProgress(100);
-                                this.removeAllListeners('positive');
-                                this.setActionButton('positive', _dialogsx._text._btn.F);
-                                this.on('positive', d => d.dismiss());
-
-                                let _title = config.success_title;
-                                _title && _dialogsx.setTitleText(this, _title);
-
-                                let _cont = config.success_content;
-                                _cont && _dialogsx.appendContentText(this, '\n\n' + _cont);
-
-                                delete global._$_dialog_flow_interrupted;
-
-                                if (typeof config.onSuccess === 'function') {
-                                    config.onSuccess(res, this);
-                                }
-                            })
-                            .catch((err) => {
-                                _dialogsx.setProgressColorTheme(this, 'error');
-                                this.removeAllListeners('positive');
-                                this.setActionButton('positive', _dialogsx
-                                    ._text._btn[config.on_interrupt_btn_text || 'B']
-                                );
-                                this.on('positive', d => d.dismiss());
-
-                                _dialogsx.alertContent(this, err, 'append');
-
-                                delete global._$_dialog_flow_interrupted;
-
-                                if (typeof config.onFailure === 'function') {
-                                    config.onFailure(err, this);
-                                }
-                            });
-
-                        this.isShowing() || this.show();
-
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setStepDesc: {
-                    value(desc, is_append) {
-                        let _view = this.getContentView();
-                        let _content = _view.getText().toString();
-                        let _aim_str = config.content || '';
-                        if (_content.match(_aim_str)) {
-                            let _text = (is_append ? _aim_str : '') + (desc || '');
-                            _view.setText(_content.replace(_aim_str, _text));
+        /**
+         * @typedef {{
+         *     act:function():BuildProgressExtendedJsDialog,
+         *     setStepDesc:function(desc:string,is_append:boolean=false):BuildProgressExtendedJsDialog,
+         *     setProgressData:function({processed:number,total:number}):BuildProgressExtendedJsDialog,
+         *     setFailureData:function(error:string|Error):BuildProgressExtendedJsDialog,
+         * }} BuildProgressExtended
+         */
+        /** @typedef {JsDialog$ & BuildProgressExtended} BuildProgressExtendedJsDialog */
+        let _diag_ext = {
+            act() {
+                Promise.resolve(config.initial_value)
+                    .then((value) => {
+                        if (typeof config.onStart === 'function') {
+                            config.onStart(config.initial_value, _diag);
                         }
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setProgressData: {
-                    value(data) {
-                        this.setProgress(data.processed / data.total * 100);
-                        return this;
-                    },
-                    enumerable: true,
-                },
-                setFailureData: {
-                    value(error) {
-                        this.setActionButton('positive', _dialogsx._text._btn.B);
-                        this.on('positive', d => d.dismiss());
-                        _dialogsx.alertContent(this, error, 'append');
-                        return this;
-                    },
-                    enumerable: true,
-                },
-            });
+                        return value;
+                    })
+                    .then((value) => {
+                        _diag.on('positive', () => {
+                            global._$_dialog_flow_interrupted = true;
+                        });
+                        if (global._$_dialog_flow_interrupted) {
+                            throw Error(_dialogsx._text.user_interrupted);
+                        }
+                        return config.action(value, _diag);
+                    })
+                    .then((res) => {
+                        if (global._$_dialog_flow_interrupted) {
+                            throw Error(_dialogsx._text.user_interrupted);
+                        }
+                        _dialogsx.setProgressColorTheme(_diag, 'finish');
+
+                        _diag.setProgress(100);
+                        _diag.removeAllListeners('positive');
+                        _diag.setActionButton('positive', _dialogsx._text._btn.F);
+                        _diag.on('positive', d => d.dismiss());
+
+                        let _title = config.success_title;
+                        _title && _dialogsx.setTitleText(_diag, _title);
+
+                        let _cont = config.success_content;
+                        _cont && _dialogsx.appendContentText(_diag, '\n\n' + _cont);
+
+                        delete global._$_dialog_flow_interrupted;
+
+                        if (typeof config.onSuccess === 'function') {
+                            config.onSuccess(res, _diag);
+                        }
+                    })
+                    .catch((err) => {
+                        _dialogsx.setProgressColorTheme(_diag, 'error');
+                        _diag.removeAllListeners('positive');
+                        _diag.setActionButton('positive', _dialogsx
+                            ._text._btn[config.on_interrupt_btn_text || 'B']
+                        );
+                        _diag.on('positive', d => d.dismiss());
+
+                        _dialogsx.alertContent(_diag, err, 'append');
+
+                        delete global._$_dialog_flow_interrupted;
+
+                        if (typeof config.onFailure === 'function') {
+                            config.onFailure(err, _diag);
+                        }
+                    });
+
+                _diag.isShowing() || _diag.show();
+
+                return _diag_mixed;
+            },
+            setStepDesc(desc, is_append) {
+                let _view = _diag.getContentView();
+                let _content = _view.getText().toString();
+                let _aim_str = config.content || '';
+                if (_content.match(_aim_str)) {
+                    let _text = (is_append ? _aim_str : '') + (desc || '');
+                    _view.setText(_content.replace(_aim_str, _text));
+                }
+                return _diag_mixed;
+            },
+            setProgressData(data) {
+                _diag.setProgress(data.processed / data.total * 100);
+                return _diag_mixed;
+            },
+            setFailureData(error) {
+                _diag.setActionButton('positive', _dialogsx._text._btn.B);
+                _diag.on('positive', d => d.dismiss());
+                _dialogsx.alertContent(_diag, error, 'append');
+                return _diag_mixed;
+            },
+        };
+
+        let _diag_mixed = Object.assign(_diag, _diag_ext);
+
+        return _diag_mixed;
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d

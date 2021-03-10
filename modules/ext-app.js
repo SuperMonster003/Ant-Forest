@@ -1,11 +1,5 @@
 global.appx = typeof global.appx === 'object' ? global.appx : {};
 
-require('./ext-global').load('Global');
-require('./ext-files').load();
-require('./ext-dialogs').load();
-require('./ext-http').load();
-require('./ext-threads').load();
-
 let ext = {
     _project_structure: [
         {name: '/documents'},
@@ -157,12 +151,12 @@ let ext = {
         let _main = _path + '/ant-forest-launcher.js';
         try {
             if (files.exists(_json)) {
-                let _o = JSON.parse(files.read(_json));
+                let _o = JSON.parse(filesx.read(_json));
                 _main = _o.main;
                 _ver_name = 'v' + _o.versionName;
                 _ver_code = Number(_o.versionCode);
             } else {
-                _ver_name = 'v' + files.read(_main)
+                _ver_name = 'v' + filesx.read(_main)
                     .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
             }
         } catch (e) {
@@ -236,15 +230,15 @@ let ext = {
             let _p_diag = null;
             delete global._$_get_proj_releases_interrupted;
             if (_opt.show_progress_dialog) {
-                dialogsx.setProgressColorTheme(_p_diag = dialogsx.build({
-                    content: '正在获取版本信息...',
+                dialogsx.setProgressColorTheme(_p_diag = dialogsx.builds([
+                    null, '正在获取版本信息...', 0, 0, 'I', 1,
+                ], {
                     progress: {max: -1, showMinMax: false, horizontal: true},
-                    positive: 'I',
+                    disable_back: true,
                 }).on('positive', (d) => {
                     d.dismiss();
                     global._$_get_proj_releases_interrupted = true;
                 }).show(), 'indeterminate');
-                dialogsx.disableBack(_p_diag);
             }
 
             let _max_items = _opt.max_items || Infinity;
@@ -292,32 +286,30 @@ let ext = {
              * @returns {GithubReleasesResponseExtendedListItem}
              */
             function _extend(o) {
-                let _labels = {
-                    name: '标题',
-                    tag_name: '标签',
-                    body: '内容描述',
-                };
-                let _cvt_date = global.$$cvt && $$cvt.date(
-                    new Date(o.published_at), 'yyyy/MM/dd hh:mm:ss'
-                );
-                if (_cvt_date) {
-                    o.locale_published_at = _cvt_date;
-                    _labels.locale_published_at = '发布';
-                } else {
-                    _labels.published_at = '发布';
-                }
                 o.version_name = o.tag_name;
-                o.brief_info_str = Object.keys(_labels).map((k) => {
-                    let _v = o[k];
+
+                o.brief_info_str = [
+                    {key: 'name', desc: '标题'},
+                    {key: 'tag_name', desc: '标签'},
+                    {
+                        key: 'published_at', desc: '发布',
+                        cvt: typeof $$cvt !== 'undefined' && $$cvt.date,
+                    },
+                    {key: 'body', desc: '内容描述'},
+                ].map((info) => {
+                    let _k = info.key;
+                    let _v = o[_k];
                     if (_v) {
-                        let _lbl = _labels[k];
-                        if (k === 'body') {
+                        if (_k === 'body') {
                             _v = '\n' + _v;
                         }
-                        return _lbl + ': ' + _v;
+                        if (typeof info.cvt === 'function') {
+                            _v = info.cvt.call(null, _v);
+                        }
+                        return info.desc + ': ' + _v;
                     }
-                    return '';
                 }).filter(s => !!s).join('\n\n');
+
                 return o;
             }
         }
@@ -737,17 +729,16 @@ let ext = {
                         onDownloadSuccess(r) {
                             dialogsx.clearProgressNumberFormat(d);
                             // FIXME `resolve(r)` will make a suspension with a certain possibility
-                            resolve(_result = r);
+                            _result = r;
                         },
                         onDownloadFailure(e) {
                             // FIXME `reject(e)` will make a suspension with a certain possibility
-                            reject(_error = e);
+                            _error = e;
                         },
                     }, {is_async: true});
                     threadsx.start(function () {
                         waitForAction(() => _result || _error, 0, 120);
-                        _result && resolve(_result);
-                        _error && reject(_error);
+                        _result ? resolve(_result) : _error && reject(_error);
                     });
                 }),
             }, {
@@ -1054,17 +1045,16 @@ let ext = {
                             },
                             onDownloadSuccess(r) {
                                 dialogsx.clearProgressNumberFormat(d);
-                                resolve(_result = {zip_src_file: r.downloaded_path});
+                                _result = {zip_src_file: r.downloaded_path};
                             },
                             onDownloadFailure(e) {
-                                reject(_error = e);
+                                _error = e;
                             },
                         }, {is_async: true});
 
                         threadsx.start(function () {
                             waitForAction(() => _result || _error, 0, 120);
-                            _result && resolve(_result);
-                            _error && reject(_error);
+                            _result ? resolve(_result) : _error && reject(_error);
                         });
                     }),
                 },
@@ -1299,6 +1289,7 @@ let ext = {
                 un_runtime: '不支持runtime参数',
                 un_view_bind: '不支持view对象绑定自定义方法',
                 not_full_function: '此版本未包含所需全部功能',
+                alipay_a11y_blocked: '支付宝无障碍功能被屏蔽',
             };
 
             let _bug_chk_res = _chkBugs(_aj_ver);
@@ -1315,13 +1306,10 @@ let ext = {
             _debugInfo('Bug版本检查: 确诊');
 
             alert('\n' +
-                '此项目无法正常运行\n' +
-                '请更换Auto.js版本\n\n' +
-                '当前版本:\n' +
-                '-> ' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
+                '此项目无法正常运行\n请更换Auto.js版本\n\n' +
+                '当前版本:\n-> ' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
                 '异常详情:' + _bug_chk_cnt.join('') + '\n\n' +
-                '在项目简介中查看支持版本\n' +
-                '或直接尝试 v4.1.1 Alpha2'
+                '在项目简介中查看支持版本\n或直接尝试 v4.1.1 Alpha2'
             );
             exit();
 
@@ -1333,12 +1321,12 @@ let ext = {
              */
             function _chkBugs(ver) {
                 // version ∈ 4.1.1
-                // version === Pro 8.+
+                // version <= Pro 8.3.16-0
                 // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
                 // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
                 if (ver.match(/^(4\.1\.1.+)$/) ||
-                    ver.match(/^Pro 8\.\d.+$/) ||
-                    ver.match(/^Pro 7\.0\.((0-[46])|(2-4)|(3-7)|(4-1))$/)
+                    ver.match(/^Pro 8\.([0-2]\.\d{1,2}-\d|3\.(\d|1[0-6])-0)$/) ||
+                    ver.match(/^Pro 7\.0\.(0-[46]|2-4|3-7|4-1)$/)
                 ) {
                     return 0; // known normal
                 }
@@ -1356,6 +1344,11 @@ let ext = {
                 // 4.0.x versions
                 if (ver.match(/^4\.0\./)) {
                     return ['dialogs_not_responded', 'not_full_function'];
+                }
+
+                // version > Pro 8.3.16
+                if (ver.match(/^Pro 8\..+$/)) {
+                    return ['alipay_a11y_blocked'];
                 }
 
                 // version === Pro 7.0.0-(1|2)
@@ -1473,6 +1466,331 @@ let ext = {
 
         function debugInfoRaw(msg, msg_lv) {
             msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
+        }
+    },
+    /**
+     * Make sure a11y is on service and try turning it on when necessary
+     */
+    checkAccessibility() {
+        let _appx = this;
+        let _line = showSplitLineRaw;
+        let _getDash = () => '- '.repeat(17).trim();
+        let _msg = messageActionRaw;
+
+        _checkSvc();
+        _checkFunc();
+
+        // tool function(s) //
+
+        function _checkSvc() {
+            let _a11y = devicex.a11y;
+            if (_a11y.state()) {
+                return;
+            }
+
+            let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
+            let _pkg_n_perm = context.packageName + ' ' + _perm;
+
+            if (files.exists('../modules/mod-storage.js')) {
+                let _mod_sto = require('../modules/mod-storage');
+                let $_cfg = _mod_sto.create('af_cfg').get('config', {});
+                if ($_cfg.auto_enable_a11y_svc === 'OFF') {
+                    return;
+                }
+            }
+            _tryEnableAndRestart();
+            if (_appx.hasRoot()) {
+                shell('pm grant ' + _pkg_n_perm, true);
+                _tryEnableAndRestart();
+            }
+            _failedHint();
+
+            if (typeof auto.waitFor !== 'function') {
+                try {
+                    auto();
+                } catch (e) {
+                    // consume errors msg caused by auto()
+                }
+                exit();
+            }
+
+            let _thd = threads.start(function () {
+                // script will continue running rather than stop
+                // when accessibility service enabled by user
+                auto.waitFor();
+            });
+            _thd.join(60e3);
+
+            if (_thd.isAlive()) {
+                _line();
+                _msg('等待用户开启无障碍服务超时', 4, 1);
+                _line();
+                exit();
+            }
+
+            // tool function(s) {
+
+            function _failedHint() {
+                let _shell_sc = 'adb shell pm grant ' + _pkg_n_perm;
+
+                _line();
+                _msg('自动开启无障碍服务失败', 4);
+
+                if (!_appx.hasSecure()) {
+                    _line();
+                    _msg('Auto.js缺少以下权限:', 4);
+                    _msg('WRITE_SECURE_SETTINGS', 4);
+                    _line();
+                    _msg('可尝试使用ADB工具连接手机', 3);
+                    _msg('并执行以下Shell指令(无换行):\n' +
+                        '\n' + _shell_sc + '\n', 3);
+                    _msg('Shell指令已复制到剪切板', 3);
+                    _msg('重启设备后授权不会失效', 3);
+
+                    setClip(_shell_sc);
+                }
+            }
+
+            function _tryEnableAndRestart() {
+                if (_a11y.enable(true)) {
+                    _line();
+                    _msg('已自动开启无障碍服务');
+                    _msg('尝试一次项目重启操作');
+                    _line();
+                    enginesx.restart({
+                        debug_info_flag: true,
+                        instant_run_flag: false,
+                        max_restart_e_times: 1,
+                    });
+                    sleep(5e3);
+                    exit();
+                }
+            }
+        }
+
+        function _checkFunc() {
+            let _max = 24;
+            while (!press(1e8, 0, 1) && _max--) {
+                sleep(50);
+            }
+            if (_max < 0) {
+                _line();
+                void ('脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用|'
+                    + _getDash() + '|可尝试以下解决方案:|' + _getDash()
+                    + '|a. 卸载并重新安装"Auto.js"|b. 安装后重启设备'
+                    + '|c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务'
+                    + '|e. 再次尝试运行本项目').split('|').forEach(s => _msg(s, 4));
+                _line();
+                toast('无障碍服务方法无法使用');
+                exit();
+            }
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || ' ';
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === 'undefined' ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
+            ) + (extra || ''));
+        }
+    },
+    /**
+     * @param {string[]} modules
+     * @param {Object} [options]
+     * @param {boolean} [options.is_load=false]
+     */
+    checkModules(modules, options) {
+        let _opt = options || {};
+
+        modules.filter((mod) => {
+            let _path = './' + mod + '.js';
+            try {
+                let _mod = require(_path);
+                if (_opt.is_load && typeof _mod.load === 'function') {
+                    _mod.load.call(_mod);
+                }
+            } catch (e) {
+                return true;
+            }
+        }).some((mod, idx, arr) => {
+            let _str = '';
+            _str += '脚本无法继续|以下模块缺失或路径错误:|';
+            _str += '- - - - - - - - - - - - - - - - -|';
+            arr.forEach(n => _str += '-> "' + n + '"|');
+            _str += '- - - - - - - - - - - - - - - - -|';
+            _str += '请检查或重新放置模块';
+            showSplitLineRaw();
+            _str.split('|').forEach(s => messageActionRaw(s, 4));
+            showSplitLineRaw();
+            toast('模块缺失或路径错误');
+            exit();
+        });
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || ' ';
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === 'undefined' ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
+            ) + (extra || ''));
+        }
+    },
+    /**
+     * Make sure that Alipay is installed on device
+     */
+    checkAlipayPackage() {
+        let _pkg = 'com.eg.android.AlipayGphone';
+        let _pkg_mgr = context.getPackageManager();
+        let _app_name, _app_info;
+        try {
+            _app_info = _pkg_mgr.getApplicationInfo(_pkg, 0);
+            _app_name = _pkg_mgr.getApplicationLabel(_app_info);
+        } catch (e) {
+            showSplitLineRaw();
+            console.warn(e.message);
+            console.warn(e.stack);
+        }
+        if (!_app_name) {
+            let _msg = '此设备可能未安装"支付宝"应用';
+            toast(_msg);
+            showSplitLineRaw();
+            console.error('脚本无法继续');
+            console.error(_msg);
+            showSplitLineRaw();
+            exit();
+        }
+        global._$_alipay_pkg = _pkg;
+
+        // raw function(s) //
+
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
+            ) + (extra || ''));
+        }
+    },
+    /**
+     * Make sure System.SCREEN_OFF_TIMEOUT greater than min_timeout.
+     * Abnormal value might be auto-corrected to default_timeout determined by is_auto_correction.
+     * @param {Object} [options]
+     * @property {number} [min_timeout=15000]
+     * @property {number} [default_timeout=120000]
+     * @property {boolean} [is_auto_correction=true]
+     */
+    checkScreenOffTimeout(options) {
+        // checker for legacy bug (before v1.9.24 Beta)
+        // which may cause a tiny value for `System.SCREEN_OFF_TIMEOUT`
+
+        let System = android.provider.Settings.System;
+
+        let _scr_off_tt = System.SCREEN_OFF_TIMEOUT;
+        let _ctx_reso = context.getContentResolver();
+
+        let _opt = options || {};
+
+        let _scr_off_tt_val = System.getInt(_ctx_reso, _scr_off_tt, 0);
+        let _min_timeout = _opt.min_timeout || 15 * 1e3; // 15 seconds
+        let _def_timeout = _opt.default_timeout || 2 * 60e3; // 2 minutes
+        let _def_mm = Number((_def_timeout / 60e3).toFixed(2));
+        if (_scr_off_tt_val < _min_timeout) {
+            if (_opt.is_auto_correction !== undefined && !_opt.is_auto_correction) {
+                throw Error('Abnormal screen off timeout: ' + _scr_off_tt_val);
+            }
+            showSplitLineRaw('', 'dash');
+            messageActionRaw('修正异常的设备屏幕超时参数');
+            messageActionRaw('修正值: ' + _def_timeout + ' (' + _def_mm + '分钟)');
+            try {
+                System.putInt(_ctx_reso, _scr_off_tt, _def_timeout);
+            } catch (e) {
+                console.error('修正失败');
+                console.error(e.message);
+            }
+            showSplitLineRaw('', 'dash');
+        }
+
+        // raw function(s) //
+
+        function messageActionRaw(msg, lv, if_toast) {
+            let _msg = msg || ' ';
+            if (lv && lv.toString().match(/^t(itle)?$/)) {
+                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
+            }
+            if_toast && toast(_msg);
+            let _lv = typeof lv === 'undefined' ? 1 : lv;
+            if (_lv >= 4) {
+                console.error(_msg);
+                _lv >= 8 && exit();
+                return false;
+            }
+            if (_lv >= 3) {
+                console.warn(_msg);
+                return false;
+            }
+            if (_lv === 0) {
+                console.verbose(_msg);
+            } else if (_lv === 1) {
+                console.log(_msg);
+            } else if (_lv === 2) {
+                console.info(_msg);
+            }
+            return true;
+        }
+
+        function showSplitLineRaw(extra, style) {
+            console.log((
+                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
+            ) + (extra || ''));
         }
     },
     /**
@@ -2349,6 +2667,7 @@ let ext = {
             _items = _items.filter(o => o.is_enabled === _is_enabled);
         }
 
+        // noinspection JSUnusedGlobalSymbols
         return Object.assign(_items, {
             getAppNames() {
                 return this.map(o => o.app_name);
@@ -2409,6 +2728,12 @@ let ext = {
         return (source.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) !== 0;
     },
 };
+
+ext.checkModules([
+    'ext-dialogs', 'ext-global',
+    'ext-engines', 'ext-device',
+    'ext-threads', 'ext-files', 'ext-http',
+], {is_load: true});
 
 module.exports = ext;
 module.exports.load = () => global.appx = ext;

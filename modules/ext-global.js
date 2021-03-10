@@ -436,7 +436,6 @@ let ext = {
             };
 
             /**
-             * @function $$cvt.date
              * @param {Date|string|number} [src=Date()]
              * @param {'d'|'dd'|'h'|'h:m'|'h:m:s'|'h:m:ss'|'h:mm'|'h:mm:s'|'h:mm:ss'|'hh'|'hh:m'|'hh:m:s'|'hh:m:ss'|'hh:mm'|'hh:mm:s'|'hh:mm:ss'|'M'|'m'|'M/d h:m'|'M/d h:m:s'|'M/d h:m:ss'|'M/d h:mm'|'M/d h:mm:s'|'M/d h:mm:ss'|'M/d hh:m'|'M/d hh:m:s'|'M/d hh:m:ss'|'M/d hh:mm'|'M/d hh:mm:s'|'M/d hh:mm:ss'|'M/d'|'M/dd h:m'|'M/dd h:m:s'|'M/dd h:m:ss'|'M/dd h:mm'|'M/dd h:mm:s'|'M/dd h:mm:ss'|'M/dd hh:m'|'M/dd hh:m:s'|'M/dd hh:m:ss'|'M/dd hh:mm'|'M/dd hh:mm:s'|'M/dd hh:mm:ss'|'M/dd'|'m:s'|'m:ss'|'MM'|'mm'|'MM/d h:m'|'MM/d h:m:s'|'MM/d h:m:ss'|'MM/d h:mm'|'MM/d h:mm:s'|'MM/d h:mm:ss'|'MM/d hh:m'|'MM/d hh:m:s'|'MM/d hh:m:ss'|'MM/d hh:mm'|'MM/d hh:mm:s'|'MM/d hh:mm:ss'|'MM/d'|'MM/dd h:m'|'MM/dd h:m:s'|'MM/dd h:m:ss'|'MM/dd h:mm'|'MM/dd h:mm:s'|'MM/dd h:mm:ss'|'MM/dd hh:m'|'MM/dd hh:m:s'|'MM/dd hh:m:ss'|'MM/dd hh:mm'|'MM/dd hh:mm:s'|'MM/dd hh:mm:ss'|'MM/dd'|'mm:s'|'mm:ss'|'s'|'ss'|'yy'|'yy/M'|'yy/M/d h:m'|'yy/M/d h:m:s'|'yy/M/d h:m:ss'|'yy/M/d h:mm'|'yy/M/d h:mm:s'|'yy/M/d h:mm:ss'|'yy/M/d hh:m'|'yy/M/d hh:m:s'|'yy/M/d hh:m:ss'|'yy/M/d hh:mm'|'yy/M/d hh:mm:s'|'yy/M/d hh:mm:ss'|'yy/M/d'|'yy/M/dd h:m'|'yy/M/dd h:m:s'|'yy/M/dd h:m:ss'|'yy/M/dd h:mm'|'yy/M/dd h:mm:s'|'yy/M/dd h:mm:ss'|'yy/M/dd hh:m'|'yy/M/dd hh:m:s'|'yy/M/dd hh:m:ss'|'yy/M/dd hh:mm'|'yy/M/dd hh:mm:s'|'yy/M/dd hh:mm:ss'|'yy/M/dd'|'yy/MM'|'yy/MM/d h:m'|'yy/MM/d h:m:s'|'yy/MM/d h:m:ss'|'yy/MM/d h:mm'|'yy/MM/d h:mm:s'|'yy/MM/d h:mm:ss'|'yy/MM/d hh:m'|'yy/MM/d hh:m:s'|'yy/MM/d hh:m:ss'|'yy/MM/d hh:mm'|'yy/MM/d hh:mm:s'|'yy/MM/d hh:mm:ss'|'yy/MM/d'|'yy/MM/dd h:m'|'yy/MM/dd h:m:s'|'yy/MM/dd h:m:ss'|'yy/MM/dd h:mm'|'yy/MM/dd h:mm:s'|'yy/MM/dd h:mm:ss'|'yy/MM/dd hh:m'|'yy/MM/dd hh:m:s'|'yy/MM/dd hh:m:ss'|'yy/MM/dd hh:mm'|'yy/MM/dd hh:mm:s'|'yy/MM/dd hh:mm:ss'|'yy/MM/dd'|'yyyy'|'yyyy/M'|'yyyy/M/d h:m'|'yyyy/M/d h:m:s'|'yyyy/M/d h:m:ss'|'yyyy/M/d h:mm'|'yyyy/M/d h:mm:s'|'yyyy/M/d h:mm:ss'|'yyyy/M/d hh:m'|'yyyy/M/d hh:m:s'|'yyyy/M/d hh:m:ss'|'yyyy/M/d hh:mm'|'yyyy/M/d hh:mm:s'|'yyyy/M/d hh:mm:ss'|'yyyy/M/d'|'yyyy/M/dd h:m'|'yyyy/M/dd h:m:s'|'yyyy/M/dd h:m:ss'|'yyyy/M/dd h:mm'|'yyyy/M/dd h:mm:s'|'yyyy/M/dd h:mm:ss'|'yyyy/M/dd hh:m'|'yyyy/M/dd hh:m:s'|'yyyy/M/dd hh:m:ss'|'yyyy/M/dd hh:mm'|'yyyy/M/dd hh:mm:s'|'yyyy/M/dd hh:mm:ss'|'yyyy/M/dd'|'yyyy/MM'|'yyyy/MM/d h:m'|'yyyy/MM/d h:m:s'|'yyyy/MM/d h:m:ss'|'yyyy/MM/d h:mm'|'yyyy/MM/d h:mm:s'|'yyyy/MM/d h:mm:ss'|'yyyy/MM/d hh:m'|'yyyy/MM/d hh:m:s'|'yyyy/MM/d hh:m:ss'|'yyyy/MM/d hh:mm'|'yyyy/MM/d hh:mm:s'|'yyyy/MM/d hh:mm:ss'|'yyyy/MM/d'|'yyyy/MM/dd h:m'|'yyyy/MM/dd h:m:s'|'yyyy/MM/dd h:m:ss'|'yyyy/MM/dd h:mm'|'yyyy/MM/dd h:mm:s'|'yyyy/MM/dd h:mm:ss'|'yyyy/MM/dd hh:m'|'yyyy/MM/dd hh:m:s'|'yyyy/MM/dd hh:m:ss'|'yyyy/MM/dd hh:mm'|'yyyy/MM/dd hh:mm:s'|'yyyy/MM/dd hh:mm:ss'|'yyyy/MM/dd'|string} [format='yyyy/MM/dd hh:mm:ss']
              */
@@ -602,14 +601,18 @@ let ext = {
                 /**
                  * Converts all the alphabetic characters in a string to title case.
                  * @function String.prototype.toTitleCase
+                 * @param {boolean} [is_first_caps_only=false]
                  * @example
-                 * console.log('hello'.toTitleCase()); // 'Hello'
                  * console.log('hello world'.toTitleCase()); // 'Hello World'
-                 * console.log('JavaScript is AMAZING'.toTitleCase()); // 'JavaScript Is AMAZING'
+                 * console.log('i say: hi! warm-hearted boy'.toTitleCase()); // 'I Say: Hi! Warm-Hearted Boy'
+                 * console.log('JavaScript is AMAZING'.toTitleCase()); // 'Javascript Is Amazing'
+                 * console.log('JavaScript is AMAZING'.toTitleCase(true)); // 'JavaScript Is AMAZING'
                  * @returns {string}
                  */
-                value() {
-                    return this.replace(/(^|\s+)([a-z])/g, ($0, $1, $2) => $1 + $2.toUpperCase());
+                value(is_first_caps_only) {
+                    return this.replace(/([A-Za-z])([A-Za-z]*)/g, ($0, $1, $2) => {
+                        return $1.toUpperCase() + (is_first_caps_only ? $2 : $2.toLowerCase());
+                    });
                 },
             });
         }

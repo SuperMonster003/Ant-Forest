@@ -381,8 +381,8 @@ function waitForAction(condition, timeout_or_times, interval, options) {
     // raw function(s) //
 
     function getSelectorRaw() {
-        let _sel = selector();
-        _sel.__proto__ = {
+        let _sel = Object.create(selector());
+        let _sel_ext = {
             pickup(sel_body, res_type) {
                 if (sel_body === undefined || sel_body === null) {
                     return null;
@@ -408,7 +408,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
                 throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
             },
         };
-        return _sel;
+        return Object.assign(_sel, _sel_ext);
     }
 }
 
@@ -1366,13 +1366,20 @@ function keycode(code, params) {
         // tool function(s) //
 
         function checkPower() {
-            let isScreenOn = () => device.isScreenOn();
+            let isScreenOn = () => {
+                /** @type {android.os.PowerManager} */
+                let _pow_mgr = context.getSystemService(
+                    android.content.Context.POWER_SERVICE
+                );
+                return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
+            };
             let isScreenOff = () => !isScreenOn();
             if (isScreenOff()) {
                 let max = 10;
-                do {
-                    device.wakeUp();
-                } while (!_waitForAction(isScreenOn, 500) && max--);
+
+                do device.wakeUp();
+                while (!_waitForAction(isScreenOn, 500) && max--);
+
                 return max >= 0;
             }
             if (!shellInputKeyEvent(keycode)) {
@@ -1691,7 +1698,7 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 }
 
 /**
- * Returns a UiSelector with additional function(s) bound to its __proto__
+ * Returns a UiSelector with additional function(s)
  * @global
  * @param {object} [options]
  * @param {boolean} [options.debug_info_flag]
@@ -1702,11 +1709,10 @@ function getSelector(options) {
     let _debugInfo = (m, lv) => (
         typeof debugInfo === 'undefined' ? debugInfoRaw : debugInfo
     )(m, lv, _opt.debug_info_flag);
-    let _sel = selector();
-    /**
-     * @typedef {{_cache_pool: {}, add(*, *=, *=): this, cache: {load(*, *=): (null|*), save: (function(*=): *), recycle(*): void, refresh(*=): void, reset(*=): *}, get(*, *=): (null|*), pickup((UiSelector$|UiObject$|string|RegExp|AdditionalSelector|(UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]), ('w'|'widget'|'w_collection'|'widget_collection'|'wcollection'|'widgetcollection'|'w_c'|'widget_c'|'wc'|'widgetc'|'widgets'|'wids'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'sstr'|'selstr'|'selectorstr'|'s_str'|'sel_str'|'selector_str'|'sstring'|'selstring'|'selectorstring'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string)=, string=, {selector_prefer?: ('desc'|'text'), debug_info_flag?: boolean}=): (UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean), _sel_body_pool: {}, getAndCache(*=): *}} ExtendedSelector
-     */
-    _sel.__proto__ = {
+
+    let _sel = Object.create(selector());
+
+    let _sel_ext = {
         _sel_body_pool: {},
         _cache_pool: {},
         /**
@@ -2088,7 +2094,6 @@ function getSelector(options) {
             }
         },
         /**
-         * @function UiSelector$.prototype.add
          * @param {string} key
          * @param {UiSelector$pickup$sel_body|(function(string):UiSelector$pickup$return_value)} sel_body
          * @param {string} [mem]
@@ -2109,11 +2114,16 @@ function getSelector(options) {
             return _sel; // to make method chaining possible
         },
         /**
-         * @function UiSelector$.prototype.get
          * @param {string} key
          * @param {UiSelector$pickup$res_type|'cache'} [type]
          * @example
-         *
+         * $$sel.add('list', className('ListView'));
+         *  // recommended
+         * console.log($$sel.get('list', 'bounds'));
+         * // NullPointerException may occur
+         * console.log($$sel.get('list').bounds());
+         * // traditional way, and NullPointerException may occur
+         * console.log(className('ListView').findOnce().bounds());
          * @throws {Error} `sel key '${key}' not set in pool`
          * @returns {UiSelector$pickup$return_value|null}
          */
@@ -2126,12 +2136,10 @@ function getSelector(options) {
                 ? (this._cache_pool[key] = _picker('w'))
                 : _picker(type);
         },
-        /** @function UiSelector$.prototype.getAndCache */
         getAndCache(key) {
             // only 'widget' type can be returned
             return this.get(key, 'cache');
         },
-        /** @member UiSelector$.prototype.cache */
         cache: {
             save: (key) => _sel.getAndCache(key),
             /** @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean|null} */
@@ -2154,7 +2162,8 @@ function getSelector(options) {
             },
         },
     };
-    return _sel;
+
+    return Object.assign(_sel, _sel_ext);
 
     // raw function(s) //
 
@@ -2187,10 +2196,7 @@ function surroundWith(target, mark_left, mark_right) {
  * Record a timestamp then get the time gap by a certain keyword
  * @global
  * @param keyword {string}
- * @param {boolean|number|string} [operation]
- * <br>
- * put a timestamp: 'put'; 'save'; false value <br>
- * load time gap: 'load', 'get', any other true value <br>
+ * @param {'L'|'l'|'Load'|'load'|'S'|'s'|'Save'|'save'} [operation]
  * @param {number|'auto'} [divisor=1] - 'auto' for picking up a result intelligently
  * @param {array|number} [fixed] - array: max decimal places (last place won't be 0)
  * @param {string} [suffix=''|'$$ch'] - '$$en' or '$$ch' is available when %divisor% is set 'auto'
@@ -2198,16 +2204,16 @@ function surroundWith(target, mark_left, mark_right) {
  * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
  * // result eg: 1565080123796
- * timeRecorder('running', 'put');
- * timeRecorder('running', 'get');
+ * timeRecorder('running', 'save');
+ * timeRecorder('running', 'load');
  * //
  * // result eg: '12.40s'
  * timeRecorder('collect', 'save');
  * timeRecorder('collect', 'load', 1e3, 2, 's');
  * //
  * // result eg: 18 hours'
- * timeRecorder('waiting', 0);
- * timeRecorder('waiting', 1, 3.6 * Math.pow(10, 6), 0, ' hours');
+ * timeRecorder('waiting', 'save');
+ * timeRecorder('waiting', 'load', 3.6 * Math.pow(10, 6), 0, ' hours');
  * //
  * // result eg: 10.331 (not '10.3310000')
  * timeRecorder('try_peeking');
@@ -2224,7 +2230,7 @@ function surroundWith(target, mark_left, mark_right) {
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     global['_$_ts_rec'] = global['_$_ts_rec'] || {};
     let records = global['_$_ts_rec'];
-    if (!operation || operation.toString().match(/^(S|save|put)$/)) {
+    if (!operation || operation.toString().match(/^[Ss](ave)?$/)) {
         return records[keyword] = Date.now();
     }
 
@@ -2331,7 +2337,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
 /**
  * Function for a series of ordered click actions
  * @global
- * @param {Array} pipeline - object is disordered; use array instead - last item condition: null for self exists; undefined for self disappeared
+ * @param {Array} pipeline - last item condition: null for self-existence; undefined for self-disappearance
  * @param {Object} [options]
  * @param {string} [options.name] - pipeline name
  * @param {number} [options.interval=0]
@@ -2344,9 +2350,9 @@ function clickActionsPipeline(pipeline, options) {
     let _opt = options || {};
     let _def_stg = _opt.default_strategy || 'click';
     let _itv = +_opt.interval || 0;
-    let _max_times = +_opt.max_try_times;
-    _max_times = isNaN(_max_times) ? 5 : _max_times;
-    let _max_times_bak = _max_times;
+    let _max = +_opt.max_try_times;
+    _max = isNaN(_max) ? 5 : _max;
+    let _max_bak = _max;
 
     let _getSelector = (
         typeof getSelector === 'function' ? getSelector : getSelectorRaw
@@ -2369,55 +2375,54 @@ function clickActionsPipeline(pipeline, options) {
     let $_sel = _getSelector();
 
     let _ppl_name = _opt.name ? _surroundWith(_opt.name) : '';
-    let _pipe = pipeline.filter(value => typeof value !== 'undefined').map((value) => {
-        let _v = Object.prototype.toString.call(value).slice(8, -1) === 'Array' ? value : [value];
-        if (typeof _v[1] === 'function' || _v[1] === null) {
-            _v.splice(1, 0, null);
-        }
-        _v[1] = _v[1] || _def_stg;
-        return _v;
-    });
-    _pipe.forEach((value, idx, arr) => {
-        if (arr[idx][2] === undefined) {
-            arr[idx][2] = function () {
-                let _idx = arr[idx + 1] ? idx + 1 : idx;
-                return $_sel.pickup(arr[_idx][0]);
-            };
-        }
-        if (typeof arr[idx][2] === 'function') {
-            let f = arr[idx][2];
-            arr[idx][2] = () => f(arr[idx][0]);
-        }
-    });
 
-    for (let i = 0, l = _pipe.length; i < l; i += 1) {
-        _max_times = _max_times_bak;
-        let _p = _pipe[i];
-        let _sel_body = _p[0];
-        let _stg = _p[1];
-        let _cond = _p[2];
-        let _w = $_sel.pickup(_sel_body);
-        let _clickOnce = () => _cond !== null && _clickAction(_w, _stg);
+    let _res = pipeline
+        .filter(value => typeof value !== 'undefined')
+        .map((value) => {
+            let _v = Array.isArray(value) ? value : [value];
+            if (typeof _v[1] === 'function' || _v[1] === null) {
+                _v.splice(1, 0, null);
+            }
+            _v[1] = _v[1] || _def_stg;
+            return _v;
+        })
+        .map((value, idx, arr) => {
+            if (value[2] === undefined) {
+                value[2] = function () {
+                    let _idx = arr[idx + 1] ? idx + 1 : idx;
+                    return $_sel.pickup(arr[_idx][0]);
+                };
+            }
+            if (typeof value[2] === 'function') {
+                let _fx = value[2].bind(null);
+                value[2] = () => _fx(value[0]);
+            }
+            return value;
+        })
+        .every((pipe) => {
+            _max = _max_bak;
+            let [_sel_body, _stg, _cond] = pipe;
+            let _w = $_sel.pickup(_sel_body);
+            do {
+                _cond !== null && _clickAction(_w, _stg);
+                sleep(_itv);
+            } while (_max-- > 0 && !_waitForAction(_cond === null ? _w : _cond, 1.5e3));
 
-        do {
-            _clickOnce();
-            sleep(_itv);
-        } while (_max_times-- > 0 && !_waitForAction(_cond === null ? _w : _cond, 1.5e3));
-
-        if (_max_times < 0) {
+            if (_max >= 0) {
+                return true;
+            }
             _messageAction(_ppl_name + '管道破裂', 3, 1, 0, 'up_dash');
-            return _messageAction(_surroundWith(_sel_body), 3, 0, 1, 'dash');
-        }
-    }
+            _messageAction(_surroundWith(_sel_body), 3, 0, 1, 'dash');
+        });
 
-    _debugInfo(_ppl_name + '管道完工');
-    return true;
+    _res && _debugInfo(_ppl_name + '管道完工');
+    return _res;
 
     // raw function(s) //
 
     function getSelectorRaw() {
-        let _sel = selector();
-        _sel.__proto__ = {
+        let _sel = Object.create(selector());
+        let _sel_ext = {
             pickup(sel_body, res_type) {
                 if (sel_body === undefined || sel_body === null) {
                     return null;
@@ -2443,7 +2448,7 @@ function clickActionsPipeline(pipeline, options) {
                 throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
             },
         };
-        return _sel;
+        return Object.assign(_sel, _sel_ext);
     }
 
     function clickActionRaw(o) {

@@ -202,6 +202,42 @@ let ext = {
     /** @type com.stardust.util.ScreenMetrics */
     screen_metrics: runtime.getScreenMetrics(),
     /**
+     * Substitution of device.wakeUp()
+     * @param timeout
+     */
+    wakeUp(timeout) {
+        let _wake_lock = context.getSystemService(
+            android.content.Context.POWER_SERVICE
+        ).newWakeLock(
+            android.os.PowerManager.FULL_WAKE_LOCK |
+            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP |
+            android.os.PowerManager.ON_AFTER_RELEASE, 'bright'
+        );
+        let _tt = timeout || 15e3;
+        _wake_lock.acquire(_tt);
+
+        let _start = Date.now();
+        let _itv = setInterval(() => {
+            if (this.isScreenOn() || Date.now() - _start - 240 > _tt) {
+                clearInterval(_itv);
+                if (_wake_lock !== null && _wake_lock.isHeld()) {
+                    _wake_lock.release();
+                }
+            }
+        }, 200);
+    },
+    /**
+     * Substitution of device.isScreenOn()
+     * @returns {boolean}
+     */
+    isScreenOn() {
+        /** @type {android.os.PowerManager} */
+        let _pow_mgr = context.getSystemService(
+            android.content.Context.POWER_SERVICE
+        );
+        return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
+    },
+    /**
      * device.keepScreenOn()
      * @param {number} [duration=5] -
      * could be minute (less than 100) or second -- 5 and 300000 both for 5 min
@@ -396,8 +432,12 @@ let ext = {
 
         /**
          * adaptive coordinate transform for x axis
-         * @param {number|*} num - pixel num (x) or percentage num (0.x)
-         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number|*} num - pixel (x) or percentage num (0.x)
+         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
+         * @param {{
+         *     is_ratio?: boolean,
+         *     to_ratio?: boolean,
+         * }} [options]
          * @example
          * //-- local device with 720px display width --//
          *
@@ -429,16 +469,21 @@ let ext = {
          * // on 1080px device: all 540 (1080 * 0.5) -- base params will be ignored
          * // on 720px device: all 360 (720 * 0.5) -- base params will be ignored
          * @return {number}
-         * @public
          */
-        function cX(num, base) {
-            return _cTrans(1, +num, base);
+        function cX(num, base, options) {
+            return typeof base === 'boolean'
+                ? _cTrans(1, num, -1, Object.assign({is_ratio: base}, options))
+                : _cTrans(1, num, base, options);
         }
 
         /**
          * adaptive coordinate transform for y axis
-         * @param {number|*} num - pixel num (x) or percentage num (0.x)
-         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number|*} num - pixel (x) or percentage num (0.x)
+         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
+         * @param {{
+         *     is_ratio?: boolean,
+         *     to_ratio?: boolean,
+         * }} [options]
          * @example
          * //-- local device with 1280px display height --//
          *
@@ -468,16 +513,21 @@ let ext = {
          * // on 720*1280 device: all 640 (1280 * 0.5) -- base params will be ignored
          * console.log(y1, y2, y3, y4, y5, y6);
          * @return {number}
-         * @public
          */
-        function cY(num, base) {
-            return _cTrans(-1, +num, base);
+        function cY(num, base, options) {
+            return typeof base === 'boolean'
+                ? _cTrans(-1, num, -1, Object.assign({is_ratio: base}, options))
+                : _cTrans(-1, num, base, options);
         }
 
         /**
          * adaptive coordinate transform for y axis based (and only based) on x axis
-         * @param {number|*} num - pixel num (x) or percentage num (0.x)
-         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
+         * @param {number|*} num - pixel (x) or percentage num (0.x)
+         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
+         * @param {{
+         *     is_ratio?: boolean,
+         *     to_ratio?: boolean,
+         * }} [options]
          * @example
          * //-- local device with 720*1280 display (try ignoring the height: 1280) --//
          *
@@ -501,79 +551,80 @@ let ext = {
          *
          * let y1 = cYx(0.5); // or cYx(0.5, -1); or cYx(0.5, 16/9);
          * let y2 = cYx(0.5, 1280); // or cYx(0.5, 1920); or cYx(0.5, 9999); -- Error
-         * let y3 = cYx(0.5, 5040/2160); // or cYx(0.5, 21/9); or cYx(0.5, 2160/5040); or xYc(0.5, -2) -- GOOD!
+         * let y3 = cYx(0.5, 5040/2160); // or cYx(0.5, 21/9); or cYx(0.5, 2160/5040); or cYx(0.5, -2) -- GOOD!
          * let y4 = cYx(2020); // or cYx(2020, 720); or cYx(2020, -1); -- even if unreasonable
          * let y5 = cYx(2020, 5040/2160); // or cYx(2020, 16/9); -- Error
          * let y6 = cYx(2020, 2160); // GOOD!
          *
-         * // on 1080*1920 device: (ignore height: 1920)
+         * // on 1080*1920 device: (height will be ignored)
          * // y1: 0.5 * 16/9 * 1080 = 960
          * // y3: 0.5 * 21/9 * 1080 = 1260 -- which is the proper way of usage
          * // y4: 2020 / 720 * 1080 = ... -- no one will set 2020 on a device with only 720px available
          * // y6: 2020 / 2160 * 1080 = 1010 -- which is another proper way of usage
          *
-         * // on 720*1280 device: (ignore height: 1280)
+         * // on 720*1280 device: (height will be ignored)
          * // just replacing 1080 in calculations each with 720
          *
-         * // on 1440*1920 device: (ignore height: 1920)
+         * // on 1440*1920 device: (height will be ignored)
          * // likewise (replace 1080 with 1440)
          * console.log(y1, y3, y4, y6);
          * @return {number}
-         * @public
          */
-        function cYx(num, base) {
-            num = +num;
-            base = +base;
-            if (Math.abs(num) >= 1) {
-                if (!base) {
-                    base = 720;
-                } else if (base < 0) {
-                    if (!~base) {
-                        base = 720;
-                    } else if (base === -2) {
-                        base = 1080;
-                    } else if (base === -3) {
-                        base = 1096;
-                    } else {
-                        throw Error('Can not parse base param for cYx()');
-                    }
-                } else if (base < 5) {
-                    throw Error('Base and num params should be both pixels for cYx()');
-                }
-                return Math.round(num * _W / base);
+        function cYx(num, base, options) {
+            let _opt = options || {};
+            let _is_ratio = _opt.is_ratio;
+            if (typeof base === 'boolean') {
+                _is_ratio = _is_ratio === undefined ? base : _is_ratio;
+                base = -1;
             }
 
-            if (!base || !~base || base === -2) {
-                base = 16 / 9;
-            } else if (base === -3) {
-                base = 2560 / 1096;
-            } else if (base < 0) {
+            let _num = Number(num);
+            let _is_ratio_num = Math.abs(_num) < 1 || _is_ratio;
+            let _base = Number(base);
+
+            if (!_base || !~_base) {
+                _base = 720;
+                _num *= _is_ratio_num ? 1280 : 1;
+            } else if (_base === -2) {
+                _base = 1080;
+                _num *= _is_ratio_num ? 1920 : 1;
+            } else if (_base === -3) {
+                _base = 1096;
+                _num *= _is_ratio_num ? 2560 : 1;
+            } else if (_base < 0) {
                 throw Error('Can not parse base param for cYx()');
             } else {
-                base = base < 1 ? 1 / base : base;
+                if (_is_ratio_num) {
+                    _num *= _H;
+                } else if (_base < 5) {
+                    throw Error('Base and num params should be both pixels for cYx()');
+                }
+                _base = (_base > 1 ? 1 / _base : _base) * _H;
             }
-            return Math.round(num * _W * base);
+
+            return _opt.to_ratio
+                ? Number((_num * 9 / 16 / _base).toFixed(3))
+                : Math.round(_num * _W / _base);
         }
 
         /**
          * adaptive coordinate transform function
-         * @see cX
-         * @see cY
-         * @param dxn {number} - direction -- 1: x; -1: y
-         * @param num {number} - pixel num (x) or percentage num (0.x)
-         * @param {number} [base] - pixel num (x) or preset neg-num (-1,-2)
+         * @param dxn {number} - 1: horizontal; -1: vertical
+         * @param num {number} - pixel (x) or percentage num (0.x)
+         * @param {number} [base] - pixel (x) or preset negative nums (-1,-2,-3)
+         * @param {{
+         *     is_ratio?: boolean,
+         *     to_ratio?: boolean,
+         * }} [options]
          * @return {number}
-         * @private
          */
-        function _cTrans(dxn, num, base) {
+        function _cTrans(dxn, num, base, options) {
             let _full = ~dxn ? _W : _H;
-            if (isNaN(num)) {
+            let _num = Number(num);
+            if (isNaN(_num)) {
                 throw Error('Can not parse num param for cTrans()');
             }
-            if (Math.abs(num) < 1) {
-                return Math.min(Math.round(num * _full), _full);
-            }
-            let _base = base;
+            let _base = Number(base);
             if (!base || !~base) {
                 _base = ~dxn ? 720 : 1280; // e.g. Sony Xperia XZ1 Compact
             } else if (base === -2) {
@@ -581,8 +632,13 @@ let ext = {
             } else if (base === -3) {
                 _base = ~dxn ? 1096 : 2560; // e.g. Sony Xperia 1 II
             }
-            let _ct = Math.round(num * _full / _base);
-            return Math.min(_ct, _full);
+            let _opt = options || {};
+            if (Math.abs(_num) < 1 || _opt.is_ratio) {
+                _num *= _base;
+            }
+            return _opt.to_ratio
+                ? Number((_num / _base).toFixed(3))
+                : Math.min(Math.round(_num * _full / _base), _full);
         }
 
         function _showDisp() {

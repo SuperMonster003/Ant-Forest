@@ -180,7 +180,9 @@ function _generate() {
             _res[_code] = _all[i];
         }
     }
-    files.write(_path, JSON.stringify(_res));
+    let _file = files.open(_path, 'w');
+    _file.write(JSON.stringify(_res));
+    _file.close();
     toast('密文文件生成完毕');
 }
 
@@ -194,7 +196,9 @@ function _initDic() {
         console.log('-'.repeat(33));
         _generate();
     }
-    _dic = JSON.parse(files.read(_path));
+    let _file = files.open(_path, 'r');
+    _dic = JSON.parse(_file.read());
+    _file.close();
 }
 
 function _userInput(opr) {

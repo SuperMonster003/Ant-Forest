@@ -480,7 +480,7 @@ let ext = {
      *
      * // is_unbundled is truthy
      * // then you got './backup/1.png' and 2 more
-     * filesx.copy(src, target, {is_unbundle: true});
+     * filesx.copy(src, target, {is_unbundled: true});
      * @example Different from files.copy
      * // source: './download/a.mp4'
      * // target: './video/a.mp4' -- same file name
@@ -767,6 +767,25 @@ let ext = {
 
             return _res;
         }
+    },
+    /**
+     * @param {string} path
+     * @returns {string}
+     */
+    read(path) {
+        let _file = files.open(path, 'r');
+        let _text = _file.read();
+        _file.close();
+        return _text;
+    },
+    /**
+     * @param {string} path
+     * @param {string} text
+     */
+    write(path, text) {
+        let _file = files.open(path, 'w');
+        _file.write(text);
+        _file.close();
     },
 };
 

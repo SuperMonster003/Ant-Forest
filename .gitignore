@@ -1,7 +1,9 @@
+test*.js
 *.apk
+*.bat
 *.exe
-*.zip
 *.html
+*.zip
 /.bak
 /.git
 /.github

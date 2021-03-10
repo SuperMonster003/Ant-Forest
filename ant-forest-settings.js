@@ -416,8 +416,8 @@ let $$init = {
                                 if (!_get_text) {
                                     return d.dismiss();
                                 }
-                                let _nums = _get_text.split(/[^\d.]+/);
-                                if (_checkInput(_nums, d)) {
+                                let _nums = _get_text.split(/[^\d.%]+/);
+                                if (_standardize(_nums, d)) {
                                     d.dismiss();
                                     return $$save.session(_cfg_conj, _nums);
                                 }
@@ -426,7 +426,7 @@ let $$init = {
 
                         // tool function(s) //
 
-                        function _checkInput(nums, d) {
+                        function _standardize(nums, d) {
                             let _l = nums.length;
                             if (_l !== 4) {
                                 return dialogsx.alertTitle(d, '解析的数值数量不为4');
@@ -435,15 +435,13 @@ let $$init = {
                                 let _num = nums[i];
                                 if (_num.match(/%$/)) {
                                     _num = _num.replace(/[^\d.]/g, '') / 100;
+                                } else if (+_num >= 1) {
+                                    _num /= i % 2 ? H : W;
                                 }
-                                if (+_num < 1) {
-                                    _num *= i % 2 ? H : W;
-                                }
-                                _num = parseInt(_num);
-                                if (isNaN(_num)) {
+                                if (isNaN(+_num)) {
                                     return dialogsx.alertTitle(d, '第' + i + '个参数无法解析');
                                 }
-                                nums[i] = _num;
+                                nums[i] = +_num;
                             }
                             if (nums[0] < 0) {
                                 return dialogsx.alertTitle(d, '"左"值需大于0');
@@ -451,10 +449,10 @@ let $$init = {
                             if (nums[1] < 0) {
                                 return dialogsx.alertTitle(d, '"上"值需大于0');
                             }
-                            if (nums[2] > W) {
+                            if (nums[2] > 1) {
                                 return dialogsx.alertTitle(d, '"右"值不可大于屏幕宽度');
                             }
-                            if (nums[3] > H) {
+                            if (nums[3] > 1) {
                                 return dialogsx.alertTitle(d, '"下"值不可大于屏幕高度');
                             }
                             if (nums[0] >= nums[2]) {
@@ -3434,13 +3432,11 @@ let $$init = {
             };
 
             global.$$ses = {
-                db: require('./modules/mod-database').create(
-                    files.getSdcardPath() + '/.local/ant_forest.db', 'ant_forest', [
-                        {name: 'name', not_null: true},
-                        {name: 'timestamp', type: 'integer', primary_key: true},
-                        {name: 'pick', type: 'integer'},
-                    ]
-                ),
+                db: require('./modules/mod-database').create([
+                    {name: 'name', not_null: true},
+                    {name: 'timestamp', type: 'integer', primary_key: true},
+                    {name: 'pick', type: 'integer'},
+                ], {alter: 'union'}),
             };
 
             global.$$save = {
@@ -4001,53 +3997,48 @@ $$view.setHomePage($$def.homepage_title)
         next_page: null,
         view_tag: 'stat_page',
         updateOpr(view) {
-            let _view_tag = this.view_tag;
-
-            if ($$ses.stat_page_updated) {
-                view.setNextPage('stat_page');
-                threadsx.start(_thdAddStatPageView);
+            if (!$$ses.stat_page_updated) {
+                return;
             }
+            let _view_tag = this.view_tag;
+            view.setNextPage('stat_page');
+            threadsx.start(function () {
+                if (!(waitForAction(() => $$view.pages[_view_tag], 5e3) && !$$ses.stat_page_created)) {
+                    return;
+                }
+                $$ses.stat_page_created = true;
+                ui.post(() => $$view.pages[_view_tag].add('list', new Layout('/*数据统计列表*/', {
+                    list_head: 'stat_list',
+                    data_source_key_name: 'stat_list',
+                    custom_data_source: $$ses.init_stat_list_data,
+                    list_checkbox: 'gone',
+                    listeners: {
+                        _list_data: {
+                            item_bind(item_view) {
+                                item_view['_checkbox'].setVisibility(8);
+                            },
+                            item_long_click(e, item) {
+                                e.consumed = true;
 
-            // tool function(s) //
+                                let _name = item[item['name']];
 
-            function _thdAddStatPageView() {
-                if (waitForAction(() => $$view.pages[_view_tag], 5e3) && !$$ses.stat_page_created) {
-                    $$ses.stat_page_created = true;
-                    ui.post(() => $$view.pages[_view_tag].add('list', new Layout('/*数据统计列表*/', {
-                        list_head: 'stat_list',
-                        data_source_key_name: 'stat_list',
-                        custom_data_source: $$ses.init_stat_list_data,
-                        list_checkbox: 'gone',
-                        listeners: {
-                            _list_data: {
-                                item_bind(item_view) {
-                                    item_view['_checkbox'].setVisibility(8);
-                                },
-                                item_long_click(e, item) {
-                                    e.consumed = true;
-
-                                    let _name = item[item['name']];
-
-                                    dialogsx.builds([
-                                        ['小心', 'caution'],
-                                        ['要删除以下用户的所有统计数据吗?\n\n' +
-                                        '用户昵称:\n' + _name +
-                                        '\n\n此操作无法撤销', 'warn'],
-                                        0, 'Q', ['S', 'caution'], 1,
-                                    ]).on('negative', (d) => {
-                                        d.dismiss();
-                                    }).on('positive', (d) => {
-                                        d.dismiss();
-                                        $$ses.db.delete$('name=?', _name);
-                                        $$view.statListDataSource('SET');
-                                        toast('已删除');
-                                    }).show();
-                                },
+                                dialogsx.builds([['小心', 'caution'],
+                                    ['要删除以下用户的所有统计数据吗?\n\n' +
+                                    '用户昵称:\n' + _name + '\n\n此操作无法撤销', 'warn'],
+                                    0, 'Q', ['S', 'caution'], 1,
+                                ]).on('negative', (d) => {
+                                    d.dismiss();
+                                }).on('positive', (d) => {
+                                    d.dismiss();
+                                    $$ses.db.delete$('name=?', _name);
+                                    $$view.statListDataSource('SET');
+                                    toast('已删除');
+                                }).show();
                             },
                         },
-                    })).ready());
-                }
-            }
+                    },
+                })).ready());
+            });
         },
     }))
     .add('page', new Layout('黑名单管理', {next_page: 'blacklist_page'}))
@@ -4931,7 +4922,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
         }))
         .add('subhead', new Layout('识别与定位', {color: 'highlight'}))
         .add('button', new Layout('能量球识别区域', 'hint', {
-            config_conj: 'forest_balls_recog_region',
+            config_conj: 'eballs_recognition_region',
             newWindow() {
                 $$view.diag.rectSetter.call(this, {
                     title: '森林页面能量球识别区域',
@@ -4940,10 +4931,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             updateOpr(view) {
                 let _cfg_conj = this.config_conj;
                 let [_l, _t, _r, _b] = $$cfg.ses[_cfg_conj]
-                    .map((v, i) => (i % 2
-                            ? v < 1 ? cY(v) : v
-                            : v < 1 ? cX(v) : v
-                    ));
+                    .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
                 let _rect = [[_l, _t], [_r, _b]]
                     .map(a => a.join(' , ')).join('  -  ');
                 view.setHintText('Rect  [ ' + _rect + ' ] ');
@@ -5280,10 +5268,12 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                                 _unlk_safe_fg = !!c;
                             })
                             .on('neutral', () => {
-                                dialogsx.linkify(dialogsx.builds([
+                                dialogsx.builds([
                                     '设备遗失对策', 'about_lost_device_solution',
                                     0, 0, 'C', 1,
-                                ]).on('positive', ds2 => ds2.dismiss()).show(), 'WEB_URLS');
+                                ], {
+                                    linkify: 'WEB_URLS',
+                                }).on('positive', ds2 => ds2.dismiss()).show();
                             })
                             .on('negative', (ds) => {
                                 ds.dismiss();
@@ -5800,14 +5790,16 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
             newWindow() {
                 let _cfg_conj = this.config_conj;
 
-                dialogsx.linkify(dialogsx
+                dialogsx
                     .builds(['本地日志写入模式', '写入模式示例:\n\n' +
-                        '%m%n\n%d - [%p::%c::%C] - %m%n\n%d{yyyy-MM-dd HH:mm}%m%n\n\n' +
-                        '详情参阅:\nhttp://logging.apache.org/log4j/1.2/apidocs/org/apache/' +
-                        'log4j/PatternLayout.html',
-                            ['使用默认值', 'reset'], 'B', 'M', 1,
-                        ], {inputHint: '输入日志写入模式'}
-                    )
+                    '%m%n\n%d - [%p::%c::%C] - %m%n\n%d{yyyy-MM-dd HH:mm}%m%n\n\n' +
+                    '详情参阅:\nhttp://logging.apache.org/log4j/1.2/apidocs/org/apache/' +
+                    'log4j/PatternLayout.html',
+                        ['使用默认值', 'reset'], 'B', 'M', 1,
+                    ], {
+                        inputHint: '输入日志写入模式',
+                        linkify: 'WEB_URLS',
+                    })
                     .on('neutral', d => dialogsx.setInputText(d, $$sto.def.af[_cfg_conj].toString()))
                     .on('negative', d => d.dismiss())
                     .on('positive', (d) => {
@@ -5815,7 +5807,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                         _input && $$save.session(_cfg_conj, _input);
                         d.dismiss();
                     })
-                    .show(), 'WEB_URLS');
+                    .show();
             },
             updateOpr(view) {
                 view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
@@ -5921,7 +5913,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                     }
                 }
 
-                dialogsx.builds(['提示', '自动管理机制需至少选择一个',0, 0, 'B']).show();
+                dialogsx.builds(['提示', '自动管理机制需至少选择一个', 0, 0, 'B']).show();
             }
 
             function _chkAutoUnlockSw() {

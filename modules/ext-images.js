@@ -359,8 +359,8 @@ let _ext = {
         // raw function(s) //
 
         function getSelectorRaw() {
-            let _sel = selector();
-            _sel.__proto__ = {
+            let _sel = Object.create(selector());
+            let _sel_ext = {
                 pickup(sel_body, res_type) {
                     if (sel_body === undefined || sel_body === null) {
                         return null;
@@ -386,7 +386,7 @@ let _ext = {
                     throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
                 },
             };
-            return _sel;
+            return Object.assign(_sel, _sel_ext);
         }
 
         function debugInfoRaw(msg, msg_lv) {
@@ -633,7 +633,7 @@ let _ext = {
         /** @type {{fill_up_pool: number, img_samples_processing: number}} */
         let _du = {};
         let _opt = options || {};
-        let _cfg = Object.assign(_$DEFAULT(), global.$$cfg || {});
+        let _cfg = Object.assign(_def(), global.$$cfg || {});
         let _no_dbg = _opt.no_debug_info;
         let _dbg_bak;
         let _this = this;
@@ -644,9 +644,8 @@ let _ext = {
         let _src_img_stg = _cfg.hough_src_img_strategy;
         let _results_stg = _cfg.hough_results_strategy;
         let _min_dist = cX(_cfg.min_balls_distance);
-        let _region = _cfg.forest_balls_recog_region.map((v, i) => (
-            i % 2 ? v < 1 ? cY(v) : v : v < 1 ? cX(v) : v
-        ));
+        let _region = _cfg.eballs_recognition_region
+            .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
 
         /** @type {EnergyBallsInfo[]} */
         let _balls_data = [];
@@ -676,7 +675,7 @@ let _ext = {
             },
             add(capt) {
                 let _capt = capt || _this.capt();
-                debugInfo('添加好友森林采样: ' + _this.getName(_capt));
+                debugInfo('添加森林采样: ' + _this.getName(_capt));
                 this.data.unshift(_capt);
                 if (this.overflow) {
                     debugInfo('采样样本数量超过阈值: ' + this.limit);
@@ -690,7 +689,7 @@ let _ext = {
             },
             reclaimAll() {
                 if (this.len) {
-                    debugInfo('回收全部好友森林采样');
+                    debugInfo('回收全部森林采样');
                     this.data.forEach((c) => {
                         let _c_name = _this.getName(c);
                         c.recycle();
@@ -698,7 +697,7 @@ let _ext = {
                         c = null;
                     });
                     this.clear();
-                    debugInfo('好友森林样本已清空');
+                    debugInfo('森林样本已清空');
                 }
             },
             clear() {
@@ -1254,11 +1253,11 @@ let _ext = {
         }
 
         // updated: Oct 20, 2020
-        function _$DEFAULT() {
+        function _def() {
             return {
                 ripe_ball_detect_color_val: '#deff00',
                 ripe_ball_detect_threshold: 13,
-                forest_balls_recog_region: [cX(0.1), cYx(0.15), cX(0.9), cYx(0.45)],
+                eballs_recognition_region: [0.1, 0.15, 0.9, 0.45],
                 hough_src_img_strategy: {
                     gray: true, adapt_thrd: true, med_blur: true, blur: true,
                     blt_fltr: false,
@@ -1287,7 +1286,7 @@ let _ext = {
      */
     findAllPointsForColor(img, color, options) {
         this._initIfNeeded();
-        let _finder = runtime.getImages().colorFinder;
+        let _finder = Object.create(runtime.getImages().colorFinder);
         let _default_color_threshold = 4;
         let _opt = options || {};
 
@@ -1301,8 +1300,8 @@ let _ext = {
             ? this._buildRegion(_opt.region, img)
             : null;
 
-        // compatible with Auto.js Pro versions
-        _finder.__proto__ = Object.assign(_finder.__proto__ || {}, {
+        let _finder_ext = {
+            // compatible with Auto.js Pro versions
             findAllPointsForColor(image, color, threshold, rect) {
                 let Core = org.opencv.core.Core;
                 let Scalar = org.opencv.core.Scalar;
@@ -1367,7 +1366,9 @@ let _ext = {
                     return _result;
                 }
             },
-        });
+        };
+
+        Object.assign(_finder, _finder_ext);
 
         let _pts = this._toPointArray(
             _finder.findAllPointsForColor(img, _color, _thrd, _region)

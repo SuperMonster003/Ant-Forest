@@ -19,7 +19,13 @@ let path_device_info = path_base + 'device-info.txt';
 files.createWithDirs(path_device_info);
 
 let isUnlocked = () => !context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked();
-let isScreenOn = () => device.isScreenOn();
+let isScreenOn = () => {
+    /** @type {android.os.PowerManager} */
+    let _pow_mgr = context.getSystemService(
+        android.content.Context.POWER_SERVICE
+    );
+    return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
+};
 let isScreenOff = () => !isScreenOn();
 
 let info = device.brand + ' ' + device.product + ' ' + device.release + '\n' +
@@ -101,9 +107,9 @@ diag.on('positive', () => {
         captureScreen(path_unlock_page);
         device.vibrate(500);
 
-        let device_info_file = files.open(path_device_info);
-        files.write(path_device_info, info);
-        device_info_file.close();
+        let _file = files.open(path_device_info, 'w');
+        _file.write(info);
+        _file.close();
 
         if (!waitForAction(() => isUnlocked(), 25e3)) {
             alert('等待手动解锁超时');

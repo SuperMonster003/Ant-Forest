@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Feb 11, 2021
- * @version 2.0.2
+ * @since Mar 10, 2021
+ * @version 2.0.3
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -9,250 +9,29 @@
 'use strict';
 
 let $$init = {
+    appx() {
+        try {
+            return require('./modules/ext-app');
+        } catch (e) {
+            console.error('ext-app模块不存在');
+            console.error('请检查项目目录结构');
+            throw e;
+        }
+    },
     check() {
-        checkAlipayPackage();
-        checkModulesMap();
-        checkSdkAndAJVer();
-        checkProviderSettings();
-        checkRootAccess();
-        checkAccessibility();
+        this.appx().load();
+        appx.checkModules([
+            'mod-treasury-vault', 'mod-database', 'mod-monster-func',
+            'mod-default-config', 'mod-pwmap', 'mod-storage', 'mod-unlock',
+            'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
+            'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
+        ], {is_load: true});
+        appx.checkAlipayPackage();
+        appx.checkSdkAndAJVer();
+        appx.checkScreenOffTimeout();
+        appx.checkAccessibility();
 
         return $$init;
-
-        // tool function(s) //
-
-        function checkAlipayPackage() {
-            let _pkg = 'com.eg.android.AlipayGphone';
-            let _pkg_mgr = context.getPackageManager();
-            let _app_name, _app_info;
-            try {
-                _app_info = _pkg_mgr.getApplicationInfo(_pkg, 0);
-                _app_name = _pkg_mgr.getApplicationLabel(_app_info);
-            } catch (e) {
-                showSplitLineRaw();
-                console.warn(e.message);
-                console.warn(e.stack);
-            }
-            if (!_app_name) {
-                let _msg = '此设备可能未安装"支付宝"应用';
-                toast(_msg);
-                showSplitLineRaw();
-                console.error('脚本无法继续');
-                console.error(_msg);
-                showSplitLineRaw();
-                exit();
-            }
-            global._$_alipay_pkg = _pkg;
-        }
-
-        function checkModulesMap() {
-            void [
-                'mod-treasury-vault', 'mod-database', 'mod-monster-func',
-                'mod-default-config', 'mod-pwmap', 'mod-storage', 'mod-unlock',
-                'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
-                'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
-            ].filter((mod) => {
-                let _path = './modules/' + mod + '.js';
-                if (files.exists(_path)) {
-                    let _mod = require(_path);
-                    if (typeof _mod.load === 'function') {
-                        _mod.load.call(_mod);
-                    }
-                    return false;
-                }
-                return true;
-            }).some((mod, idx, arr) => {
-                let _str = '';
-                _str += '脚本无法继续|以下模块缺失或路径错误:|';
-                _str += '- - - - - - - - - - - - - - - - -|';
-                arr.forEach(n => _str += '-> "' + n + '"|');
-                _str += '- - - - - - - - - - - - - - - - -|';
-                _str += '请检查或重新放置模块';
-                showSplitLineRaw();
-                _str.split('|').forEach(s => messageActionRaw(s, 4));
-                showSplitLineRaw();
-                toast('模块缺失或路径错误');
-                exit();
-            });
-        }
-
-        function checkSdkAndAJVer() {
-            // do not use before `checkModulesMap()`
-            appx.checkSdkAndAJVer();
-        }
-
-        function checkProviderSettings() {
-            // checker for legacy bug (before v1.9.24 Beta)
-            // which may cause a tiny value for `System.SCREEN_OFF_TIMEOUT`
-
-            let System = android.provider.Settings.System;
-
-            let _scr_off_tt = System.SCREEN_OFF_TIMEOUT;
-            let _ctx_reso = context.getContentResolver();
-
-            let _scr_off_tt_val = System.getInt(_ctx_reso, _scr_off_tt, 0);
-            let _min_normal_val = 15 * 1e3; // 15 seconds
-            let _normal_val = 2 * 60e3; // 2 minutes
-            let _normal_mm = Number((_normal_val / 60e3).toFixed(2));
-            if (_scr_off_tt_val < _min_normal_val) {
-                showSplitLineRaw();
-                messageActionRaw('修正异常的设备屏幕超时参数');
-                messageActionRaw('修正值: ' + _normal_val + ' (' + _normal_mm + '分钟)');
-                System.putInt(_ctx_reso, _scr_off_tt, _normal_val);
-            }
-        }
-
-        function checkRootAccess() {
-            global._$_autojs_has_root = appx.hasRoot();
-            global._$_autojs_has_secure = appx.hasSecure();
-        }
-
-        function checkAccessibility() {
-            let _line = showSplitLineRaw;
-            let _getDash = () => '- '.repeat(17).trim();
-            let _msg = messageActionRaw;
-
-            _checkSvc();
-            _checkFunc();
-
-            // tool function(s) //
-
-            function _checkSvc() {
-                // do not use before `checkModulesMap()`
-                let _a11y = devicex.a11y;
-                if (_a11y.state()) {
-                    return;
-                }
-
-                let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-                let _pkg_n_perm = context.packageName + ' ' + _perm;
-
-                let _mod_sto = require('./modules/mod-storage');
-                let $_cfg = _mod_sto.create('af_cfg').get('config', {});
-                if ($_cfg.auto_enable_a11y_svc === 'ON') {
-                    _tryEnableAndRestart();
-                    if (global._$_autojs_has_root) {
-                        shell('pm grant ' + _pkg_n_perm, true);
-                        _tryEnableAndRestart();
-                    }
-                    _failedHint();
-                }
-
-                if (typeof auto.waitFor !== 'function') {
-                    try {
-                        auto();
-                    } catch (e) {
-                        // consume errors msg caused by auto()
-                    }
-                    exit();
-                }
-
-                let _thd = threads.start(function () {
-                    // script will continue running rather than stop
-                    // when accessibility service enabled by user
-                    auto.waitFor();
-                });
-                _thd.join(60e3);
-
-                if (_thd.isAlive()) {
-                    _line();
-                    _msg('等待用户开启无障碍服务超时', 4, 1);
-                    _line();
-                    exit();
-                }
-
-                // tool function(s) {
-
-                function _failedHint() {
-                    let _shell_sc = 'adb shell pm grant ' + _pkg_n_perm;
-
-                    _line();
-                    _msg('自动开启无障碍服务失败', 4);
-
-                    if (!global._$_autojs_has_secure) {
-                        _line();
-                        _msg('Auto.js缺少以下权限:', 4);
-                        _msg('WRITE_SECURE_SETTINGS', 4);
-                        _line();
-                        _msg('可尝试使用ADB工具连接手机', 3);
-                        _msg('并执行以下Shell指令(无换行):\n' +
-                            '\n' + _shell_sc + '\n', 3);
-                        _msg('Shell指令已复制到剪切板', 3);
-                        _msg('重启设备后授权不会失效', 3);
-
-                        setClip(_shell_sc);
-                    }
-                }
-
-                function _tryEnableAndRestart() {
-                    if (_a11y.enable(true)) {
-                        _line();
-                        _msg('已自动开启无障碍服务');
-                        _msg('尝试一次项目重启操作');
-                        _line();
-                        enginesx.restart({
-                            debug_info_flag: true,
-                            instant_run_flag: false,
-                            max_restart_e_times: 1,
-                        });
-                        sleep(5e3);
-                        exit();
-                    }
-                }
-            }
-
-            function _checkFunc() {
-                let _max = 24;
-                while (!press(1e8, 0, 1) && _max--) {
-                    sleep(50);
-                }
-                if (_max < 0) {
-                    _line();
-                    void ('脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用|'
-                        + _getDash() + '|可尝试以下解决方案:|' + _getDash()
-                        + '|a. 卸载并重新安装"Auto.js"|b. 安装后重启设备'
-                        + '|c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务'
-                        + '|e. 再次尝试运行本项目').split('|').forEach(s => _msg(s, 4));
-                    _line();
-                    toast('无障碍服务方法无法使用');
-                    exit();
-                }
-            }
-        }
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function showSplitLineRaw(extra, style) {
-            console.log((
-                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-            ) + (extra || ''));
-        }
     },
     global() {
         setGlobalFunctions();
@@ -299,8 +78,8 @@ let $$init = {
         function setGlobalObjects() {
             global.$$unlk = require('./modules/mod-unlock');
             global.$$flag = {
-                autojs_has_root: global._$_autojs_has_root,
-                autojs_has_secure: global._$_autojs_has_secure,
+                autojs_has_root: appx.hasRoot(),
+                autojs_has_secure: appx.hasSecure(),
             };
             global.$$sto = {
                 af: require('./modules/mod-storage').create('af'),
@@ -313,13 +92,14 @@ let $$init = {
                 $$sto.af_cfg.get('config') /* do not append a trailing comma here */
             );
 
-            global.$$db = require('./modules/mod-database').create(
-                files.getSdcardPath() + '/.local/ant_forest.db', 'ant_forest', [
-                    {name: 'name', not_null: true},
-                    {name: 'timestamp', type: 'integer', primary_key: true},
-                    {name: 'pick', type: 'integer'},
-                ]
-            );
+            global.$$db = require('./modules/mod-database').create([
+                {name: 'name', not_null: true},
+                {name: 'timestamp', type: 'integer', primary_key: true},
+                {name: 'pick', type: 'integer'},
+                // TODO...
+                // {name: 'e_dblclick', type: 'integer'},
+            ], {alter: 'union'});
+
             global.$$app = {
                 alipay_pkg: global._$_alipay_pkg,
                 autojs_name: appx.getAutoJsName(),
@@ -1340,7 +1120,7 @@ let $$init = {
                                 },
                                 add(capt) {
                                     let _capt = capt || imagesx.capt();
-                                    debugInfo('添加好友森林采样: ' + imagesx.getName(_capt));
+                                    debugInfo('添加森林采样: ' + imagesx.getName(_capt));
                                     this.data.unshift(_capt);
                                     if (this.overflow) {
                                         debugInfo('采样样本数量超过阈值: ' + this.limit);
@@ -1354,7 +1134,7 @@ let $$init = {
                                 },
                                 reclaimAll() {
                                     if (this.len) {
-                                        debugInfo('回收全部好友森林采样');
+                                        debugInfo('回收全部森林采样');
                                         this.data.forEach((c) => {
                                             let _c_name = imagesx.getName(c);
                                             c.recycle();
@@ -1362,7 +1142,7 @@ let $$init = {
                                             c = null;
                                         });
                                         this.clear();
-                                        debugInfo('好友森林样本已清空');
+                                        debugInfo('森林样本已清空');
                                     }
                                 },
                                 clear() {
@@ -1866,18 +1646,22 @@ let $$init = {
                                 let _newest = $$app.newest_release;
                                 let _newest_ver = _newest.version_name;
 
-                                dialogsx.disableBack(dialogsx.builds(['项目更新',
+                                dialogsx.builds(['项目更新',
                                     '本地版本: ' + $$app.project_ver_name + '\n' +
                                     '最新版本: ' + _newest_ver,
                                     ['忽略此版本', 'warn'], 'X',
                                     ['查看更新', 'attraction'], 1,
-                                ]).on('neutral', (d) => {
+                                ], {
+                                    disable_back: true,
+                                }).on('neutral', (d) => {
                                     d.dismiss();
                                     timeRecorder('update_dialog_uphold');
-                                    dialogsx.disableBack(dialogsx.builds([
+                                    dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
                                         0, 'Q', ['确定忽略', 'caution'], 1,
-                                    ]).on('negative', (ds) => {
+                                    ], {
+                                        disable_back: true,
+                                    }).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
                                         timeRecorder('update_dialog_uphold');
@@ -1889,18 +1673,20 @@ let $$init = {
                                         $$sto.af_cfg.put('config', _new);
                                         $$toast('已忽略当前版本', 'Long');
                                         delete $$flag.update_dialog_uphold;
-                                    }).show());
+                                    }).show();
                                 }).on('negative', (d) => {
                                     d.dismiss();
                                     delete $$flag.update_dialog_uphold;
                                 }).on('positive', (d) => {
                                     d.dismiss();
                                     timeRecorder('update_dialog_uphold');
-                                    dialogsx.disableBack(dialogsx.builds([
+                                    dialogsx.builds([
                                         '版本详情', _newest.brief_info_str,
                                         ['浏览器查看', 'hint'], 'B',
                                         ['立即更新', 'attraction'], 1,
-                                    ]).on('neutral', (ds) => {
+                                    ], {
+                                        disable_back: true,
+                                    }).on('neutral', (ds) => {
                                         ds.dismiss();
                                         app.openUrl(_newest.html_url);
                                         timeRecorder('update_dialog_uphold');
@@ -1921,8 +1707,8 @@ let $$init = {
                                             onDeploySuccess: () => _clearFlags(),
                                             onDeployFailure: () => _clearFlags(),
                                         });
-                                    }).show());
-                                }).show());
+                                    }).show();
+                                }).show();
                             },
                         },
                         screen_turning_off: {
@@ -2094,7 +1880,7 @@ let $$init = {
 
                                     return clickActionsPipeline([
                                         [['我的', 'p1']],
-                                        [['设置', {clickable: true}]],
+                                        [['设置', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}]],
                                         [['换账号登录', null]],
                                     ], {name: '账号切换页面', default_strategy: 'widget'});
                                 },
@@ -2317,12 +2103,14 @@ let $$init = {
                                         if (!_name_str) {
                                             debugInfo('无法使用列表快捷切换账户', 3);
                                             debugInfo('>缺少必要的账户名称信息', 3);
+                                            return false;
                                         }
-                                        if (!user.direct) {
-                                            return true;
+                                        if (user.direct) {
+                                            debugInfo('放弃使用列表快捷切换账户', 3);
+                                            debugInfo('>检测到直接登录参数', 3);
+                                            return false;
                                         }
-                                        debugInfo('放弃使用列表快捷切换账户', 3);
-                                        debugInfo('>检测到直接登录参数', 3);
+                                        return true;
                                     }
 
                                     function _loginAndCheck() {
@@ -2381,25 +2169,55 @@ let $$init = {
                                     // tool function(s) //
 
                                     function _ready() {
-                                        if (waitForAction(_condition, 3e3)) {
-                                            if (!$$acc.isInLoginPg()) {
-                                                let _w = $$sel.get('login_new_acc');
-                                                if (!clickAction($$sel.pickup([_w, 'p4']), 'w')) {
-                                                    appx.startActivity($$app.intent.acc_login);
-                                                }
+                                        /** @type {{trigger:function():*,exec:function():boolean}[]} */
+                                        let _monitors = [{
+                                            trigger() {
+                                                return $$sel.get('acc_logged_out');
+                                            },
+                                            exec() {
+                                                return clickAction($$sel.pickup(/好的|OK/), 'w');
+                                            },
+                                        }, {
+                                            trigger() {
+                                                return this.w = $$sel.pickup(/.+img_dialog_close/);
+                                            },
+                                            exec() {
+                                                return clickAction(this.w, 'w');
+                                            },
+                                        }, {
+                                            trigger() {
+                                                return $$sel.pickup(/android:id\/autofill_dataset.*/);
+                                            },
+                                            exec() {
+                                                return back();
+                                            },
+                                        }];
+                                        let _thd_monitor = threadsx.start(function () {
+                                            timeRecorder('acc_login_by_input_text');
+                                            while (timeRecorder('acc_login_by_input_text', 'L') < 30e3) {
+                                                _monitors.some(o => o.trigger() && o.exec()) && sleep(500);
+                                                sleep(240);
                                             }
-                                            return _clickOtherBtnIFN();
+                                        });
+
+                                        let _in = () => $$acc.isInLoginPg() || $$acc.isInSwAccPg();
+                                        let _cond = () => _in() && !waitForAction(() => !_in(), 3, 240);
+                                        let _cond_state = waitForAction(_cond, 15e3, 240);
+
+                                        _thd_monitor.interrupt();
+
+                                        if (!_cond_state) {
+                                            return messageAction('无法判断当前登录页面状态', 4, 1, 0, 2);
                                         }
-                                        return messageAction('无法判断当前登录页面状态', 4, 1, 0, 2);
+                                        if (!$$acc.isInLoginPg()) {
+                                            let _w = $$sel.get('login_new_acc');
+                                            if (!clickAction($$sel.pickup([_w, 'p4']), 'w')) {
+                                                appx.startActivity($$app.intent.acc_login);
+                                            }
+                                        }
+                                        return $$sel.get('input_lbl_code') || _clickOtherBtnIFN();
 
                                         // tool function(s) //
-
-                                        function _condition() {
-                                            if ($$sel.get('acc_logged_out')) {
-                                                clickAction($$sel.pickup(/好的|OK/), 'w');
-                                            }
-                                            return $$acc.isInLoginPg() || $$acc.isInSwAccPg();
-                                        }
 
                                         function _clickOtherBtnIFN() {
                                             let _acc, _lbl, _mthd1, _mthd2;
@@ -2444,15 +2262,6 @@ let $$init = {
                                             // tool function(s) //
 
                                             function _input() {
-                                                threadsx.start(function () {
-                                                    while (1) {
-                                                        $$sel.pickup({
-                                                            packageName: 'com.google.android.gms',
-                                                        }) && back();
-                                                        sleep(1e3);
-                                                    }
-                                                });
-
                                                 let _w_acc = null;
                                                 let _sel_acc = () => _w_acc = $$sel.get('input_lbl_acc');
 
@@ -3178,7 +2987,7 @@ let $$init = {
                             let _t = _init_max_que_t + '->' + _max_que_t;
                             debugInfo('最大排队: ' + _t + '分钟');
                             _init_max_que_t = _max_que_t;
-                            timeRecorder('sc_q', 'save'); // refresh
+                            timeRecorder('sc_q'); // refresh
                         }
                         if (timeRecorder('sc_q', 'L', 60e3) >= _max_que_t) {
                             this.excl_tasks_ahead.forEach(e => e.forceStop());
@@ -3310,7 +3119,7 @@ let $$init = {
                         return debugInfo('检测到"无需保险"引擎参数');
                     }
                     let _max = $$cfg[_keys.ins_accu_max];
-                    if (++this._sto_accu <= _max) {
+                    if (this._sto_accu < _max) {
                         return true;
                     }
                     debugInfo('本次会话不再设置保险定时任务');
@@ -3390,7 +3199,10 @@ let $$init = {
                 remove() {
                     this.id > 0 && timersx.removeTimedTask(this.id);
                     return this;
-                }
+                },
+                increase() {
+                    this._sto_accu += 1;
+                },
             };
         }
 
@@ -3688,7 +3500,7 @@ let $$init = {
                                 trigger() {
                                     return $$flag.dev_unlocked
                                         && !$$flag.glob_e_scr_paused
-                                        && !device.isScreenOn();
+                                        && !devicex.isScreenOn();
                                 },
                                 onTrigger() {
                                     if ($$flag.glob_e_scr_privilege) {
@@ -3975,11 +3787,12 @@ let $$init = {
                     }
                 }),
                 expand_feed: new Monitor('展开动态列表', function (tt) {
-                    let _tt = tt === undefined ? 4.2e3 : tt || Infinity;
+                    let _tt = tt === undefined ? 9e3 : tt || Infinity;
                     let _w = null;
                     let _sel = () => _w = $$sel.pickup(/.*点击.*展开.*(动态|列表)/);
                     if (waitForAction(_sel, _tt, 240)) {
-                        clickAction(_w, 'w');
+                        do clickAction(_w, 'w');
+                        while (!waitForAction(() => !_sel(), 1e3, 200));
                     }
                 }),
             };
@@ -4070,48 +3883,74 @@ let $$init = {
                     return true;
                 },
                 prompt() {
-                    let _sec = +$$cfg.prompt_before_running_countdown_seconds + 1;
-                    let _diag = _promptSetter();
-                    let _action = _actionSetter();
-                    let _thd_et = threadsx.start(_thdEt);
-
-                    _diag.show();
-                    _action.wait();
-
-                    // tool function(s) //
-
-                    function _promptSetter() {
-                        let _btnMsg = (btn_name) => {
-                            let _btn = _diag.getActionButton(btn_name);
-                            let _rex = / *\[ *\d+ *] */;
-                            debugInfo('用户点击"' + _btn.replace(_rex, '') + '"按钮');
-                        };
-
-                        let _diag = dialogsx.builds(['运行提示',
-                            '\n即将在 ' + _sec + ' 秒内运行' + $$app.task_name + '任务\n',
-                            ['推迟运行', 'warn'],
-                            ['放弃任务', 'caution'],
-                            ['立即开始  [ ' + _sec + ' ]', 'attraction'],
-                            1])
-                            .on('neutral', (d) => {
-                                _btnMsg('neutral');
-                                _action.neuBtn(d);
-                            })
-                            .on('negative', (d) => {
-                                _btnMsg('negative');
-                                _action.negBtn(d);
-                            })
-                            .on('positive', (d) => {
-                                _btnMsg('positive');
-                                _action.posBtn(d);
-                            });
-
-                        return dialogsx.disableBack(_diag, () => _action.pause(100));
-                    }
-
-                    function _actionSetter() {
-                        return {
-                            _negDiagCntBuilder() {
+                    dialogsx.buildCountdown(['运行提示',
+                        '\n即将在 %timeout% 秒内运行' + $$app.task_name + '任务\n',
+                        ['推迟运行', 'warn'], ['放弃任务', 'caution'],
+                        ['立即开始', 'attraction'], 1,
+                    ], {
+                        timeout: $$cfg.prompt_before_running_countdown_seconds,
+                        timeout_button: 'positive',
+                        onNeutral(d) {
+                            let _cfg = {
+                                _key: 'prompt_before_running_postponed_minutes',
+                                /** @returns {number[]} */
+                                get sto_min_map() {
+                                    return $$cfg[this._key + '_map'];
+                                },
+                                /** @returns {number} */
+                                get sto_min() {
+                                    return $$cfg[this._key];
+                                },
+                                /** @param {number} v */
+                                set sto_min(v) {
+                                    let _new = {};
+                                    _new[this._key] = v;
+                                    $$sto.af_cfg.put('config', _new);
+                                    Object.assign($$cfg, _new);
+                                },
+                                /** @returns {number} */
+                                get user_min() {
+                                    return $$cfg[this._key + '_user'];
+                                },
+                                /** @param {number} v */
+                                set user_min(v) {
+                                    let _new = {};
+                                    _new[this._key + '_user'] = v;
+                                    $$sto.af_cfg.put('config', _new);
+                                    Object.assign($$cfg, _new);
+                                }
+                            };
+                            if (_cfg.sto_min > 0) {
+                                d.dismiss();
+                                $$app.monitor.insurance.interrupt().clean();
+                                return $$app.setPostponedTask(_cfg.sto_min);
+                            }
+                            let _minutes = _cfg.sto_min_map; // [1, 2, 5, 10, ...]
+                            let _suffix = ' min';
+                            dialogsx
+                                .builds(['设置任务推迟时间', '',
+                                    0, 'B', ['K', 'warn'],
+                                    1, '记住设置且不再提示'], {
+                                    items: _minutes.map(x => x + _suffix),
+                                    itemsSelectMode: 'single',
+                                    itemsSelectedIndex: _minutes.indexOf(_cfg.user_min),
+                                })
+                                .on('negative', (ds) => {
+                                    ds.dismiss();
+                                })
+                                .on('positive', (ds) => {
+                                    dialogsx.dismiss(ds, d);
+                                    _cfg.user_min = _minutes[ds.getSelectedIndex()];
+                                    if (ds.isPromptCheckBoxChecked()) {
+                                        _cfg.sto_min = _cfg.user_min;
+                                    }
+                                    $$app.monitor.insurance.interrupt().clean();
+                                    $$app.setPostponedTask(_cfg.user_min);
+                                })
+                                .show();
+                        },
+                        onNegative(d) {
+                            dialogsx.builds((() => {
                                 // language=JS
                                 let _z = '`当前未设置任何${$$app.task_name}定时任务\n\n`'.ts;
                                 let _q = '确认要放弃本次任务吗';
@@ -4120,125 +3959,35 @@ let $$init = {
                                     ? [['提示', 'default'], [_q, 'default']]
                                     : [['注意', 'caution'], [_z + _q, 'warn']];
                                 return [_title, _cnt, 0, 'B', ['确认放弃任务', 'caution'], 1];
-                            },
-                            posBtn(d) {
-                                this._sgn_move_on = true;
-                                this.pause(100);
-                                d.dismiss();
-                            },
-                            negBtn(d) {
-                                this.pause(300);
-                                dialogsx.builds(this._negDiagCntBuilder())
-                                    .on('negative', (ds) => {
-                                        dialogsx.dismiss(ds);
-                                    })
-                                    .on('positive', (ds) => {
-                                        dialogsx.dismiss(ds, d);
-                                        $$app.monitor.insurance.interrupt().remove();
-                                        // language=JS
-                                        messageAction('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
-                                        exit();
-                                    })
-                                    .show();
-                            },
-                            neuBtn(d) {
-                                this.pause(300);
-                                let _cfg = {
-                                    _key: 'prompt_before_running_postponed_minutes',
-                                    get sto_min() {
-                                        return $$cfg[this._key].toString();
-                                    },
-                                    set sto_min(v) {
-                                        let _new = {};
-                                        _new[this._key] = +v;
-                                        $$sto.af_cfg.put('config', _new);
-                                        Object.assign($$cfg, _new);
-                                    },
-                                    get def_choices() {
-                                        let _src = $$cfg[this._key + '_map'];
-                                        let _res = {};
-                                        _src.forEach(num => _res[num] = num + ' min');
-                                        return _res;
-                                    },
-                                    get user_min() {
-                                        return $$cfg[this._key + '_user'].toString();
-                                    },
-                                    set user_min(v) {
-                                        let _new = {};
-                                        _new[this._key + '_user'] = +v;
-                                        $$sto.af_cfg.put('config', _new);
-                                        Object.assign($$cfg, _new);
-                                    }
-                                };
-                                if (+_cfg.sto_min) {
-                                    d.dismiss();
-                                    $$app.monitor.insurance.interrupt().clean();
-                                    return $$app.setPostponedTask(_cfg.sto_min);
-                                }
-                                let _map = _cfg.def_choices; // ['1 min', '5 min'...]
-                                let _map_keys = Object.keys(_map); // [1, 2, 5, 10...]
-                                dialogsx
-                                    .builds(['设置任务推迟时间', '',
-                                        0, 'B', ['K', 'warn'],
-                                        1, '记住设置且不再提示'], {
-                                        items: _map_keys.map(v => _map[v]),
-                                        itemsSelectMode: 'single',
-                                        itemsSelectedIndex: _map_keys.indexOf((_cfg.user_min)),
-                                    })
-                                    .on('negative', (ds) => {
-                                        ds.dismiss();
-                                    })
-                                    .on('positive', (ds) => {
-                                        dialogsx.dismiss(ds, d);
-                                        _cfg.user_min = _map_keys[ds.getSelectedIndex()];
-                                        if (ds.isPromptCheckBoxChecked()) {
-                                            _cfg.sto_min = _cfg.user_min;
-                                        }
-                                        $$app.monitor.insurance.interrupt().clean();
-                                        $$app.setPostponedTask(_cfg.user_min);
-                                    })
-                                    .show();
-                            },
-                            pause(interval) {
-                                _thd_et.interrupt();
-                                setTimeout(() => {
-                                    let _t = dialogsx.getContentText(_diag);
-                                    let _c = _t.replace(/.*(".+".*任务).*/, '请选择$1运行选项');
-                                    _diag.setContent(_c);
-
-                                    let _pos = _diag.getActionButton('positive');
-                                    let _pos_txt = _pos.replace(/ *\[ *\d+ *]$/, '');
-                                    _diag.setActionButton('positive', _pos_txt);
-                                }, interval || 800);
-                            },
-                            wait() {
-                                if (!waitForAction(() => this._sgn_move_on, 5 * 60e3)) {
-                                    _diag.dismiss();
-                                    _thd_et = _diag = null;
-                                    messageAction('强制结束脚本', 4, 0, 0, -1);
-                                    messageAction('等待运行提示对话框操作超时', 8, 1, 0, 1);
-                                }
-                            },
-                        };
-                    }
-
-                    // thread function(s) //
-
-                    function _thdEt() {
-                        while (--_sec) {
-                            let _cont = dialogsx.getContentText(_diag);
-                            _diag.setContent(_cont.replace(/\d+/, _sec.toString()));
-
-                            let _pos = _diag.getActionButton('positive');
-                            let _pos_str = _pos.replace(/ *\[ *\d+ *]$/, '');
-                            let _pos_txt = _pos_str + '  [ ' + _sec + ' ]';
-                            _diag.setActionButton('positive', _pos_txt);
-
-                            sleep(1e3);
-                        }
-                        debugInfo(['运行提示计时器超时', '任务自动继续']);
-                        _action.posBtn(_diag);
-                    }
+                            })()).on('negative', (ds) => {
+                                dialogsx.dismiss(ds);
+                            }).on('positive', (ds) => {
+                                dialogsx.dismiss(ds, d);
+                                $$app.monitor.insurance.interrupt().remove();
+                                // language=JS
+                                messageAction('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+                                exit();
+                            }).show();
+                        },
+                        onPositive(d) {
+                            d.dismiss();
+                            $$app.monitor.insurance.increase();
+                        },
+                        onPause: {
+                            content: [/.*(".+".*任务).*/, '请选择$1运行选项'],
+                        },
+                        onTimeout() {
+                            debugInfo(['运行提示计时器超时', '任务自动继续']);
+                            return 'positive';
+                        },
+                    }).act().block({
+                        timeout: 2, // minutes
+                        onTimeout(d) {
+                            d.dismiss();
+                            messageAction('强制结束脚本', 4, 0, 0, -1);
+                            messageAction('等待运行提示对话框操作超时', 8, 1, 0, 1);
+                        },
+                    });
                 },
             };
         }
@@ -4270,7 +4019,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _launch() {
-                        timeRecorder('get_rl_data', 'save');
+                        timeRecorder('get_rl_data');
                         return $$app.page.rl.launch({is_show_greeting: false});
                     }
 
@@ -4529,7 +4278,7 @@ let $$af = {
 
                         return clickActionsPipeline([
                             [['Me', 'p1']],
-                            [['Settings', {clickable: true}]],
+                            [['Settings', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}]],
                             [['General', 'p4']],
                             [['Language', 'p4']],
                             [[_chs, 'p4'], () => (
@@ -4543,16 +4292,17 @@ let $$af = {
 
                     function _getReady() {
                         let _max_close = 12;
-                        while ($$app.page.close() && _max_close--) {
+                        while (!$$app.page.close() && _max_close--) {
                             sleep(500);
                         }
 
                         let _sltr = className('TextView').idContains('tab_description');
                         if (!waitForAction(_sltr, 3e3)) {
                             let _max = 5;
-                            do {
-                                appx.restart($$app.alipay_pkg);
-                            } while (_max-- || !waitForAction(_sltr, 15e3));
+
+                            do appx.restart($$app.alipay_pkg);
+                            while (_max-- || !waitForAction(_sltr, 15e3));
+
                             if (_max < 0) {
                                 messageAction('Language switched failed', 4, 1);
                                 messageAction('Homepage failed to get ready', 4, 0, 1);
@@ -4763,7 +4513,8 @@ let $$af = {
 
                                     let _capt = imagesx.capt();
 
-                                    let [_cl, _ct, _cr, _cb] = $$cfg.forest_balls_recog_region;
+                                    let [_cl, _ct, _cr, _cb] = $$cfg.eballs_recognition_region
+                                        .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
                                     let _clip = images.clip(_capt, _cl, _ct, _cr - _cl, _cb - _ct);
 
                                     let _stitched = (() => {
@@ -5055,7 +4806,7 @@ let $$af = {
                         debugInfo('无能量球可收取');
                     } else {
                         debugInfo('共计收取: ' + _em + 'g');
-                        $$db.insert$(['%SELF%', $$app.ts_sec, _em, 0]);
+                        $$db.insert$(['%SELF%', $$app.ts_sec, _em]);
                     }
                     debugInfo('自己能量检查完毕');
                 }
@@ -5073,7 +4824,7 @@ let $$af = {
             },
         },
         fri: {
-            _getSmp(cache_fg) {
+            _getSamples(cache_fg) {
                 if (cache_fg && this.rl_samples) {
                     return this.rl_samples;
                 }
@@ -5105,14 +4856,14 @@ let $$af = {
                 }
             },
             _chkMinCtd(cache_fg) {
-                let _smp = this._getSmp(cache_fg);
+                let _smp = this._getSamples(cache_fg);
 
                 if (Object.size(_smp)) {
                     let _min_mm = Infinity;
                     let _min_ctd = Infinity;
 
                     Object.values(_smp).forEach((o) => {
-                        if (o.ts < _min_ctd) {
+                        if ($$num($$app.ts, '<', o.ts, '<', _min_ctd)) {
                             _min_ctd = o.ts;
                             _min_mm = o.minute;
                         }
@@ -5129,7 +4880,6 @@ let $$af = {
                 }
             },
             thd_info_collect: {
-                _thd: null,
                 start() {
                     let _fri = $$af._collector.fri;
                     this.isAlive() && this.interrupt();
@@ -5144,11 +4894,9 @@ let $$af = {
                             keep_pool_data: true,
                         });
 
-                        Object.keys(_eballs_o).forEach((k) => {
-                            if (k !== 'duration') {
-                                _fri.eballs[k] = _eballs_o[k];
-                            }
-                        });
+                        Object.keys(_eballs_o)
+                            .filter(k => k !== 'duration')
+                            .forEach(k => _fri.eballs[k] = _eballs_o[k]);
 
                         _eballs_o.duration.showDebugInfo();
                     });
@@ -5239,7 +4987,6 @@ let $$af = {
             launch() {
                 $$app.page.rl.launch();
                 $$app.monitor.rl_in_page.start();
-                $$app.monitor.rl_bottom.start();
                 $$app.user_nickname = _getNickname();
 
                 return this;
@@ -5294,7 +5041,7 @@ let $$af = {
                             _nick = _nick.slice(-2);
                         }
 
-                        _nick && debugInfo('已从活动页面get_rank_list_names获取当前账户昵称');
+                        _nick && debugInfo('已从活动页面获取当前账户昵称');
 
                         return _nick;
                     }
@@ -5373,6 +5120,7 @@ let $$af = {
                     };
 
                     timeRecorder('rl_scan');
+                    $$app.monitor.rl_bottom.start();
 
                     _fri.tar = [_getTar('pick')];
 
@@ -5433,10 +5181,11 @@ let $$af = {
                         // tool function(s) //
 
                         function _enter() {
+                            $$app.monitor.rl_bottom.interrupt();
+
                             debugInfo('点击' + _item.act_desc + '目标');
                             showSplitLineForDebugInfo();
                             clickAction([halfW, _item.item_y], 'p', {pt$: 64});
-                            $$app.monitor.rl_bottom.interrupt();
 
                             // TODO cond: pool diff
                             // try avoiding analyzing widgets in rank list
@@ -5980,7 +5729,6 @@ let $$af = {
                             delete $$flag.dblclick_checked;
                             $$app.page.fri.pool.clear();
                             $$app.monitor.expand_feed.interrupt(); // just in case
-                            $$app.monitor.rl_bottom.start();
                         }
                     }
                 }
@@ -6196,7 +5944,7 @@ let $$af = {
                         );
                         if (_mch) {
                             debugInfo(['列表底部条件满足', '>区域内匹配邀请按钮颜色成功']);
-                            return $$flag.rl_bottom_rch = true;
+                            $$flag.rl_bottom_rch = true;
                         }
 
                         // tool function(s) //
@@ -6232,16 +5980,16 @@ let $$af = {
                 }
             },
             review() {
-                let _m_q = '放弃排行榜样本复查:'; // quit
+                let _m_quit = '放弃排行榜样本复查:';
 
                 if (!$$cfg.timers_switch) {
-                    return debugInfo([_m_q, '定时循环功能未开启']);
+                    return debugInfo([_m_quit, '定时循环功能未开启']);
                 }
                 if (!$$cfg.rank_list_review_switch) {
-                    return debugInfo([_m_q, '排行榜样本复查功能未开启']);
+                    return debugInfo([_m_quit, '排行榜样本复查功能未开启']);
                 }
                 if ($$flag.rl_review_stop) {
-                    return debugInfo([_m_q, '检测到复查停止信号']);
+                    return debugInfo([_m_quit, '检测到复查停止信号']);
                 }
 
                 let _trig = (s) => {
@@ -6252,7 +6000,7 @@ let $$af = {
                 if ($$cfg.rank_list_review_difference_switch) {
                     let _smp = this.rl_samples;
                     let _old_keys = _smp && Object.keys(_smp);
-                    let _new_keys = Object.keys(this._getSmp());
+                    let _new_keys = Object.keys(this._getSamples());
                     if (!equalObjects(_old_keys, _new_keys)) {
                         return _trig('列表状态差异');
                     }
@@ -6263,9 +6011,7 @@ let $$af = {
                     }
                 }
                 if ($$cfg.rank_list_review_threshold_switch) {
-                    if (this._chkMinCtd(/* cache_fg */
-                        $$cfg.rank_list_review_difference_switch
-                    )) {
+                    if (this._chkMinCtd($$cfg.rank_list_review_difference_switch)) {
                         return _trig('最小倒计时阈值');
                     }
                 }
@@ -6936,7 +6682,7 @@ let $$af = {
                             if ($$F(_monScrStatAsync.uphold)) {
                                 return true;
                             }
-                            if (!device.isScreenOn()) {
+                            if (!devicex.isScreenOn()) {
                                 let _et = timeRecorder('set_provider', 'L', 'auto');
                                 debugInfo(['策略执行成功', '用时: ' + _et]);
                                 reso(_res = true);
@@ -7026,7 +6772,7 @@ $$af.launch().collect().timers().epilogue();
  * @appendix Code abbreviation dictionary
  * May be helpful for code readers and developers
  * Not all items showed up in this project
- * @abbr a11y: accessibility | acc: account | accu: accumulated | act: action; activity | addn: addition; additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | bo: bitmap options | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cbk: callback | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | clk: click; clicked | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | dny: dynamic | drxn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | fx: function | fxo: function object (an object with some functions) | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inc: increment | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | recog: recognition | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | sltr: selector | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | stp: stripe | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
+ * @glossary a11y: accessibility | acc: account | accu: accumulated | act: action; activity | addn: addition; additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | bo: bitmap options | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cbk: callback | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | clk: click; clicked | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | dny: dynamic | drxn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | fgpt: fingerprint | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | fx: function | fxo: function object (an object with some functions) | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inc: increment | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name; nickname | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | recog: recognition | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | sltr: selector | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | stp: stripe | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
  */
 
 /**

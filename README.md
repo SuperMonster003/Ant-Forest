@@ -19,23 +19,27 @@
 ### 使用说明
 ******
 
-1. 下载项目  
-   [下载项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) 或 [下载最新项目数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip)
+1. 下载项目 (任意一种方式)  
+   [下载项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) (`*.js`)  
+   \* 浏览器可能需要点击 `"另存为"` 或 `"下载"` 至本地  
+   [下载最新项目数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip) (`*.zip`)  
+   \* 手机可能需要额外的 `"文件管理"` 或 `"解压缩"` 工具
 2. 部署项目  
    如果下载了部署工具 (单个 `.js` 格式文件)  
-   则只需用 `Auto.js` 直接运行或导入后运行此工具即可  
+   则只需用 `Auto.js` 直接运行 (或导入后运行) 此文件即可  
    如果下载了项目数据包  
    则需将项目解压缩并放置到 `Auto.js` 工作目录下  
    定位到设备的内部存储目录 如:  
    `/内部存储/` `/Internal Storage/` `/sdcard/` `/storage/emulated/0/` 等  
    在此目录下找到 `Auto.js` 默认工作目录  
-   中文系统默认目录 `./脚本/`  
-   英文系统默认目录 `./Scripts/`  
+   \* 中文系统默认目录 `./脚本/`  
+   \* 英文系统默认目录 `./Scripts/`  
    若不存在则需手动建立 或在 `Auto.js` 软件中设置一个工作目录  
    将项目文件夹保留结构放置在工作目录中
-3. 使用 `Auto.js` 运行 `*.js` 格式的脚本文件  
+3. 使用 `Auto.js` 运行项目  
    运行 `ant-forest-launcher.js` 启动项目  
-   运行 `ant-forest-settings.js` 进行项目配置
+   运行 `ant-forest-settings.js` 进行项目配置  
+   \* 项目目录中也可直接点击上方的 `"运行项目"` 按钮
 4. 欢迎使用并反馈
 
 > ###### 使用指南
@@ -108,13 +112,21 @@
 ******
 ### 版本历史
 ******
+# v2.0.3
+###### 2021/03/10
+* `修复` 切换支付宝语言时的代码逻辑错误及可能出现的管道破裂
+* `修复` 主账户登录时弹出立即登录对话框可能导致登录失败的问题
+* `修复` 统计排行榜列表最小倒计时数据时可能出现早于当前时刻的问题 _[`issue #439`](https://github.com/SuperMonster003/Ant-Forest/issues/439)_
+* `修复` 意外保险机制次数累加器丢失累加判断条件的问题
+* `修复` 排行榜复查关闭列表状态差异时会出现样本遗漏的问题 _[`issue #435`](https://github.com/SuperMonster003/Ant-Forest/issues/435)_
+* `修复` 项目配置参数文件存取过程可能导致的乱码问题 (试修)
+* `修复` 森林能量球识别区域采用动态比例值以兼容多分辨率机型 (试修) _[`issue #429`](https://github.com/SuperMonster003/Ant-Forest/issues/429)_
+* `优化` 版本异常检测功能加入对Pro8不可用版本的检测
+* `优化` 好友森林动态列表增加展开结果判断以增加展开成功率 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
+* `优化` storage模块在高版本系统解析JSON时可自动修复乱码行
+
 # v2.0.2
 ###### 2021/02/11
-* `提示` 需要留意v2.0.1的项目更新功能可用性  
-  · tools文件夹的项目部署工具 (可用)  
-  · 配置工具的"从服务器还原" (可用)  
-  · 配置工具的"关于"或"Snackbar" (故障)  
-  · 项目运行结果展示时的更新悬浮窗 (故障)
 * `修复` 配置工具及Floaty结果的自动更新功能无效的问题
 * `修复` 排行榜页面列表结尾的好友可能被跳过检查的问题
 * `修复` 配置工具从列表选择应用时的数据筛选错误
@@ -123,6 +135,11 @@
 
 # v2.0.1
 ###### 2021/02/08 - 项目结构变更 谨慎升级
+* `提示` 需要留意v2.0.1的项目更新功能可用性  
+  · tools文件夹的项目部署工具 (可用)  
+  · 配置工具的"从服务器还原" (可用)  
+  · 配置工具的"关于"或"Snackbar" (故障)  
+  · 项目运行结果展示时的更新悬浮窗 (故障)
 * `新增` 自动检查更新功能/版本忽略功能及相关配置 
 * `新增` 排行榜页面的控件滑动策略及相关配置 
 * `新增` 运行结果展示支持版本更新提示及定时任务信息展示 

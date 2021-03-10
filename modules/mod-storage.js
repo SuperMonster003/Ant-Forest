@@ -19,7 +19,12 @@ function Storage(name) {
     let _dir = files.getSdcardPath() + '/.local/';
     let _full_path = _dir + name + '.nfe';
     files.createWithDirs(_full_path);
-    let _readFile = () => files.read(_full_path);
+    let _readFile = () => {
+        let _file = files.open(_full_path, 'r');
+        let _content = _file.read();
+        _file.close();
+        return _content;
+    };
 
     this.contains = _contains;
     this.get = _get;
@@ -82,9 +87,11 @@ function Storage(name) {
             _tmp_data[key] = new_val;
         }
 
-        files.write(_full_path, JSON.stringify(
+        let _file = files.open(_full_path, 'w');
+        _file.write(JSON.stringify(
             Object.assign(_old_data, _tmp_data), _replacer, 2
         ));
+        _file.close();
     }
 
     function _get(key, value) {
@@ -98,8 +105,10 @@ function Storage(name) {
     function _remove(key) {
         let _o = _jsonParseFile();
         if (key in _o) {
+            let _file = files.open(_full_path, 'w');
+            _file.write(JSON.stringify(_o, null, 2));
+            _file.close();
             delete _o[key];
-            files.write(_full_path, JSON.stringify(_o, null, 2));
         }
     }
 
@@ -118,45 +127,88 @@ function Storage(name) {
             return _str ? JSON.parse(_str, reviver) : {};
         } catch (e) {
             console.warn('JSON.parse()解析配置文件异常');
-            console.warn('尝试查找并修复异常的转义字符');
+        }
+        try {
+            return _tryRepairEscChar(_str, reviver);
+        } catch (e) {
+            console.warn('转义字符修复失败');
+        }
+        try {
+            return _tryRepairMojibakeLines(_str, reviver);
+        } catch (e) {
+            console.warn('乱码行修复失败');
+        }
+        throw _failAndBackup();
+    }
 
-            let _backslash_rex = /[ntrfb\\'"0xu]/;
-            let _str_new = '';
+    function _tryRepairEscChar(str, reviver) {
+        console.warn('尝试查找并修复异常的转义字符');
 
-            for (let i in _str) {
-                let _i = +i;
-                let _s = _str[_i];
-                if (_s === '\\') {
-                    let _prev_s = _str[_i - 1];
-                    let _next_s = _str[_i + 1];
-                    if (_prev_s && _next_s) {
-                        if (_prev_s !== '\\') {
-                            if (!_next_s.match(_backslash_rex)) {
-                                _s += '\\';
-                            }
-                        }
+        let _rex = /[ntrfb\\'"0xu]/;
+        let _str_new = '';
+
+        for (let i in str) {
+            let _i = +i;
+            let _s = str[_i];
+            if (_s === '\\') {
+                let _prev = str[_i - 1];
+                let _next = str[_i + 1];
+                if (_prev && _next) {
+                    if (_prev !== '\\' && !_next.match(_rex)) {
+                        _s += '\\';
                     }
                 }
-                _str_new += _s;
             }
+            _str_new += _s;
+        }
 
+        let _res = JSON.parse(_str_new, reviver);
+        console.info('修复成功');
+
+        let _file = files.open(_full_path, 'w');
+        _file.write(_str_new);
+        console.info('已重新写入修复后的数据');
+
+        _file.close();
+        return _res;
+    }
+
+    function _tryRepairMojibakeLines(str, reviver) {
+        console.warn('尝试查找并修复异常的乱码行');
+
+        let _split = str.split('\n');
+
+        let _len = _split.length;
+        while (_len-- > 1) {
             try {
+                let _a = _split.slice(0, _len - 1);
+                let _b = _split.slice(_len + 1);
+                let _str_new = _a.concat(_b).join('\n');
                 let _res = JSON.parse(_str_new, reviver);
                 console.info('修复成功');
-                files.write(_full_path, _str_new);
+
+                let _file = files.open(_full_path, 'w');
+                _file.write(_str_new);
                 console.info('已重新写入修复后的数据');
+
+                _file.close();
                 return _res;
             } catch (e) {
-                let _new_file_name = name + '.nfe.' + Date.now() + '.bak';
-
-                files.rename(_full_path, _new_file_name);
-                console.error('修复失败');
-                console.warn('已将损坏的配置文件备份至');
-                console.warn(_dir + _new_file_name);
-                console.warn('以供手动排查配置文件中的问题');
-
-                throw Error(e);
+                // nothing to do here
             }
         }
+        throw Error(_tryRepairMojibakeLines.name);
+    }
+
+    function _failAndBackup() {
+        let _new_file_name = name + '.nfe.' + Date.now() + '.bak';
+
+        files.rename(_full_path, _new_file_name);
+        console.error('修复失败');
+        console.warn('已将损坏的配置文件备份至');
+        console.warn(_dir + _new_file_name);
+        console.warn('以供手动排查配置文件中的问题');
+
+        return Error('JSON.parse() failed in mod-storage');
     }
 }
