@@ -98,7 +98,7 @@
         // tool function(s) //
 
         function _activity() {
-            (global.appx ? appx : app).startActivity(
+            app.startActivity(
                 new android.content.Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS)
                     .setData(android.net.Uri.parse('package:' + context.packageName))
                     .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)

@@ -65,32 +65,30 @@ function Storage(name) {
             throw new TypeError(_m);
         }
 
-        let _old_data = {};
-        let _tmp_data = {};
+        let _old = {};
+        let _tmp = {};
 
         try {
-            _old_data = _jsonParseFile(_reviver);
+            _old = _jsonParseFile(_reviver);
         } catch (e) {
             console.warn(e.message);
         }
 
         let _cA = _classof(new_val, 'Object');
-        let _cB = _classof(_old_data[key], 'Object');
+        let _cB = _classof(_old[key], 'Object');
         let _both_type_o = _cA && _cB;
         let _keyLen = () => Object.keys(new_val).length;
 
         if (!forc && _both_type_o && _keyLen()) {
-            _tmp_data[key] = Object.assign(
-                _old_data[key], new_val
+            _tmp[key] = Object.assign(
+                _old[key], new_val
             );
         } else {
-            _tmp_data[key] = new_val;
+            _tmp[key] = new_val;
         }
 
         let _file = files.open(_full_path, 'w');
-        _file.write(JSON.stringify(
-            Object.assign(_old_data, _tmp_data), _replacer, 2
-        ));
+        _file.write(JSON.stringify(Object.assign(_old, _tmp), _replacer));
         _file.close();
     }
 
@@ -106,7 +104,7 @@ function Storage(name) {
         let _o = _jsonParseFile();
         if (key in _o) {
             let _file = files.open(_full_path, 'w');
-            _file.write(JSON.stringify(_o, null, 2));
+            _file.write(JSON.stringify(_o));
             _file.close();
             delete _o[key];
         }

@@ -2032,7 +2032,7 @@ let ext = {
             while (_max_lch--) {
                 if (typeof _trig === 'object') {
                     _debugInfo('加载intent参数启动应用');
-                    (global.appx ? appx : app).startActivity(_trig);
+                    this.startActivity(_trig);
                 } else if (typeof _trig === 'string') {
                     _debugInfo('加载应用包名参数启动应用');
                     if (!app.launchPackage(_pkg_name)) {
@@ -2075,7 +2075,7 @@ let ext = {
                 let _ctr = '(' + (_max_ready_b - _max_ready) + '/' + _max_ready_b + ')';
                 if (typeof _trig === 'object') {
                     _debugInfo('重新启动Activity ' + _ctr);
-                    (global.appx ? appx : app).startActivity(_trig);
+                    this.startActivity(_trig);
                 } else {
                     _debugInfo('重新启动应用 ' + _ctr);
                     app.launchPackage(_trig);

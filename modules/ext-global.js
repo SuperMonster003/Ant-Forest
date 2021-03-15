@@ -1697,20 +1697,6 @@ let ext = {
             },
         });
     },
-    JSON() {
-        if (!JSON.isJson) {
-            JSON.isJson = function (str) {
-                if (typeof str === 'string') {
-                    try {
-                        return JSON.stringify(JSON.parse(str)).replace(/\s*/g, '') === str.replace(/\s*/g, '');
-                    } catch (e) {
-                        // console.error(e);
-                    }
-                }
-                return false;
-            };
-        }
-    },
 };
 
 module.exports.load = function () {

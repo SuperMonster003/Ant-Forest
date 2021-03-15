@@ -2859,23 +2859,19 @@ let $$init = {
                                 },
                             });
                         }], ['filter_list', 'FILTER', 'ON', () => {
-                            let _ds_k = 'stat_list_show_zero';
-                            let _show_zero = $$ses[_ds_k];
-                            let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses[_ds_k] : _show_zero;
+                            let _show_zero = $$ses.stat_list_show_zero;
+                            let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.stat_list_show_zero : _show_zero;
                             dialogsx
                                 .builds([
-                                    '收取值筛选', '',
-                                    ['R', 'hint'], 'B', 'K', 1,
+                                    '收取值筛选', '', ['R', 'hint'], 'B', 'K', 1,
                                 ], {
-                                    items: _getItems($$sto.af_cfg.get('config', {})[_ds_k]),
+                                    items: _getItems($$sto.af_cfg.get('config', {}).stat_list_show_zero),
                                     itemsSelectMode: 'single',
                                     itemsSelectedIndex: _sess_sel_idx,
                                 })
                                 .on('neutral', (d) => {
                                     let _sel_i = d.getSelectedIndex();
-                                    let _dat = {};
-                                    _dat[_ds_k] = _sel_i;
-                                    $$sto.af_cfg.put('config', _dat);
+                                    $$sto.af_cfg.put('config', {stat_list_show_zero: _sel_i});
                                     d.setItems(_getItems(_sel_i));
                                 })
                                 .on('negative', (d) => {
@@ -2896,37 +2892,30 @@ let $$init = {
                                     .map((v, i) => v + (i === idx ? ' (默认值)' : ''));
                             }
                         }], ['date_range', 'RANGE', 'ON', () => {
-                            let _ds_k = 'stat_list_date_range';
-                            let _range = $$ses[_ds_k];
-                            let _sess_sel_idx = $$und(_range) ? $$cfg.ses[_ds_k] : _range;
-                            let _positive_func = d => _posDefault(d);
-                            let _diag = dialogsx
-                                .builds([
-                                    '日期统计范围', '',
-                                    ['R', 'hint'], 'B', 'K', 1,
-                                ], {
-                                    items: _getItems({def: $$sto.af_cfg.get('config', {})[_ds_k]}),
-                                    itemsSelectMode: 'single',
-                                    itemsSelectedIndex: _sess_sel_idx,
-                                })
-                                .on('neutral', (d) => {
-                                    let _sel_i = d.getSelectedIndex();
-                                    if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
-                                        _sel_i = 0;
-                                    }
-                                    let _dat = {};
-                                    _dat[_ds_k] = _sel_i;
-                                    $$sto.af_cfg.put('config', _dat);
-                                    d.setItems(_getItems({def: _sel_i}));
-                                })
-                                .on('negative', (d) => {
-                                    _thd.interrupt();
-                                    d.dismiss();
-                                })
-                                .on('positive', (d) => {
-                                    _positive_func(d);
-                                })
-                                .show();
+                            let _range = $$ses.stat_list_date_range;
+                            let _sess_sel_idx = $$und(_range) ? $$cfg.ses.stat_list_date_range : _range;
+                            let _posFunc = d => _posDefault(d);
+                            let _diag = dialogsx.builds([
+                                '日期统计范围', '', ['R', 'hint'], 'B', 'K', 1,
+                            ], {
+                                items: $$view.getStatPageItems({
+                                    def: $$sto.af_cfg.get('config', {}).stat_list_date_range,
+                                }),
+                                itemsSelectMode: 'single',
+                                itemsSelectedIndex: _sess_sel_idx,
+                            }).on('neutral', (d) => {
+                                let _sel_i = d.getSelectedIndex();
+                                if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
+                                    _sel_i = 0;
+                                }
+                                $$sto.af_cfg.put('config', {stat_list_date_range: _sel_i});
+                                d.setItems($$view.getStatPageItems({def: _sel_i}));
+                            }).on('negative', (d) => {
+                                _thd.interrupt();
+                                d.dismiss();
+                            }).on('positive', (d) => {
+                                _posFunc(d);
+                            }).show();
 
                             let _thd = threadsx.start(function () {
                                 while (1) {
@@ -2934,13 +2923,13 @@ let $$init = {
                                         if (_diag.getActionButton('positive') === dialogsx._text._btn.K) {
                                             _diag.setActionButton('positive', '设置范围');
                                             _diag.setActionButton('neutral', null);
-                                            _positive_func = _posSetRange;
+                                            _posFunc = _posSetRange;
                                         }
                                     } else {
                                         if (_diag.getActionButton('positive') === '设置范围') {
                                             _diag.setActionButton('positive', dialogsx._text._btn.K);
                                             _diag.setActionButton('neutral', 'R');
-                                            _positive_func = _posDefault;
+                                            _posFunc = _posDefault;
                                         }
                                     }
                                     sleep(120);
@@ -2948,82 +2937,6 @@ let $$init = {
                             });
 
                             // tool function(s) //
-
-                            function _getItems(opt) {
-                                let _opt = opt || {};
-                                let _def_idx = _opt.def;
-                                let _sess_idx = _opt.sel;
-
-                                let _now = new Date();
-                                let _yy = _now.getFullYear();
-                                let _mm = _now.getMonth();
-                                let _dd = _now.getDate();
-                                let _day = _now.getDay() || 7;
-                                let _pad = x => x < 10 ? '0' + x : x;
-                                let _today_ts = +new Date(_yy, _mm, _dd);
-                                let _today_sec = Math.trunc(_today_ts / 1e3);
-                                let _1_day_sec = 24 * 3.6e3;
-                                let _1_day_ts = _1_day_sec * 1e3;
-                                let _today_max_sec = _today_sec + _1_day_sec - 1;
-                                let _items = [
-                                    (() => {
-                                        let _du = _today_ts + _1_day_ts - $$ses.list_data_min_ts;
-                                        let _days = Math.ceil(_du / _1_day_ts);
-                                        _days = isInfinite(_days) ? 0 : _days;
-                                        return {
-                                            item: '全部 (共' + _days + '天)',
-                                            range: [0, _today_max_sec],
-                                        };
-                                    })(), {
-                                        item: '自定义范围',
-                                    }, {
-                                        item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                                        range: [_today_sec, _today_max_sec],
-                                    }, (() => {
-                                        let _date = new Date(+_now - _1_day_ts);
-                                        let _mm = _date.getMonth();
-                                        let _dd = _date.getDate();
-                                        return {
-                                            item: '昨天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                                            range: [_today_sec - _1_day_sec, _today_sec - 1],
-                                        };
-                                    })(), {
-                                        item: '本周 (共' + _day + '天)',
-                                        range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
-                                    }, (() => {
-                                        let _date = new Date(+_now - _1_day_ts * 6);
-                                        let _mm = _date.getMonth();
-                                        let _dd = _date.getDate();
-                                        return {
-                                            item: '近7天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                                            range: [_today_sec - _1_day_sec * 6, _today_max_sec],
-                                        };
-                                    })(), {
-                                        item: '本月 (共' + _dd + '天)',
-                                        range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
-                                    }, (() => {
-                                        let _date = new Date(+_now - _1_day_ts * 29);
-                                        let _mm = _date.getMonth();
-                                        let _dd = _date.getDate();
-                                        return {
-                                            item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                                            range: [_today_sec - _1_day_sec * 29, _today_max_sec],
-                                        };
-                                    })(),
-                                ];
-                                if (!$$und(_def_idx)) {
-                                    return _items.map((o, i) => {
-                                        let v = o.item;
-                                        if (i === _def_idx) {
-                                            return v + ' (默认值)';
-                                        }
-                                        return v;
-                                    });
-                                }
-                                if (!$$und(_sess_idx)) {
-                                    return _items[_sess_idx].range;
-                                }
-                            }
 
                             function _posSetRange(d) {
                                 d.dismiss();
@@ -3061,13 +2974,82 @@ let $$init = {
                             function _posDefault(d) {
                                 let _idx = d.getSelectedIndex();
                                 $$ses.stat_list_date_range = _idx;
-                                $$ses.stat_list_date_range_data = _getItems({sel: _idx});
+                                $$ses.stat_list_date_range_data = $$view.getStatPageItems({sel: _idx});
                                 $$view.statListDataSource('SET');
                                 _thd.interrupt();
                                 d.dismiss();
                             }
                         }]
                     );
+                },
+                getStatPageItems(opt) {
+                    let _opt = opt || {};
+                    let _def_idx = _opt.def;
+                    let _sess_idx = _opt.sel;
+
+                    let _now = new Date();
+                    let _yy = _now.getFullYear();
+                    let _mm = _now.getMonth();
+                    let _dd = _now.getDate();
+                    let _day = _now.getDay() || 7;
+                    let _pad = x => x < 10 ? '0' + x : x;
+                    let _today_ts = new Date(_yy, _mm, _dd).getTime();
+                    let _today_sec = _today_ts / 1e3 >> 0;
+                    let _1_day_sec = 24 * 3.6e3;
+                    let _1_day_ts = _1_day_sec * 1e3;
+                    let _today_max_sec = _today_sec + _1_day_sec - 1;
+                    let _items = [
+                        (() => {
+                            let _du = _today_ts + _1_day_ts - $$ses.list_data_min_ts;
+                            let _days = Math.ceil(_du / _1_day_ts);
+                            _days = isInfinite(_days) ? 0 : _days;
+                            return {
+                                item: '全部 (共' + _days + '天)',
+                                range: [0, _today_max_sec],
+                            };
+                        })(), {
+                            item: '自定义范围',
+                        }, {
+                            item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
+                            range: [_today_sec, _today_max_sec],
+                        }, (() => {
+                            let _date = new Date(+_now - _1_day_ts);
+                            let _mm = _date.getMonth();
+                            let _dd = _date.getDate();
+                            return {
+                                item: '昨天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
+                                range: [_today_sec - _1_day_sec, _today_sec - 1],
+                            };
+                        })(), {
+                            item: '本周 (共' + _day + '天)',
+                            range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
+                        }, (() => {
+                            let _date = new Date(+_now - _1_day_ts * 6);
+                            let _mm = _date.getMonth();
+                            let _dd = _date.getDate();
+                            return {
+                                item: '近7天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
+                                range: [_today_sec - _1_day_sec * 6, _today_max_sec],
+                            };
+                        })(), {
+                            item: '本月 (共' + _dd + '天)',
+                            range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
+                        }, (() => {
+                            let _date = new Date(+_now - _1_day_ts * 29);
+                            let _mm = _date.getMonth();
+                            let _dd = _date.getDate();
+                            return {
+                                item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
+                                range: [_today_sec - _1_day_sec * 29, _today_max_sec],
+                            };
+                        })(),
+                    ];
+                    if (!$$und(_def_idx)) {
+                        return _items.map((o, i) => i === _def_idx ? o.item + ' (默认值)' : o.item);
+                    }
+                    if (!$$und(_sess_idx)) {
+                        return _items[_sess_idx].range;
+                    }
                 },
                 setTimersControlPanelPageButtons(p_view, data_source_key_name, wizardFunc) {
                     return $$view.setButtons(p_view, data_source_key_name,
@@ -3356,9 +3338,8 @@ let $$init = {
                     let _ts_b = _range[1] || 1e10 - 1;
                     let _ts = _ts_a + ' and ' + _ts_b;
 
-                    let _ds_k = 'stat_list_show_zero';
-                    let _zero = $$ses[_ds_k];
-                    _zero = $$und(_zero) ? $$cfg.ses[_ds_k] : _zero;
+                    let _zero = $$ses.stat_list_show_zero;
+                    _zero = $$und(_zero) ? $$cfg.ses.stat_list_show_zero : _zero;
                     let [_show_zero, _show_other] = [0, 1];
                     if ($$2(_zero)) {
                         [_show_zero, _show_other] = [1, 0];
@@ -3425,9 +3406,8 @@ let $$init = {
                         return _db_data;
                     }
 
-                    let _ds_k_ls = 'stat_list';
-                    $$ses[_ds_k_ls].splice(0);
-                    $$view.updateDataSource(_ds_k_ls, 'update', _db_data, {write_back: false});
+                    $$ses.stat_list.splice(0);
+                    $$view.updateDataSource('stat_list', 'update', _db_data, {write_back: false});
                 },
             };
 
@@ -3809,6 +3789,9 @@ let $$init = {
             delete $$ses.stat_page_updated;
             threadsx.start(function () {
                 if (waitForAction(() => $$view && $$view.statListDataSource, 60e3)) {
+                    $$ses.stat_list_date_range_data = $$view.getStatPageItems({
+                        sel: $$sto.af_cfg.get('config', {}).stat_list_date_range || 0,
+                    });
                     $$ses.init_stat_list_data = $$view.statListDataSource('GET');
                     $$ses.stat_page_updated = true;
                     $$view.updateViewByTag('stat_page');
@@ -7032,8 +7015,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
 });
 $$view.page.new('数据统计', 'stat_page', (t) => {
     $$view.setPage(t, (p_view) => {
-        let _ds_k = 'stat_list';
-        $$view.setStatPageButtons(p_view, _ds_k);
+        $$view.setStatPageButtons(p_view, 'stat_list');
     }, {no_scroll_view: true})
         .ready();
 });

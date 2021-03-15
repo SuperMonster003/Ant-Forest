@@ -112,6 +112,16 @@
 ******
 ### 版本历史
 ******
+
+[comment]: <> (Version history only shows last 3 versions)
+
+# v2.0.4
+###### 2021/03/15
+* `修复` 好友森林动态列表首次展开后无法继续展开的问题 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
+* `修复` 配置工具采集排行榜列表数据时可能会出现假死的问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
+* `修复` 配置工具数据统计初始化时与日期范围默认值未联动的问题
+* `优化` 分离高频读写参数到独立配置文件中降低配置文件损坏概率
+
 # v2.0.3
 ###### 2021/03/10
 * `修复` 切换支付宝语言时的代码逻辑错误及可能出现的管道破裂
@@ -133,34 +143,11 @@
 * `修复` 高版本安卓设备可能无法判断系统应用的问题
 * `优化` 增加主账户头像本地样本尺寸检测以防止尺寸越界
 
-# v2.0.1
-###### 2021/02/08 - 项目结构变更 谨慎升级
-* `提示` 需要留意v2.0.1的项目更新功能可用性  
-  · tools文件夹的项目部署工具 (可用)  
-  · 配置工具的"从服务器还原" (可用)  
-  · 配置工具的"关于"或"Snackbar" (故障)  
-  · 项目运行结果展示时的更新悬浮窗 (故障)
-* `提示` 解锁功能配置工具暂时被移除 (将在后续版本恢复)
-* `新增` 自动检查更新功能/版本忽略功能及相关配置 
-* `新增` 排行榜页面的控件滑动策略及相关配置 
-* `新增` 运行结果展示支持版本更新提示及定时任务信息展示 
-* `修复` 好友森林动态列表未就绪导致页面判断失效的问题 _[`issue #423`](https://github.com/SuperMonster003/Ant-Forest/issues/423)_ _[`#420`](https://github.com/SuperMonster003/Ant-Forest/issues/420)_ _[`#418`](https://github.com/SuperMonster003/Ant-Forest/issues/418)_ _[`#416`](https://github.com/SuperMonster003/Ant-Forest/issues/416)_
-* `修复` 好友森林动态列表未就绪导致能量罩信息获取失败的问题 _[`issue #425`](https://github.com/SuperMonster003/Ant-Forest/issues/425)_
-* `修复` 解锁模块覆盖全局require方法后可能导致的功能异常
-* `修复` 解锁模块加载外部模块方法的路径匹配错误
-* `修复` 找能量向导遮罩导致主页能量球识别失效的问题
-* `修复` 执行过程中能量罩倒计时失效后依然触发黑名单的问题
-* `修复` 本地备份完成后可能导致本地备份配置信息丢失的问题
-* `优化` 移除帮收功能相关的全部功能及配置选项
-* `优化` 移除排行榜底部控件图片相关方法以提升兼容性
-* `优化` 移除参数调整提示避免自动定时任务无法正常运行的情况
-* `优化` 部分imagesx方法提供压缩等级参数以降低OOM出现概率
-
 ##### 更多版本历史可参阅
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/documents/CHANGELOG-2.md)  ( 2.x 版本 )
 * [CHANGELOG-1.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/documents/CHANGELOG-1.md)  ( 1.x 版本 )
 
 
-[//]: # (
+[comment]: <> (
 If you prefer to make a donation, run ant-forest-settings.js with Auto.js, then go to the "About" page and click my name. When the page with a pink "CLOSE" button popped up, you could see the QR Code by long-clicking this button. Blue QR Code for Alipay and green for WeChat. I believe i could make it better with your support.
 )

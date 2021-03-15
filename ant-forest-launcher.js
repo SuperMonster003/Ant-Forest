@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Mar 10, 2021
- * @version 2.0.3
+ * @since Mar 15, 2021
+ * @version 2.0.4
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -83,6 +83,8 @@ let $$init = {
             };
             global.$$sto = {
                 af: require('./modules/mod-storage').create('af'),
+                af_next: require('./modules/mod-storage').create('af_auto'),
+                af_ins: require('./modules/mod-storage').create('af_ins'),
                 af_cfg: require('./modules/mod-storage').create('af_cfg'),
                 af_blist: require('./modules/mod-storage').create('af_blist'),
                 af_flist: require('./modules/mod-storage').create('af_flist'),
@@ -219,7 +221,7 @@ let $$init = {
                         let _task = task_func.call(null);
                         let _new_id = _task.id;
 
-                        $$sto.af.put('next_auto_task', {
+                        $$sto.af_next.put('next_auto_task', {
                             task_id: _new_id, timestamp: ts, type: type,
                         });
 
@@ -231,7 +233,7 @@ let $$init = {
                         return _task;
                     };
                     $$app.getAutoTask = (def) => {
-                        return $$sto.af.get('next_auto_task', def || {});
+                        return $$sto.af_next.get('next_auto_task', def || {});
                     };
 
                     return this;
@@ -3124,7 +3126,7 @@ let $$init = {
                     }
                     debugInfo('本次会话不再设置保险定时任务');
                     debugInfo('>任务已达最大连续次数限制: ' + _max);
-                    this.reset();
+                    this.clean().reset();
                 },
                 get id() {
                     if (this.task) {
@@ -3132,13 +3134,13 @@ let $$init = {
                     }
                 },
                 get _sto_accu() {
-                    return +$$sto.af.get(_keys.ins_accu, 0);
+                    return Number($$sto.af_ins.get(_keys.ins_accu, 0));
                 },
                 set _sto_accu(v) {
-                    $$sto.af.put(_keys.ins_accu, +v);
+                    $$sto.af_ins.put(_keys.ins_accu, Number(v));
                 },
                 get _sto_ids() {
-                    return $$sto.af.get(_keys.ins_tasks, [])
+                    return $$sto.af_ins.get(_keys.ins_tasks, [])
                         .filter(id => timersx.getTimedTask(id));
                 },
                 get _next_task_time() {
@@ -3152,11 +3154,10 @@ let $$init = {
                             _ids.length > 1 ? '[ ' + _ids.join(', ') + ' ]' : _ids[0]
                         )]);
                     }
-                    $$sto.af.remove(_keys.ins_tasks);
+                    $$sto.af_ins.remove(_keys.ins_tasks);
                     return this;
                 },
                 reset() {
-                    this.clean();
                     this._sto_accu = 0;
                     return this;
                 },
@@ -3172,7 +3173,7 @@ let $$init = {
                                 let _id = _this.task.id;
                                 clearInterval(_itv);
                                 let _ids = _this._sto_ids.concat([_id]);
-                                $$sto.af.put(_keys.ins_tasks, _ids);
+                                $$sto.af_ins.put(_keys.ins_tasks, _ids);
                                 debugInfo('已设置意外保险定时任务');
                                 debugInfo('任务ID: ' + _id);
                             }
@@ -3242,6 +3243,7 @@ let $$init = {
                             messageAction('触发按键: 音量减/VOL-', 3, 0, 1);
                             messageAction(_keyMsg(e), 3, 0, 1, 1);
 
+                            $$app.monitor.insurance.reset();
                             engines.myEngine().forceStop();
                         });
                         events.setKeyInterceptionEnabled('volume_up', true);
@@ -3256,6 +3258,7 @@ let $$init = {
                             messageAction('触发按键: 音量加/VOL+', 4, 0, 1);
                             messageAction(_keyMsg(e), 4, 0, 1, 1);
 
+                            $$app.monitor.insurance.reset();
                             engines.stopAllAndToast();
                         });
                     });
@@ -3695,7 +3698,7 @@ let $$init = {
                             scrollable: true,
                             filter(w) {
                                 let bnd = w.bounds();
-                                return bnd.top < cYx(0.1) && bnd.width() > cX(0.96);
+                                return bnd.top < cYx(0.2) && bnd.width() > cX(0.9);
                             },
                         });
 
@@ -5274,11 +5277,10 @@ let $$af = {
 
                                         let _ctr = 0;
                                         let _w = null;
-                                        let _btn = '点击加载更多';
-
-                                        if (!waitForAction(() => _w = $$sel.pickup(_btn), 3e3)) {
-                                            return messageAction('定位"' + _btn + '"按钮超时', 3);
+                                        if (!waitForAction(() => _w = $$sel.pickup(/.*加载更多\s*/), 3e3)) {
+                                            return debugInfo('定位"加载更多"按钮超时', 3);
                                         }
+                                        debugInfo('成功定位"' + $$sel.pickup(_w, 'txt') + '"按钮');
 
                                         while (_ctr++ < 50) {
                                             waitForAndClickAction(_w, 3e3, 120, {click_strategy: 'w'});
@@ -6379,7 +6381,7 @@ let $$af = {
                 $$af.cleaner.imgWrapper();
                 $$app.blist.save();
                 $$app.page.rl.pool.clean();
-                $$app.monitor.insurance.interrupt().reset();
+                $$app.monitor.insurance.interrupt().clean().reset();
                 $$app.page.closeIntelligently();
                 $$app.page.autojs.spring_board.remove();
                 $$flag.glob_e_scr_privilege = true;
@@ -6777,9 +6779,8 @@ $$af.launch().collect().timers().epilogue();
 
 /**
  * @memorandums
- * @on Feb 1, 2021
+ * @on Feb 12, 2021
  * 'Protect' function ('提醒守护功能') went online on around Dec 31, 2020
- * At the same time, 'help' function ('帮收功能') was removed (temporarily?)
- * Thus, 'help' switch was switched off forcibly for now
- * And, all code about 'help' would be removed from this project some day
+ * At the same time, 'help' function ('帮收功能') was disabled (seems permanently)
+ * Thus, all code about 'help' has been removed from this project
  */
