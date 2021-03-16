@@ -1,7 +1,7 @@
 global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
 
-require('./mod-monster-func').load('debugInfo', 'timeRecorder');
-require('./ext-global').load('Math', 'Number');
+require('./mod-monster-func').load();
+require('./ext-global').load();
 require('./ext-device').load().getDisplay(true);
 
 let _ext = {
@@ -257,25 +257,10 @@ let _ext = {
         }
         let $_und = x => typeof x === 'undefined';
         let _par = params || {};
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
 
-        _debugInfo('开始申请截图权限');
+        debugInfo('开始申请截图权限');
 
-        let _waitForAction = (
-            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-        );
-        let _messageAction = (
-            typeof messageAction === 'function' ? messageAction : messageActionRaw
-        );
-        let _clickAction = (
-            typeof clickAction === 'function' ? clickAction : clickActionRaw
-        );
-        let _getSelector = (
-            typeof getSelector === 'function' ? getSelector : getSelectorRaw
-        );
-        let $_sel = _getSelector();
+        let $_sel = getSelector();
 
         if ($_und(_par.restart_e_flag)) {
             _par.restart_e_flag = true;
@@ -290,7 +275,7 @@ let _ext = {
             _par.restart_e_params.max_restart_e_times = 3;
         }
 
-        _debugInfo('已开启弹窗监测线程');
+        debugInfo('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
             let _sltr_remember = id('com.android.systemui:id/remember');
@@ -298,47 +283,47 @@ let _ext = {
             let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
             let _sel_sure = type => $_sel.pickup(_rex_sure, type);
 
-            if (_waitForAction(_sel_sure, 5e3)) {
-                if (_waitForAction(_sel_remember, 1e3)) {
-                    _debugInfo('勾选"不再提示"复选框');
-                    _clickAction(_sel_remember(), 'w');
+            if (waitForAction(_sel_sure, 5e3)) {
+                if (waitForAction(_sel_remember, 1e3)) {
+                    debugInfo('勾选"不再提示"复选框');
+                    clickAction(_sel_remember(), 'w');
                 }
-                if (_waitForAction(_sel_sure, 2e3)) {
+                if (waitForAction(_sel_sure, 2e3)) {
                     let _w = _sel_sure();
                     let _act_msg = '点击"' + _sel_sure('txt') + '"按钮';
 
-                    _debugInfo(_act_msg);
-                    _clickAction(_w, 'w');
+                    debugInfo(_act_msg);
+                    clickAction(_w, 'w');
 
-                    if (!_waitForAction(() => !_sel_sure(), 1e3)) {
-                        _debugInfo('尝试click()方法再次' + _act_msg);
-                        _clickAction(_w, 'click');
+                    if (!waitForAction(() => !_sel_sure(), 1e3)) {
+                        debugInfo('尝试click()方法再次' + _act_msg);
+                        clickAction(_w, 'click');
                     }
                 }
             }
         });
 
         let _thread_monitor = threads.start(function () {
-            if (_waitForAction(() => !!_req_result, 3.6e3, 300)) {
+            if (waitForAction(() => !!_req_result, 3.6e3, 300)) {
                 _thread_prompt.interrupt();
-                return _debugInfo('截图权限申请结果: 成功');
+                return debugInfo('截图权限申请结果: 成功');
             }
             if (typeof $$flag !== 'undefined') {
                 if (!$$flag.debug_info_avail) {
                     $$flag.debug_info_avail = true;
-                    _debugInfo('开发者测试模式已自动开启', 3);
+                    debugInfo('开发者测试模式已自动开启', 3);
                 }
             }
             if (_par.restart_e_flag) {
-                _debugInfo('截图权限申请结果: 失败', 3);
+                debugInfo('截图权限申请结果: 失败', 3);
                 try {
                     let _m = android.os.Build.MANUFACTURER.toLowerCase();
                     if (_m.match(/xiaomi/)) {
-                        _debugInfo('__split_line__dash__');
-                        _debugInfo('检测到当前设备制造商为小米', 3);
-                        _debugInfo('可能需要给Auto.js以下权限:', 3);
-                        _debugInfo('>"后台弹出界面"', 3);
-                        _debugInfo('__split_line__dash__');
+                        debugInfo('__split_line__dash__');
+                        debugInfo('检测到当前设备制造商为小米', 3);
+                        debugInfo('可能需要给Auto.js以下权限:', 3);
+                        debugInfo('"后台弹出界面"', 3);
+                        debugInfo('__split_line__dash__');
                     }
                 } catch (e) {
                     // nothing to do here
@@ -347,7 +332,7 @@ let _ext = {
                     return require('./ext-engines').restart(_par.restart_e_params);
                 }
             }
-            _messageAction('截图权限申请失败', 8, 1, 0, 1);
+            messageAction('截图权限申请失败', 8, 1, 0, 1);
         });
 
         let _req_result = this.requestScreenCapture(false);
@@ -355,94 +340,6 @@ let _ext = {
         _thread_monitor.join();
 
         return _req_result;
-
-        // raw function(s) //
-
-        function getSelectorRaw() {
-            let _sel = Object.create(selector());
-            let _sel_ext = {
-                pickup(sel_body, res_type) {
-                    if (sel_body === undefined || sel_body === null) {
-                        return null;
-                    }
-                    if (!(res_type === undefined || res_type === 'w' || res_type === 'widget')) {
-                        throw Error('getSelectorRaw()返回对象的pickup方法不支持结果筛选类型');
-                    }
-                    if (arguments.length > 2) {
-                        throw Error('getSelectorRaw()返回对象的pickup方法不支持复杂参数传入');
-                    }
-                    if (typeof sel_body === 'string') {
-                        return desc(sel_body).findOnce() || text(sel_body).findOnce();
-                    }
-                    if (sel_body instanceof RegExp) {
-                        return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
-                    }
-                    if (sel_body instanceof com.stardust.automator.UiObject) {
-                        return sel_body;
-                    }
-                    if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                        return sel_body.findOnce();
-                    }
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
-                },
-            };
-            return Object.assign(_sel, _sel_ext);
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-        }
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function clickActionRaw(o) {
-            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let _o = _classof(o) === 'Array' ? o[0] : o;
-            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-            if (!_w) {
-                return false;
-            }
-            let _bnd = _w.bounds();
-            return click(_bnd.centerX(), _bnd.centerY());
-        }
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
     },
     /**
      * @param {ImageWrapper$} img - should be recycled manually if needed

@@ -1233,17 +1233,9 @@ let ext = {
     },
     /**
      * Check if device is running compatible (relatively) Auto.js version and android sdk version
-     * @param {{debug_info_flag?:boolean}} [options]
      */
-    checkSdkAndAJVer(options) {
+    checkSdkAndAJVer() {
         let _this = this;
-        let _par = options || {};
-        let _messageAction = (
-            typeof messageAction === 'function' ? messageAction : messageActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
 
         _chkSdk();
         _chkVer();
@@ -1252,8 +1244,8 @@ let ext = {
 
         function _chkSdk() {
             if (device.sdkInt < 24) {
-                _messageAction('脚本无法继续', 4, 0, 0, 'up');
-                _messageAction('安卓系统版本低于7.0', 8, 1, 1, 1);
+                messageAction('脚本无法继续', 4, 0, 0, 'up');
+                messageAction('安卓系统版本低于7.0', 8, 1, 1, 1);
             }
         }
 
@@ -1294,16 +1286,16 @@ let ext = {
 
             let _bug_chk_res = _chkBugs(_aj_ver);
             if (_bug_chk_res === 0) {
-                return _debugInfo('Bug版本检查: 正常');
+                return debugInfo('Bug版本检查: 正常');
             }
             if (_bug_chk_res === '') {
-                return _debugInfo('Bug版本检查: 未知');
+                return debugInfo('Bug版本检查: 未知');
             }
             let _bug_chk_cnt = _bug_chk_res.map(code => (
                 '\n-> ' + (_bugs_map[code] || '/* 无效的Bug描述 */'))
             );
 
-            _debugInfo('Bug版本检查: 确诊');
+            debugInfo('Bug版本检查: 确诊');
 
             alert('\n' +
                 '此项目无法正常运行\n请更换Auto.js版本\n\n' +
@@ -1435,47 +1427,13 @@ let ext = {
                 }
             }
         }
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-        }
     },
     /**
      * Make sure a11y is on service and try turning it on when necessary
      */
     checkAccessibility() {
         let _appx = this;
-        let _line = showSplitLineRaw;
         let _getDash = () => '- '.repeat(17).trim();
-        let _msg = messageActionRaw;
 
         _checkSvc();
         _checkFunc();
@@ -1522,9 +1480,9 @@ let ext = {
             _thd.join(60e3);
 
             if (_thd.isAlive()) {
-                _line();
-                _msg('等待用户开启无障碍服务超时', 4, 1);
-                _line();
+                showSplitLine();
+                messageAction('等待用户开启无障碍服务超时', 4, 1);
+                showSplitLine();
                 exit();
             }
 
@@ -1533,19 +1491,19 @@ let ext = {
             function _failedHint() {
                 let _shell_sc = 'adb shell pm grant ' + _pkg_n_perm;
 
-                _line();
-                _msg('自动开启无障碍服务失败', 4);
+                showSplitLine();
+                messageAction('自动开启无障碍服务失败', 4);
 
                 if (!_appx.hasSecure()) {
-                    _line();
-                    _msg('Auto.js缺少以下权限:', 4);
-                    _msg('WRITE_SECURE_SETTINGS', 4);
-                    _line();
-                    _msg('可尝试使用ADB工具连接手机', 3);
-                    _msg('并执行以下Shell指令(无换行):\n' +
+                    showSplitLine();
+                    messageAction('Auto.js缺少以下权限:', 4);
+                    messageAction('WRITE_SECURE_SETTINGS', 4);
+                    showSplitLine();
+                    messageAction('可尝试使用ADB工具连接手机', 3);
+                    messageAction('并执行以下Shell指令(无换行):\n' +
                         '\n' + _shell_sc + '\n', 3);
-                    _msg('Shell指令已复制到剪切板', 3);
-                    _msg('重启设备后授权不会失效', 3);
+                    messageAction('Shell指令已复制到剪切板', 3);
+                    messageAction('重启设备后授权不会失效', 3);
 
                     setClip(_shell_sc);
                 }
@@ -1553,10 +1511,10 @@ let ext = {
 
             function _tryEnableAndRestart() {
                 if (_a11y.enable(true)) {
-                    _line();
-                    _msg('已自动开启无障碍服务');
-                    _msg('尝试一次项目重启操作');
-                    _line();
+                    showSplitLine();
+                    messageAction('已自动开启无障碍服务');
+                    messageAction('尝试一次项目重启操作');
+                    showSplitLine();
                     enginesx.restart({
                         debug_info_flag: true,
                         instant_run_flag: false,
@@ -1574,50 +1532,16 @@ let ext = {
                 sleep(50);
             }
             if (_max < 0) {
-                _line();
+                showSplitLine();
                 void ('脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用|'
                     + _getDash() + '|可尝试以下解决方案:|' + _getDash()
                     + '|a. 卸载并重新安装"Auto.js"|b. 安装后重启设备'
                     + '|c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务'
-                    + '|e. 再次尝试运行本项目').split('|').forEach(s => _msg(s, 4));
-                _line();
+                    + '|e. 再次尝试运行本项目').split('|').forEach(s => messageAction(s, 4));
+                showSplitLine();
                 toast('无障碍服务方法无法使用');
                 exit();
             }
-        }
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function showSplitLineRaw(extra, style) {
-            console.log((
-                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-            ) + (extra || ''));
         }
     },
     /**
@@ -1627,6 +1551,7 @@ let ext = {
      */
     checkModules(modules, options) {
         let _opt = options || {};
+        let _line = () => console.log('-'.repeat(33));
 
         modules.filter((mod) => {
             let _path = './' + mod + '.js';
@@ -1645,46 +1570,12 @@ let ext = {
             arr.forEach(n => _str += '-> "' + n + '"|');
             _str += '- - - - - - - - - - - - - - - - -|';
             _str += '请检查或重新放置模块';
-            showSplitLineRaw();
-            _str.split('|').forEach(s => messageActionRaw(s, 4));
-            showSplitLineRaw();
+            _line();
+            _str.split('|').forEach(s => console.error(s));
+            _line();
             toast('模块缺失或路径错误');
             exit();
         });
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function showSplitLineRaw(extra, style) {
-            console.log((
-                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-            ) + (extra || ''));
-        }
     },
     /**
      * Make sure that Alipay is installed on device
@@ -1697,28 +1588,20 @@ let ext = {
             _app_info = _pkg_mgr.getApplicationInfo(_pkg, 0);
             _app_name = _pkg_mgr.getApplicationLabel(_app_info);
         } catch (e) {
-            showSplitLineRaw();
+            showSplitLine();
             console.warn(e.message);
             console.warn(e.stack);
         }
         if (!_app_name) {
             let _msg = '此设备可能未安装"支付宝"应用';
             toast(_msg);
-            showSplitLineRaw();
+            showSplitLine();
             console.error('脚本无法继续');
             console.error(_msg);
-            showSplitLineRaw();
+            showSplitLine();
             exit();
         }
         global._$_alipay_pkg = _pkg;
-
-        // raw function(s) //
-
-        function showSplitLineRaw(extra, style) {
-            console.log((
-                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-            ) + (extra || ''));
-        }
     },
     /**
      * Make sure System.SCREEN_OFF_TIMEOUT greater than min_timeout.
@@ -1747,50 +1630,16 @@ let ext = {
             if (_opt.is_auto_correction !== undefined && !_opt.is_auto_correction) {
                 throw Error('Abnormal screen off timeout: ' + _scr_off_tt_val);
             }
-            showSplitLineRaw('', 'dash');
-            messageActionRaw('修正异常的设备屏幕超时参数');
-            messageActionRaw('修正值: ' + _def_timeout + ' (' + _def_mm + '分钟)');
+            showSplitLine('', 'dash');
+            messageAction('修正异常的设备屏幕超时参数');
+            messageAction('修正值: ' + _def_timeout + ' (' + _def_mm + '分钟)');
             try {
                 System.putInt(_ctx_reso, _scr_off_tt, _def_timeout);
             } catch (e) {
                 console.error('修正失败');
                 console.error(e.message);
             }
-            showSplitLineRaw('', 'dash');
-        }
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function showSplitLineRaw(extra, style) {
-            console.log((
-                style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-            ) + (extra || ''));
+            showSplitLine('', 'dash');
         }
     },
     /**
@@ -1957,20 +1806,9 @@ let ext = {
         let _opt = options || {};
         _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.launch.name);
 
-        let $_und = x => typeof x === 'undefined';
-        let _messageAction = (
-            typeof messageAction === 'function' ? messageAction : messageActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _opt.debug_info_flag);
-        let _waitForAction = (
-            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-        );
-
         let _trig = trigger || 0;
         if (!~['object', 'string', 'function'].indexOf(typeof _trig)) {
-            _messageAction('应用启动目标参数无效', 8, 1, 0, 1);
+            messageAction('应用启动目标参数无效', 8, 1, 0, 1);
         }
 
         let _pkg_name = '';
@@ -1985,8 +1823,8 @@ let ext = {
 
         let _name = (_task_name || _app_name).replace(/^["']+|["']+$/g, '');
 
-        _debugInfo('启动目标名称: ' + _name);
-        _debugInfo('启动参数类型: ' + typeof _trig);
+        debugInfo('启动目标名称: ' + _name);
+        debugInfo('启动参数类型: ' + typeof _trig);
 
         let _cond_ready = _opt.condition_ready;
         let _cond_launch = _opt.condition_launch;
@@ -2005,7 +1843,7 @@ let ext = {
         }
 
         if (_dist) {
-            _debugInfo('已开启干扰排除线程');
+            debugInfo('已开启干扰排除线程');
             _thd_dist = threadsx.start(function () {
                 while (1) {
                     sleep(1.2e3);
@@ -2023,71 +1861,71 @@ let ext = {
                     ? '重新开始"' + _task_name + '"任务'
                     : '重新启动"' + _app_name + '"应用';
                 if (!_1st_launch) {
-                    _messageAction(_msg, null, 1);
+                    messageAction(_msg, null, 1);
                 } else if (_is_show_greeting) {
-                    _messageAction(_msg.replace(/重新/g, ''), 1, 1, 0, 'both');
+                    messageAction(_msg.replace(/重新/g, ''), 1, 1, 0, 'both');
                 }
             }
 
             while (_max_lch--) {
                 if (typeof _trig === 'object') {
-                    _debugInfo('加载intent参数启动应用');
+                    debugInfo('加载intent参数启动应用');
                     this.startActivity(_trig);
                 } else if (typeof _trig === 'string') {
-                    _debugInfo('加载应用包名参数启动应用');
+                    debugInfo('加载应用包名参数启动应用');
                     if (!app.launchPackage(_pkg_name)) {
-                        _debugInfo('加载应用名称参数启动应用');
+                        debugInfo('加载应用名称参数启动应用');
                         app.launchApp(_app_name);
                     }
                 } else {
-                    _debugInfo('使用触发器方法启动应用');
+                    debugInfo('使用触发器方法启动应用');
                     _trig();
                 }
 
                 _waitForScrOrReady();
 
-                let _succ = _waitForAction(_cond_launch, 5e3, 800);
-                _debugInfo('应用启动' + (
+                let _succ = waitForAction(_cond_launch, 5e3, 800);
+                debugInfo('应用启动' + (
                     _succ ? '成功' : '超时 (' + (_max_lch_b - _max_lch) + '/' + _max_lch_b + ')'
                 ));
                 if (_succ) {
                     break;
                 }
-                _debugInfo('>' + currentPackage());
+                debugInfo('>' + currentPackage());
             }
 
             if (_max_lch < 0) {
-                _messageAction('打开"' + _app_name + '"失败', 8, 1, 0, 1);
+                messageAction('打开"' + _app_name + '"失败', 8, 1, 0, 1);
             }
 
-            if ($_und(_cond_ready)) {
-                _debugInfo('未设置启动完成条件参数');
+            if (typeof _cond_ready === 'undefined') {
+                debugInfo('未设置启动完成条件参数');
                 break;
             }
 
             _1st_launch = false;
-            _debugInfo('开始监测启动完成条件');
+            debugInfo('开始监测启动完成条件');
 
             let _max_ready = _opt.ready_retry_times || 3;
             let _max_ready_b = _max_ready;
 
-            while (!_waitForAction(_cond_ready, 8e3) && _max_ready--) {
+            while (!waitForAction(_cond_ready, 8e3) && _max_ready--) {
                 let _ctr = '(' + (_max_ready_b - _max_ready) + '/' + _max_ready_b + ')';
                 if (typeof _trig === 'object') {
-                    _debugInfo('重新启动Activity ' + _ctr);
+                    debugInfo('重新启动Activity ' + _ctr);
                     this.startActivity(_trig);
                 } else {
-                    _debugInfo('重新启动应用 ' + _ctr);
+                    debugInfo('重新启动应用 ' + _ctr);
                     app.launchPackage(_trig);
                 }
             }
 
             if (_max_ready >= 0) {
-                _debugInfo('启动完成条件监测完毕');
+                debugInfo('启动完成条件监测完毕');
                 break;
             }
 
-            _debugInfo('尝试关闭"' + _app_name + '"应用: ' +
+            debugInfo('尝试关闭"' + _app_name + '"应用: ' +
                 '(' + (_max_retry_b - _max_retry) + '/' + _max_retry_b + ')'
             );
             this.kill(_pkg_name);
@@ -2095,14 +1933,14 @@ let ext = {
 
         if (_thd_dist) {
             _thd_dist.interrupt();
-            _debugInfo('干扰排除线程结束');
+            debugInfo('干扰排除线程结束');
             _thd_dist = null;
         }
 
         if (_max_retry < 0) {
-            _messageAction('"' + _name + '"初始状态准备失败', 8, 1, 0, 1);
+            messageAction('"' + _name + '"初始状态准备失败', 8, 1, 0, 1);
         }
-        _debugInfo('"' + _name + '"初始状态准备完毕');
+        debugInfo('"' + _name + '"初始状态准备完毕');
 
         return true;
 
@@ -2122,215 +1960,38 @@ let ext = {
             _app_name = _app_name || _pkg_name && app.getAppName(_pkg_name);
             _pkg_name = _pkg_name || _app_name && app.getPackageName(_app_name);
             if (!_app_name && !_pkg_name) {
-                _messageAction('未找到应用', 4, 1);
-                _messageAction(_trig, 8, 0, 1, 1);
+                messageAction('未找到应用', 4, 1);
+                messageAction(_trig, 8, 0, 1, 1);
             }
         }
 
         function _waitForScrOrReady() {
             let _isHoriz = () => {
-                let _disp = getDisplayRaw();
+                let _disp = devicex.getDisplay();
                 return _disp.WIDTH > _disp.HEIGHT;
             };
             let _isVert = () => {
-                let _disp = getDisplayRaw();
+                let _disp = devicex.getDisplay();
                 return _disp.WIDTH < _disp.HEIGHT;
             };
             let _scr_o_par = _opt.screen_orientation;
             if (_scr_o_par === 1 && _isVert()) {
-                _debugInfo('需等待屏幕方向为横屏');
-                if (_waitForAction(_isHoriz, 8e3, 80)) {
-                    _debugInfo('屏幕方向已就绪');
+                debugInfo('需等待屏幕方向为横屏');
+                if (waitForAction(_isHoriz, 8e3, 80)) {
+                    debugInfo('屏幕方向已就绪');
                     sleep(500);
                 } else {
-                    _messageAction('等待屏幕方向变化超时', 4);
+                    messageAction('等待屏幕方向变化超时', 4);
                 }
             } else if (_scr_o_par === 0 && _isHoriz()) {
-                _debugInfo('需等待屏幕方向为竖屏');
-                if (_waitForAction(_isVert, 8e3, 80)) {
-                    _debugInfo('屏幕方向已就绪');
+                debugInfo('需等待屏幕方向为竖屏');
+                if (waitForAction(_isVert, 8e3, 80)) {
+                    debugInfo('屏幕方向已就绪');
                     sleep(500);
                 } else {
-                    _messageAction('等待屏幕方向变化超时', 4);
+                    messageAction('等待屏幕方向变化超时', 4);
                 }
             }
-        }
-
-        // raw function(s) //
-
-        function getDisplayRaw(params) {
-            let $_flag = global.$$flag = global.$$flag || {};
-            let _par = params || {};
-
-            let _waitForAction = (
-                typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-            );
-            let _debugInfo = (m, fg) => (
-                typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-            )(m, fg, _par.debug_info_flag);
-            let $_str = x => typeof x === 'string';
-
-            let _W, _H;
-            let _disp = {};
-            let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-            let _win_svc_disp = _win_svc.getDefaultDisplay();
-
-            if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-                return console.error('getDisplayRaw()返回结果异常');
-            }
-            _showDisp();
-            return Object.assign(_disp, {
-                cX: _cX,
-                cY: _cY,
-            });
-
-            // tool function(s) //
-
-            function _cX(num) {
-                let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
-                let _x = Math.round(num * _unit);
-                return Math.min(_x, _W);
-            }
-
-            function _cY(num, aspect_ratio) {
-                let _ratio = aspect_ratio;
-                if (!~_ratio) _ratio = '16:9'; // -1
-                if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
-                    let _split = _ratio.split(':');
-                    _ratio = _split[0] / _split[1];
-                }
-                _ratio = _ratio || _H / _W;
-                _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
-                let _h = _W * _ratio;
-                let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
-                let _y = Math.round(num * _unit);
-                return Math.min(_y, _H);
-            }
-
-            function _showDisp() {
-                if (!$_flag.display_params_got) {
-                    _debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
-                    _debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
-                    $_flag.display_params_got = true;
-                }
-            }
-
-            function _getDisp() {
-                try {
-                    _W = _win_svc_disp.getWidth();
-                    _H = _win_svc_disp.getHeight();
-                    if (!(_W * _H)) {
-                        return _raw();
-                    }
-
-                    // left: 1, right: 3, portrait: 0 (or 2 ?)
-                    let _SCR_O = _win_svc_disp.getOrientation();
-                    let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                    let _MAX = _win_svc_disp.maximumSizeDimension;
-
-                    let [_UH, _UW] = [_H, _W];
-                    let _dimen = (name) => {
-                        let resources = context.getResources();
-                        let resource_id = resources.getIdentifier(name, 'dimen', 'android');
-                        if (resource_id > 0) {
-                            return resources.getDimensionPixelSize(resource_id);
-                        }
-                        return NaN;
-                    };
-
-                    _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                    return {
-                        WIDTH: _W,
-                        USABLE_WIDTH: _UW,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: _UH,
-                        screen_orientation: _SCR_O,
-                        status_bar_height: _dimen('status_bar_height'),
-                        navigation_bar_height: _dimen('navigation_bar_height'),
-                        navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                        action_bar_default_height: _dimen('action_bar_default_height'),
-                    };
-                } catch (e) {
-                    return _raw();
-                }
-
-                // tool function(s) //
-
-                function _raw() {
-                    _W = device.width;
-                    _H = device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                }
-            }
-
-            // raw function(s) //
-
-            function waitForActionRaw(cond_func, time_params) {
-                let _cond_func = cond_func;
-                if (!cond_func) return true;
-                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-                let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-                let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-                while (!_cond_func() && _check_time >= 0) {
-                    sleep(_check_interval);
-                    _check_time -= _check_interval;
-                }
-                return _check_time >= 0;
-            }
-
-            function debugInfoRaw(msg, msg_lv) {
-                msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-            }
-        }
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-        }
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
         }
     },
     /**
@@ -2358,30 +2019,17 @@ let ext = {
         let _par = options || {};
         _par.no_impeded || typeof $$impeded === 'function' && $$impeded(this.kill.name);
 
-        let _messageAction = (
-            typeof messageAction === 'function' ? messageAction : messageActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
-        let _waitForAction = (
-            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-        );
-        let _clickAction = (
-            typeof clickAction === 'function' ? clickAction : clickActionRaw
-        );
-
         let _src = source || '';
         if (!_src) {
             _src = currentPackage();
-            _messageAction('自动使用currentPackage()返回值', 3);
-            _messageAction('appx.kill()未指定name参数', 3, 0, 1);
-            _messageAction('注意: 此返回值可能不准确', 3, 0, 1);
+            messageAction('自动使用currentPackage()返回值', 3);
+            messageAction('appx.kill()未指定name参数', 3, 0, 1);
+            messageAction('注意: 此返回值可能不准确', 3, 0, 1);
         }
         let _app_name = this.getAppName(_src);
         let _pkg_name = this.getAppPkgName(_src);
         if (!_app_name || !_pkg_name) {
-            _messageAction('解析应用名称及包名失败', 8, 1, 0, 1);
+            messageAction('解析应用名称及包名失败', 8, 1, 0, 1);
         }
 
         let _shell_acceptable = (
@@ -2393,7 +2041,7 @@ let ext = {
         let _keycode_back_twice = _par.keycode_back_twice || false;
         let _cond_success = _par.condition_success || (() => {
             let _cond = () => currentPackage() === _pkg_name;
-            return _waitForAction(() => !_cond(), 12e3) && !_waitForAction(_cond, 3, 150);
+            return waitForAction(() => !_cond(), 12e3) && !waitForAction(_cond, 3, 150);
         });
 
         let _shell_result = false;
@@ -2403,35 +2051,35 @@ let ext = {
             try {
                 _shell_result = !shell('am force-stop ' + _pkg_name, true).code;
             } catch (e) {
-                _debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
+                debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
             }
         } else {
-            _debugInfo('参数不接受shell()方法');
+            debugInfo('参数不接受shell()方法');
         }
 
         if (!_shell_result) {
             if (_keycode_back_acceptable) {
                 return _tryMinimizeApp();
             }
-            _debugInfo('参数不接受模拟返回方法');
-            _messageAction('关闭"' + _app_name + '"失败', 4, 1);
-            return _messageAction('无可用的应用关闭方式', 4, 0, 1);
+            debugInfo('参数不接受模拟返回方法');
+            messageAction('关闭"' + _app_name + '"失败', 4, 1);
+            return messageAction('无可用的应用关闭方式', 4, 0, 1);
         }
 
         let _et = Date.now() - _shell_start_ts;
-        if (_waitForAction(_cond_success, _shell_max_wait_time)) {
-            _debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
-            _debugInfo('>关闭用时: ' + _et + '毫秒');
+        if (waitForAction(_cond_success, _shell_max_wait_time)) {
+            debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
+            debugInfo('>关闭用时: ' + _et + '毫秒');
             return true;
         }
-        _messageAction('关闭"' + _app_name + '"失败', 4, 1);
-        _debugInfo('>关闭用时: ' + _et + '毫秒');
-        return _messageAction('关闭时间已达最大超时', 4, 0, 1);
+        messageAction('关闭"' + _app_name + '"失败', 4, 1);
+        debugInfo('>关闭用时: ' + _et + '毫秒');
+        return messageAction('关闭时间已达最大超时', 4, 0, 1);
 
         // tool function(s) //
 
         function _tryMinimizeApp() {
-            _debugInfo('尝试最小化当前应用');
+            debugInfo('尝试最小化当前应用');
 
             let _sltr_avail_btns = [
                 idMatches(/.*nav.back|.*back.button/),
@@ -2456,7 +2104,7 @@ let ext = {
                     let _sltr_avail_btn = _sltr_avail_btns[i];
                     if (_sltr_avail_btn.exists()) {
                         _clicked_flag = true;
-                        _clickAction(_sltr_avail_btn);
+                        clickAction(_sltr_avail_btn);
                         sleep(300);
                         break;
                     }
@@ -2465,83 +2113,26 @@ let ext = {
                     continue;
                 }
                 _back();
-                if (_waitForAction(_cond_success, 2e3)) {
+                if (waitForAction(_cond_success, 2e3)) {
                     break;
                 }
             }
             if (_max_try_times_minimize < 0) {
-                _debugInfo('最小化应用尝试已达: ' + _max_try_times_minimize_bak + '次');
-                _debugInfo('重新仅模拟返回键尝试最小化');
+                debugInfo('最小化应用尝试已达: ' + _max_try_times_minimize_bak + '次');
+                debugInfo('重新仅模拟返回键尝试最小化');
                 _max_try_times_minimize = 8;
                 while (_max_try_times_minimize--) {
                     _back();
-                    if (_waitForAction(_cond_success, 2e3)) {
+                    if (waitForAction(_cond_success, 2e3)) {
                         break;
                     }
                 }
                 if (_max_try_times_minimize < 0) {
-                    return _messageAction('最小化当前应用失败', 4, 1);
+                    return messageAction('最小化当前应用失败', 4, 1);
                 }
             }
-            _debugInfo('最小化应用成功');
+            debugInfo('最小化应用成功');
             return true;
-        }
-
-        // raw function(s) //
-
-        function messageActionRaw(msg, lv, if_toast) {
-            let _msg = msg || ' ';
-            if (lv && lv.toString().match(/^t(itle)?$/)) {
-                return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-            }
-            if_toast && toast(_msg);
-            let _lv = typeof lv === 'undefined' ? 1 : lv;
-            if (_lv >= 4) {
-                console.error(_msg);
-                _lv >= 8 && exit();
-                return false;
-            }
-            if (_lv >= 3) {
-                console.warn(_msg);
-                return false;
-            }
-            if (_lv === 0) {
-                console.verbose(_msg);
-            } else if (_lv === 1) {
-                console.log(_msg);
-            } else if (_lv === 2) {
-                console.info(_msg);
-            }
-            return true;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-        }
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function clickActionRaw(o) {
-            let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            let _o = _classof(o) === 'Array' ? o[0] : o;
-            let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-            if (!_w) {
-                return false;
-            }
-            let _bnd = _w.bounds();
-            return click(_bnd.centerX(), _bnd.centerY());
         }
     },
     /**
@@ -2734,6 +2325,8 @@ ext.checkModules([
     'ext-engines', 'ext-device',
     'ext-threads', 'ext-files', 'ext-http',
 ], {is_load: true});
+
+require('./mod-monster-func').load();
 
 module.exports = ext;
 module.exports.load = () => global.appx = ext;

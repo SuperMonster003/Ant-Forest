@@ -1,6 +1,13 @@
 ******
 ### 版本历史 - 2.x
 ******
+# v2.0.5
+###### 2021/03/16
+* `修复` 解锁功能配置参数无法获取默认值的问题 _[`issue #444`](https://github.com/SuperMonster003/Ant-Forest/issues/444)_
+* `修复` 排行榜可点击样本位于屏幕底部区域时可能出现的点击偏移问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
+* `优化` 运行提示对话框放弃任务时增加不再提示选项 _[`issue #445`](https://github.com/SuperMonster003/Ant-Forest/issues/445)_
+* `优化` 清除配置工具参数文件中混入的非必要参数数据
+
 # v2.0.4
 ###### 2021/03/15
 * `修复` 好友森林动态列表首次展开后无法继续展开的问题 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_

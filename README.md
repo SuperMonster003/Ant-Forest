@@ -115,6 +115,13 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.0.5
+###### 2021/03/16
+* `修复` 解锁功能配置参数无法获取默认值的问题 _[`issue #444`](https://github.com/SuperMonster003/Ant-Forest/issues/444)_
+* `修复` 排行榜可点击样本位于屏幕底部区域时可能出现的点击偏移问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
+* `优化` 运行提示对话框放弃任务时增加不再提示选项 _[`issue #445`](https://github.com/SuperMonster003/Ant-Forest/issues/445)_
+* `优化` 清除配置工具参数文件中混入的非必要参数数据
+
 # v2.0.4
 ###### 2021/03/15
 * `修复` 好友森林动态列表首次展开后无法继续展开的问题 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
@@ -134,14 +141,6 @@
 * `优化` 版本异常检测功能加入对Pro8不可用版本的检测
 * `优化` 好友森林动态列表增加展开结果判断以增加展开成功率 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
 * `优化` storage模块在高版本系统解析JSON时可自动修复乱码行
-
-# v2.0.2
-###### 2021/02/11
-* `修复` 配置工具及Floaty结果的自动更新功能无效的问题
-* `修复` 排行榜页面列表结尾的好友可能被跳过检查的问题
-* `修复` 配置工具从列表选择应用时的数据筛选错误
-* `修复` 高版本安卓设备可能无法判断系统应用的问题
-* `优化` 增加主账户头像本地样本尺寸检测以防止尺寸越界
 
 ##### 更多版本历史可参阅
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/documents/CHANGELOG-2.md)  ( 2.x 版本 )

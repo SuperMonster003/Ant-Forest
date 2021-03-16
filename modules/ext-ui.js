@@ -1,6 +1,7 @@
 global.uix = typeof global.uix === 'object' ? global.uix : {};
 
 require('./ext-colors').load();
+require('./ext-device').load();
 
 let ext = {
     _colors: {
@@ -130,7 +131,7 @@ let ext = {
         let _abs = num => num < 0 ? -num : num;
 
         if (!global.WIDTH || !global.HEIGHT) {
-            let _data = getDisplayRaw();
+            let _data = devicex.getDisplay();
             [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
         }
 
@@ -185,139 +186,6 @@ let ext = {
             }
             toast(e.message);
             console.warn(e.message);
-        }
-
-        // raw function(s) //
-
-        function getDisplayRaw(params) {
-            let $_flag = global.$$flag = global.$$flag || {};
-
-            let _par = params || {};
-            let _waitForAction = (
-                typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-            );
-            let _debugInfo = (m, fg) => (
-                typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-            )(m, fg, _par.debug_info_flag);
-            let $_str = x => typeof x === 'string';
-
-            let _W, _H;
-            let _disp = {};
-            let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-            let _win_svc_disp = _win_svc.getDefaultDisplay();
-
-            if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-                return console.error('getDisplayRaw()返回结果异常');
-            }
-            _showDisp();
-            return Object.assign(_disp, {
-                cX: _cX,
-                cY: _cY,
-            });
-
-            // tool function(s) //
-
-            function _cX(num) {
-                let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
-                let _x = Math.round(num * _unit);
-                return Math.min(_x, _W);
-            }
-
-            function _cY(num, aspect_ratio) {
-                let _ratio = aspect_ratio;
-                if (!~_ratio) _ratio = '16:9'; // -1
-                if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
-                    let _split = _ratio.split(':');
-                    _ratio = _split[0] / _split[1];
-                }
-                _ratio = _ratio || _H / _W;
-                _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
-                let _h = _W * _ratio;
-                let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
-                let _y = Math.round(num * _unit);
-                return Math.min(_y, _H);
-            }
-
-            function _showDisp() {
-                if (!$_flag.display_params_got) {
-                    _debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
-                    _debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
-                    $_flag.display_params_got = true;
-                }
-            }
-
-            function _getDisp() {
-                try {
-                    _W = _win_svc_disp.getWidth();
-                    _H = _win_svc_disp.getHeight();
-                    if (!(_W * _H)) {
-                        return _raw();
-                    }
-
-                    // left: 1, right: 3, portrait: 0 (or 2 ?)
-                    let _SCR_O = _win_svc_disp.getOrientation();
-                    let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                    let _MAX = _win_svc_disp.maximumSizeDimension;
-
-                    let [_UH, _UW] = [_H, _W];
-                    let _dimen = (name) => {
-                        let resources = context.getResources();
-                        let resource_id = resources.getIdentifier(name, 'dimen', 'android');
-                        if (resource_id > 0) {
-                            return resources.getDimensionPixelSize(resource_id);
-                        }
-                        return NaN;
-                    };
-
-                    _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                    return {
-                        WIDTH: _W,
-                        USABLE_WIDTH: _UW,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: _UH,
-                        screen_orientation: _SCR_O,
-                        status_bar_height: _dimen('status_bar_height'),
-                        navigation_bar_height: _dimen('navigation_bar_height'),
-                        navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                        action_bar_default_height: _dimen('action_bar_default_height'),
-                    };
-                } catch (e) {
-                    return _raw();
-                }
-
-                // tool function(s) //
-
-                function _raw() {
-                    _W = device.width;
-                    _H = device.height;
-                    return _W && _H && {
-                        WIDTH: _W,
-                        HEIGHT: _H,
-                        USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                    };
-                }
-            }
-
-            // raw function(s) //
-
-            function waitForActionRaw(cond_func, time_params) {
-                let _cond_func = cond_func;
-                if (!cond_func) return true;
-                let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-                if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-                let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-                let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-                while (!_cond_func() && _check_time >= 0) {
-                    sleep(_check_interval);
-                    _check_time -= _check_interval;
-                }
-                return _check_time >= 0;
-            }
-
-            function debugInfoRaw(msg, msg_lv) {
-                msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-            }
         }
     },
 };

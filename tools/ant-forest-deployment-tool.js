@@ -357,7 +357,9 @@
                             },
                         }, {is_async: true});
                         threadsx.start(function () {
-                            waitForAction(() => _result || _error, 0, 120);
+                            while (!_result && !_error) {
+                                sleep(120);
+                            }
                             _result ? resolve(_result) : _error && reject(_error);
                         });
                     }),
@@ -483,7 +485,7 @@
                 if (_opt.show_progress_dialog) {
                     dialogsx.setProgressColorTheme(_p_diag = dialogsx.builds([
                         null, '正在获取版本信息...', 0, 0, 'I', 1,
-                    ],{
+                    ], {
                         progress: {max: -1, showMinMax: false, horizontal: true},
                         disable_back: true,
                     }).on('positive', (d) => {
@@ -2916,139 +2918,5 @@
                 });
             },
         }, {on_interrupt_btn_text: 'X', success_title: '项目部署完成'});
-    }
-
-    // monster function(s) //
-
-    /**
-     * Wait a period of time until 'condition' is met
-     * @global
-     * @param condition {
-     *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|(
-     *         UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|
-     *         waitForAction$condition$logic_flag
-     *     )[]
-     * } - if condition is not true then waiting
-     * @param {number} [timeout_or_times=10e3] - if < 100, takes as times
-     * @param {number} [interval=200]
-     * @example
-     * log(waitForAction('文件'));
-     * log(waitForAction('文件', 10e3));
-     * log(waitForAction('文件', 10e3, 200));
-     * @example
-     * log(waitForAction('文件'));
-     * log(waitForAction(text('文件')));
-     * log(waitForAction(() => text('文件').exists()));
-     * @example
-     * if (waitForAction(() => Date.now() > new Date(2021, 0), 0, 100)) {
-     *     toastLog('Welcome to 2021');
-     * }
-     * @example
-     * log(waitForAction([() => text('Settings').exists(), () => text('Exit').exists(), ';or'], 5e3, 80));
-     * log(waitForAction([text('Settings'), text('Exit'), ';or'], 5e3, 80)); // same as above
-     * log(waitForAction(['Settings', 'Exit', ';or'], 5e3, 80)); // same as above
-     * // do not invoke like the way as below, unless you know what this exactly means
-     * log(waitForAction([text('Settings').findOnce(), text('Exit').findOnce(), ';or'], 5e3, 80));
-     * @return {boolean} - whether 'condition' is met before timed out or not
-     */
-    function waitForAction(condition, timeout_or_times, interval) {
-        let $_sel = (typeof getSelector === 'function' ? getSelector : getSelectorRaw)();
-
-        if (typeof timeout_or_times !== 'number') {
-            timeout_or_times = Number(timeout_or_times) || 10e3;
-        }
-
-        let _times = timeout_or_times;
-        if (_times <= 0 || !isFinite(_times) || isNaN(_times) || _times > 100) {
-            _times = Infinity;
-        }
-
-        let _timeout = Infinity;
-        if (timeout_or_times > 100) {
-            _timeout = timeout_or_times;
-        }
-
-        let _itv = interval || 200;
-        if (_itv >= _timeout) {
-            _times = 1;
-        }
-
-        let _start_ts = Date.now();
-        while (!_check(condition) && --_times) {
-            if (Date.now() - _start_ts > _timeout) {
-                return false; // timed out
-            }
-            sleep(_itv);
-        }
-        return _times > 0;
-
-        // tool function(s) //
-
-        function _check(condition) {
-            if (typeof condition === 'function') {
-                return condition();
-            }
-            if (!Array.isArray(condition)) {
-                return $_sel.pickup(condition);
-            }
-            if (condition === undefined || condition === null) {
-                return false;
-            }
-
-            let _rexA = s => typeof s === 'string' && s.match(/^;(a(ll|nd))$/);
-            let _rexO = s => typeof s === 'string' && s.match(/^;(o(r|ne))$/);
-
-            let _arr = condition.slice();
-
-            let _logic = ';all';
-            let _last = _arr[_arr.length - 1];
-            if (_rexA(_last) || _rexO(_last)) {
-                _logic = _arr.pop();
-            }
-
-            for (let i = 0, l = _arr.length; i < l; i += 1) {
-                if (_rexA(_logic) && !_check(_arr[i])) {
-                    return false;
-                }
-                if (_rexO(_logic) && _check(_arr[i])) {
-                    return true;
-                }
-            }
-
-            return _rexA(_logic);
-        }
-
-        // raw function(s) //
-
-        function getSelectorRaw() {
-            let _sel = Object.create(selector());
-            let _sel_ext = {
-                pickup(sel_body, res_type) {
-                    if (sel_body === undefined || sel_body === null) {
-                        return null;
-                    }
-                    if (!(res_type === undefined || res_type === 'w' || res_type === 'widget')) {
-                        throw Error('getSelectorRaw()返回对象的pickup方法不支持结果筛选类型');
-                    }
-                    if (arguments.length > 2) {
-                        throw Error('getSelectorRaw()返回对象的pickup方法不支持复杂参数传入');
-                    }
-                    if (typeof sel_body === 'string') {
-                        return desc(sel_body).findOnce() || text(sel_body).findOnce();
-                    }
-                    if (sel_body instanceof RegExp) {
-                        return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
-                    }
-                    if (sel_body instanceof com.stardust.automator.UiObject) {
-                        return sel_body;
-                    }
-                    if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                        return sel_body.findOnce();
-                    }
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
-                },
-            };
-            return Object.assign(_sel, _sel_ext);
-        }
     }
 }();

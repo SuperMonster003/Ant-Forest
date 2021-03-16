@@ -156,6 +156,8 @@ module.exports = {
         prompt_before_running_countdown_seconds: 5,
         // dialog won't prompt with truthy value when running with screen off or device locked
         prompt_before_running_auto_skip: true,
+        // confirmation won't prompt with truthy value before quit current running task
+        prompt_before_running_quit_confirm: true,
         // default choices for a postponed minute
         prompt_before_running_postponed_minutes_map: [1, 2, 3, 5, 10, 15, 20, 30],
         // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute

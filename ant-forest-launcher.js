@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Mar 15, 2021
- * @version 2.0.4
+ * @since Mar 16, 2021
+ * @version 2.0.5
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -3880,7 +3880,7 @@ let $$init = {
                             return debugInfo(['跳过"运行前提示"', '>屏幕未亮起']);
                         }
                         if (!$$unlk.is_init_unlocked) {
-                            return debugInfo(['跳过"运行前提示"', '>设备未解锁']);
+                            return debugInfo(['跳过"运行前提示"', '>设备未锁定']);
                         }
                     }
                     return true;
@@ -3953,6 +3953,17 @@ let $$init = {
                                 .show();
                         },
                         onNegative(d) {
+                            let _quitNow = () => {
+                                d.dismiss();
+                                $$app.monitor.insurance.interrupt().remove();
+                                // language=JS
+                                messageAction('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+                                exit();
+                            };
+
+                            if (!$$cfg.prompt_before_running_quit_confirm) {
+                                return _quitNow();
+                            }
                             dialogsx.builds((() => {
                                 // language=JS
                                 let _z = '`当前未设置任何${$$app.task_name}定时任务\n\n`'.ts;
@@ -3961,15 +3972,15 @@ let $$init = {
                                     .filter(task => task.id !== $$app.monitor.insurance.id).length
                                     ? [['提示', 'default'], [_q, 'default']]
                                     : [['注意', 'caution'], [_z + _q, 'warn']];
-                                return [_title, _cnt, 0, 'B', ['确认放弃任务', 'caution'], 1];
+                                return [_title, _cnt, 0, 'B', ['确认放弃任务', 'caution'], 1, 1];
                             })()).on('negative', (ds) => {
                                 dialogsx.dismiss(ds);
                             }).on('positive', (ds) => {
-                                dialogsx.dismiss(ds, d);
-                                $$app.monitor.insurance.interrupt().remove();
-                                // language=JS
-                                messageAction('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
-                                exit();
+                                dialogsx.dismiss(ds);
+                                $$sto.af_cfg.put('config', {
+                                    prompt_before_running_quit_confirm: !ds.isPromptCheckBoxChecked(),
+                                });
+                                _quitNow();
                             }).show();
                         },
                         onPositive(d) {
@@ -5137,7 +5148,7 @@ let $$af = {
                         let _x = cX(0.896);
                         let _y = cYx(0.09);
                         let _w = _capt.getWidth() - _x;
-                        let _h = _capt.getHeight() - _y;
+                        let _h = Math.min(_capt.getHeight(), uH) - _y;
                         let _clip = images.clip(_capt, _x, _y, _w, _h);
                         let _res = imagesx.matchTemplate(_clip, 'ic_fetch', {
                             max_results: 15,
@@ -5150,9 +5161,9 @@ let $$af = {
 
                         return _res.points.reverse().map((pt) => ({
                             icon_y: pt.y + _y,
-                            item_y: Number(Math.min(pt.y + _y + cYx(16), uH)),
+                            item_y: pt.y + _y + cYx(12),
                             act_desc: String(this.act_desc),
-                        }));
+                        })).filter(o => o.item_y < uH);
                     }
 
                     /**

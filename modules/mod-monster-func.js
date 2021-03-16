@@ -139,9 +139,6 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
-    let _showSplitLine = (
-        typeof showSplitLine === 'function' ? showSplitLine : showSplitLineRaw
-    );
 
     if (typeof _if_spl_ln === 'string') {
         if (_if_spl_ln.match(/dash/)) {
@@ -149,7 +146,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         }
         if (_if_spl_ln.match(/both|up|^2/)) {
             if (!_matchLnStyle()) {
-                _showSplitLine('', _spl_ln_style);
+                showSplitLine('', _spl_ln_style);
             }
             if (_if_spl_ln.match(/_n|n_/)) {
                 _if_spl_ln = '\n';
@@ -226,7 +223,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         if (!_spl_ln_extra.match(/\n/)) {
             _saveLnStyle();
         }
-        _showSplitLine(_spl_ln_extra, _spl_ln_style);
+        showSplitLine(_spl_ln_extra, _spl_ln_style);
     }
 
     if (_show_ex_msg_flag) {
@@ -239,14 +236,6 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
     }
 
     return !~[3, 4].indexOf(_msg_lv);
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-        ) + (extra || ''));
-    }
 }
 
 /**
@@ -312,7 +301,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
     let _par = options || {};
     _par.no_impeded || typeof $$impeded === 'function' && $$impeded(waitForAction.name);
 
-    let $_sel = (typeof getSelector === 'function' ? getSelector : getSelectorRaw)();
+    let $_sel = getSelector();
 
     if (typeof timeout_or_times !== 'number') {
         timeout_or_times = Number(timeout_or_times) || 10e3;
@@ -377,39 +366,6 @@ function waitForAction(condition, timeout_or_times, interval, options) {
 
         return _rexA(_logic);
     }
-
-    // raw function(s) //
-
-    function getSelectorRaw() {
-        let _sel = Object.create(selector());
-        let _sel_ext = {
-            pickup(sel_body, res_type) {
-                if (sel_body === undefined || sel_body === null) {
-                    return null;
-                }
-                if (!(res_type === undefined || res_type === 'w' || res_type === 'widget')) {
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持结果筛选类型');
-                }
-                if (arguments.length > 2) {
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持复杂参数传入');
-                }
-                if (typeof sel_body === 'string') {
-                    return desc(sel_body).findOnce() || text(sel_body).findOnce();
-                }
-                if (sel_body instanceof RegExp) {
-                    return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
-                }
-                if (sel_body instanceof com.stardust.automator.UiObject) {
-                    return sel_body;
-                }
-                if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                    return sel_body.findOnce();
-                }
-                throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
-            },
-        };
-        return Object.assign(_sel, _sel_ext);
-    }
 }
 
 /**
@@ -448,18 +404,8 @@ function clickAction(o, strategy, options) {
         return false;
     }
 
-    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
     let $_str = o => typeof o === 'string';
     let $_num = o => typeof o === 'number';
-    let _messageAction = (
-        typeof messageAction === 'function' ? messageAction : messageActionRaw
-    );
-    let _waitForAction = (
-        typeof messageAction === 'function' ? waitForAction : waitForActionRaw
-    );
-    let _showSplitLine = (
-        typeof showSplitLine === 'function' ? showSplitLine : showSplitLineRaw
-    );
 
     /**
      * @type {'Bounds'|'UiObject'|'UiSelector'|'CoordsArray'|'ObjXY'|'Points'}
@@ -485,7 +431,7 @@ function clickAction(o, strategy, options) {
     }
 
     while (~_clickOnce() && _max_chk_cnt--) {
-        if (_waitForAction(_cond_succ, _chk_t_once, 50)) {
+        if (waitForAction(_cond_succ, _chk_t_once, 50)) {
             return true;
         }
     }
@@ -529,22 +475,22 @@ function clickAction(o, strategy, options) {
         } else if (_type === 'Bounds') {
             if (_stg.match(/^w(idget)?$/)) {
                 _stg = 'click';
-                _messageAction('clickAction()控件策略已改为click', 3);
-                _messageAction('无法对Rect对象应用widget策略', 3, 0, 1);
+                messageAction('clickAction()控件策略已改为click', 3);
+                messageAction('无法对Rect对象应用widget策略', 3, 0, 1);
             }
             _x = o.centerX();
             _y = o.centerY();
         } else {
             if (_stg.match(/^w(idget)?$/)) {
                 _stg = 'click';
-                _messageAction('clickAction()控件策略已改为click', 3);
-                _messageAction('无法对坐标组应用widget策略', 3, 0, 1);
+                messageAction('clickAction()控件策略已改为click', 3);
+                messageAction('无法对坐标组应用widget策略', 3, 0, 1);
             }
             [_x, _y] = Array.isArray(o) ? o : [o.x, o.y];
         }
         if (isNaN(_x) || isNaN(_y)) {
-            _messageAction('clickAction()内部坐标值无效', 4, 1);
-            _messageAction('(' + _x + ', ' + _y + ')', 8, 0, 1, 1);
+            messageAction('clickAction()内部坐标值无效', 4, 1);
+            messageAction('(' + _x + ', ' + _y + ')', 8, 0, 1, 1);
         }
         _x += _padding.x;
         _y += _padding.y;
@@ -557,12 +503,12 @@ function clickAction(o, strategy, options) {
     function _checkType(f) {
         let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
         if (!_type_f) {
-            _showSplitLine();
-            _messageAction('不支持的clickAction()的目标参数', 4, 1);
-            _messageAction('参数类型: ' + typeof f, 4, 0, 1);
-            _messageAction('参数类值: ' + _classof(f), 4, 0, 1);
-            _messageAction('参数字串: ' + f.toString(), 4, 0, 1);
-            _showSplitLine();
+            showSplitLine();
+            messageAction('不支持的clickAction()的目标参数', 4, 1);
+            messageAction('参数类型: ' + typeof f, 4, 0, 1);
+            messageAction('参数类值: ' + classof(f), 4, 0, 1);
+            messageAction('参数字串: ' + f.toString(), 4, 0, 1);
+            showSplitLine();
             exit();
         }
         return _type_f;
@@ -570,7 +516,7 @@ function clickAction(o, strategy, options) {
         // tool function(s) //
 
         function _chkJavaO(o) {
-            if (_classof(o) !== 'JavaObject') {
+            if (classof(o) !== 'JavaObject') {
                 return;
             }
             if (o.getClass().getName().match(/Point$/)) {
@@ -587,20 +533,20 @@ function clickAction(o, strategy, options) {
         }
 
         function _chkCoords(arr) {
-            if (_classof(f) !== 'Array') {
+            if (classof(f) !== 'Array') {
                 return;
             }
             if (arr.length !== 2) {
-                _messageAction('clickAction()坐标参数非预期值: 2', 8, 1, 0, 1);
+                messageAction('clickAction()坐标参数非预期值: 2', 8, 1, 0, 1);
             }
             if (typeof arr[0] !== 'number' || typeof arr[1] !== 'number') {
-                _messageAction('clickAction()坐标参数非number', 8, 1, 0, 1);
+                messageAction('clickAction()坐标参数非number', 8, 1, 0, 1);
             }
             return 'CoordsArray';
         }
 
         function _chkObjXY(o) {
-            if (_classof(o) === 'Object') {
+            if (classof(o) === 'Object') {
                 if ($_num(o.x) && $_num(o.y)) {
                     return 'ObjXY';
                 }
@@ -617,7 +563,7 @@ function clickAction(o, strategy, options) {
         if (typeof arr === 'number') {
             _coords = [0, arr];
         } else if (!Array.isArray(arr)) {
-            return _messageAction('clickAction()坐标偏移参数类型未知', 8, 1, 0, 1);
+            return messageAction('clickAction()坐标偏移参数类型未知', 8, 1, 0, 1);
         }
 
         let _arr_len = arr.length;
@@ -633,14 +579,14 @@ function clickAction(o, strategy, options) {
                 _coords = [_ele, _val];
             }
         } else {
-            return _messageAction('clickAction()坐标偏移参数数组个数不合法', 8, 1, 0, 1);
+            return messageAction('clickAction()坐标偏移参数数组个数不合法', 8, 1, 0, 1);
         }
 
         let [_x, _y] = _coords.map(n => Number(n));
         if (!isNaN(_x) && !isNaN(_y)) {
             return {x: _x, y: _y};
         }
-        _messageAction('clickAction()坐标偏移计算值不合法', 8, 1, 0, 1);
+        messageAction('clickAction()坐标偏移计算值不合法', 8, 1, 0, 1);
     }
 
     function _checkDisappearance() {
@@ -668,54 +614,6 @@ function clickAction(o, strategy, options) {
             // nothing to do here
         }
         return true;
-    }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || ' ';
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === 'undefined' ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-        ) + (extra || ''));
     }
 }
 
@@ -756,78 +654,15 @@ function clickAction(o, strategy, options) {
  * @return {boolean} - waitForAction(...) && clickAction(...)
  */
 function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
-    let _messageAction = (
-        typeof messageAction === 'function' ? messageAction : messageActionRaw
-    );
-    let _waitForAction = (
-        typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-    );
-    let _clickAction = (
-        typeof clickAction === 'function' ? clickAction : clickActionRaw
-    );
-
-    if (Object.prototype.toString.call(f).slice(8, -1) !== 'JavaObject') {
-        _messageAction('waitForAndClickAction不支持非JavaObject参数', 8, 1);
+    if (classof(f) !== 'JavaObject') {
+        messageAction('waitForAndClickAction不支持非JavaObject参数', 8, 1);
     }
     let _par = click_params || {};
     let _intermission = _par.intermission || 200;
     let _strategy = _par.click_strategy;
-    if (_waitForAction(f, timeout_or_times, interval)) {
+    if (waitForAction(f, timeout_or_times, interval)) {
         sleep(_intermission);
-        return _clickAction(f, _strategy, _par);
-    }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || ' ';
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === 'undefined' ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function clickActionRaw(o) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _o = _classof(o) === 'Array' ? o[0] : o;
-        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-        if (!_w) {
-            return false;
-        }
-        let _bnd = _w.bounds();
-        return click(_bnd.centerX(), _bnd.centerY());
+        return clickAction(f, _strategy, _par);
     }
 }
 
@@ -877,7 +712,7 @@ function swipeAndShow(f, params) {
     }
 
     if (!global.WIDTH || !global.HEIGHT) {
-        let _data = getDisplayRaw();
+        let _data = require('./ext-device').getDisplay();
         [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
     }
 
@@ -1068,146 +903,13 @@ function swipeAndShow(f, params) {
             }
         }
     }
-
-    // raw function(s) //
-
-    function getDisplayRaw(params) {
-        let $_flag = global.$$flag = global.$$flag || {};
-
-        let _par = params || {};
-        let _waitForAction = (
-            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
-        let $_str = x => typeof x === 'string';
-
-        let _W, _H;
-        let _disp = {};
-        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-        let _win_svc_disp = _win_svc.getDefaultDisplay();
-
-        if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-            return console.error('getDisplayRaw()返回结果异常');
-        }
-        _showDisp();
-        return Object.assign(_disp, {
-            cX: _cX,
-            cY: _cY,
-        });
-
-        // tool function(s) //
-
-        function _cX(num) {
-            let _unit = Math.abs(num) >= 1 ? _W / 720 : _W;
-            let _x = Math.round(num * _unit);
-            return Math.min(_x, _W);
-        }
-
-        function _cY(num, aspect_ratio) {
-            let _ratio = aspect_ratio;
-            if (!~_ratio) _ratio = '16:9'; // -1
-            if ($_str(_ratio) && _ratio.match(/^\d+:\d+$/)) {
-                let _split = _ratio.split(':');
-                _ratio = _split[0] / _split[1];
-            }
-            _ratio = _ratio || _H / _W;
-            _ratio = _ratio < 1 ? 1 / _ratio : _ratio;
-            let _h = _W * _ratio;
-            let _unit = Math.abs(num) >= 1 ? _h / 1280 : _h;
-            let _y = Math.round(num * _unit);
-            return Math.min(_y, _H);
-        }
-
-        function _showDisp() {
-            if (!$_flag.display_params_got) {
-                _debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
-                _debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
-                $_flag.display_params_got = true;
-            }
-        }
-
-        function _getDisp() {
-            try {
-                _W = _win_svc_disp.getWidth();
-                _H = _win_svc_disp.getHeight();
-                if (!(_W * _H)) {
-                    return _raw();
-                }
-
-                // left: 1, right: 3, portrait: 0 (or 2 ?)
-                let _SCR_O = _win_svc_disp.getOrientation();
-                let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
-                let _MAX = _win_svc_disp.maximumSizeDimension;
-
-                let [_UH, _UW] = [_H, _W];
-                let _dimen = (name) => {
-                    let resources = context.getResources();
-                    let resource_id = resources.getIdentifier(name, 'dimen', 'android');
-                    if (resource_id > 0) {
-                        return resources.getDimensionPixelSize(resource_id);
-                    }
-                    return NaN;
-                };
-
-                _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                return {
-                    WIDTH: _W,
-                    USABLE_WIDTH: _UW,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: _UH,
-                    screen_orientation: _SCR_O,
-                    status_bar_height: _dimen('status_bar_height'),
-                    navigation_bar_height: _dimen('navigation_bar_height'),
-                    navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                    action_bar_default_height: _dimen('action_bar_default_height'),
-                };
-            } catch (e) {
-                return _raw();
-            }
-
-            // tool function(s) //
-
-            function _raw() {
-                _W = device.width;
-                _H = device.height;
-                return _W && _H && {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            }
-        }
-
-        // raw function(s) //
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-        }
-    }
 }
 
 /**
  * Swipe to make a certain specified area, then click it
  * @global
  * -- This is a combination function which means independent use is not recommended
- * @param f {object} - JavaObject
+ * @param {UiSelector$|ImageWrapper$} f
  * @param {object} [swipe_params]
  * @param {number} [swipe_params.max_swipe_times=12]
  * @param {number|string} [swipe_params.swipe_direction='auto']
@@ -1261,50 +963,12 @@ function swipeAndShow(f, params) {
  *     -- ['y', 69]|[0, 69]|[69]|69 - y=y+69;
  */
 function swipeAndShowAndClickAction(f, swipe_params, click_params) {
-    let _clickAction = (
-        typeof clickAction === 'undefined' ? clickActionRaw : clickAction
-    );
-    let _swipeAndShow = (
-        typeof swipeAndShow === 'undefined' ? swipeAndShowRaw : swipeAndShow
-    );
-
-    let _res_swipe = _swipeAndShow(f, swipe_params);
-    if (!_res_swipe) {
-        return;
-    }
-    return _clickAction(
-        typeof _res_swipe === 'boolean' ? f : _res_swipe,
-        click_params && click_params.click_strategy, click_params
-    );
-
-    // raw function(s) //
-
-    function clickActionRaw(o) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _o = _classof(o) === 'Array' ? o[0] : o;
-        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-        if (!_w) {
-            return false;
-        }
-        let _bnd = _w.bounds();
-        return click(_bnd.centerX(), _bnd.centerY());
-    }
-
-    function swipeAndShowRaw(sltr, params) {
-        let _max = 10;
-        let _dev_h = device.height;
-        let _dev_w = device.width;
-        let _time = params.swipe_time || 150;
-        let _itv = params.swipe_interval || 300;
-        while (_max--) {
-            let _w = sltr.findOnce();
-            if (_w && _w.bounds().top > 0 && _w.bounds().bottom < device.height) {
-                return true;
-            }
-            swipe(_dev_w * 0.5, _dev_h * 0.8, _dev_w * 0.5, _dev_h * 0.2, _time);
-            sleep(_itv);
-        }
-        return _max >= 0;
+    let _res_swipe = swipeAndShow(f, swipe_params);
+    if (_res_swipe) {
+        return clickAction(
+            typeof _res_swipe === 'boolean' ? f : _res_swipe,
+            click_params && click_params.click_strategy, click_params
+        );
     }
 }
 
@@ -1336,10 +1000,6 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
 function keycode(code, params) {
     let _par = params || {};
     _par.no_impeded || typeof $$impeded === 'function' && $$impeded(keycode.name);
-
-    let _waitForAction = (
-        typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-    );
 
     if (_par.force_shell) {
         return keyEvent(code);
@@ -1378,14 +1038,14 @@ function keycode(code, params) {
                 let max = 10;
 
                 do device.wakeUp();
-                while (!_waitForAction(isScreenOn, 500) && max--);
+                while (!waitForAction(isScreenOn, 500) && max--);
 
                 return max >= 0;
             }
             if (!shellInputKeyEvent(keycode)) {
                 return false;
             }
-            return _waitForAction(isScreenOff, 2.4e3);
+            return waitForAction(isScreenOff, 2.4e3);
         }
 
         function shellInputKeyEvent(keycode) {
@@ -1427,22 +1087,6 @@ function keycode(code, params) {
                 return keyEvent(code);
         }
     }
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
 }
 
 /**
@@ -1458,14 +1102,6 @@ function keycode(code, params) {
 function debugInfo(msg, msg_level, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
-    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _showSplitLine = (
-        typeof showSplitLine === 'function' ? showSplitLine : showSplitLineRaw
-    );
-    let _messageAction = (
-        typeof messageAction === 'function' ? messageAction : messageActionRaw
-    );
-
     let _glob_fg = $_flag.debug_info_avail;
     let _forc_fg = forcible_flag;
     if (!_glob_fg && !_forc_fg) {
@@ -1478,7 +1114,7 @@ function debugInfo(msg, msg_level, forcible_flag) {
     let _msg_lv_str = (msg_level || '').toString();
     let _msg_lv_num = +(_msg_lv_str.match(/\d/) || [0])[0];
     if (_msg_lv_str.match(/Up/)) {
-        _showSplitLine();
+        showSplitLine();
     }
     if (_msg_lv_str.match(/both|up/)) {
         let _dash = _msg_lv_str.match(/dash/) ? 'dash' : '';
@@ -1488,49 +1124,15 @@ function debugInfo(msg, msg_level, forcible_flag) {
     if (typeof msg === 'string' && msg.match(/^__split_line_/)) {
         msg = _getLineStr(msg);
     }
-    if (_classof(msg) === 'Array') {
+    if (classof(msg) === 'Array') {
         msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
     } else {
-        _messageAction((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '), _msg_lv_num);
+        messageAction((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '), _msg_lv_num);
     }
 
     if (_msg_lv_str.match('both')) {
         let _dash = _msg_lv_str.match(/dash/) ? 'dash' : '';
         debugInfo('__split_line__' + _dash, '', _forc_fg);
-    }
-
-    // raw function(s) //
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-        ) + (extra || ''));
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || ' ';
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === 'undefined' ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
     }
 
     // tool function(s) //
@@ -1656,10 +1258,6 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
     let _amt = aim_amount || 1;
     let _got_msg = [];
 
-    let _waitForAction = (
-        typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-    );
-
     threads.start(function () {
         events.observeToast();
         events.onToast((o) => {
@@ -1669,7 +1267,7 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
         });
     });
 
-    _waitForAction(() => _got_msg.length >= _amt, _tt, 50);
+    waitForAction(() => _got_msg.length >= _amt, _tt, 50);
 
     // events.recycle() will make listeners (like key listeners) invalid
     // events.recycle();
@@ -1679,22 +1277,6 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
     events.removeAllListeners('toast');
 
     return _got_msg;
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
 }
 
 /**
@@ -1705,11 +1287,6 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
  */
 function getSelector(options) {
     let _opt = options || {};
-    let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-    let _debugInfo = (m, lv) => (
-        typeof debugInfo === 'undefined' ? debugInfoRaw : debugInfo
-    )(m, lv, _opt.debug_info_flag);
-
     let _sel = Object.create(selector());
 
     let _sel_ext = {
@@ -1792,7 +1369,7 @@ function getSelector(options) {
          * @returns {UiSelector$pickup$return_value}
          */
         pickup(sel_body, res_type, mem_sltr_kw, par) {
-            let _sel_body = _classof(sel_body) === 'Array' ? sel_body.slice() : [sel_body];
+            let _sel_body = classof(sel_body) === 'Array' ? sel_body.slice() : [sel_body];
             let _params = Object.assign({}, _opt, par);
             let _res_type = (res_type || '').toString();
 
@@ -1888,7 +1465,7 @@ function getSelector(options) {
 
                 function _selGenerator() {
                     let _prefer = _params.selector_prefer;
-                    let _body_class = _classof(_body);
+                    let _body_class = classof(_body);
                     let _sel_keys_abbr = {
                         bi$: 'boundsInside',
                         c$: 'clickable',
@@ -1897,7 +1474,7 @@ function getSelector(options) {
 
                     if (_body_class === 'JavaObject') {
                         if (_body.toString().match(/UiObject/)) {
-                            addition && _debugInfo('UiObject无法使用额外选择器', 3);
+                            addition && debugInfo('UiObject无法使用额外选择器', 3);
                             return _body;
                         }
                         return _chkSels(_body);
@@ -1940,18 +1517,18 @@ function getSelector(options) {
                         // tool function(s) //
 
                         function _chkSel(sel) {
-                            if (_classof(addition) === 'Array') {
+                            if (classof(addition) === 'Array') {
                                 let _o = {};
                                 _o[addition[0]] = addition[1];
                                 addition = _o;
                             }
-                            if (_classof(addition) === 'Object') {
+                            if (classof(addition) === 'Object') {
                                 let _keys = Object.keys(addition);
                                 for (let i = 0, l = _keys.length; i < l; i += 1) {
                                     let _k = _keys[i];
                                     let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
                                     if (!sel[_sel_k]) {
-                                        _debugInfo(['无效的additional_selector属性值:', _sel_k], 3);
+                                        debugInfo(['无效的additional_selector属性值:', _sel_k], 3);
                                         return null;
                                     }
                                     let _arg = addition[_k];
@@ -1959,7 +1536,7 @@ function getSelector(options) {
                                     try {
                                         sel = sel[_sel_k].apply(sel, _arg);
                                     } catch (e) {
-                                        _debugInfo(['无效的additional_selector选择器:', _sel_k], 3);
+                                        debugInfo(['无效的additional_selector选择器:', _sel_k], 3);
                                         return null;
                                     }
                                 }
@@ -1979,13 +1556,13 @@ function getSelector(options) {
              * @returns {UiObject|null}
              */
             function _relativeWidget(w_info) {
-                let _w_o = _classof(w_info) === 'Array' ? w_info.slice() : [w_info];
+                let _w_o = classof(w_info) === 'Array' ? w_info.slice() : [w_info];
                 let _w = _w_o[0];
-                let _w_class = _classof(_w);
+                let _w_class = classof(_w);
                 let _w_str = (_w || '').toString();
 
                 if (typeof _w === 'undefined') {
-                    _debugInfo('relativeWidget的widget参数为Undefined');
+                    debugInfo('relativeWidget的widget参数为Undefined');
                     return null;
                 }
                 if (_w === null) {
@@ -2002,7 +1579,7 @@ function getSelector(options) {
                         }
                     }
                 } else {
-                    _debugInfo('未知的relativeWidget的widget参数', 3);
+                    debugInfo('未知的relativeWidget的widget参数', 3);
                     return null;
                 }
 
@@ -2164,12 +1741,6 @@ function getSelector(options) {
     };
 
     return Object.assign(_sel, _sel_ext);
-
-    // raw function(s) //
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-    }
 }
 
 /**
@@ -2354,27 +1925,9 @@ function clickActionsPipeline(pipeline, options) {
     _max = isNaN(_max) ? 5 : _max;
     let _max_bak = _max;
 
-    let _getSelector = (
-        typeof getSelector === 'function' ? getSelector : getSelectorRaw
-    );
-    let _clickAction = (
-        typeof clickAction === 'function' ? clickAction : clickActionRaw
-    );
-    let _messageAction = (
-        typeof messageAction === 'function' ? messageAction : messageActionRaw
-    );
-    let _waitForAction = (
-        typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-    );
-    let _surroundWith = (
-        typeof surroundWith === 'function' ? surroundWith : surroundWithRaw
-    );
-    let _debugInfo = m => (
-        typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-    )(m, '', _opt.debug_info_flag);
-    let $_sel = _getSelector();
+    let $_sel = getSelector();
 
-    let _ppl_name = _opt.name ? _surroundWith(_opt.name) : '';
+    let _ppl_name = _opt.name ? surroundWith(_opt.name) : '';
 
     let _res = pipeline
         .filter(value => typeof value !== 'undefined')
@@ -2404,113 +1957,19 @@ function clickActionsPipeline(pipeline, options) {
             let [_sel_body, _stg, _cond] = pipe;
             let _w = $_sel.pickup(_sel_body);
             do {
-                _cond !== null && _clickAction(_w, _stg);
+                _cond !== null && clickAction(_w, _stg);
                 sleep(_itv);
-            } while (_max-- > 0 && !_waitForAction(_cond === null ? _w : _cond, 1.5e3));
+            } while (_max-- > 0 && !waitForAction(_cond === null ? _w : _cond, 1.5e3));
 
             if (_max >= 0) {
                 return true;
             }
-            _messageAction(_ppl_name + '管道破裂', 3, 1, 0, 'up_dash');
-            _messageAction(_surroundWith(_sel_body), 3, 0, 1, 'dash');
+            messageAction(_ppl_name + '管道破裂', 3, 1, 0, 'up_dash');
+            messageAction(surroundWith(_sel_body), 3, 0, 1, 'dash');
         });
 
-    _res && _debugInfo(_ppl_name + '管道完工');
+    _res && debugInfo(_ppl_name + '管道完工');
     return _res;
-
-    // raw function(s) //
-
-    function getSelectorRaw() {
-        let _sel = Object.create(selector());
-        let _sel_ext = {
-            pickup(sel_body, res_type) {
-                if (sel_body === undefined || sel_body === null) {
-                    return null;
-                }
-                if (!(res_type === undefined || res_type === 'w' || res_type === 'widget')) {
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持结果筛选类型');
-                }
-                if (arguments.length > 2) {
-                    throw Error('getSelectorRaw()返回对象的pickup方法不支持复杂参数传入');
-                }
-                if (typeof sel_body === 'string') {
-                    return desc(sel_body).findOnce() || text(sel_body).findOnce();
-                }
-                if (sel_body instanceof RegExp) {
-                    return descMatches(sel_body).findOnce() || textMatches(sel_body).findOnce();
-                }
-                if (sel_body instanceof com.stardust.automator.UiObject) {
-                    return sel_body;
-                }
-                if (sel_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                    return sel_body.findOnce();
-                }
-                throw Error('getSelectorRaw()返回对象的pickup方法不支持当前传入的选择体');
-            },
-        };
-        return Object.assign(_sel, _sel_ext);
-    }
-
-    function clickActionRaw(o) {
-        let _classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        let _o = _classof(o) === 'Array' ? o[0] : o;
-        let _w = _o.toString().match(/UiObject/) ? _o : _o.findOnce();
-        if (!_w) {
-            return false;
-        }
-        let _bnd = _w.bounds();
-        return click(_bnd.centerX(), _bnd.centerY());
-    }
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || ' ';
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === 'undefined' ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
-
-    function surroundWithRaw(target, str) {
-        if (!target) return '';
-        str = str || '"';
-        return str + target + str;
-    }
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-    }
 }
 
 /**
@@ -2581,18 +2040,8 @@ function baiduOcr(src, par) {
 
     let _capt = _par.capt_img || images.captureScreen();
 
-    let _messageAction = (
-        typeof messageAction === 'function' ? messageAction : messageActionRaw
-    );
-    let _showSplitLine = (
-        typeof showSplitLine === 'function' ? showSplitLine : showSplitLineRaw
-    );
-    let _debugInfo = (m, fg) => (
-        typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-    )(m, fg, _par.debug_info_flag);
-
     let _msg = '使用baiduOcr获取数据';
-    _debugInfo(_msg);
+    debugInfo(_msg);
     _par.no_toast_msg_flag || toast(_msg);
 
     let _token = '';
@@ -2606,7 +2055,7 @@ function baiduOcr(src, par) {
                     '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
                     '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj'
                 ).body.json()['access_token'];
-                _debugInfo('access_token准备完毕');
+                debugInfo('access_token准备完毕');
                 break;
             } catch (e) {
                 sleep(200);
@@ -2616,7 +2065,7 @@ function baiduOcr(src, par) {
     _thd_token.join(_tt);
 
     let _lv = +!_par.no_toast_msg_flag;
-    let _e = s => _messageAction(s, 3, _lv, 0, 'both_dash');
+    let _e = s => messageAction(s, 3, _lv, 0, 'both_dash');
     if (_max_token < 0) {
         _e('baiduOcr获取access_token失败');
         return [];
@@ -2648,7 +2097,7 @@ function baiduOcr(src, par) {
             }
             let _cur = _max_b - _max;
             let _suffix = _max_b > 1 ? ' [' + _cur + '] ' : '';
-            _debugInfo('stitched image' + _suffix + '准备完毕');
+            debugInfo('stitched image' + _suffix + '准备完毕');
 
             try {
                 let _words = JSON.parse(http.post('https://aip.baidubce.com/' +
@@ -2658,7 +2107,7 @@ function baiduOcr(src, par) {
                     image_type: 'BASE64',
                 }).body.string())['words_result'];
                 if (_words) {
-                    _debugInfo('数据' + _suffix + '获取成功');
+                    debugInfo('数据' + _suffix + '获取成功');
                     _res.push(_words.map(val => val['words']));
                 }
             } catch (e) {
@@ -2680,12 +2129,12 @@ function baiduOcr(src, par) {
 
                 let _msg = 'baiduOcr获取数据超时';
                 let _toast = +!_par.no_toast_msg_flag;
-                _messageAction(_msg, 3, _toast, 0, 'up_dash');
+                messageAction(_msg, 3, _toast, 0, 'up_dash');
 
                 if (_res.length) {
-                    _messageAction('已获取的数据可能不完整', 3);
+                    messageAction('已获取的数据可能不完整', 3);
                 }
-                return _showSplitLine('', 'dash');
+                return showSplitLine('', 'dash');
             }
             sleep(500);
         }
@@ -2780,44 +2229,6 @@ function baiduOcr(src, par) {
             return !!e.message.match(/has been recycled/);
         }
     }
-
-    // raw function(s) //
-
-    function messageActionRaw(msg, lv, if_toast) {
-        let _msg = msg || ' ';
-        if (lv && lv.toString().match(/^t(itle)?$/)) {
-            return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-        }
-        if_toast && toast(_msg);
-        let _lv = typeof lv === 'undefined' ? 1 : lv;
-        if (_lv >= 4) {
-            console.error(_msg);
-            _lv >= 8 && exit();
-            return false;
-        }
-        if (_lv >= 3) {
-            console.warn(_msg);
-            return false;
-        }
-        if (_lv === 0) {
-            console.verbose(_msg);
-        } else if (_lv === 1) {
-            console.log(_msg);
-        } else if (_lv === 2) {
-            console.info(_msg);
-        }
-        return true;
-    }
-
-    function debugInfoRaw(msg, msg_lv) {
-        msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
-    }
-
-    function showSplitLineRaw(extra, style) {
-        console.log((
-            style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-        ) + (extra || ''));
-    }
 }
 
 /**
@@ -2863,7 +2274,7 @@ function classof(source, compare) {
 }
 
 /**
- * Wait until a generater, which generates variable values, is stable.
+ * Wait until a generator, which generates variable values, is stable.
  * And returns the final stable value.
  * 1. Wait until generator returns different values (not longer than generator_timeout)
  * 2. Wait until changing value is stable (not longer than stable_threshold each time)
@@ -2884,11 +2295,8 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
         _init = isNaN(_init) ? _num : _init;
         return _init !== _num;
     };
-    let _waitForAction = (
-        typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-    );
 
-    if (!_waitForAction(_cond_generator, generator_timeout || 3e3)) {
+    if (!waitForAction(_cond_generator, generator_timeout || 3e3)) {
         return NaN;
     }
 
@@ -2897,7 +2305,7 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
     let _limit = 60e3; // 1 min
     let _start_ts = Date.now();
 
-    while (_waitForAction(_cond_stable, stable_threshold || 500)) {
+    while (waitForAction(_cond_stable, stable_threshold || 500)) {
         _old = _tmp;
         if (Date.now() - _start_ts > _limit) {
             throw Error('stabilizer() has reached max limitation: ' + _limit + 'ms');
@@ -2905,20 +2313,4 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
     }
 
     return _old;
-
-    // raw function(s) //
-
-    function waitForActionRaw(cond_func, time_params) {
-        let _cond_func = cond_func;
-        if (!cond_func) return true;
-        let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-        if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-        let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-        let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-        while (!_cond_func() && _check_time >= 0) {
-            sleep(_check_interval);
-            _check_time -= _check_interval;
-        }
-        return _check_time >= 0;
-    }
 }

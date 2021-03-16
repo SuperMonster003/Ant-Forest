@@ -392,13 +392,6 @@ let ext = {
             _glob_asg = _par.global_assign;
         }
 
-        let _waitForAction = (
-            typeof waitForAction === 'function' ? waitForAction : waitForActionRaw
-        );
-        let _debugInfo = (m, fg) => (
-            typeof debugInfo === 'function' ? debugInfo : debugInfoRaw
-        )(m, fg, _par.debug_info_flag);
-
         /** @type {number} */
         let _W, _H;
         /**
@@ -420,13 +413,14 @@ let ext = {
         let _win_svc_disp = _win_svc.getDefaultDisplay();
         _win_svc_disp.getRealMetrics(_metrics);
 
-        if (!_waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
-            console.error('devicex.getDisplay()返回结果异常');
-            return {cX: cX, cY: cY, cYx: cYx};
+        let _scale = {cX: cX, cY: cY, cYx: cYx};
+        if (waitForAction(() => _disp = _getDisp(), 3e3, 500)) {
+            _showDisp();
+            _assignGlob();
+            return Object.assign(_disp, _scale);
         }
-        _showDisp();
-        _assignGlob();
-        return Object.assign(_disp, {cX: cX, cY: cY, cYx: cYx});
+        console.error('devicex.getDisplay()返回结果异常');
+        return _scale;
 
         // tool function(s) //
 
@@ -622,7 +616,7 @@ let ext = {
             let _full = ~dxn ? _W : _H;
             let _num = Number(num);
             if (isNaN(_num)) {
-                throw Error('Can not parse num param for cTrans()');
+                throw Error('Can not parse num param for cTrans(): ' + num);
             }
             let _base = Number(base);
             if (!base || !~base) {
@@ -643,8 +637,8 @@ let ext = {
 
         function _showDisp() {
             if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-                _debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
-                _debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
+                debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
+                debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
                 $_flag.display_params_got = true;
             }
         }
@@ -746,26 +740,6 @@ let ext = {
                     cX: cX, cY: cY, cYx: cYx,
                 });
             }
-        }
-
-        // raw function(s) //
-
-        function waitForActionRaw(cond_func, time_params) {
-            let _cond_func = cond_func;
-            if (!cond_func) return true;
-            let classof = o => Object.prototype.toString.call(o).slice(8, -1);
-            if (classof(cond_func) === 'JavaObject') _cond_func = () => cond_func.exists();
-            let _check_time = typeof time_params === 'object' && time_params[0] || time_params || 10e3;
-            let _check_interval = typeof time_params === 'object' && time_params[1] || 200;
-            while (!_cond_func() && _check_time >= 0) {
-                sleep(_check_interval);
-                _check_time -= _check_interval;
-            }
-            return _check_time >= 0;
-        }
-
-        function debugInfoRaw(msg, msg_lv) {
-            msg_lv && console.verbose((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '));
         }
     },
     /**

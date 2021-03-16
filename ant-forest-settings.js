@@ -2918,17 +2918,18 @@ let $$init = {
                             }).show();
 
                             let _thd = threadsx.start(function () {
+                                let _set_range = '设置范围';
                                 while (1) {
                                     if (_diag.getSelectedIndex() === 1) {
                                         if (_diag.getActionButton('positive') === dialogsx._text._btn.K) {
-                                            _diag.setActionButton('positive', '设置范围');
+                                            _diag.setActionButton('positive', _set_range);
                                             _diag.setActionButton('neutral', null);
                                             _posFunc = _posSetRange;
                                         }
                                     } else {
-                                        if (_diag.getActionButton('positive') === '设置范围') {
+                                        if (_diag.getActionButton('positive') === _set_range) {
                                             _diag.setActionButton('positive', dialogsx._text._btn.K);
-                                            _diag.setActionButton('neutral', 'R');
+                                            _diag.setActionButton('neutral', dialogsx._text._btn.R);
                                             _posFunc = _posDefault;
                                         }
                                     }
@@ -3438,6 +3439,7 @@ let $$init = {
                 },
                 config() {
                     let sess_cfg_mixed = deepCloneObject($$cfg.ses);
+                    excludeProjectBackup();
                     writeUnlockStorage();
                     writeBlacklist();
                     $$sto.af_cfg.put('config', sess_cfg_mixed); // only 'cfg' reserved now (without unlock, blacklist, etc)
@@ -3445,6 +3447,10 @@ let $$init = {
                     return true;
 
                     // tool function(s) //
+
+                    function excludeProjectBackup() {
+                        delete sess_cfg_mixed.project_backup_info;
+                    }
 
                     function writeUnlockStorage() {
                         let ori_config = deepCloneObject($$sto.def.unlock);
@@ -3458,6 +3464,7 @@ let $$init = {
                         $$sto.unlock.put('config', Object.assign(
                             {}, $$sto.unlock.get('config', {}), tmp_config)
                         );
+                        delete sess_cfg_mixed.unlock;
                     }
 
                     function writeBlacklist() {
@@ -5532,6 +5539,20 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             },
             updateOpr(view) {
                 view.setHintText(this.map[($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString()]);
+            },
+        }))
+        .add('checkbox_switch', new Layout('放弃任务时显示放弃提示', {
+            default_state: true,
+            config_conj: 'prompt_before_running_quit_confirm',
+            listeners: {
+                _checkbox_switch: {
+                    check(state) {
+                        $$save.session(this.config_conj, !!state);
+                    },
+                },
+            },
+            updateOpr(view) {
+                view['_checkbox_switch'].setChecked(!!$$cfg.ses[this.config_conj]);
             },
         }))
         .add('checkbox_switch', new Layout('息屏或上锁启动时自动跳过', {
