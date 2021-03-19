@@ -119,8 +119,7 @@ let _ext = {
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
             throw new Error('Out of region: ' +
                 'region = [' + [x, y, width, height] + '], ' +
-                'image.size = [' + [img.width, img.height] + ']'
-            );
+                'image.size = [' + [img.width, img.height] + ']');
         }
         return r;
     },
@@ -488,9 +487,7 @@ let _ext = {
         let _w = _bounds.right - _x;
         let _h = _bounds.bottom - _y;
 
-        let _mch = col => images.findColorInRegion(
-            img, col, _x, _y, _w, _h, threshold
-        );
+        let _mch = col => images.findColorInRegion(img, col, _x, _y, _w, _h, threshold);
         if (!Array.isArray(color)) {
             return _mch(color) ? _bounds : null;
         }
@@ -512,8 +509,7 @@ let _ext = {
         org.opencv.imgproc.Imgproc.bilateralFilter(
             img.mat, _mat,
             d || 0, sigma_color || 40, sigma_space || 20,
-            org.opencv.core.Core['BORDER_' + (border_type || 'DEFAULT')]
-        );
+            org.opencv.core.Core['BORDER_' + (border_type || 'DEFAULT')]);
         return images.matToImage(_mat);
     },
     /**
@@ -641,15 +637,9 @@ let _ext = {
                     debugInfo('图像填池: ' +
                         this.fill_up_pool + 'ms' + '  [ ' +
                         _cfg.forest_balls_pool_itv + ', ' +
-                        _cfg.forest_balls_pool_limit + ' ]'
-                    );
-                    this._map.forEach((arr) => {
-                        let [_k, _v] = arr;
-                        if (_k in this) {
-                            if (this.hasOwnProperty(_k)) {
-                                debugInfo(_v + ': ' + this[_k] + 'ms');
-                            }
-                        }
+                        _cfg.forest_balls_pool_limit + ' ]');
+                    this._map.filter(a => this[a[0]]).forEach((a) => {
+                        debugInfo(a[1] + ': ' + this[a[0]] + 'ms');
                     });
                     debugInfo('__split_line__dash__');
                 },
@@ -702,9 +692,7 @@ let _ext = {
                     let {x: _ox, y: _oy, r: _or} = o;
                     let {x: _zx, y: _zy, r: _zr} = _tree_area;
                     let _ct_dist_min = _or + _zr;
-                    let _ct_dist = Math.sqrt(
-                        Math.pow(_zy - _oy, 2) + Math.pow(_zx - _ox, 2)
-                    );
+                    let _ct_dist = Math.sqrt(Math.pow(_zy - _oy, 2) + Math.pow(_zx - _ox, 2));
                     return _ct_dist < _ct_dist_min;
                 };
             }
@@ -814,22 +802,21 @@ let _ext = {
                 let [_l, _t, _r, _b] = _region;
                 let [_w, _h] = [_r - _l, _b - _t];
 
-                let _gray = _getImg('gray', true, () => images.grayscale(capt));
-
-                let _adapt_thrd = _getImg('adapt_thrd', _src_img_stg.adapt_thrd,
-                    () => images.adaptiveThreshold(
-                        _gray, 255, 'GAUSSIAN_C', 'BINARY_INV', 9, 6
-                    )
-                );
-                let _med_blur = _getImg('med_blur', _src_img_stg.med_blur,
-                    () => images.medianBlur(_gray, 9)
-                );
-                let _blur = _getImg('blur', _src_img_stg.blur,
-                    () => images.blur(_gray, 9, [-1, -1], 'REPLICATE')
-                );
-                let _blt_fltr = _getImg('blt_fltr', _src_img_stg.blt_fltr,
-                    () => _this.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE')
-                );
+                let _gray = _getImg('gray', true, () => {
+                    return images.grayscale(capt);
+                });
+                let _adapt_thrd = _getImg('adapt_thrd', _src_img_stg.adapt_thrd, () => {
+                    return images.adaptiveThreshold(_gray, 255, 'GAUSSIAN_C', 'BINARY_INV', 9, 6);
+                });
+                let _med_blur = _getImg('med_blur', _src_img_stg.med_blur, () => {
+                    return images.medianBlur(_gray, 9);
+                });
+                let _blur = _getImg('blur', _src_img_stg.blur, () => {
+                    return images.blur(_gray, 9, [-1, -1], 'REPLICATE');
+                });
+                let _blt_fltr = _getImg('blt_fltr', _src_img_stg.blt_fltr, () => {
+                    return _this.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE');
+                });
 
                 let _proc_key = 'img_samples_processing';
                 timeRecorder(_proc_key);
@@ -988,10 +975,7 @@ let _ext = {
                     }
 
                     function _calcDist(p1, p2) {
-                        return Math.sqrt(
-                            Math.pow(p2.x - p1.x, 2) +
-                            Math.pow(p2.y - p1.y, 2)
-                        );
+                        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
                     }
                 }
 
@@ -1230,14 +1214,12 @@ let _ext = {
                         colors.red(color) - threshold,
                         colors.green(color) - threshold,
                         colors.blue(color) - threshold,
-                        255
-                    );
+                        255);
                     let _upper_bound = new Scalar(
                         colors.red(color) + threshold,
                         colors.green(color) + threshold,
                         colors.blue(color) + threshold,
-                        255
-                    );
+                        255);
 
                     if (rect === null) {
                         Core.inRange(image.getMat(), _lower_bound, _upper_bound, _bi);
@@ -1267,9 +1249,7 @@ let _ext = {
 
         Object.assign(_finder, _finder_ext);
 
-        let _pts = this._toPointArray(
-            _finder.findAllPointsForColor(img, _color, _thrd, _region)
-        );
+        let _pts = this._toPointArray(_finder.findAllPointsForColor(img, _color, _thrd, _region));
         _opt.is_recycle_img && img.recycle();
         return _pts;
     },

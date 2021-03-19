@@ -117,9 +117,7 @@ let ext = {
                 _onResponse(r);
 
                 let _buf_len = 4096;
-                let _buf_bytes = java.lang.reflect.Array.newInstance(
-                    java.lang.Byte.TYPE, _buf_len
-                );
+                let _buf_bytes = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, _buf_len);
                 let _read_bytes;
                 let _processed = 0;
 

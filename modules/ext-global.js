@@ -1,3 +1,5 @@
+require('./mod-monster-func').load('getSelector');
+
 let ext = {
     Global() {
         let _classof = (src, chk) => {
@@ -14,13 +16,6 @@ let ext = {
         };
         let _isNum = o => _classof(o, 'Number');
         let _isStr = o => _classof(o, 'String');
-        let _monster = (fn) => {
-            if (typeof global[fn] === 'function') {
-                return global[fn].call(global);
-            }
-            let _path = files.cwd() + '/modules/mod-monster-func.js';
-            return files.isFile(_path) ? require(_path)[fn]() : null;
-        };
 
         Object.assign(global, {
             $$0: x => x === 0,
@@ -160,18 +155,14 @@ let ext = {
                 }
                 return 0;
             })();
-            let _s_handler = new android.os.Handler(
-                android.os.Looper.getMainLooper()
-            );
+            let _s_handler = new android.os.Handler(android.os.Looper.getMainLooper());
             _s_handler.post(new java.lang.Runnable({
                 run() {
                     if (if_force && global['_toast_']) {
                         global['_toast_'].cancel();
                         global['_toast_'] = null;
                     }
-                    global['_toast_'] = android.widget.Toast.makeText(
-                        context, _msg, _if_long
-                    );
+                    global['_toast_'] = android.widget.Toast.makeText(context, _msg, _if_long);
                     global['_toast_'].show();
                 },
             }));
@@ -239,8 +230,7 @@ let ext = {
             return sleep(Math.max(millis_min, 0));
         };
 
-        /** @type ExtendedSelector & UiSelector$ */
-        global.$$sel = _monster('getSelector');
+        global.$$sel = getSelector();
 
         global.$$cvt = _cvtBuilder();
 
@@ -313,8 +303,7 @@ let ext = {
                         _accu_step *= _step;
                     }
                     _unit.split('|').forEach(u => unit_map[u] = _tmp_pot_val
-                        ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]
-                    );
+                        ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]);
                 }
 
                 let _init_u = _init_unit || _units[0];
@@ -588,10 +577,8 @@ let ext = {
             // tool function(s) //
 
             function _parse(src, init_unit, options, presets) {
-                return $_cvt(src, Object.assign(
-                    init_unit === undefined ? {} : {init_unit: init_unit},
-                    presets || {}, options || {}
-                ));
+                let _init = init_unit === undefined ? {} : {init_unit: init_unit};
+                return $_cvt(src, Object.assign(_init, presets, options));
             }
         }
     },
@@ -1005,14 +992,14 @@ let ext = {
                  * Math.random().ICU; // 996
                  */
                 value: (() => {
-                    let _working_days = 5;
+                    let _workdays = 5;
                     let _weekends = 2;
                     let _health = '[your health]';
-                    return Math.round(
-                        'Hard working only'.split(new RegExp(_health)).map((x) => (
-                            !x ? 996 / _working_days / _weekends - _weekends : x.charCodeAt(0)
-                        )).reduce((x, y) => x + y)
-                    );
+                    let _evil = 'Hard working only'
+                        .split(new RegExp(_health))
+                        .map(x => x ? x.charCodeAt(0) : 996 / _workdays / _weekends - _weekends)
+                        .reduce((x, y) => x + y);
+                    return Math.round(_evil);
                 })(),
             });
         }
@@ -1604,10 +1591,9 @@ let ext = {
                 if (arr1.length !== 2 || arr2.length !== 2) {
                     return NaN;
                 }
-                return Math.sqrt(
-                    Math.pow(arr2[1] - arr1[1], 2) +
-                    Math.pow(arr2[0] - arr1[0], 2)
-                );
+                let _a = Math.pow(arr2[0] - arr1[0], 2);
+                let _b = Math.pow(arr2[1] - arr1[1], 2);
+                return Math.sqrt(_a + _b);
             },
             /**
              * Returns the logarithm (with both base and antilogarithm) of two numbers.

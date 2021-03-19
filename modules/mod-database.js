@@ -48,9 +48,8 @@
             files.createWithDirs(_db_path);
 
 
-            let _db = Object.create(
-                android.database.sqlite.SQLiteDatabase.openOrCreateDatabase(_db_path, null)
-            );
+            let _db = Object.create(android.database.sqlite
+                .SQLiteDatabase.openOrCreateDatabase(_db_path, null));
             let _db_ext = {
                 /**
                  * @returns {string}
@@ -192,9 +191,10 @@
                  */
                 hasColumn(columns) {
                     let _col = Array.isArray(columns) ? columns : [columns];
-                    return _col.every(col => ~this.getColumnNames().indexOf(
-                        typeof col === 'string' ? col : col.name
-                    ));
+                    return _col.every((col) => {
+                        let _el = typeof col === 'string' ? col : col.name;
+                        return ~this.getColumnNames().indexOf(_el);
+                    });
                 },
                 /**
                  * @param {SQLite$table_column|SQLite$table_columns|string|string[]} columns
@@ -212,8 +212,7 @@
                             _db.execSQL(
                                 'ALTER TABLE ' + _table_name + ' ' +
                                 'ADD COLUMN ' + col.name + ' ' + _type + ' ' +
-                                (isNullish(_def) ? '' : 'DEFAULT ' + _def)
-                            );
+                                (isNullish(_def) ? '' : 'DEFAULT ' + _def));
                         }
                     });
                 },
@@ -263,8 +262,7 @@
                         let _tb_col_names = table_columns.map(col => col.name);
                         _db_ext.dropColumn([]
                             .concat(_tb_col_names.filter(n => !~_db_col_names.indexOf(n)))
-                            .concat(_db_col_names.filter(n => !~_tb_col_names.indexOf(n)))
-                        );
+                            .concat(_db_col_names.filter(n => !~_tb_col_names.indexOf(n))));
                     } else {
                         throw Error('Unknown alter option for mod-database');
                     }

@@ -80,9 +80,7 @@ function Storage(name) {
         let _keyLen = () => Object.keys(new_val).length;
 
         if (!forc && _both_type_o && _keyLen()) {
-            _tmp[key] = Object.assign(
-                _old[key], new_val
-            );
+            _tmp[key] = Object.assign(_old[key], new_val);
         } else {
             _tmp[key] = new_val;
         }

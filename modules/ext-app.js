@@ -250,8 +250,8 @@ let ext = {
                 try {
                     let _items = http.get('https://api.github.com/repos/' +
                         'SuperMonster003/Ant-Forest/releases' +
-                        '?per_page=' + _per_page + '&page=' + _cur_page++
-                    ).body.json().filter(o => o.tag_name >= _min_ver);
+                        '?per_page=' + _per_page + '&page=' + _cur_page++)
+                        .body.json().filter(o => o.tag_name >= _min_ver);
                     if (global._$_get_proj_releases_interrupted) {
                         return [];
                     }
@@ -438,8 +438,7 @@ let ext = {
                 + '|' + /\(http.+?\)/.source // URL content (not the whole line)
                 + '|' + /\[\/\/]:.+\(\n*.+?\n*\)/.source // markdown comments
                 + '|' + /\s*<br>/.source // line breaks
-                , 'g' // global flag
-            );
+                , 'g');
             let _names = _cont.match(_rex_ver_name);
             let _infos = _cont.split(_rex_ver_name);
             let _res = _names.map((n, i) => ({
@@ -476,10 +475,8 @@ let ext = {
                             'Ant-Forest/blob/master/documents/CHANGELOG-' + _ver_num + '.md')
                             .match(/版本历史[^]+article/)[0]
                             .replace(/<path .+?\/path>/g, '')
-                            .replace(
-                                /<a .+?(<code>((issue |pr )?#\d+)<\/code>)?<\/a>/g,
-                                ($0, $1, $2) => $2 ? '_[`' + $2 + '`]_' : ''
-                            )
+                            .replace(/<a .+?(<code>((issue |pr )?#\d+)<\/code>)?<\/a>/g,
+                                ($0, $1, $2) => $2 ? '_[`' + $2 + '`]_' : '')
                             .replace(/<svg .+?\/svg>/g, '')
                             .replace(/<link>.+/g, '')
                             .replace(/<h1>/g, '# ')
@@ -1291,9 +1288,9 @@ let ext = {
             if (_bug_chk_res === '') {
                 return debugInfo('Bug版本检查: 未知');
             }
-            let _bug_chk_cnt = _bug_chk_res.map(code => (
-                '\n-> ' + (_bugs_map[code] || '/* 无效的Bug描述 */'))
-            );
+            let _bug_chk_cnt = _bug_chk_res.map((code) => {
+                return '\n-> ' + (_bugs_map[code] || '/* 无效的Bug描述 */');
+            });
 
             debugInfo('Bug版本检查: 确诊');
 
@@ -1301,8 +1298,7 @@ let ext = {
                 '此项目无法正常运行\n请更换Auto.js版本\n\n' +
                 '当前版本:\n-> ' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
                 '异常详情:' + _bug_chk_cnt.join('') + '\n\n' +
-                '在项目简介中查看支持版本\n或直接尝试 v4.1.1 Alpha2'
-            );
+                '在项目简介中查看支持版本\n或直接尝试 v4.1.1 Alpha2');
             exit();
 
             // tool function(s) //
@@ -1672,22 +1668,22 @@ let ext = {
      * @returns void
      */
     startActivity(o) {
-        let _fl = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
+        let _flag = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
         if (o instanceof android.content.Intent) {
-            context.startActivity(new android.content.Intent(o).addFlags(_fl));
+            context.startActivity(new android.content.Intent(o).addFlags(_flag));
         } else if (typeof o === 'object') {
             if (o.root) {
                 shell('am start ' + app.intentToShell(o), true);
             } else {
-                context.startActivity(this.intent(o).addFlags(_fl));
+                context.startActivity(this.intent(o).addFlags(_flag));
             }
         } else if (typeof o === 'string') {
-            if (!runtime.getProperty('class.' + o)) {
+            let _cls = runtime.getProperty('class.' + o);
+            if (!_cls) {
                 throw new Error('Class ' + o + ' not found');
             }
-            context.startActivity(new android.content.Intent(
-                context, runtime.getProperty('class.' + o)
-            ).addFlags(_fl));
+            let _intent = new android.content.Intent(context, _cls).addFlags(_flag);
+            context.startActivity(_intent);
         } else {
             throw Error('Unknown param for appx.startActivity()');
         }
@@ -1931,8 +1927,7 @@ let ext = {
             }
 
             debugInfo('尝试关闭"' + _app_name + '"应用: ' +
-                '(' + (_max_retry_b - _max_retry) + '/' + _max_retry_b + ')'
-            );
+                '(' + (_max_retry_b - _max_retry) + '/' + _max_retry_b + ')');
             this.kill(_pkg_name);
         }
 
@@ -2300,15 +2295,11 @@ let ext = {
             throw Error('File is not existed');
         }
 
-        this.startActivity(
-            new android.content.Intent(
-                context,
-                new org.autojs.autojs.ui.shortcut.ShortcutCreateActivity().getClass()
-            ).putExtra(
-                org.autojs.autojs.ui.shortcut.ShortcutCreateActivity.EXTRA_FILE,
-                new org.autojs.autojs.model.script.ScriptFile(_file)
-            )
-        );
+        let _cls = new org.autojs.autojs.ui.shortcut.ShortcutCreateActivity().getClass();
+        let _ef = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity.EXTRA_FILE;
+        let _sf = new org.autojs.autojs.model.script.ScriptFile(_file);
+        let _intent = new android.content.Intent(context, _cls).putExtra(_ef, _sf);
+        this.startActivity(_intent);
     },
     /**
      * @param {android.content.pm.ApplicationInfo} source

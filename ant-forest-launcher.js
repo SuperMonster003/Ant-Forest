@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
  * @since Mar 19, 2021
- * @version 2.0.6 Alpha
+ * @version 2.0.6 Alpha2
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -82,6 +82,7 @@ let $$init = {
                 autojs_has_root: appx.hasRoot(),
                 autojs_has_secure: appx.hasSecure(),
             };
+
             global.$$sto = {
                 af: require('./modules/mod-storage').create('af'),
                 af_next: require('./modules/mod-storage').create('af_auto'),
@@ -90,10 +91,10 @@ let $$init = {
                 af_blist: require('./modules/mod-storage').create('af_blist'),
                 af_flist: require('./modules/mod-storage').create('af_flist'),
             };
+
             global.$$cfg = Object.assign({},
                 require('./modules/mod-default-config').af,
-                $$sto.af_cfg.get('config') /* do not append a trailing comma here */
-            );
+                $$sto.af_cfg.get('config'));
 
             global.$$db = require('./modules/mod-database').create([
                 {name: 'name', not_null: true},
@@ -364,7 +365,7 @@ let $$init = {
                                 let _s_str = (_h || _m ? _s.padStart(2, 0) : _s) + '秒';
 
                                 messageAct(_d_str + _h_str + _m_str + _s_str + '后解除', 1, 0, 1);
-                            }
+                            },
                         },
                         _showMsg: {
                             msg(m) {
@@ -615,11 +616,11 @@ let $$init = {
                                         // tool function(s) //
 
                                         function _alipayHome() {
-                                            return $$app.page.alipay.home()
-                                                && waitForAndClickAction(
-                                                    idMatches(/.*home.+search.but.*/), 1.5e3, 80,
-                                                    {click_strategy: 'w'}
-                                                );
+                                            if ($$app.page.alipay.home()) {
+                                                let _selector = idMatches(/.*home.+search.but.*/);
+                                                let _options = {click_strategy: 'w'};
+                                                return waitForAndClickAction(_selector, 1.5e3, 80, _options);
+                                            }
                                         }
 
                                         function _search() {
@@ -1008,7 +1009,7 @@ let $$init = {
                                     return !imagesx.findImage(_img, _tpl, {
                                         compress_level: 4,
                                     });
-                                }
+                                },
                             },
                             launch(shared_opt) {
                                 // TODO split from alipay spring board
@@ -1053,12 +1054,15 @@ let $$init = {
                             },
                         },
                         fri: {
-                            in_page_rex: new RegExp(
-                                /来浇过水.+|(帮忙)?收取\s?\d+g/.source + '|' +
-                                /赠送的\s?\d+g\s?.*能量|点击加载更多|.*暂无最新动态.*/.source
-                            ),
-                            // w.bounds().top > cYx(0.85)
-                            in_page_rex_spe: /今天|昨天|\d{2}-\d{2}|((TA|你)(收取)?){2}/,
+                            in_page_rex: new RegExp([
+                                /来浇过水.+/, /收取\s?\d+g/,
+                                /赠送的\s?\d+g\s?.*能量/,
+                                /点击加载更多/, /.*暂无最新动态.*/,
+                            ].map(rex => rex.source).join('|')),
+                            in_page_rex_spe: new RegExp([
+                                /今天/, /昨天/, /\d{2}-\d{2}/,
+                                /((TA|你)(收取)?){2}/,
+                            ].map(rex => rex.source).join('|')),
                             isInPage() {
                                 let _this = this;
                                 return _chkTitle() && _chkPageRex();
@@ -1193,9 +1197,8 @@ let $$init = {
                                 detectCover() {
                                     let _color = $$cfg.protect_cover_detect_color_val;
                                     let _par = {threshold: $$cfg.protect_cover_detect_threshold};
-                                    let _clip = (img) => images.clip(
-                                        img, cX(288), cYx(210), cX(142), cYx(44)
-                                    );
+                                    let _clip = (img) => images.clip(img,
+                                        cX(288), cYx(210), cX(142), cYx(44));
                                     return this.data.some((img) => {
                                         let _c = !imagesx.isRecycled(img) && _clip(img);
                                         if (_c) {
@@ -1310,7 +1313,6 @@ let $$init = {
                                 let _now_yy = _now.getFullYear();
                                 let _now_MM = _now.getMonth();
                                 let _now_dd = _now.getDate();
-                                let _now_dates = [_now_yy, _now_MM, _now_dd];
                                 let _day_ms = 24 * 3.6e6;
 
                                 let _aim_str = '';
@@ -1330,22 +1332,21 @@ let $$init = {
                                     if (typeof t === 'number') {
                                         _aim_str = _tsToTime(t);
                                         return new Date(t);
-                                    } else if (t instanceof Date) {
+                                    }
+                                    if (t instanceof Date) {
                                         _aim_str = _tsToTime(t.getTime());
                                         return t;
-                                    } else {
-                                        if (typeof t !== 'string') {
-                                            throw Error('Invalid type of time param');
-                                        }
-                                        if (!t.match(/^\d{2}:\d{2}:\d{2}$/)) {
-                                            throw Error('Invalid format of time param');
-                                        }
-                                        _aim_str = t;
-                                        // noinspection JSCheckFunctionSignatures
-                                        return new (Array.bind.apply(
-                                            Date, [Date].concat(_now_dates, t.split(':'))
-                                        ));
                                     }
+                                    if (typeof t !== 'string') {
+                                        throw Error('Invalid type of time param');
+                                    }
+                                    if (!t.match(/^\d{2}:\d{2}:\d{2}$/)) {
+                                        throw Error('Invalid format of time param');
+                                    }
+                                    _aim_str = t;
+                                    // noinspection JSCheckFunctionSignatures
+                                    let _args = [Date].concat([_now_yy, _now_MM, _now_dd], t.split(':'));
+                                    return new (Array.bind.apply(Date, _args));
                                 })();
                                 let _aim_ts = _aim.getTime();
                                 if (typeof t === 'string') {
@@ -1370,9 +1371,9 @@ let $$init = {
 
                                 let _setText = () => {
                                     try {
-                                        this.window.text.setText(
-                                            'Next auto task\n' + _getAimStr() + '\n' + _getCtdStr()
-                                        );
+                                        this.window.text.setText([
+                                            'Next auto task', _getAimStr(), _getCtdStr(),
+                                        ].join('\n'));
                                     } catch (e) {
                                         // eg: java.lang.NullPointerException
                                     }
@@ -1759,9 +1760,10 @@ let $$init = {
                                 let _w_interrupt = _win['hint_interrupt'];
 
                                 this.itv_id = setInterval(() => {
-                                    android.animation.ObjectAnimator.ofFloat(
-                                        _w_img, 'rotation', [0, 180]
-                                    ).setDuration(1.6e3).start();
+                                    android.animation.ObjectAnimator
+                                        .ofFloat(_w_img, 'rotation', [0, 180])
+                                        .setDuration(1.6e3)
+                                        .start();
                                 }, 2.4e3);
 
                                 _w_title.setText(
@@ -1948,11 +1950,11 @@ let $$init = {
                         _codec(str, opr) {
                             let _str = str || '';
                             let _res = '';
-                            let _fct = {e: 1, d: -1}[opr[0]];
+                            let _factor = {e: 1, d: -1}[opr[0]];
                             for (let i in _str) {
-                                _res += String.fromCharCode(
-                                    _str.charCodeAt(+i) + ((996).ICU + +i) * _fct
-                                );
+                                let _char_code = _str.charCodeAt(+i);
+                                let _shifting = ((996).ICU + +i) * _factor;
+                                _res += String.fromCharCode(_char_code + _shifting);
                             }
                             return _res;
                         },
@@ -2684,9 +2686,10 @@ let $$init = {
                             _path: $$app.local_pics_path + 'main_user_mini_avatar_clip.png',
                             _isTotalGreen(img) {
                                 let _img = imagesx.compress(img, 2);
-                                let _res = imagesx.findAllPointsForColor(
-                                    _img, '#30bf6c', {threshold: 50}
-                                ).length > _img.height * _img.width * 0.98;
+                                let _pts = imagesx.findAllPointsForColor(_img, '#30bf6c', {
+                                    threshold: 50,
+                                });
+                                let _res = _pts.length > _img.height * _img.width * 0.98;
                                 _img.recycle();
                                 _img = null;
                                 return _res;
@@ -3922,7 +3925,7 @@ let $$init = {
                                     _new[this._key + '_user'] = v;
                                     $$sto.af_cfg.put('config', _new);
                                     Object.assign($$cfg, _new);
-                                }
+                                },
                             };
                             if (_cfg.sto_min > 0) {
                                 d.dismiss();
@@ -4534,8 +4537,7 @@ let $$af = {
 
                                     let _stitched = (() => {
                                         let _getClip = (o) => images.clip(_capt,
-                                            o.left, o.top, o.width(), o.height()
-                                        );
+                                            o.left, o.top, o.width(), o.height());
                                         let _img = _getClip(_nor_balls[0]);
                                         _nor_balls.slice(1).forEach((o) => {
                                             _img = imagesx.concat(_img, _getClip(o), 'BOTTOM', 'ALL');
@@ -4600,23 +4602,18 @@ let $$af = {
                                 function _thdToast() {
                                     debugInfo('已开启倒计时数据Toast监控线程');
 
-                                    let _data = [];
-                                    let _du = $$cfg.forest_balls_click_duration;
-
-                                    _nor_balls.forEach((o) => {
-                                        clickAction(o, 'p', {press_time: _du});
-                                        _data = _data.concat(
-                                            observeToastMessage($$app.alipay_pkg, /才能收取/, 240)
-                                        );
+                                    let _ctd = _nor_balls.map((o) => {
+                                        clickAction(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
+                                        return observeToastMessage($$app.alipay_pkg, /才能收取/, 240);
                                     });
 
-                                    if (_data.length) {
+                                    if (_ctd.length) {
                                         debugInfo('Toast监控线程已获取有效数据');
                                         if (_alive(_thd_ocr)) {
                                             _kill(_thd_ocr);
                                             debugInfo('强制停止OCR识别线程');
                                         }
-                                        return _ctd_data = _data;
+                                        return _ctd_data = _ctd;
                                     }
                                     debugInfo('Toast监控线程未能获取有效数据');
                                 }
@@ -5305,9 +5302,10 @@ let $$af = {
 
                                         let _getFeedLegends = () => (
                                             $$sel.pickup({className: 'ListView'}, 'children') || []
-                                        ).filter((w) => w.childCount() === 0
-                                            && w.indexInParent() < w.parent().childCount() - 1
-                                        ).slice(0, 3);
+                                        ).filter((w) => {
+                                            return w.childCount() === 0
+                                                && w.indexInParent() < w.parent().childCount() - 1;
+                                        }).slice(0, 3);
 
                                         let _max = 8;
                                         let _selCover = () => $$sel.get('cover_used');
@@ -5458,14 +5456,12 @@ let $$af = {
                                                 getEmount() {
                                                     let _max = 10;
                                                     while (_max--) {
-                                                        let _txt = $$sel.pickup(
-                                                            [_cfg.pk_kw, 's>1'], 'txt'
-                                                        );
-                                                        if (_txt.match(/\d+\s?(kg|t)/)) {
+                                                        let _s = $$sel.pickup([_cfg.pk_kw, 's>1'], 'txt');
+                                                        if (_s.match(/\d+\s?(kg|t)/)) {
                                                             debugInfo('放弃低精度参照值');
                                                             return NaN;
                                                         }
-                                                        let _mch = _txt.match(/\d+/);
+                                                        let _mch = _s.match(/\d+/);
                                                         if (_mch) {
                                                             return +_mch[0];
                                                         }
@@ -5950,12 +5946,11 @@ let $$af = {
 
                     function _chkInvtBtn() {
                         let _color = '#30bf6c';
-                        let _mch = images.findMultiColors(
-                            _rl.capt_img, _color, _rl.invt_colors || _invtColors(), {
-                                region: [cX(0.71), cY(0.62), cX(0.28), cY(0.37)],
-                                threshold: 10,
-                            }
-                        );
+                        let _paths = _rl.invt_colors || _invtColors();
+                        let _mch = images.findMultiColors(_rl.capt_img, _color, _paths, {
+                            region: [cX(0.71), cY(0.62), cX(0.28), cY(0.37)],
+                            threshold: 10,
+                        });
                         if (_mch) {
                             debugInfo(['列表底部条件满足', '>区域内匹配邀请按钮颜色成功']);
                             $$flag.rl_bottom_rch = true;
@@ -6592,12 +6587,10 @@ let $$af = {
                         if ($$flag.floaty_result_set) {
                             $$app.layout.screen_turning_off.deploy();
                         } else {
-                            $$toast(
-                                '正在尝试关闭屏幕...\n' +
-                                '此过程可能需要几秒钟...\n\n' +
-                                '触摸屏幕任意区域\n' +
-                                '或按下任意按键可终止关屏', 'Long'
-                            );
+                            $$toast([
+                                '正在尝试关闭屏幕...', '此过程可能需要几秒钟...\n',
+                                '触摸屏幕任意区域', '或按下任意按键可终止关屏',
+                            ].join('\n'), 'Long');
                         }
                     }
 

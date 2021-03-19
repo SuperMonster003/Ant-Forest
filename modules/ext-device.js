@@ -207,13 +207,11 @@ let ext = {
      * @param {number} [timeout=15e3]
      */
     wakeUp(timeout) {
-        let _wake_lock = context.getSystemService(
-            android.content.Context.POWER_SERVICE
-        ).newWakeLock(
-            android.os.PowerManager.FULL_WAKE_LOCK |
-            android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP |
-            android.os.PowerManager.ON_AFTER_RELEASE, 'bright'
-        );
+        let _wake_lock = context
+            .getSystemService(android.content.Context.POWER_SERVICE)
+            .newWakeLock(android.os.PowerManager.FULL_WAKE_LOCK
+                | android.os.PowerManager.ACQUIRE_CAUSES_WAKEUP
+                | android.os.PowerManager.ON_AFTER_RELEASE, 'bright');
         let _tt = timeout || 15e3;
         _wake_lock.acquire(_tt);
 
@@ -241,9 +239,7 @@ let ext = {
      */
     isScreenOn() {
         /** @type {android.os.PowerManager} */
-        let _pow_mgr = context.getSystemService(
-            android.content.Context.POWER_SERVICE
-        );
+        let _pow_mgr = context.getSystemService(android.content.Context.POWER_SERVICE);
         return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
     },
     /**
@@ -356,12 +352,8 @@ let ext = {
         let ITelephony = com.android.internal.telephony.ITelephony;
         let ServiceManager = android.os.ServiceManager;
 
-        let _svr_mgr = ITelephony.Stub.asInterface(
-            ServiceManager.checkService('phone')
-        );
-        let _svc_ctx = context.getSystemService(
-            context.TELEPHONY_SERVICE
-        );
+        let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
+        let _svc_ctx = context.getSystemService(context.TELEPHONY_SERVICE);
 
         return +_svr_mgr.getCallState() | +_svc_ctx.getCallState();
     },
@@ -812,11 +804,10 @@ let ext = {
             if (!forcible && this.isIgnoringBatteryOptimizations()) {
                 return true;
             }
-            app.startActivity(
-                new android.content.Intent()
-                    .setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                    .setData(android.net.Uri.parse('package:' + (pkg_name || context.getPackageName())))
-            );
+            let _intent = new android.content.Intent()
+                .setAction(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                .setData(android.net.Uri.parse('package:' + (pkg_name || context.getPackageName())));
+            app.startActivity(_intent);
             return this.isIgnoringBatteryOptimizations();
         } catch (e) {
             console.warn(e.message);
@@ -857,39 +848,36 @@ let ext = {
      * @param {number} height
      */
     setScreenMetrics(width, height) {
-        runtime.setScreenMetrics(
-            width <= 0 ? W : width < 1 ? W * width : width,
-            height <= 0 ? H : height < 1 ? H * height : height
-        );
+        let _width = width <= 0 ? W : width < 1 ? W * width : width;
+        let _height = height <= 0 ? H : height < 1 ? H * height : height;
+        runtime.setScreenMetrics(_width, _height);
     },
     /** @returns {{width: number, height: number}} */
     getScreenMetricsRatio() {
-        return {
-            width: this.screen_metrics.rescaleX(W) / W,
-            height: this.screen_metrics.rescaleY(H) / H,
-        };
+        let _width = this.screen_metrics.rescaleX(W) / W;
+        let _height = this.screen_metrics.rescaleY(H) / H;
+        return {width: _width, height: _height};
     },
     /** @returns {{width: number, height: number}} */
     getScreenMetrics() {
-        return {
-            width: this.screen_metrics.rescaleX(W),
-            height: this.screen_metrics.rescaleY(H),
-        };
+        let _width = this.screen_metrics.rescaleX(W);
+        let _height = this.screen_metrics.rescaleY(H);
+        return {width: _width, height: _height};
     },
     resetScreenMetrics() {
         this.setScreenMetricsRatio(0);
     },
     saveCurrentScreenMetrics() {
-        this._screen_metrics_w = this.getScreenMetrics().width;
-        this._screen_metrics_h = this.getScreenMetrics().height;
+        this['_screen_metrics_w'] = this.getScreenMetrics().width;
+        this['_screen_metrics_h'] = this.getScreenMetrics().height;
     },
     restoreSavedScreenMetrics() {
-        let _w = this._screen_metrics_w;
-        let _h = this._screen_metrics_h;
+        let _w = this['_screen_metrics_w'];
+        let _h = this['_screen_metrics_h'];
         if (_w !== undefined && _h !== undefined) {
             this.setScreenMetrics(_w, _h);
-            delete this._screen_metrics_w;
-            delete this._screen_metrics_h;
+            delete this['_screen_metrics_w'];
+            delete this['_screen_metrics_h'];
         }
     },
     bind() {

@@ -15,8 +15,7 @@ let _view = ui.inflate(
             <button id="btn" type="button" text="CLOSE" layout_weight="1" backgroundTint="#dd1b5e20"
                     textColor="#dde8f5e9" marginBottom="9"/>
         </horizontal>
-    </vertical>
-);
+    </vertical>);
 let _diag = dialogs.build({
     customView: _view,
     autoDismiss: false,
@@ -65,9 +64,7 @@ function _getTsFromAutoTask() {
 
 function _getTsFromDiag() {
     while (1) {
-        _ts = Number(dialogs.prompt(
-            '未检测到"蚂蚁森林"定时任务\n请输入用于测试的延迟分钟'
-        ));
+        _ts = Number(dialogs.prompt('未检测到"蚂蚁森林"定时任务\n请输入用于测试的延迟分钟'));
         if (!isNaN(_ts) && _ts > 0) {
             return _ts * 60e3 + Date.now();
         } else if (!_ts) {
@@ -149,9 +146,7 @@ function _setCtdText(t) {
             }
             _aim_str = t;
             // noinspection JSCheckFunctionSignatures
-            return new (Array.bind.apply(
-                Date, [Date].concat(_now_dates, t.split(':'))
-            ));
+            return new (Array.bind.apply(Date, [Date].concat(_now_dates, t.split(':'))));
         }
     })();
     let _aim_ts = _aim.getTime();

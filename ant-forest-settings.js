@@ -140,7 +140,7 @@ let $$init = {
                         stringTransform: {
                             forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
                             backward: t => $$tool.restoreFromTimestamp(t),
-                        }
+                        },
                     }],
                     server_releases_info: [{
                         tag_name: '项目标签', width: 0.5,
@@ -169,7 +169,7 @@ let $$init = {
                         stringTransform: {
                             forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
                             backward: t => $$tool.restoreFromTimestamp(t),
-                        }
+                        },
                     }],
                     foreground_app_blacklist: [{
                         app_combined_name: '应用名称 (含包名)',
@@ -182,7 +182,7 @@ let $$init = {
                                 return app.getAppName(pkg_name) ? '\u2713' : '\u2717';
                             },
                             backward: '__keep__',
-                        }
+                        },
                     }],
                     timers_uninterrupted_check_sections: [{
                         section: '时间区间', width: 0.58,
@@ -375,20 +375,15 @@ let $$init = {
                             .on('positive', $$func(_positive)
                                 ? d => _positive.call(this, d, _mini, _maxi)
                                 : (d) => {
-                                    let _n = $$view.diag.checkInputRange(
-                                        d, [_mini, _maxi], [_mini_p, _maxi_p]
-                                    );
-                                    if (!$$F(_n)) {
-                                        if (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _save)) {
-                                            return _save();
-                                        }
-                                    }
-
-                                    // tool function(s) //
-
-                                    function _save() {
+                                    let _f = () => {
                                         d.dismiss();
                                         $$save.session(_cfg_conj, _saveValue(_n));
+                                    };
+                                    let _range = [_mini, _maxi];
+                                    let _range_p = [_mini_p, _maxi_p];
+                                    let _n = $$view.diag.checkInputRange(d, _range, _range_p);
+                                    if (!$$F(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
+                                        return _f();
                                     }
                                 })
                             .show();
@@ -762,72 +757,67 @@ let $$init = {
                     _page_view.addView(_getContentView());
 
                     _page_view.add = function (type, opt) {
-                        let item_view;
+                        let _v;
                         if (type.match(/^(.+_)?split_line/)) {
-                            item_view = setSplitLine(opt);
+                            _v = setSplitLine(opt);
                         } else if (type === 'subhead') {
-                            item_view = setSubHead(opt);
+                            _v = setSubHead(opt);
                         } else if (type === 'blank') {
-                            item_view = setBlank(opt);
+                            _v = setBlank(opt);
                         } else if (type === 'info') {
-                            item_view = setInfo(opt);
+                            _v = setInfo(opt);
                         } else if (type === 'list') {
                             _page_view.hideContentMarginTop();
-                            item_view = setList(opt);
+                            _v = setList(opt);
                         } else if (type === 'seekbar') {
-                            item_view = setSeekbar(opt);
+                            _v = setSeekbar(opt);
                         } else {
-                            item_view = ui.inflate(
+                            _v = ui.inflate(
                                 <horizontal id="_item_area" padding="16 8" gravity="left|center">
                                     <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
                                               gravity="left|center">
                                         <text id="_title" size="16"/>
                                     </vertical>
-                                </horizontal>
-                            );
-                            item_view['_title'].setTextColor(colorsx.toInt($$def.colors.item_title));
+                                </horizontal>);
+                            _v['_title'].setTextColor(colorsx.toInt($$def.colors.item_title));
                         }
 
                         if (!$$obj(opt)) {
-                            _page_view.content_view.addView(item_view);
+                            _page_view.content_view.addView(_v);
                             return _page_view;
                         }
 
-                        item_view.setNextPage = p => opt.next_page = p;
-                        item_view.getNextPage = () => opt.next_page;
-                        item_view.setHintText = (s) => {
-                            item_view['_hint'] && ui.post(() => {
-                                item_view['_hint'].text(s);
+                        _v.setNextPage = p => opt.next_page = p;
+                        _v.getNextPage = () => opt.next_page;
+                        _v.setHintText = (s) => {
+                            _v['_hint'] && ui.post(() => {
+                                _v['_hint'].text(s);
                             });
                         };
-                        item_view.setHintTextColor = (c) => {
-                            item_view['_hint'] && item_view['_hint'].setTextColor(
-                                colorsx.toInt(c)
-                            );
+                        _v.setHintTextColor = (c) => {
+                            _v['_hint'] && _v['_hint'].setTextColor(colorsx.toInt(c));
                         };
-                        item_view.setHintVisibility = (v) => {
-                            item_view['_hint'] && ui.post(() => {
+                        _v.setHintVisibility = (v) => {
+                            _v['_hint'] && ui.post(() => {
                                 v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                item_view['_hint'].setVisibility(v);
+                                _v['_hint'].setVisibility(v);
                             });
                         };
-                        item_view.setTitleText = (s) => {
-                            item_view['_title'] && ui.post(() => {
-                                item_view['_title'].text(s);
+                        _v.setTitleText = (s) => {
+                            _v['_title'] && ui.post(() => {
+                                _v['_title'].text(s);
                             });
                         };
-                        item_view.setTitleTextColor = (c) => {
-                            item_view['_title'] && item_view['_title'].setTextColor(
-                                colorsx.toInt(c)
-                            );
+                        _v.setTitleTextColor = (c) => {
+                            _v['_title'] && _v['_title'].setTextColor(colorsx.toInt(c));
                         };
-                        item_view.setChevronVisibility = (v) => {
-                            item_view['_chevron_icon'] && ui.post(() => {
+                        _v.setChevronVisibility = (v) => {
+                            _v['_chevron_icon'] && ui.post(() => {
                                 v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                item_view['_chevron_icon'].setVisibility(v);
+                                _v['_chevron_icon'].setVisibility(v);
                             });
                         };
-                        item_view.page_view = _page_view;
+                        _v.page_view = _page_view;
 
                         let hint = opt.hint;
                         if (hint) {
@@ -836,14 +826,12 @@ let $$init = {
                                     <horizontal>
                                         <text id="_hint" size="13sp"/>
                                     </horizontal>
-                                </horizontal>
-                            );
+                                </horizontal>);
                             let _getHintView = (text) => {
                                 let _view = ui.inflate(
                                     <horizontal>
                                         <text id="_sub_hint" size="13sp"/>
-                                    </horizontal>
-                                );
+                                    </horizontal>);
                                 let _col = text.match(/#[a-fA-F\d]{6,}/);
                                 let _hint = _view['_sub_hint'];
                                 if (_col) {
@@ -856,7 +844,7 @@ let $$init = {
                                 return _view;
                             };
 
-                            item_view.setHints = function () {
+                            _v.setHints = function () {
                                 let _arg_len = arguments.length;
                                 let _views = [];
                                 for (let i = 0; i < _arg_len; i += 1) {
@@ -869,15 +857,16 @@ let $$init = {
                             if ($$str(hint)) {
                                 _hint_view['_hint'].setText(hint);
                             }
-                            item_view['_content'].addView(_hint_view);
+                            _v['_content'].addView(_hint_view);
                         }
 
                         if (type === 'radio') {
-                            item_view['_item_area'].removeAllViews();
+                            _v['_item_area'].removeAllViews();
                             let radiogroup_view = ui.inflate(
-                                <radiogroup id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"/>
-                            );
-                            opt.view = item_view;
+                                <radiogroup
+                                    id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"
+                                />);
+                            opt.view = _v;
                             let title = opt.title;
 
                             title.forEach((val) => {
@@ -888,10 +877,10 @@ let $$init = {
                                 });
                                 radiogroup_view['_radiogroup'].addView(radio_view);
                             });
-                            item_view.addView(radiogroup_view);
+                            _v.addView(radiogroup_view);
                         }
 
-                        item_view.setTitleText(opt.title);
+                        _v.setTitleText(opt.title);
 
                         if (type.match(/.*switch$/)) {
                             let sw_view;
@@ -906,14 +895,13 @@ let $$init = {
                                 sw_view = ui.inflate(
                                     <vertical padding="8 0 0 0">
                                         <checkbox id="_checkbox_switch" checked="true"/>
-                                    </vertical>
-                                );
+                                    </vertical>);
                                 if ($$F(opt.default_state)) {
                                     sw_view['_checkbox_switch'].setChecked(false);
                                 }
                             }
-                            item_view['_item_area'].addView(sw_view);
-                            opt.view = item_view;
+                            _v['_item_area'].addView(sw_view);
+                            opt.view = _v;
 
                             let listener_ids = opt.listeners;
                             Object.keys(listener_ids).forEach((id) => {
@@ -923,25 +911,25 @@ let $$init = {
                                     if (id === 'ui') {
                                         ui.emitter.prependListener(listener, callback);
                                     } else {
-                                        item_view[id].on(listener, callback);
+                                        _v[id].on(listener, callback);
                                     }
                                 });
                             });
                         } else if (type.match(/^page/)) {
-                            opt.view = item_view;
+                            opt.view = _v;
 
-                            item_view.setClickListener = function (listener) {
-                                item_view['_item_area'].removeAllListeners('click');
-                                item_view['_item_area'].on('click', listener || (r => r));
+                            _v.setClickListener = function (listener) {
+                                _v['_item_area'].removeAllListeners('click');
+                                _v['_item_area'].on('click', listener || (r => r));
                             };
-                            item_view.restoreClickListener = function () {
-                                item_view.setClickListener(() => {
+                            _v.restoreClickListener = function () {
+                                _v.setClickListener(() => {
                                     let next_page = opt.next_page;
                                     let opt_listeners = opt.listeners;
                                     let opt_listeners_f = opt_listeners && opt_listeners.click;
                                     let _next_page_view = next_page && $$view.pages[next_page];
                                     if ($$func(opt_listeners_f)) {
-                                        opt_listeners_f(item_view, _next_page_view);
+                                        opt_listeners_f(_v, _next_page_view);
                                     }
                                     if (_next_page_view) {
                                         $$view.page.jump('next', next_page);
@@ -955,19 +943,18 @@ let $$init = {
                                     <img id="img" h="31" paddingLeft="10"
                                          src="@drawable/ic_chevron_right_black_48dp"
                                          bg="?selectableItemBackgroundBorderless"/>
-                                </vertical>
-                            );
+                                </vertical>);
                             uix.setImageTint(_page_enter_view['img'], $$def.colors.chevron_icon);
-                            item_view['_item_area'].addView(_page_enter_view);
+                            _v['_item_area'].addView(_page_enter_view);
 
-                            item_view.setClickListener();
-                            item_view.setChevronVisibility(8);
+                            _v.setClickListener();
+                            _v.setChevronVisibility(8);
 
                             let _itv_id = setInterval(() => {
                                 if ($$ses['ready_signal_' + opt.next_page]) {
                                     ui.post(() => {
-                                        item_view.restoreClickListener();
-                                        item_view.setChevronVisibility(0);
+                                        _v.restoreClickListener();
+                                        _v.setChevronVisibility(0);
                                     });
                                     clearInterval(_itv_id);
                                 }
@@ -978,35 +965,34 @@ let $$init = {
                                 <vertical id="_info_icon" visibility="gone">
                                     <img id="img" src="@drawable/ic_info_outline_black_48dp"
                                          h="22" bg="?selectableItemBackgroundBorderless"/>
-                                </vertical>
-                            );
+                                </vertical>);
                             uix.setImageTint(help_view['img'], $$def.colors.item_hint);
-                            item_view['_item_area'].addView(help_view);
-                            opt.view = item_view;
-                            item_view['_item_area'].on('click', opt.newWindow.bind(opt));
+                            _v['_item_area'].addView(help_view);
+                            opt.view = _v;
+                            _v['_item_area'].on('click', opt.newWindow.bind(opt));
                             if (opt.infoWindow) {
-                                item_view['_info_icon'].setVisibility(0);
-                                item_view['_info_icon'].on('click', opt.infoWindow.bind(opt));
+                                _v['_info_icon'].setVisibility(0);
+                                _v['_info_icon'].on('click', opt.infoWindow.bind(opt));
                             }
                         }
 
                         if (opt.view_tag) {
-                            item_view.setTag(opt.view_tag);
+                            _v.setTag(opt.view_tag);
                         }
 
-                        _page_view.content_view.addView(item_view);
+                        _page_view.content_view.addView(_v);
 
                         Object.keys(opt).forEach((key) => {
                             if (!key.match(/listeners/)) {
                                 let item_data = opt[key];
                                 if (!$$func(item_data)) {
-                                    return item_view[key] = item_data;
+                                    return _v[key] = item_data;
                                 }
                                 if (key === 'updateOpr') {
-                                    $$view.dyn_pages.push(item_view);
-                                    return (item_view.updateOpr = () => item_data.call(opt, item_view))();
+                                    $$view.dyn_pages.push(_v);
+                                    return (_v.updateOpr = () => item_data.call(opt, _v))();
                                 }
-                                item_view[key] = item_data.bind(item_view);
+                                _v[key] = item_data.bind(_v);
                             }
                         });
 
@@ -1018,8 +1004,7 @@ let $$init = {
                             let new_view = ui.inflate(
                                 <vertical>
                                     <horizontal id="_blank" w="*" h="1sp" margin="16 8"/>
-                                </vertical>
-                            );
+                                </vertical>);
                             new_view.setTag(type);
                             new_view.setVisibility(4);
                             new_view['_blank'].attr('height', h || 0);
@@ -1030,13 +1015,11 @@ let $$init = {
                             let _view = ui.inflate(
                                 <vertical>
                                     <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
-                                </vertical>
-                            );
+                                </vertical>);
 
                             _view.setTag(type);
-                            _view['_line'].setBackgroundColor(
-                                colorsx.toInt(options && options.color || $$def.colors.split_line)
-                            );
+                            let _color = options && options.color || $$def.colors.split_line;
+                            _view['_line'].setBackgroundColor(colorsx.toInt(_color));
                             type.match(/invisible/) && _view.setVisibility(8);
 
                             return _view;
@@ -1046,8 +1029,7 @@ let $$init = {
                             let _view = ui.inflate(
                                 <vertical>
                                     <text id="_text" size="14" margin="16 8"/>
-                                </vertical>
-                            );
+                                </vertical>);
 
                             let _color = options.color || $$def.colors.subhead;
                             if (_color === 'highlight') {
@@ -1068,8 +1050,7 @@ let $$init = {
                                              src="@drawable/ic_info_outline_black_48dp"/>
                                         <text id="_info_text" size="13"/>
                                     </linear>
-                                </horizontal>
-                            );
+                                </horizontal>);
 
                             let _c = options.color || $$def.colors.info;
                             _view['_info_text'].text(options.title);
@@ -1142,24 +1123,22 @@ let $$init = {
                                             </horizontal>
                                         </list>
                                     </vertical>
-                                </vertical>
-                            );
+                                </vertical>);
 
                             $$view.updateDataSource(ds_k, 'init', options.custom_data_source);
-                            list_view['_check_all'].setVisibility(
-                                android.view.View[options.list_checkbox.toUpperCase()]
-                            );
+                            let _vsb = android.view.View[options.list_checkbox.toUpperCase()];
+                            list_view['_check_all'].setVisibility(_vsb);
                             list_view['_list_data'].setDataSource($$ses[ds_k]);
                             list_view['_list_title_bg'].attr('bg', options.color || $$def.colors.list_title_bg);
                             list_view.setTag('list_page_view');
                             list_head.forEach((title_obj, idx) => {
                                 let data_key_name = Object.keys(title_obj)[0];
-                                let list_title_view = idx ? ui.inflate(
-                                    <text size="15"/>
-                                ) : ui.inflate(
-                                    <text size="15"
-                                          padding="{{$$ses.list_checkbox === 'gone' ? 8 : 0}} 0 0 0"/>
-                                );
+                                let list_title_view = idx
+                                    ? ui.inflate(<text size="15"/>)
+                                    : ui.inflate(
+                                        <text size="15"
+                                              paddingLeft="{{$$ses.list_checkbox === 'gone' ? 8 : 0}}"
+                                        />);
 
                                 list_title_view.setText(title_obj[data_key_name]);
                                 list_title_view.on('click', () => {
@@ -1260,8 +1239,7 @@ let $$init = {
                                         <seekbar id="_seekbar" w="*" layout_gravity="center"
                                                  style="@android:style/Widget.Material.SeekBar"/>
                                     </horizontal>
-                                </vertical>
-                            );
+                                </vertical>);
                             /** @type android.widget.AbsSeekBar */
                             let _seekbar = _new_view['_seekbar'];
                             _seekbar.setMax(Math.ceil((max - min) / inc));
@@ -1287,8 +1265,7 @@ let $$init = {
                                     },
                                     onStartTrackingTouch: () => void 0,
                                     onStopTrackingTouch: () => void 0,
-                                })
-                            );
+                                }));
 
                             return _new_view;
                         }
@@ -1331,8 +1308,7 @@ let $$init = {
                                 </vertical>
                                 <text id="_title_text" size="19" margin="16"/>
                                 <linear id="_title_btn" gravity="right" w="*" marginRight="5"/>
-                            </linear>
-                        );
+                            </linear>);
 
                         uix.setImageTint(_view['img'], $$def.colors.page_back_btn);
                         _view['_back'].on('click', () => {
@@ -1341,9 +1317,9 @@ let $$init = {
                         _view['_title_text'].setText(_title_name);
                         _view['_title_text'].setTextColor(colorsx.toInt($$def.colors.page_title));
                         _view['_title_text'].getPaint().setFakeBoldText(true);
-                        _view['_title_bg'].setBackgroundColor(
-                            colorsx.toInt(action_bar_bg || $$def.colors.action_bar_bg)
-                        );
+
+                        let _color = colorsx.toInt(action_bar_bg || $$def.colors.action_bar_bg);
+                        _view['_title_bg'].setBackgroundColor(_color);
 
                         $$func(addn_func) && addn_func(_view);
                         $$arr(addn_func) && addn_func.forEach(f => f(_view));
@@ -1354,13 +1330,11 @@ let $$init = {
                     function _getContentView() {
                         // noinspection JSUnresolvedReactComponent
                         let _cnt_view_frame = ui.inflate(
-                            no_scroll_view ? <vertical/> : <ScrollView/>
-                        );
+                            no_scroll_view ? <vertical/> : <ScrollView/>);
                         let _cnt_view = ui.inflate(
                             <vertical>
                                 <frame id="_page_content_margin_top" h="8"/>
-                            </vertical>
-                        );
+                            </vertical>);
 
                         _page_view.hideContentMarginTop = () => {
                             _cnt_view['_page_content_margin_top'].setVisibility(8);
@@ -1423,20 +1397,17 @@ let $$init = {
                                     <text id="{{$$ses.btn_text_id}}"
                                           text="{{$$ses.button_text}}" size="10" textStyle="bold"
                                           w="50" h="40" marginTop="-26" gravity="bottom|center"/>
-                                </vertical>
-                            );
+                                </vertical>);
                         }
                     }
                 },
                 setListPageButtons(p_view, ds_k) {
-                    let scenario = {
+                    let _scenario = {
                         blacklist_by_user: sceBlacklistByUser,
                         foreground_app_blacklist: sceForeAppBlacklist,
                     }[ds_k]();
-                    return $$view.setButtons.apply(
-                        $$view.setButtons,
-                        [p_view, ds_k].concat(scenario)
-                    );
+                    let _args = [p_view, ds_k].concat(_scenario);
+                    return $$view.setButtons.apply($$view.setButtons, _args);
 
                     // scenario function(s) //
 
@@ -1463,14 +1434,9 @@ let $$init = {
                                             }
                                             let _items = [_split_ln];
                                             _blist_bak.forEach((o) => {
-                                                let _time_str = $$tool.getTimeStrFromTs(
-                                                    o.timestamp, 'time_str_remove'
-                                                );
-                                                _items.push(
-                                                    '好友昵称: ' + o.name,
-                                                    '解除时间: ' + _time_str,
-                                                    _split_ln
-                                                );
+                                                let _ts = o.timestamp;
+                                                let _str = $$tool.getTimeStrFromTs(_ts, 'time_str_remove');
+                                                _items.push('好友昵称: ' + o.name, '解除时间: ' + _str, _split_ln);
                                             });
                                             return _items.length > 1 ? _items : ['列表为空'];
                                         })(),
@@ -1494,11 +1460,9 @@ let $$init = {
                                         $$view.updateDataSource(ds_k, 'update', value);
                                     });
 
-                                    let _page_view = $$view.findViewByTag(
-                                        p_view, 'list_page_view'
-                                    ).getParent();
-                                    _page_view['_check_all'].setChecked(true);
-                                    _page_view['_check_all'].setChecked(false);
+                                    let _v = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+                                    _v['_check_all'].setChecked(true);
+                                    _v['_check_all'].setChecked(false);
                                 });
                                 _diag.show();
                             }],
@@ -1535,11 +1499,10 @@ let $$init = {
                                     ? _restore_btn.switch_off()
                                     : _restore_btn.switch_on();
 
-                                let _page_view = $$view.findViewByTag(
-                                    p_view, 'list_page_view'
-                                ).getParent();
-                                _page_view['_check_all'].setChecked(true);
-                                _page_view['_check_all'].setChecked(false);
+                                let _v = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+                                _v['_check_all'].setChecked(true);
+                                _v['_check_all'].setChecked(false);
+
                                 btn_view.switch_off();
                             }],
                             ['add_circle', 'NEW', 'ON', () => {
@@ -1800,7 +1763,7 @@ let $$init = {
                                     '确认添加', 1,
                                 ], {items: ['\xa0']});
                                 diag.on('neutral', () => {
-                                    _refreshDiagList(dialogsx
+                                    let _diag = dialogsx
                                         .builds([
                                             '列表选择应用', '',
                                             ['刷新列表', 'hint'],
@@ -1830,8 +1793,9 @@ let $$init = {
                                                 });
                                             }
                                         })
-                                        .show()
-                                    );
+                                        .show();
+
+                                    _refreshDiagList(_diag);
 
                                     // tool function(s) //
 
@@ -1958,8 +1922,7 @@ let $$init = {
                                       bg="@android:color/white" clickable="true">
                                 <vertical h="*" gravity="center" focusableInTouchMode="true"
                                           id="info_input_view_main" clickable="true"/>
-                            </vertical>
-                        );
+                            </vertical>);
 
                         _info_input_view.setTag('fullscreen_info_input');
                         ui.main.getParent().addView(_info_input_view);
@@ -1983,8 +1946,7 @@ let $$init = {
                                                   padding="6 2" layout_gravity="right"/>
                                         </vertical>
                                     </card>
-                                </vertical>
-                            );
+                                </vertical>);
                             let {
                                 text: _text, type: _type,
                                 hint_text: _hint_t, init: _init,
@@ -1998,11 +1960,11 @@ let $$init = {
                             };
 
                             if (_type === 'password') {
-                                _input_area_view.setInputType(
-                                    _input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD
-                                );
-                                _input_area_view.setOnKeyListener(
-                                    function onKey(view, keyCode, event) {
+                                let _it = _input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD;
+                                _input_area_view.setInputType(_it);
+
+                                _input_area_view.setOnKeyListener({
+                                    onKey(view, keyCode, event) {
                                         let KEYCODE_ENTER = android.view.KeyEvent.KEYCODE_ENTER;
                                         let ACTION_UP = android.view.KeyEvent.ACTION_UP;
                                         let _is_kc_enter = keyCode === KEYCODE_ENTER;
@@ -2011,8 +1973,8 @@ let $$init = {
                                             _info_input_view.confirm_btn.click();
                                         }
                                         return _is_kc_enter;
-                                    }
-                                );
+                                    },
+                                });
                             } else {
                                 _input_area_view.setSingleLine(true);
                             }
@@ -2037,9 +1999,7 @@ let $$init = {
                                 if (has_focus) {
                                     view.setHint(null);
                                 } else {
-                                    _setViewHintText(
-                                        $$func(_hint_t) ? _hint_t() : _hint_t
-                                    );
+                                    _setViewHintText($$func(_hint_t) ? _hint_t() : _hint_t);
                                 }
                             }
 
@@ -2050,17 +2010,15 @@ let $$init = {
                                 }
                                 let _span_str = new SpannableString(text_str || edit_text_view.hint);
                                 let _abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
-                                _span_str.setSpan(
-                                    _abs_size_span, 0, _span_str.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-                                );
+                                let _see = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE;
+                                _span_str.setSpan(_abs_size_span, 0, _span_str.length(), _see);
                                 edit_text_view.setHint(new SpannedString(_span_str));
                             }
                         });
                         _info_input_view['info_input_view_main'].addView(ui.inflate(
                             <vertical>
                                 <frame margin="0 15"/>
-                            </vertical>
-                        ));
+                            </vertical>));
                     }
 
                     function _addButtons() {
@@ -2079,8 +2037,7 @@ let $$init = {
                                     <button id="confirm_btn" text="确定"
                                             margin="20 0" backgroundTint="#dcedc8"/>
                                 </horizontal>
-                            </vertical>
-                        );
+                            </vertical>);
 
                         if (_btns.reserved_btn) {
                             let {
@@ -2135,15 +2092,12 @@ let $$init = {
                             let _addi_btn_view = ui.inflate(
                                 <vertical>
                                     <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
-                                </vertical>
-                            );
+                                </vertical>);
                             _addi_btns.forEach((o) => {
                                 if (classof(o, 'Array')) {
                                     return _addAddnBtns(o);
                                 }
-                                let _btn_view = ui.inflate(
-                                    <button margin="2 0 2 8" backgroundTint="#cfd8dc"/>
-                                );
+                                let _btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
                                 let {
                                     text: _text,
                                     hint_color: _hint_c,
@@ -2217,8 +2171,7 @@ let $$init = {
                                 <scroll>
                                     <vertical id="time_picker_view_main" padding="16"/>
                                 </scroll>
-                            </vertical>
-                        );
+                            </vertical>);
 
                         time_picker_view.setTag('fullscreen_time_picker');
                     }
@@ -2247,8 +2200,7 @@ let $$init = {
                                     <frame w="auto" layout_gravity="center" marginTop="15">
                                         <text id="picker_title" text="设置时间" color="#01579b" size="16sp"/>
                                     </frame>
-                                </vertical>
-                            );
+                                </vertical>);
 
                             let text_widget = picker_view['picker_title'];
                             let {text, text_color, type, init} = o;
@@ -2259,8 +2211,7 @@ let $$init = {
                                 picker_view['picker_root'].addView(ui.inflate(
                                     <vertical>
                                         <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
-                                    </vertical>
-                                ));
+                                    </vertical>));
                                 picker_view['picker'].setIs24HourView(java.lang.Boolean.TRUE);
                                 if (init) {
                                     if ($$str(init)) {
@@ -2279,8 +2230,7 @@ let $$init = {
                                 picker_view['picker_root'].addView(ui.inflate(
                                     <vertical>
                                         <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
-                                    </vertical>
-                                ));
+                                    </vertical>));
                                 let date;
                                 if (init > 0 && init.toString().match(/^\d{13}$/)) {
                                     // eg. 1564483851219 - timestamp
@@ -2299,8 +2249,7 @@ let $$init = {
                                     date.getFullYear(), date.getMonth(), date.getDate(),
                                     new android.widget.DatePicker.OnDateChangedListener({
                                         onDateChanged: setTimeStr,
-                                    })
-                                );
+                                    }));
                             } else if (type === 'week') {
                                 let weeks = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                                 let checkbox_views = ui.inflate(
@@ -2318,8 +2267,7 @@ let $$init = {
                                             <checkbox id="week_6" marginRight="13"/>
                                             <checkbox id="week_0"/>
                                         </horizontal>
-                                    </vertical>
-                                );
+                                    </vertical>);
 
                                 for (let i = 0; i < 7; i += 1) {
                                     checkbox_views['week_' + i].setText(weeks[i]);
@@ -2430,8 +2378,7 @@ let $$init = {
                                 <frame w="auto" layout_gravity="center" margin="0 30 0 25">
                                     <text id="time_str" text="" color="#bf360c" size="15sp" gravity="center"/>
                                 </frame>
-                            </vertical>
-                        ));
+                            </vertical>));
 
                         setTimeStr();
                     }
@@ -2483,8 +2430,7 @@ let $$init = {
                                     <button id="confirm_btn" text="确认选择"
                                             margin="20 0" backgroundTint="#dcedc8"/>
                                 </horizontal>
-                            </vertical>
-                        );
+                            </vertical>);
                         if ((params.buttons || {}).reserved_btn) {
                             let {text, onClickListener} = params.buttons.reserved_btn;
                             let reserved_btn_view = btn_view.reserved_btn;
@@ -2534,12 +2480,9 @@ let $$init = {
                             }
                         }
 
-                        if (params.onSuccess) {
-                            params.onSuccess(ret === 'picker_view'
-                                ? time_picker_view.time_str.getText().toString()
-                                : ret
-                            );
-                        }
+                        params.onSuccess && params.onSuccess(ret === 'picker_view'
+                            ? time_picker_view.time_str.getText().toString()
+                            : ret);
                     }
                 },
                 setListItemsSearchAndSelectView(data_source_src, listeners, is_empty_prompt) {
@@ -2566,8 +2509,7 @@ let $$init = {
                             <grid id="list" spanCount="1" margin="16 0" border="1">
                                 <text text="{{this}}" padding="4 5" margin="2 5" bg="#eeeeeef8"/>
                             </grid>
-                        </vertical>
-                    );
+                        </vertical>);
 
                     _search_view.setTag('fullscreen_list_items_search_and_select');
 
@@ -2576,17 +2518,16 @@ let $$init = {
 
                     _updateListData();
 
-                    _search_view['input'].setOnKeyListener(
-                        function onKey(view, keyCode) {
+                    _search_view['input'].setOnKeyListener({
+                        onKey(view, keyCode) {
                             // disable ENTER_KEY
                             return keyCode === android.view.KeyEvent.KEYCODE_ENTER;
-                        }
-                    );
+                        },
+                    });
 
                     let _thd_calc_n_set_input = null;
-                    _search_view['input'].addTextChangedListener(
-                        new android.text.TextWatcher({afterTextChanged: _afterTextChanged})
-                    );
+                    let _watcher = new android.text.TextWatcher({afterTextChanged: _afterTextChanged});
+                    _search_view['input'].addTextChangedListener(_watcher);
 
                     if ($$func(refresh_btn)) {
                         _search_view['refresh_btn'].on('click', () => {
@@ -2845,8 +2786,7 @@ let $$init = {
                                 Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
                                 _diag.setItems(items);
                             }
-                        }]
-                    );
+                        }]);
                 },
                 setStatPageButtons(p_view, ds_k) {
                     return $$view.setButtons(p_view, ds_k,
@@ -2979,8 +2919,7 @@ let $$init = {
                                 _thd.interrupt();
                                 d.dismiss();
                             }
-                        }]
-                    );
+                        }]);
                 },
                 getStatPageItems(opt) {
                     let _opt = opt || {};
@@ -3053,8 +2992,7 @@ let $$init = {
                 },
                 setTimersControlPanelPageButtons(p_view, data_source_key_name, wizardFunc) {
                     return $$view.setButtons(p_view, data_source_key_name,
-                        ['add_circle', 'NEW', 'ON', () => wizardFunc('add')]
-                    );
+                        ['add_circle', 'NEW', 'ON', () => wizardFunc('add')]);
                 },
                 checkPageState() {
                     let _check = $$view.page.last_rolling.checkPageState;
@@ -3110,11 +3048,8 @@ let $$init = {
                     }
                 },
                 collapseSoftKeyboard(view) {
-                    context.getSystemService(
-                        context.INPUT_METHOD_SERVICE
-                    ).hideSoftInputFromWindow(
-                        view.getWindowToken(), 0
-                    );
+                    context.getSystemService(context.INPUT_METHOD_SERVICE)
+                        .hideSoftInputFromWindow(view.getWindowToken(), 0);
                 },
                 commonItemBindCheckboxClickListener(checkbox_view, item_holder) {
                     let {data_source_key_name: _ds_k} = this;
@@ -3249,8 +3184,7 @@ let $$init = {
                 updateViewByTag(view_tag) {
                     ui.post(() => $$view.dyn_pages
                         .filter(view => view.view_tag === view_tag)
-                        .forEach(view => view.updateOpr(view))
-                    );
+                        .forEach(view => view.updateOpr(view)));
                 },
                 showOrHideBySwitch(o, state, hide_when_checked, nearest_end_tag) {
                     let _lbl = o.view.page_view.page_label_name;
@@ -3317,8 +3251,7 @@ let $$init = {
                                     v.setClickable(state);
                                     v.setTextColor(colorsx.toInt(state
                                         ? $$def.colors.item_title
-                                        : $$def.colors.item_title_light
-                                    ));
+                                        : $$def.colors.item_title_light));
                                 }
                             });
                         });
@@ -3347,13 +3280,10 @@ let $$init = {
                         _show_zero = 1;
                     }
 
-                    let _db_data = $$ses.db.rawQueryData$(
-                        'select name, sum(pick) as pick, timestamp as ts ' +
-                        'from ant_forest ' +
-                        'where timestamp between ' + _ts + ' ' +
-                        (_show_zero ? '' : 'and pick <> 0 ') +
-                        'group by name'
-                    );
+                    let _sql = 'select name, sum(pick) as pick, timestamp as ts ' +
+                        'from ant_forest where timestamp between ' + _ts + ' ' +
+                        (_show_zero ? '' : 'and pick <> 0 ') + 'group by name';
+                    let _db_data = $$ses.db.rawQueryData$(_sql);
 
                     if ($$und($$ses.list_data_min_ts)) {
                         let _data = $$ses.db.rawQueryData$('select timestamp as ts from ant_forest');
@@ -3452,17 +3382,16 @@ let $$init = {
                     }
 
                     function writeUnlockStorage() {
-                        let ori_config = deepCloneObject($$sto.def.unlock);
-                        let tmp_config = {};
-                        for (let i in ori_config) {
-                            if (ori_config.hasOwnProperty(i)) {
-                                tmp_config[i] = $$cfg.ses[i];
+                        let _ori = deepCloneObject($$sto.def.unlock);
+                        let _tmp = {};
+                        for (let i in _ori) {
+                            if (_ori.hasOwnProperty(i)) {
+                                _tmp[i] = $$cfg.ses[i];
                                 delete sess_cfg_mixed[i];
                             }
                         }
-                        $$sto.unlock.put('config', Object.assign(
-                            {}, $$sto.unlock.get('config', {}), tmp_config)
-                        );
+                        let _val = Object.assign({}, $$sto.unlock.get('config', {}), _tmp);
+                        $$sto.unlock.put('config', _val);
                         delete sess_cfg_mixed.unlock;
                     }
 
@@ -3587,13 +3516,11 @@ let $$init = {
                 accountNameConverter(str, opr) {
                     let _str = str || '';
                     let _res = '';
-                    let _fct = {e: 1, d: -1}[opr[0]];
+                    let _factor = {e: 1, d: -1}[opr[0]];
                     for (let i in _str) {
-                        if (_str.hasOwnProperty(i)) {
-                            _res += String.fromCharCode(
-                                _str.charCodeAt(+i) + ((996).ICU + +i) * _fct
-                            );
-                        }
+                        let _char_code = _str.charCodeAt(+i);
+                        let _shifting = ((996).ICU + +i) * _factor;
+                        _res += String.fromCharCode(_char_code + _shifting);
                     }
                     return _res;
                 },
@@ -3673,9 +3600,7 @@ let $$init = {
             $$sto.af_cfg.put('config', $$sto.def.af);
             $$lsn.emit('update_all');
         } else {
-            let _refilled = Object.assign({},
-                $$sto.def.af, $$sto.af_cfg.get('config')
-            );
+            let _refilled = Object.assign({}, $$sto.def.af, $$sto.af_cfg.get('config'));
             // to forcibly refill storage data
             $$sto.af_cfg.put('config', _refilled);
             $$cfg.sto = _mixedWithDefault(_refilled);
@@ -3690,12 +3615,10 @@ let $$init = {
         // tool function(s) //
 
         function _mixedWithDefault(add_o) {
-            return Object.assign({},
-                add_o, $$sto.unlock.get('config'), _isolatedBlacklist()
-            );
+            return Object.assign({}, add_o, $$sto.unlock.get('config'), _isolatedBlist());
         }
 
-        function _isolatedBlacklist() {
+        function _isolatedBlist() {
             let _blist_sto = $$sto.af_blist.get('blacklist', []);
             let _blist_data;
             let _blist_cvr = [];
@@ -4220,8 +4143,7 @@ $$view.setHomePage($$def.homepage_title)
                                     backgroundTint="#f48fb1"/>
                         </horizontal>
                         <horizontal h="160"/>
-                    </vertical>
-                );
+                    </vertical>);
 
                 let _thd_load_avt;
 
@@ -4263,16 +4185,13 @@ $$view.setHomePage($$def.homepage_title)
                         let _is_vanish = flg === 'vanish';
                         let _anm_y = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar_desc'], 'translationY',
-                            [-100 * (+!_is_vanish), -100 * (+_is_vanish)]
-                        );
+                            [-100 * (+!_is_vanish), -100 * (+_is_vanish)]);
                         let _anm_scale_x = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar'], 'scaleX',
-                            [+_is_vanish, +!_is_vanish]
-                        );
+                            [+_is_vanish, +!_is_vanish]);
                         let _anm_scale_y = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar'], 'scaleY',
-                            [+_is_vanish, +!_is_vanish]
-                        );
+                            [+_is_vanish, +!_is_vanish]);
                         let _anm_set = new android.animation.AnimatorSet();
                         _anm_set.playTogether([_anm_y, _anm_scale_x, _anm_scale_y]);
                         _anm_set.setDuration(200);
@@ -4369,9 +4288,9 @@ $$view.setHomePage($$def.homepage_title)
                         'wpa' + '%26' + 'uin' + '%3D' + 0x36e63859.toString()),
                 }));
                 _add_view['github'].setSource(_ic_github.getImage());
-                _add_view['github'].on('click', () => app.openUrl(
-                    'https://github.com/SuperMonster003'
-                ));
+                _add_view['github'].on('click', () => {
+                    app.openUrl('https://github.com/SuperMonster003');
+                });
                 _add_view['outlook'].setSource(_ic_outlook.getImage());
                 _add_view['outlook'].on('click', () => appx.startActivity({
                     data: decodeURIComponent('mailto' + '%3A' + '%2F' + '%2F' +
@@ -5703,10 +5622,12 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                 let _cfg_conj = this.config_conj;
 
                 dialogsx
-                    .builds(['本地日志文件路径', _buildContent(),
-                            ['使用默认值', 'reset'], 'B', 'M', 1,
-                        ], {inputHint: '输入路径'}
-                    )
+                    .builds([
+                        '本地日志文件路径', _buildContent(),
+                        ['使用默认值', 'reset'], 'B', 'M', 1,
+                    ], {
+                        inputHint: '输入路径',
+                    })
                     .on('input_change', d => d.setContent(_buildContent(d.getInputEditText())))
                     .on('neutral', d => dialogsx.setInputText(d, $$sto.def.af[_cfg_conj].toString()))
                     .on('negative', d => d.dismiss())
@@ -6430,14 +6351,14 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     },
                     item_bind(item_view) {
                         item_view['_checkbox'].setVisibility(8);
-                    }
+                    },
                 },
                 ui: {
                     resume() {
                         let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
                         $$view.updateDataSource(_ds_k, 're_init', _custom_ds.call(this));
                     },
-                }
+                },
             },
         }))
         .add('info', new Layout('此页全部操作将立即生效且无法撤销'))
@@ -7134,9 +7055,9 @@ $$view.page.new('能量罩黑名单', 'cover_blacklist_page', (t) => {
                 _list_data: {
                     item_bind(item_view) {
                         item_view['_checkbox'].setVisibility(8);
-                    }
+                    },
                 },
-            }
+            },
         }))
         .add('info', new Layout('能量罩黑名单由脚本自动管理'))
         .add('blank')
@@ -7156,10 +7077,9 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                         item_view['_checkbox'].checked && item_view['_checkbox'].click();
                         e.consumed = true;
                         let {data_source_key_name: _ds_k} = this;
-                        let edit_item_diag = dialogsx.builds(
-                            ['编辑列表项', '点击需要编辑的项', 0, 'B', 'S', 1],
-                            {items: ['\xa0']}
-                        );
+                        let edit_item_diag = dialogsx.builds([
+                            '编辑列表项', '点击需要编辑的项', 0, 'B', 'S', 1,
+                        ], {items: ['\xa0']});
 
                         refreshItems();
 
@@ -7214,10 +7134,10 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                                     },
                                     onSuccess(ret) {
                                         edit_item_diag.show();
-                                        ret && refreshItems(
-                                            list_item_prefix,
-                                            $$tool.getTimeStrFromTs(ret, 'time_str_remove')
-                                        );
+                                        if (ret) {
+                                            let _t_str = $$tool.getTimeStrFromTs(ret, 'time_str_remove');
+                                            refreshItems(list_item_prefix, _t_str);
+                                        }
                                     },
                                 });
                             }
@@ -7873,8 +7793,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                             updateOpr(view) {
                                 view['_info_text'].setText($$cfg.ses[_ds_k].length
                                     ? '点击列表项可还原项目或删除备份项目'
-                                    : '暂无备份项目'
-                                );
+                                    : '暂无备份项目');
                             },
                         }))
                         .add('info', new Layout('长按列表项可删除备份项目', {
@@ -7917,8 +7836,8 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                             while (1) {
                                 let _res = http.get('https://api.github.com/repos/' +
                                     'SuperMonster003/Ant-Forest/releases' +
-                                    '?per_page=' + _per_page + '&page=' + _page_num++
-                                ).body.json().filter(o => o.tag_name > 'v2.0.0');
+                                    '?per_page=' + _per_page + '&page=' + _page_num++)
+                                    .body.json().filter(o => o.tag_name > 'v2.0.0');
                                 _releases = _releases.concat(_res);
                                 if (_res.length < _per_page) {
                                     break;

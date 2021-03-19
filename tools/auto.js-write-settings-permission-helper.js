@@ -98,11 +98,11 @@
         // tool function(s) //
 
         function _activity() {
-            app.startActivity(
-                new android.content.Intent(android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS)
-                    .setData(android.net.Uri.parse('package:' + context.packageName))
-                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
-            );
+            let _s = android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS;
+            let _intent = new android.content.Intent(_s)
+                .setData(android.net.Uri.parse('package:' + context.packageName))
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
+            app.startActivity(_intent);
         }
     }
 }();

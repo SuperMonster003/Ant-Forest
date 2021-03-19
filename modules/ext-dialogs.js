@@ -164,13 +164,12 @@ let ext = {
 
         function applyOtherDialogProperties(builder, properties) {
             if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
-                builder.input(
-                    wrapNonNullString(properties.inputHint),
-                    wrapNonNullString(properties.inputPrefill),
-                    function (d, input) {
-                        return builder.emit('input_change', builder.dialog, input.toString());
-                    }
-                ).alwaysCallInputCallback();
+                let _ih = wrapNonNullString(properties.inputHint);
+                let _ip = wrapNonNullString(properties.inputPrefill);
+                let _cbk = function (d, input) {
+                    return builder.emit('input_change', builder.dialog, input.toString());
+                };
+                builder.input(_ih, _ip, _cbk).alwaysCallInputCallback();
             }
             if (properties.items !== undefined) {
                 let itemsSelectMode = properties.itemsSelectMode;
@@ -541,9 +540,7 @@ let ext = {
      */
     setTitleTextColor(d, color) {
         ui.run(() => {
-            d && d.getTitleView().setTextColor(
-                colorsx.toInt(this._colors.wrap(color, 'title'))
-            );
+            d && d.getTitleView().setTextColor(colorsx.toInt(this._colors.wrap(color, 'title')));
         });
     },
     /**
@@ -552,9 +549,7 @@ let ext = {
      */
     setTitleBackgroundColor(d, color) {
         ui.run(() => {
-            d && d.getTitleView().setBackgroundColor(
-                colorsx.toInt(this._colors.wrap(color, 'title'))
-            );
+            d && d.getTitleView().setBackgroundColor(colorsx.toInt(this._colors.wrap(color, 'title')));
         });
     },
     /**
@@ -578,9 +573,7 @@ let ext = {
      */
     appendContentText(d, str) {
         ui.run(() => {
-            d && d.getContentView().setText(
-                this.getContentText(d) + (str ? str.toString() : '')
-            );
+            d && d.getContentView().setText(this.getContentText(d) + (str ? str.toString() : ''));
         });
     },
     /**
@@ -589,9 +582,7 @@ let ext = {
      */
     setContentTextColor(d, color) {
         ui.run(() => {
-            d && d.getContentView().setTextColor(
-                colorsx.toInt(this._colors.wrap(color, 'content'))
-            );
+            d && d.getContentView().setTextColor(colorsx.toInt(this._colors.wrap(color, 'content')));
         });
     },
     /**
@@ -600,9 +591,7 @@ let ext = {
      */
     setContentBackgroundColor(d, color) {
         ui.run(() => {
-            d && d.getContentView().setBackgroundColor(
-                colorsx.toInt(this._colors.wrap(color, 'content'))
-            );
+            d && d.getContentView().setBackgroundColor(colorsx.toInt(this._colors.wrap(color, 'content')));
         });
     },
     /**
@@ -707,9 +696,8 @@ let ext = {
      */
     setActionButtonColor(d, action, color) {
         let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
-        let _csl = android.content.res.ColorStateList.valueOf(
-            colorsx.toInt(this._colors.wrap(color, 'button'))
-        );
+        let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
+        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
         d.getActionButton(_action).setTextColor(_csl);
     },
     /**
@@ -861,10 +849,9 @@ let ext = {
         };
 
         let _diag = Object.create(dialogsx.builds(props, _ext)
-                .on('neutral', () => _act.neutral())
-                .on('negative', () => _act.negative())
-                .on('positive', () => _act.positive())
-        );
+            .on('neutral', () => _act.neutral())
+            .on('negative', () => _act.negative())
+            .on('positive', () => _act.positive()));
 
         /**
          * @typedef {{
@@ -1075,9 +1062,10 @@ let ext = {
                     _dialogsx.setProgressColorTheme(_diag, 'error');
 
                     _diag.removeAllListeners('positive');
-                    _diag.setActionButton('positive', _dialogsx
-                        ._text._btn[config.on_interrupt_btn_text || 'B']
-                    );
+
+                    let _btn_el = _dialogsx._text._btn[config.on_interrupt_btn_text || 'B'];
+                    _diag.setActionButton('positive', _btn_el);
+
                     _diag.on('positive', d => d.dismiss());
 
                     _dialogsx.alertContent(_diag, err, 'append');
@@ -1239,9 +1227,10 @@ let ext = {
                     .catch((err) => {
                         _dialogsx.setProgressColorTheme(_diag, 'error');
                         _diag.removeAllListeners('positive');
-                        _diag.setActionButton('positive', _dialogsx
-                            ._text._btn[config.on_interrupt_btn_text || 'B']
-                        );
+
+                        let _btn_el = _dialogsx._text._btn[config.on_interrupt_btn_text || 'B'];
+                        _diag.setActionButton('positive', _btn_el);
+
                         _diag.on('positive', d => d.dismiss());
 
                         _dialogsx.alertContent(_diag, err, 'append');
@@ -1299,11 +1288,9 @@ let ext = {
      * @param {ColorParam|DialogsxColorProgress} color
      */
     setProgressTintList(d, color) {
-        d.getProgressBar().setProgressTintList(
-            android.content.res.ColorStateList.valueOf(
-                colorsx.toInt(this._colors.wrap(color, 'progress'))
-            )
-        );
+        let _c_int = colorsx.toInt(this._colors.wrap(color, 'progress'));
+        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+        d.getProgressBar().setProgressTintList(_csl);
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
@@ -1349,9 +1336,9 @@ let ext = {
      * @param {ColorParam} color
      */
     setProgressBackgroundTintList(d, color) {
-        d.getProgressBar().setProgressBackgroundTintList(
-            android.content.res.ColorStateList.valueOf(colorsx.toInt(color))
-        );
+        let _c_int = colorsx.toInt(color);
+        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+        d.getProgressBar().setProgressBackgroundTintList(_csl);
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d

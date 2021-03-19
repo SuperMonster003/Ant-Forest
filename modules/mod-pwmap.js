@@ -154,11 +154,11 @@ function _decrypt(input) {
 
 function _generate() {
     if (files.exists(_path)) {
-        confirm(
-            '密文文件已存在\n继续操作将覆盖已有文件\n' +
-            '新的密文文件生成后\n涉及密文的全部相关代码\n均需重新设置才能解密\n' +
-            '确定要继续吗?'
-        ) || exit();
+        confirm([
+            '密文文件已存在', '继续操作将覆盖已有文件',
+            '新的密文文件生成后', '涉及密文的全部相关代码',
+            '均需重新设置才能解密', '确定要继续吗?',
+        ].join('\n')) || exit();
     }
 
     files.createWithDirs(_path);

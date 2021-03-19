@@ -966,10 +966,9 @@ function swipeAndShow(f, params) {
 function swipeAndShowAndClickAction(f, swipe_params, click_params) {
     let _res_swipe = swipeAndShow(f, swipe_params);
     if (_res_swipe) {
-        return clickAction(
-            typeof _res_swipe === 'boolean' ? f : _res_swipe,
-            click_params && click_params.click_strategy, click_params
-        );
+        let _o = typeof _res_swipe === 'boolean' ? f : _res_swipe;
+        let _stg = click_params && click_params.click_strategy;
+        return clickAction(_o, _stg, click_params);
     }
 }
 
@@ -1029,9 +1028,7 @@ function keycode(code, params) {
         function checkPower() {
             let isScreenOn = () => {
                 /** @type {android.os.PowerManager} */
-                let _pow_mgr = context.getSystemService(
-                    android.content.Context.POWER_SERVICE
-                );
+                let _pow_mgr = context.getSystemService(android.content.Context.POWER_SERVICE);
                 return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
             };
             let isScreenOff = () => !isScreenOn();
@@ -1428,7 +1425,7 @@ function getSelector(options) {
                     let _text = _w && _w.text() || '';
                     let _desc = _w && _w.desc() || '';
                     return _desc.length > _text.length ? _desc : _text;
-                }
+                },
             };
 
             if (_res_type in _res) {
@@ -1843,7 +1840,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
             },
             get day() {
                 return 24 * this.hour;
-            }
+            },
         };
 
         if (result >= base_unit.day) {
@@ -2054,8 +2051,8 @@ function baiduOcr(src, par) {
                     'https://aip.baidubce.com/oauth/2.0/token' +
                     '?grant_type=client_credentials' +
                     '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
-                    '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj'
-                ).body.json()['access_token'];
+                    '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj')
+                    .body.json()['access_token'];
                 debugInfo('access_token准备完毕');
                 break;
             } catch (e) {

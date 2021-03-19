@@ -127,10 +127,9 @@ function _fillConfig(c) {
     _cfg.loopTimes = _c.loopTimes === undefined ? 1 : _c.loopTimes;
     Object.keys(_c.arguments || {}).forEach(k => _cfg.setArgument(k, _c.arguments[k]));
     if (typeof _c.scriptConfig === 'object') {
-        _cfg.scriptConfig = new com.stardust.autojs.project.ScriptConfig(
-            _c.scriptConfig.useFeatures || [],
-            _c.scriptConfig.uiMode === undefined ? false : _c.scriptConfig.uiMode
-        );
+        let _features = _c.scriptConfig.useFeatures || [];
+        let _ui_mode = _c.scriptConfig.uiMode === undefined ? false : _c.scriptConfig.uiMode;
+        _cfg.scriptConfig = new com.stardust.autojs.project.ScriptConfig(_features, _ui_mode);
     }
     return _cfg;
 }

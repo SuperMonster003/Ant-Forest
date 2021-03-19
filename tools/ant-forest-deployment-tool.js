@@ -66,8 +66,7 @@
                     _accu_step *= _step;
                 }
                 _unit.split('|').forEach(u => unit_map[u] = _tmp_pot_val
-                    ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]
-                );
+                    ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]);
             }
 
             let _init_u = _init_unit || _units[0];
@@ -219,10 +218,8 @@
         // tool function(s) //
 
         function _parse(src, init_unit, options, presets) {
-            return $_cvt(src, Object.assign(
-                init_unit === undefined ? {} : {init_unit: init_unit},
-                presets || {}, options || {}
-            ));
+            let _init = init_unit === undefined ? {} : {init_unit: init_unit};
+            return $_cvt(src, Object.assign(_init, presets, options));
         }
     }();
 
@@ -503,8 +500,8 @@
                     try {
                         let _items = http.get('https://api.github.com/repos/' +
                             'SuperMonster003/Ant-Forest/releases' +
-                            '?per_page=' + _per_page + '&page=' + _cur_page++
-                        ).body.json().filter(o => o.tag_name >= _min_ver);
+                            '?per_page=' + _per_page + '&page=' + _cur_page++)
+                            .body.json().filter(o => o.tag_name >= _min_ver);
                         if (global._$_get_proj_releases_interrupted) {
                             return [];
                         }
@@ -631,8 +628,7 @@
                     + '|' + /\(http.+?\)/.source // URL content (not the whole line)
                     + '|' + /\[\/\/]:.+\(\n*.+?\n*\)/.source // markdown comments
                     + '|' + /\s*<br>/.source // line breaks
-                    , 'g' // global flag
-                );
+                    , 'g');
                 let _names = _cont.match(_rex_ver_name);
                 let _infos = _cont.split(_rex_ver_name);
                 let _res = _names.map((n, i) => ({
@@ -669,10 +665,8 @@
                                 'Ant-Forest/blob/master/documents/CHANGELOG-' + _ver_num + '.md')
                                 .match(/版本历史[^]+article/)[0]
                                 .replace(/<path .+?\/path>/g, '')
-                                .replace(
-                                    /<a .+?(<code>((issue |pr )?#\d+)<\/code>)?<\/a>/g,
-                                    ($0, $1, $2) => $2 ? '_[`' + $2 + '`]_' : ''
-                                )
+                                .replace(/<a .+?(<code>((issue |pr )?#\d+)<\/code>)?<\/a>/g,
+                                    ($0, $1, $2) => $2 ? '_[`' + $2 + '`]_' : '')
                                 .replace(/<svg .+?\/svg>/g, '')
                                 .replace(/<link>.+/g, '')
                                 .replace(/<h1>/g, '# ')
@@ -863,9 +857,9 @@
                                 '版本: ' + o.version_name + '\n' +
                                 '路径: ' + o.path + '\n' +
                                 '备注: ' + o.remark);
-                        }
+                        },
                     });
-                }
+                },
             }).act();
 
             // tool function(s) //
@@ -927,7 +921,7 @@
                         }
                         let _f = _cbk.onBackupFailure || _cbk.onFailure;
                         typeof _f === 'function' && _f.call(_cbk, e);
-                    }
+                    },
                 }, {is_exclude_root_folder: true, is_delete_source: true});
             }
 
@@ -941,7 +935,7 @@
                     is_unbundled: true,
                     filter: function (name) {
                         return !!~_project_structure_names.indexOf(name);
-                    }
+                    },
                 });
 
                 return _tmp_path;
@@ -1053,7 +1047,7 @@
                     max_items: 1, per_page: 1,
                 }))[0];
             }
-        }
+        },
     };
     let httpx = {
         /**
@@ -1170,9 +1164,7 @@
                     _onResponse(r);
 
                     let _buf_len = 4096;
-                    let _buf_bytes = java.lang.reflect.Array.newInstance(
-                        java.lang.Byte.TYPE, _buf_len
-                    );
+                    let _buf_bytes = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, _buf_len);
                     let _read_bytes;
                     let _processed = 0;
 
@@ -1214,7 +1206,7 @@
                 });
                 global._$_dialog_flow_interrupted = false;
             }
-        }
+        },
     };
     let filesx = {
         /**
@@ -1932,7 +1924,7 @@
                 throw TypeError('Unknown type of color for colorsx.toInt()');
             }
             return _c;
-        }
+        },
     };
     let threadsx = {
         /**
@@ -1951,7 +1943,7 @@
                     throw Error(e);
                 }
             }
-        }
+        },
     };
     let dialogsx = {
         _colors: {
@@ -2025,7 +2017,7 @@
                 success: '#009624',
                 error: '#003c8f',
                 failure: '#003c8f',
-            }
+            },
         },
         _text: {
             /**
@@ -2105,13 +2097,12 @@
 
             function applyOtherDialogProperties(builder, properties) {
                 if (properties.inputHint !== undefined || properties.inputPrefill !== undefined) {
-                    builder.input(
-                        wrapNonNullString(properties.inputHint),
-                        wrapNonNullString(properties.inputPrefill),
-                        function (d, input) {
-                            return builder.emit('input_change', builder.dialog, input.toString());
-                        }
-                    ).alwaysCallInputCallback();
+                    let _ih = wrapNonNullString(properties.inputHint);
+                    let _ip = wrapNonNullString(properties.inputPrefill);
+                    let _cbk = function (d, input) {
+                        return builder.emit('input_change', builder.dialog, input.toString());
+                    };
+                    builder.input(_ih, _ip, _cbk).alwaysCallInputCallback();
                 }
                 if (properties.items !== undefined) {
                     let itemsSelectMode = properties.itemsSelectMode;
@@ -2264,9 +2255,7 @@
          */
         appendContentText(d, str) {
             ui.run(() => {
-                d && d.getContentView().setText(
-                    this.getContentText(d) + (str ? str.toString() : '')
-                );
+                d && d.getContentView().setText(this.getContentText(d) + (str ? str.toString() : ''));
             });
         },
         /**
@@ -2460,9 +2449,10 @@
                         _dialogsx.setProgressColorTheme(_diag, 'error');
 
                         _diag.removeAllListeners('positive');
-                        _diag.setActionButton('positive', _dialogsx
-                            ._text._btn[config.on_interrupt_btn_text || 'B']
-                        );
+
+                        let _btn_el = _dialogsx._text._btn[config.on_interrupt_btn_text || 'B'];
+                        _diag.setActionButton('positive', _btn_el);
+
                         _diag.on('positive', d => d.dismiss());
 
                         _dialogsx.alertContent(_diag, err, 'append');
@@ -2624,9 +2614,10 @@
                         .catch((err) => {
                             _dialogsx.setProgressColorTheme(_diag, 'error');
                             _diag.removeAllListeners('positive');
-                            _diag.setActionButton('positive', _dialogsx
-                                ._text._btn[config.on_interrupt_btn_text || 'B']
-                            );
+
+                            let _btn_el = _dialogsx._text._btn[config.on_interrupt_btn_text || 'B'];
+                            _diag.setActionButton('positive', _btn_el);
+
                             _diag.on('positive', d => d.dismiss());
 
                             _dialogsx.alertContent(_diag, err, 'append');
@@ -2695,9 +2686,8 @@
          */
         setActionButtonColor(d, action, color) {
             let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
-            let _csl = android.content.res.ColorStateList.valueOf(
-                colorsx.toInt(this._colors.wrap(color, 'button'))
-            );
+            let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
+            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
             d.getActionButton(_action).setTextColor(_csl);
         },
         /**
@@ -2705,20 +2695,18 @@
          * @param {ColorParam|DialogsxColorProgress} color
          */
         setProgressTintList(d, color) {
-            d.getProgressBar().setProgressTintList(
-                android.content.res.ColorStateList.valueOf(
-                    colorsx.toInt(this._colors.wrap(color, 'progress'))
-                )
-            );
+            let _c_int = colorsx.toInt(this._colors.wrap(color, 'progress'));
+            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+            d.getProgressBar().setProgressTintList(_csl);
         },
         /**
          * @param {JsDialog$|MaterialDialog$} d
          * @param {ColorParam} color
          */
         setProgressBackgroundTintList(d, color) {
-            d.getProgressBar().setProgressBackgroundTintList(
-                android.content.res.ColorStateList.valueOf(colorsx.toInt(color))
-            );
+            let _c_int = colorsx.toInt(color);
+            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+            d.getProgressBar().setProgressBackgroundTintList(_csl);
         },
         /**
          * @param {JsDialog$|MaterialDialog$} d
@@ -2746,7 +2734,7 @@
                 onKey(diag, key_code) {
                     typeof f === 'function' && f();
                     return key_code === android.view.KeyEvent.KEYCODE_BACK;
-                }
+                },
             });
             return d;
         },
@@ -2773,7 +2761,7 @@
 
     dialogsx.builds(['项目部署',
         '欢迎使用蚂蚁森林项目部署工具\n此工具用于 v2.0.0 以上版本的项目部署',
-        ['了解项目', 'hint'], ['退出', 'caution'], ['开始部署', 'attraction'], 1
+        ['了解项目', 'hint'], ['退出', 'caution'], ['开始部署', 'attraction'], 1,
     ]).on('neutral', () => {
         dialogsx.builds(['关于项目',
             '- 功能简介 -' + '\n' + [

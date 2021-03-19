@@ -38,8 +38,7 @@ let ext = {
         ui.layout(
             <vertical id="{{global._$_ui_main_id}}">
                 <vertical id="sub_{{global._$_ui_main_id}}"/>
-            </vertical>
-        );
+            </vertical>);
 
         ui.statusBarColor(_opt.status_bar_color || this._colors.status_bar);
 
@@ -70,20 +69,22 @@ let ext = {
      * @see https://developer.android.com/reference/android/app/Activity#setRequestedOrientation(int)
      */
     setRequestedOrientation(requested_orientation) {
-        this.makeSureUiMode() && activity.setRequestedOrientation(
-            android.content.pm.ActivityInfo['SCREEN_ORIENTATION_' + requested_orientation]
-        );
+        if (this.makeSureUiMode()) {
+            let _k = 'SCREEN_ORIENTATION_' + requested_orientation;
+            let _activity_info_element = android.content.pm.ActivityInfo[_k];
+            activity.setRequestedOrientation(_activity_info_element);
+        }
     },
     /**
      * @param {android.widget.ImageView|android.widget.ImageView[]} view
      * @param {ColorParam} color
      */
     setImageTint(view, color) {
-        let _set = (v) => v.setColorFilter(
-            com.stardust.autojs.core.ui.inflater.util.Colors.parse(
-                v, colorsx.toStr(color)
-            )
-        );
+        let _set = (v) => {
+            let _c_str = colorsx.toStr(color);
+            let _c_int = com.stardust.autojs.core.ui.inflater.util.Colors.parse(v, _c_str);
+            return v.setColorFilter(_c_int);
+        };
         Array.isArray(view) ? view.forEach(_set) : _set(view);
     },
     /**
