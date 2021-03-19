@@ -2,7 +2,7 @@ global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
 
 require('./mod-monster-func').load();
 require('./ext-global').load();
-require('./ext-device').load().getDisplay(true);
+require('./ext-device').load();
 
 let _ext = {
     /**

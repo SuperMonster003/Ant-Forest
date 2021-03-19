@@ -710,12 +710,6 @@ function swipeAndShow(f, params) {
     if (_cond_meet_sides !== 1 || _cond_meet_sides !== 2) {
         _cond_meet_sides = 1;
     }
-
-    if (!global.WIDTH || !global.HEIGHT) {
-        let _data = require('./ext-device').getDisplay();
-        [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
-    }
-
     let _swp_area = _setAreaParams(_par.swipe_area, [0.1, 0.1, 0.9, 0.9]);
     let _aim_area = _setAreaParams(_par.aim_area, [0, 0, -1, -1]);
     let _swp_drxn = _setSwipeDirection();
@@ -779,9 +773,16 @@ function swipeAndShow(f, params) {
     }
 
     function _setAreaParams(specified, backup_plan) {
-        let _area = _checkArea(specified) || backup_plan;
-        _area = _area.map((_num, _idx) => _num !== -2 ? _num : backup_plan[_idx]);
-        _area = _area.map((_num, _idx) => _num >= 1 ? _num : ((!~_num ? 1 : _num) * (_idx % 2 ? HEIGHT : WIDTH)));
+        let _area = (_checkArea(specified) || backup_plan)
+            .map((num, idx) => {
+                let _num = num !== -2 ? num : backup_plan[idx];
+                if (_num >= 1) {
+                    return _num;
+                }
+                let _l = idx % 2 ? global.H || device.height : global.W || device.width;
+                let _factor = ~_num ? _num : 1;
+                return _l * _factor;
+            });
         let [_l, _t, _r, _b] = _area;
         if (_r < _l) [_r, _l] = [_l, _r];
         if (_b < _t) [_b, _t] = [_t, _b];

@@ -1,6 +1,6 @@
 require('../modules/ext-global').load();
 require('../modules/ext-dialogs').load();
-require('../modules/ext-device').load().getDisplay(true);
+require('../modules/ext-device').load();
 
 let [_dx, _dy] = [cX(0.35), cY(0.45)];
 let _rect = [cX(0.35), cY(0.45), cX(0.65), cY(0.55)];

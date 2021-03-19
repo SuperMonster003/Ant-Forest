@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Mar 16, 2021
- * @version 2.0.5
+ * @since Mar 19, 2021
+ * @version 2.0.6 Alpha
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -13,16 +13,18 @@ let $$init = {
         try {
             return require('./modules/ext-app');
         } catch (e) {
-            console.error('ext-app模块不存在');
-            console.error('请检查项目目录结构');
+            if (!files.exists('./modules/ext-app.js')) {
+                console.error('ext-app模块不存在');
+                console.error('请检查项目目录结构');
+            }
             throw e;
         }
     },
     check() {
         this.appx().load();
         appx.checkModules([
+            'mod-default-config', 'mod-pwmap', 'mod-storage',
             'mod-treasury-vault', 'mod-database', 'mod-monster-func',
-            'mod-default-config', 'mod-pwmap', 'mod-storage', 'mod-unlock',
             'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
             'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
         ], {is_load: true});
@@ -76,7 +78,6 @@ let $$init = {
         }
 
         function setGlobalObjects() {
-            global.$$unlk = require('./modules/mod-unlock');
             global.$$flag = {
                 autojs_has_root: appx.hasRoot(),
                 autojs_has_secure: appx.hasSecure(),
@@ -166,7 +167,7 @@ let $$init = {
                     $$app.my_engine = _my_engine;
                     $$app.my_engine_id = _my_engine.id;
                     $$app.my_engine_argv = _e_argv;
-                    $$app.init_scr_on = _e_argv.init_scr_on || $$unlk.is_init_screen_on;
+                    $$app.init_scr_on = _e_argv.init_scr_on || devicex.is_init_screen_on;
                     $$app.init_fg_pkg = _e_argv.init_fg_pkg || currentPackage();
                     $$app.cwd = _my_engine.cwd(); // `files.cwd()` also fine
                     $$app.cwp = _my_engine.source.toString().match(/\[remote]/)
@@ -3021,7 +3022,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _screenOn() {
-                        if ($$unlk.is_init_screen_on) {
+                        if (devicex.is_init_screen_on) {
                             return true;
                         }
                         debugInfo(['跳过前置应用黑名单检测', '>屏幕未亮起']);
@@ -3514,7 +3515,7 @@ let $$init = {
                                 },
                                 onRelease() {
                                     $$flag.glob_e_trig_counter++;
-                                    $$unlk.isLocked() && $$unlk.unlock();
+                                    devicex.isLocked() && devicex.unlock();
                                     $$flag.glob_e_trig_counter--;
                                 },
                             },
@@ -3683,8 +3684,8 @@ let $$init = {
                     while (1) {
                         try {
                             return _locate() && $$link(_text).$(_height).$(_signal);
-                        } catch (e) {
-                            // TypeError: Cannot call method "childCount" of null
+                        } catch (e /* TypeError: Cannot call method "childCount" of null */) {
+                            sleep(2e3);
                         }
                     }
 
@@ -3838,8 +3839,8 @@ let $$init = {
         }
     },
     unlock() {
-        let _is_scr_on = $$unlk.is_init_screen_on;
-        let _is_unlked = $$unlk.isUnlocked();
+        let _is_scr_on = devicex.is_init_screen_on;
+        let _is_unlked = devicex.isUnlocked();
         let _err = m => {
             messageAction('脚本无法继续', 4, 0, 0, -1);
             messageAction(m, 8, 1, 1, 1);
@@ -3850,7 +3851,7 @@ let $$init = {
             _is_unlked || _err('设备上锁且自动解锁功能未开启');
         }
 
-        _is_unlked && _is_scr_on ? debugInfo('无需解锁') : $$unlk.unlock();
+        _is_unlked && _is_scr_on ? debugInfo('无需解锁') : devicex.unlock();
         $$flag.dev_unlocked = true;
 
         return $$init;
@@ -3876,10 +3877,10 @@ let $$init = {
                         return debugInfo(['跳过"运行前提示"', '>检测到"立即运行"引擎参数']);
                     }
                     if ($$cfg.prompt_before_running_auto_skip) {
-                        if (!$$unlk.is_init_screen_on) {
+                        if (!devicex.is_init_screen_on) {
                             return debugInfo(['跳过"运行前提示"', '>屏幕未亮起']);
                         }
-                        if (!$$unlk.is_init_unlocked) {
+                        if (!devicex.is_init_unlocked) {
                             return debugInfo(['跳过"运行前提示"', '>设备未锁定']);
                         }
                     }
@@ -5540,7 +5541,7 @@ let $$af = {
                                             Object.values(this.fx).forEach((fxo) => {
                                                 this.pool.push({
                                                     name: _cfg.src_pref + fxo.w_name,
-                                                    f: threads.start(_thdMaker(fxo)),
+                                                    f: threadsx.start(_thdMaker(fxo)),
                                                 });
                                             });
                                         },

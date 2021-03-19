@@ -115,6 +115,10 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.0.6
+###### 2021/03/16
+* `修复` 解锁模块适配部分OPPO设备 (PIN方案)
+
 # v2.0.5
 ###### 2021/03/16
 * `修复` 解锁功能配置参数无法获取默认值的问题 _[`issue #444`](https://github.com/SuperMonster003/Ant-Forest/issues/444)_
@@ -128,19 +132,6 @@
 * `修复` 配置工具采集排行榜列表数据时可能会出现假死的问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
 * `修复` 配置工具数据统计初始化时与日期范围默认值未联动的问题
 * `优化` 分离高频读写参数到独立配置文件中降低配置文件损坏概率
-
-# v2.0.3
-###### 2021/03/10
-* `修复` 切换支付宝语言时的代码逻辑错误及可能出现的管道破裂
-* `修复` 主账户登录时弹出立即登录对话框可能导致登录失败的问题
-* `修复` 统计排行榜列表最小倒计时数据时可能出现早于当前时刻的问题 _[`issue #439`](https://github.com/SuperMonster003/Ant-Forest/issues/439)_
-* `修复` 意外保险机制次数累加器丢失累加判断条件的问题
-* `修复` 排行榜复查关闭列表状态差异时会出现样本遗漏的问题 _[`issue #435`](https://github.com/SuperMonster003/Ant-Forest/issues/435)_
-* `修复` 项目配置参数文件存取过程可能导致的乱码问题 (试修)
-* `修复` 森林能量球识别区域采用动态比例值以兼容多分辨率机型 (试修) _[`issue #429`](https://github.com/SuperMonster003/Ant-Forest/issues/429)_
-* `优化` 版本异常检测功能加入对Pro8不可用版本的检测
-* `优化` 好友森林动态列表增加展开结果判断以增加展开成功率 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
-* `优化` storage模块在高版本系统解析JSON时可自动修复乱码行
 
 ##### 更多版本历史可参阅
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/documents/CHANGELOG-2.md)  ( 2.x 版本 )

@@ -127,7 +127,6 @@ let $$init = {
             require('./modules/ext-colors').load();
 
             uix.init({requested_orientation: 'PORTRAIT'});
-            devicex.getDisplay(true);
         }
 
         function setGlobalObjects() {

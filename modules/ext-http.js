@@ -1,5 +1,7 @@
 global.httpx = typeof global.httpx === 'object' ? global.httpx : {};
 
+require('./ext-threads').load();
+
 let ext = {
     /**
      * Substitution of java.net.URLConnection.getContentLengthLong() with concurrency
@@ -30,10 +32,10 @@ let ext = {
 
         let _tt = _opt.timeout || 10e3;
         let _ts_max = Date.now() + _tt;
-        let _sum_bytes = threads.atomic(-1);
+        let _sum_bytes = threadsx.atomic(-1);
 
         let _executor = function (resolve) {
-            let _thd = threads.start(function () {
+            let _thd = threadsx.start(function () {
                 try {
                     let _cxn = new java.net.URL(url).openConnection();
                     _cxn.setRequestProperty('Accept-Encoding', 'identity');
@@ -47,7 +49,7 @@ let ext = {
                     // nothing to do here
                 }
             });
-            threads.start(function () {
+            threadsx.start(function () {
                 while (1) {
                     if (_sum_bytes.get() > 0) {
                         return _thd.interrupt();
@@ -98,7 +100,7 @@ let ext = {
         if (!url) {
             return _onFailure('url for httpx.okhttp3Request() is required');
         }
-        _opt.is_async === undefined || _opt.is_async ? threads.start(_request) : _request();
+        _opt.is_async === undefined || _opt.is_async ? threadsx.start(_request) : _request();
 
         // tool function(s) //
 

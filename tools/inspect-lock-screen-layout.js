@@ -4,7 +4,7 @@ let {waitForAction, messageAction, keycode} = require('../modules/mod-monster-fu
 
 require('../modules/ext-images').load().permit();
 require('../modules/ext-dialogs').load();
-require('../modules/ext-device').load().getDisplay(true);
+require('../modules/ext-device').load();
 
 let storage_unlock = require('../modules/mod-storage').create('unlock');
 let config_storage = storage_unlock.get('config', {});
@@ -17,16 +17,6 @@ let path_unlock_page = path_base + 'unlock-page.png';
 let path_unlock_bounds = path_base + 'unlock-bounds.png';
 let path_device_info = path_base + 'device-info.txt';
 files.createWithDirs(path_device_info);
-
-let isUnlocked = () => !context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked();
-let isScreenOn = () => {
-    /** @type {android.os.PowerManager} */
-    let _pow_mgr = context.getSystemService(
-        android.content.Context.POWER_SERVICE
-    );
-    return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
-};
-let isScreenOff = () => !isScreenOn();
 
 let info = device.brand + ' ' + device.product + ' ' + device.release + '\n' +
     'Display resolution: ' + device.width + ' × ' + device.height + '\n\n';
@@ -45,95 +35,97 @@ let operation_hint_manual = operation_hint
     .replace(/屏幕 \[自动关闭]/, '[手动关闭屏幕]')
     .replace(/ \[自动亮起]/, '等待 [自动亮起]');
 
-let diag = dialogsx.builds([
-    operation_title, !keycode_power_bug
-        ? operation_hint : operation_hint_manual +
-        '\n\n* * * * * *\n此设备不支持自动关屏\n' +
+dialogsx
+    .builds([operation_title, !keycode_power_bug
+        ? operation_hint
+        : operation_hint_manual + '\n\n* * * * * *\n此设备不支持自动关屏\n' +
         '需点击"开始"按钮后30秒内手动关屏\n* * * * * *',
-    0, 'Q', '开始', 1
-]);
-diag.on('positive', () => {
-    diag.dismiss();
-    threads.start(function () {
-        if (!keycode_power_bug) {
-            if (!keycode(26) || !waitForAction(isScreenOff, 2.4e3)) {
-                dialogsx
-                    .builds([
-                        '自动关闭屏幕失败', '请点击 [继续] 按钮后 [手动关屏]\n' +
-                        '然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作',
-                        ['查看前述提示', 'hint'], 'Q', 'N', 1,
-                    ])
-                    .on('neutral', () => {
-                        dialogsx.builds([
-                            operation_title, operation_hint_manual, 0, 0, 'B', 1,
-                        ]).on('positive', ds => ds.dismiss()).show();
-                    })
-                    .on('negative', (d) => {
-                        d.dismiss();
-                        diag.dismiss();
-                        exit();
-                    })
-                    .on('positive', d => d.dismiss())
-                    .show();
+        0, 'Q', '开始', 1,
+    ])
+    .on('positive', (d) => {
+        d.dismiss();
+        threads.start(function () {
+            if (!keycode_power_bug) {
+                if (!keycode(26) || !waitForAction(devicex.isScreenOff.bind(devicex), 2.4e3)) {
+                    dialogsx
+                        .builds([
+                            '自动关闭屏幕失败', '请点击 [继续] 按钮后 [手动关屏]\n' +
+                            '然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作',
+                            ['查看前述提示', 'hint'], 'Q', 'N', 1,
+                        ])
+                        .on('neutral', () => {
+                            dialogsx.builds([
+                                operation_title, operation_hint_manual, 0, 0, 'B', 1,
+                            ]).on('positive', ds => ds.dismiss()).show();
+                        })
+                        .on('negative', (ds) => {
+                            ds.dismiss();
+                            d.dismiss();
+                            exit();
+                        })
+                        .on('positive', ds => ds.dismiss())
+                        .show();
+                }
             }
-        }
 
-        if (!waitForAction(isScreenOff, 30e3)) {
-            messageAction('等待屏幕关闭超时', 8, 1);
-        }
+            if (!waitForAction(devicex.isScreenOff.bind(devicex), 30e3)) {
+                messageAction('等待屏幕关闭超时', 8, 1);
+            }
 
-        sleep(500);
-        device.wakeUp();
-        let max_try_times_wake_up = 5;
-        while (!waitForAction(isScreenOn, 2e3) && max_try_times_wake_up--) {
+            sleep(500);
             device.wakeUp();
-        }
-        if (max_try_times_wake_up < 0) {
-            messageAction('唤起设备失败', 8, 1);
-        }
-        sleep(1e3);
+            let max = 5;
+            while (!waitForAction(devicex.isScreenOn.bind(devicex), 2e3) && max--) {
+                device.wakeUp();
+            }
+            if (max < 0) {
+                messageAction('唤起设备失败', 8, 1);
+            }
+            sleep(1e3);
 
-        devicex.keepOn(3);
+            devicex.keepOn(3);
 
-        info += captSelectorInfo('Container View');
-        captureScreen(path_container_page);
-        sleep(500);
+            info += captSelectorInfo('Container View');
+            captureScreen(path_container_page);
+            sleep(500);
 
-        dismissLayer();
-        sleep(800);
+            dismissLayer();
+            sleep(800);
 
-        info += captSelectorInfo('Unlock View');
-        app.sendBroadcast('inspect_layout_bounds');
-        captureScreen(path_unlock_page);
-        device.vibrate(500);
+            info += captSelectorInfo('Unlock View');
+            app.sendBroadcast('inspect_layout_bounds');
+            captureScreen(path_unlock_page);
+            device.vibrate(500);
 
-        let _file = files.open(path_device_info, 'w');
-        _file.write(info);
-        _file.close();
+            let _file = files.open(path_device_info, 'w');
+            _file.write(info);
+            _file.close();
 
-        if (!waitForAction(() => isUnlocked(), 25e3)) {
-            alert('等待手动解锁超时');
-            exit();
-        }
-        sleep(1e3);
-        captureScreen(path_unlock_bounds);
+            if (!waitForAction(() => devicex.isUnlocked(), 25e3)) {
+                alert('等待手动解锁超时');
+                exit();
+            }
+            sleep(1e3);
+            captureScreen(path_unlock_bounds);
 
-        device.cancelKeepingAwake();
-        setClip(path_base);
+            device.cancelKeepingAwake();
+            setClip(path_base);
 
-        dialogsx.builds([
-            '布局抓取完毕', '请将"' + path_base + '"目录下的' +
-            '文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n' +
-            '发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n' +
-            '如有请 [不要提交] 或 [修改后提交]\n\n' +
-            '文件路径已复制到剪贴板中\n' +
-            '[返回键] 可退出布局分析页面',
-            0, 0, 'X', 1,
-        ]).on('positive', d => d.dismiss()).show();
-    });
-});
-diag.on('negative', () => diag.dismiss());
-diag.show();
+            dialogsx.builds([
+                '布局抓取完毕', '请将"' + path_base + '"目录下的' +
+                '文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n' +
+                '发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n' +
+                '如有请 [不要提交] 或 [修改后提交]\n\n' +
+                '文件路径已复制到剪贴板中\n' +
+                '[返回键] 可退出布局分析页面',
+                0, 0, 'X', 1,
+            ]).on('positive', d => d.dismiss()).show();
+        });
+    })
+    .on('negative', (d) => {
+        d.dismiss();
+    })
+    .show();
 
 // tool function(s) //
 

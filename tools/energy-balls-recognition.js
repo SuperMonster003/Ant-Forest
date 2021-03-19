@@ -1,6 +1,6 @@
 require('../modules/ext-images').load();
 require('../modules/ext-global').load();
-require('../modules/ext-device').load().getDisplay(true);
+require('../modules/ext-device').load();
 require('../modules/ext-dialogs').load();
 
 dialogsx.builds([
