@@ -1551,7 +1551,8 @@ let ext = {
      */
     checkModules(modules, options) {
         let _opt = options || {};
-        let _line = () => console.log('-'.repeat(33));
+        let _line = () => '-'.repeat(33);
+        let _dash = () => ' -'.repeat(17).slice(1);
 
         modules.filter((mod) => {
             let _path = './' + mod + '.js';
@@ -1561,18 +1562,22 @@ let ext = {
                     _mod.load.call(_mod);
                 }
             } catch (e) {
+                console.log(_line());
+                console.warn(_path);
+                console.log(_dash());
+                console.warn(e.message);
                 return true;
             }
         }).some((mod, idx, arr) => {
             let _str = '';
             _str += '脚本无法继续|以下模块缺失或路径错误:|';
-            _str += '- - - - - - - - - - - - - - - - -|';
+            _str += _dash() + '|';
             arr.forEach(n => _str += '-> "' + n + '"|');
-            _str += '- - - - - - - - - - - - - - - - -|';
+            _str += _dash() + '|';
             _str += '请检查或重新放置模块';
-            _line();
+            console.log(_line());
             _str.split('|').forEach(s => console.error(s));
-            _line();
+            console.log(_line());
             toast('模块缺失或路径错误');
             exit();
         });
