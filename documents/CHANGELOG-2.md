@@ -1,6 +1,17 @@
 ******
 ### 版本历史 - 2.x
 ******
+# v2.1.0
+###### 2021/04/15
+* `新增` 增加"逛一逛按钮"采集策略 (默认为"排行榜列表"采集策略) _[`issue #449`](https://github.com/SuperMonster003/Ant-Forest/issues/449)_ _[`#446`](https://github.com/SuperMonster003/Ant-Forest/issues/446)_ _[`#391`](https://github.com/SuperMonster003/Ant-Forest/issues/391)_
+* `修复` 解锁模块适配部分OPPO设备 (PIN方案)
+* `修复` appx.checkAccessibility()无法在UI模式下使用的问题
+* `修复` 森林页面暗色主题时浇水回赠能量球可能无法连续收取的问题
+* `修复` 自定义黑名单好友数量较多时删除操作可能导致报错的问题
+* `优化` 项目代码中所有尾逗号的处理 (Add when multiline)
+* `优化` 清除好友森林页面统计能量数据时对于用户昵称的依赖 _[`issue #228`](https://github.com/SuperMonster003/Ant-Forest/issues/228)_  _[`#223`](https://github.com/SuperMonster003/Ant-Forest/issues/223)_  _[`#218`](https://github.com/SuperMonster003/Ant-Forest/issues/218)_
+* `优化` 增加支付宝手势锁监听器并在触发后适时结束脚本 _[`issue #452`](https://github.com/SuperMonster003/Ant-Forest/issues/452)_
+
 # v2.0.5
 ###### 2021/03/16
 * `修复` 解锁功能配置参数无法获取默认值的问题 _[`issue #444`](https://github.com/SuperMonster003/Ant-Forest/issues/444)_

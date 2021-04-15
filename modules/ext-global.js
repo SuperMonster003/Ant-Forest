@@ -1,4 +1,4 @@
-require('./mod-monster-func').load('getSelector');
+require('./mod-monster-func').load('getSelector', 'debugInfo');
 
 let ext = {
     Global() {
@@ -85,7 +85,6 @@ let ext = {
             $$emptyObj: x => _classof(x, 'Object') && _keysLen(x, 0),
             $$T: x => x === true,
             $$F: x => x === false,
-            isInfinite: x => !isFinite(x),
             isInteger(x) {
                 // `Number.isInteger(x)` since ES6
                 return this.$$num(x) && (x | 0) === x;
@@ -187,19 +186,22 @@ let ext = {
          * function d() {void 0};
          * // with two groups of warning messages printed in console
          * $$link(a).$(b).$(c).$(d);
+         * @returns {Function|'__break__'}
          */
         global.$$link = function (f, this_arg) {
             if (typeof f !== 'function') {
-                throw TypeError('$$link invoked with a non-function param');
-            }
-            if (typeof $$link.$ !== 'function') {
-                $$link.$ = (f, this_arg) => $$link(f, this_arg);
+                throw TypeError('$$link invoked with a non-function argument');
             }
             let _res = f.call(this_arg);
-            if (_res !== $$link && typeof _res !== 'undefined') {
-                console.warn('fx in $$link returns non-undefined');
-                console.warn('-> name: ' + (f.name || '<anonymous>'));
-                console.warn('-> returns: ' + _res);
+            if (_res === '__break__') {
+                $$link.$ = () => $$link;
+            } else {
+                $$link.$ = (f, this_arg) => $$link(f, this_arg);
+                if (_res !== $$link && typeof _res !== 'undefined') {
+                    debugInfo('fx in $$link returns non-undefined', 3);
+                    debugInfo('>name: ' + (f.name || '<anonymous>'), 3);
+                    debugInfo('>returns: ' + _res, 3);
+                }
             }
             return $$link;
         };
@@ -564,7 +566,7 @@ let ext = {
                         if (typeof _val === 'object') {
                             _val = '&' + _parseObj(_val);
                         }
-                        if (!_exclude.includes(key)) {
+                        if (!~_exclude.indexOf(key)) {
                             _val = encodeURI(_val);
                         }
                         return key + '=' + _val;
@@ -951,6 +953,17 @@ let ext = {
                         this[i] = v;
                     }
                     return this;
+                },
+            });
+        }
+        if (!Array.prototype.flat) {
+            Object.defineProperty(Array.prototype, 'flat', {
+                value(depth) {
+                    return (function _flat(arr, d) {
+                        return d <= 0 ? arr : arr.reduce((a, b) => {
+                            return a.concat(Array.isArray(b) ? _flat(b, d - 1) : b);
+                        }, []);
+                    })(this.slice(), depth || 1);
                 },
             });
         }

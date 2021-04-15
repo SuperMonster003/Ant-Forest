@@ -880,18 +880,17 @@ let ext = {
             delete this['_screen_metrics_h'];
         }
     },
-    bind() {
+    $bind() {
         Object.assign(this.unlock, this._unlock);
-        delete this.bind;
-        return this;
+        delete this.$bind;
     },
-}.bind();
+};
 
 if (!global._$_display_params_set) {
     ext.getDisplay(global._$_display_params_set = true);
 }
 
-module.exports = Object.assign(ext, {
+module.exports = Object.assign(ext, ext.$bind(), {
     is_init_screen_on: global._$_is_init_scr_on = global._$_is_init_scr_on || ext.isScreenOn(),
     is_init_unlocked: global._$_is_init_unlk = global._$_is_init_unlk || ext.isUnlocked(),
 });

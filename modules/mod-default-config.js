@@ -33,13 +33,17 @@ module.exports = {
         // just in case of infinite loop check
         homepage_wball_check_limit: 120,
         // max hue value in HSB mode without blue component for water wall identification
-        homepage_wball_max_hue_b0: 42,
+        homepage_wball_max_hue_no_blue: 47,
         // seriously? i cannot believe it if you turn this switch off
         friend_collect_switch: true,
         // color for collect icon with a hand pattern
         friend_collect_icon_color: '#1da06d',
         // 0 <= x <= 66; the smaller, the stricter; max limit tested on Sony G8441
         friend_collect_icon_threshold: 10,
+        // set truthy value to get targets by stroll button rather than traverse rank list
+        get_targets_by_stroll_btn: false,
+        // 1 <= x <= 5; to avoid infinite loop targets detection
+        max_continuous_not_targeted_stroll_cycle: 3,
         // 1 <= x <= 8; size limitation for forest balls samples pool
         forest_balls_pool_limit: 2,
         // 50 <= x <= 500; interval between two samples when saving into forest balls samples pool
@@ -106,6 +110,8 @@ module.exports = {
         rank_list_swipe_interval: 300,
         // 100 <= x <= 2400;
         rank_list_scroll_interval: 240,
+        // 50 <= x <= 500; just in case of infinite loop check
+        rank_list_max_not_targeted_times: 200,
         // 5 <= x <= 800; to prevent infinity swipe up at rank list page
         rank_list_capt_pool_diff_check_threshold: 20,
         // fantastic function which almost everybody wants it, however, i still need to switch it off initially
@@ -181,6 +187,8 @@ module.exports = {
         global_log_cfg_max_file_size: 320, // KB
         e_dblclick_switch: false,
         e_rain_switch: false,
+        stroll_btn_match_threshold: 10,
+        stroll_btn_locate_main_color: '#ff7e00',
     },
     unlock: {
         // when we first met, i do not know your name, your age, or, your sexual orientation, wow...

@@ -518,6 +518,7 @@ let _ext = {
      *     pool?: object,
      *     keep_pool_data?: boolean,
      *     duration?: boolean,
+     *     region?: number[],
      * }} [options]
      * @returns AfHoughBallsResult
      */
@@ -537,7 +538,7 @@ let _ext = {
         let _src_img_stg = _cfg.hough_src_img_strategy;
         let _results_stg = _cfg.hough_results_strategy;
         let _min_dist = cX(_cfg.min_balls_distance);
-        let _region = _cfg.eballs_recognition_region
+        let _region = _opt.region || _cfg.eballs_recognition_region
             .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
 
         /** @type {EnergyBallsInfo[]} */
@@ -698,39 +699,24 @@ let _ext = {
             }
             if (!imagesx.isWaterBall) {
                 imagesx.isWaterBall = (o, capt, container) => {
-                    let _capt = capt || _this.capt();
                     let _ctx = o.x;
                     let _cty = o.y;
-                    let _offset = o.r / Math.SQRT2;
-                    let _x_min = _ctx - _offset;
-                    let _y_min = _cty - _offset;
-                    let _x_max = _ctx + _offset;
-                    let _y_max = _cty + _offset;
-                    let _step = 2;
-                    let _hue_max = _cfg.homepage_wball_max_hue_b0;
                     let _cty_max = cYx(386);
-                    let _result = false;
 
                     if (_cty > _cty_max) {
-                        return _result;
+                        return false;
                     }
 
-                    while (_x_min < _x_max && _y_min < _y_max) {
-                        let _col = images.pixel(_capt, _x_min, _y_min);
-                        let _red = colors.red(_col);
-                        let _green = colors.green(_col);
-                        // hue value in HSB mode without blue component
-                        let _hue = 120 - (_red / _green) * 60;
-                        if (isFinite(_hue) && _hue < _hue_max) {
-                            if (Array.isArray(container)) {
-                                container.push(o);
-                            }
-                            _result = true;
-                            break;
-                        }
-                        _x_min += _step;
-                        _y_min += _step;
-                    }
+                    let _capt = capt || _this.capt();
+                    let _hue_max = _cfg.homepage_wball_max_hue_no_blue;
+                    let _offset_x = o.r * Math.sin(30 * Math.PI / 180);
+                    let _offset_y = o.r * Math.cos(30 * Math.PI / 180);
+                    let _x_min = _ctx - _offset_x;
+                    let _y_min = _cty - _offset_y;
+                    let _x_max = _ctx + _offset_x;
+                    let _y_max = _cty + _offset_y;
+                    let _step = 2;
+                    let _result = _progress(_x_min, _step, _y_min, _step);
 
                     if (!capt) {
                         _this.reclaim(_capt);
@@ -738,6 +724,32 @@ let _ext = {
                     }
 
                     return _result;
+
+                    // tool function(s) //
+
+                    function _progress(x_min, x_step, y_min, y_step) {
+                        while (x_min <= _x_max && y_min <= _y_max) {
+                            if (_hit(_capt, x_min, y_min)) {
+                                if (Array.isArray(container)) {
+                                    container.push(o);
+                                }
+                                return true;
+                            }
+                            x_min += x_step;
+                            y_min += y_step;
+                        }
+                    }
+
+                    function _hit(capt, x, y) {
+                        let _col = images.pixel(capt, x, y);
+                        let _red = colors.red(_col);
+                        let _green = colors.green(_col);
+                        // hue value in HSB mode without blue component
+                        let _hue = 120 - (_red / _green) * 60;
+                        if (isFinite(_hue) && _hue < _hue_max) {
+                            return true;
+                        }
+                    }
                 };
             }
             if (!imagesx.isRipeBall) {
@@ -1149,7 +1161,7 @@ let _ext = {
                 min_balls_distance: 0.09,
                 forest_balls_pool_limit: 2,
                 forest_balls_pool_itv: 240,
-                homepage_wball_max_hue_b0: 42,
+                homepage_wball_max_hue_no_blue: 47,
             };
         }
     },

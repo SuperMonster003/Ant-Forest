@@ -2,1486 +2,1384 @@
 'ui'; // Auto.js UI mode with global object `activity`
 
 let $$init = {
-    check() {
-        checkModulesMap();
-        checkSdkAndAJVer();
-        checkAccessibility();
-
-        return this;
-
-        // tool function(s) //
-
-        function checkModulesMap() {
-            void [
-                'mod-monster-func', 'mod-storage',
-                'mod-default-config', 'mod-pwmap',
-                'mod-treasury-vault', 'mod-database',
-                'ext-app', 'ext-device', 'ext-dialogs', 'ext-ui',
-                'ext-files', 'ext-global', 'ext-threads', 'ext-timers',
-            ].filter((mod) => (
-                !files.exists('./modules/' + mod + '.js')
-            )).some((mod, idx, arr) => {
-                let _str = '';
-                _str += '脚本无法继续|以下模块缺失或路径错误:|';
-                _str += '- - - - - - - - - - - - - - - - -|';
-                arr.forEach(n => _str += '-> "' + n + '"|');
-                _str += '- - - - - - - - - - - - - - - - -|';
-                _str += '请检查或重新放置模块';
-                showSplitLineRaw();
-                _str.split('|').forEach(s => messageActionRaw(s, 4));
-                showSplitLineRaw();
-                toast('模块缺失或路径错误');
-                ui.finish();
-            });
-
-            // raw function(s) //
-
-            function messageActionRaw(msg, lv, if_toast) {
-                let _msg = msg || ' ';
-                if (lv && lv.toString().match(/^t(itle)?$/)) {
-                    return messageActionRaw('[ ' + msg + ' ]', 1, if_toast);
-                }
-                if_toast && toast(_msg);
-                let _lv = typeof lv === 'undefined' ? 1 : lv;
-                if (_lv >= 4) {
-                    console.error(_msg);
-                    _lv >= 8 && exit();
-                    return false;
-                }
-                if (_lv >= 3) {
-                    console.warn(_msg);
-                    return false;
-                }
-                if (_lv === 0) {
-                    console.verbose(_msg);
-                } else if (_lv === 1) {
-                    console.log(_msg);
-                } else if (_lv === 2) {
-                    console.info(_msg);
-                }
-                return true;
+    appx() {
+        try {
+            return require('./modules/ext-app');
+        } catch (e) {
+            if (!files.exists('./modules/ext-app.js')) {
+                console.error('ext-app模块不存在');
+                console.error('请检查项目目录结构');
             }
-
-            function showSplitLineRaw(extra, style) {
-                console.log((
-                    style === 'dash' ? '- '.repeat(18).trim() : '-'.repeat(33)
-                ) + (extra || ''));
-            }
-        }
-
-        function checkSdkAndAJVer() {
-            // do not `require()` before `checkModulesMap()`
-            require('./modules/ext-app').checkSdkAndAJVer();
-        }
-
-        function checkAccessibility() {
-            // do not `require()` before `checkModulesMap()`
-            let _a11y = require('./modules/ext-device').a11y;
-            if (!_a11y.state()) {
-                let _mod_sto = require('./modules/mod-storage');
-                let $_cfg = _mod_sto.create('af_cfg').get('config', {});
-                if ($_cfg.auto_enable_a11y_svc === 'ON' && _a11y.enable(true)) {
-                    toast('已自动开启无障碍服务\n请重新运行一次配置工具');
-                } else {
-                    toast('请手动开启Auto.js无障碍服务\n然后再次运行配置工具');
-                    try {
-                        // script will not go on without a normal state of accessibility service
-                        // auto.waitFor() was abandoned here, as it may cause problems sometimes
-                        auto();
-                    } catch (e) {
-                        // consume errors msg caused by auto()
-                    }
-                }
-                ui.finish();
-            }
+            throw e;
         }
     },
+    check() {
+        this.appx().load();
+        appx.checkModules([
+            'mod-pwmap', 'mod-treasury-vault', 'mod-database',
+            'mod-monster-func', 'mod-storage', 'mod-default-config',
+            'ext-app', 'ext-files', 'ext-dialogs', 'ext-timers', 'ext-colors',
+            'ext-device', 'ext-global', 'ext-threads', 'ext-ui', 'ext-images',
+        ], {is_load: true});
+        appx.checkSdkAndAJVer();
+        appx.checkAccessibility();
+
+        uix.init({requested_orientation: 'PORTRAIT'});
+
+        return $$init;
+    },
     global() {
-        setGlobalFunctions();
-        setGlobalExtensions();
-        setGlobalObjects();
+        global.$$cfg = {
+            list_heads: {
+                project_backup_info: [{
+                    version_name: '项目版本', width: 0.5,
+                }, {
+                    timestamp: '项目备份时间',
+                    sort: {flag: -1, head_name: 'timestamp'},
+                    stringTransform: {
+                        forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
+                        backward: t => $$tool.restoreFromTimestamp(t),
+                    },
+                }],
+                server_releases_info: [{
+                    tag_name: '项目标签', width: 0.5,
+                }, {
+                    published_at: '项目发布时间',
+                    sort: {flag: -1, head_name: 'published_at'},
+                    stringTransform: {
+                        forward: t => $$tool.getTimeStrFromTs(new Date(t), 'time_str_full'),
+                    },
+                }],
+                blacklist_by_user: [{
+                    name: '支付宝好友昵称', width: 0.58,
+                }, {
+                    timestamp: '黑名单自动解除',
+                    sort: {flag: 1, head_name: 'timestamp'},
+                    stringTransform: {
+                        forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
+                        backward: t => $$tool.restoreFromTimestamp(t),
+                    },
+                }],
+                blacklist_protect_cover: [{
+                    name: '支付宝好友昵称', width: 0.58,
+                }, {
+                    timestamp: '黑名单自动解除',
+                    sort: {flag: 1, head_name: 'timestamp'},
+                    stringTransform: {
+                        forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
+                        backward: t => $$tool.restoreFromTimestamp(t),
+                    },
+                }],
+                foreground_app_blacklist: [{
+                    app_combined_name: '应用名称 (含包名)',
+                    sort: {flag: 1, head_name: 'app_combined_name'},
+                    width: 0.85,
+                }, {
+                    available: '有效', gravity: 'center', stringTransform: {
+                        forward() {
+                            let pkg_name = this.app_combined_name.split('\n')[1];
+                            return app.getAppName(pkg_name) ? '\u2713' : '\u2717';
+                        },
+                        backward: '__keep__',
+                    },
+                }],
+                timers_uninterrupted_check_sections: [{
+                    section: '时间区间', width: 0.58,
+                    sort: {flag: 1, head_name: 'section'},
+                    stringTransform: {
+                        forward: arr => $$tool.timeSectionToStr(arr),
+                        backward: str => $$tool.timeStrToSection(str),
+                    },
+                }, {
+                    interval: '间隔 (分)',
+                }],
+                timed_tasks: [{
+                    type: '任务类型', width: 0.47, stringTransform: {
+                        // []: daily; number[]: weekly; 0: disposable
+                        forward: arr => $$tool.getTimedTaskTypeStr(arr),
+                        backward: str => $$tool.restoreFromTimedTaskTypeStr(str),
+                    },
+                }, {
+                    next_run_time: '下次运行',
+                    sort: {flag: 1, head_name: 'next_run_time'},
+                    stringTransform: {
+                        forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
+                        backward: t => $$tool.restoreFromTimestamp(t),
+                    },
+                }],
+                stat_list: [{
+                    name: '用户昵称', width: 0.72,
+                }, {
+                    pick: '收取量统计',
+                    sort: {flag: -1, head_name: 'pick', type: 'number'},
+                }],
+            },
+        };
 
-        return this;
+        global.$$sto = {
+            af: require('./modules/mod-storage').create('af'),
+            af_cfg: require('./modules/mod-storage').create('af_cfg'),
+            af_blist: require('./modules/mod-storage').create('af_blist'),
+            af_flist: require('./modules/mod-storage').create('af_flist'),
+            af_bak: require('./modules/mod-storage').create('af_bak'),
+            unlock: require('./modules/mod-storage').create('unlock'),
+            def: require('./modules/mod-default-config'),
+            vault: require('./modules/mod-treasury-vault'),
+        };
 
-        // tool function(s) //
+        global.$$def = Object.assign({}, $$sto.def.settings, {
+            colors: uix._colors,
+            item_area_width: cX($$sto.def.settings.item_area_width) + 'px',
+            homepage_title: $$sto.def.af.project_desc,
+            image_base64_data: $$sto.vault.image_base64_data || {},
+            dialog_contents: $$sto.vault.dialog_contents || {},
+        });
 
-        function setGlobalFunctions() {
-            require('./modules/mod-monster-func').load([
-                'classof', 'messageAction', 'setIntervalBySetTimeout',
-                'timedTaskTimeFlagConverter', 'waitForAndClickAction',
-                'equalObjects', 'deepCloneObject', 'debugInfo',
-                'timeRecorder', 'waitForAction', 'surroundWith',
-            ]);
-        }
-
-        function setGlobalExtensions() {
-            require('./modules/ext-ui').load();
-            require('./modules/ext-app').load();
-            require('./modules/ext-files').load();
-            require('./modules/ext-dialogs').load();
-            require('./modules/ext-threads').load();
-            require('./modules/ext-images').load();
-            require('./modules/ext-global').load();
-            require('./modules/ext-timers').load();
-            require('./modules/ext-device').load();
-            require('./modules/ext-colors').load();
-
-            uix.init({requested_orientation: 'PORTRAIT'});
-        }
-
-        function setGlobalObjects() {
-            global.$$cfg = {
-                list_heads: {
-                    project_backup_info: [{
-                        version_name: '项目版本', width: 0.5,
-                    }, {
-                        timestamp: '项目备份时间',
-                        sort: {flag: -1, head_name: 'timestamp'},
-                        stringTransform: {
-                            forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
-                            backward: t => $$tool.restoreFromTimestamp(t),
-                        },
-                    }],
-                    server_releases_info: [{
-                        tag_name: '项目标签', width: 0.5,
-                    }, {
-                        published_at: '项目发布时间',
-                        sort: {flag: -1, head_name: 'published_at'},
-                        stringTransform: {
-                            forward: t => $$tool.getTimeStrFromTs(new Date(t), 'time_str_full'),
-                        },
-                    }],
-                    blacklist_by_user: [{
-                        name: '支付宝好友昵称', width: 0.58,
-                    }, {
-                        timestamp: '黑名单自动解除',
-                        sort: {flag: 1, head_name: 'timestamp'},
-                        stringTransform: {
-                            forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
-                            backward: t => $$tool.restoreFromTimestamp(t),
-                        },
-                    }],
-                    blacklist_protect_cover: [{
-                        name: '支付宝好友昵称', width: 0.58,
-                    }, {
-                        timestamp: '黑名单自动解除',
-                        sort: {flag: 1, head_name: 'timestamp'},
-                        stringTransform: {
-                            forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
-                            backward: t => $$tool.restoreFromTimestamp(t),
-                        },
-                    }],
-                    foreground_app_blacklist: [{
-                        app_combined_name: '应用名称 (含包名)',
-                        sort: {flag: 1, head_name: 'app_combined_name'},
-                        width: 0.85,
-                    }, {
-                        available: '有效', gravity: 'center', stringTransform: {
-                            forward() {
-                                let pkg_name = this.app_combined_name.split('\n')[1];
-                                return app.getAppName(pkg_name) ? '\u2713' : '\u2717';
-                            },
-                            backward: '__keep__',
-                        },
-                    }],
-                    timers_uninterrupted_check_sections: [{
-                        section: '时间区间', width: 0.58,
-                        sort: {flag: 1, head_name: 'section'},
-                        stringTransform: {
-                            forward: arr => $$tool.timeSectionToStr(arr),
-                            backward: str => $$tool.timeStrToSection(str),
-                        },
-                    }, {
-                        interval: '间隔 (分)',
-                    }],
-                    timed_tasks: [{
-                        type: '任务类型', width: 0.47, stringTransform: {
-                            // []: daily; number[]: weekly; 0: disposable
-                            forward: arr => $$tool.getTimedTaskTypeStr(arr),
-                            backward: str => $$tool.restoreFromTimedTaskTypeStr(str),
-                        },
-                    }, {
-                        next_run_time: '下次运行',
-                        sort: {flag: 1, head_name: 'next_run_time'},
-                        stringTransform: {
-                            forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
-                            backward: t => $$tool.restoreFromTimestamp(t),
-                        },
-                    }],
-                    stat_list: [{
-                        name: '用户昵称', width: 0.72,
-                    }, {
-                        pick: '收取量统计',
-                        sort: {flag: -1, head_name: 'pick', type: 'number'},
-                    }],
+        global.$$view = {
+            diag: {
+                colorSetter(opt) {
+                    let _opt = opt || {};
+                    let _rex_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
+                    let _lim_255 = _rex_255.source;
+                    let _rex_str = '^(rgb)?[\\( ]?' +
+                        _lim_255 + '[, ]+' +
+                        _lim_255 + '[, ]+' +
+                        _lim_255 + '\\)?$';
+                    let _rex_rgb_col = new RegExp(_rex_str, 'i');
+                    let _rex_hex_col = /^#?[A-F0-9]{6}$/i;
+                    let _cur_col = '';
+                    let _cfg_conj = this.config_conj;
+                    return dialogsx
+                        .builds([
+                            _opt.title || this.title, _cfg_conj,
+                            ['使用默认值', 'reset'], 'B', 'M', 1,
+                        ], {inputHint: 'rgb(RR,GG,BB) | #RRGGBB'})
+                        .on('neutral', (d) => {
+                            dialogsx.setInputText(d, $$sto.def.af[_cfg_conj]);
+                        })
+                        .on('negative', (d) => {
+                            d.dismiss();
+                        })
+                        .on('positive', (d) => {
+                            let _get_text = dialogsx.getInputText(d);
+                            if (_get_text) {
+                                if (!_cur_col) {
+                                    return dialogsx.alertTitle(d, '输入的颜色值无法识别');
+                                }
+                                let _col_val = '#' + colors.toString(+_cur_col).slice(3);
+                                $$save.session(_cfg_conj, _col_val);
+                            }
+                            d.dismiss();
+                        })
+                        .on('input_change', (d, input) => {
+                            let _col = '';
+                            try {
+                                if (input.match(_rex_hex_col)) {
+                                    _col = colors.parseColor('#' + input.slice(-6));
+                                } else if (input.match(_rex_rgb_col)) {
+                                    let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
+                                    _col = colors.rgb(+nums[0], +nums[1], +nums[2]);
+                                }
+                                dialogsx.setTitleTextColor(d, _col || colors.argb(222, 0, 0, 0));
+                                dialogsx.setContentTextColor(d, _col || colors.argb(138, 0, 0, 0));
+                                dialogsx.setTitleBackgroundColor(d, _col ? colors.argb(222, 0, 0, 0) : -1);
+                            } catch (e) {
+                                // nothing to do here
+                            }
+                            _cur_col = _col;
+                        })
+                        .show();
                 },
-            };
+                numSetter(min, max, opt, addn) {
+                    let _opt = opt || {};
+                    let _addn = addn || {};
+                    let _cfg_conj = _opt.config_conj;
+                    if ($$und(_cfg_conj)) {
+                        _cfg_conj = this.config_conj;
+                    }
+                    if ($$func(_cfg_conj)) {
+                        _cfg_conj = _cfg_conj.call(this);
+                    }
+                    let _title = _opt.title || this.title;
+                    let _content = _opt.content;
+                    let _neutral = _opt.neutral;
+                    let _negative = _opt.negative;
+                    let _positive = _opt.positive;
+                    let _def_key = _opt.def_key || 'af';
+                    let _getDefVal = () => $$sto.def[_def_key][_cfg_conj].toString();
 
-            global.$$sto = {
-                af: require('./modules/mod-storage').create('af'),
-                af_cfg: require('./modules/mod-storage').create('af_cfg'),
-                af_blist: require('./modules/mod-storage').create('af_blist'),
-                af_flist: require('./modules/mod-storage').create('af_flist'),
-                af_bak: require('./modules/mod-storage').create('af_bak'),
-                unlock: require('./modules/mod-storage').create('unlock'),
-                def: require('./modules/mod-default-config'),
-                vault: require('./modules/mod-treasury-vault'),
-            };
+                    let _set = _opt.hint_set || 'N';
+                    let _saveValue = $$func(_opt.saveValue)
+                        ? n => Number(_opt.saveValue.call(_opt, n))
+                        : _set.match(/^R[+-]?$/)
+                            ? n => Number(Number(n).toFixed(2))
+                            : n => Math.trunc(Number(n));
 
-            global.$$def = Object.assign({}, $$sto.def.settings, {
-                colors: uix._colors,
-                item_area_width: cX($$sto.def.settings.item_area_width) + 'px',
-                homepage_title: $$sto.def.af.project_desc,
-                image_base64_data: $$sto.vault.image_base64_data || {},
-                dialog_contents: $$sto.vault.dialog_contents || {},
-            });
+                    let _mini, _mini_p, _maxi, _maxi_p;
 
-            global.$$view = {
-                diag: {
-                    colorSetter(opt) {
-                        let _opt = opt || {};
-                        let _rex_255 = /([01]?\d?\d|2(?:[0-4]\d|5[0-5]))/;
-                        let _lim_255 = _rex_255.source;
-                        let _rex_str = '^(rgb)?[\\( ]?' +
-                            _lim_255 + '[, ]+' +
-                            _lim_255 + '[, ]+' +
-                            _lim_255 + '\\)?$';
-                        let _rex_rgb_col = new RegExp(_rex_str, 'i');
-                        let _rex_hex_col = /^#?[A-F0-9]{6}$/i;
-                        let _cur_col = '';
-                        let _cfg_conj = this.config_conj;
-                        return dialogsx
-                            .builds([
-                                _opt.title || this.title, _cfg_conj,
-                                ['使用默认值', 'reset'], 'B', 'M', 1,
-                            ], {inputHint: 'rgb(RR,GG,BB) | #RRGGBB'})
-                            .on('neutral', (d) => {
-                                dialogsx.setInputText(d, $$sto.def.af[_cfg_conj]);
-                            })
-                            .on('negative', (d) => {
-                                d.dismiss();
-                            })
-                            .on('positive', (d) => {
-                                let _get_text = dialogsx.getInputText(d);
-                                if (_get_text) {
-                                    if (!_cur_col) {
-                                        return dialogsx.alertTitle(d, '输入的颜色值无法识别');
-                                    }
-                                    let _col_val = '#' + colors.toString(+_cur_col).slice(3);
-                                    $$save.session(_cfg_conj, _col_val);
-                                }
-                                d.dismiss();
-                            })
-                            .on('input_change', (d, input) => {
-                                let _col = '';
-                                try {
-                                    if (input.match(_rex_hex_col)) {
-                                        _col = colors.parseColor('#' + input.slice(-6));
-                                    } else if (input.match(_rex_rgb_col)) {
-                                        let nums = input.match(/\d+.+\d+.+\d+/)[0].split(/\D+/);
-                                        _col = colors.rgb(+nums[0], +nums[1], +nums[2]);
-                                    }
-                                    dialogsx.setTitleTextColor(d, _col || colors.argb(222, 0, 0, 0));
-                                    dialogsx.setContentTextColor(d, _col || colors.argb(138, 0, 0, 0));
-                                    dialogsx.setTitleBackgroundColor(d, _col ? colors.argb(222, 0, 0, 0) : -1);
-                                } catch (e) {
-                                    // nothing to do here
-                                }
-                                _cur_col = _col;
-                            })
-                            .show();
-                    },
-                    numSetter(min, max, opt, addn) {
-                        let _opt = opt || {};
-                        let _addn = addn || {};
-                        let _cfg_conj = _opt.config_conj;
-                        if ($$und(_cfg_conj)) {
-                            _cfg_conj = this.config_conj;
+                    let _dist = _opt.distance;
+                    if (_dist) {
+                        let _cvt = _dist === 'H' ? cY : cX;
+                        let _div = _dist === 'H' ? H : W;
+                        _mini = _cvt(min);
+                        _mini_p = (_mini / _div).toFixedNum(2);
+                        _maxi = _cvt(max);
+                        _maxi_p = (_maxi / _div).toFixedNum(2);
+                        if ($$und(_content)) {
+                            _content = '';
                         }
-                        if ($$func(_cfg_conj)) {
-                            _cfg_conj = _cfg_conj.call(this);
+                        if (!$$arr(_content)) {
+                            _content = [_content];
                         }
-                        let _title = _opt.title || this.title;
-                        let _content = _opt.content;
-                        let _neutral = _opt.neutral;
-                        let _negative = _opt.negative;
-                        let _positive = _opt.positive;
-                        let _def_key = _opt.def_key || 'af';
-                        let _getDefVal = () => $$sto.def[_def_key][_cfg_conj].toString();
-
-                        let _set = _opt.hint_set || 'N';
-                        let _saveValue = $$func(_opt.saveValue)
-                            ? n => Number(_opt.saveValue.call(_opt, n))
-                            : _set.match(/^R[+-]?$/)
-                                ? n => Number(Number(n).toFixed(2))
-                                : n => Math.trunc(Number(n));
-
-                        let _mini, _mini_p, _maxi, _maxi_p;
-
-                        let _dist = _opt.distance;
-                        if (_dist) {
-                            let _cvt = _dist === 'H' ? cY : cX;
-                            let _div = _dist === 'H' ? H : W;
-                            _mini = _cvt(min);
-                            _mini_p = (_mini / _div).toFixedNum(2);
-                            _maxi = _cvt(max);
-                            _maxi_p = (_maxi / _div).toFixedNum(2);
-                            if ($$und(_content)) {
-                                _content = '';
-                            }
-                            if (!$$arr(_content)) {
-                                _content = [_content];
-                            }
-                            if ($$und(_content[1]) || !!_content[1]) {
-                                _content[1] =
-                                    '有效值: ' + _mini + ' [ ' + _mini_p + ' ] ' +
-                                    ' -  ' + _maxi + ' [ ' + _maxi_p + ' ]\n' +
-                                    '默认值: ' + _cvt(_getDefVal()) + ' [ ' + _getDefVal() + ' ]';
-                            }
-                            if (_content[0]) {
-                                if (_content[1] || _content[2]) {
-                                    _content[0] = _content[0] + '\n\n';
-                                }
-                            }
-                            if (_content[1] && _content[2]) {
-                                _content[1] = _content[1] + '\n';
-                            }
-                            _content = _content.join('');
-                        } else {
-                            _mini = _mini_p = min;
-                            _maxi = _maxi_p = max;
+                        if ($$und(_content[1]) || !!_content[1]) {
+                            _content[1] =
+                                '有效值: ' + _mini + ' [ ' + _mini_p + ' ] ' +
+                                ' -  ' + _maxi + ' [ ' + _maxi_p + ' ]\n' +
+                                '默认值: ' + _cvt(_getDefVal()) + ' [ ' + _getDefVal() + ' ]';
                         }
+                        if (_content[0]) {
+                            if (_content[1] || _content[2]) {
+                                _content[0] = _content[0] + '\n\n';
+                            }
+                        }
+                        if (_content[1] && _content[2]) {
+                            _content[1] = _content[1] + '\n';
+                        }
+                        _content = _content.join('');
+                    } else {
+                        _mini = _mini_p = min;
+                        _maxi = _maxi_p = max;
+                    }
 
-                        return dialogsx
-                            .builds([
-                                _title, $$und(_content) ? _cfg_conj : $$nul(_content) ? '' : _content,
-                                $$0(_neutral) || $$nul(_neutral) ? 0 : ['使用默认值', 'reset'],
-                                $$0(_negative) || $$nul(_negative) ? 0 : 'B',
-                                $$0(_positive) || $$nul(_positive) ? 0 : 'M',
-                                1,
-                            ], Object.assign({
-                                inputHint: (() => {
-                                    let _u = _dist ? '(*' + _dist + ')' : '';
-                                    return '{x|' + _mini_p + _u + '<=' +
-                                        'x<=' + _maxi_p + _u + ',x∈' + _set + '}';
-                                })(),
-                            }, _addn))
-                            .on('neutral', $$func(_neutral)
-                                ? d => _neutral.call(this, d, s => dialogsx.setInputText(d, s))
-                                : d => dialogsx.setInputText(d, _getDefVal()))
-                            .on('negative', $$func(_negative)
-                                ? d => _negative.call(this, d, _mini, _maxi)
-                                : d => d.dismiss())
-                            .on('positive', $$func(_positive)
-                                ? d => _positive.call(this, d, _mini, _maxi)
-                                : (d) => {
-                                    let _f = () => {
-                                        d.dismiss();
-                                        $$save.session(_cfg_conj, _saveValue(_n));
-                                    };
-                                    let _range = [_mini, _maxi];
-                                    let _range_p = [_mini_p, _maxi_p];
-                                    let _n = $$view.diag.checkInputRange(d, _range, _range_p);
-                                    if (!$$F(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
-                                        return _f();
-                                    }
-                                })
-                            .show();
-                    },
-                    rectSetter(opt) {
-                        let _opt = opt || {};
-                        let _cfg_conj = this.config_conj;
-                        let _def_key = _opt.def_key || 'af';
-                        let _title = _opt.title || this.title || '矩形区域设置';
-
-                        dialogsx
-                            .builds([
-                                _title, _cfg_conj,
-                                '使用默认值', 'Q', 'M', 1,
-                            ], {inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%'})
-                            .on('neutral', (d) => {
-                                dialogsx.setInputText(d, $$sto.def[_def_key][_cfg_conj].join(','));
-                            })
-                            .on('negative', (d) => {
-                                d.dismiss();
-                            })
-                            .on('positive', (d) => {
-                                let _get_text = dialogsx.getInputText(d);
-                                if (!_get_text) {
-                                    return d.dismiss();
-                                }
-                                let _nums = _get_text.split(/[^\d.%]+/);
-                                if (_standardize(_nums, d)) {
+                    return dialogsx
+                        .builds([
+                            _title, $$und(_content) ? _cfg_conj : $$nul(_content) ? '' : _content,
+                            $$0(_neutral) || $$nul(_neutral) ? 0 : ['使用默认值', 'reset'],
+                            $$0(_negative) || $$nul(_negative) ? 0 : 'B',
+                            $$0(_positive) || $$nul(_positive) ? 0 : 'M',
+                            1,
+                        ], Object.assign({
+                            inputHint: (() => {
+                                let _u = _dist ? '(*' + _dist + ')' : '';
+                                return '{x|' + _mini_p + _u + '<=' +
+                                    'x<=' + _maxi_p + _u + ',x∈' + _set + '}';
+                            })(),
+                        }, _addn))
+                        .on('neutral', $$func(_neutral)
+                            ? d => _neutral.call(this, d, s => dialogsx.setInputText(d, s))
+                            : d => dialogsx.setInputText(d, _getDefVal()))
+                        .on('negative', $$func(_negative)
+                            ? d => _negative.call(this, d, _mini, _maxi)
+                            : d => d.dismiss())
+                        .on('positive', $$func(_positive)
+                            ? d => _positive.call(this, d, _mini, _maxi)
+                            : (d) => {
+                                let _f = () => {
                                     d.dismiss();
-                                    return $$save.session(_cfg_conj, _nums);
-                                }
-                            })
-                            .show();
-
-                        // tool function(s) //
-
-                        function _standardize(nums, d) {
-                            let _l = nums.length;
-                            if (_l !== 4) {
-                                return dialogsx.alertTitle(d, '解析的数值数量不为4');
-                            }
-                            for (let i = 0; i < _l; i += 1) {
-                                let _num = nums[i];
-                                if (_num.match(/%$/)) {
-                                    _num = _num.replace(/[^\d.]/g, '') / 100;
-                                } else if (+_num >= 1) {
-                                    _num /= i % 2 ? H : W;
-                                }
-                                if (isNaN(+_num)) {
-                                    return dialogsx.alertTitle(d, '第' + i + '个参数无法解析');
-                                }
-                                nums[i] = +_num;
-                            }
-                            if (nums[0] < 0) {
-                                return dialogsx.alertTitle(d, '"左"值需大于0');
-                            }
-                            if (nums[1] < 0) {
-                                return dialogsx.alertTitle(d, '"上"值需大于0');
-                            }
-                            if (nums[2] > 1) {
-                                return dialogsx.alertTitle(d, '"右"值不可大于屏幕宽度');
-                            }
-                            if (nums[3] > 1) {
-                                return dialogsx.alertTitle(d, '"下"值不可大于屏幕高度');
-                            }
-                            if (nums[0] >= nums[2]) {
-                                return dialogsx.alertTitle(d, '"左"值需小于"右"值');
-                            }
-                            if (nums[1] >= nums[3]) {
-                                return dialogsx.alertTitle(d, '"上"值需小于"下"值');
-                            }
-                            return true;
-                        }
-                    },
-                    radioSetter(opt) {
-                        let _opt = opt || {};
-                        let _map = _opt['map'] || this.map;
-                        let _keys = Object.keys(_map);
-                        let _title = _opt.title || this.title;
-                        let _content = _opt.content || '';
-
-                        let _cfg_conj = this.config_conj;
-                        let _def_key = _opt.def_key || 'af';
-                        let _def_sto_idx = $$sto.def[_def_key][_cfg_conj];
-                        let _def_idx = _opt.def_idx;
-                        if ($$und(_def_idx)) {
-                            let _v = $$cfg.ses[_cfg_conj] || _def_sto_idx;
-                            _def_idx = _keys.indexOf(_v.toString());
-                        } else if ($$func(_def_idx)) {
-                            _def_idx = _def_idx.call(this);
-                        }
-
-                        let _saveValue = $$func(_opt.saveValue)
-                            ? d => _opt.saveValue.call(_opt, d)
-                            : d => $$save.session(_cfg_conj, _keys[d.selectedIndex]);
-
-                        let _neutral = _opt.neutral;
-                        let _neu_value;
-                        let _neu_lsn;
-                        if ($$0(_neutral)) {
-                            _neu_value = 0;
-                            _neu_lsn = () => null;
-                        } else if ($$func(_neutral)) {
-                            _neu_value = ['了解详情', 'hint'];
-                            _neu_lsn = d => _neutral.call(this, d);
-                        } else if ($$obj(_neutral)) {
-                            _neu_value = _neutral.value;
-                            _neu_lsn = d => _neutral.listener.call(this, d);
-                        } else {
-                            _neu_value = ['使用默认值', 'reset'];
-                            _neu_lsn = d => d.setSelectedIndex(_def_sto_idx);
-                        }
-
-                        let _neg_value;
-                        let _neg_lsn;
-                        let _negative = _opt['negative'] || 'B';
-                        if ($$func(_negative)) {
-                            _neg_value = _negative;
-                            _neg_lsn = d => _negative.call(this, d);
-                        } else if ($$obj(_negative)) {
-                            _neg_value = _negative.value;
-                            _neg_lsn = d => _negative.listener.call(this, d);
-                        } else {
-                            _neg_value = _negative;
-                            _neg_lsn = d => d.dismiss();
-                        }
-
-                        let _pos_value;
-                        let _pos_lsn;
-                        let _positive = _opt.positive || 'M';
-                        if ($$func(_positive)) {
-                            _pos_value = _positive;
-                            _pos_lsn = d => _positive.call(this, d);
-                        } else if ($$obj(_positive)) {
-                            _pos_value = _positive.value;
-                            _pos_lsn = (d) => $$func(_positive.listener)
-                                ? _positive.listener.call(this, d)
-                                : (d) => {
-                                    _saveValue(d);
-                                    d.dismiss();
+                                    $$save.session(_cfg_conj, _saveValue(_n));
                                 };
-                        } else {
-                            _pos_value = _positive;
-                            _pos_lsn = (d) => {
+                                let _range = [_mini, _maxi];
+                                let _range_p = [_mini_p, _maxi_p];
+                                let _n = $$view.diag.checkInputRange(d, _range, _range_p);
+                                if (!$$F(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
+                                    return _f();
+                                }
+                            })
+                        .show();
+                },
+                rectSetter(opt) {
+                    let _opt = opt || {};
+                    let _cfg_conj = this.config_conj;
+                    let _def_key = _opt.def_key || 'af';
+                    let _title = _opt.title || this.title || '矩形区域设置';
+
+                    dialogsx
+                        .builds([
+                            _title, _cfg_conj,
+                            '使用默认值', 'Q', 'M', 1,
+                        ], {inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%'})
+                        .on('neutral', (d) => {
+                            dialogsx.setInputText(d, $$sto.def[_def_key][_cfg_conj].join(','));
+                        })
+                        .on('negative', (d) => {
+                            d.dismiss();
+                        })
+                        .on('positive', (d) => {
+                            let _get_text = dialogsx.getInputText(d);
+                            if (!_get_text) {
+                                return d.dismiss();
+                            }
+                            let _nums = _get_text.split(/[^\d.%]+/);
+                            if (_standardize(_nums, d)) {
+                                d.dismiss();
+                                return $$save.session(_cfg_conj, _nums);
+                            }
+                        })
+                        .show();
+
+                    // tool function(s) //
+
+                    function _standardize(nums, d) {
+                        let _l = nums.length;
+                        if (_l !== 4) {
+                            return dialogsx.alertTitle(d, '解析的数值数量不为4');
+                        }
+                        for (let i = 0; i < _l; i += 1) {
+                            let _num = nums[i];
+                            if (_num.match(/%$/)) {
+                                _num = _num.replace(/[^\d.]/g, '') / 100;
+                            } else if (+_num >= 1) {
+                                _num /= i % 2 ? H : W;
+                            }
+                            if (isNaN(+_num)) {
+                                return dialogsx.alertTitle(d, '第' + i + '个参数无法解析');
+                            }
+                            nums[i] = +_num;
+                        }
+                        if (nums[0] < 0) {
+                            return dialogsx.alertTitle(d, '"左"值需大于0');
+                        }
+                        if (nums[1] < 0) {
+                            return dialogsx.alertTitle(d, '"上"值需大于0');
+                        }
+                        if (nums[2] > 1) {
+                            return dialogsx.alertTitle(d, '"右"值不可大于屏幕宽度');
+                        }
+                        if (nums[3] > 1) {
+                            return dialogsx.alertTitle(d, '"下"值不可大于屏幕高度');
+                        }
+                        if (nums[0] >= nums[2]) {
+                            return dialogsx.alertTitle(d, '"左"值需小于"右"值');
+                        }
+                        if (nums[1] >= nums[3]) {
+                            return dialogsx.alertTitle(d, '"上"值需小于"下"值');
+                        }
+                        return true;
+                    }
+                },
+                radioSetter(opt) {
+                    let _opt = opt || {};
+                    let _map = _opt['map'] || this.map;
+                    let _keys = Object.keys(_map);
+                    let _title = _opt.title || this.title;
+                    let _content = _opt.content || '';
+
+                    let _cfg_conj = this.config_conj;
+                    let _def_key = _opt.def_key || 'af';
+                    let _def_sto_idx = $$sto.def[_def_key][_cfg_conj];
+                    let _def_idx = _opt.def_idx;
+                    if ($$und(_def_idx)) {
+                        let _v = $$cfg.ses[_cfg_conj] || _def_sto_idx;
+                        _def_idx = _keys.indexOf(_v.toString());
+                    } else if ($$func(_def_idx)) {
+                        _def_idx = _def_idx.call(this);
+                    }
+
+                    let _saveValue = $$func(_opt.saveValue)
+                        ? d => _opt.saveValue.call(_opt, d)
+                        : d => $$save.session(_cfg_conj, _keys[d.selectedIndex]);
+
+                    let _neutral = _opt.neutral;
+                    let _neu_value;
+                    let _neu_lsn;
+                    if ($$0(_neutral)) {
+                        _neu_value = 0;
+                        _neu_lsn = () => null;
+                    } else if ($$func(_neutral)) {
+                        _neu_value = ['了解详情', 'hint'];
+                        _neu_lsn = d => _neutral.call(this, d);
+                    } else if ($$obj(_neutral)) {
+                        _neu_value = _neutral.value;
+                        _neu_lsn = d => _neutral.listener.call(this, d);
+                    } else {
+                        _neu_value = ['使用默认值', 'reset'];
+                        _neu_lsn = d => d.setSelectedIndex(_def_sto_idx);
+                    }
+
+                    let _neg_value;
+                    let _neg_lsn;
+                    let _negative = _opt['negative'] || 'B';
+                    if ($$func(_negative)) {
+                        _neg_value = _negative;
+                        _neg_lsn = d => _negative.call(this, d);
+                    } else if ($$obj(_negative)) {
+                        _neg_value = _negative.value;
+                        _neg_lsn = d => _negative.listener.call(this, d);
+                    } else {
+                        _neg_value = _negative;
+                        _neg_lsn = d => d.dismiss();
+                    }
+
+                    let _pos_value;
+                    let _pos_lsn;
+                    let _positive = _opt.positive || 'M';
+                    if ($$func(_positive)) {
+                        _pos_value = _positive;
+                        _pos_lsn = d => _positive.call(this, d);
+                    } else if ($$obj(_positive)) {
+                        _pos_value = _positive.value;
+                        _pos_lsn = (d) => $$func(_positive.listener)
+                            ? _positive.listener.call(this, d)
+                            : (d) => {
                                 _saveValue(d);
                                 d.dismiss();
                             };
-                        }
-
-                        return dialogsx
-                            .builds([
-                                _title, _content,
-                                _neu_value, _neg_value, _pos_value, 1,
-                            ], {
-                                items: _keys.slice().map(k => _map[k]),
-                                itemsSelectMode: 'single',
-                                itemsSelectedIndex: _def_idx,
-                            })
-                            .on('neutral', _neu_lsn)
-                            .on('negative', _neg_lsn)
-                            .on('positive', _pos_lsn)
-                            .on('single_choice', $$func(_opt.single_choice)
-                                ? (i, v, d) => _opt.single_choice.call(this, i, v, d)
-                                : () => null)
-                            .show();
-                    },
-                    checkInputRange(d) {
-                        let _input = dialogsx.getInputText(d);
-                        if (!_input) {
+                    } else {
+                        _pos_value = _positive;
+                        _pos_lsn = (d) => {
+                            _saveValue(d);
                             d.dismiss();
-                            return false;
-                        }
-                        let _max = 3;
-                        while (_input.match('%') && _max--) {
-                            _input = _input.replace(/(\d+(\.\d+)?\s*)%/g, ($0, $1) => {
-                                return $1 / 100 + '';
-                            });
-                        }
-                        let _num = +_input;
-                        if (isNaN(_num)) {
-                            dialogsx.alertTitle(d, '输入值类型不合法');
-                            return false;
-                        }
+                        };
+                    }
 
-                        let _len = arguments.length;
-                        for (let i = 1; i < _len; i += 1) {
-                            let [_min, _max] = [];
-                            let _arg = arguments[i];
-                            if ($$num(_arg) || $$str(_arg)) {
-                                _min = +_arg;
-                                _max = +arguments[++i];
-                            } else if ($$arr(_arg)) {
-                                [_min, _max] = _arg;
-                            } else {
-                                continue;
-                            }
-                            if ($$num(_min, '<=', _num, '<=', _max)) {
-                                return _num.toString();
-                            }
-                        }
-
-                        dialogsx.alertTitle(d, '输入值范围不合法');
+                    return dialogsx
+                        .builds([
+                            _title, _content,
+                            _neu_value, _neg_value, _pos_value, 1,
+                        ], {
+                            items: _keys.slice().map(k => _map[k]),
+                            itemsSelectMode: 'single',
+                            itemsSelectedIndex: _def_idx,
+                        })
+                        .on('neutral', _neu_lsn)
+                        .on('negative', _neg_lsn)
+                        .on('positive', _pos_lsn)
+                        .on('single_choice', $$func(_opt.single_choice)
+                            ? (i, v, d) => _opt.single_choice.call(this, i, v, d)
+                            : () => null)
+                        .show();
+                },
+                checkInputRange(d) {
+                    let _input = dialogsx.getInputText(d);
+                    if (!_input) {
+                        d.dismiss();
                         return false;
-                    },
-                },
-                hint: {
-                    colorSetter(view) {
-                        let _sess_val = $$cfg.ses[this.config_conj];
-                        if (classof(_sess_val, 'Array')) {
-                            let _len = _sess_val.length;
-                            if (_len) {
-                                let _s = _sess_val.join(' , ');
-                                view.setHints('共' + _len + '项色值  [ ' + _s + ' ]');
-                            } else {
-                                view.setHints('无数据');
-                            }
+                    }
+                    let _max = 3;
+                    while (_input.match('%') && _max--) {
+                        _input = _input.replace(/(\d+(\.\d+)?\s*)%/g, ($0, $1) => {
+                            return $1 / 100 + '';
+                        });
+                    }
+                    let _num = +_input;
+                    if (isNaN(_num)) {
+                        dialogsx.alertTitle(d, '输入值类型不合法');
+                        return false;
+                    }
+
+                    let _len = arguments.length;
+                    for (let i = 1; i < _len; i += 1) {
+                        let [_min, _max] = [];
+                        let _arg = arguments[i];
+                        if ($$num(_arg) || $$str(_arg)) {
+                            _min = +_arg;
+                            _max = +arguments[++i];
+                        } else if ($$arr(_arg)) {
+                            [_min, _max] = _arg;
                         } else {
-                            let _col = _sess_val.toString();
-                            view.setHints('#', _col.slice(1) + ' ', _col);
+                            continue;
                         }
-                    },
+                        if ($$num(_min, '<=', _num, '<=', _max)) {
+                            return _num.toString();
+                        }
+                    }
+
+                    dialogsx.alertTitle(d, '输入值范围不合法');
+                    return false;
                 },
-                udop: {
-                    main_sw(view, dependencies) {
-                        view.setHintText($$cfg.ses[this.config_conj] ? '已开启' : '已关闭');
-                        dependencies && $$view.checkDependency(view, dependencies);
-                    },
+            },
+            hint: {
+                colorSetter(view) {
+                    let _sess_val = $$cfg.ses[this.config_conj];
+                    if (classof(_sess_val, 'Array')) {
+                        let _len = _sess_val.length;
+                        if (_len) {
+                            let _s = _sess_val.join(' , ');
+                            view.setHints('共' + _len + '项色值  [ ' + _s + ' ]');
+                        } else {
+                            view.setHints('无数据');
+                        }
+                    } else {
+                        let _col = _sess_val.toString();
+                        view.setHints('#', _col.slice(1) + ' ', _col);
+                    }
                 },
-                page: {
-                    buffer: {},
-                    rolling: [],
-                    get last_rolling() {
-                        return this.rolling[this.rolling.length - 1] || {};
+            },
+            udop: {
+                main_sw(view, dependencies) {
+                    view.setHintText($$cfg.ses[this.config_conj] ? '已开启' : '已关闭');
+                    dependencies && $$view.checkDependency(view, dependencies);
+                },
+            },
+            page: {
+                buffer: {},
+                rolling: [],
+                get last_rolling() {
+                    return this.rolling[this.rolling.length - 1] || {};
+                },
+                tree: {
+                    self_collect_page: {
+                        homepage_monitor_page: null,
+                        homepage_background_monitor_page: null,
+                        homepage_wball_page: null,
                     },
-                    tree: {
-                        self_collect_page: {
-                            homepage_monitor_page: null,
-                            homepage_background_monitor_page: null,
-                            homepage_wball_page: null,
-                        },
-                        friend_collect_page: {
-                            rank_list_samples_collect_page: {
-                                rank_list_review_page: null,
-                            },
-                            forest_samples_collect_page: {
-                                eballs_color_config_page: null,
-                                hough_strategy_page: null,
-                            },
-                        },
-                        auto_unlock_page: null,
-                        message_showing_page: null,
-                        global_log_page: null,
-                        timers_page: {
-                            homepage_monitor_page: null,
+                    friend_collect_page: {
+                        collectable_samples_page: {
                             rank_list_review_page: null,
-                            timers_self_manage_page: {
-                                timers_uninterrupted_check_sections_page: null,
-                            },
-                            timers_control_panel_page: null,
                         },
-                        account_page: {
-                            account_log_back_in_page: null,
+                        forest_samples_collect_page: {
+                            eballs_color_config_page: null,
+                            hough_strategy_page: null,
                         },
-                        stat_page: null,
-                        blacklist_page: {
-                            cover_blacklist_page: null,
-                            collect_blacklist_page: null,
-                            foreground_app_blacklist_page: null,
-                        },
-                        script_security_page: {
-                            kill_when_done_page: null,
-                            phone_call_state_monitor_page: null,
-                        },
-                        local_project_backup_restore_page: {
-                            restore_projects_from_local_page: null,
-                            restore_projects_from_server_page: null,
-                        },
-                        update_auto_check_page: null,
                     },
-                    new(title, tt_key, f) {
-                        return this.buffer[tt_key] = f.bind(null, [title, tt_key]);
+                    auto_unlock_page: null,
+                    message_showing_page: null,
+                    global_log_page: null,
+                    timers_page: {
+                        homepage_monitor_page: null,
+                        rank_list_review_page: null,
+                        timers_self_manage_page: {
+                            timers_uninterrupted_check_sections_page: null,
+                        },
+                        timers_control_panel_page: null,
                     },
-                    jump(drxn, nxt) {
-                        if (!global._$_page_scrolling_locked) {
-                            if (nxt !== this.last_rolling.page_label_name) {
-                                global._$_page_scrolling_locked = true;
-                                let _pool = this.rolling;
-                                if (drxn.match(/back|previous|last/)) {
-                                    uix.smoothScrollPage('right', {
-                                        onSuccess() {
-                                            _pool.pop();
-                                            delete global._$_page_scrolling_locked;
-                                        },
-                                    }, {pages_pool: _pool});
-                                } else {
-                                    uix.smoothScrollPage('left', {
-                                        onStart: () => _pool.push($$view.pages[nxt]),
-                                        onSuccess() {
-                                            delete global._$_page_scrolling_locked;
-                                        },
-                                    }, {pages_pool: _pool});
-                                }
-                            }
-                        }
+                    account_page: {
+                        account_log_back_in_page: null,
                     },
-                    flush() {
-                        let _pages_buffer = [];
-                        let _pages_buffered_name = {};
-                        let _emit = () => $$lsn.emit('sub_page_views_add');
-
-                        // `_pages_buffer` will be updated
-                        _traversePages(this.buffer, this.tree);
-                        _pages_buffer.forEach(f => $$view.sub_pages.push(f));
-
-                        _emit();
-
-                        let _itv = setInterval(() => {
-                            let i = $$ses.sub_page_view_idx;
-                            let j = $$view.sub_pages.length;
-                            i < j ? _emit() : clearInterval(_itv);
-                        }, 50);
-
-                        // tool function(s) //
-
-                        function _traversePages(pages, tree) {
-                            // traverse the page views by BFS (Breadth-First-Search) algorithm
-                            // and put all widgets into _pages_buffer[] traversed
-                            let sub_trees = [];
-                            Object.keys(tree).forEach((key) => {
-                                if (key in pages && !_pages_buffered_name[key]) {
-                                    _pages_buffer.push(pages[key]);
-                                    _pages_buffered_name[key] = true;
-                                }
-                                if (classof(tree[key], 'Object')) {
-                                    sub_trees.push(tree[key]);
-                                }
-                            });
-                            sub_trees.forEach(sub_tree => _traversePages(pages, sub_tree));
-                        }
+                    stat_page: null,
+                    blacklist_page: {
+                        cover_blacklist_page: null,
+                        collect_blacklist_page: null,
+                        foreground_app_blacklist_page: null,
                     },
+                    script_security_page: {
+                        kill_when_done_page: null,
+                        phone_call_state_monitor_page: null,
+                    },
+                    local_project_backup_restore_page: {
+                        restore_projects_from_local_page: null,
+                        restore_projects_from_server_page: null,
+                    },
+                    update_auto_check_page: null,
                 },
-                pages: {},
-                sub_pages: [],
-                dyn_pages: [],
-                setHomePage(home_title, bg_color) {
-                    let _homepage = $$view.setPage(home_title, (p_view) => (
-                        $$view.setButtons(p_view, 'homepage', ['save', 'SAVE', 'OFF', (v) => {
-                            if ($$save.trigger()) {
-                                $$save.config();
-                                v.switch_off();
-                                toast('已保存');
-                            }
-                        }])
-                    ), {action_bar_bg: bg_color});
-
-                    _homepage.ready = function () {
-                        ui.main.addView(_homepage);
-                        _homepage['_back'].setVisibility(8);
-                        $$view.page.rolling.unshift(_homepage);
-                    };
-
-                    return _homepage;
+                new(title, tt_key, f) {
+                    return this.buffer[tt_key] = f.bind(null, [title, tt_key]);
                 },
-                setPage(title, addn_func, options) {
-                    let {no_scroll_view, check_page_state, action_bar_bg} = options || {};
-                    let [_title_name, _label_name] = $$arr(title) ? title : [title, ''];
-
-                    let _page_view = ui.inflate(<vertical/>);
-
-                    _page_view.addView(_getTitleBarView());
-                    _page_view.addView(_getContentView());
-
-                    _page_view.add = function (type, opt) {
-                        let _v;
-                        if (type.match(/^(.+_)?split_line/)) {
-                            _v = setSplitLine(opt);
-                        } else if (type === 'subhead') {
-                            _v = setSubHead(opt);
-                        } else if (type === 'blank') {
-                            _v = setBlank(opt);
-                        } else if (type === 'info') {
-                            _v = setInfo(opt);
-                        } else if (type === 'list') {
-                            _page_view.hideContentMarginTop();
-                            _v = setList(opt);
-                        } else if (type === 'seekbar') {
-                            _v = setSeekbar(opt);
-                        } else {
-                            _v = ui.inflate(
-                                <horizontal id="_item_area" padding="16 8" gravity="left|center">
-                                    <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
-                                              gravity="left|center">
-                                        <text id="_title" size="16"/>
-                                    </vertical>
-                                </horizontal>);
-                            _v['_title'].setTextColor(colorsx.toInt($$def.colors.item_title));
-                        }
-
-                        if (!$$obj(opt)) {
-                            _page_view.content_view.addView(_v);
-                            return _page_view;
-                        }
-
-                        _v.setNextPage = p => opt.next_page = p;
-                        _v.getNextPage = () => opt.next_page;
-                        _v.setHintText = (s) => {
-                            _v['_hint'] && ui.post(() => {
-                                _v['_hint'].text(s);
-                            });
-                        };
-                        _v.setHintTextColor = (c) => {
-                            _v['_hint'] && _v['_hint'].setTextColor(colorsx.toInt(c));
-                        };
-                        _v.setHintVisibility = (v) => {
-                            _v['_hint'] && ui.post(() => {
-                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                _v['_hint'].setVisibility(v);
-                            });
-                        };
-                        _v.setTitleText = (s) => {
-                            _v['_title'] && ui.post(() => {
-                                _v['_title'].text(s);
-                            });
-                        };
-                        _v.setTitleTextColor = (c) => {
-                            _v['_title'] && _v['_title'].setTextColor(colorsx.toInt(c));
-                        };
-                        _v.setChevronVisibility = (v) => {
-                            _v['_chevron_icon'] && ui.post(() => {
-                                v = $$T(v) ? 0 : $$F(v) ? 8 : v;
-                                _v['_chevron_icon'].setVisibility(v);
-                            });
-                        };
-                        _v.page_view = _page_view;
-
-                        let hint = opt.hint;
-                        if (hint) {
-                            let _hint_view = ui.inflate(
-                                <horizontal id="_hints">
-                                    <horizontal>
-                                        <text id="_hint" size="13sp"/>
-                                    </horizontal>
-                                </horizontal>);
-                            let _getHintView = (text) => {
-                                let _view = ui.inflate(
-                                    <horizontal>
-                                        <text id="_sub_hint" size="13sp"/>
-                                    </horizontal>);
-                                let _col = text.match(/#[a-fA-F\d]{6,}/);
-                                let _hint = _view['_sub_hint'];
-                                if (_col) {
-                                    _hint.setText('\u25D1'); // "◑"
-                                    _hint.setTextColor(colorsx.toInt(_col[0]));
-                                } else {
-                                    _hint.setText(text);
-                                    _hint.setTextColor(colorsx.toInt($$def.colors.item_hint));
-                                }
-                                return _view;
-                            };
-
-                            _v.setHints = function () {
-                                let _arg_len = arguments.length;
-                                let _views = [];
-                                for (let i = 0; i < _arg_len; i += 1) {
-                                    _views[i] = _getHintView.call({}, arguments[i]);
-                                }
-                                _hint_view['_hints'].removeAllViews();
-                                _views.forEach(v => _hint_view['_hints'].addView(v));
-                            };
-
-                            if ($$str(hint)) {
-                                _hint_view['_hint'].setText(hint);
-                            }
-                            _v['_content'].addView(_hint_view);
-                        }
-
-                        if (type === 'radio') {
-                            _v['_item_area'].removeAllViews();
-                            let radiogroup_view = ui.inflate(
-                                <radiogroup
-                                    id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"
-                                />);
-                            opt.view = _v;
-                            let title = opt.title;
-
-                            title.forEach((val) => {
-                                let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
-                                radio_view.setText(val);
-                                Object.keys(opt.listeners).forEach((listener) => {
-                                    radio_view.on(listener, opt.listeners[listener].bind(opt));
-                                });
-                                radiogroup_view['_radiogroup'].addView(radio_view);
-                            });
-                            _v.addView(radiogroup_view);
-                        }
-
-                        _v.setTitleText(opt.title);
-
-                        if (type.match(/.*switch$/)) {
-                            let sw_view;
-                            if (type === 'switch') {
-                                // noinspection JSUnresolvedReactComponent
-                                sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
-                                if ($$F(opt.default_state)) {
-                                    sw_view['_switch'].setChecked(false);
-                                }
-                            }
-                            if (type === 'checkbox_switch') {
-                                sw_view = ui.inflate(
-                                    <vertical padding="8 0 0 0">
-                                        <checkbox id="_checkbox_switch" checked="true"/>
-                                    </vertical>);
-                                if ($$F(opt.default_state)) {
-                                    sw_view['_checkbox_switch'].setChecked(false);
-                                }
-                            }
-                            _v['_item_area'].addView(sw_view);
-                            opt.view = _v;
-
-                            let listener_ids = opt.listeners;
-                            Object.keys(listener_ids).forEach((id) => {
-                                let listeners = listener_ids[id];
-                                Object.keys(listeners).forEach((listener) => {
-                                    let callback = listeners[listener].bind(opt);
-                                    if (id === 'ui') {
-                                        ui.emitter.prependListener(listener, callback);
-                                    } else {
-                                        _v[id].on(listener, callback);
-                                    }
-                                });
-                            });
-                        } else if (type.match(/^page/)) {
-                            opt.view = _v;
-
-                            _v.setClickListener = function (listener) {
-                                _v['_item_area'].removeAllListeners('click');
-                                _v['_item_area'].on('click', listener || (r => r));
-                            };
-                            _v.restoreClickListener = function () {
-                                _v.setClickListener(() => {
-                                    let next_page = opt.next_page;
-                                    let opt_listeners = opt.listeners;
-                                    let opt_listeners_f = opt_listeners && opt_listeners.click;
-                                    let _next_page_view = next_page && $$view.pages[next_page];
-                                    if ($$func(opt_listeners_f)) {
-                                        opt_listeners_f(_v, _next_page_view);
-                                    }
-                                    if (_next_page_view) {
-                                        $$view.page.jump('next', next_page);
-                                    }
-                                });
-                            };
-
-                            // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                            let _page_enter_view = ui.inflate(
-                                <vertical id="_chevron_icon">
-                                    <img id="img" h="31" paddingLeft="10"
-                                         src="@drawable/ic_chevron_right_black_48dp"
-                                         bg="?selectableItemBackgroundBorderless"/>
-                                </vertical>);
-                            uix.setImageTint(_page_enter_view['img'], $$def.colors.chevron_icon);
-                            _v['_item_area'].addView(_page_enter_view);
-
-                            _v.setClickListener();
-                            _v.setChevronVisibility(8);
-
-                            let _itv_id = setInterval(() => {
-                                if ($$ses['ready_signal_' + opt.next_page]) {
-                                    ui.post(() => {
-                                        _v.restoreClickListener();
-                                        _v.setChevronVisibility(0);
-                                    });
-                                    clearInterval(_itv_id);
-                                }
-                            }, 100);
-                        } else if (type === 'button') {
-                            // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                            let help_view = ui.inflate(
-                                <vertical id="_info_icon" visibility="gone">
-                                    <img id="img" src="@drawable/ic_info_outline_black_48dp"
-                                         h="22" bg="?selectableItemBackgroundBorderless"/>
-                                </vertical>);
-                            uix.setImageTint(help_view['img'], $$def.colors.item_hint);
-                            _v['_item_area'].addView(help_view);
-                            opt.view = _v;
-                            _v['_item_area'].on('click', opt.newWindow.bind(opt));
-                            if (opt.infoWindow) {
-                                _v['_info_icon'].setVisibility(0);
-                                _v['_info_icon'].on('click', opt.infoWindow.bind(opt));
+                jump(drxn, nxt) {
+                    if (!global._$_page_scrolling_locked) {
+                        if (nxt !== this.last_rolling.page_label_name) {
+                            global._$_page_scrolling_locked = true;
+                            let _pool = this.rolling;
+                            if (drxn.match(/back|previous|last/)) {
+                                uix.smoothScrollPage('right', {
+                                    onSuccess() {
+                                        _pool.pop();
+                                        delete global._$_page_scrolling_locked;
+                                    },
+                                }, {pages_pool: _pool});
+                            } else {
+                                uix.smoothScrollPage('left', {
+                                    onStart: () => _pool.push($$view.pages[nxt]),
+                                    onSuccess() {
+                                        delete global._$_page_scrolling_locked;
+                                    },
+                                }, {pages_pool: _pool});
                             }
                         }
+                    }
+                },
+                flush() {
+                    let _pages_buffer = [];
+                    let _pages_buffered_name = {};
+                    let _emit = () => $$lsn.emit('sub_page_views_add');
 
-                        if (opt.view_tag) {
-                            _v.setTag(opt.view_tag);
-                        }
+                    // `_pages_buffer` will be updated
+                    _traversePages(this.buffer, this.tree);
+                    _pages_buffer.forEach(f => $$view.sub_pages.push(f));
 
-                        _page_view.content_view.addView(_v);
+                    _emit();
 
-                        Object.keys(opt).forEach((key) => {
-                            if (!key.match(/listeners/)) {
-                                let item_data = opt[key];
-                                if (!$$func(item_data)) {
-                                    return _v[key] = item_data;
-                                }
-                                if (key === 'updateOpr') {
-                                    $$view.dyn_pages.push(_v);
-                                    return (_v.updateOpr = () => item_data.call(opt, _v))();
-                                }
-                                _v[key] = item_data.bind(_v);
+                    let _itv = setInterval(() => {
+                        let i = $$ses.sub_page_view_idx;
+                        let j = $$view.sub_pages.length;
+                        i < j ? _emit() : clearInterval(_itv);
+                    }, 50);
+
+                    // tool function(s) //
+
+                    function _traversePages(pages, tree) {
+                        // traverse the page views by BFS (Breadth-First-Search) algorithm
+                        // and put all widgets into _pages_buffer[] traversed
+                        let sub_trees = [];
+                        Object.keys(tree).forEach((key) => {
+                            if (key in pages && !_pages_buffered_name[key]) {
+                                _pages_buffer.push(pages[key]);
+                                _pages_buffered_name[key] = true;
+                            }
+                            if (classof(tree[key], 'Object')) {
+                                sub_trees.push(tree[key]);
                             }
                         });
+                        sub_trees.forEach(sub_tree => _traversePages(pages, sub_tree));
+                    }
+                },
+            },
+            pages: {},
+            sub_pages: [],
+            dyn_pages: [],
+            setHomePage(home_title, bg_color) {
+                let _homepage = $$view.setPage(home_title, (p_view) => (
+                    $$view.setButtons(p_view, 'homepage', ['save', 'SAVE', 'OFF', (v) => {
+                        if ($$save.trigger()) {
+                            $$save.config();
+                            v.switch_off();
+                            toast('已保存');
+                        }
+                    }])
+                ), {action_bar_bg: bg_color});
 
+                _homepage.ready = function () {
+                    ui.main.addView(_homepage);
+                    _homepage['_back'].setVisibility(8);
+                    $$view.page.rolling.unshift(_homepage);
+                };
+
+                return _homepage;
+            },
+            setPage(title, addn_func, options) {
+                let {no_scroll_view, check_page_state, action_bar_bg} = options || {};
+                let [_title_name, _label_name] = $$arr(title) ? title : [title, ''];
+
+                let _page_view = ui.inflate(<vertical/>);
+
+                _page_view.addView(_getTitleBarView());
+                _page_view.addView(_getContentView());
+
+                _page_view.add = function (type, opt) {
+                    let _v;
+                    if (type.match(/^(.+_)?split_line/)) {
+                        _v = setSplitLine(opt);
+                    } else if (type === 'subhead') {
+                        _v = setSubHead(opt);
+                    } else if (type === 'blank') {
+                        _v = setBlank(opt);
+                    } else if (type === 'info') {
+                        _v = setInfo(opt);
+                    } else if (type === 'list') {
+                        _page_view.hideContentMarginTop();
+                        _v = setList(opt);
+                    } else if (type === 'seekbar') {
+                        _v = setSeekbar(opt);
+                    } else {
+                        _v = ui.inflate(
+                            <horizontal id="_item_area" padding="16 8" gravity="left|center">
+                                <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
+                                          gravity="left|center">
+                                    <text id="_title" size="16"/>
+                                </vertical>
+                            </horizontal>);
+                        _v['_title'].setTextColor(colorsx.toInt($$def.colors.item_title));
+                    }
+
+                    if (!$$obj(opt)) {
+                        _page_view.content_view.addView(_v);
                         return _page_view;
+                    }
 
-                        // tool function(s) //
+                    _v.setNextPage = p => opt.next_page = p;
+                    _v.getNextPage = () => opt.next_page;
+                    _v.setHintText = (s) => {
+                        _v['_hint'] && ui.post(() => {
+                            _v['_hint'].text(s);
+                        });
+                    };
+                    _v.setHintTextColor = (c) => {
+                        _v['_hint'] && _v['_hint'].setTextColor(colorsx.toInt(c));
+                    };
+                    _v.setHintVisibility = (v) => {
+                        _v['_hint'] && ui.post(() => {
+                            v = $$T(v) ? 0 : $$F(v) ? 8 : v;
+                            _v['_hint'].setVisibility(v);
+                        });
+                    };
+                    _v.setTitleText = (s) => {
+                        _v['_title'] && ui.post(() => {
+                            _v['_title'].text(s);
+                        });
+                    };
+                    _v.setTitleTextColor = (c) => {
+                        _v['_title'] && _v['_title'].setTextColor(colorsx.toInt(c));
+                    };
+                    _v.setChevronVisibility = (v) => {
+                        _v['_chevron_icon'] && ui.post(() => {
+                            v = $$T(v) ? 0 : $$F(v) ? 8 : v;
+                            _v['_chevron_icon'].setVisibility(v);
+                        });
+                    };
+                    _v.page_view = _page_view;
 
-                        function setBlank(h) {
-                            let new_view = ui.inflate(
-                                <vertical>
-                                    <horizontal id="_blank" w="*" h="1sp" margin="16 8"/>
-                                </vertical>);
-                            new_view.setTag(type);
-                            new_view.setVisibility(4);
-                            new_view['_blank'].attr('height', h || 0);
-                            return new_view;
-                        }
-
-                        function setSplitLine(options) {
-                            let _view = ui.inflate(
-                                <vertical>
-                                    <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
-                                </vertical>);
-
-                            _view.setTag(type);
-                            let _color = options && options.color || $$def.colors.split_line;
-                            _view['_line'].setBackgroundColor(colorsx.toInt(_color));
-                            type.match(/invisible/) && _view.setVisibility(8);
-
-                            return _view;
-                        }
-
-                        function setSubHead(options) {
-                            let _view = ui.inflate(
-                                <vertical>
-                                    <text id="_text" size="14" margin="16 8"/>
-                                </vertical>);
-
-                            let _color = options.color || $$def.colors.subhead;
-                            if (_color === 'highlight') {
-                                _color = $$def.colors.subhead_highlight;
-                            }
-                            _view['_text'].setTextColor(colorsx.toInt(_color));
-                            _view['_text'].text(options.title);
-
-                            return _view;
-                        }
-
-                        function setInfo(options) {
-                            // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                    let hint = opt.hint;
+                    if (hint) {
+                        let _hint_view = ui.inflate(
+                            <horizontal id="_hints">
+                                <horizontal>
+                                    <text id="_hint" size="13sp"/>
+                                </horizontal>
+                            </horizontal>);
+                        let _getHintView = (text) => {
                             let _view = ui.inflate(
                                 <horizontal>
-                                    <linear padding="15 10 0 0">
-                                        <img id="img" h="17" w="17" margin="0 1 4 0"
-                                             src="@drawable/ic_info_outline_black_48dp"/>
-                                        <text id="_info_text" size="13"/>
-                                    </linear>
+                                    <text id="_sub_hint" size="13sp"/>
                                 </horizontal>);
-
-                            let _c = options.color || $$def.colors.info;
-                            _view['_info_text'].text(options.title);
-                            _view['_info_text'].setTextColor(colorsx.toInt(_c));
-                            uix.setImageTint(_view['img'], _c);
-
+                            let _col = text.match(/#[a-fA-F\d]{6,}/);
+                            let _hint = _view['_sub_hint'];
+                            if (_col) {
+                                _hint.setText('\u25D1'); // "◑"
+                                _hint.setTextColor(colorsx.toInt(_col[0]));
+                            } else {
+                                _hint.setText(text);
+                                _hint.setTextColor(colorsx.toInt($$def.colors.item_hint));
+                            }
                             return _view;
+                        };
+
+                        _v.setHints = function () {
+                            let _arg_len = arguments.length;
+                            let _views = [];
+                            for (let i = 0; i < _arg_len; i += 1) {
+                                _views[i] = _getHintView.call({}, arguments[i]);
+                            }
+                            _hint_view['_hints'].removeAllViews();
+                            _views.forEach(v => _hint_view['_hints'].addView(v));
+                        };
+
+                        if ($$str(hint)) {
+                            _hint_view['_hint'].setText(hint);
                         }
-
-                        function setList(options) {
-                            let list_head = options.list_head || [];
-                            if ($$str(list_head)) {
-                                list_head = $$cfg.list_heads[list_head];
-                            }
-                            list_head.forEach((o, idx) => {
-                                let w = o.width;
-                                if (!idx && !w) {
-                                    return $$ses.list_width_0 = cX(0.3) + 'px';
-                                }
-                                $$ses['list_width_' + idx] = w ? cX(w) + 'px' : -2;
-                            });
-                            $$ses.list_checkbox = options.list_checkbox;
-                            let ds_k = options.data_source_key_name || 'unknown_key_name'; // just a key name
-                            let getListItemName = (num) => {
-                                if (list_head[num]) {
-                                    return Object.keys(list_head[num])[0];
-                                }
-                                return null;
-                            };
-
-                            // items are expected not more than 4
-                            for (let i = 0; i < 4; i += 1) {
-                                $$ses['list_item_name_' + i] = getListItemName(i);
-                            }
-
-                            let list_view = ui.inflate(
-                                <vertical>
-                                    <horizontal id="_list_title_bg">
-                                        <horizontal h="50" w="{{$$ses['list_width_0']}}" margin="8 0 0 0">
-                                            <checkbox id="_check_all" layout_gravity="left|center"
-                                                      clickable="false"/>
-                                        </horizontal>
-                                    </horizontal>
-                                    <vertical>
-                                        <list id="_list_data" focusable="true" scrollbars="none">
-                                            <horizontal>
-                                                <horizontal w="{{this.width_0}}">
-                                                    <checkbox id="_checkbox" layout_gravity="left|center"
-                                                              checked="{{this.checked}}" clickable="false"
-                                                              h="50" margin="8 0 -16"/>
-                                                    <text text="{{this.list_item_name_0}}" size="15"
-                                                          h="50" margin="16 0 0" w="*"
-                                                          gravity="left|center"/>
-                                                </horizontal>
-                                                <horizontal w="{{$$ses['list_width_1'] || 1}}" margin="8 0 0 0">
-                                                    <text text="{{this.list_item_name_1}}"
-                                                          visibility="{{$$ses['list_item_name_1'] ? 'visible' : 'gone'}}"
-                                                          size="15" h="50" gravity="left|center"/>
-                                                </horizontal>
-                                                <horizontal w="{{$$ses['list_width_2'] || 1}}">
-                                                    <text text="{{this.list_item_name_2}}"
-                                                          visibility="{{$$ses['list_item_name_2'] ? 'visible' : 'gone'}}"
-                                                          size="15" h="50" gravity="left|center"/>
-                                                </horizontal>
-                                                <horizontal w="{{$$ses['list_width_3'] || 1}}">
-                                                    <text text="{{this.list_item_name_3}}"
-                                                          visibility="{{$$ses['list_item_name_3'] ? 'visible' : 'gone'}}"
-                                                          size="15" h="50" gravity="left|center"/>
-                                                </horizontal>
-                                            </horizontal>
-                                        </list>
-                                    </vertical>
-                                </vertical>);
-
-                            $$view.updateDataSource(ds_k, 'init', options.custom_data_source);
-                            let _vsb = android.view.View[options.list_checkbox.toUpperCase()];
-                            list_view['_check_all'].setVisibility(_vsb);
-                            list_view['_list_data'].setDataSource($$ses[ds_k]);
-                            list_view['_list_title_bg'].attr('bg', options.color || $$def.colors.list_title_bg);
-                            list_view.setTag('list_page_view');
-                            list_head.forEach((title_obj, idx) => {
-                                let data_key_name = Object.keys(title_obj)[0];
-                                let list_title_view = idx
-                                    ? ui.inflate(<text size="15"/>)
-                                    : ui.inflate(
-                                        <text size="15"
-                                              paddingLeft="{{$$ses.list_checkbox === 'gone' ? 8 : 0}}"
-                                        />);
-
-                                list_title_view.setText(title_obj[data_key_name]);
-                                list_title_view.on('click', () => {
-                                    if (!$$ses[ds_k][0]) {
-                                        return;
-                                    }
-
-                                    let _sort_k = 'list_sort_flag_' + data_key_name;
-                                    if ($$und($$ses[_sort_k])) {
-                                        let [a, b] = $$ses[ds_k];
-                                        if (a === b) {
-                                            $$ses[_sort_k] = 0;
-                                        }
-                                        $$ses[_sort_k] = a < b ? 1 : -1;
-                                    }
-
-                                    let _sess_data = $$ses[ds_k].map((v, idx) => [idx, v]);
-                                    _sess_data.sort((a, b) => {
-                                        let _is_num = (title_obj.sort || {}).type === 'number';
-                                        let _a = a[1][a[1][data_key_name]];
-                                        let _b = b[1][b[1][data_key_name]];
-                                        if (_is_num) {
-                                            [_a, _b] = [+_a, +_b];
-                                        }
-                                        if (_a === _b) {
-                                            return 0;
-                                        }
-                                        if ($$ses[_sort_k] > 0) {
-                                            return _a > _b ? 1 : -1;
-                                        }
-                                        return _a < _b ? 1 : -1;
-                                    });
-                                    let _indices = {};
-                                    _sess_data = _sess_data.map((v, i) => {
-                                        _indices[v[0]] = i;
-                                        return v[1];
-                                    });
-                                    let _del_idx_k = ds_k + '_deleted_items_idx';
-                                    $$ses[_del_idx_k] = $$ses[_del_idx_k] || {};
-                                    let _tmp_del_idx = {};
-                                    Object.keys($$ses[_del_idx_k]).forEach((ori_idx_key) => {
-                                        _tmp_del_idx[_indices[ori_idx_key]] = $$ses[_del_idx_k][ori_idx_key];
-                                    });
-                                    $$ses[_del_idx_k] = deepCloneObject(_tmp_del_idx);
-                                    $$ses[ds_k].splice(0);
-                                    _sess_data.forEach(v => $$ses[ds_k].push(v));
-                                    $$ses[_sort_k] *= -1;
-                                    // updateDataSource(data_source_key_name, 'rewrite');
-                                });
-
-                                if ($$0(idx)) {
-                                    list_view['_check_all'].getParent().addView(list_title_view);
-                                } else {
-                                    list_view['_list_title_bg'].addView(list_title_view);
-                                }
-
-                                list_title_view.attr('layout_gravity', 'right|center');
-                                idx && list_title_view.attr('width', $$ses['list_width_' + idx]);
-                            });
-
-                            options.view = list_view;
-
-                            let listener_ids = options.listeners || [];
-                            Object.keys(listener_ids).forEach((id) => {
-                                let listeners = listener_ids[id];
-                                Object.keys(listeners).forEach((listener) => {
-                                    let callback = listeners[listener].bind(options);
-                                    if (id === 'ui') ui.emitter.prependListener(listener, callback);
-                                    else list_view[id].on(listener, callback);
-                                });
-                            });
-
-                            return list_view;
-                        }
-
-                        function setSeekbar(options) {
-                            let {title, unit, config_conj, nums, inc} = options;
-                            let _def = $$sto.def.af[config_conj];
-                            let [min, max, init] = nums;
-                            if (isNaN(+min)) {
-                                min = 0;
-                            }
-                            if (isNaN(+init)) {
-                                let _init = $$cfg.ses[config_conj] || _def;
-                                init = isNaN(+_init) ? min : _init;
-                            }
-                            if (isNaN(+max)) {
-                                max = 100;
-                            }
-                            if (isNaN(+inc)) {
-                                inc = 1;
-                            }
-
-                            let _new_view = ui.inflate(
-                                <vertical>
-                                    <horizontal margin="16 8">
-                                        <text id="_text" gravity="left" layout_gravity="center"/>
-                                        <seekbar id="_seekbar" w="*" layout_gravity="center"
-                                                 style="@android:style/Widget.Material.SeekBar"/>
-                                    </horizontal>
-                                </vertical>);
-                            /** @type android.widget.AbsSeekBar */
-                            let _seekbar = _new_view['_seekbar'];
-                            _seekbar.setMax(Math.ceil((max - min) / inc));
-                            _seekbar.setProgress(Math.ceil((init - min) / inc));
-
-                            let update = src => _new_view['_text'].setText(
-                                (title ? title + ': ' : '') + src.toString() +
-                                (unit ? ' ' + unit : ''));
-
-                            _new_view['_text'].on('long_click', (e) => {
-                                e.consumed = true;
-                                _seekbar.setProgress(Math.ceil((_def - min) / inc));
-                            });
-
-                            update(init);
-
-                            _new_view['_seekbar'].setOnSeekBarChangeListener(
-                                new android.widget.SeekBar.OnSeekBarChangeListener({
-                                    onProgressChanged(seek_bar, progress) {
-                                        let result = Math.min(progress * inc + min, max);
-                                        update(result);
-                                        $$save.session(config_conj, result);
-                                    },
-                                    onStartTrackingTouch: () => void 0,
-                                    onStopTrackingTouch: () => void 0,
-                                }));
-
-                            return _new_view;
-                        }
-                    };
-                    _page_view.ready = function () {
-                        if (_label_name) {
-                            $$ses['ready_signal_' + _label_name] = true;
-                        } else {
-                            messageAction('页面标签不存在:', 3, 0, 0, -1);
-                            messageAction(_title_name, 3, 0, 0, 1);
-                        }
-                        return _page_view;
-                    };
-                    _page_view.checkPageState = function () {
-                        if ($$func(check_page_state)) {
-                            return check_page_state(_page_view.content_view);
-                        }
-                        return true;
-                    };
-
-                    _page_view.page_title_name = _title_name;
-
-                    if (_label_name) {
-                        $$view.pages[_label_name] = _page_view;
-                        _page_view.setTag(_page_view.page_label_name = _label_name);
+                        _v['_content'].addView(_hint_view);
                     }
+
+                    if (type === 'radio') {
+                        _v['_item_area'].removeAllViews();
+                        let radiogroup_view = ui.inflate(
+                            <radiogroup
+                                id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"
+                            />);
+                        opt.view = _v;
+                        let title = opt.title;
+
+                        title.forEach((val) => {
+                            let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
+                            radio_view.setText(val);
+                            Object.keys(opt.listeners).forEach((listener) => {
+                                radio_view.on(listener, opt.listeners[listener].bind(opt));
+                            });
+                            radiogroup_view['_radiogroup'].addView(radio_view);
+                        });
+                        _v.addView(radiogroup_view);
+                    }
+
+                    _v.setTitleText(opt.title);
+
+                    if (type.match(/.*switch$/)) {
+                        let sw_view;
+                        if (type === 'switch') {
+                            // noinspection JSUnresolvedReactComponent
+                            sw_view = ui.inflate(<Switch id="_switch" checked="true"/>);
+                            if ($$F(opt.default_state)) {
+                                sw_view['_switch'].setChecked(false);
+                            }
+                        }
+                        if (type === 'checkbox_switch') {
+                            sw_view = ui.inflate(
+                                <vertical padding="8 0 0 0">
+                                    <checkbox id="_checkbox_switch" checked="true"/>
+                                </vertical>);
+                            if ($$F(opt.default_state)) {
+                                sw_view['_checkbox_switch'].setChecked(false);
+                            }
+                        }
+                        _v['_item_area'].addView(sw_view);
+                        opt.view = _v;
+
+                        let listener_ids = opt.listeners;
+                        Object.keys(listener_ids).forEach((id) => {
+                            let listeners = listener_ids[id];
+                            Object.keys(listeners).forEach((listener) => {
+                                let callback = listeners[listener].bind(opt);
+                                if (id === 'ui') {
+                                    ui.emitter.prependListener(listener, callback);
+                                } else {
+                                    _v[id].on(listener, callback);
+                                }
+                            });
+                        });
+                    } else if (type.match(/^page/)) {
+                        opt.view = _v;
+
+                        _v.setClickListener = function (listener) {
+                            _v['_item_area'].removeAllListeners('click');
+                            _v['_item_area'].on('click', listener || (r => r));
+                        };
+                        _v.restoreClickListener = function () {
+                            _v.setClickListener(() => {
+                                let next_page = opt.next_page;
+                                let opt_listeners = opt.listeners;
+                                let opt_listeners_f = opt_listeners && opt_listeners.click;
+                                let _next_page_view = next_page && $$view.pages[next_page];
+                                if ($$func(opt_listeners_f)) {
+                                    opt_listeners_f(_v, _next_page_view);
+                                }
+                                if (_next_page_view) {
+                                    $$view.page.jump('next', next_page);
+                                }
+                            });
+                        };
+
+                        // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        let _page_enter_view = ui.inflate(
+                            <vertical id="_chevron_icon">
+                                <img id="img" h="31" paddingLeft="10"
+                                     src="@drawable/ic_chevron_right_black_48dp"
+                                     bg="?selectableItemBackgroundBorderless"/>
+                            </vertical>);
+                        uix.setImageTint(_page_enter_view['img'], $$def.colors.chevron_icon);
+                        _v['_item_area'].addView(_page_enter_view);
+
+                        _v.setClickListener();
+                        _v.setChevronVisibility(8);
+
+                        let _itv_id = setInterval(() => {
+                            if ($$ses['ready_signal_' + opt.next_page]) {
+                                ui.post(() => {
+                                    _v.restoreClickListener();
+                                    _v.setChevronVisibility(0);
+                                });
+                                clearInterval(_itv_id);
+                            }
+                        }, 100);
+                    } else if (type === 'button') {
+                        // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        let help_view = ui.inflate(
+                            <vertical id="_info_icon" visibility="gone">
+                                <img id="img" src="@drawable/ic_info_outline_black_48dp"
+                                     h="22" bg="?selectableItemBackgroundBorderless"/>
+                            </vertical>);
+                        uix.setImageTint(help_view['img'], $$def.colors.item_hint);
+                        _v['_item_area'].addView(help_view);
+                        opt.view = _v;
+                        _v['_item_area'].on('click', opt.newWindow.bind(opt));
+                        if (opt.infoWindow) {
+                            _v['_info_icon'].setVisibility(0);
+                            _v['_info_icon'].on('click', opt.infoWindow.bind(opt));
+                        }
+                    }
+
+                    if (opt.view_tag) {
+                        _v.setTag(opt.view_tag);
+                    }
+
+                    _page_view.content_view.addView(_v);
+
+                    Object.keys(opt).forEach((key) => {
+                        if (!key.match(/listeners/)) {
+                            let item_data = opt[key];
+                            if (!$$func(item_data)) {
+                                return _v[key] = item_data;
+                            }
+                            if (key === 'updateOpr') {
+                                $$view.dyn_pages.push(_v);
+                                return (_v.updateOpr = () => item_data.call(opt, _v))();
+                            }
+                            _v[key] = item_data.bind(_v);
+                        }
+                    });
 
                     return _page_view;
 
                     // tool function(s) //
 
-                    function _getTitleBarView() {
-                        // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                        let _view = ui.inflate(
-                            <linear id="_title_bg" clickable="true">
-                                <vertical id="_back" marginRight="-22" layout_gravity="center">
-                                    <img id="img" h="31" layout_gravity="center"
-                                         src="@drawable/ic_chevron_left_black_48dp"
-                                         bg="?selectableItemBackgroundBorderless"/>
-                                </vertical>
-                                <text id="_title_text" size="19" margin="16"/>
-                                <linear id="_title_btn" gravity="right" w="*" marginRight="5"/>
-                            </linear>);
-
-                        uix.setImageTint(_view['img'], $$def.colors.page_back_btn);
-                        _view['_back'].on('click', () => {
-                            return $$view.checkPageState() && $$view.page.jump('back');
-                        });
-                        _view['_title_text'].setText(_title_name);
-                        _view['_title_text'].setTextColor(colorsx.toInt($$def.colors.page_title));
-                        _view['_title_text'].getPaint().setFakeBoldText(true);
-
-                        let _color = colorsx.toInt(action_bar_bg || $$def.colors.action_bar_bg);
-                        _view['_title_bg'].setBackgroundColor(_color);
-
-                        $$func(addn_func) && addn_func(_view);
-                        $$arr(addn_func) && addn_func.forEach(f => f(_view));
-
-                        return _page_view.title_bar_view = _view;
+                    function setBlank(h) {
+                        let new_view = ui.inflate(
+                            <vertical>
+                                <horizontal id="_blank" w="*" h="1sp" margin="16 8"/>
+                            </vertical>);
+                        new_view.setTag(type);
+                        new_view.setVisibility(4);
+                        new_view['_blank'].attr('height', h || 0);
+                        return new_view;
                     }
 
-                    function _getContentView() {
-                        // noinspection JSUnresolvedReactComponent
-                        let _cnt_view_frame = ui.inflate(
-                            no_scroll_view ? <vertical/> : <ScrollView/>);
-                        let _cnt_view = ui.inflate(
+                    function setSplitLine(options) {
+                        let _view = ui.inflate(
                             <vertical>
-                                <frame id="_page_content_margin_top" h="8"/>
+                                <horizontal id="_line" w="*" h="1sp" margin="16 8"/>
                             </vertical>);
 
-                        _page_view.hideContentMarginTop = () => {
-                            _cnt_view['_page_content_margin_top'].setVisibility(8);
-                        };
-                        _cnt_view_frame.addView(_page_view.content_view = _cnt_view);
+                        _view.setTag(type);
+                        let _color = options && options.color || $$def.colors.split_line;
+                        _view['_line'].setBackgroundColor(colorsx.toInt(_color));
+                        type.match(/invisible/) && _view.setVisibility(8);
 
-                        return _cnt_view_frame;
+                        return _view;
                     }
-                },
-                setButtons(p_view, data_source_key_name, button_params_arr) {
-                    for (let i = 2, l = arguments.length; i < l; i += 1) {
-                        let arg = arguments[i];
-                        if ($$arr(arg)) {
-                            p_view['_title_btn'].addView(getButtonLayout.apply(null, arg));
+
+                    function setSubHead(options) {
+                        let _view = ui.inflate(
+                            <vertical>
+                                <text id="_text" size="14" margin="16 8"/>
+                            </vertical>);
+
+                        let _color = options.color || $$def.colors.subhead;
+                        if (_color === 'highlight') {
+                            _color = $$def.colors.subhead_highlight;
                         }
+                        _view['_text'].setTextColor(colorsx.toInt(_color));
+                        _view['_text'].text(options.title);
+
+                        return _view;
                     }
+
+                    function setInfo(options) {
+                        // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        let _view = ui.inflate(
+                            <horizontal>
+                                <linear padding="15 10 0 0">
+                                    <img id="img" h="17" w="17" margin="0 1 4 0"
+                                         src="@drawable/ic_info_outline_black_48dp"/>
+                                    <text id="_info_text" size="13"/>
+                                </linear>
+                            </horizontal>);
+
+                        let _c = options.color || $$def.colors.info;
+                        _view['_info_text'].text(options.title);
+                        _view['_info_text'].setTextColor(colorsx.toInt(_c));
+                        uix.setImageTint(_view['img'], _c);
+
+                        return _view;
+                    }
+
+                    function setList(options) {
+                        let list_head = options.list_head || [];
+                        if ($$str(list_head)) {
+                            list_head = $$cfg.list_heads[list_head];
+                        }
+                        list_head.forEach((o, idx) => {
+                            let w = o.width;
+                            if (!idx && !w) {
+                                return $$ses.list_width_0 = cX(0.3) + 'px';
+                            }
+                            $$ses['list_width_' + idx] = w ? cX(w) + 'px' : -2;
+                        });
+                        $$ses.list_checkbox = options.list_checkbox;
+                        let ds_k = options.data_source_key_name || 'unknown_key_name'; // just a key name
+                        let getListItemName = (num) => {
+                            if (list_head[num]) {
+                                return Object.keys(list_head[num])[0];
+                            }
+                            return null;
+                        };
+
+                        // items are expected not more than 4
+                        for (let i = 0; i < 4; i += 1) {
+                            $$ses['list_item_name_' + i] = getListItemName(i);
+                        }
+
+                        let list_view = ui.inflate(
+                            <vertical>
+                                <horizontal id="_list_title_bg">
+                                    <horizontal h="50" w="{{$$ses['list_width_0']}}" margin="8 0 0 0">
+                                        <checkbox id="_check_all" layout_gravity="left|center"
+                                                  clickable="false"/>
+                                    </horizontal>
+                                </horizontal>
+                                <vertical>
+                                    <list id="_list_data" focusable="true" scrollbars="none">
+                                        <horizontal>
+                                            <horizontal w="{{this.width_0}}">
+                                                <checkbox id="_checkbox" layout_gravity="left|center"
+                                                          checked="{{this.checked}}" clickable="false"
+                                                          h="50" margin="8 0 -16"/>
+                                                <text text="{{this.list_item_name_0}}" size="15"
+                                                      h="50" margin="16 0 0" w="*"
+                                                      gravity="left|center"/>
+                                            </horizontal>
+                                            <horizontal w="{{$$ses['list_width_1'] || 1}}" margin="8 0 0 0">
+                                                <text text="{{this.list_item_name_1}}"
+                                                      visibility="{{$$ses['list_item_name_1'] ? 'visible' : 'gone'}}"
+                                                      size="15" h="50" gravity="left|center"/>
+                                            </horizontal>
+                                            <horizontal w="{{$$ses['list_width_2'] || 1}}">
+                                                <text text="{{this.list_item_name_2}}"
+                                                      visibility="{{$$ses['list_item_name_2'] ? 'visible' : 'gone'}}"
+                                                      size="15" h="50" gravity="left|center"/>
+                                            </horizontal>
+                                            <horizontal w="{{$$ses['list_width_3'] || 1}}">
+                                                <text text="{{this.list_item_name_3}}"
+                                                      visibility="{{$$ses['list_item_name_3'] ? 'visible' : 'gone'}}"
+                                                      size="15" h="50" gravity="left|center"/>
+                                            </horizontal>
+                                        </horizontal>
+                                    </list>
+                                </vertical>
+                            </vertical>);
+
+                        $$view.updateDataSource(ds_k, 'init', options.custom_data_source);
+                        let _vsb = android.view.View[options.list_checkbox.toUpperCase()];
+                        list_view['_check_all'].setVisibility(_vsb);
+                        list_view['_list_data'].setDataSource($$ses[ds_k]);
+                        list_view['_list_title_bg'].attr('bg', options.color || $$def.colors.list_title_bg);
+                        list_view.setTag('list_page_view');
+                        list_head.forEach((title_obj, idx) => {
+                            let data_key_name = Object.keys(title_obj)[0];
+                            let list_title_view = idx
+                                ? ui.inflate(<text size="15"/>)
+                                : ui.inflate(
+                                    <text size="15"
+                                          paddingLeft="{{$$ses.list_checkbox === 'gone' ? 8 : 0}}"
+                                    />);
+
+                            list_title_view.setText(title_obj[data_key_name]);
+                            list_title_view.on('click', () => {
+                                if (!$$ses[ds_k][0]) {
+                                    return;
+                                }
+
+                                let _sort_k = 'list_sort_flag_' + data_key_name;
+                                if ($$und($$ses[_sort_k])) {
+                                    let [a, b] = $$ses[ds_k];
+                                    if (a === b) {
+                                        $$ses[_sort_k] = 0;
+                                    }
+                                    $$ses[_sort_k] = a < b ? 1 : -1;
+                                }
+
+                                let _sess_data = $$ses[ds_k].map((v, idx) => [idx, v]);
+                                _sess_data.sort((a, b) => {
+                                    let _is_num = (title_obj.sort || {}).type === 'number';
+                                    let _a = a[1][a[1][data_key_name]];
+                                    let _b = b[1][b[1][data_key_name]];
+                                    if (_is_num) {
+                                        [_a, _b] = [+_a, +_b];
+                                    }
+                                    if (_a === _b) {
+                                        return 0;
+                                    }
+                                    if ($$ses[_sort_k] > 0) {
+                                        return _a > _b ? 1 : -1;
+                                    }
+                                    return _a < _b ? 1 : -1;
+                                });
+                                let _indices = {};
+                                _sess_data = _sess_data.map((v, i) => {
+                                    _indices[v[0]] = i;
+                                    return v[1];
+                                });
+                                let _del_idx_k = ds_k + '_deleted_items_idx';
+                                $$ses[_del_idx_k] = $$ses[_del_idx_k] || {};
+                                let _tmp_del_idx = {};
+                                Object.keys($$ses[_del_idx_k]).forEach((ori_idx_key) => {
+                                    _tmp_del_idx[_indices[ori_idx_key]] = $$ses[_del_idx_k][ori_idx_key];
+                                });
+                                $$ses[_del_idx_k] = deepCloneObject(_tmp_del_idx);
+                                $$ses[ds_k].splice(0);
+                                _sess_data.forEach(v => $$ses[ds_k].push(v));
+                                $$ses[_sort_k] *= -1;
+                                // updateDataSource(data_source_key_name, 'rewrite');
+                            });
+
+                            if ($$0(idx)) {
+                                list_view['_check_all'].getParent().addView(list_title_view);
+                            } else {
+                                list_view['_list_title_bg'].addView(list_title_view);
+                            }
+
+                            list_title_view.attr('layout_gravity', 'right|center');
+                            idx && list_title_view.attr('width', $$ses['list_width_' + idx]);
+                        });
+
+                        options.view = list_view;
+
+                        let listener_ids = options.listeners || [];
+                        Object.keys(listener_ids).forEach((id) => {
+                            let listeners = listener_ids[id];
+                            Object.keys(listeners).forEach((listener) => {
+                                let callback = listeners[listener].bind(options);
+                                if (id === 'ui') ui.emitter.prependListener(listener, callback);
+                                else list_view[id].on(listener, callback);
+                            });
+                        });
+
+                        return list_view;
+                    }
+
+                    function setSeekbar(options) {
+                        let {title, unit, config_conj, nums, inc} = options;
+                        let _def = $$sto.def.af[config_conj];
+                        let [min, max, init] = nums;
+                        if (isNaN(+min)) {
+                            min = 0;
+                        }
+                        if (isNaN(+init)) {
+                            let _init = $$cfg.ses[config_conj] || _def;
+                            init = isNaN(+_init) ? min : _init;
+                        }
+                        if (isNaN(+max)) {
+                            max = 100;
+                        }
+                        if (isNaN(+inc)) {
+                            inc = 1;
+                        }
+
+                        let _new_view = ui.inflate(
+                            <vertical>
+                                <horizontal margin="16 8">
+                                    <text id="_text" gravity="left" layout_gravity="center"/>
+                                    <seekbar id="_seekbar" w="*" layout_gravity="center"
+                                             style="@android:style/Widget.Material.SeekBar"/>
+                                </horizontal>
+                            </vertical>);
+                        /** @type android.widget.AbsSeekBar */
+                        let _seekbar = _new_view['_seekbar'];
+                        _seekbar.setMax(Math.ceil((max - min) / inc));
+                        _seekbar.setProgress(Math.ceil((init - min) / inc));
+
+                        let update = src => _new_view['_text'].setText(
+                            (title ? title + ': ' : '') + src.toString() +
+                            (unit ? ' ' + unit : ''));
+
+                        _new_view['_text'].on('long_click', (e) => {
+                            e.consumed = true;
+                            _seekbar.setProgress(Math.ceil((_def - min) / inc));
+                        });
+
+                        update(init);
+
+                        _new_view['_seekbar'].setOnSeekBarChangeListener(
+                            new android.widget.SeekBar.OnSeekBarChangeListener({
+                                onProgressChanged(seek_bar, progress) {
+                                    let result = Math.min(progress * inc + min, max);
+                                    update(result);
+                                    $$save.session(config_conj, result);
+                                },
+                                onStartTrackingTouch: () => void 0,
+                                onStopTrackingTouch: () => void 0,
+                            }));
+
+                        return _new_view;
+                    }
+                };
+                _page_view.ready = function () {
+                    if (_label_name) {
+                        $$ses['ready_signal_' + _label_name] = true;
+                    } else {
+                        messageAction('页面标签不存在:', 3, 0, 0, -1);
+                        messageAction(_title_name, 3, 0, 0, 1);
+                    }
+                    return _page_view;
+                };
+                _page_view.checkPageState = function () {
+                    if ($$func(check_page_state)) {
+                        return check_page_state(_page_view.content_view);
+                    }
+                    return true;
+                };
+
+                _page_view.page_title_name = _title_name;
+
+                if (_label_name) {
+                    $$view.pages[_label_name] = _page_view;
+                    _page_view.setTag(_page_view.page_label_name = _label_name);
+                }
+
+                return _page_view;
+
+                // tool function(s) //
+
+                function _getTitleBarView() {
+                    // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                    let _view = ui.inflate(
+                        <linear id="_title_bg" clickable="true">
+                            <vertical id="_back" marginRight="-22" layout_gravity="center">
+                                <img id="img" h="31" layout_gravity="center"
+                                     src="@drawable/ic_chevron_left_black_48dp"
+                                     bg="?selectableItemBackgroundBorderless"/>
+                            </vertical>
+                            <text id="_title_text" size="19" margin="16"/>
+                            <linear id="_title_btn" gravity="right" w="*" marginRight="5"/>
+                        </linear>);
+
+                    uix.setImageTint(_view['img'], $$def.colors.page_back_btn);
+                    _view['_back'].on('click', () => {
+                        return $$view.checkPageState() && $$view.page.jump('back');
+                    });
+                    _view['_title_text'].setText(_title_name);
+                    _view['_title_text'].setTextColor(colorsx.toInt($$def.colors.page_title));
+                    _view['_title_text'].getPaint().setFakeBoldText(true);
+
+                    let _color = colorsx.toInt(action_bar_bg || $$def.colors.action_bar_bg);
+                    _view['_title_bg'].setBackgroundColor(_color);
+
+                    $$func(addn_func) && addn_func(_view);
+                    $$arr(addn_func) && addn_func.forEach(f => f(_view));
+
+                    return _page_view.title_bar_view = _view;
+                }
+
+                function _getContentView() {
+                    // noinspection JSUnresolvedReactComponent
+                    let _cnt_view_frame = ui.inflate(
+                        no_scroll_view ? <vertical/> : <ScrollView/>);
+                    let _cnt_view = ui.inflate(
+                        <vertical>
+                            <frame id="_page_content_margin_top" h="8"/>
+                        </vertical>);
+
+                    _page_view.hideContentMarginTop = () => {
+                        _cnt_view['_page_content_margin_top'].setVisibility(8);
+                    };
+                    _cnt_view_frame.addView(_page_view.content_view = _cnt_view);
+
+                    return _cnt_view_frame;
+                }
+            },
+            setButtons(p_view, data_source_key_name, button_params_arr) {
+                for (let i = 2, l = arguments.length; i < l; i += 1) {
+                    let arg = arguments[i];
+                    if ($$arr(arg)) {
+                        p_view['_title_btn'].addView(getButtonLayout.apply(null, arg));
+                    }
+                }
+
+                // tool function(s) //
+
+                function getButtonLayout(button_icon_file_name, button_text, switch_state, btn_click_listener, other_params) {
+                    other_params = other_params || {};
+                    $$ses.button_icon_file_name = button_icon_file_name.replace(/^(ic_)?(.*?)(_black_48dp)?$/, 'ic_$2_black_48dp');
+                    $$ses.button_text = button_text;
+                    let btn_text = button_text.toLowerCase();
+                    let btn_icon_id = '_icon_' + btn_text;
+                    $$ses.btn_icon_id = btn_icon_id;
+                    let btn_text_id = '_text_' + btn_text;
+                    $$ses.btn_text_id = btn_text_id;
+                    let def_on_color = $$def.colors.btn_on;
+                    let def_off_color = $$def.colors.btn_off;
+                    let view = buttonView();
+                    let switch_on_color = [other_params['btn_on_icon_color'] || def_on_color, other_params['btn_on_text_color'] || def_on_color];
+                    let switch_off_color = [other_params['btn_off_icon_color'] || def_off_color, other_params['btn_off_text_color'] || def_off_color];
+                    view.switch_on = () => {
+                        view[btn_icon_id].attr('tint', switch_on_color[0]);
+                        view[btn_text_id].setTextColor(colorsx.toInt(switch_on_color[1]));
+                    };
+                    view.switch_off = () => {
+                        view[btn_icon_id].attr('tint', switch_off_color[0]);
+                        view[btn_text_id].setTextColor(colorsx.toInt(switch_off_color[1]));
+                    };
+
+                    switch_state === 'OFF' ? view.switch_off() : view.switch_on();
+
+                    view[btn_text_id].on('click', () => btn_click_listener && btn_click_listener(view));
+                    $$ses[data_source_key_name + '_btn_' + btn_text] = view;
+
+                    return view;
 
                     // tool function(s) //
 
-                    function getButtonLayout(button_icon_file_name, button_text, switch_state, btn_click_listener, other_params) {
-                        other_params = other_params || {};
-                        $$ses.button_icon_file_name = button_icon_file_name.replace(/^(ic_)?(.*?)(_black_48dp)?$/, 'ic_$2_black_48dp');
-                        $$ses.button_text = button_text;
-                        let btn_text = button_text.toLowerCase();
-                        let btn_icon_id = '_icon_' + btn_text;
-                        $$ses.btn_icon_id = btn_icon_id;
-                        let btn_text_id = '_text_' + btn_text;
-                        $$ses.btn_text_id = btn_text_id;
-                        let def_on_color = $$def.colors.btn_on;
-                        let def_off_color = $$def.colors.btn_off;
-                        let view = buttonView();
-                        let switch_on_color = [other_params['btn_on_icon_color'] || def_on_color, other_params['btn_on_text_color'] || def_on_color];
-                        let switch_off_color = [other_params['btn_off_icon_color'] || def_off_color, other_params['btn_off_text_color'] || def_off_color];
-                        view.switch_on = () => {
-                            view[btn_icon_id].attr('tint', switch_on_color[0]);
-                            view[btn_text_id].setTextColor(colorsx.toInt(switch_on_color[1]));
-                        };
-                        view.switch_off = () => {
-                            view[btn_icon_id].attr('tint', switch_off_color[0]);
-                            view[btn_text_id].setTextColor(colorsx.toInt(switch_off_color[1]));
-                        };
-
-                        switch_state === 'OFF' ? view.switch_off() : view.switch_on();
-
-                        view[btn_text_id].on('click', () => btn_click_listener && btn_click_listener(view));
-                        $$ses[data_source_key_name + '_btn_' + btn_text] = view;
-
-                        return view;
-
-                        // tool function(s) //
-
-                        function buttonView() {
-                            // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                            return ui.inflate(
-                                <vertical margin="13 0" id="btn" layout_gravity="right" gravity="right">
-                                    <img id="{{$$ses.btn_icon_id}}"
-                                         src="@drawable/{{$$ses.button_icon_file_name}}"
-                                         bg="?selectableItemBackgroundBorderless"
-                                         h="31" margin="0 7 0 0" layout_gravity="center"/>
-                                    <text id="{{$$ses.btn_text_id}}"
-                                          text="{{$$ses.button_text}}" size="10" textStyle="bold"
-                                          w="50" h="40" marginTop="-26" gravity="bottom|center"/>
-                                </vertical>);
-                        }
+                    function buttonView() {
+                        // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        return ui.inflate(
+                            <vertical margin="13 0" id="btn" layout_gravity="right" gravity="right">
+                                <img id="{{$$ses.btn_icon_id}}"
+                                     src="@drawable/{{$$ses.button_icon_file_name}}"
+                                     bg="?selectableItemBackgroundBorderless"
+                                     h="31" margin="0 7 0 0" layout_gravity="center"/>
+                                <text id="{{$$ses.btn_text_id}}"
+                                      text="{{$$ses.button_text}}" size="10" textStyle="bold"
+                                      w="50" h="40" marginTop="-26" gravity="bottom|center"/>
+                            </vertical>);
                     }
-                },
-                setListPageButtons(p_view, ds_k) {
-                    let _scenario = {
-                        blacklist_by_user: sceBlacklistByUser,
-                        foreground_app_blacklist: sceForeAppBlacklist,
-                    }[ds_k]();
-                    let _args = [p_view, ds_k].concat(_scenario);
-                    return $$view.setButtons.apply($$view.setButtons, _args);
+                }
+            },
+            setListPageButtons(p_view, ds_k) {
+                let _scenario = {
+                    blacklist_by_user: sceBlacklistByUser,
+                    foreground_app_blacklist: sceForeAppBlacklist,
+                }[ds_k]();
+                let _args = [p_view, ds_k].concat(_scenario);
+                return $$view.setButtons.apply($$view.setButtons, _args);
 
-                    // scenario function(s) //
+                // scenario function(s) //
 
-                    function sceBlacklistByUser() {
-                        return [
-                            ['restore', 'RESTORE', 'OFF', (btn_view) => {
-                                let _blist_bak = $$cfg.sto[ds_k];
-                                if (equalObjects($$cfg.ses[ds_k], _blist_bak)) {
-                                    return;
-                                }
-                                let _diag = dialogsx.builds([
-                                    '恢复列表数据', 'restore_original_list_data',
-                                    ['查看恢复列表', 'hint'], 'B', 'K', 1,
-                                ]);
-                                _diag.on('neutral', () => {
-                                    dialogsx.builds([
-                                        '查看恢复列表', '', 0, 0, 'B', 1,
-                                    ], {
-                                        content: '共计 ' + _blist_bak.length + ' 项',
-                                        items: (() => {
-                                            let _split_ln = '';
-                                            for (let i = 0; i < 18; i += 1) {
-                                                _split_ln += '- ';
-                                            }
-                                            let _items = [_split_ln];
-                                            _blist_bak.forEach((o) => {
-                                                let _ts = o.timestamp;
-                                                let _str = $$tool.getTimeStrFromTs(_ts, 'time_str_remove');
-                                                _items.push('好友昵称: ' + o.name, '解除时间: ' + _str, _split_ln);
-                                            });
-                                            return _items.length > 1 ? _items : ['列表为空'];
-                                        })(),
-                                    }).on('positive', (d) => {
-                                        d.dismiss();
-                                    }).show();
-                                });
-                                _diag.on('negative', d => d.dismiss());
-                                _diag.on('positive', (d) => {
+                function sceBlacklistByUser() {
+                    return [
+                        ['restore', 'RESTORE', 'OFF', (btn_view) => {
+                            let _blist_bak = $$cfg.sto[ds_k];
+                            if (equalObjects($$cfg.ses[ds_k], _blist_bak)) {
+                                return;
+                            }
+                            let _diag = dialogsx.builds([
+                                '恢复列表数据', 'restore_original_list_data',
+                                ['查看恢复列表', 'hint'], 'B', 'K', 1,
+                            ]);
+                            _diag.on('neutral', () => {
+                                dialogsx.builds([
+                                    '查看恢复列表', '', 0, 0, 'B', 1,
+                                ], {
+                                    content: '共计 ' + _blist_bak.length + ' 项',
+                                    items: (() => {
+                                        let _split_ln = '';
+                                        for (let i = 0; i < 18; i += 1) {
+                                            _split_ln += '- ';
+                                        }
+                                        let _items = [_split_ln];
+                                        _blist_bak.forEach((o) => {
+                                            let _ts = o.timestamp;
+                                            let _str = $$tool.getTimeStrFromTs(_ts, 'time_str_remove');
+                                            _items.push('好友昵称: ' + o.name, '解除时间: ' + _str, _split_ln);
+                                        });
+                                        return _items.length > 1 ? _items : ['列表为空'];
+                                    })(),
+                                }).on('positive', (d) => {
                                     d.dismiss();
-                                    $$view.updateDataSource(ds_k, 'splice', 0);
+                                }).show();
+                            });
+                            _diag.on('negative', d => d.dismiss());
+                            _diag.on('positive', (d) => {
+                                d.dismiss();
+                                $$view.updateDataSource(ds_k, 'splice', 0);
 
-                                    let _del_idx_k = ds_k + '_deleted_items_idx';
-                                    let _del_ctr_k = ds_k + '_deleted_items_idx_count';
-                                    $$ses[_del_idx_k] = {};
-                                    $$ses[_del_ctr_k] = 0;
-                                    let _rm_btn = p_view['_text_remove'].getParent();
-                                    _rm_btn.switch_off();
-                                    btn_view.switch_off();
-                                    _blist_bak.forEach((value) => {
-                                        $$view.updateDataSource(ds_k, 'update', value);
-                                    });
-
-                                    let _v = $$view.findViewByTag(p_view, 'list_page_view').getParent();
-                                    _v['_check_all'].setChecked(true);
-                                    _v['_check_all'].setChecked(false);
-                                });
-                                _diag.show();
-                            }],
-                            ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
                                 let _del_idx_k = ds_k + '_deleted_items_idx';
                                 let _del_ctr_k = ds_k + '_deleted_items_idx_count';
-                                if (!$$ses[_del_ctr_k]) {
-                                    return;
-                                }
-
-                                let _thd_items_stable = threadsx.start(function () {
-                                    let _ctr_old = undefined;
-                                    while ($$ses[_del_ctr_k] !== _ctr_old) {
-                                        _ctr_old = $$ses[_del_ctr_k];
-                                        sleep(50);
-                                    }
+                                $$ses[_del_idx_k] = {};
+                                $$ses[_del_ctr_k] = 0;
+                                let _rm_btn = p_view['_text_remove'].getParent();
+                                _rm_btn.switch_off();
+                                btn_view.switch_off();
+                                _blist_bak.forEach((value) => {
+                                    $$view.updateDataSource(ds_k, 'update', value);
                                 });
-                                _thd_items_stable.join(800);
 
+                                let _v = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+                                _v['_check_all'].setChecked(true);
+                                _v['_check_all'].setChecked(false);
+                            });
+                            _diag.show();
+                        }],
+                        ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
+                            let _del_idx_k = ds_k + '_deleted_items_idx';
+                            let _del_ctr_k = ds_k + '_deleted_items_idx_count';
+                            $$ses[_del_ctr_k] && threadsx.start(function () {
+                                let _ctr_old = undefined;
+                                while ($$ses[_del_ctr_k] !== _ctr_old) {
+                                    _ctr_old = $$ses[_del_ctr_k];
+                                    sleep(50);
+                                }
+                                ui.post(_updateView);
+                            });
+
+                            // tool function(s) //
+
+                            function _updateView() {
                                 let _del_idx_keys = Object.keys($$ses[_del_idx_k]);
                                 _del_idx_keys
                                     .sort((a, b) => +a < +b ? 1 : -1)
@@ -1504,1138 +1402,191 @@ let $$init = {
                                 _v['_check_all'].setChecked(false);
 
                                 btn_view.switch_off();
-                            }],
-                            ['add_circle', 'NEW', 'ON', () => {
-                                let _tmp_sel_fri = [];
-                                let _blist_sel_fri = [];
-                                let _lst_pg_view = $$view.findViewByTag(p_view, 'list_page_view');
+                            }
+                        }],
+                        ['add_circle', 'NEW', 'ON', () => {
+                            let _tmp_sel_fri = [];
+                            let _blist_sel_fri = [];
+                            let _lst_pg_view = $$view.findViewByTag(p_view, 'list_page_view');
 
-                                $$cfg.ses[ds_k].forEach(o => _blist_sel_fri.push(o.name));
+                            $$cfg.ses[ds_k].forEach(o => _blist_sel_fri.push(o.name));
 
-                                let _diag_def_cnt = '从好友列表中选择并添加好友\n' +
-                                    '或检索选择好友';
-                                let _diag = dialogsx.builds([
-                                    '添加新数据', _diag_def_cnt,
-                                    ['从列表中选择', 'hint'],
-                                    ['检索选择', 'hint'],
-                                    '确认添加', 1,
-                                ], {items: [' ']});
-                                _diag.on('neutral', () => {
-                                    let _diag_add_from_lst = dialogsx.builds([
-                                        '列表选择好友', '',
-                                        ['刷新列表', 'hint'],
-                                        0, '确认选择', 1,
-                                    ], {
-                                        items: ['列表为空'],
-                                        itemsSelectMode: 'multi',
-                                    });
-                                    _diag_add_from_lst.on('neutral', () => {
-                                        $$tool.refreshFriLstByLaunchAlipay({
-                                            dialog_prompt: true,
-                                            onTrigger() {
-                                                _diag_add_from_lst.dismiss();
-                                                _diag.dismiss();
-                                            },
-                                            onResume() {
-                                                _diag.show();
-                                                threadsx.start(function () {
-                                                    let _btn_text = _diag.getActionButton('neutral');
-                                                    if (_btn_text) {
-                                                        waitForAndClickAction(text(_btn_text), 4e3, 100, {
-                                                            click_strategy: 'w',
-                                                        });
-                                                    }
-                                                });
-                                            },
-                                        });
-                                    });
-                                    _diag_add_from_lst.on('positive', () => {
-                                        refreshDiag();
-                                        _diag_add_from_lst.dismiss();
-                                    });
-                                    _diag_add_from_lst.on('multi_choice', (indices, items) => {
-                                        if (items.length === 1 && items[0] === '列表为空') {
-                                            return;
-                                        }
-                                        if (items) {
-                                            items.forEach((name) => {
-                                                _tmp_sel_fri.push(name.split('. ')[1]);
-                                            });
-                                        }
-                                    });
-                                    _diag_add_from_lst.show();
-
-                                    _refreshAddFromLstDiag();
-
-                                    // tool function(s) //
-
-                                    function _refreshAddFromLstDiag() {
-                                        let _items = [];
-                                        let _fri_lst = $$sto.af_flist.get('friends_list_data', {});
-                                        if (_fri_lst.list_data) {
-                                            _fri_lst.list_data.forEach((o) => {
-                                                let _nick = o.nickname;
-                                                let _cA = !_blist_sel_fri.includes(_nick);
-                                                let _cB = !_tmp_sel_fri.includes(_nick);
-                                                if (_cA && _cB) {
-                                                    _items.push(o.rank_num + '. ' + _nick);
-                                                }
-                                            });
-                                        }
-                                        let _i_len = _items.length;
-                                        _items = _i_len ? _items : ['列表为空'];
-                                        _diag_add_from_lst.setItems(_items);
-                                        let _fri_lst_ts = _fri_lst.timestamp;
-                                        if (isInfinite(_fri_lst_ts)) {
-                                            _fri_lst_ts = -1;
-                                        }
-                                        _diag_add_from_lst.setContent('上次刷新: ' +
-                                            $$tool.getTimeStrFromTs(_fri_lst_ts, 'time_str') + '\n' +
-                                            '当前可添加的好友总数: ' + _i_len);
-                                    }
+                            let _diag_def_cnt = '从好友列表中选择并添加好友\n' +
+                                '或检索选择好友';
+                            let _diag = dialogsx.builds([
+                                '添加新数据', _diag_def_cnt,
+                                ['从列表中选择', 'hint'],
+                                ['检索选择', 'hint'],
+                                '确认添加', 1,
+                            ], {items: [' ']});
+                            _diag.on('neutral', () => {
+                                let _diag_add_from_lst = dialogsx.builds([
+                                    '列表选择好友', '',
+                                    ['刷新列表', 'hint'],
+                                    0, '确认选择', 1,
+                                ], {
+                                    items: ['列表为空'],
+                                    itemsSelectMode: 'multi',
                                 });
-                                _diag.on('negative', () => {
-                                    _diag.dismiss();
-                                    let _getListData = () => $$sto
-                                        .af_flist.get('friends_list_data', {list_data: []})
-                                        .list_data.map(o => o.nickname);
-                                    $$view.setListItemsSearchAndSelectView(_getListData, {
-                                        refresh_btn(ds_updater) {
-                                            $$tool.refreshFriLstByLaunchAlipay({
-                                                dialog_prompt: true,
-                                                onResume: ds_updater,
-                                            });
+                                _diag_add_from_lst.on('neutral', () => {
+                                    $$tool.refreshFriLstByLaunchAlipay({
+                                        dialog_prompt: true,
+                                        onTrigger() {
+                                            _diag_add_from_lst.dismiss();
+                                            _diag.dismiss();
                                         },
-                                        list_item(item, closeListPage) {
-                                            let _excluded = [_blist_sel_fri, _tmp_sel_fri];
-
-                                            for (let i = 0, l = _excluded.length; i < l; i += 1) {
-                                                if (~_excluded[i].indexOf(item)) {
-                                                    return toast('此项已存在于黑名单列表或待添加列表中');
-                                                }
-                                            }
-                                            closeListPage(item);
-                                        },
-                                        on_finish(result) {
-                                            result && _tmp_sel_fri.push(result);
+                                        onResume() {
                                             _diag.show();
-                                            refreshDiag();
+                                            threadsx.start(function () {
+                                                let _btn_text = _diag.getActionButton('neutral');
+                                                if (_btn_text) {
+                                                    waitForAndClickAction(text(_btn_text), 4e3, 100, {
+                                                        click_strategy: 'w',
+                                                    });
+                                                }
+                                            });
                                         },
-                                    }, true);
+                                    });
                                 });
-                                _diag.on('positive', () => {
-                                    _tmp_sel_fri.forEach(name => $$view.updateDataSource(ds_k, 'update_unshift', {
-                                        name: name,
-                                        timestamp: Infinity,
-                                    }));
-                                    if (_tmp_sel_fri.length) setTimeout(function () {
-                                        p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
-                                    }, 200);
-                                    let _restore_btn = _lst_pg_view.getParent()['_text_restore'].getParent();
-                                    equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k])
-                                        ? _restore_btn.switch_off()
-                                        : _restore_btn.switch_on();
-                                    $$save.session(ds_k, $$cfg.ses[ds_k]);
-                                    _diag.dismiss();
+                                _diag_add_from_lst.on('positive', () => {
+                                    refreshDiag();
+                                    _diag_add_from_lst.dismiss();
                                 });
-                                _diag.on('item_select', (idx) => {
-                                    let _diag_items = _diag.getItems().toArray();
-                                    if (_diag_items.length === 1 && _diag_items[0] === '\xa0') {
+                                _diag_add_from_lst.on('multi_choice', (indices, items) => {
+                                    if (items.length === 1 && items[0] === '列表为空') {
                                         return;
                                     }
-                                    dialogsx.builds([
-                                        '确认移除此项吗', '', 0, 'B', 'S', 1,
-                                    ]).on('negative', (d) => {
-                                        d.dismiss();
-                                    }).on('positive', (d) => {
-                                        _tmp_sel_fri.splice(idx, 1);
-                                        refreshDiag();
-                                        d.dismiss();
-                                    }).show();
-                                });
-                                _diag.show();
-
-                                refreshDiag();
-
-                                // tool function(s) //
-
-                                function refreshDiag() {
-                                    let _tmp_items_len = _tmp_sel_fri.length;
-                                    let _tmp_items = _tmp_items_len ? _tmp_sel_fri : ['\xa0'];
-                                    _diag.setItems(_tmp_items);
-                                    let _cnt_info = _tmp_items_len
-                                        ? '当前选择区好友总数: ' + _tmp_items_len
-                                        : _diag_def_cnt;
-                                    _diag.setContent(_cnt_info);
-                                }
-                            }],
-                        ];
-                    }
-
-                    function sceForeAppBlacklist() {
-                        return [
-                            ['restore', 'RESTORE', 'OFF', (btn_view) => {
-                                let blacklist_backup = $$cfg.sto[ds_k];
-                                if (equalObjects($$cfg.ses[ds_k], blacklist_backup)) return;
-                                let diag = dialogsx.builds([
-                                    '恢复列表数据', 'restore_original_list_data',
-                                    ['查看恢复列表', 'hint'], 'B', 'K', 1,
-                                ]);
-                                diag.on('neutral', () => {
-                                    let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
-                                        content: '共计 ' + blacklist_backup.length + ' 项',
-                                        items: (function () {
-                                            let items = [];
-                                            blacklist_backup.forEach(o => items.push(o.app_combined_name));
-                                            return items.length ? items : ['列表为空'];
-                                        })(),
-                                    });
-                                    diag_restore_list.on('positive', () => diag_restore_list.dismiss());
-                                    diag_restore_list.show();
-                                });
-                                diag.on('negative', () => diag.dismiss());
-                                diag.on('positive', () => {
-                                    diag.dismiss();
-                                    $$view.updateDataSource(ds_k, 'splice', 0);
-
-                                    let deleted_items_idx = ds_k + '_deleted_items_idx';
-                                    let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
-                                    $$ses[deleted_items_idx] = {};
-                                    $$ses[deleted_items_idx_count] = 0;
-                                    let remove_btn = p_view['_text_remove'].getParent();
-                                    remove_btn.switch_off();
-                                    btn_view.switch_off();
-                                    blacklist_backup.forEach(value => $$view.updateDataSource(ds_k, 'update', value));
-                                    let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
-                                    _page_view['_check_all'].setChecked(true);
-                                    _page_view['_check_all'].setChecked(false);
-                                });
-                                diag.show();
-                            }],
-                            ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
-                                let deleted_items_idx = ds_k + '_deleted_items_idx';
-                                let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
-                                if (!$$ses[deleted_items_idx_count]) return;
-
-                                let thread_items_stable = threadsx.start(function () {
-                                    let old_count = undefined;
-                                    while ($$ses[deleted_items_idx_count] !== old_count) {
-                                        old_count = $$ses[deleted_items_idx_count];
-                                        sleep(50);
-                                    }
-                                });
-                                thread_items_stable.join(800);
-
-                                let deleted_items_idx_keys = Object.keys($$ses[deleted_items_idx]);
-                                deleted_items_idx_keys
-                                    .sort((a, b) => +a < +b ? 1 : -1)
-                                    .forEach((idx) => {
-                                        if ($$ses[deleted_items_idx][idx]) {
-                                            $$ses[ds_k].splice(idx, 1);
-                                        }
-                                    });
-                                $$view.updateDataSource(ds_k, 'rewrite');
-                                $$ses[deleted_items_idx] = {};
-                                $$ses[deleted_items_idx_count] = 0;
-
-                                let _restore_btn = p_view['_text_restore'].getParent();
-                                let _sess = $$cfg.ses[ds_k];
-                                let _sto = $$cfg.sto[ds_k];
-                                equalObjects(_sess, _sto) ? _restore_btn.switch_off() : _restore_btn.switch_on();
-
-                                let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
-                                _page_view['_check_all'].setChecked(true);
-                                _page_view['_check_all'].setChecked(false);
-                                btn_view.switch_off();
-                            }],
-                            ['add_circle', 'NEW', 'ON', () => {
-                                let _tmp_selected = [];
-                                let _blist_selected = [];
-                                let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
-
-                                let _sess = $$cfg.ses[ds_k];
-                                _sess.forEach(o => _blist_selected.push(o.app_combined_name));
-
-                                let diag = dialogsx.builds([
-                                    '添加新数据', '从应用列表中选择并添加应用\n或检索选择应用',
-                                    ['从列表中选择', 'hint'],
-                                    ['检索选择', 'hint'],
-                                    '确认添加', 1,
-                                ], {items: ['\xa0']});
-                                diag.on('neutral', () => {
-                                    let _diag = dialogsx
-                                        .builds([
-                                            '列表选择应用', '',
-                                            ['刷新列表', 'hint'],
-                                            ['显示系统应用', 'reset'],
-                                            '确认选择', 1,
-                                        ], {
-                                            items: ['\xa0'],
-                                            itemsSelectMode: 'multi',
-                                        })
-                                        .on('neutral', _refreshDiagList)
-                                        .on('negative', (ds) => {
-                                            dialogsx.getActionButton(ds, 'negative').match(/显示/)
-                                                ? dialogsx.setActionButton(ds, 'negative', '隐藏系统应用')
-                                                : dialogsx.setActionButton(ds, 'negative', '显示系统应用');
-                                            _refreshDiagList(ds);
-                                        })
-                                        .on('positive', (ds) => {
-                                            _refreshDiag();
-                                            ds.dismiss();
-                                        })
-                                        .on('multi_choice', (indices, items) => {
-                                            if (items && items[0] !== '\xa0') {
-                                                items.forEach((n) => {
-                                                    if (!n.match(/^\.{3} \.{3}$/)) {
-                                                        _tmp_selected.push(n);
-                                                    }
-                                                });
-                                            }
-                                        })
-                                        .show();
-
-                                    _refreshDiagList(_diag);
-
-                                    // tool function(s) //
-
-                                    function _refreshDiagList(ds) {
-                                        ds.setItems(Array(15).join('... ...,').split(',').slice(0, -1));
-                                        ds.setContent('当前可添加的应用总数: ... ...');
-                                        ds.setSelectedIndices([]);
-                                        threadsx.start(function () {
-                                            let _opt = {exclude: _blist_selected.concat(_tmp_selected)};
-                                            if (dialogsx.getActionButton(ds, 'negative').match(/显示/)) {
-                                                _opt.is_system = false;
-                                            }
-                                            let _items = appx.getInstalledApplications(_opt).getJointStrArr();
-                                            ui.post(function () {
-                                                ds.setSelectedIndices([]);
-                                                ds.setItems(_items.length ? _items : ['列表为空']);
-                                                ds.setContent('当前可添加的应用总数: ' + _items.length);
-                                            });
+                                    if (items) {
+                                        items.forEach((name) => {
+                                            _tmp_sel_fri.push(name.split('. ')[1]);
                                         });
                                     }
                                 });
-                                diag.on('negative', (d) => {
-                                    d.dismiss();
-                                    let _updater = () => (
-                                        appx.getInstalledApplications().getJointStrArr()
-                                    );
-                                    $$view.setListItemsSearchAndSelectView(_updater, {
-                                        refresh_btn(data_source_updater, view) {
-                                            view['refresh_btn'].setText('...');
-                                            view['list'].setDataSource([]);
-                                            data_source_updater(_updater);
-                                            view['refresh_btn'].setText('刷新');
-                                        },
-                                        list_item(item, closeListPage) {
-                                            let _excluded = [_blist_selected, _tmp_selected];
+                                _diag_add_from_lst.show();
 
-                                            for (let i = 0, l = _excluded.length; i < l; i += 1) {
-                                                if (~_excluded[i].indexOf(item)) {
-                                                    return toast('此项已存在于黑名单列表或待添加列表中');
-                                                }
-                                            }
-                                            closeListPage.call(null, item);
-                                        },
-                                        on_finish(result) {
-                                            result && _tmp_selected.push(result);
-                                            d.show();
-                                            _refreshDiag();
-                                        },
-                                    });
-                                });
-                                diag.on('positive', () => {
-                                    _tmp_selected.forEach((n) => {
-                                        $$view.updateDataSource(ds_k, 'update_unshift', {app_combined_name: n});
-                                    });
-                                    if (_tmp_selected.length) setTimeout(function () {
-                                        p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
-                                    }, 200);
-                                    let restore_btn = _page_view['_text_restore'].getParent();
-                                    let _sess = $$cfg.ses[ds_k];
-                                    let _sto = $$cfg.sto[ds_k];
-                                    equalObjects(_sess, _sto) ? restore_btn.switch_off() : restore_btn.switch_on();
-                                    $$save.session(ds_k, _sess);
-                                    diag.dismiss();
-                                });
-                                diag.on('item_select', (idx) => {
-                                    let diag_items = diag.getItems().toArray();
-                                    if (diag_items.length !== 1 || diag_items[0] !== '\xa0') {
-                                        dialogsx
-                                            .builds(['确认移除此项吗', '', 0, 'B', 'S', 1])
-                                            .on('negative', ds => ds.dismiss())
-                                            .on('positive', (ds) => {
-                                                _tmp_selected.splice(idx, 1);
-                                                _refreshDiag();
-                                                ds.dismiss();
-                                            })
-                                            .show();
-                                    }
-                                });
-                                diag.show();
-
-                                _refreshDiag();
+                                _refreshAddFromLstDiag();
 
                                 // tool function(s) //
 
-                                function _refreshDiag() {
-                                    let _tmp_len = _tmp_selected.length;
-                                    let _tmp = _tmp_len ? _tmp_selected : ['\xa0'];
-                                    diag.setItems(_tmp);
-                                    let content_info = _tmp_len
-                                        ? ('当前选择区应用总数: ' + _tmp_len)
-                                        : '从列表中选择并添加应用\n或检索选择并添加应用';
-                                    diag.setContent(content_info);
+                                function _refreshAddFromLstDiag() {
+                                    let _items = [];
+                                    let _fri_lst = $$sto.af_flist.get('friends_list_data', {});
+                                    if (_fri_lst.list_data) {
+                                        _fri_lst.list_data.forEach((o) => {
+                                            let _nick = o.nickname;
+                                            let _cA = !_blist_sel_fri.includes(_nick);
+                                            let _cB = !_tmp_sel_fri.includes(_nick);
+                                            if (_cA && _cB) {
+                                                _items.push(o.rank_num + '. ' + _nick);
+                                            }
+                                        });
+                                    }
+                                    let _i_len = _items.length;
+                                    _items = _i_len ? _items : ['列表为空'];
+                                    _diag_add_from_lst.setItems(_items);
+                                    let _fri_lst_ts = _fri_lst.timestamp;
+                                    if (!isFinite(_fri_lst_ts)) {
+                                        _fri_lst_ts = -1;
+                                    }
+                                    _diag_add_from_lst.setContent('上次刷新: ' +
+                                        $$tool.getTimeStrFromTs(_fri_lst_ts, 'time_str') + '\n' +
+                                        '当前可添加的好友总数: ' + _i_len);
                                 }
-                            }],
-                        ];
-                    }
-                },
-                setInfoInputView(params) {
-                    let _info_input_view = null;
-                    let _input_views_o = {};
-                    let {
-                        InputType, SpannableString, style, Spanned, SpannedString,
-                    } = android.text;
-
-                    let _par = params || {};
-                    if (!$$und($$ses)) {
-                        $$ses.back_btn_consumed = true;
-                        $$ses.back_btn_consumed_func = (
-                            $$func(_par.back_btn_consumed)
-                                ? () => _par.back_btn_consumed()
-                                : () => _info_input_view.back_btn.click()
-                        );
-                    }
-
-                    _initInfoInputView();
-                    _addInputBoxes();
-                    _addButtons();
-
-                    // tool function(s) //
-
-                    function _initInfoInputView() {
-                        _info_input_view = ui.inflate(
-                            <vertical focusable="true" focusableInTouchMode="true"
-                                      bg="@android:color/white" clickable="true">
-                                <vertical h="*" gravity="center" focusableInTouchMode="true"
-                                          id="info_input_view_main" clickable="true"/>
-                            </vertical>);
-
-                        _info_input_view.setTag('fullscreen_info_input');
-                        ui.main.getParent().addView(_info_input_view);
-                    }
-
-                    function _addInputBoxes() {
-                        _par.input_views.forEach((o) => {
-                            let _view = ui.inflate(
-                                <vertical>
-                                    <card w="*" h="50" foreground="?selectableItemBackground"
-                                          cardBackgroundColor="#546e7a" margin="18 0 18 30"
-                                          cardCornerRadius="2dp" cardElevation="3dp">
-                                        <input id="input_area" background="?null"
-                                               textSize="17" textColor="#eeeeee"
-                                               hint="未设置" textColorHint="#e3e3e3"
-                                               gravity="center" selectAllOnFocus="true"/>
-                                        <vertical gravity="right|bottom">
-                                            <text id="input_text" bg="#66000000"
-                                                  textColor="#ffffff" size="12sp"
-                                                  w="auto" h="auto" maxLines="1"
-                                                  padding="6 2" layout_gravity="right"/>
-                                        </vertical>
-                                    </card>
-                                </vertical>);
-                            let {
-                                text: _text, type: _type,
-                                hint_text: _hint_t, init: _init,
-                            } = o;
-                            let {
-                                input_area: _input_area_view,
-                                input_text: _input_text_view,
-                            } = _view;
-                            let _setViewHintText = (hint_t) => {
-                                _setEditTextHint(_input_area_view, '-2', hint_t);
-                            };
-
-                            if (_type === 'password') {
-                                let _it = _input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD;
-                                _input_area_view.setInputType(_it);
-
-                                _input_area_view.setOnKeyListener({
-                                    onKey(view, keyCode, event) {
-                                        let KEYCODE_ENTER = android.view.KeyEvent.KEYCODE_ENTER;
-                                        let ACTION_UP = android.view.KeyEvent.ACTION_UP;
-                                        let _is_kc_enter = keyCode === KEYCODE_ENTER;
-                                        let _is_act_up = event.getAction() === ACTION_UP;
-                                        if (_is_kc_enter && _is_act_up) {
-                                            _info_input_view.confirm_btn.click();
-                                        }
-                                        return _is_kc_enter;
+                            });
+                            _diag.on('negative', () => {
+                                _diag.dismiss();
+                                let _getListData = () => $$sto
+                                    .af_flist.get('friends_list_data', {list_data: []})
+                                    .list_data.map(o => o.nickname);
+                                $$view.setListItemsSearchAndSelectView(_getListData, {
+                                    refresh_btn(ds_updater) {
+                                        $$tool.refreshFriLstByLaunchAlipay({
+                                            dialog_prompt: true,
+                                            onResume: ds_updater,
+                                        });
                                     },
-                                });
-                            } else {
-                                _input_area_view.setSingleLine(true);
-                            }
+                                    list_item(item, closeListPage) {
+                                        let _excluded = [_blist_sel_fri, _tmp_sel_fri];
 
-                            if (_type === 'account') {
-                                _init = $$tool.accountNameConverter(_init, 'decrypt');
-                            }
+                                        for (let i = 0, l = _excluded.length; i < l; i += 1) {
+                                            if (~_excluded[i].indexOf(item)) {
+                                                return toast('此项已存在于黑名单列表或待添加列表中');
+                                            }
+                                        }
+                                        closeListPage(item);
+                                    },
+                                    on_finish(result) {
+                                        result && _tmp_sel_fri.push(result);
+                                        _diag.show();
+                                        refreshDiag();
+                                    },
+                                }, true);
+                            });
+                            _diag.on('positive', () => {
+                                _tmp_sel_fri.forEach(name => $$view.updateDataSource(ds_k, 'update_unshift', {
+                                    name: name,
+                                    timestamp: Infinity,
+                                }));
+                                if (_tmp_sel_fri.length) setTimeout(function () {
+                                    p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
+                                }, 200);
+                                let _restore_btn = _lst_pg_view.getParent()['_text_restore'].getParent();
+                                equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k])
+                                    ? _restore_btn.switch_off()
+                                    : _restore_btn.switch_on();
+                                $$save.session(ds_k, $$cfg.ses[ds_k]);
+                                _diag.dismiss();
+                            });
+                            _diag.on('item_select', (idx) => {
+                                let _diag_items = _diag.getItems().toArray();
+                                if (_diag_items.length === 1 && _diag_items[0] === '\xa0') {
+                                    return;
+                                }
+                                dialogsx.builds([
+                                    '确认移除此项吗', '', 0, 'B', 'S', 1,
+                                ]).on('negative', (d) => {
+                                    d.dismiss();
+                                }).on('positive', (d) => {
+                                    _tmp_sel_fri.splice(idx, 1);
+                                    refreshDiag();
+                                    d.dismiss();
+                                }).show();
+                            });
+                            _diag.show();
 
-                            _input_text_view.setText(_text);
-                            if (_init) {
-                                _input_area_view.setText(_init);
-                            }
-                            _setViewHintText($$func(_hint_t) ? _hint_t() : _hint_t);
-                            _view['input_area'].setViewHintText = _setViewHintText;
-                            _input_area_view.setOnFocusChangeListener(_onFocusChangeLsn);
-                            _info_input_view['info_input_view_main'].addView(_view);
-                            _input_views_o[_text] = _view;
+                            refreshDiag();
 
                             // tool function(s) //
 
-                            function _onFocusChangeLsn(view, has_focus) {
-                                if (has_focus) {
-                                    view.setHint(null);
-                                } else {
-                                    _setViewHintText($$func(_hint_t) ? _hint_t() : _hint_t);
-                                }
+                            function refreshDiag() {
+                                let _tmp_items_len = _tmp_sel_fri.length;
+                                let _tmp_items = _tmp_items_len ? _tmp_sel_fri : ['\xa0'];
+                                _diag.setItems(_tmp_items);
+                                let _cnt_info = _tmp_items_len
+                                    ? '当前选择区好友总数: ' + _tmp_items_len
+                                    : _diag_def_cnt;
+                                _diag.setContent(_cnt_info);
                             }
-
-                            function _setEditTextHint(edit_text_view, text_size, text_str) {
-                                if (text_size.toString().match(/^[+-]\d+$/)) {
-                                    let _scale = context.getResources().getDisplayMetrics().scaledDensity;
-                                    text_size = edit_text_view.getTextSize() / _scale + +text_size;
-                                }
-                                let _span_str = new SpannableString(text_str || edit_text_view.hint);
-                                let _abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
-                                let _see = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE;
-                                _span_str.setSpan(_abs_size_span, 0, _span_str.length(), _see);
-                                edit_text_view.setHint(new SpannedString(_span_str));
-                            }
-                        });
-                        _info_input_view['info_input_view_main'].addView(ui.inflate(
-                            <vertical>
-                                <frame margin="0 15"/>
-                            </vertical>));
-                    }
-
-                    function _addButtons() {
-                        let {buttons: _btns} = _par;
-                        let {additional: _addn} = _btns;
-
-                        _addn && _addAddnBtns(_addn);
-
-                        let _raw_btn_view = ui.inflate(
-                            <vertical>
-                                <horizontal id="btn_group" w="auto" layout_gravity="center">
-                                    <button id="back_btn" text="返回"
-                                            margin="20 0" backgroundTint="#eeeeee"/>
-                                    <button id="reserved_btn" text="预留按钮"
-                                            margin="-10 0" backgroundTint="#bbdefb" visibility="gone"/>
-                                    <button id="confirm_btn" text="确定"
-                                            margin="20 0" backgroundTint="#dcedc8"/>
-                                </horizontal>
-                            </vertical>);
-
-                        if (_btns.reserved_btn) {
-                            let {
-                                text: _text,
-                                onClickListener: _lsn,
-                                hint_color: _hint_c,
-                            } = _btns.reserved_btn;
-
-                            let _btn_view = _raw_btn_view.reserved_btn;
-                            _btn_view.setVisibility(0);
-
-                            if (_text) {
-                                _btn_view.setText(_text);
-                            }
-                            if (_lsn) {
-                                _btn_view.on('click', () => {
-                                    _lsn(_input_views_o, _closeInputPage);
-                                });
-                            }
-                            if (_hint_c) {
-                                _btn_view.attr('backgroundTint', _hint_c);
-                            }
-                        }
-
-                        _info_input_view['info_input_view_main'].addView(_raw_btn_view);
-                        _info_input_view.back_btn.on('click', () => _closeInputPage());
-
-                        if (_btns.confirm_btn) {
-                            let {
-                                text: _text,
-                                onClickListener: _lsn,
-                            } = _btns.confirm_btn;
-
-                            let _btn_view = _raw_btn_view.confirm_btn;
-
-                            if (_text) {
-                                _btn_view.setText(_text);
-                            }
-                            if (_lsn) {
-                                _btn_view.on('click', () => {
-                                    _lsn(_input_views_o, _closeInputPage);
-                                });
-                            }
-                        } else {
-                            _info_input_view.confirm_btn.on('click', _closeInputPage);
-                        }
-
-                        // tool function(s) //
-
-                        function _addAddnBtns(addn) {
-                            let _addi_btns = $$arr(addn) ? addn.slice() : [addn];
-                            let _addi_btn_view = ui.inflate(
-                                <vertical>
-                                    <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
-                                </vertical>);
-                            _addi_btns.forEach((o) => {
-                                if (classof(o, 'Array')) {
-                                    return _addAddnBtns(o);
-                                }
-                                let _btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
-                                let {
-                                    text: _text,
-                                    hint_color: _hint_c,
-                                    onClickListener: _lsn,
-                                } = o;
-                                if (_text) {
-                                    _btn_view.setText(_text);
-                                }
-                                if (_hint_c) {
-                                    _btn_view.attr('backgroundTint', _hint_c);
-                                }
-                                if (_lsn) {
-                                    _btn_view.on('click', () => {
-                                        _lsn(_input_views_o, _closeInputPage);
-                                    });
-                                }
-                                _addi_btn_view['addi_button_area'].addView(_btn_view);
-                            });
-                            _info_input_view['info_input_view_main'].addView(_addi_btn_view);
-                        }
-                    }
-
-                    function _closeInputPage() {
-                        if (!$$und($$ses)) {
-                            delete $$ses.back_btn_consumed;
-                            delete $$ses.back_btn_consumed_func;
-                        }
-                        let _p = ui.main.getParent();
-                        let _c_cnt = _p.getChildCount();
-                        for (let i = 0; i < _c_cnt; i += 1) {
-                            let _c_view = _p.getChildAt(i);
-                            if (_c_view.findViewWithTag('fullscreen_info_input')) {
-                                _p.removeView(_c_view);
-                            }
-                        }
-                    }
-                },
-                setTimePickerView(params) {
-                    let time_picker_view = null;
-                    let week_checkbox_states = Array(7).join(' ').split(' ').map(() => false);
-
-                    params = params || {};
-                    if (!$$und($$ses)) {
-                        $$ses.back_btn_consumed = true;
-                        $$ses.back_btn_consumed_func = (
-                            $$func(params.back_btn_consumed)
-                                ? () => params.back_btn_consumed()
-                                : () => time_picker_view.back_btn.click()
-                        );
-                    }
-
-                    let picker_views = params.picker_views;
-                    let date_or_time_indices = [];
-                    ['date', 'time'].forEach((aim_type) => {
-                        picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
-                    });
-                    let date_or_time_len = date_or_time_indices.length;
-
-                    initPickerView();
-                    addPickers();
-                    addTimeStr();
-                    addButtons();
-
-                    ui.main.getParent().addView(time_picker_view);
-
-                    // tool function(s) //
-
-                    function initPickerView() {
-                        time_picker_view = ui.inflate(
-                            <vertical bg="@android:color/white" clickable="true" focusable="true">
-                                <scroll>
-                                    <vertical id="time_picker_view_main" padding="16"/>
-                                </scroll>
-                            </vertical>);
-
-                        time_picker_view.setTag('fullscreen_time_picker');
-                    }
-
-                    function addPickers() {
-                        picker_views.forEach(addPickerView);
-
-                        let type1 = (picker_views[date_or_time_indices[0]] || {}).type;
-                        let type2 = (picker_views[date_or_time_indices[1]] || {}).type;
-                        time_picker_view.getPickerTimeInfo[0] = date_or_time_len === 2 && type1 !== type2 ? {
-                            timestamp() {
-                                let f = num => time_picker_view.getPickerTimeInfo[date_or_time_indices[num - 1] + 1];
-                                if (type1 === 'date') return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
-                                if (type2 === 'date') return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
-                            }, // timestamp from one 'date' AND one 'time'
-                        } : {};
-
-                        // tool function(s) //
-
-                        function addPickerView(o, idx) {
-                            if (!o || !o.type) return;
-
-                            let picker_view = ui.inflate(
-                                <vertical id="picker_root">
-                                    <frame h="1" bg="#acacac" w="*"/>
-                                    <frame w="auto" layout_gravity="center" marginTop="15">
-                                        <text id="picker_title" text="设置时间" color="#01579b" size="16sp"/>
-                                    </frame>
-                                </vertical>);
-
-                            let text_widget = picker_view['picker_title'];
-                            let {text, text_color, type, init} = o;
-                            text && text_widget.setText(text);
-                            text_color && text_widget.setTextColor(colorsx.toInt(text_color));
-
-                            if (type === 'time') {
-                                picker_view['picker_root'].addView(ui.inflate(
-                                    <vertical>
-                                        <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
-                                    </vertical>));
-                                picker_view['picker'].setIs24HourView(java.lang.Boolean.TRUE);
-                                if (init) {
-                                    if ($$str(init)) {
-                                        init = init.split(/\D+/);
-                                    }
-                                    if ($$num(init) && init.toString().match(/^\d{13}$/)) {
-                                        let date = new Date(init);
-                                        init = [date.getHours(), date.getMinutes()];
-                                    }
-                                    if ($$arr(init)) {
-                                        picker_view['picker'].setHour(init[0]);
-                                        picker_view['picker'].setMinute(init[1]);
-                                    }
-                                }
-                            } else if (type === 'date') {
-                                picker_view['picker_root'].addView(ui.inflate(
-                                    <vertical>
-                                        <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
-                                    </vertical>));
-                                let date;
-                                if (init > 0 && init.toString().match(/^\d{13}$/)) {
-                                    // eg. 1564483851219 - timestamp
-                                    date = new Date(init);
-                                } else if (Array.isArray(init)) {
-                                    // eg. [2018, 7, 8] - number[]
-                                    date = {
-                                        getFullYear: () => init[0],
-                                        getMonth: () => init[1],
-                                        getDate: () => init[2],
-                                    };
-                                } else {
-                                    date = new Date();
-                                }
-                                picker_view['picker'].init(
-                                    date.getFullYear(), date.getMonth(), date.getDate(),
-                                    new android.widget.DatePicker.OnDateChangedListener({
-                                        onDateChanged: setTimeStr,
-                                    }));
-                            } else if (type === 'week') {
-                                let weeks = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                                let checkbox_views = ui.inflate(
-                                    <vertical id="checkboxes">
-                                        <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
-                                            <checkbox id="week_1" marginRight="13"/>
-                                            <checkbox id="week_2"/>
-                                        </horizontal>
-                                        <horizontal margin="0 5" layout_gravity="center" w="auto">
-                                            <checkbox id="week_3" marginRight="13"/>
-                                            <checkbox id="week_4"/>
-                                        </horizontal>
-                                        <horizontal margin="0 5 0 15" layout_gravity="center" w="auto">
-                                            <checkbox id="week_5" marginRight="13"/>
-                                            <checkbox id="week_6" marginRight="13"/>
-                                            <checkbox id="week_0"/>
-                                        </horizontal>
-                                    </vertical>);
-
-                                for (let i = 0; i < 7; i += 1) {
-                                    checkbox_views['week_' + i].setText(weeks[i]);
-                                    checkbox_views['week_' + i].on('check', (checked, view) => {
-                                        week_checkbox_states[weeks.indexOf(view.text)] = checked;
-                                        threadsx.start(function () {
-                                            let max_try_times = 20;
-                                            let interval = setInterval(function () {
-                                                if (!max_try_times--) return clearInterval(interval);
-                                                try {
-                                                    ui.post(setTimeStr);
-                                                    clearInterval(interval);
-                                                } catch (e) {
-                                                    // nothing to do here
-                                                }
-                                            }, 100);
-                                        });
-                                    });
-                                }
-
-                                picker_view['picker_root'].addView(checkbox_views);
-
-                                if (init) {
-                                    if ($$num(init)) {
-                                        init = timedTaskTimeFlagConverter(init);
-                                    }
-                                    init.forEach(n => picker_view['checkboxes']['week_' + n].setChecked(true));
-                                }
-                            }
-
-                            time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
-                            let picker_widget = picker_view['picker'];
-                            if (type === 'time') {
-                                picker_widget.setOnTimeChangedListener(setTimeStr);
-                            }
-
-                            let {yy, MM, dd, hh, mm} = {
-                                yy() {
-                                    try {
-                                        return picker_widget.getYear();
-                                    } catch (e) {
-                                        return new Date().getFullYear();
-                                    }
-                                },
-                                MM: () => padZero((() => {
-                                    try {
-                                        return picker_widget.getMonth();
-                                    } catch (e) {
-                                        return new Date().getMonth();
-                                    }
-                                })() + 1),
-                                dd: () => padZero((() => {
-                                    try {
-                                        return picker_widget.getDayOfMonth();
-                                    } catch (e) {
-                                        return new Date().getDate();
-                                    }
-                                })()),
-                                hh() {
-                                    try {
-                                        return padZero(picker_widget.getCurrentHour());
-                                    } catch (e) {
-                                        return null;
-                                    }
-                                },
-                                mm() {
-                                    try {
-                                        return padZero(picker_widget.getCurrentMinute());
-                                    } catch (e) {
-                                        return null;
-                                    }
-                                },
-                            };
-                            let padZero = num => ('0' + num).slice(-2);
-                            let parseDaysOfWeek = () => {
-                                let result = [];
-                                week_checkbox_states.forEach((bool, idx) => bool && result.push(idx));
-                                return result;
-                            };
-
-                            time_picker_view.getPickerTimeInfo[idx + 1] = {
-                                yy: yy,
-                                MM: MM,
-                                dd: dd,
-                                hh: hh,
-                                mm: mm,
-                                default() {
-                                    if (type === 'date') return yy() + '年' + MM() + '月' + dd() + '日';
-                                    if (type === 'time') return hh() + ':' + mm();
-                                    if (type === 'week') {
-                                        let parsed = parseDaysOfWeek();
-                                        if (!parsed.length) return '';
-                                        return '  [ ' + parsed.map(x => x === 0 ? 7 : x).sort().join(', ') + ' ]';
-                                    }
-                                },
-                                timestamp: () => +new Date(+yy(), +MM(), +dd(), +hh(), +mm()),
-                                daysOfWeek: parseDaysOfWeek,
-                            };
-
-                            time_picker_view['time_picker_view_main'].addView(picker_view);
-                        }
-                    }
-
-                    function addTimeStr() {
-                        time_picker_view['time_picker_view_main'].addView(ui.inflate(
-                            <vertical>
-                                <frame h="1" bg="#acacac" w="*"/>
-                                <frame w="auto" layout_gravity="center" margin="0 30 0 25">
-                                    <text id="time_str" text="" color="#bf360c" size="15sp" gravity="center"/>
-                                </frame>
-                            </vertical>));
-
-                        setTimeStr();
-                    }
-
-                    function setTimeStr() {
-                        let {picker_views} = params || [];
-                        let {prefix, format, suffix, middle} = params.time_str || {};
-                        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
-
-                        prefix = prefix && prefix.replace(/: ?/, '') + ': ' || '';
-
-                        if ($$func(middle)) middle = middle(getTimeInfoFromPicker);
-                        middle = middle || formatTimeStr();
-
-                        if ($$func(suffix)) suffix = suffix(getTimeInfoFromPicker);
-                        suffix = suffix && suffix.replace(/^ */, ' ') || '';
-
-                        time_picker_view.time_str.setText(prefix + middle + suffix);
-
-                        // tool function(s) //
-
-                        function formatTimeStr() {
-                            if (!format) {
-                                let len = date_or_time_indices.length;
-                                let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
-                                if (len === 2) {
-                                    str += (
-                                        picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? ' - ' : ' '
-                                    ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
-                                }
-                                picker_views.forEach((o, idx) => {
-                                    if (o.type === 'week') str += getTimeInfoFromPicker(idx + 1).default();
-                                });
-                                return str;
-                            }
-                            return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeInfoFromPicker($3)[$2]());
-                        }
-                    }
-
-                    function addButtons() {
-                        let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
-                        let btn_view = ui.inflate(
-                            <vertical>
-                                <horizontal id="btn_group" w="auto" layout_gravity="center">
-                                    <button id="back_btn" text="返回"
-                                            margin="20 0" backgroundTint="#eeeeee"/>
-                                    <button id="reserved_btn" text="预留按钮"
-                                            margin="-10 0" backgroundTint="#fff9c4" visibility="gone"/>
-                                    <button id="confirm_btn" text="确认选择"
-                                            margin="20 0" backgroundTint="#dcedc8"/>
-                                </horizontal>
-                            </vertical>);
-                        if ((params.buttons || {}).reserved_btn) {
-                            let {text, onClickListener} = params.buttons.reserved_btn;
-                            let reserved_btn_view = btn_view.reserved_btn;
-                            reserved_btn_view.setVisibility(0);
-                            text && reserved_btn_view.setText(text);
-                            onClickListener && reserved_btn_view.on('click', () => {
-                                return onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
-                            });
-                        }
-                        time_picker_view['time_picker_view_main'].addView(btn_view);
-
-                        if ((params.buttons || {}).back_btn) {
-                            let {text, onClickListener} = params.buttons.back_btn;
-                            let confirm_btn_view = btn_view.back_btn;
-                            text && confirm_btn_view.setText(text);
-                            onClickListener && confirm_btn_view.on('click', () => {
-                                return onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
-                            });
-                        } else {
-                            time_picker_view.back_btn.on('click', () => closeTimePickerPage());
-                        }
-
-                        if ((params.buttons || {}).confirm_btn) {
-                            let {text, onClickListener} = params.buttons.confirm_btn;
-                            let confirm_btn_view = btn_view.confirm_btn;
-                            text && confirm_btn_view.setText(text);
-                            onClickListener && confirm_btn_view.on('click', () => {
-                                onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
-                            });
-                        } else {
-                            time_picker_view.confirm_btn.on('click', () => closeTimePickerPage('picker_view'));
-                        }
-                    }
-
-                    function closeTimePickerPage(ret) {
-                        if (!$$und($$ses)) {
-                            delete $$ses.back_btn_consumed;
-                            delete $$ses.back_btn_consumed_func;
-                        }
-
-                        let parent = ui.main.getParent();
-                        let child_count = parent.getChildCount();
-                        for (let i = 0; i < child_count; i += 1) {
-                            let child_view = parent.getChildAt(i);
-                            if (child_view.findViewWithTag('fullscreen_time_picker')) {
-                                parent.removeView(child_view);
-                            }
-                        }
-
-                        params.onSuccess && params.onSuccess(ret === 'picker_view'
-                            ? time_picker_view.time_str.getText().toString()
-                            : ret);
-                    }
-                },
-                setListItemsSearchAndSelectView(data_source_src, listeners, is_empty_prompt) {
-                    let {refresh_btn, list_item, on_finish} = listeners;
-
-                    if (!$$und(global.$$ses)) {
-                        $$ses.back_btn_consumed = true;
-                        $$ses.back_btn_consumed_func = () => _search_view['back_btn'].click();
-                    }
-
-                    let _search_view = ui.inflate(
-                        <vertical focusable="true" focusableInTouchMode="true"
-                                  bg="@android:color/white" clickable="true">
-                            <horizontal margin="16 8 0 4">
-                                <input id="input" lines="1" layout_weight="1" hint="列表加载中..."
-                                       textColor="black" size="15sp" marginTop="3"/>
-                                <horizontal margin="0 0 8 0">
-                                    <button id="refresh_btn" text="刷新" w="55"
-                                            style="Widget.AppCompat.Button.Borderless.Colored"/>
-                                    <button id="back_btn" text="返回" w="55"
-                                            style="Widget.AppCompat.Button.Borderless.Colored"/>
-                                </horizontal>
-                            </horizontal>
-                            <grid id="list" spanCount="1" margin="16 0" border="1">
-                                <text text="{{this}}" padding="4 5" margin="2 5" bg="#eeeeeef8"/>
-                            </grid>
-                        </vertical>);
-
-                    _search_view.setTag('fullscreen_list_items_search_and_select');
-
-                    let _ds_ori = [];
-                    _search_view['list'].setDataSource(_ds_ori);
-
-                    _updateListData();
-
-                    _search_view['input'].setOnKeyListener({
-                        onKey(view, keyCode) {
-                            // disable ENTER_KEY
-                            return keyCode === android.view.KeyEvent.KEYCODE_ENTER;
-                        },
-                    });
-
-                    let _thd_calc_n_set_input = null;
-                    let _watcher = new android.text.TextWatcher({afterTextChanged: _afterTextChanged});
-                    _search_view['input'].addTextChangedListener(_watcher);
-
-                    if ($$func(refresh_btn)) {
-                        _search_view['refresh_btn'].on('click', () => {
-                            refresh_btn(_updateListData, _search_view);
-                        });
-                    } else {
-                        _search_view['refresh_btn'].setVisibility(8);
-                    }
-                    _search_view['back_btn'].on('click', () => {
-                        $$view.collapseSoftKeyboard(_search_view['input']);
-                        _closeListPage();
-                    });
-                    _search_view['list'].on('item_click', (item) => {
-                        $$func(list_item) && list_item.call(null, item, _closeListPage);
-                    });
-
-                    ui.main.getParent().addView(_search_view);
-
-                    // tool function(s) //
-
-                    function _afterTextChanged(input_text) {
-                        threadsx.interrupt(_thd_calc_n_set_input);
-                        _thd_calc_n_set_input = threadsx.start(function () {
-                            let _ds = [];
-                            if (input_text) {
-                                _ds_ori.forEach((name) => {
-                                    let _nm = name.toString();
-                                    let _it = input_text.toString();
-                                    if (_it.match(/^#(RE[GX]?|REGEXP?)#/i)) {
-                                        try {
-                                            if (_nm.match(new RegExp(_it.slice(_it.indexOf('#', 1) + 1)))) {
-                                                _ds.push(_nm);
-                                            }
-                                        } catch (e) {
-                                            // unterminated char may cause a SyntaxError when typing
-                                        }
-                                    } else {
-                                        if (~_nm.toLowerCase().indexOf(_it.toLowerCase())) {
-                                            _ds.push(_nm);
-                                        }
-                                    }
-                                });
-                            }
-                            ui.post(() => _search_view['list'].setDataSource(input_text ? _ds : _ds_ori));
-                        });
-                    }
-
-                    function _updateListData(data_source) {
-                        data_source = data_source || data_source_src;
-                        $$ses.list_refreshing_counter = $$ses.list_refreshing_counter || 0;
-                        if (!$$ses.list_refreshing_counter) {
-                            threadsx.start(function () {
-                                $$ses.list_refreshing_counter += 1;
-                                let _ds = $$func(data_source) ? data_source() : data_source;
-                                if (!_ds.length && is_empty_prompt) {
-                                    is_empty_prompt = false;
-                                    dialogsx.builds([
-                                        '空列表提示', '当前列表为空\n可能需要点击"刷新"按钮\n刷新后列表将自动更新',
-                                        0, 0, 'K', 1,
-                                    ]).on('positive', ds2 => ds2.dismiss()).show();
-                                }
-                                ui.post(() => {
-                                    _search_view['list'].setDataSource(_ds_ori = _ds);
-                                    _search_view['input'].setHint(_ds.length ? '在此键入并筛选列表内容' : '列表为空');
-                                    $$ses.list_refreshing_counter -= 1;
-                                });
-                            });
-                        }
-                    }
-
-                    function _closeListPage(result) {
-                        if (!$$und(global.$$ses)) {
-                            delete $$ses.back_btn_consumed;
-                            delete $$ses.back_btn_consumed_func;
-                        }
-
-                        let parent = ui.main.getParent();
-                        let child_count = parent.getChildCount();
-                        for (let i = 0; i < child_count; i += 1) {
-                            let child_view = parent.getChildAt(i);
-                            if (child_view.findViewWithTag('fullscreen_list_items_search_and_select')) parent.removeView(child_view);
-                        }
-
-                        $$func(on_finish) && on_finish.call(null, result);
-                    }
-                },
-                setTimersUninterruptedCheckAreasPageButtons(p_view, ds_k) {
-                    return $$view.setButtons(p_view, ds_k,
+                        }],
+                    ];
+                }
+
+                function sceForeAppBlacklist() {
+                    return [
                         ['restore', 'RESTORE', 'OFF', (btn_view) => {
-                            let list_data_backup = $$cfg.sto[ds_k];
-                            if (equalObjects($$cfg.ses[ds_k], list_data_backup)) return;
+                            let blacklist_backup = $$cfg.sto[ds_k];
+                            if (equalObjects($$cfg.ses[ds_k], blacklist_backup)) return;
                             let diag = dialogsx.builds([
                                 '恢复列表数据', 'restore_original_list_data',
                                 ['查看恢复列表', 'hint'], 'B', 'K', 1,
                             ]);
                             diag.on('neutral', () => {
                                 let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
-                                    content: '共计 ' + list_data_backup.length + ' 项',
+                                    content: '共计 ' + blacklist_backup.length + ' 项',
                                     items: (function () {
-                                        let split_line = '';
-                                        for (let i = 0; i < 18; i += 1) split_line += '- ';
-                                        let items = [split_line];
-                                        list_data_backup.forEach((o) => {
-                                            items.push('区间: ' + $$tool.timeSectionToStr(o.section));
-                                            items.push('间隔: ' + o.interval + '分钟');
-                                            items.push(split_line);
-                                        });
-                                        return items.length > 1 ? items : ['列表为空'];
+                                        let items = [];
+                                        blacklist_backup.forEach(o => items.push(o.app_combined_name));
+                                        return items.length ? items : ['列表为空'];
                                     })(),
                                 });
                                 diag_restore_list.on('positive', () => diag_restore_list.dismiss());
@@ -2653,7 +1604,7 @@ let $$init = {
                                 let remove_btn = p_view['_text_remove'].getParent();
                                 remove_btn.switch_off();
                                 btn_view.switch_off();
-                                list_data_backup.forEach(v => $$view.updateDataSource(ds_k, 'update', v));
+                                blacklist_backup.forEach(value => $$view.updateDataSource(ds_k, 'update', value));
                                 let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
                                 _page_view['_check_all'].setChecked(true);
                                 _page_view['_check_all'].setChecked(false);
@@ -2663,7 +1614,6 @@ let $$init = {
                         ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
                             let deleted_items_idx = ds_k + '_deleted_items_idx';
                             let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
-
                             if (!$$ses[deleted_items_idx_count]) return;
 
                             let thread_items_stable = threadsx.start(function () {
@@ -2676,921 +1626,1881 @@ let $$init = {
                             thread_items_stable.join(800);
 
                             let deleted_items_idx_keys = Object.keys($$ses[deleted_items_idx]);
-                            deleted_items_idx_keys.sort((a, b) => +a < +b ? 1 : -1).forEach(idx => $$ses[deleted_items_idx][idx] && $$ses[ds_k].splice(idx, 1));
+                            deleted_items_idx_keys
+                                .sort((a, b) => +a < +b ? 1 : -1)
+                                .forEach((idx) => {
+                                    if ($$ses[deleted_items_idx][idx]) {
+                                        $$ses[ds_k].splice(idx, 1);
+                                    }
+                                });
                             $$view.updateDataSource(ds_k, 'rewrite');
                             $$ses[deleted_items_idx] = {};
                             $$ses[deleted_items_idx_count] = 0;
 
-                            let restore_btn = p_view['_text_restore'].getParent();
-                            if (!equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k])) restore_btn.switch_on();
-                            else restore_btn.switch_off();
+                            let _restore_btn = p_view['_text_restore'].getParent();
+                            let _sess = $$cfg.ses[ds_k];
+                            let _sto = $$cfg.sto[ds_k];
+                            equalObjects(_sess, _sto) ? _restore_btn.switch_off() : _restore_btn.switch_on();
+
                             let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
                             _page_view['_check_all'].setChecked(true);
                             _page_view['_check_all'].setChecked(false);
                             btn_view.switch_off();
                         }],
                         ['add_circle', 'NEW', 'ON', () => {
-                            let _diag = dialogsx.builds([
-                                '添加延时接力数据', '设置新的时间区间及间隔\n点击可编辑对应项数据',
-                                0, '放弃添加', '确认添加', 1,
+                            let _tmp_selected = [];
+                            let _blist_selected = [];
+                            let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+
+                            let _sess = $$cfg.ses[ds_k];
+                            _sess.forEach(o => _blist_selected.push(o.app_combined_name));
+
+                            let diag = dialogsx.builds([
+                                '添加新数据', '从应用列表中选择并添加应用\n或检索选择应用',
+                                ['从列表中选择', 'hint'],
+                                ['检索选择', 'hint'],
+                                '确认添加', 1,
                             ], {items: ['\xa0']});
-
-                            refreshItems();
-
-                            _diag.on('positive', () => {
-                                let sectionStringTransform = () => {
-                                    let arr = $$cfg.list_heads[ds_k];
-                                    for (let i = 0, l = arr.length; i < l; i += 1) {
-                                        let o = arr[i];
-                                        if ('section' in o) {
-                                            return o.stringTransform;
+                            diag.on('neutral', () => {
+                                let _diag = dialogsx
+                                    .builds([
+                                        '列表选择应用', '',
+                                        ['刷新列表', 'hint'],
+                                        ['显示系统应用', 'reset'],
+                                        '确认选择', 1,
+                                    ], {
+                                        items: ['\xa0'],
+                                        itemsSelectMode: 'multi',
+                                    })
+                                    .on('neutral', _refreshDiagList)
+                                    .on('negative', (ds) => {
+                                        dialogsx.getActionButton(ds, 'negative').match(/显示/)
+                                            ? dialogsx.setActionButton(ds, 'negative', '隐藏系统应用')
+                                            : dialogsx.setActionButton(ds, 'negative', '显示系统应用');
+                                        _refreshDiagList(ds);
+                                    })
+                                    .on('positive', (ds) => {
+                                        _refreshDiag();
+                                        ds.dismiss();
+                                    })
+                                    .on('multi_choice', (indices, items) => {
+                                        if (items && items[0] !== '\xa0') {
+                                            items.forEach((n) => {
+                                                if (!n.match(/^\.{3} \.{3}$/)) {
+                                                    _tmp_selected.push(n);
+                                                }
+                                            });
                                         }
-                                    }
-                                };
-                                let _items = _diag.getItems().toArray();
-                                let [_sect, _itv] = _items.map(x => x.split(': ')[1]);
-                                $$view.updateDataSource(ds_k, 'update', {
-                                    section: sectionStringTransform().backward(_sect),
-                                    interval: +_itv,
-                                });
-                                setTimeout(function () {
-                                    p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
-                                }, 200);
-                                let restore_btn = $$ses[ds_k + '_btn_restore'];
-                                equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k]) ? restore_btn.switch_off() : restore_btn.switch_on();
-                                $$save.session(ds_k, $$cfg.ses[ds_k]);
-                                _diag.dismiss();
-                            });
-                            _diag.on('negative', () => _diag.dismiss());
-                            _diag.on('item_select', (idx, list_item) => {
-                                let _pref = list_item.split(': ')[0];
-                                let _cnt = list_item.split(': ')[1];
+                                    })
+                                    .show();
 
-                                if (_pref === '区间') {
-                                    _diag.dismiss();
-                                    $$view.setTimePickerView({
-                                        picker_views: [
-                                            {type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0]},
-                                            {type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1]},
-                                        ],
-                                        time_str: {
-                                            suffix(getStrFunc) {
-                                                if (getStrFunc(2).default() <= getStrFunc(1).default()) return '(+1)';
-                                            },
-                                        },
-                                        onSuccess(ret) {
-                                            _diag.show();
-                                            ret && refreshItems(_pref, ret);
-                                        },
+                                _refreshDiagList(_diag);
+
+                                // tool function(s) //
+
+                                function _refreshDiagList(ds) {
+                                    ds.setItems(Array(15).join('... ...,').split(',').slice(0, -1));
+                                    ds.setContent('当前可添加的应用总数: ... ...');
+                                    ds.setSelectedIndices([]);
+                                    threadsx.start(function () {
+                                        let _opt = {exclude: _blist_selected.concat(_tmp_selected)};
+                                        if (dialogsx.getActionButton(ds, 'negative').match(/显示/)) {
+                                            _opt.is_system = false;
+                                        }
+                                        let _items = appx.getInstalledApplications(_opt).getJointStrArr();
+                                        ui.post(function () {
+                                            ds.setSelectedIndices([]);
+                                            ds.setItems(_items.length ? _items : ['列表为空']);
+                                            ds.setContent('当前可添加的应用总数: ' + _items.length);
+                                        });
                                     });
                                 }
+                            });
+                            diag.on('negative', (d) => {
+                                d.dismiss();
+                                let _updater = () => (
+                                    appx.getInstalledApplications().getJointStrArr()
+                                );
+                                $$view.setListItemsSearchAndSelectView(_updater, {
+                                    refresh_btn(data_source_updater, view) {
+                                        view['refresh_btn'].setText('...');
+                                        view['list'].setDataSource([]);
+                                        data_source_updater(_updater);
+                                        view['refresh_btn'].setText('刷新');
+                                    },
+                                    list_item(item, closeListPage) {
+                                        let _excluded = [_blist_selected, _tmp_selected];
 
-                                if (_pref === '间隔') {
-                                    dialogsx
-                                        .builds(['修改' + _pref, '', 0, 'B', 'M', 1], {
-                                            inputHint: '{x|1<=x<=600,x∈N}',
-                                            inputPrefill: _cnt.toString(),
-                                        })
-                                        .on('negative', (d) => {
-                                            d.dismiss();
-                                        })
-                                        .on('positive', (d) => {
-                                            let _n = $$view.diag.checkInputRange(d, 1, 600);
-                                            if (_n) {
-                                                refreshItems(_pref, Math.trunc(+_n));
-                                                d.dismiss();
+                                        for (let i = 0, l = _excluded.length; i < l; i += 1) {
+                                            if (~_excluded[i].indexOf(item)) {
+                                                return toast('此项已存在于黑名单列表或待添加列表中');
                                             }
+                                        }
+                                        closeListPage.call(null, item);
+                                    },
+                                    on_finish(result) {
+                                        result && _tmp_selected.push(result);
+                                        d.show();
+                                        _refreshDiag();
+                                    },
+                                });
+                            });
+                            diag.on('positive', () => {
+                                _tmp_selected.forEach((n) => {
+                                    $$view.updateDataSource(ds_k, 'update_unshift', {app_combined_name: n});
+                                });
+                                if (_tmp_selected.length) setTimeout(function () {
+                                    p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
+                                }, 200);
+                                let restore_btn = _page_view['_text_restore'].getParent();
+                                let _sess = $$cfg.ses[ds_k];
+                                let _sto = $$cfg.sto[ds_k];
+                                equalObjects(_sess, _sto) ? restore_btn.switch_off() : restore_btn.switch_on();
+                                $$save.session(ds_k, _sess);
+                                diag.dismiss();
+                            });
+                            diag.on('item_select', (idx) => {
+                                let diag_items = diag.getItems().toArray();
+                                if (diag_items.length !== 1 || diag_items[0] !== '\xa0') {
+                                    dialogsx
+                                        .builds(['确认移除此项吗', '', 0, 'B', 'S', 1])
+                                        .on('negative', ds => ds.dismiss())
+                                        .on('positive', (ds) => {
+                                            _tmp_selected.splice(idx, 1);
+                                            _refreshDiag();
+                                            ds.dismiss();
                                         })
                                         .show();
                                 }
                             });
-                            _diag.show();
+                            diag.show();
+
+                            _refreshDiag();
 
                             // tool function(s) //
 
-                            function refreshItems(prefix, value) {
-                                let value_obj = {};
-                                let key_map = {
-                                    0: '区间',
-                                    1: '间隔',
-                                };
-                                if (!prefix && !value) {
-                                    value_obj = {};
-                                    value_obj[key_map[0]] = '06:30 - 00:00 (+1)';
-                                    value_obj[key_map[1]] = 60;
-                                } else {
-                                    _diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(': ')[1]);
-                                }
-                                if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
-                                let items = [];
-                                Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
-                                _diag.setItems(items);
+                            function _refreshDiag() {
+                                let _tmp_len = _tmp_selected.length;
+                                let _tmp = _tmp_len ? _tmp_selected : ['\xa0'];
+                                diag.setItems(_tmp);
+                                let content_info = _tmp_len
+                                    ? ('当前选择区应用总数: ' + _tmp_len)
+                                    : '从列表中选择并添加应用\n或检索选择并添加应用';
+                                diag.setContent(content_info);
                             }
-                        }]);
-                },
-                setStatPageButtons(p_view, ds_k) {
-                    return $$view.setButtons(p_view, ds_k,
-                        ['loop', 'FRI_LS', 'ON', () => {
-                            $$tool.refreshFriLstByLaunchAlipay({
-                                dialog_prompt: true,
-                                onResume() {
-                                    $$view.statListDataSource('SET');
+                        }],
+                    ];
+                }
+            },
+            setInfoInputView(params) {
+                let _info_input_view = null;
+                let _input_views_o = {};
+                let {
+                    InputType, SpannableString, style, Spanned, SpannedString,
+                } = android.text;
+
+                let _par = params || {};
+                if (!$$und($$ses)) {
+                    $$ses.back_btn_consumed = true;
+                    $$ses.back_btn_consumed_func = (
+                        $$func(_par.back_btn_consumed)
+                            ? () => _par.back_btn_consumed()
+                            : () => _info_input_view.back_btn.click()
+                    );
+                }
+
+                _initInfoInputView();
+                _addInputBoxes();
+                _addButtons();
+
+                // tool function(s) //
+
+                function _initInfoInputView() {
+                    _info_input_view = ui.inflate(
+                        <vertical focusable="true" focusableInTouchMode="true"
+                                  bg="@android:color/white" clickable="true">
+                            <vertical h="*" gravity="center" focusableInTouchMode="true"
+                                      id="info_input_view_main" clickable="true"/>
+                        </vertical>);
+
+                    _info_input_view.setTag('fullscreen_info_input');
+                    ui.main.getParent().addView(_info_input_view);
+                }
+
+                function _addInputBoxes() {
+                    _par.input_views.forEach((o) => {
+                        let _view = ui.inflate(
+                            <vertical>
+                                <card w="*" h="50" foreground="?selectableItemBackground"
+                                      cardBackgroundColor="#546e7a" margin="18 0 18 30"
+                                      cardCornerRadius="2dp" cardElevation="3dp">
+                                    <input id="input_area" background="?null"
+                                           textSize="17" textColor="#eeeeee"
+                                           hint="未设置" textColorHint="#e3e3e3"
+                                           gravity="center" selectAllOnFocus="true"/>
+                                    <vertical gravity="right|bottom">
+                                        <text id="input_text" bg="#66000000"
+                                              textColor="#ffffff" size="12sp"
+                                              w="auto" h="auto" maxLines="1"
+                                              padding="6 2" layout_gravity="right"/>
+                                    </vertical>
+                                </card>
+                            </vertical>);
+                        let {
+                            text: _text, type: _type,
+                            hint_text: _hint_t, init: _init,
+                        } = o;
+                        let {
+                            input_area: _input_area_view,
+                            input_text: _input_text_view,
+                        } = _view;
+                        let _setViewHintText = (hint_t) => {
+                            _setEditTextHint(_input_area_view, '-2', hint_t);
+                        };
+
+                        if (_type === 'password') {
+                            let _it = _input_area_view.getInputType() | InputType.TYPE_TEXT_VARIATION_PASSWORD;
+                            _input_area_view.setInputType(_it);
+
+                            _input_area_view.setOnKeyListener({
+                                onKey(view, keyCode, event) {
+                                    let KEYCODE_ENTER = android.view.KeyEvent.KEYCODE_ENTER;
+                                    let ACTION_UP = android.view.KeyEvent.ACTION_UP;
+                                    let _is_kc_enter = keyCode === KEYCODE_ENTER;
+                                    let _is_act_up = event.getAction() === ACTION_UP;
+                                    if (_is_kc_enter && _is_act_up) {
+                                        _info_input_view.confirm_btn.click();
+                                    }
+                                    return _is_kc_enter;
                                 },
                             });
-                        }], ['filter_list', 'FILTER', 'ON', () => {
-                            let _show_zero = $$ses.stat_list_show_zero;
-                            let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.stat_list_show_zero : _show_zero;
-                            dialogsx
-                                .builds([
-                                    '收取值筛选', '', ['R', 'hint'], 'B', 'K', 1,
-                                ], {
-                                    items: _getItems($$sto.af_cfg.get('config', {}).stat_list_show_zero),
-                                    itemsSelectMode: 'single',
-                                    itemsSelectedIndex: _sess_sel_idx,
-                                })
-                                .on('neutral', (d) => {
-                                    let _sel_i = d.getSelectedIndex();
-                                    $$sto.af_cfg.put('config', {stat_list_show_zero: _sel_i});
-                                    d.setItems(_getItems(_sel_i));
-                                })
-                                .on('negative', (d) => {
-                                    d.dismiss();
-                                })
-                                .on('positive', (d) => {
-                                    $$ses.stat_list_show_zero = d.getSelectedIndex();
-                                    $$view.statListDataSource('SET');
-                                    d.dismiss();
-                                })
-                                .show();
+                        } else {
+                            _input_area_view.setSingleLine(true);
+                        }
 
-                            // tool function(s) //
+                        if (_type === 'account') {
+                            _init = $$tool.accountNameConverter(_init, 'decrypt');
+                        }
 
-                            /** @returns {string[]} */
-                            function _getItems(idx) {
-                                return ['显示全部收取值', '不显示零收取值', '仅显示零收取值']
-                                    .map((v, i) => v + (i === idx ? ' (默认值)' : ''));
+                        _input_text_view.setText(_text);
+                        if (_init) {
+                            _input_area_view.setText(_init);
+                        }
+                        _setViewHintText($$func(_hint_t) ? _hint_t() : _hint_t);
+                        _view['input_area'].setViewHintText = _setViewHintText;
+                        _input_area_view.setOnFocusChangeListener(_onFocusChangeLsn);
+                        _info_input_view['info_input_view_main'].addView(_view);
+                        _input_views_o[_text] = _view;
+
+                        // tool function(s) //
+
+                        function _onFocusChangeLsn(view, has_focus) {
+                            if (has_focus) {
+                                view.setHint(null);
+                            } else {
+                                _setViewHintText($$func(_hint_t) ? _hint_t() : _hint_t);
                             }
-                        }], ['date_range', 'RANGE', 'ON', () => {
-                            let _range = $$ses.stat_list_date_range;
-                            let _sess_sel_idx = $$und(_range) ? $$cfg.ses.stat_list_date_range : _range;
-                            let _posFunc = d => _posDefault(d);
-                            let _diag = dialogsx.builds([
-                                '日期统计范围', '', ['R', 'hint'], 'B', 'K', 1,
-                            ], {
-                                items: $$view.getStatPageItems({
-                                    def: $$sto.af_cfg.get('config', {}).stat_list_date_range,
-                                }),
-                                itemsSelectMode: 'single',
-                                itemsSelectedIndex: _sess_sel_idx,
-                            }).on('neutral', (d) => {
-                                let _sel_i = d.getSelectedIndex();
-                                if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
-                                    _sel_i = 0;
-                                }
-                                $$sto.af_cfg.put('config', {stat_list_date_range: _sel_i});
-                                d.setItems($$view.getStatPageItems({def: _sel_i}));
-                            }).on('negative', (d) => {
-                                _thd.interrupt();
-                                d.dismiss();
-                            }).on('positive', (d) => {
-                                _posFunc(d);
-                            }).show();
+                        }
 
-                            let _thd = threadsx.start(function () {
-                                let _set_range = '设置范围';
-                                while (1) {
-                                    if (_diag.getSelectedIndex() === 1) {
-                                        if (_diag.getActionButton('positive') === dialogsx._text._btn.K) {
-                                            _diag.setActionButton('positive', _set_range);
-                                            _diag.setActionButton('neutral', null);
-                                            _posFunc = _posSetRange;
+                        function _setEditTextHint(edit_text_view, text_size, text_str) {
+                            if (text_size.toString().match(/^[+-]\d+$/)) {
+                                let _scale = context.getResources().getDisplayMetrics().scaledDensity;
+                                text_size = edit_text_view.getTextSize() / _scale + +text_size;
+                            }
+                            let _span_str = new SpannableString(text_str || edit_text_view.hint);
+                            let _abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
+                            let _see = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE;
+                            _span_str.setSpan(_abs_size_span, 0, _span_str.length(), _see);
+                            edit_text_view.setHint(new SpannedString(_span_str));
+                        }
+                    });
+                    _info_input_view['info_input_view_main'].addView(ui.inflate(
+                        <vertical>
+                            <frame margin="0 15"/>
+                        </vertical>));
+                }
+
+                function _addButtons() {
+                    let {buttons: _btns} = _par;
+                    let {additional: _addn} = _btns;
+
+                    _addn && _addAddnBtns(_addn);
+
+                    let _raw_btn_view = ui.inflate(
+                        <vertical>
+                            <horizontal id="btn_group" w="auto" layout_gravity="center">
+                                <button id="back_btn" text="返回"
+                                        margin="20 0" backgroundTint="#eeeeee"/>
+                                <button id="reserved_btn" text="预留按钮"
+                                        margin="-10 0" backgroundTint="#bbdefb" visibility="gone"/>
+                                <button id="confirm_btn" text="确定"
+                                        margin="20 0" backgroundTint="#dcedc8"/>
+                            </horizontal>
+                        </vertical>);
+
+                    if (_btns.reserved_btn) {
+                        let {
+                            text: _text,
+                            onClickListener: _lsn,
+                            hint_color: _hint_c,
+                        } = _btns.reserved_btn;
+
+                        let _btn_view = _raw_btn_view.reserved_btn;
+                        _btn_view.setVisibility(0);
+
+                        if (_text) {
+                            _btn_view.setText(_text);
+                        }
+                        if (_lsn) {
+                            _btn_view.on('click', () => {
+                                _lsn(_input_views_o, _closeInputPage);
+                            });
+                        }
+                        if (_hint_c) {
+                            _btn_view.attr('backgroundTint', _hint_c);
+                        }
+                    }
+
+                    _info_input_view['info_input_view_main'].addView(_raw_btn_view);
+                    _info_input_view.back_btn.on('click', () => _closeInputPage());
+
+                    if (_btns.confirm_btn) {
+                        let {
+                            text: _text,
+                            onClickListener: _lsn,
+                        } = _btns.confirm_btn;
+
+                        let _btn_view = _raw_btn_view.confirm_btn;
+
+                        if (_text) {
+                            _btn_view.setText(_text);
+                        }
+                        if (_lsn) {
+                            _btn_view.on('click', () => {
+                                _lsn(_input_views_o, _closeInputPage);
+                            });
+                        }
+                    } else {
+                        _info_input_view.confirm_btn.on('click', _closeInputPage);
+                    }
+
+                    // tool function(s) //
+
+                    function _addAddnBtns(addn) {
+                        let _addi_btns = $$arr(addn) ? addn.slice() : [addn];
+                        let _addi_btn_view = ui.inflate(
+                            <vertical>
+                                <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
+                            </vertical>);
+                        _addi_btns.forEach((o) => {
+                            if (classof(o, 'Array')) {
+                                return _addAddnBtns(o);
+                            }
+                            let _btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
+                            let {
+                                text: _text,
+                                hint_color: _hint_c,
+                                onClickListener: _lsn,
+                            } = o;
+                            if (_text) {
+                                _btn_view.setText(_text);
+                            }
+                            if (_hint_c) {
+                                _btn_view.attr('backgroundTint', _hint_c);
+                            }
+                            if (_lsn) {
+                                _btn_view.on('click', () => {
+                                    _lsn(_input_views_o, _closeInputPage);
+                                });
+                            }
+                            _addi_btn_view['addi_button_area'].addView(_btn_view);
+                        });
+                        _info_input_view['info_input_view_main'].addView(_addi_btn_view);
+                    }
+                }
+
+                function _closeInputPage() {
+                    if (!$$und($$ses)) {
+                        delete $$ses.back_btn_consumed;
+                        delete $$ses.back_btn_consumed_func;
+                    }
+                    let _p = ui.main.getParent();
+                    let _c_cnt = _p.getChildCount();
+                    for (let i = 0; i < _c_cnt; i += 1) {
+                        let _c_view = _p.getChildAt(i);
+                        if (_c_view.findViewWithTag('fullscreen_info_input')) {
+                            _p.removeView(_c_view);
+                        }
+                    }
+                }
+            },
+            setTimePickerView(params) {
+                let time_picker_view = null;
+                let week_checkbox_states = Array(7).join(' ').split(' ').map(() => false);
+
+                params = params || {};
+                if (!$$und($$ses)) {
+                    $$ses.back_btn_consumed = true;
+                    $$ses.back_btn_consumed_func = (
+                        $$func(params.back_btn_consumed)
+                            ? () => params.back_btn_consumed()
+                            : () => time_picker_view.back_btn.click()
+                    );
+                }
+
+                let picker_views = params.picker_views;
+                let date_or_time_indices = [];
+                ['date', 'time'].forEach((aim_type) => {
+                    picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
+                });
+                let date_or_time_len = date_or_time_indices.length;
+
+                initPickerView();
+                addPickers();
+                addTimeStr();
+                addButtons();
+
+                ui.main.getParent().addView(time_picker_view);
+
+                // tool function(s) //
+
+                function initPickerView() {
+                    time_picker_view = ui.inflate(
+                        <vertical bg="@android:color/white" clickable="true" focusable="true">
+                            <scroll>
+                                <vertical id="time_picker_view_main" padding="16"/>
+                            </scroll>
+                        </vertical>);
+
+                    time_picker_view.setTag('fullscreen_time_picker');
+                }
+
+                function addPickers() {
+                    picker_views.forEach(addPickerView);
+
+                    let type1 = (picker_views[date_or_time_indices[0]] || {}).type;
+                    let type2 = (picker_views[date_or_time_indices[1]] || {}).type;
+                    time_picker_view.getPickerTimeInfo[0] = date_or_time_len === 2 && type1 !== type2 ? {
+                        timestamp() {
+                            let f = num => time_picker_view.getPickerTimeInfo[date_or_time_indices[num - 1] + 1];
+                            if (type1 === 'date') return +new Date(+f(1).yy(), +f(1).MM() - 1, +f(1).dd(), +f(2).hh(), +f(2).mm());
+                            if (type2 === 'date') return +new Date(+f(2).yy(), +f(2).MM() - 1, +f(2).dd(), +f(1).hh(), +f(1).mm());
+                        }, // timestamp from one 'date' AND one 'time'
+                    } : {};
+
+                    // tool function(s) //
+
+                    function addPickerView(o, idx) {
+                        if (!o || !o.type) return;
+
+                        let picker_view = ui.inflate(
+                            <vertical id="picker_root">
+                                <frame h="1" bg="#acacac" w="*"/>
+                                <frame w="auto" layout_gravity="center" marginTop="15">
+                                    <text id="picker_title" text="设置时间" color="#01579b" size="16sp"/>
+                                </frame>
+                            </vertical>);
+
+                        let text_widget = picker_view['picker_title'];
+                        let {text, text_color, type, init} = o;
+                        text && text_widget.setText(text);
+                        text_color && text_widget.setTextColor(colorsx.toInt(text_color));
+
+                        if (type === 'time') {
+                            picker_view['picker_root'].addView(ui.inflate(
+                                <vertical>
+                                    <timepicker h="160" id="picker" timePickerMode="spinner" marginTop="-10"/>
+                                </vertical>));
+                            picker_view['picker'].setIs24HourView(java.lang.Boolean.TRUE);
+                            if (init) {
+                                if ($$str(init)) {
+                                    init = init.split(/\D+/);
+                                }
+                                if ($$num(init) && init.toString().match(/^\d{13}$/)) {
+                                    let date = new Date(init);
+                                    init = [date.getHours(), date.getMinutes()];
+                                }
+                                if ($$arr(init)) {
+                                    picker_view['picker'].setHour(init[0]);
+                                    picker_view['picker'].setMinute(init[1]);
+                                }
+                            }
+                        } else if (type === 'date') {
+                            picker_view['picker_root'].addView(ui.inflate(
+                                <vertical>
+                                    <datepicker h="160" id="picker" datePickerMode="spinner" marginTop="-10"/>
+                                </vertical>));
+                            let date;
+                            if (init > 0 && init.toString().match(/^\d{13}$/)) {
+                                // eg. 1564483851219 - timestamp
+                                date = new Date(init);
+                            } else if (Array.isArray(init)) {
+                                // eg. [2018, 7, 8] - number[]
+                                date = {
+                                    getFullYear: () => init[0],
+                                    getMonth: () => init[1],
+                                    getDate: () => init[2],
+                                };
+                            } else {
+                                date = new Date();
+                            }
+                            picker_view['picker'].init(
+                                date.getFullYear(), date.getMonth(), date.getDate(),
+                                new android.widget.DatePicker.OnDateChangedListener({
+                                    onDateChanged: setTimeStr,
+                                }));
+                        } else if (type === 'week') {
+                            let weeks = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            let checkbox_views = ui.inflate(
+                                <vertical id="checkboxes">
+                                    <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
+                                        <checkbox id="week_1" marginRight="13"/>
+                                        <checkbox id="week_2"/>
+                                    </horizontal>
+                                    <horizontal margin="0 5" layout_gravity="center" w="auto">
+                                        <checkbox id="week_3" marginRight="13"/>
+                                        <checkbox id="week_4"/>
+                                    </horizontal>
+                                    <horizontal margin="0 5 0 15" layout_gravity="center" w="auto">
+                                        <checkbox id="week_5" marginRight="13"/>
+                                        <checkbox id="week_6" marginRight="13"/>
+                                        <checkbox id="week_0"/>
+                                    </horizontal>
+                                </vertical>);
+
+                            for (let i = 0; i < 7; i += 1) {
+                                checkbox_views['week_' + i].setText(weeks[i]);
+                                checkbox_views['week_' + i].on('check', (checked, view) => {
+                                    week_checkbox_states[weeks.indexOf(view.text)] = checked;
+                                    threadsx.start(function () {
+                                        let max_try_times = 20;
+                                        let interval = setInterval(function () {
+                                            if (!max_try_times--) return clearInterval(interval);
+                                            try {
+                                                ui.post(setTimeStr);
+                                                clearInterval(interval);
+                                            } catch (e) {
+                                                // nothing to do here
+                                            }
+                                        }, 100);
+                                    });
+                                });
+                            }
+
+                            picker_view['picker_root'].addView(checkbox_views);
+
+                            if (init) {
+                                if ($$num(init)) {
+                                    init = timedTaskTimeFlagConverter(init);
+                                }
+                                init.forEach(n => picker_view['checkboxes']['week_' + n].setChecked(true));
+                            }
+                        }
+
+                        time_picker_view.getPickerTimeInfo = time_picker_view.getPickerTimeInfo || {};
+                        let picker_widget = picker_view['picker'];
+                        if (type === 'time') {
+                            picker_widget.setOnTimeChangedListener(setTimeStr);
+                        }
+
+                        let {yy, MM, dd, hh, mm} = {
+                            yy() {
+                                try {
+                                    return picker_widget.getYear();
+                                } catch (e) {
+                                    return new Date().getFullYear();
+                                }
+                            },
+                            MM: () => padZero((() => {
+                                try {
+                                    return picker_widget.getMonth();
+                                } catch (e) {
+                                    return new Date().getMonth();
+                                }
+                            })() + 1),
+                            dd: () => padZero((() => {
+                                try {
+                                    return picker_widget.getDayOfMonth();
+                                } catch (e) {
+                                    return new Date().getDate();
+                                }
+                            })()),
+                            hh() {
+                                try {
+                                    return padZero(picker_widget.getCurrentHour());
+                                } catch (e) {
+                                    return null;
+                                }
+                            },
+                            mm() {
+                                try {
+                                    return padZero(picker_widget.getCurrentMinute());
+                                } catch (e) {
+                                    return null;
+                                }
+                            },
+                        };
+                        let padZero = num => ('0' + num).slice(-2);
+                        let parseDaysOfWeek = () => {
+                            let result = [];
+                            week_checkbox_states.forEach((bool, idx) => bool && result.push(idx));
+                            return result;
+                        };
+
+                        time_picker_view.getPickerTimeInfo[idx + 1] = {
+                            yy: yy,
+                            MM: MM,
+                            dd: dd,
+                            hh: hh,
+                            mm: mm,
+                            default() {
+                                if (type === 'date') return yy() + '年' + MM() + '月' + dd() + '日';
+                                if (type === 'time') return hh() + ':' + mm();
+                                if (type === 'week') {
+                                    let parsed = parseDaysOfWeek();
+                                    if (!parsed.length) return '';
+                                    return '  [ ' + parsed.map(x => x === 0 ? 7 : x).sort().join(', ') + ' ]';
+                                }
+                            },
+                            timestamp: () => +new Date(+yy(), +MM(), +dd(), +hh(), +mm()),
+                            daysOfWeek: parseDaysOfWeek,
+                        };
+
+                        time_picker_view['time_picker_view_main'].addView(picker_view);
+                    }
+                }
+
+                function addTimeStr() {
+                    time_picker_view['time_picker_view_main'].addView(ui.inflate(
+                        <vertical>
+                            <frame h="1" bg="#acacac" w="*"/>
+                            <frame w="auto" layout_gravity="center" margin="0 30 0 25">
+                                <text id="time_str" text="" color="#bf360c" size="15sp" gravity="center"/>
+                            </frame>
+                        </vertical>));
+
+                    setTimeStr();
+                }
+
+                function setTimeStr() {
+                    let {picker_views} = params || [];
+                    let {prefix, format, suffix, middle} = params.time_str || {};
+                    let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
+
+                    prefix = prefix && prefix.replace(/: ?/, '') + ': ' || '';
+
+                    if ($$func(middle)) middle = middle(getTimeInfoFromPicker);
+                    middle = middle || formatTimeStr();
+
+                    if ($$func(suffix)) suffix = suffix(getTimeInfoFromPicker);
+                    suffix = suffix && suffix.replace(/^ */, ' ') || '';
+
+                    time_picker_view.time_str.setText(prefix + middle + suffix);
+
+                    // tool function(s) //
+
+                    function formatTimeStr() {
+                        if (!format) {
+                            let len = date_or_time_indices.length;
+                            let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
+                            if (len === 2) {
+                                str += (
+                                    picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? ' - ' : ' '
+                                ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
+                            }
+                            picker_views.forEach((o, idx) => {
+                                if (o.type === 'week') str += getTimeInfoFromPicker(idx + 1).default();
+                            });
+                            return str;
+                        }
+                        return format.replace(/(([yMdhm]{2})([12]))/g, ($0, $1, $2, $3) => getTimeInfoFromPicker($3)[$2]());
+                    }
+                }
+
+                function addButtons() {
+                    let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
+                    let btn_view = ui.inflate(
+                        <vertical>
+                            <horizontal id="btn_group" w="auto" layout_gravity="center">
+                                <button id="back_btn" text="返回"
+                                        margin="20 0" backgroundTint="#eeeeee"/>
+                                <button id="reserved_btn" text="预留按钮"
+                                        margin="-10 0" backgroundTint="#fff9c4" visibility="gone"/>
+                                <button id="confirm_btn" text="确认选择"
+                                        margin="20 0" backgroundTint="#dcedc8"/>
+                            </horizontal>
+                        </vertical>);
+                    if ((params.buttons || {}).reserved_btn) {
+                        let {text, onClickListener} = params.buttons.reserved_btn;
+                        let reserved_btn_view = btn_view.reserved_btn;
+                        reserved_btn_view.setVisibility(0);
+                        text && reserved_btn_view.setText(text);
+                        onClickListener && reserved_btn_view.on('click', () => {
+                            return onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
+                        });
+                    }
+                    time_picker_view['time_picker_view_main'].addView(btn_view);
+
+                    if ((params.buttons || {}).back_btn) {
+                        let {text, onClickListener} = params.buttons.back_btn;
+                        let confirm_btn_view = btn_view.back_btn;
+                        text && confirm_btn_view.setText(text);
+                        onClickListener && confirm_btn_view.on('click', () => {
+                            return onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
+                        });
+                    } else {
+                        time_picker_view.back_btn.on('click', () => closeTimePickerPage());
+                    }
+
+                    if ((params.buttons || {}).confirm_btn) {
+                        let {text, onClickListener} = params.buttons.confirm_btn;
+                        let confirm_btn_view = btn_view.confirm_btn;
+                        text && confirm_btn_view.setText(text);
+                        onClickListener && confirm_btn_view.on('click', () => {
+                            onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
+                        });
+                    } else {
+                        time_picker_view.confirm_btn.on('click', () => closeTimePickerPage('picker_view'));
+                    }
+                }
+
+                function closeTimePickerPage(ret) {
+                    if (!$$und($$ses)) {
+                        delete $$ses.back_btn_consumed;
+                        delete $$ses.back_btn_consumed_func;
+                    }
+
+                    let parent = ui.main.getParent();
+                    let child_count = parent.getChildCount();
+                    for (let i = 0; i < child_count; i += 1) {
+                        let child_view = parent.getChildAt(i);
+                        if (child_view.findViewWithTag('fullscreen_time_picker')) {
+                            parent.removeView(child_view);
+                        }
+                    }
+
+                    params.onSuccess && params.onSuccess(ret === 'picker_view'
+                        ? time_picker_view.time_str.getText().toString()
+                        : ret);
+                }
+            },
+            setListItemsSearchAndSelectView(data_source_src, listeners, is_empty_prompt) {
+                let {refresh_btn, list_item, on_finish} = listeners;
+
+                if (!$$und(global.$$ses)) {
+                    $$ses.back_btn_consumed = true;
+                    $$ses.back_btn_consumed_func = () => _search_view['back_btn'].click();
+                }
+
+                let _search_view = ui.inflate(
+                    <vertical focusable="true" focusableInTouchMode="true"
+                              bg="@android:color/white" clickable="true">
+                        <horizontal margin="16 8 0 4">
+                            <input id="input" lines="1" layout_weight="1" hint="列表加载中..."
+                                   textColor="black" size="15sp" marginTop="3"/>
+                            <horizontal margin="0 0 8 0">
+                                <button id="refresh_btn" text="刷新" w="55"
+                                        style="Widget.AppCompat.Button.Borderless.Colored"/>
+                                <button id="back_btn" text="返回" w="55"
+                                        style="Widget.AppCompat.Button.Borderless.Colored"/>
+                            </horizontal>
+                        </horizontal>
+                        <grid id="list" spanCount="1" margin="16 0" border="1">
+                            <text text="{{this}}" padding="4 5" margin="2 5" bg="#eeeeeef8"/>
+                        </grid>
+                    </vertical>);
+
+                _search_view.setTag('fullscreen_list_items_search_and_select');
+
+                let _ds_ori = [];
+                _search_view['list'].setDataSource(_ds_ori);
+
+                _updateListData();
+
+                _search_view['input'].setOnKeyListener({
+                    onKey(view, keyCode) {
+                        // disable ENTER_KEY
+                        return keyCode === android.view.KeyEvent.KEYCODE_ENTER;
+                    },
+                });
+
+                let _thd_calc_n_set_input = null;
+                let _watcher = new android.text.TextWatcher({afterTextChanged: _afterTextChanged});
+                _search_view['input'].addTextChangedListener(_watcher);
+
+                if ($$func(refresh_btn)) {
+                    _search_view['refresh_btn'].on('click', () => {
+                        refresh_btn(_updateListData, _search_view);
+                    });
+                } else {
+                    _search_view['refresh_btn'].setVisibility(8);
+                }
+                _search_view['back_btn'].on('click', () => {
+                    $$view.collapseSoftKeyboard(_search_view['input']);
+                    _closeListPage();
+                });
+                _search_view['list'].on('item_click', (item) => {
+                    $$func(list_item) && list_item.call(null, item, _closeListPage);
+                });
+
+                ui.main.getParent().addView(_search_view);
+
+                // tool function(s) //
+
+                function _afterTextChanged(input_text) {
+                    threadsx.interrupt(_thd_calc_n_set_input);
+                    _thd_calc_n_set_input = threadsx.start(function () {
+                        let _ds = [];
+                        if (input_text) {
+                            _ds_ori.forEach((name) => {
+                                let _nm = name.toString();
+                                let _it = input_text.toString();
+                                if (_it.match(/^#(RE[GX]?|REGEXP?)#/i)) {
+                                    try {
+                                        if (_nm.match(new RegExp(_it.slice(_it.indexOf('#', 1) + 1)))) {
+                                            _ds.push(_nm);
                                         }
-                                    } else {
-                                        if (_diag.getActionButton('positive') === _set_range) {
-                                            _diag.setActionButton('positive', dialogsx._text._btn.K);
-                                            _diag.setActionButton('neutral', dialogsx._text._btn.R);
-                                            _posFunc = _posDefault;
-                                        }
+                                    } catch (e) {
+                                        // unterminated char may cause a SyntaxError when typing
                                     }
-                                    sleep(120);
+                                } else {
+                                    if (~_nm.toLowerCase().indexOf(_it.toLowerCase())) {
+                                        _ds.push(_nm);
+                                    }
                                 }
                             });
+                        }
+                        ui.post(() => _search_view['list'].setDataSource(input_text ? _ds : _ds_ori));
+                    });
+                }
 
-                            // tool function(s) //
+                function _updateListData(data_source) {
+                    data_source = data_source || data_source_src;
+                    $$ses.list_refreshing_counter = $$ses.list_refreshing_counter || 0;
+                    if (!$$ses.list_refreshing_counter) {
+                        threadsx.start(function () {
+                            $$ses.list_refreshing_counter += 1;
+                            let _ds = $$func(data_source) ? data_source() : data_source;
+                            if (!_ds.length && is_empty_prompt) {
+                                is_empty_prompt = false;
+                                dialogsx.builds([
+                                    '空列表提示', '当前列表为空\n可能需要点击"刷新"按钮\n刷新后列表将自动更新',
+                                    0, 0, 'K', 1,
+                                ]).on('positive', ds2 => ds2.dismiss()).show();
+                            }
+                            ui.post(() => {
+                                _search_view['list'].setDataSource(_ds_ori = _ds);
+                                _search_view['input'].setHint(_ds.length ? '在此键入并筛选列表内容' : '列表为空');
+                                $$ses.list_refreshing_counter -= 1;
+                            });
+                        });
+                    }
+                }
 
-                            function _posSetRange(d) {
-                                d.dismiss();
-                                let _sess_range = $$ses.stat_list_date_range_data || [0, 1e10 - 1];
+                function _closeListPage(result) {
+                    if (!$$und(global.$$ses)) {
+                        delete $$ses.back_btn_consumed;
+                        delete $$ses.back_btn_consumed_func;
+                    }
+
+                    let parent = ui.main.getParent();
+                    let child_count = parent.getChildCount();
+                    for (let i = 0; i < child_count; i += 1) {
+                        let child_view = parent.getChildAt(i);
+                        if (child_view.findViewWithTag('fullscreen_list_items_search_and_select')) parent.removeView(child_view);
+                    }
+
+                    $$func(on_finish) && on_finish.call(null, result);
+                }
+            },
+            setTimersUninterruptedCheckAreasPageButtons(p_view, ds_k) {
+                return $$view.setButtons(p_view, ds_k,
+                    ['restore', 'RESTORE', 'OFF', (btn_view) => {
+                        let list_data_backup = $$cfg.sto[ds_k];
+                        if (equalObjects($$cfg.ses[ds_k], list_data_backup)) return;
+                        let diag = dialogsx.builds([
+                            '恢复列表数据', 'restore_original_list_data',
+                            ['查看恢复列表', 'hint'], 'B', 'K', 1,
+                        ]);
+                        diag.on('neutral', () => {
+                            let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
+                                content: '共计 ' + list_data_backup.length + ' 项',
+                                items: (function () {
+                                    let split_line = '';
+                                    for (let i = 0; i < 18; i += 1) split_line += '- ';
+                                    let items = [split_line];
+                                    list_data_backup.forEach((o) => {
+                                        items.push('区间: ' + $$tool.timeSectionToStr(o.section));
+                                        items.push('间隔: ' + o.interval + '分钟');
+                                        items.push(split_line);
+                                    });
+                                    return items.length > 1 ? items : ['列表为空'];
+                                })(),
+                            });
+                            diag_restore_list.on('positive', () => diag_restore_list.dismiss());
+                            diag_restore_list.show();
+                        });
+                        diag.on('negative', () => diag.dismiss());
+                        diag.on('positive', () => {
+                            diag.dismiss();
+                            $$view.updateDataSource(ds_k, 'splice', 0);
+
+                            let deleted_items_idx = ds_k + '_deleted_items_idx';
+                            let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
+                            $$ses[deleted_items_idx] = {};
+                            $$ses[deleted_items_idx_count] = 0;
+                            let remove_btn = p_view['_text_remove'].getParent();
+                            remove_btn.switch_off();
+                            btn_view.switch_off();
+                            list_data_backup.forEach(v => $$view.updateDataSource(ds_k, 'update', v));
+                            let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+                            _page_view['_check_all'].setChecked(true);
+                            _page_view['_check_all'].setChecked(false);
+                        });
+                        diag.show();
+                    }],
+                    ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
+                        let deleted_items_idx = ds_k + '_deleted_items_idx';
+                        let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
+
+                        if (!$$ses[deleted_items_idx_count]) return;
+
+                        let thread_items_stable = threadsx.start(function () {
+                            let old_count = undefined;
+                            while ($$ses[deleted_items_idx_count] !== old_count) {
+                                old_count = $$ses[deleted_items_idx_count];
+                                sleep(50);
+                            }
+                        });
+                        thread_items_stable.join(800);
+
+                        let deleted_items_idx_keys = Object.keys($$ses[deleted_items_idx]);
+                        deleted_items_idx_keys.sort((a, b) => +a < +b ? 1 : -1).forEach(idx => $$ses[deleted_items_idx][idx] && $$ses[ds_k].splice(idx, 1));
+                        $$view.updateDataSource(ds_k, 'rewrite');
+                        $$ses[deleted_items_idx] = {};
+                        $$ses[deleted_items_idx_count] = 0;
+
+                        let restore_btn = p_view['_text_restore'].getParent();
+                        if (!equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k])) restore_btn.switch_on();
+                        else restore_btn.switch_off();
+                        let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
+                        _page_view['_check_all'].setChecked(true);
+                        _page_view['_check_all'].setChecked(false);
+                        btn_view.switch_off();
+                    }],
+                    ['add_circle', 'NEW', 'ON', () => {
+                        let _diag = dialogsx.builds([
+                            '添加延时接力数据', '设置新的时间区间及间隔\n点击可编辑对应项数据',
+                            0, '放弃添加', '确认添加', 1,
+                        ], {items: ['\xa0']});
+
+                        refreshItems();
+
+                        _diag.on('positive', () => {
+                            let sectionStringTransform = () => {
+                                let arr = $$cfg.list_heads[ds_k];
+                                for (let i = 0, l = arr.length; i < l; i += 1) {
+                                    let o = arr[i];
+                                    if ('section' in o) {
+                                        return o.stringTransform;
+                                    }
+                                }
+                            };
+                            let _items = _diag.getItems().toArray();
+                            let [_sect, _itv] = _items.map(x => x.split(': ')[1]);
+                            $$view.updateDataSource(ds_k, 'update', {
+                                section: sectionStringTransform().backward(_sect),
+                                interval: +_itv,
+                            });
+                            setTimeout(function () {
+                                p_view.getParent()['_list_data'].smoothScrollBy(0, -Math.pow(10, 5));
+                            }, 200);
+                            let restore_btn = $$ses[ds_k + '_btn_restore'];
+                            equalObjects($$cfg.ses[ds_k], $$cfg.sto[ds_k]) ? restore_btn.switch_off() : restore_btn.switch_on();
+                            $$save.session(ds_k, $$cfg.ses[ds_k]);
+                            _diag.dismiss();
+                        });
+                        _diag.on('negative', () => _diag.dismiss());
+                        _diag.on('item_select', (idx, list_item) => {
+                            let _pref = list_item.split(': ')[0];
+                            let _cnt = list_item.split(': ')[1];
+
+                            if (_pref === '区间') {
+                                _diag.dismiss();
                                 $$view.setTimePickerView({
                                     picker_views: [
-                                        {type: 'date', text: '设置开始日期', init: _sess_range[0] * 1e3},
-                                        {type: 'date', text: '设置结束日期', init: _sess_range[1] * 1e3},
+                                        {type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0]},
+                                        {type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1]},
                                     ],
-                                    buttons: {
-                                        back_btn: {
-                                            onClickListener(getTimeInfoFromPicker, closeTimePickerPage) {
-                                                d.show();
-                                                closeTimePickerPage();
-                                            },
+                                    time_str: {
+                                        suffix(getStrFunc) {
+                                            if (getStrFunc(2).default() <= getStrFunc(1).default()) return '(+1)';
                                         },
                                     },
                                     onSuccess(ret) {
-                                        if (ret) {
-                                            $$ses.stat_list_date_range = d.getSelectedIndex();
-                                            $$ses.stat_list_date_range_data = $$tool
-                                                .timeStrToSection(ret).map((str, idx) => {
-                                                    let [yy, mm, dd] = str.split(/\D+/);
-                                                    // both 'ss' are seconds
-                                                    let _ss1 = +new Date(yy, mm - 1, dd) / 1e3 >>> 0;
-                                                    let _ss2 = idx && 24 * 3.6e6 / 1e3 - 1;
-                                                    return _ss1 + _ss2;
-                                                });
-                                            $$view.statListDataSource('SET');
-                                        }
+                                        _diag.show();
+                                        ret && refreshItems(_pref, ret);
                                     },
                                 });
                             }
 
-                            function _posDefault(d) {
-                                let _idx = d.getSelectedIndex();
-                                $$ses.stat_list_date_range = _idx;
-                                $$ses.stat_list_date_range_data = $$view.getStatPageItems({sel: _idx});
+                            if (_pref === '间隔') {
+                                dialogsx
+                                    .builds(['修改' + _pref, '', 0, 'B', 'M', 1], {
+                                        inputHint: '{x|1<=x<=600,x∈N}',
+                                        inputPrefill: _cnt.toString(),
+                                    })
+                                    .on('negative', (d) => {
+                                        d.dismiss();
+                                    })
+                                    .on('positive', (d) => {
+                                        let _n = $$view.diag.checkInputRange(d, 1, 600);
+                                        if (_n) {
+                                            refreshItems(_pref, Math.trunc(+_n));
+                                            d.dismiss();
+                                        }
+                                    })
+                                    .show();
+                            }
+                        });
+                        _diag.show();
+
+                        // tool function(s) //
+
+                        function refreshItems(prefix, value) {
+                            let value_obj = {};
+                            let key_map = {
+                                0: '区间',
+                                1: '间隔',
+                            };
+                            if (!prefix && !value) {
+                                value_obj = {};
+                                value_obj[key_map[0]] = '06:30 - 00:00 (+1)';
+                                value_obj[key_map[1]] = 60;
+                            } else {
+                                _diag.getItems().toArray().forEach((value, idx) => value_obj[key_map[idx]] = value.split(': ')[1]);
+                            }
+                            if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
+                            let items = [];
+                            Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
+                            _diag.setItems(items);
+                        }
+                    }]);
+            },
+            setStatPageButtons(p_view, ds_k) {
+                return $$view.setButtons(p_view, ds_k,
+                    ['loop', 'FRI_LS', 'ON', () => {
+                        $$tool.refreshFriLstByLaunchAlipay({
+                            dialog_prompt: true,
+                            onResume() {
                                 $$view.statListDataSource('SET');
-                                _thd.interrupt();
+                            },
+                        });
+                    }], ['filter_list', 'FILTER', 'ON', () => {
+                        let _show_zero = $$ses.stat_list_show_zero;
+                        let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.stat_list_show_zero : _show_zero;
+                        dialogsx
+                            .builds([
+                                '收取值筛选', '', ['R', 'hint'], 'B', 'K', 1,
+                            ], {
+                                items: _getItems($$sto.af_cfg.get('config', {}).stat_list_show_zero),
+                                itemsSelectMode: 'single',
+                                itemsSelectedIndex: _sess_sel_idx,
+                            })
+                            .on('neutral', (d) => {
+                                let _sel_i = d.getSelectedIndex();
+                                $$sto.af_cfg.put('config', {stat_list_show_zero: _sel_i});
+                                d.setItems(_getItems(_sel_i));
+                            })
+                            .on('negative', (d) => {
                                 d.dismiss();
+                            })
+                            .on('positive', (d) => {
+                                $$ses.stat_list_show_zero = d.getSelectedIndex();
+                                $$view.statListDataSource('SET');
+                                d.dismiss();
+                            })
+                            .show();
+
+                        // tool function(s) //
+
+                        /** @returns {string[]} */
+                        function _getItems(idx) {
+                            return ['显示全部收取值', '不显示零收取值', '仅显示零收取值']
+                                .map((v, i) => v + (i === idx ? ' (默认值)' : ''));
+                        }
+                    }], ['date_range', 'RANGE', 'ON', () => {
+                        let _range = $$ses.stat_list_date_range;
+                        let _sess_sel_idx = $$und(_range) ? $$cfg.ses.stat_list_date_range : _range;
+                        let _posFunc = d => _posDefault(d);
+                        let _diag = dialogsx.builds([
+                            '日期统计范围', '', ['R', 'hint'], 'B', 'K', 1,
+                        ], {
+                            items: $$view.getStatPageItems({
+                                def: $$sto.af_cfg.get('config', {}).stat_list_date_range,
+                            }),
+                            itemsSelectMode: 'single',
+                            itemsSelectedIndex: _sess_sel_idx,
+                        }).on('neutral', (d) => {
+                            let _sel_i = d.getSelectedIndex();
+                            if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
+                                _sel_i = 0;
                             }
-                        }]);
-                },
-                getStatPageItems(opt) {
-                    let _opt = opt || {};
-                    let _def_idx = _opt.def;
-                    let _sess_idx = _opt.sel;
+                            $$sto.af_cfg.put('config', {stat_list_date_range: _sel_i});
+                            d.setItems($$view.getStatPageItems({def: _sel_i}));
+                        }).on('negative', (d) => {
+                            _thd.interrupt();
+                            d.dismiss();
+                        }).on('positive', (d) => {
+                            _posFunc(d);
+                        }).show();
 
-                    let _now = new Date();
-                    let _yy = _now.getFullYear();
-                    let _mm = _now.getMonth();
-                    let _dd = _now.getDate();
-                    let _day = _now.getDay() || 7;
-                    let _pad = x => x < 10 ? '0' + x : x;
-                    let _today_ts = new Date(_yy, _mm, _dd).getTime();
-                    let _today_sec = _today_ts / 1e3 >> 0;
-                    let _1_day_sec = 24 * 3.6e3;
-                    let _1_day_ts = _1_day_sec * 1e3;
-                    let _today_max_sec = _today_sec + _1_day_sec - 1;
-                    let _items = [
-                        (() => {
-                            let _du = _today_ts + _1_day_ts - $$ses.list_data_min_ts;
-                            let _days = Math.ceil(_du / _1_day_ts);
-                            _days = isInfinite(_days) ? 0 : _days;
-                            return {
-                                item: '全部 (共' + _days + '天)',
-                                range: [0, _today_max_sec],
-                            };
-                        })(), {
-                            item: '自定义范围',
-                        }, {
-                            item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                            range: [_today_sec, _today_max_sec],
-                        }, (() => {
-                            let _date = new Date(+_now - _1_day_ts);
-                            let _mm = _date.getMonth();
-                            let _dd = _date.getDate();
-                            return {
-                                item: '昨天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                                range: [_today_sec - _1_day_sec, _today_sec - 1],
-                            };
-                        })(), {
-                            item: '本周 (共' + _day + '天)',
-                            range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
-                        }, (() => {
-                            let _date = new Date(+_now - _1_day_ts * 6);
-                            let _mm = _date.getMonth();
-                            let _dd = _date.getDate();
-                            return {
-                                item: '近7天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                                range: [_today_sec - _1_day_sec * 6, _today_max_sec],
-                            };
-                        })(), {
-                            item: '本月 (共' + _dd + '天)',
-                            range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
-                        }, (() => {
-                            let _date = new Date(+_now - _1_day_ts * 29);
-                            let _mm = _date.getMonth();
-                            let _dd = _date.getDate();
-                            return {
-                                item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                                range: [_today_sec - _1_day_sec * 29, _today_max_sec],
-                            };
-                        })(),
-                    ];
-                    if (!$$und(_def_idx)) {
-                        return _items.map((o, i) => i === _def_idx ? o.item + ' (默认值)' : o.item);
-                    }
-                    if (!$$und(_sess_idx)) {
-                        return _items[_sess_idx].range;
-                    }
-                },
-                setTimersControlPanelPageButtons(p_view, data_source_key_name, wizardFunc) {
-                    return $$view.setButtons(p_view, data_source_key_name,
-                        ['add_circle', 'NEW', 'ON', () => wizardFunc('add')]);
-                },
-                checkPageState() {
-                    let _check = $$view.page.last_rolling.checkPageState;
-                    return typeof _check === 'function' ? _check() : true;
-                },
-                /**
-                 * @param {android.view.View} view
-                 * @param {function|string|string[]} [dependencies]
-                 */
-                checkDependency(view, dependencies) {
-                    let _deps = dependencies || [];
-                    (() => {
-                        if ($$func(_deps)) {
-                            return _deps.call(null);
-                        }
-                        if (!classof(_deps, 'Array')) {
-                            _deps = [_deps];
-                        }
-                        return _deps.some((dep) => $$cfg.ses[dep]);
-                    })() ? setViewEnabled(view) : setViewDisabled(view, _deps);
-
-
-                    // tool function(s) //
-
-                    function setViewDisabled(view, dependencies) {
-                        let hint_text = '';
-                        if (classof(dependencies, 'Array')) {
-                            dependencies.forEach(conj_text => {
-                                hint_text += $$ses.title[conj_text] + ' ';
-                            });
-                            if (dependencies.length > 1) {
-                                hint_text += '均';
-                            }
-                            hint_text = '不可用  [ ' + hint_text + '未开启 ]';
-                        }
-                        view.setHintText(hint_text);
-                        view.setChevronVisibility(8);
-                        view.setTitleTextColor($$def.colors.item_title_light);
-                        view.setHintTextColor($$def.colors.item_hint_light);
-                        let next_page = view.getNextPage();
-                        if (next_page) {
-                            view.next_page_backup = next_page;
-                            view.setNextPage(null);
-                        }
-                    }
-
-                    function setViewEnabled(view) {
-                        view.setChevronVisibility(0);
-                        view.setTitleTextColor($$def.colors.item_title);
-                        view.setHintTextColor($$def.colors.item_hint);
-                        let {next_page_backup} = view;
-                        next_page_backup && view.setNextPage(next_page_backup);
-                    }
-                },
-                collapseSoftKeyboard(view) {
-                    context.getSystemService(context.INPUT_METHOD_SERVICE)
-                        .hideSoftInputFromWindow(view.getWindowToken(), 0);
-                },
-                commonItemBindCheckboxClickListener(checkbox_view, item_holder) {
-                    let {data_source_key_name: _ds_k} = this;
-                    let remove_btn_view = $$ses[_ds_k + '_btn_remove'];
-                    let item = item_holder.item;
-                    let aim_checked = !item.checked;
-                    item.checked = aim_checked;
-                    let idx = item_holder.position;
-                    let deleted_items_idx = _ds_k + '_deleted_items_idx';
-                    let deleted_items_idx_count = _ds_k + '_deleted_items_idx_count';
-                    $$ses[deleted_items_idx] = $$ses[deleted_items_idx] || {};
-                    $$ses[deleted_items_idx_count] = $$ses[deleted_items_idx_count] || 0;
-                    $$ses[deleted_items_idx][idx] = aim_checked;
-                    aim_checked ? $$ses[deleted_items_idx_count]++ : $$ses[deleted_items_idx_count]--;
-                    $$ses[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
-                    let _sess_len = $$cfg.ses[_ds_k].length;
-                    this.view['_check_all'].setChecked($$ses[deleted_items_idx_count] === _sess_len);
-                },
-                findViewByTag(view, tag) {
-                    if (!tag) {
-                        return;
-                    }
-                    let _len = view.getChildCount();
-                    for (let i = 0; i < _len; i += 1) {
-                        let _child = view.getChildAt(i);
-                        if (_child.findViewWithTag(tag)) {
-                            let _grandchild = $$view.findViewByTag(_child, tag);
-                            return _grandchild || _child;
-                        }
-                    }
-                    return view;
-                },
-                updateDataSource(ds_k, operation, data, options) {
-                    let _opt = options || {};
-                    let _quiet = _opt.is_quiet;
-                    let _sync_ds_k = _opt.sync_data_source;
-                    let _write_back = _opt.write_back === undefined ? true : !!_opt.write_back;
-
-                    if (operation.match(/init/)) {
-                        let _h_o_arr = $$cfg.list_heads[ds_k];
-                        let _h_o_len = _h_o_arr.length;
-                        let _ori_ds = data || $$cfg.ses[ds_k] || $$ses[ds_k];
-                        _ori_ds = $$func(_ori_ds) ? _ori_ds() : _ori_ds;
-                        for (let i = 0; i < _h_o_len; i += 1) {
-                            let _h_o = _h_o_arr[i];
-                            let _sort = _h_o.sort;
-                            if (_sort) {
-                                let _h_name = _sort.head_name;
-                                let _type = _sort.type || 'alphabet';
-                                let _factor = _sort.flag > 0 ? 1 : -1;
-                                let _sorter = (a, b) => {
-                                    let _cvt = x => _type === 'number' ? +x : x;
-                                    let _a = _cvt(a[_h_name]);
-                                    let _b = _cvt(b[_h_name]);
-                                    if (_a === _b) {
-                                        return 0;
+                        let _thd = threadsx.start(function () {
+                            let _set_range = '设置范围';
+                            while (1) {
+                                if (_diag.getSelectedIndex() === 1) {
+                                    if (_diag.getActionButton('positive') === dialogsx._text._btn.K) {
+                                        _diag.setActionButton('positive', _set_range);
+                                        _diag.setActionButton('neutral', null);
+                                        _posFunc = _posSetRange;
                                     }
-                                    return _a > _b ? _factor : -_factor;
-                                };
-                                _ori_ds.sort(_sorter);
-                                break;
+                                } else {
+                                    if (_diag.getActionButton('positive') === _set_range) {
+                                        _diag.setActionButton('positive', dialogsx._text._btn.K);
+                                        _diag.setActionButton('neutral', dialogsx._text._btn.R);
+                                        _posFunc = _posDefault;
+                                    }
+                                }
+                                sleep(120);
                             }
-                        }
-                        if (operation.match(/re/)) {
-                            if (!$$ses[ds_k]) {
-                                $$ses[ds_k] = [];
-                            }
-                            $$ses[ds_k].splice(0);
-                            return _ori_ds.map(_magicData).forEach(v => $$ses[ds_k].push(v));
-                        }
-                        return $$ses[ds_k] = _ori_ds.map(_magicData);
-                    }
+                        });
 
-                    if (operation === 'rewrite') {
-                        return _writeBack();
-                    }
+                        // tool function(s) //
 
-                    if (operation.match(/delete|splice/)) {
-                        let _data_params = classof(data, 'Array') ? data.slice() : [data];
-                        if (_data_params.length > 2 && !_data_params[2]['list_item_name_0']) {
-                            _data_params[2] = _magicData(_data_params[2]);
+                        function _posSetRange(d) {
+                            d.dismiss();
+                            let _sess_range = $$ses.stat_list_date_range_data || [0, 1e10 - 1];
+                            $$view.setTimePickerView({
+                                picker_views: [
+                                    {type: 'date', text: '设置开始日期', init: _sess_range[0] * 1e3},
+                                    {type: 'date', text: '设置结束日期', init: _sess_range[1] * 1e3},
+                                ],
+                                buttons: {
+                                    back_btn: {
+                                        onClickListener(getTimeInfoFromPicker, closeTimePickerPage) {
+                                            d.show();
+                                            closeTimePickerPage();
+                                        },
+                                    },
+                                },
+                                onSuccess(ret) {
+                                    if (ret) {
+                                        $$ses.stat_list_date_range = d.getSelectedIndex();
+                                        $$ses.stat_list_date_range_data = $$tool
+                                            .timeStrToSection(ret).map((str, idx) => {
+                                                let [yy, mm, dd] = str.split(/\D+/);
+                                                // both 'ss' are seconds
+                                                let _ss1 = +new Date(yy, mm - 1, dd) / 1e3 >>> 0;
+                                                let _ss2 = idx && 24 * 3.6e6 / 1e3 - 1;
+                                                return _ss1 + _ss2;
+                                            });
+                                        $$view.statListDataSource('SET');
+                                    }
+                                },
+                            });
                         }
-                        [].splice.apply($$ses[ds_k], _data_params);
-                        return _writeBack();
-                    }
 
-                    if (operation.match(/update/)) {
-                        if (data && !classof(data, 'Array')) {
-                            data = [data];
+                        function _posDefault(d) {
+                            let _idx = d.getSelectedIndex();
+                            $$ses.stat_list_date_range = _idx;
+                            $$ses.stat_list_date_range_data = $$view.getStatPageItems({sel: _idx});
+                            $$view.statListDataSource('SET');
+                            _thd.interrupt();
+                            d.dismiss();
                         }
+                    }]);
+            },
+            getStatPageItems(opt) {
+                let _opt = opt || {};
+                let _def_idx = _opt.def;
+                let _sess_idx = _opt.sel;
+
+                let _now = new Date();
+                let _yy = _now.getFullYear();
+                let _mm = _now.getMonth();
+                let _dd = _now.getDate();
+                let _day = _now.getDay() || 7;
+                let _pad = x => x < 10 ? '0' + x : x;
+                let _today_ts = new Date(_yy, _mm, _dd).getTime();
+                let _today_sec = _today_ts / 1e3 >> 0;
+                let _1_day_sec = 24 * 3.6e3;
+                let _1_day_ts = _1_day_sec * 1e3;
+                let _today_max_sec = _today_sec + _1_day_sec - 1;
+                let _items = [
+                    (() => {
+                        let _du = _today_ts + _1_day_ts - $$ses.list_data_min_ts;
+                        let _days = Math.ceil(_du / _1_day_ts);
+                        _days = !isFinite(_days) ? 0 : _days;
+                        return {
+                            item: '全部 (共' + _days + '天)',
+                            range: [0, _today_max_sec],
+                        };
+                    })(), {
+                        item: '自定义范围',
+                    }, {
+                        item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
+                        range: [_today_sec, _today_max_sec],
+                    }, (() => {
+                        let _date = new Date(+_now - _1_day_ts);
+                        let _mm = _date.getMonth();
+                        let _dd = _date.getDate();
+                        return {
+                            item: '昨天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
+                            range: [_today_sec - _1_day_sec, _today_sec - 1],
+                        };
+                    })(), {
+                        item: '本周 (共' + _day + '天)',
+                        range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
+                    }, (() => {
+                        let _date = new Date(+_now - _1_day_ts * 6);
+                        let _mm = _date.getMonth();
+                        let _dd = _date.getDate();
+                        return {
+                            item: '近7天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
+                            range: [_today_sec - _1_day_sec * 6, _today_max_sec],
+                        };
+                    })(), {
+                        item: '本月 (共' + _dd + '天)',
+                        range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
+                    }, (() => {
+                        let _date = new Date(+_now - _1_day_ts * 29);
+                        let _mm = _date.getMonth();
+                        let _dd = _date.getDate();
+                        return {
+                            item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
+                            range: [_today_sec - _1_day_sec * 29, _today_max_sec],
+                        };
+                    })(),
+                ];
+                if (!$$und(_def_idx)) {
+                    return _items.map((o, i) => i === _def_idx ? o.item + ' (默认值)' : o.item);
+                }
+                if (!$$und(_sess_idx)) {
+                    return _items[_sess_idx].range;
+                }
+            },
+            setTimersControlPanelPageButtons(p_view, data_source_key_name, wizardFunc) {
+                return $$view.setButtons(p_view, data_source_key_name,
+                    ['add_circle', 'NEW', 'ON', () => wizardFunc('add')]);
+            },
+            checkPageState() {
+                let _check = $$view.page.last_rolling.checkPageState;
+                return typeof _check === 'function' ? _check() : true;
+            },
+            /**
+             * @param {android.view.View} view
+             * @param {function|string|string[]} [dependencies]
+             */
+            checkDependency(view, dependencies) {
+                let _deps = dependencies || [];
+                (() => {
+                    if ($$func(_deps)) {
+                        return _deps.call(null);
+                    }
+                    if (!classof(_deps, 'Array')) {
+                        _deps = [_deps];
+                    }
+                    return _deps.some((dep) => $$cfg.ses[dep]);
+                })() ? setViewEnabled(view) : setViewDisabled(view, _deps);
+
+
+                // tool function(s) //
+
+                function setViewDisabled(view, dependencies) {
+                    let hint_text = '';
+                    if (classof(dependencies, 'Array')) {
+                        dependencies.forEach(conj_text => {
+                            hint_text += $$ses.title[conj_text] + ' ';
+                        });
+                        if (dependencies.length > 1) {
+                            hint_text += '均';
+                        }
+                        hint_text = '不可用  [ ' + hint_text + '未开启 ]';
+                    }
+                    view.setHintText(hint_text);
+                    view.setChevronVisibility(8);
+                    view.setTitleTextColor($$def.colors.item_title_light);
+                    view.setHintTextColor($$def.colors.item_hint_light);
+                    let next_page = view.getNextPage();
+                    if (next_page) {
+                        view.next_page_backup = next_page;
+                        view.setNextPage(null);
+                    }
+                }
+
+                function setViewEnabled(view) {
+                    view.setChevronVisibility(0);
+                    view.setTitleTextColor($$def.colors.item_title);
+                    view.setHintTextColor($$def.colors.item_hint);
+                    let {next_page_backup} = view;
+                    next_page_backup && view.setNextPage(next_page_backup);
+                }
+            },
+            collapseSoftKeyboard(view) {
+                context.getSystemService(context.INPUT_METHOD_SERVICE)
+                    .hideSoftInputFromWindow(view.getWindowToken(), 0);
+            },
+            commonItemBindCheckboxClickListener(checkbox_view, item_holder) {
+                let {data_source_key_name: _ds_k} = this;
+                let remove_btn_view = $$ses[_ds_k + '_btn_remove'];
+                let item = item_holder.item;
+                let aim_checked = !item.checked;
+                item.checked = aim_checked;
+                let idx = item_holder.position;
+                let deleted_items_idx = _ds_k + '_deleted_items_idx';
+                let deleted_items_idx_count = _ds_k + '_deleted_items_idx_count';
+                $$ses[deleted_items_idx] = $$ses[deleted_items_idx] || {};
+                $$ses[deleted_items_idx_count] = $$ses[deleted_items_idx_count] || 0;
+                $$ses[deleted_items_idx][idx] = aim_checked;
+                aim_checked ? $$ses[deleted_items_idx_count]++ : $$ses[deleted_items_idx_count]--;
+                $$ses[deleted_items_idx_count] ? remove_btn_view.switch_on() : remove_btn_view.switch_off();
+                let _sess_len = $$cfg.ses[_ds_k].length;
+                this.view['_check_all'].setChecked($$ses[deleted_items_idx_count] === _sess_len);
+            },
+            findViewByTag(view, tag) {
+                if (!tag) {
+                    return;
+                }
+                let _len = view.getChildCount();
+                for (let i = 0; i < _len; i += 1) {
+                    let _child = view.getChildAt(i);
+                    if (_child.findViewWithTag(tag)) {
+                        let _grandchild = this.findViewByTag(_child, tag);
+                        return _grandchild || _child;
+                    }
+                }
+                return view;
+            },
+            findViewsByTag(view, tag) {
+                let _views = [];
+                for (let i = 0, l = view.getChildCount(); i < l; i += 1) {
+                    let _child = view.getChildAt(i);
+                    if (_child.findViewWithTag(tag)) {
+                        _views.push(_child);
+                    }
+                }
+                return _views;
+            },
+            updateDataSource(ds_k, operation, data, options) {
+                let _opt = options || {};
+                let _quiet = _opt.is_quiet;
+                let _sync_ds_k = _opt.sync_data_source;
+                let _write_back = _opt.write_back === undefined ? true : !!_opt.write_back;
+
+                if (operation.match(/init/)) {
+                    let _h_o_arr = $$cfg.list_heads[ds_k];
+                    let _h_o_len = _h_o_arr.length;
+                    let _ori_ds = data || $$cfg.ses[ds_k] || $$ses[ds_k];
+                    _ori_ds = $$func(_ori_ds) ? _ori_ds() : _ori_ds;
+                    for (let i = 0; i < _h_o_len; i += 1) {
+                        let _h_o = _h_o_arr[i];
+                        let _sort = _h_o.sort;
+                        if (_sort) {
+                            let _h_name = _sort.head_name;
+                            let _type = _sort.type || 'alphabet';
+                            let _factor = _sort.flag > 0 ? 1 : -1;
+                            let _sorter = (a, b) => {
+                                let _cvt = x => _type === 'number' ? +x : x;
+                                let _a = _cvt(a[_h_name]);
+                                let _b = _cvt(b[_h_name]);
+                                if (_a === _b) {
+                                    return 0;
+                                }
+                                return _a > _b ? _factor : -_factor;
+                            };
+                            _ori_ds.sort(_sorter);
+                            break;
+                        }
+                    }
+                    if (operation.match(/re/)) {
                         if (!$$ses[ds_k]) {
                             $$ses[ds_k] = [];
                         }
-                        let is_unshift = operation.match(/unshift|beginning/);
-                        data.map(_magicData).forEach((v) => {
-                            is_unshift ? $$ses[ds_k].unshift(v) : $$ses[ds_k].push(v);
-                        });
-                        return _writeBack();
+                        $$ses[ds_k].splice(0);
+                        return _ori_ds.map(_magicData).forEach(v => $$ses[ds_k].push(v));
                     }
-
-                    // tool function(s) //
-
-                    function _magicData(obj) {
-                        let _final_o = {};
-                        $$cfg.list_heads[ds_k] && $$cfg.list_heads[ds_k].forEach((o, i) => {
-                            let _ls_name = Object.keys(o).filter(k => $$str(o[k]))[0];
-                            let _ls_value = obj[_ls_name];
-                            _final_o['list_item_name_' + i] = o.stringTransform
-                                ? o.stringTransform.forward.call(obj, _ls_value)
-                                : _ls_value;
-                            _final_o[_ls_name] = 'list_item_name_' + i; // backup
-                            _final_o['width_' + i] = o.width ? cX(o.width) + 'px' : -2;
-                        });
-                        Object.keys(obj).forEach((k) => {
-                            if (!(k in _final_o)) {
-                                _final_o[k] = obj[k];
-                            }
-                        });
-                        return _final_o;
-                    }
-
-                    function _writeBack() {
-                        if (_write_back) {
-                            $$cfg.ses[ds_k] = [];
-                            $$save.session(ds_k, $$tool.restoreSessParListData(ds_k), _quiet);
-                            if (_sync_ds_k) {
-                                $$cfg.sto[ds_k] = deepCloneObject($$cfg.ses[ds_k]);
-                            }
-                        }
-                    }
-                },
-                updateViewByTag(view_tag) {
-                    ui.post(() => $$view.dyn_pages
-                        .filter(view => view.view_tag === view_tag)
-                        .forEach(view => view.updateOpr(view)));
-                },
-                showOrHideBySwitch(o, state, hide_when_checked, nearest_end_tag) {
-                    let _lbl = o.view.page_view.page_label_name;
-                    setIntervalBySetTimeout(_act, 80, _ready);
-
-                    // tool function(s) //
-
-                    function _act() {
-                        ui.post(() => {
-                            let sw_state_key = o.config_conj + '_switch_states';
-                            if (!$$ses[sw_state_key]) {
-                                $$ses[sw_state_key] = [];
-                            }
-
-                            let myself = o.view;
-                            let parent = myself.getParent();
-                            let myself_index = parent.indexOfChild(myself);
-                            let child_count = parent.getChildCount();
-
-                            while (++myself_index < child_count) {
-                                let child_view = parent.getChildAt(myself_index);
-                                if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
-                                    break;
-                                }
-                                !!state === !!hide_when_checked ? hide(child_view) : reveal(child_view);
-                            }
-
-                            // tool function(s) //
-
-                            function hide(view) {
-                                $$ses[sw_state_key].push(view.visibility);
-                                view.setVisibility(8);
-                            }
-
-                            function reveal(view) {
-                                if ($$ses[sw_state_key].length) {
-                                    view.setVisibility($$ses[sw_state_key].shift());
-                                }
-                            }
-                        });
-                    }
-
-                    function _ready() {
-                        return _lbl ? $$ses['ready_signal_' + _lbl] : true;
-                    }
-                },
-                weakOrStrongBySwitch(o, state, idx_offset) {
-                    let _lbl = o.view.page_view.page_label_name;
-                    setIntervalBySetTimeout(_act, 80, _ready);
-
-                    // tool function(s) //
-
-                    function _act() {
-                        ui.post(() => {
-                            if (!classof(idx_offset, 'Array')) {
-                                idx_offset = [idx_offset || 1];
-                            }
-                            let p = o.view.getParent();
-                            let cur_i = p.indexOfChild(o.view);
-                            idx_offset.forEach((offset) => {
-                                let radio_group_view = p.getChildAt(cur_i + offset).getChildAt(0);
-                                for (let i = 0, l = radio_group_view.getChildCount(); i < l; i += 1) {
-                                    let v = radio_group_view.getChildAt(i);
-                                    v.setClickable(state);
-                                    v.setTextColor(colorsx.toInt(state
-                                        ? $$def.colors.item_title
-                                        : $$def.colors.item_title_light));
-                                }
-                            });
-                        });
-                    }
-
-                    function _ready() {
-                        return _lbl ? $$ses['ready_signal_' + _lbl] : true;
-                    }
-                },
-                /**
-                 * @param {'SET'|'GET'} act
-                 * @returns {{}[]}
-                 */
-                statListDataSource(act) {
-                    let _range = $$ses.stat_list_date_range_data || [];
-                    let _ts_a = _range[0] || 0;
-                    let _ts_b = _range[1] || 1e10 - 1;
-                    let _ts = _ts_a + ' and ' + _ts_b;
-
-                    let _zero = $$ses.stat_list_show_zero;
-                    _zero = $$und(_zero) ? $$cfg.ses.stat_list_show_zero : _zero;
-                    let [_show_zero, _show_other] = [0, 1];
-                    if ($$2(_zero)) {
-                        [_show_zero, _show_other] = [1, 0];
-                    } else if ($$0(_zero)) {
-                        _show_zero = 1;
-                    }
-
-                    let _sql = 'select name, sum(pick) as pick, timestamp as ts ' +
-                        'from ant_forest where timestamp between ' + _ts + ' ' +
-                        (_show_zero ? '' : 'and pick <> 0 ') + 'group by name';
-                    let _db_data = $$ses.db.rawQueryData$(_sql);
-
-                    if ($$und($$ses.list_data_min_ts)) {
-                        let _data = $$ses.db.rawQueryData$('select timestamp as ts from ant_forest');
-                        $$ses.list_data_min_ts = Math.mini(_data.map(o => o.ts)) * 1e3;
-                    }
-
-                    _show_other && _db_data.unshift({
-                        name: '%SUM%',
-                        pick: _db_data.length > 1 ? _db_data.reduce((a, b) => (
-                            ($$num(a) ? a : +a.pick) + +b.pick
-                        )) : $$1(_db_data.length) ? +_db_data[0].pick : 0,
-                    });
-
-                    let _db_nickname = _db_data.map(o => o.name);
-                    if (_show_zero) {
-                        let _fri_lst = $$sto.af_flist.get('friends_list_data', {});
-                        if (_fri_lst.list_data) {
-                            _fri_lst.list_data.forEach((o) => {
-                                let _nick = o.nickname;
-                                if (!~_db_nickname.indexOf(_nick)) {
-                                    _db_data.push({name: _nick, pick: 0});
-                                }
-                            });
-                        }
-                    }
-
-                    if (!_show_other) {
-                        _db_data = _db_data.filter(v => $$0(+v.pick));
-                    }
-
-                    if ($$2(_zero)) {
-                        _db_data.sort((a, b) => {
-                            let [_a, _b] = [a.name, b.name];
-                            if (_a === _b) {
-                                return 0;
-                            }
-                            return _a > _b ? 1 : -1;
-                        });
-                    } else {
-                        _db_data.sort((a, b) => {
-                            let [_a, _b] = [+a.pick, +b.pick];
-                            if (_a === _b) {
-                                return 0;
-                            }
-                            return _a < _b ? 1 : -1;
-                        });
-                    }
-
-                    if (act === 'GET') {
-                        return _db_data;
-                    }
-
-                    $$ses.stat_list.splice(0);
-                    $$view.updateDataSource('stat_list', 'update', _db_data, {write_back: false});
-                },
-            };
-
-            global.$$ses = {
-                db: require('./modules/mod-database').create([
-                    {name: 'name', not_null: true},
-                    {name: 'timestamp', type: 'integer', primary_key: true},
-                    {name: 'pick', type: 'integer'},
-                ], {alter: 'union'}),
-            };
-
-            global.$$save = {
-                trigger: () => !equalObjects($$cfg.ses, $$cfg.sto),
-                session(key, value, quiet_flag) {
-                    if (key !== undefined) {
-                        $$cfg.ses[key] = value;
-                    }
-                    if (!quiet_flag) {
-                        $$lsn.emit('update_all');
-                        threadsx.start(function () {
-                            let btn_save = null;
-                            waitForAction(() => btn_save = $$ses['homepage_btn_save'], 10e3, 80);
-                            ui.post(() => {
-                                $$save.trigger() ? btn_save.switch_on() : btn_save.switch_off();
-                            });
-                        });
-                    }
-                },
-                config() {
-                    let sess_cfg_mixed = deepCloneObject($$cfg.ses);
-                    excludeProjectBackup();
-                    writeUnlockStorage();
-                    writeBlacklist();
-                    $$sto.af_cfg.put('config', sess_cfg_mixed); // only 'cfg' reserved now (without unlock, blacklist, etc)
-                    $$cfg.sto = deepCloneObject($$cfg.ses);
-                    return true;
-
-                    // tool function(s) //
-
-                    function excludeProjectBackup() {
-                        delete sess_cfg_mixed.project_backup_info;
-                    }
-
-                    function writeUnlockStorage() {
-                        let _ori = deepCloneObject($$sto.def.unlock);
-                        let _tmp = {};
-                        for (let i in _ori) {
-                            if (_ori.hasOwnProperty(i)) {
-                                _tmp[i] = $$cfg.ses[i];
-                                delete sess_cfg_mixed[i];
-                            }
-                        }
-                        let _val = Object.assign({}, $$sto.unlock.get('config', {}), _tmp);
-                        $$sto.unlock.put('config', _val);
-                        delete sess_cfg_mixed.unlock;
-                    }
-
-                    function writeBlacklist() {
-                        let _blist = [];
-                        let _blist_usr = sess_cfg_mixed.blacklist_by_user;
-                        _blist_usr.forEach((o) => {
-                            _blist.push({
-                                name: o.name,
-                                reason: 'by_user',
-                                timestamp: o.timestamp,
-                            });
-                        });
-                        let _blist_cvr = sess_cfg_mixed.blacklist_protect_cover;
-                        _blist_cvr.forEach((o) => {
-                            _blist.push({
-                                name: o.name,
-                                reason: 'protect_cover',
-                                timestamp: o.timestamp,
-                            });
-                        });
-                        $$sto.af_blist.put('blacklist', _blist);
-                        delete sess_cfg_mixed.blacklist_protect_cover;
-                        delete sess_cfg_mixed.blacklist_by_user;
-                    }
-                },
-            };
-
-            global.$$tool = {
-                getTimeStrFromTs(time_param, format_str) {
-                    let timestamp = +time_param;
-                    let time_str = '';
-                    let time_str_remove = '';
-                    let time = new Date();
-                    if (!timestamp) time_str = time_str_remove = '时间戳无效';
-                    if (timestamp === Infinity) time_str_remove = '永不';
-                    else if (timestamp <= time.getTime()) time_str_remove = '下次运行';
-                    let padZero = num => ('0' + num).slice(-2);
-                    if (!time_str) {
-                        time.setTime(timestamp);
-                        let yy = time.getFullYear();
-                        let MM = padZero(time.getMonth() + 1);
-                        let dd = padZero(time.getDate());
-                        let hh = padZero(time.getHours());
-                        let mm = padZero(time.getMinutes());
-                        time_str = yy + '/' + MM + '/' + dd + ' ' + hh + ':' + mm;
-                    }
-
-                    return {
-                        time_str: time_str,
-                        time_str_full: time_str + ':' + padZero(time.getSeconds()),
-                        time_str_remove: time_str_remove || time_str,
-                        timestamp: timestamp,
-                    }[format_str || 'time_str'];
-                },
-                getTimedTaskTypeStr(source) {
-                    if (classof(source, 'Array')) {
-                        if (source.length === 7) return '每日';
-                        if (source.length) return '每周 [' + source.slice().map(x => +x || 7).sort().join(',') + ']';
-                    }
-                    return source === 0 ? '一次性' : source;
-                },
-                restoreFromTimestamp(timestamp) {
-                    let _ts = timestamp;
-                    if (typeof timestamp === 'number') {
-                        _ts = timestamp.toString();
-                    }
-                    if (_ts.match(/^\d{13}$/)) {
-                        return +_ts;
-                    }
-                    if (_ts === '永不') {
-                        return Infinity;
-                    }
-                    let _args = _ts.split(/\D+/).map((s, i) => {
-                        return (i === 1) ? s - 1 : +s;
-                    });
-                    _args.unshift(+'thisArgCanBeAny');
-                    return (new (Function.prototype.bind.apply(Date, _args))).getTime();
-                },
-                restoreFromTimedTaskTypeStr(str) {
-                    if (str === '每日') return [0, 1, 2, 3, 4, 5, 6];
-                    if (str.match(/每周/)) return str.split(/\D/).filter(x => x !== '').map(x => +x === 7 ? 0 : +x).sort();
-                    return str === '一次性' ? 0 : str;
-                },
-                refreshFriLstByLaunchAlipay(params) {
-                    let {dialog_prompt, onTrigger, onResume} = params || {};
-
-                    if (dialog_prompt) {
-                        dialogsx.builds([
-                            '刷新好友列表提示', '即将尝试打开"支付宝"\n自动获取最新的好友列表信息\n在此期间请勿操作设备',
-                            0, 'Q', '开始刷新', 1,
-                        ]).on('negative', (diag) => {
-                            diag.dismiss();
-                        }).on('positive', (diag) => {
-                            diag.dismiss();
-                            refreshNow();
-                        }).show();
-                    } else {
-                        refreshNow();
-                    }
-
-                    // tool function(s) //
-
-                    function refreshNow() {
-                        if ($$func(onTrigger)) {
-                            onTrigger();
-                        }
-                        filesx.run('launcher$', {cmd: 'get_rank_list_names'});
-                        threadsx.start(function () {
-                            waitForAndClickAction(text('打开'), 3.5e3, 300, {click_strategy: 'w'});
-                        });
-
-                        if ($$func(onResume)) {
-                            ui.emitter.prependOnceListener('resume', onResume);
-                        }
-
-                        setTimeout(function () {
-                            toast('即将打开"支付宝"刷新好友列表');
-                        }, 500);
-                    }
-                },
-                accountNameConverter(str, opr) {
-                    let _str = str || '';
-                    let _res = '';
-                    let _factor = {e: 1, d: -1}[opr[0]];
-                    for (let i in _str) {
-                        let _char_code = _str.charCodeAt(+i);
-                        let _shifting = ((996).ICU + +i) * _factor;
-                        _res += String.fromCharCode(_char_code + _shifting);
-                    }
-                    return _res;
-                },
-                timeSectionToStr(arr) {
-                    return arr.join(' - ') + (arr[1] <= arr[0] ? ' (+1)' : '');
-                },
-                timeStrToSection(str) {
-                    return str.replace(/ \(\+1\)/g, '').split(' - ');
-                },
-                restoreSessParListData(ds_k) {
-                    let new_data = [];
-                    $$ses[ds_k].forEach((o) => {
-                        let _final_o = deepCloneObject(o);
-                        Object.keys(_final_o).forEach((key) => {
-                            if (_final_o[key] in _final_o) {
-                                let _useless = _final_o[key];
-                                _final_o[key] = _final_o[_final_o[key]];
-                                delete _final_o[_useless];
-                            }
-                            if (key.match(/^width_\d$/)) {
-                                delete _final_o[key];
-                            }
-                        });
-
-                        $$cfg.list_heads[ds_k] && $$cfg.list_heads[ds_k].forEach((o) => {
-                            if ('stringTransform' in o) {
-                                let _aim_k = Object.keys(o).filter((k => $$str(o[k])))[0];
-                                let _bw = o.stringTransform.backward;
-                                if (_bw === '__delete__') {
-                                    delete _final_o[_aim_k];
-                                } else if ($$func(_bw)) {
-                                    _final_o[_aim_k] = _bw.call(_final_o, _final_o[_aim_k]);
-                                }
-                            }
-                        });
-
-                        new_data.push(_final_o);
-                    });
-                    return new_data;
-                },
-            };
-
-            global.$$enc = s => require('./modules/mod-pwmap').encrypt(s);
-
-            global.Layout = function (title, hint, params) {
-                let _par = $$obj(hint) ? hint : params || {};
-                let _hint = $$obj(hint) ? '' : hint === 'hint' ? '加载中...' : hint;
-
-                Object.assign(this, {hint: _hint, title: title}, _par);
-
-                let _conj = _par.config_conj;
-                if (_conj) {
-                    let _title_o = $$ses.title || {};
-                    _title_o[_conj] = _title_o[_conj] || title;
-                    $$ses.title = _title_o;
+                    return $$ses[ds_k] = _ori_ds.map(_magicData);
                 }
 
-                Object.defineProperties(this, (() => {
-                    let _props = {
-                        newWindow: {get: () => _par.newWindow.bind(this)},
-                        infoWindow: {get: () => _par.infoWindow.bind(this)},
-                        listeners: {get: () => _par.listeners},
-                        updateOpr: {get: () => view => _par.updateOpr(view)},
-                        custom_data_source: {get: () => _par.custom_data_source},
-                    };
-                    Object.keys(_props).forEach(k => _par[k] || delete _props[k]);
-                    return _props;
-                })());
-            };
-        }
+                if (operation === 'rewrite') {
+                    return _writeBack();
+                }
+
+                if (operation.match(/delete|splice/)) {
+                    let _data_params = classof(data, 'Array') ? data.slice() : [data];
+                    if (_data_params.length > 2 && !_data_params[2]['list_item_name_0']) {
+                        _data_params[2] = _magicData(_data_params[2]);
+                    }
+                    [].splice.apply($$ses[ds_k], _data_params);
+                    return _writeBack();
+                }
+
+                if (operation.match(/update/)) {
+                    if (data && !classof(data, 'Array')) {
+                        data = [data];
+                    }
+                    if (!$$ses[ds_k]) {
+                        $$ses[ds_k] = [];
+                    }
+                    let is_unshift = operation.match(/unshift|beginning/);
+                    data.map(_magicData).forEach((v) => {
+                        is_unshift ? $$ses[ds_k].unshift(v) : $$ses[ds_k].push(v);
+                    });
+                    return _writeBack();
+                }
+
+                // tool function(s) //
+
+                function _magicData(obj) {
+                    let _final_o = {};
+                    $$cfg.list_heads[ds_k] && $$cfg.list_heads[ds_k].forEach((o, i) => {
+                        let _ls_name = Object.keys(o).filter(k => $$str(o[k]))[0];
+                        let _ls_value = obj[_ls_name];
+                        _final_o['list_item_name_' + i] = o.stringTransform
+                            ? o.stringTransform.forward.call(obj, _ls_value)
+                            : _ls_value;
+                        _final_o[_ls_name] = 'list_item_name_' + i; // backup
+                        _final_o['width_' + i] = o.width ? cX(o.width) + 'px' : -2;
+                    });
+                    Object.keys(obj).forEach((k) => {
+                        if (!(k in _final_o)) {
+                            _final_o[k] = obj[k];
+                        }
+                    });
+                    return _final_o;
+                }
+
+                function _writeBack() {
+                    if (_write_back) {
+                        $$cfg.ses[ds_k] = [];
+                        $$save.session(ds_k, $$tool.restoreSessParListData(ds_k), _quiet);
+                        if (_sync_ds_k) {
+                            $$cfg.sto[ds_k] = deepCloneObject($$cfg.ses[ds_k]);
+                        }
+                    }
+                }
+            },
+            updateViewByTag(view_tag) {
+                ui.post(() => $$view.dyn_pages
+                    .filter(view => view.view_tag === view_tag)
+                    .forEach(view => view.updateOpr(view)));
+            },
+            showOrHideBySwitch(o, state, hide_when_checked, nearest_end_tag) {
+                let _lbl = o.view.page_view.page_label_name;
+                setIntervalBySetTimeout(_act, 80, _ready);
+
+                // tool function(s) //
+
+                function _act() {
+                    ui.post(() => {
+                        let sw_state_key = o.config_conj + '_switch_states';
+                        if (!$$ses[sw_state_key]) {
+                            $$ses[sw_state_key] = [];
+                        }
+
+                        let myself = o.view;
+                        let parent = myself.getParent();
+                        let myself_index = parent.indexOfChild(myself);
+                        let child_count = parent.getChildCount();
+
+                        while (++myself_index < child_count) {
+                            let child_view = parent.getChildAt(myself_index);
+                            if (nearest_end_tag && child_view.findViewWithTag(nearest_end_tag)) {
+                                break;
+                            }
+                            !!state === !!hide_when_checked ? hide(child_view) : reveal(child_view);
+                        }
+
+                        // tool function(s) //
+
+                        function hide(view) {
+                            $$ses[sw_state_key].push(view.visibility);
+                            view.setVisibility(8);
+                        }
+
+                        function reveal(view) {
+                            if ($$ses[sw_state_key].length) {
+                                view.setVisibility($$ses[sw_state_key].shift());
+                            }
+                        }
+                    });
+                }
+
+                function _ready() {
+                    return _lbl ? $$ses['ready_signal_' + _lbl] : true;
+                }
+            },
+            weakOrStrongBySwitch(o, state, idx_offset) {
+                let _lbl = o.view.page_view.page_label_name;
+                setIntervalBySetTimeout(_act, 80, _ready);
+
+                // tool function(s) //
+
+                function _act() {
+                    ui.post(() => {
+                        if (!classof(idx_offset, 'Array')) {
+                            idx_offset = [idx_offset || 1];
+                        }
+                        let p = o.view.getParent();
+                        let cur_i = p.indexOfChild(o.view);
+                        idx_offset.forEach((offset) => {
+                            let radio_group_view = p.getChildAt(cur_i + offset).getChildAt(0);
+                            for (let i = 0, l = radio_group_view.getChildCount(); i < l; i += 1) {
+                                let v = radio_group_view.getChildAt(i);
+                                v.setClickable(state);
+                                v.setTextColor(colorsx.toInt(state
+                                    ? $$def.colors.item_title
+                                    : $$def.colors.item_title_light));
+                            }
+                        });
+                    });
+                }
+
+                function _ready() {
+                    return _lbl ? $$ses['ready_signal_' + _lbl] : true;
+                }
+            },
+            /**
+             * @param {'SET'|'GET'} act
+             * @returns {{}[]}
+             */
+            statListDataSource(act) {
+                let _range = $$ses.stat_list_date_range_data || [];
+                let _ts_a = _range[0] || 0;
+                let _ts_b = _range[1] || 1e10 - 1;
+                let _ts = _ts_a + ' and ' + _ts_b;
+
+                let _zero = $$ses.stat_list_show_zero;
+                _zero = $$und(_zero) ? $$cfg.ses.stat_list_show_zero : _zero;
+                let [_show_zero, _show_other] = [0, 1];
+                if ($$2(_zero)) {
+                    [_show_zero, _show_other] = [1, 0];
+                } else if ($$0(_zero)) {
+                    _show_zero = 1;
+                }
+
+                let _sql = 'select name, sum(pick) as pick, timestamp as ts ' +
+                    'from ant_forest where timestamp between ' + _ts + ' ' +
+                    (_show_zero ? '' : 'and pick <> 0 ') + 'group by name';
+                let _db_data = $$ses.db.rawQueryData$(_sql);
+
+                if ($$und($$ses.list_data_min_ts)) {
+                    let _data = $$ses.db.rawQueryData$('select timestamp as ts from ant_forest');
+                    $$ses.list_data_min_ts = Math.mini(_data.map(o => o.ts)) * 1e3;
+                }
+
+                _show_other && _db_data.unshift({
+                    name: '%SUM%',
+                    pick: _db_data.length > 1 ? _db_data.reduce((a, b) => (
+                        ($$num(a) ? a : +a.pick) + +b.pick
+                    )) : $$1(_db_data.length) ? +_db_data[0].pick : 0,
+                });
+
+                let _db_nickname = _db_data.map(o => o.name);
+                if (_show_zero) {
+                    let _fri_lst = $$sto.af_flist.get('friends_list_data', {});
+                    if (_fri_lst.list_data) {
+                        _fri_lst.list_data.forEach((o) => {
+                            let _nick = o.nickname;
+                            if (!~_db_nickname.indexOf(_nick)) {
+                                _db_data.push({name: _nick, pick: 0});
+                            }
+                        });
+                    }
+                }
+
+                if (!_show_other) {
+                    _db_data = _db_data.filter(v => $$0(+v.pick));
+                }
+
+                if ($$2(_zero)) {
+                    _db_data.sort((a, b) => {
+                        let [_a, _b] = [a.name, b.name];
+                        if (_a === _b) {
+                            return 0;
+                        }
+                        return _a > _b ? 1 : -1;
+                    });
+                } else {
+                    _db_data.sort((a, b) => {
+                        let [_a, _b] = [+a.pick, +b.pick];
+                        if (_a === _b) {
+                            return 0;
+                        }
+                        return _a < _b ? 1 : -1;
+                    });
+                }
+
+                if (act === 'GET') {
+                    return _db_data;
+                }
+
+                $$ses.stat_list.splice(0);
+                $$view.updateDataSource('stat_list', 'update', _db_data, {write_back: false});
+            },
+        };
+
+        global.$$ses = {
+            db: require('./modules/mod-database').create([
+                {name: 'name', not_null: true},
+                {name: 'timestamp', type: 'integer', primary_key: true},
+                {name: 'pick', type: 'integer'},
+            ], {alter: 'union'}),
+        };
+
+        global.$$save = {
+            trigger: () => !equalObjects($$cfg.ses, $$cfg.sto),
+            session(key, value, quiet_flag) {
+                if (key !== undefined) {
+                    $$cfg.ses[key] = value;
+                }
+                if (!quiet_flag) {
+                    $$lsn.emit('update_all');
+                    threadsx.start(function () {
+                        let btn_save = null;
+                        waitForAction(() => btn_save = $$ses['homepage_btn_save'], 10e3, 80);
+                        ui.post(() => {
+                            $$save.trigger() ? btn_save.switch_on() : btn_save.switch_off();
+                        });
+                    });
+                }
+            },
+            config() {
+                let sess_cfg_mixed = deepCloneObject($$cfg.ses);
+                excludeProjectBackup();
+                writeUnlockStorage();
+                writeBlacklist();
+                $$sto.af_cfg.put('config', sess_cfg_mixed); // only 'cfg' reserved now (without unlock, blacklist, etc)
+                $$cfg.sto = deepCloneObject($$cfg.ses);
+                return true;
+
+                // tool function(s) //
+
+                function excludeProjectBackup() {
+                    delete sess_cfg_mixed.project_backup_info;
+                }
+
+                function writeUnlockStorage() {
+                    let _ori = deepCloneObject($$sto.def.unlock);
+                    let _tmp = {};
+                    for (let i in _ori) {
+                        if (_ori.hasOwnProperty(i)) {
+                            _tmp[i] = $$cfg.ses[i];
+                            delete sess_cfg_mixed[i];
+                        }
+                    }
+                    let _val = Object.assign({}, $$sto.unlock.get('config', {}), _tmp);
+                    $$sto.unlock.put('config', _val);
+                    delete sess_cfg_mixed.unlock;
+                }
+
+                function writeBlacklist() {
+                    let _blist = [];
+                    let _blist_usr = sess_cfg_mixed.blacklist_by_user;
+                    _blist_usr.forEach((o) => {
+                        _blist.push({
+                            name: o.name,
+                            reason: 'by_user',
+                            timestamp: o.timestamp,
+                        });
+                    });
+                    let _blist_cvr = sess_cfg_mixed.blacklist_protect_cover;
+                    _blist_cvr.forEach((o) => {
+                        _blist.push({
+                            name: o.name,
+                            reason: 'protect_cover',
+                            timestamp: o.timestamp,
+                        });
+                    });
+                    $$sto.af_blist.put('blacklist', _blist);
+                    delete sess_cfg_mixed.blacklist_protect_cover;
+                    delete sess_cfg_mixed.blacklist_by_user;
+                }
+            },
+        };
+
+        global.$$tool = {
+            getTimeStrFromTs(time_param, format_str) {
+                let timestamp = +time_param;
+                let time_str = '';
+                let time_str_remove = '';
+                let time = new Date();
+                if (!timestamp) time_str = time_str_remove = '时间戳无效';
+                if (timestamp === Infinity) time_str_remove = '永不';
+                else if (timestamp <= time.getTime()) time_str_remove = '下次运行';
+                let padZero = num => ('0' + num).slice(-2);
+                if (!time_str) {
+                    time.setTime(timestamp);
+                    let yy = time.getFullYear();
+                    let MM = padZero(time.getMonth() + 1);
+                    let dd = padZero(time.getDate());
+                    let hh = padZero(time.getHours());
+                    let mm = padZero(time.getMinutes());
+                    time_str = yy + '/' + MM + '/' + dd + ' ' + hh + ':' + mm;
+                }
+
+                return {
+                    time_str: time_str,
+                    time_str_full: time_str + ':' + padZero(time.getSeconds()),
+                    time_str_remove: time_str_remove || time_str,
+                    timestamp: timestamp,
+                }[format_str || 'time_str'];
+            },
+            getTimedTaskTypeStr(source) {
+                if (classof(source, 'Array')) {
+                    if (source.length === 7) return '每日';
+                    if (source.length) return '每周 [' + source.slice().map(x => +x || 7).sort().join(',') + ']';
+                }
+                return source === 0 ? '一次性' : source;
+            },
+            restoreFromTimestamp(timestamp) {
+                let _ts = timestamp;
+                if (typeof timestamp === 'number') {
+                    _ts = timestamp.toString();
+                }
+                if (_ts.match(/^\d{13}$/)) {
+                    return +_ts;
+                }
+                if (_ts === '永不') {
+                    return Infinity;
+                }
+                let _args = _ts.split(/\D+/).map((s, i) => {
+                    return (i === 1) ? s - 1 : +s;
+                });
+                _args.unshift(+'thisArgCanBeAny');
+                return (new (Function.prototype.bind.apply(Date, _args))).getTime();
+            },
+            restoreFromTimedTaskTypeStr(str) {
+                if (str === '每日') return [0, 1, 2, 3, 4, 5, 6];
+                if (str.match(/每周/)) return str.split(/\D/).filter(x => x !== '').map(x => +x === 7 ? 0 : +x).sort();
+                return str === '一次性' ? 0 : str;
+            },
+            refreshFriLstByLaunchAlipay(params) {
+                let {dialog_prompt, onTrigger, onResume} = params || {};
+
+                if (dialog_prompt) {
+                    dialogsx.builds([
+                        '刷新好友列表提示', '即将尝试打开"支付宝"\n自动获取最新的好友列表信息\n在此期间请勿操作设备',
+                        0, 'Q', '开始刷新', 1,
+                    ]).on('negative', (diag) => {
+                        diag.dismiss();
+                    }).on('positive', (diag) => {
+                        diag.dismiss();
+                        refreshNow();
+                    }).show();
+                } else {
+                    refreshNow();
+                }
+
+                // tool function(s) //
+
+                function refreshNow() {
+                    if ($$func(onTrigger)) {
+                        onTrigger();
+                    }
+                    filesx.run('launcher$', {cmd: 'get_rank_list_names'});
+                    threadsx.start(function () {
+                        waitForAndClickAction(text('打开'), 3.5e3, 300, {click_strategy: 'w'});
+                    });
+
+                    if ($$func(onResume)) {
+                        ui.emitter.prependOnceListener('resume', onResume);
+                    }
+
+                    setTimeout(function () {
+                        toast('即将打开"支付宝"刷新好友列表');
+                    }, 500);
+                }
+            },
+            accountNameConverter(str, opr) {
+                let _str = str || '';
+                let _res = '';
+                let _factor = {e: 1, d: -1}[opr[0]];
+                for (let i in _str) {
+                    let _char_code = _str.charCodeAt(+i);
+                    let _shifting = ((996).ICU + +i) * _factor;
+                    _res += String.fromCharCode(_char_code + _shifting);
+                }
+                return _res;
+            },
+            timeSectionToStr(arr) {
+                return arr.join(' - ') + (arr[1] <= arr[0] ? ' (+1)' : '');
+            },
+            timeStrToSection(str) {
+                return str.replace(/ \(\+1\)/g, '').split(' - ');
+            },
+            restoreSessParListData(ds_k) {
+                let new_data = [];
+                $$ses[ds_k].forEach((o) => {
+                    let _final_o = deepCloneObject(o);
+                    Object.keys(_final_o).forEach((key) => {
+                        if (_final_o[key] in _final_o) {
+                            let _useless = _final_o[key];
+                            _final_o[key] = _final_o[_final_o[key]];
+                            delete _final_o[_useless];
+                        }
+                        if (key.match(/^width_\d$/)) {
+                            delete _final_o[key];
+                        }
+                    });
+
+                    $$cfg.list_heads[ds_k] && $$cfg.list_heads[ds_k].forEach((o) => {
+                        if ('stringTransform' in o) {
+                            let _aim_k = Object.keys(o).filter((k => $$str(o[k])))[0];
+                            let _bw = o.stringTransform.backward;
+                            if (_bw === '__delete__') {
+                                delete _final_o[_aim_k];
+                            } else if ($$func(_bw)) {
+                                _final_o[_aim_k] = _bw.call(_final_o, _final_o[_aim_k]);
+                            }
+                        }
+                    });
+
+                    new_data.push(_final_o);
+                });
+                return new_data;
+            },
+        };
+
+        global.$$enc = s => require('./modules/mod-pwmap').encrypt(s);
+
+        global.Layout = function (title, hint, params) {
+            let _par = $$obj(hint) ? hint : params || {};
+            let _hint = $$obj(hint) ? '' : hint === 'hint' ? '加载中...' : hint;
+
+            Object.assign(this, {hint: _hint, title: title}, _par);
+
+            let _conj = _par.config_conj;
+            if (_conj) {
+                let _title_o = $$ses.title || {};
+                _title_o[_conj] = _title_o[_conj] || title;
+                $$ses.title = _title_o;
+            }
+
+            Object.defineProperties(this, (() => {
+                let _props = {
+                    newWindow: {get: () => _par.newWindow.bind(this)},
+                    infoWindow: {get: () => _par.infoWindow.bind(this)},
+                    listeners: {get: () => _par.listeners},
+                    updateOpr: {get: () => view => _par.updateOpr(view)},
+                    custom_data_source: {get: () => _par.custom_data_source},
+                };
+                Object.keys(_props).forEach(k => _par[k] || delete _props[k]);
+                return _props;
+            })());
+        };
+
+        return this;
     },
     config(reset) {
         if (reset) {
@@ -4500,7 +4410,7 @@ $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
-            config_conj: 'homepage_wball_max_hue_b0',
+            config_conj: 'homepage_wball_max_hue_no_blue',
             newWindow() {
                 $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
             },
@@ -4527,20 +4437,73 @@ $$view.page.new('收取功能', 'friend_collect_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('公用设置'))
-        .add('page', new Layout('排行榜样本采集', {
-            next_page: 'rank_list_samples_collect_page',
+        .add('subhead', new Layout('基本设置'))
+        .add('page', new Layout('可收取目标采集', {
+            next_page: 'collectable_samples_page',
         }))
+        .add('subhead', new Layout('公用设置'))
         .add('page', new Layout('能量球样本采集', {
             next_page: 'forest_samples_collect_page',
         }))
         .ready();
 });
-$$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) => {
+$$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('页面滑动', {color: 'highlight'}))
+        .add('subhead', new Layout('采集策略', {color: 'highlight'}))
+        .add('radio', new Layout(['排行榜列表', '逛一逛按钮'], {
+            values: [false, true],
+            config_conj: 'get_targets_by_stroll_btn',
+            listeners: {
+                check(checked, view) {
+                    checked && $$save.session(this.config_conj, this.values[this.title.indexOf(view.text)]);
+                },
+            },
+            updateOpr(view) {
+                let child_idx = this.values.indexOf($$cfg.ses[this.config_conj]);
+                if (~child_idx) {
+                    let child_view = view['_radiogroup'].getChildAt(child_idx);
+                    child_view.checked || child_view.setChecked(true);
+                    let p_view = view.getParent();
+                    $$view.findViewsByTag(p_view, '_get_tar_by_rl').forEach((v) => {
+                        v.setVisibility(this.values[child_idx] ? 8 : 0);
+                    });
+                    $$view.findViewsByTag(p_view, '_get_tar_by_stroll').forEach((v) => {
+                        v.setVisibility(this.values[child_idx] ? 0 : 8);
+                    });
+                }
+            },
+        }))
+        .add('split_line')
+        .add('subhead', new Layout('按钮定位', {color: 'highlight', view_tag: '_get_tar_by_stroll'}))
+        .add('button', new Layout('主要色值', 'hint', {
+            config_conj: 'stroll_btn_locate_main_color',
+            view_tag: '_get_tar_by_stroll',
+            newWindow() {
+                $$view.diag.colorSetter.call(this, {
+                    title: '逛一逛按钮定位主要色值',
+                });
+            },
+            updateOpr(view) {
+                $$view.hint.colorSetter.call(this, view);
+            },
+        }))
+        .add('button', new Layout('匹配阈值', 'hint', {
+            config_conj: 'stroll_btn_match_threshold',
+            view_tag: '_get_tar_by_stroll',
+            newWindow() {
+                $$view.diag.numSetter.call(this, 2, 32, {
+                    title: '逛一逛按钮定位匹配阈值',
+                });
+            },
+            updateOpr(view) {
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+            },
+        }))
+        .add('invisible_split_line')
+        .add('subhead', new Layout('页面滑动', {color: 'highlight', view_tag: '_get_tar_by_rl'}))
         .add('button', new Layout('滑动策略', 'hint', {
             config_conj: 'rank_list_scan_strategy',
+            view_tag: '_get_tar_by_rl',
             map: {
                 scroll: '控件滚动',
                 swipe: '模拟滑动',
@@ -4562,6 +4525,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
         }))
         .add('button', new Layout('滑动距离', 'hint', {
             config_conj: 'rank_list_swipe_distance',
+            view_tag: '_get_tar_by_rl',
             newWindow() {
                 if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
                     let _icon_h = cYx(46);
@@ -4638,6 +4602,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
         }))
         .add('button', new Layout('滑动时长', 'hint', {
             config_conj: 'rank_list_swipe_time',
+            view_tag: '_get_tar_by_rl',
             newWindow() {
                 if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
                     $$view.diag.numSetter.call(this, 100, 1.2e3, {
@@ -4668,6 +4633,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
             get config_conj() {
                 return this._getConfigConj();
             },
+            view_tag: '_get_tar_by_rl',
             newWindow() {
                 let _this = this;
                 $$view.diag.numSetter.call(this, 100, 2.4e3, {
@@ -4682,9 +4648,24 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('高级设置'))
+        .add('subhead', new Layout('安全限制', {color: 'highlight', view_tag: '_get_tar_by_stroll'}))
+        .add('button', new Layout('最大无操作循环次数', 'hint', {
+            config_conj: 'max_continuous_not_targeted_stroll_cycle',
+            view_tag: '_get_tar_by_stroll',
+            newWindow() {
+                $$view.diag.numSetter.call(this, 1, 5, {
+                    title: '逛一逛最大无操作循环次数',
+                });
+            },
+            updateOpr(view) {
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+            },
+        }))
+        .add('invisible_split_line')
+        .add('subhead', new Layout('高级设置', {view_tag: '_get_tar_by_rl'}))
         .add('page', new Layout('样本复查', 'hint', {
             config_conj: 'rank_list_review_switch',
+            view_tag: '_get_tar_by_rl',
             next_page: 'rank_list_review_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view, 'timers_switch');
@@ -4692,6 +4673,7 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
         }))
         .add('button', new Layout('截图样本池差异检测阈值', 'hint', {
             config_conj: 'rank_list_capt_pool_diff_check_threshold',
+            view_tag: '_get_tar_by_rl',
             newWindow() {
                 $$view.diag.numSetter.call(this, 5, 800, {
                     title: '排行榜截图差异检测阈值',
@@ -4699,6 +4681,26 @@ $$view.page.new('排行榜样本采集', 'rank_list_samples_collect_page', (t) =
             },
             updateOpr(view) {
                 view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+            },
+        }))
+        .add('button', new Layout('最大连续无目标命中次数', 'hint', {
+            config_conj: 'rank_list_max_not_targeted_times',
+            view_tag: '_get_tar_by_rl',
+            newWindow() {
+                $$view.diag.numSetter.call(this, 50, 500);
+            },
+            updateOpr(view) {
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString());
+            },
+        }))
+        .add('split_line')
+        .add('subhead', new Layout('帮助与支持'))
+        .add('button', new Layout('了解更多', {
+            newWindow() {
+                dialogsx.builds([
+                    '关于可收取目标采集', 'about_collectable_samples',
+                    0, 0, 'C', 1,
+                ]).on('positive', d => d.dismiss()).show();
             },
         }))
         .ready();
@@ -4922,7 +4924,7 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
         .add('invisible_split_line')
         .add('subhead', new Layout('浇水回赠 (金色) 能量球', {color: 'highlight'}))
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
-            config_conj: 'homepage_wball_max_hue_b0',
+            config_conj: 'homepage_wball_max_hue_no_blue',
             newWindow() {
                 $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
             },

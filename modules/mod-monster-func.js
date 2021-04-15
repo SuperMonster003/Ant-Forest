@@ -376,7 +376,9 @@ function waitForAction(condition, timeout_or_times, interval, options) {
  * @param {'c'|'click'|'p'|'press'|'w'|'widget'} [strategy='click'] - decide the way of click
  * @param {object|string} [options]
  * @param {number} [options.press_time=1] - only effective for 'press' strategy
- * @param {number} [options.pt$=1] - alias of press_time
+ * @param {number} [options.pt$=1] - alias for press_time
+ * @param {number} [options.buffer_time=0] - sleep milliseconds after the click action
+ * @param {number} [options.bt$=1] - alias for buffer_time
  * @param {'disappear'|'disappear_in_place'|function():boolean|null} [options.condition_success=function():true]
  * @param {number} [options.check_time_once=500]
  * @param {number} [options.max_check_times=0] - if condition_success is specified, default will be 3
@@ -430,12 +432,16 @@ function clickAction(o, strategy, options) {
         _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
     }
 
+    let _buffer = () => sleep(_opt.buffer_time || _opt.bt$ || 0);
+
     while (~_clickOnce() && _max_chk_cnt--) {
         if (waitForAction(_cond_succ, _chk_t_once, 50)) {
+            _buffer();
             return true;
         }
     }
 
+    _buffer();
     return _cond_succ();
 
     // tool function(s) //
@@ -1007,11 +1013,15 @@ function keycode(code, params) {
     let _tidy_code = code.toString().toLowerCase()
         .replace(/^keycode_|s$/, '')
         .replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
-    let _1st_res = simulateKey();
-    return _par.double ? simulateKey() : _1st_res;
+    let _res = simulateKey();
+    return _par.double ? simulateKey() && _res : _res;
 
     // tool function(s) //
 
+    /**
+     * @param {number|string} keycode
+     * @returns {boolean}
+     */
     function keyEvent(keycode) {
         let _checker = {'26, power': checkPower};
         for (let _key in _checker) {
@@ -1040,12 +1050,13 @@ function keycode(code, params) {
 
                 return max >= 0;
             }
-            if (!shellInputKeyEvent(keycode)) {
-                return false;
-            }
-            return waitForAction(isScreenOff, 2.4e3);
+            return shellInputKeyEvent(keycode) && waitForAction(isScreenOff, 2.4e3);
         }
 
+        /**
+         * @param {number|string} keycode
+         * @returns {boolean}
+         */
         function shellInputKeyEvent(keycode) {
             try {
                 return !shell('input keyevent ' + keycode, true).code;
@@ -1054,33 +1065,34 @@ function keycode(code, params) {
                     messageAction('按键模拟失败', 0);
                     messageAction('键值: ' + keycode, 0, 0, 1);
                 }
-                return false;
             }
+            return false;
         }
     }
 
+    /** @returns {boolean} */
     function simulateKey() {
         switch (_tidy_code) {
             case '3':
             case 'home':
-                return !!~home();
+                return home();
             case '4':
             case 'back':
-                return !!~back();
+                return back();
             case 'appSwitch':
             case '187':
             case 'recent':
             case 'recentApp':
-                return !!~recents();
+                return recents();
             case 'powerDialog':
             case 'powerMenu':
-                return !!~powerDialog();
+                return powerDialog();
             case 'notification':
-                return !!~notifications();
+                return notifications();
             case 'quickSetting':
-                return !!~quickSettings();
+                return quickSettings();
             case 'splitScreen':
-                return !!~splitScreen();
+                return splitScreen();
             default:
                 return keyEvent(code);
         }
@@ -1125,7 +1137,9 @@ function debugInfo(msg, msg_level, forcible_flag) {
     if (classof(msg) === 'Array') {
         msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
     } else {
-        messageAction((msg || '').replace(/^(>*)( *)/, '>>' + '$1 '), _msg_lv_num);
+        messageAction((msg || '').replace(/^(>*)( *)/, ($0, $1) => {
+            return '>> ' + $1.replace(/./g, '- ');
+        }), _msg_lv_num);
     }
 
     if (_msg_lv_str.match('both')) {
@@ -1704,7 +1718,7 @@ function getSelector(options) {
          */
         get(key, type) {
             if (!(key in this._sel_body_pool)) {
-                throw Error('Sel key \'' + key + '\' not set in pool');
+                throw Error('Key \'' + key + '\' not set in pool');
             }
             let _picker = this._sel_body_pool[key];
             return !_picker ? null : type === 'cache'

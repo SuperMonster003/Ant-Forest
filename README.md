@@ -21,9 +21,9 @@
 
 1. 下载项目 (任意一种方式)  
    [下载项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) (`*.js`)  
-   \* 浏览器可能需要点击 `"另存为"` 或 `"下载"` 至本地  
+   \* 浏览器可能需要点击 `另存为` 或 `下载` 至本地  
    [下载最新项目数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip) (`*.zip`)  
-   \* 手机可能需要额外的 `"文件管理"` 或 `"解压缩"` 工具
+   \* 手机可能需要额外的 `文件管理` 或 `解压缩` 工具
 2. 部署项目  
    如果下载了部署工具 (单个 `.js` 格式文件)  
    则只需用 `Auto.js` 直接运行 (或导入后运行) 此文件即可  
@@ -39,7 +39,7 @@
 3. 使用 `Auto.js` 运行项目  
    运行 `ant-forest-launcher.js` 启动项目  
    运行 `ant-forest-settings.js` 进行项目配置  
-   \* 项目目录中也可直接点击上方的 `"运行项目"` 按钮
+   \* 项目目录中也可直接点击上方的 `运行项目` 按钮
 4. 欢迎使用并反馈
 
 > ###### 使用指南
@@ -115,10 +115,16 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
-# v2.0.6
-###### 2021/03/16
+# v2.1.0
+###### 2021/04/15
+* `新增` 增加"逛一逛按钮"采集策略 (默认为"排行榜列表"采集策略) _[`issue #449`](https://github.com/SuperMonster003/Ant-Forest/issues/449)_ _[`#446`](https://github.com/SuperMonster003/Ant-Forest/issues/446)_ _[`#391`](https://github.com/SuperMonster003/Ant-Forest/issues/391)_
 * `修复` 解锁模块适配部分OPPO设备 (PIN方案)
+* `修复` appx.checkAccessibility()无法在UI模式下使用的问题
+* `修复` 森林页面暗色主题时浇水回赠能量球可能无法连续收取的问题
+* `修复` 自定义黑名单好友数量较多时删除操作可能导致报错的问题
 * `优化` 项目代码中所有尾逗号的处理 (Add when multiline)
+* `优化` 清除好友森林页面统计能量数据时对于用户昵称的依赖 _[`issue #228`](https://github.com/SuperMonster003/Ant-Forest/issues/228)_  _[`#223`](https://github.com/SuperMonster003/Ant-Forest/issues/223)_  _[`#218`](https://github.com/SuperMonster003/Ant-Forest/issues/218)_
+* `优化` 增加支付宝手势锁监听器并在触发后适时结束脚本 _[`issue #452`](https://github.com/SuperMonster003/Ant-Forest/issues/452)_
 
 # v2.0.5
 ###### 2021/03/16

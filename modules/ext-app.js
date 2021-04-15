@@ -1123,7 +1123,7 @@ let ext = {
         }).act();
     },
     /**
-     * @param {string|{version_name:string}} ver
+     * @param {string|number|{version_name:string}} ver
      * @param {Object} [options]
      * @param {'number'|'string'|'string_with_prefix'} [options.type='string']
      * @example
@@ -1141,11 +1141,11 @@ let ext = {
             throw Error('A "version" must be defined for appx.getVerHex()');
         }
         let _opt = options || {};
-        let _rex = /^v?(\d+)\.(\d+)\.(\d+)\s*(a(?:lpha)?|b(?:eta)?)?\s*(\d*)$/i;
-        let _hexStr = s => ('00' + Number(s).toString(16)).slice(-2);
+        let _hexStr = s => ('00' + Number(s || 0).toString(16)).slice(-2);
         let _max_a = 0x80;
         let _max_b = 0xff - _max_a;
-        let _str = ver.trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
+        let _rex = /^[a-z\s]*(\d+)(?:\.(\d+)(?:\.(\d+)(?:-\d+)?\s*(a(?:lpha)?|b(?:eta)?)?\s*(\d*))?)?$/i;
+        let _str = ver.toString().trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
             let _$a = [$1, $2, $3].map(s => _hexStr(s)).reduce((a, b) => a + b);
             let _$5 = $5 ? Number($5) : 1;
             let _$4 = 0xff;
@@ -1170,6 +1170,7 @@ let ext = {
     },
     /**
      * @param {number|string} ver
+     * @param {string|null} [prefix='v']
      * @example
      * console.log(appx.parseVerHex('02000404')); // 'v2.0.4 Alpha4'
      * console.log(appx.parseVerHex('0d780e83')); // 'v13.120.14 Beta3'
@@ -1177,7 +1178,7 @@ let ext = {
      * console.log(appx.parseVerHex(167903487)); // 'v10.2.0'
      * @returns {string}
      */
-    parseVerHex(ver) {
+    parseVerHex(ver, prefix) {
         if (typeof ver === 'number') {
             ver = ('0'.repeat(7) + ver.toString(16)).slice(-8);
         }
@@ -1195,7 +1196,7 @@ let ext = {
                 _$4 -= _max_alpha;
                 _$b = ' Beta' + (_$4 === 1 ? '' : _$4);
             }
-            return 'v' + _$a + _$b;
+            return (prefix === null ? '' : prefix || 'v') + _$a + _$b;
         });
     },
     /**
@@ -1288,18 +1289,18 @@ let ext = {
             if (_bug_chk_res === '') {
                 return debugInfo('Bug版本检查: 未知');
             }
-            let _bug_chk_cnt = _bug_chk_res.map((code) => {
-                return '\n-> ' + (_bugs_map[code] || '/* 无效的Bug描述 */');
+            let _bug_chk_content = _bug_chk_res.map((code) => {
+                return '\n' + (_bugs_map[code] || '/* 无效的Bug描述 */');
             });
 
             debugInfo('Bug版本检查: 确诊');
 
-            alert('\n' +
-                '此项目无法正常运行\n请更换Auto.js版本\n\n' +
-                '当前版本:\n-> ' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
-                '异常详情:' + _bug_chk_cnt.join('') + '\n\n' +
-                '在项目简介中查看支持版本\n或直接尝试 v4.1.1 Alpha2');
-            exit();
+            let _alert_msg = '此项目无法正常运行\n' + '请更换 Auto.js 版本\n\n' +
+                '软件版本:' + '\n' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
+                '异常详情:' + _bug_chk_content.join('') + '\n\n' +
+                '在项目简介中查看支持版本\n' + '或直接尝试 v4.1.1 Alpha2';
+
+            _this.getVerHex(_aj_ver) >= _this.getVerHex(7) ? _dialog() : _alert();
 
             // tool function(s) //
 
@@ -1335,7 +1336,7 @@ let ext = {
                 }
 
                 // version > Pro 8.3.16
-                if (ver.match(/^Pro 8\..+$/)) {
+                if (ver.match(/^Pro [89]\./)) {
                     return ['alipay_a11y_blocked'];
                 }
 
@@ -1422,6 +1423,99 @@ let ext = {
                         return ''; // unrecorded version
                 }
             }
+
+            function _dialog() {
+                // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                let _view = ui.inflate(
+                    <vertical gravity="center">
+                        <img id="img" src="@drawable/ic_warning_black_48dp"
+                             height="70" margin="0 26 0 18" gravity="center"
+                             bg="?selectableItemBackgroundBorderless"/>
+                        <vertical>
+                            <text id="text" gravity="center" color="#ddf3e5f5"
+                                  padding="5 0 5 20" size="19"/>
+                        </vertical>
+                        <horizontal w="auto">
+                            <button id="btn" type="button" layout_weight="1"
+                                    text="EXIT" backgroundTint="#ddad1457"
+                                    textColor="#ddffffff" marginBottom="9"/>
+                        </horizontal>
+                    </vertical>);
+                let _diag = dialogs.build({
+                    customView: _view,
+                    autoDismiss: false,
+                    canceledOnTouchOutside: false,
+                }).show();
+
+                let _is_continued = false;
+
+                ui.run(() => {
+                    _diag.setOnKeyListener({
+                        onKey(diag, key_code) {
+                            if (key_code === android.view.KeyEvent.KEYCODE_BACK) {
+                                _exitNow();
+                                return true;
+                            }
+                            return false;
+                        },
+                    });
+
+                    _view['btn'].on('click', _exitNow);
+                    _view['btn'].on('long_click', (e) => {
+                        e.consumed = _is_continued = true;
+                        if (typeof activity !== 'undefined') {
+                            return _exitNow();
+                        }
+                        _diag.dismiss();
+                        let _msg = '仍然尝试运行项目';
+                        toast(_msg);
+                        console.error(_msg);
+                    });
+                    _view['text'].setText(_alert_msg);
+                    _setTint(_view['img'], '#ff9100');
+
+                    let _win = _diag.getWindow();
+                    _win.setBackgroundDrawableResource(android.R.color.transparent);
+                    _win.setWindowAnimations(android.R.style.Animation_InputMethod);
+                    _win.setDimAmount(0.85);
+
+                });
+
+                if (typeof activity !== 'undefined') {
+                    return setTimeout(() => exit(), 1e3);
+                }
+
+                let _start = Date.now();
+                while (!_is_continued) {
+                    sleep(200);
+                    if (Date.now() - _start > 120e3) {
+                        let _msg = '等待用户操作超时';
+                        console.error(_msg);
+                        return _exitNow(_msg);
+                    }
+                }
+
+                // tool function(s) //
+
+                function _setTint(view, color) {
+                    if (typeof color === 'number') {
+                        color = colors.toString(color);
+                    }
+                    view.setColorFilter(com.stardust.autojs.core.ui.inflater
+                        .util.Colors.parse(view, color));
+                }
+
+                function _exitNow(msg) {
+                    _diag.dismiss();
+                    typeof msg === 'string' && toast(msg);
+                    exit();
+                }
+            }
+
+            function _alert() {
+                alert('\n' + _alert_msg);
+                exit();
+            }
         }
     },
     /**
@@ -1452,6 +1546,14 @@ let ext = {
                     return;
                 }
             }
+
+            if (typeof activity !== 'undefined') {
+                if (_a11y.enable(true)) {
+                    toast('已自动开启无障碍服务\n请重新运行一次配置工具');
+                }
+                return ui.finish();
+            }
+
             _tryEnableAndRestart();
             if (_appx.hasRoot()) {
                 shell('pm grant ' + _pkg_n_perm, true);
@@ -1523,22 +1625,25 @@ let ext = {
         }
 
         function _checkFunc() {
-            let _max = 24;
-            while (!press(1e8, 0, 1) && _max--) {
-                sleep(50);
-            }
-            if (_max < 0) {
-                showSplitLine();
-                void ('脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用|'
-                    + _getDash() + '|可尝试以下解决方案:|' + _getDash()
-                    + '|a. 卸载并重新安装"Auto.js"|b. 安装后重启设备'
-                    + '|c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务'
-                    + '|e. 再次尝试运行本项目').split('|').forEach(s => messageAction(s, 4));
-                showSplitLine();
-                toast('无障碍服务方法无法使用');
-                exit();
+            if (typeof activity === 'undefined') {
+                let _max = 24;
+                while (!press(1e8, 0, 1) && _max--) {
+                    sleep(50);
+                }
+                if (_max < 0) {
+                    showSplitLine();
+                    void ('脚本无法继续|无障碍服务状态异常|或基于服务的方法无法使用|'
+                        + _getDash() + '|可尝试以下解决方案:|' + _getDash()
+                        + '|a. 卸载并重新安装"Auto.js"|b. 安装后重启设备'
+                        + '|c. 运行"Auto.js"并拉出侧边栏|d. 开启无障碍服务'
+                        + '|e. 再次尝试运行本项目').split('|').forEach(s => messageAction(s, 4));
+                    showSplitLine();
+                    toast('无障碍服务方法无法使用');
+                    exit();
+                }
             }
         }
+
     },
     /**
      * @param {string[]} modules
@@ -1645,7 +1750,7 @@ let ext = {
     },
     /**
      * Check if an activity intent is available to start
-     * @param {IntentCommonParams} o
+     * @param {IntentExtension} o
      * @returns {boolean}
      */
     checkActivity(o) {
@@ -1654,7 +1759,7 @@ let ext = {
         return _query_res && _query_res.toArray().length !== 0;
     },
     /**
-     * @param {IntentCommonParams} o
+     * @param {IntentExtension} o
      * @returns {android.content.ComponentName}
      */
     resolveActivity(o) {
@@ -1664,7 +1769,7 @@ let ext = {
      * A duplicate from Auto.js 4.1.1 Alpha2
      * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @see app.intent
-     * @param {string|android.content.Intent|IntentCommonParamsWithRoot} o
+     * @param {string|android.content.Intent|IntentExtensionWithRoot} o
      * @returns void
      */
     startActivity(o) {
@@ -1689,13 +1794,16 @@ let ext = {
         }
     },
     /**
-     * A duplicate from Auto.js 4.1.1 Alpha2
-     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
-     * @param {IntentCommonParams} o
+     * Substitution of app.intent()
+     * @param {IntentExtension} o
      * @returns {android.content.Intent}
      */
     intent(o) {
         let _i = new android.content.Intent();
+
+        if (o.url) {
+            o.data = parseIntentUrl(o);
+        }
 
         if (o.packageName) {
             if (o.className) {
@@ -1760,6 +1868,44 @@ let ext = {
             }
             return flag;
         }
+
+        function parseIntentUrl(o) {
+            let _url = o.url;
+            if (typeof _url === 'object') {
+                _url = _parseUrl(_url);
+            }
+            return _url;
+
+            // tool function(s) //
+
+            /**
+             * @param {IntentUrl} o
+             * @returns {string}
+             */
+            function _parseUrl(o) {
+                let {src, query, exclude} = o;
+                if (!src || !query) {
+                    return src;
+                }
+                let _sep = src.match(/\?/) ? '&' : '?';
+                return src + _sep + (function _parse(query) {
+                    let _exclude = exclude || [];
+                    if (!Array.isArray(_exclude)) {
+                        _exclude = [_exclude];
+                    }
+                    return Object.keys(query).map((key) => {
+                        let _val = query[key];
+                        if (typeof _val === 'object') {
+                            _val = '&' + _parse(_val);
+                        }
+                        if (!~_exclude.indexOf(key)) {
+                            _val = encodeURI(_val);
+                        }
+                        return key + '=' + _val;
+                    }).join('&');
+                })(query);
+            }
+        }
     },
     /**
      * @typedef {Object} Appx$Launch$Options
@@ -1779,7 +1925,7 @@ let ext = {
      */
     /**
      * Launch some app with package name or intent and wait for conditions ready if specified
-     * @param {IntentCommonParamsWithRoot|string|function|android.content.Intent} trigger
+     * @param {IntentCommonWithRoot|string|function|android.content.Intent} trigger
      * @param {Appx$Launch$Options} [options]
      * @example
      * appx.launch('com.eg.android.AlipayGphone');
