@@ -2,205 +2,232 @@ global.devicex = typeof global.devicex === 'object' ? global.devicex : {};
 
 require('./mod-monster-func').load();
 
+let Secure = android.provider.Settings.Secure;
+let Intent = android.content.Intent;
+let IntentFilter = android.content.IntentFilter;
+let BatteryManager = android.os.BatteryManager;
+
+let _ctx_reso = context.getContentResolver();
+let _aj_svc = context.packageName + '/com.stardust.autojs' +
+    '.core.accessibility.AccessibilityService';
+
+// noinspection JSUnusedGlobalSymbols
 let ext = {
     _unlock: _unlockGenerator(),
-    /**
-     * @type {{
-     *     _parseArgs: function(args: IArguments): {svc: string[], forcible: boolean},
-     *     _getString: function: string,
-     *     enable: function(...boolean|string|string[]): boolean,
-     *     restart: function(...boolean|string|string[]): boolean,
-     *     disable: function(...boolean|string|string[]): boolean,
-     *     state: function(services: (string | string[])=): boolean,
-     *     services: function: string[],
-     * }}
-     */
-    a11y: (() => {
-        let Secure = android.provider.Settings.Secure;
-        let _ctx_reso = context.getContentResolver();
-        let _aj_svc = context.packageName + '/com.stardust.autojs' +
-            '.core.accessibility.AccessibilityService';
-
-        return {
+    a11y: {
+        /**
+         * @param {IArguments} args
+         * @returns {{svc: [string], forcible: boolean}}
+         */
+        _parseArgs(args) {
+            let _svc = [_aj_svc];
+            let _forcible = false;
+            let _type0 = typeof args[0];
+            if (_type0 !== 'undefined') {
+                if (_type0 === 'object') {
+                    _svc = args[0];
+                    _forcible = !!args[1];
+                } else if (_type0 === 'string') {
+                    _svc = [args[0]];
+                    _forcible = !!args[1];
+                } else if (_type0 === 'boolean') {
+                    _forcible = args[0];
+                }
+            }
+            return {
+                forcible: _forcible,
+                svc: _svc,
+            };
+        },
+        /** @returns {string} */
+        _getString() {
+            // getString() may be null on some Android OS
+            return Secure.getString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || '';
+        },
+        bridge: {
             /**
-             * @param args {IArguments}
-             * @return {{svc: [string], forcible: boolean}}
+             * @param {android.view.accessibility.AccessibilityWindowInfo} wi
+             * @returns {boolean}
+             * @private
              */
-            _parseArgs(args) {
-                let _svc = [_aj_svc];
-                let _forcible = false;
-                let _type0 = typeof args[0];
-                if (_type0 !== 'undefined') {
-                    if (_type0 === 'object') {
-                        _svc = args[0];
-                        _forcible = !!args[1];
-                    } else if (_type0 === 'string') {
-                        _svc = [args[0]];
-                        _forcible = !!args[1];
-                    } else if (_type0 === 'boolean') {
-                        _forcible = args[0];
+            _isLatestPackage(wi) {
+                return wi.getRoot().getPackageName() === runtime.info.getLatestPackage();
+            },
+            /**
+             * @param {
+             *     function(info:android.view.accessibility.AccessibilityWindowInfo):boolean
+             * } filter
+             */
+            setWindowFilter(filter) {
+                auto.setWindowFilter(function (wi) {
+                    try {
+                        return filter(wi);
+                    } catch (e) {
+                        // eg: TypeError: Cannot call method "getPackageName" of null
+                        return false;
+                    }
+                });
+            },
+            /** @param {string[]} blacklist */
+            setWindowBlacklist(blacklist) {
+                this.setWindowFilter(wi => this._isLatestPackage(wi)
+                    && !~blacklist.indexOf(wi.getRoot().getPackageName()));
+            },
+            /** @param {string[]} whitelist */
+            setWindowWhitelist(whitelist) {
+                this.setWindowFilter(wi => this._isLatestPackage(wi)
+                    && !!~whitelist.indexOf(wi.getRoot().getPackageName()));
+            },
+            setWindowAllowAll() {
+                this.setWindowFilter(() => true);
+            },
+            resetWindowFilter() {
+                this.setWindowFilter(wi => this._isLatestPackage(wi));
+            },
+        },
+        /**
+         * @param {...boolean|string|string[]} [arguments]
+         * @example
+         * // import module with a new instance
+         * let {a11y} = require('./modules/ext-device');
+         * // enable Auto.js itself
+         * a11y.enable();
+         * a11y.enable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
+         * a11y.enable('org.autojs.autojs/com.stardust... , true); // enable forcibly
+         * a11y.enable(true); // enable forcibly
+         * // enable other specified service(s)
+         * a11y.enable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
+         * a11y.enable('com.ext.star.wars/com.dahuo.sunflower... , true); // enable forcibly
+         * // enable multi services
+         * a11y.enable([
+         *     'org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService',
+         *     'com.sp.protector.free/com.sp.protector.free.engine.AppChangeDetectingAccessibilityService',
+         * ]);
+         * a11y.enable([...], true); // enable forcibly
+         * @returns {boolean} - !!(all_services_started_successfully)
+         */
+        enable() {
+            try {
+                let _this = this;
+                let {forcible, svc} = this._parseArgs(arguments);
+                let _svc;
+                if (!this.state(svc)) {
+                    _svc = this.enabled_svc.split(':')
+                        .filter(x => !~svc.indexOf(x))
+                        .concat(svc).join(':');
+                } else if (forcible) {
+                    _svc = this.enabled_svc;
+                }
+                if (_svc) {
+                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                    if (!waitForAction(() => _this.state(svc), 2e3)) {
+                        let _m = 'Operation timed out';
+                        toast(_m);
+                        console.error(_m);
                     }
                 }
-                return {
-                    forcible: _forcible,
-                    svc: _svc,
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+        /**
+         * @param {...boolean|string|string[]} [arguments]
+         * @see this.enable
+         * @example
+         * // import module with a new instance
+         * let {a11y} = require('./modules/ext-device');
+         * // disable all services (clear current a11y svc list)
+         * a11y.disable('all'); // doesn't matter whether with true param or not
+         * // disable Auto.js itself
+         * a11y.disable();
+         * a11y.disable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
+         * a11y.disable('org.autojs.autojs/com.stardust... , true); // disable forcibly
+         * a11y.disable(true); // disable forcibly
+         * // disable other specified service(s)
+         * a11y.disable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
+         * a11y.disable('com.ext.star.wars/com.dahuo.sunflower... , true); // disable forcibly
+         * // disable multi services
+         * a11y.disable([...]);
+         * a11y.disable([...], true); // disable forcibly
+         * @returns {boolean} - !!(all_services_stopped_successfully)
+         */
+        disable() {
+            try {
+                let _args0 = arguments[0];
+                let $_str = x => typeof x === 'string';
+                if ($_str(_args0) && _args0.toLowerCase() === 'all') {
+                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, '');
+                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                    return true;
+                }
+                let {forcible, svc} = this._parseArgs(arguments);
+                let _enabled_svc = this._getString();
+                let _contains = function () {
+                    for (let i = 0, l = svc.length; i < l; i += 1) {
+                        if (~_enabled_svc.indexOf(svc[i])) {
+                            return true;
+                        }
+                    }
                 };
-            },
-            /** @return {string} */
-            _getString() {
-                // getString() may be null on some Android OS
-                return Secure.getString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || '';
-            },
-            /**
-             * @param {...boolean|string|string[]} [arguments]
-             * @example
-             * // import module with a new instance
-             * let {a11y} = require('./modules/ext-device');
-             * // enable Auto.js itself
-             * a11y.enable();
-             * a11y.enable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
-             * a11y.enable('org.autojs.autojs/com.stardust... , true); // enable forcibly
-             * a11y.enable(true); // enable forcibly
-             * // enable other specified service(s)
-             * a11y.enable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
-             * a11y.enable('com.ext.star.wars/com.dahuo.sunflower... , true); // enable forcibly
-             * // enable multi services
-             * a11y.enable([
-             *     'org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService',
-             *     'com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures',
-             *     'com.MoniKet.notificationsaver/com.example.monika.notificationsaver.USSDService',
-             *     'com.sp.protector.free/com.sp.protector.free.engine.AppChangeDetectingAccessibilityService',
-             *     'com.wokee.qpay/com.wokee.qpay.systemwindows.DesktopAccessibilityService',
-             *     'eu.thedarken.sdm/eu.thedarken.sdm.accessibility.core.ACCService',
-             *     'me.zhanghai.android.wechatnotificationtweaks2/me.zhanghai.android.wechatnotificationtweaks.app.AccessibilityService',
-             *     'pl.revanmj.toastsource/pl.revanmj.toastsource.ToastAccessibilityService',
-             * ]);
-             * a11y.enable([...], true); // enable forcibly
-             * @return {boolean} - !!(all_services_started_successfully)
-             */
-            enable() {
-                try {
-                    let _this = this;
-                    let {forcible, svc} = this._parseArgs(arguments);
-                    let _svc;
-                    if (!this.state(svc)) {
-                        _svc = this.enabled_svc.split(':')
-                            .filter(x => !~svc.indexOf(x))
-                            .concat(svc).join(':');
-                    } else if (forcible) {
-                        _svc = this.enabled_svc;
-                    }
-                    if (_svc) {
-                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                        if (!waitForAction(() => _this.state(svc), 2e3)) {
-                            let _m = 'Operation timed out';
-                            toast(_m);
-                            console.error(_m);
-                        }
-                    }
-                    return true;
-                } catch (e) {
-                    return false;
+                let _svc;
+                if (_contains()) {
+                    _svc = _enabled_svc.split(':').filter(x => !~svc.indexOf(x)).join(':');
+                } else if (forcible) {
+                    _svc = _enabled_svc;
                 }
-            },
-            /**
-             * @param {...boolean|string|string[]} [arguments]
-             * @see this.enable
-             * @example
-             * // import module with a new instance
-             * let {a11y} = require('./modules/ext-device');
-             * // disable all services (clear current a11y svc list)
-             * a11y.disable('all'); // doesn't matter whether with true param or not
-             * // disable Auto.js itself
-             * a11y.disable();
-             * a11y.disable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
-             * a11y.disable('org.autojs.autojs/com.stardust... , true); // disable forcibly
-             * a11y.disable(true); // disable forcibly
-             * // disable other specified service(s)
-             * a11y.disable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
-             * a11y.disable('com.ext.star.wars/com.dahuo.sunflower... , true); // disable forcibly
-             * // disable multi services
-             * a11y.disable([...]);
-             * a11y.disable([...], true); // disable forcibly
-             * @return {boolean} - !!(all_services_stopped_successfully)
-             */
-            disable() {
-                try {
-                    let _args0 = arguments[0];
-                    let $_str = x => typeof x === 'string';
-                    if ($_str(_args0) && _args0.toLowerCase() === 'all') {
-                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, '');
-                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                        return true;
+                if (_svc) {
+                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                    _enabled_svc = this._getString();
+                    if (!waitForAction(() => !_contains(), 2e3)) {
+                        let _m = 'Operation timed out';
+                        toast(_m);
+                        console.error(_m);
                     }
-                    let {forcible, svc} = this._parseArgs(arguments);
-                    let _enabled_svc = this._getString();
-                    let _contains = function () {
-                        for (let i = 0, l = svc.length; i < l; i += 1) {
-                            if (~_enabled_svc.indexOf(svc[i])) {
-                                return true;
-                            }
-                        }
-                    };
-                    let _svc;
-                    if (_contains()) {
-                        _svc = _enabled_svc.split(':').filter(x => !~svc.indexOf(x)).join(':');
-                    } else if (forcible) {
-                        _svc = _enabled_svc;
-                    }
-                    if (_svc) {
-                        Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                        Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                        _enabled_svc = this._getString();
-                        if (!waitForAction(() => !_contains(), 2e3)) {
-                            let _m = 'Operation timed out';
-                            toast(_m);
-                            console.error(_m);
-                        }
-                    }
-                    return true;
-                } catch (e) {
-                    return false;
                 }
-            },
-            /**
-             * @param {...boolean|string|string[]} [arguments]
-             * @see this.enable
-             * @see this.disable
-             * @return {boolean}
-             */
-            restart() {
-                return this.disable.apply(this, arguments) && this.enable.apply(this, arguments);
-            },
-            /**
-             * @param {string|string[]} [services]
-             * @return {boolean} - all services enabled or not
-             */
-            state(services) {
-                let _enabled_svc = this.enabled_svc = this._getString();
-                let _services = [];
-                if (Array.isArray(services)) {
-                    _services = services.slice();
-                } else if (typeof services === 'undefined') {
-                    _services = [_aj_svc];
-                } else if (typeof services === 'string') {
-                    _services = [services];
-                } else {
-                    throw TypeError('Unknown a11y state type');
-                }
-                return _services.every(svc => ~_enabled_svc.indexOf(svc));
-            },
-            /**
-             * Returns all enabled a11y services
-             * @return {string[]} - [] for empty data (rather than falsy)
-             */
-            services() {
-                return this._getString().split(':').filter(x => !!x);
-            },
-        };
-    })(),
-    /** @type com.stardust.util.ScreenMetrics */
+                return true;
+            } catch (e) {
+                return false;
+            }
+        },
+        /**
+         * @param {...boolean|string|string[]} [arguments]
+         * @see this.enable
+         * @see this.disable
+         * @returns {boolean}
+         */
+        restart() {
+            return this.disable.apply(this, arguments) && this.enable.apply(this, arguments);
+        },
+        /**
+         * @param {string|string[]} [services]
+         * @returns {boolean} - all services enabled or not
+         */
+        state(services) {
+            let _enabled_svc = this.enabled_svc = this._getString();
+            let _services = [];
+            if (Array.isArray(services)) {
+                _services = services.slice();
+            } else if (typeof services === 'undefined') {
+                _services = [_aj_svc];
+            } else if (typeof services === 'string') {
+                _services = [services];
+            } else {
+                throw TypeError('Unknown a11y state type');
+            }
+            return _services.every(svc => ~_enabled_svc.indexOf(svc));
+        },
+        /**
+         * Returns all enabled a11y services
+         * @returns {string[]} - [] for empty data (rather than falsy)
+         */
+        services() {
+            return this._getString().split(':').filter(x => !!x);
+        },
+    },
+    /** @type {com.stardust.util.ScreenMetrics} */
     screen_metrics: runtime.getScreenMetrics(),
     /**
      * Substitution of device.wakeUp()
@@ -246,7 +273,7 @@ let ext = {
      * device.keepScreenOn()
      * @param {number} [duration=5] -
      * could be minute (less than 100) or second -- 5 and 300000 both for 5 min
-     * @param {object} [params]
+     * @param {Object} [params]
      * @param {boolean} [params.debug_info_flag]
      */
     keepOn(duration, params) {
@@ -262,7 +289,7 @@ let ext = {
     },
     /**
      * device.cancelKeepingAwake()
-     * @param {object} [params]
+     * @param {Object} [params]
      * @param {boolean} [params.debug_info_flag]
      */
     cancelOn(params) {
@@ -338,7 +365,7 @@ let ext = {
     },
     /**
      * Returns a state number which indicated phone calling state
-     * @return {number}
+     * @returns {number}
      * <br>
      * -- 0: IDLE; <br>
      * -- 1: RINGING; <br>
@@ -361,8 +388,8 @@ let ext = {
      * Returns display screen width and height data and
      * converter functions with different aspect ratios <br>
      * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
-     * @param {?boolean} [global_assign=false] -- set true for global assignment
-     * @param {object} [params]
+     * @param {boolean} [global_assign=false] -- set true for global assignment
+     * @param {Object} [params]
      * @param {boolean} [params.global_assign=false]
      * @param {boolean} [params.debug_info_flag=false]
      * @example
@@ -388,7 +415,7 @@ let ext = {
      * console.log(cYx(400, 1080), cYx(400, -2)); // all the same
      * console.log(cYx(0.6, 16/9), cYx(0.6, -1), cYx(0.6)); // all the same
      * console.log(cYx(0.6, 21/9), cYx(0.6, -2), cYx(0.6, 9/21)); // all the same
-     * @return {{
+     * @returns {{
            [WIDTH]: number, [USABLE_WIDTH]: number,
            [HEIGHT]: number, [USABLE_HEIGHT]: number,
            [screen_orientation]: ScrOrientation,
@@ -482,7 +509,7 @@ let ext = {
          * console.log(x1, x2, x3, x4, x5, x6);
          * // on 1080px device: all 540 (1080 * 0.5) -- base params will be ignored
          * // on 720px device: all 360 (720 * 0.5) -- base params will be ignored
-         * @return {number}
+         * @returns {number}
          */
         function cX(num, base, options) {
             return typeof base === 'boolean'
@@ -526,7 +553,7 @@ let ext = {
          * // on 1080*1920 device: all 960 (1920 * 0.5) -- base params will be ignored
          * // on 720*1280 device: all 640 (1280 * 0.5) -- base params will be ignored
          * console.log(y1, y2, y3, y4, y5, y6);
-         * @return {number}
+         * @returns {number}
          */
         function cY(num, base, options) {
             return typeof base === 'boolean'
@@ -582,7 +609,7 @@ let ext = {
          * // on 1440*1920 device: (height will be ignored)
          * // likewise (replace 1080 with 1440)
          * console.log(y1, y3, y4, y6);
-         * @return {number}
+         * @returns {number}
          */
         function cYx(num, base, options) {
             let _opt = options || {};
@@ -623,14 +650,14 @@ let ext = {
 
         /**
          * adaptive coordinate transform function
-         * @param dxn {number} - 1: horizontal; -1: vertical
-         * @param num {number} - pixel (x) or percentage num (0.x)
+         * @param {number} dxn - 1: horizontal; -1: vertical
+         * @param {number} num - pixel (x) or percentage num (0.x)
          * @param {number} [base] - pixel (x) or preset negative nums (-1,-2,-3)
          * @param {{
          *     is_ratio?: boolean,
          *     to_ratio?: boolean,
          * }} [options]
-         * @return {number}
+         * @returns {number}
          */
         function _cTrans(dxn, num, base, options) {
             let _full = ~dxn ? _W : _H;
@@ -665,8 +692,11 @@ let ext = {
 
         function _getDisp() {
             try {
+                // noinspection JSDeprecatedSymbols
                 _W = _win_svc_disp.getWidth();
+                // noinspection JSDeprecatedSymbols
                 _H = _win_svc_disp.getHeight();
+
                 if (!(_W * _H)) {
                     return _raw();
                 }
@@ -679,12 +709,12 @@ let ext = {
                  * 1: 90°, device is rotated 90 degree counter-clockwise
                  * 2: 180°, device is reverse portrait
                  * 3: 270°, device is rotated 90 degree clockwise
-                 * @typedef ScrOrientation
-                 * @type {number}
+                 * @typedef {number} ScrOrientation
                  */
-                /** @type ScrOrientation */
+                /** @type {ScrOrientation} */
                 let _SCR_O = _win_svc_disp.getRotation();
                 let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+
                 // let _MAX = _win_svc_disp.maximumSizeDimension;
                 let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
@@ -746,7 +776,7 @@ let ext = {
                     uH: Number(_disp.USABLE_HEIGHT),
                     /**
                      * Screen orientation
-                     * @type ScrOrientation
+                     * @type {ScrOrientation}
                      */
                     scrO: Number(_disp.screen_orientation),
                     /** Status bar height */
@@ -779,7 +809,7 @@ let ext = {
     },
     /**
      * Returns screen orientation state.
-     * @returns number - 1: auto-rotate; 2: portrait
+     * @returns {number} - 1: auto-rotate; 2: portrait
      */
     getRotation() {
         let System = android.provider.Settings.System;
@@ -814,29 +844,39 @@ let ext = {
             return false;
         }
     },
-    /** @returns {boolean} */
-    isCharging() {
-        let {IntentFilter, Intent} = android.content;
-        let {BatteryManager} = android.os;
-
-        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        let _battery_status = context.registerReceiver(null, _i_filter);
-
-        let _status = _battery_status.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-        return _status === BatteryManager.BATTERY_STATUS_CHARGING
-            || _status === BatteryManager.BATTERY_STATUS_FULL;
+    getBatteryStatusIntent() {
+        return context.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+    },
+    /**
+     * @param {'HEALTH'|'ICON_SMALL'|'LEVEL'|'PLUGGED'|'PRESENT'|'SCALE'|'STATUS'|'TECHNOLOGY'|'TEMPERATURE'|'VOLTAGE'} extra_key
+     * @returns {number}
+     */
+    getBatteryStatus(extra_key) {
+        return this.getBatteryStatusIntent().getIntExtra(BatteryManager['EXTRA_' + extra_key], -1);
     },
     /** @returns {number} */
     getBatteryPercentage() {
-        let {IntentFilter, Intent} = android.content;
-        let {BatteryManager} = android.os;
+        let _i_battery_status = this.getBatteryStatusIntent();
 
-        let _i_filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
-        let _battery_status = context.registerReceiver(null, _i_filter);
-
-        let _level = _battery_status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
-        let _scale = _battery_status.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        let _level = _i_battery_status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+        let _scale = _i_battery_status.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
         return _level * 100 / _scale;
+    },
+    isCharging() {
+        return this.getBatteryStatus('STATUS') === BatteryManager.BATTERY_STATUS_CHARGING
+            || this.isCharged();
+    },
+    isCharged() {
+        return this.getBatteryStatus('STATUS') === BatteryManager.BATTERY_STATUS_FULL;
+    },
+    isAcPlugged() {
+        return this.getBatteryStatus('PLUGGED') === BatteryManager.BATTERY_PLUGGED_AC;
+    },
+    isUsbPlugged() {
+        return this.getBatteryStatus('PLUGGED') === BatteryManager.BATTERY_PLUGGED_USB;
+    },
+    isWirelessPlugged() {
+        return this.getBatteryStatus('PLUGGED') === BatteryManager.BATTERY_PLUGGED_WIRELESS;
     },
     /** @param {number} ratio */
     setScreenMetricsRatio(ratio) {
@@ -883,6 +923,7 @@ let ext = {
     $bind() {
         Object.assign(this.unlock, this._unlock);
         delete this.$bind;
+        return this;
     },
 };
 
@@ -961,7 +1002,7 @@ function _unlockGenerator() {
         /**
          * Save current screen capture as a file with a key name and a formatted timestamp
          * @param {string} key_name - a key name as a clip of the file name
-         * @param {{}} [options]
+         * @param {Object} [options]
          * @param {number|string|null} [options.log_level]
          * @param {number} [options.max_samples=10]
          */
@@ -1205,11 +1246,13 @@ function _unlockGenerator() {
                         // tool function(s) //
 
                         function _lmt() {
-                            if (_ctr > _max) {
+                            let _is_lmt_reached = _ctr > _max;
+                            if (_is_lmt_reached) {
                                 _t_pool[_time] = 0;
                                 _sto.put('config', {continuous_swipe: _t_pool});
-                                return _err('消除解锁页面提示层失败');
+                                _err('消除解锁页面提示层失败');
                             }
+                            return _is_lmt_reached;
                         }
                     }
 
@@ -1599,7 +1642,7 @@ function _unlockGenerator() {
                             }
 
                             function _keypadAssistIFN() {
-                                /** @type string */
+                                /** @type {string} */
                                 let _pw_last = _pw[_pw.length - 1];
                                 /**
                                  * @example
@@ -1846,7 +1889,7 @@ function _unlockGenerator() {
                                         }
                                     },
                                     click() {
-                                        /** @type UiObject$ */
+                                        /** @type {UiObject$} */
                                         let _w = this.widget;
                                         let _bnd = _w.bounds();
                                         let _len = _w.childCount();

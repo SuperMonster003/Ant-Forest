@@ -115,14 +115,14 @@ let ext = {
     /**
      * Returns the version name of an app with app name or package name
      * @param {'current'|string} source - app name or app package name
-     * @return {string|null}
+     * @returns {string|null}
      */
     getAppVerName(source) {
         let _src = source === 'current' ? currentPackage() : source;
         let _pkg_name = this.getAppPkgName(_src);
         if (_pkg_name) {
             try {
-                /** @type android.content.pm.PackageInfo[] */
+                /** @type {android.content.pm.PackageInfo[]} */
                 let _i_pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
                 _i_pkgs.some((i_pkg) => {
                     if (i_pkg.packageName === _pkg_name) {
@@ -147,28 +147,43 @@ let ext = {
         if (!_path) {
             throw Error('Cannot locate project path for appx.getProjectLocal()');
         }
-        let _json = _path + '/project.json';
-        let _main = _path + '/ant-forest-launcher.js';
-        try {
-            if (files.exists(_json)) {
-                let _o = JSON.parse(filesx.read(_json));
-                _main = _o.main;
-                _ver_name = 'v' + _o.versionName;
-                _ver_code = Number(_o.versionCode);
-            } else {
-                _ver_name = 'v' + filesx.read(_main)
-                    .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
-            }
-        } catch (e) {
-            console.warn(e.message);
-            console.warn(e.stack);
-        }
-        return {
+        let _sep = java.io.File.separator;
+        let _json_name = 'project.json';
+        let _json_path = _path + _sep + _json_name;
+        let _main_name = 'ant-forest-launcher.js';
+        let _main_path = _path + _sep + _main_name;
+        let _res = {
             version_name: _ver_name,
             version_code: _ver_code,
-            main: _main,
+            main: _main_path,
             path: _path,
         };
+        if (files.exists(_json_path)) {
+            try {
+                let _o = JSON.parse(filesx.read(_json_path));
+                return Object.assign(_res, {
+                    version_name: 'v' + _o.versionName,
+                    version_code: Number(_o.versionCode),
+                    main: _o.main,
+                });
+            } catch (e) {
+                console.warn(e.message);
+                console.warn(e.stack);
+            }
+        }
+        if (files.exists(_main_path)) {
+            try {
+                return Object.assign(_res, {
+                    version_name: 'v' + filesx.read(_main_path)
+                        .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8),
+                });
+            } catch (e) {
+                console.warn(e.message);
+                console.warn(e.stack);
+            }
+        }
+        console.warn('Both ' + _json_name + ' and ' + _main_name + ' are not exist');
+        return _res;
     },
     /**
      * @returns {string}
@@ -202,7 +217,7 @@ let ext = {
         return this.getProjectLocal().version_name;
     },
     /**
-     * @param {{}} [options]
+     * @param {Object} [options]
      * @param {number} [options.max_items=Infinity]
      * @param {number} [options.per_page=30]
      * @param {string} [options.min_version_name='v0.0.0']
@@ -315,7 +330,7 @@ let ext = {
         }
     },
     /**
-     * @param {{}} [options]
+     * @param {Object} [options]
      * @param {string} [options.min_version_name='v0.0.0']
      * @param {boolean} [options.no_extend=false]
      * @param {boolean} [options.show_progress_dialog=false]
@@ -343,7 +358,7 @@ let ext = {
         }
     },
     /**
-     * @param {{}} [options]
+     * @param {Object} [options]
      * @param {string} [options.min_version_name='v0.0.0']
      * @param {boolean} [options.no_extend=false]
      * @param {boolean} [options.show_progress_dialog=false]
@@ -762,7 +777,7 @@ let ext = {
             }, {
                 desc: _steps.backup,
                 action: (v, d) => new Promise((resolve, reject) => {
-                    if (!_appx.getProjectLocalPath()) {
+                    if (!_appx.getProjectLocalPath() || !_appx.getProjectLocalVerName()) {
                         d.setStepDesc(3, '  [ 跳过 ]', true);
                         return resolve(v);
                     }
@@ -1306,7 +1321,7 @@ let ext = {
 
             /**
              * @param {string} ver
-             * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; '': unrecorded
+             * @returns {string[]|number|string} -- strings[]: bug codes; 0: normal; '': unrecorded
              */
             function _chkBugs(ver) {
                 // version ∈ 4.1.1
@@ -1318,6 +1333,12 @@ let ext = {
                     ver.match(/^Pro 7\.0\.(0-[46]|2-4|3-7|4-1)$/)
                 ) {
                     return 0; // known normal
+                }
+
+                // version > Pro 8.3.16
+                if (ver.match(/^Pro ([89]|\d{2})\./)) {
+                    devicex.a11y.bridge.resetWindowFilter();
+                    return 0;
                 }
 
                 // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
@@ -1333,11 +1354,6 @@ let ext = {
                 // 4.0.x versions
                 if (ver.match(/^4\.0\./)) {
                     return ['dialogs_not_responded', 'not_full_function'];
-                }
-
-                // version > Pro 8.3.16
-                if (ver.match(/^Pro [89]\./)) {
-                    return ['alipay_a11y_blocked'];
                 }
 
                 // version === Pro 7.0.0-(1|2)
@@ -1770,7 +1786,26 @@ let ext = {
      * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
      * @see app.intent
      * @param {string|android.content.Intent|IntentExtensionWithRoot} o
-     * @returns void
+     * @example
+     * appx.startActivity({
+     *     url: {
+     *         src: 'alipays://platformapi/startapp',
+     *         query: {
+     *             saId: 20000067,
+     *             url: 'https://60000002.h5app.alipay.com/www/home.html',
+     *             __webview_options__: {
+     *                 transparentTitle: 'auto',
+     *                 backgroundColor: '-1',
+     *                 appClearTop: true,
+     *                 startMultApp: true,
+     *                 enableCubeView: false,
+     *                 enableScrollBar: false,
+     *             },
+     *         },
+     *     },
+     *     packageName: 'com.eg.android.AlipayGphone',
+     * });
+     * @returns {void}
      */
     startActivity(o) {
         let _flag = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
@@ -1947,7 +1982,7 @@ let ext = {
      *     launch_retry_times: 4,
      *     screen_orientation: 0,
      * });
-     * @return {boolean}
+     * @returns {boolean}
      */
     launch(trigger, options) {
         let _opt = options || {};
@@ -2057,7 +2092,7 @@ let ext = {
             let _max_ready_b = _max_ready;
 
             while (!waitForAction(_cond_ready, 8e3) && _max_ready--) {
-                let _ctr = '(' + (_max_ready_b - _max_ready) + '/' + _max_ready_b + ')';
+                let _ctr = (_max_ready_b - _max_ready + '/' + _max_ready_b).surround('()');
                 if (typeof _trig === 'object') {
                     debugInfo('重新启动Activity ' + _ctr);
                     this.startActivity(_trig);
@@ -2072,8 +2107,8 @@ let ext = {
                 break;
             }
 
-            debugInfo('尝试关闭"' + _app_name + '"应用: ' +
-                '(' + (_max_retry_b - _max_retry) + '/' + _max_retry_b + ')');
+            debugInfo('尝试关闭' + _app_name.surround('"') + '应用:');
+            debugInfo((_max_retry_b - _max_retry + '/' + _max_retry_b).surround('()'));
             this.kill(_pkg_name);
         }
 
@@ -2084,9 +2119,9 @@ let ext = {
         }
 
         if (_max_retry < 0) {
-            messageAction('"' + _name + '"初始状态准备失败', 8, 1, 0, 1);
+            messageAction(_name.surround('"') + '初始状态准备失败', 8, 1, 0, 1);
         }
-        debugInfo('"' + _name + '"初始状态准备完毕');
+        debugInfo(_name.surround('"') + '初始状态准备完毕');
 
         return true;
 
@@ -2288,7 +2323,7 @@ let ext = {
      *     kill?: Appx$Kill$Options,
      *     launch?: Appx$Launch$Options,
      * }} [options]
-     * @return {boolean}
+     * @returns {boolean}
      */
     restart(source, options) {
         let _src = source || currentPackage();

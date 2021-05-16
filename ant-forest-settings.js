@@ -491,7 +491,7 @@ let $$init = {
             hint: {
                 colorSetter(view) {
                     let _sess_val = $$cfg.ses[this.config_conj];
-                    if (classof(_sess_val, 'Array')) {
+                    if (Array.isArray(_sess_val)) {
                         let _len = _sess_val.length;
                         if (_len) {
                             let _s = _sess_val.join(' , ');
@@ -666,7 +666,7 @@ let $$init = {
                     } else if (type === 'info') {
                         _v = setInfo(opt);
                     } else if (type === 'list') {
-                        _page_view.hideContentMarginTop();
+                        this.hideContentMarginTop();
                         _v = setList(opt);
                     } else if (type === 'seekbar') {
                         _v = setSeekbar(opt);
@@ -682,8 +682,8 @@ let $$init = {
                     }
 
                     if (!$$obj(opt)) {
-                        _page_view.content_view.addView(_v);
-                        return _page_view;
+                        this.content_view.addView(_v);
+                        return this;
                     }
 
                     _v.setNextPage = p => opt.next_page = p;
@@ -716,7 +716,7 @@ let $$init = {
                             _v['_chevron_icon'].setVisibility(v);
                         });
                     };
-                    _v.page_view = _page_view;
+                    _v.page_view = this;
 
                     let hint = opt.hint;
                     if (hint) {
@@ -879,7 +879,7 @@ let $$init = {
                         _v.setTag(opt.view_tag);
                     }
 
-                    _page_view.content_view.addView(_v);
+                    this.content_view.addView(_v);
 
                     Object.keys(opt).forEach((key) => {
                         if (!key.match(/listeners/)) {
@@ -895,7 +895,7 @@ let $$init = {
                         }
                     });
 
-                    return _page_view;
+                    return this;
 
                     // tool function(s) //
 
@@ -1139,7 +1139,7 @@ let $$init = {
                                              style="@android:style/Widget.Material.SeekBar"/>
                                 </horizontal>
                             </vertical>);
-                        /** @type android.widget.AbsSeekBar */
+                        /** @type {android.widget.AbsSeekBar} */
                         let _seekbar = _new_view['_seekbar'];
                         _seekbar.setMax(Math.ceil((max - min) / inc));
                         _seekbar.setProgress(Math.ceil((init - min) / inc));
@@ -1176,14 +1176,14 @@ let $$init = {
                         messageAction('页面标签不存在:', 3, 0, 0, -1);
                         messageAction(_title_name, 3, 0, 0, 1);
                     }
-                    return _page_view;
+                    return this;
                 };
                 _page_view.checkPageState = function () {
                     if ($$func(check_page_state)) {
-                        return check_page_state(_page_view.content_view);
+                        return check_page_state(this.content_view);
                     }
                     return true;
-                };
+                }.bind(_page_view);
 
                 _page_view.page_title_name = _title_name;
 
@@ -1265,7 +1265,9 @@ let $$init = {
                     let def_on_color = $$def.colors.btn_on;
                     let def_off_color = $$def.colors.btn_off;
                     let view = buttonView();
+                    /** @type {string[]} */
                     let switch_on_color = [other_params['btn_on_icon_color'] || def_on_color, other_params['btn_on_text_color'] || def_on_color];
+                    /** @type {string[]} */
                     let switch_off_color = [other_params['btn_off_icon_color'] || def_off_color, other_params['btn_off_text_color'] || def_off_color];
                     view.switch_on = () => {
                         view[btn_icon_id].attr('tint', switch_on_color[0]);
@@ -1945,7 +1947,7 @@ let $$init = {
                             hint_color: _hint_c,
                         } = _btns.reserved_btn;
 
-                        let _btn_view = _raw_btn_view.reserved_btn;
+                        let _btn_view = _raw_btn_view['reserved_btn'];
                         _btn_view.setVisibility(0);
 
                         if (_text) {
@@ -1970,7 +1972,7 @@ let $$init = {
                             onClickListener: _lsn,
                         } = _btns.confirm_btn;
 
-                        let _btn_view = _raw_btn_view.confirm_btn;
+                        let _btn_view = _raw_btn_view['confirm_btn'];
 
                         if (_text) {
                             _btn_view.setText(_text);
@@ -1993,7 +1995,7 @@ let $$init = {
                                 <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
                             </vertical>);
                         _addi_btns.forEach((o) => {
-                            if (classof(o, 'Array')) {
+                            if (Array.isArray(o)) {
                                 return _addAddnBtns(o);
                             }
                             let _btn_view = ui.inflate(<button margin="2 0 2 8" backgroundTint="#cfd8dc"/>);
@@ -2332,7 +2334,7 @@ let $$init = {
                         </vertical>);
                     if ((params.buttons || {}).reserved_btn) {
                         let {text, onClickListener} = params.buttons.reserved_btn;
-                        let reserved_btn_view = btn_view.reserved_btn;
+                        let reserved_btn_view = btn_view['reserved_btn'];
                         reserved_btn_view.setVisibility(0);
                         text && reserved_btn_view.setText(text);
                         onClickListener && reserved_btn_view.on('click', () => {
@@ -2343,7 +2345,7 @@ let $$init = {
 
                     if ((params.buttons || {}).back_btn) {
                         let {text, onClickListener} = params.buttons.back_btn;
-                        let confirm_btn_view = btn_view.back_btn;
+                        let confirm_btn_view = btn_view['back_btn'];
                         text && confirm_btn_view.setText(text);
                         onClickListener && confirm_btn_view.on('click', () => {
                             return onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
@@ -2354,7 +2356,7 @@ let $$init = {
 
                     if ((params.buttons || {}).confirm_btn) {
                         let {text, onClickListener} = params.buttons.confirm_btn;
-                        let confirm_btn_view = btn_view.confirm_btn;
+                        let confirm_btn_view = btn_view['confirm_btn'];
                         text && confirm_btn_view.setText(text);
                         onClickListener && confirm_btn_view.on('click', () => {
                             onClickListener(getTimeInfoFromPicker, closeTimePickerPage);
@@ -2907,7 +2909,7 @@ let $$init = {
                     if ($$func(_deps)) {
                         return _deps.call(null);
                     }
-                    if (!classof(_deps, 'Array')) {
+                    if (!Array.isArray(_deps)) {
                         _deps = [_deps];
                     }
                     return _deps.some((dep) => $$cfg.ses[dep]);
@@ -2918,7 +2920,7 @@ let $$init = {
 
                 function setViewDisabled(view, dependencies) {
                     let hint_text = '';
-                    if (classof(dependencies, 'Array')) {
+                    if (Array.isArray(dependencies)) {
                         dependencies.forEach(conj_text => {
                             hint_text += $$ses.title[conj_text] + ' ';
                         });
@@ -3037,7 +3039,7 @@ let $$init = {
                 }
 
                 if (operation.match(/delete|splice/)) {
-                    let _data_params = classof(data, 'Array') ? data.slice() : [data];
+                    let _data_params = Array.isArray(data) ? data.slice() : [data];
                     if (_data_params.length > 2 && !_data_params[2]['list_item_name_0']) {
                         _data_params[2] = _magicData(_data_params[2]);
                     }
@@ -3046,7 +3048,7 @@ let $$init = {
                 }
 
                 if (operation.match(/update/)) {
-                    if (data && !classof(data, 'Array')) {
+                    if (data && !Array.isArray(data)) {
                         data = [data];
                     }
                     if (!$$ses[ds_k]) {
@@ -3148,7 +3150,7 @@ let $$init = {
 
                 function _act() {
                     ui.post(() => {
-                        if (!classof(idx_offset, 'Array')) {
+                        if (!Array.isArray(idx_offset)) {
                             idx_offset = [idx_offset || 1];
                         }
                         let p = o.view.getParent();
@@ -3172,7 +3174,7 @@ let $$init = {
             },
             /**
              * @param {'SET'|'GET'} act
-             * @returns {{}[]}
+             * @returns {Object[]}
              */
             statListDataSource(act) {
                 let _range = $$ses.stat_list_date_range_data || [];
@@ -3357,7 +3359,7 @@ let $$init = {
                 }[format_str || 'time_str'];
             },
             getTimedTaskTypeStr(source) {
-                if (classof(source, 'Array')) {
+                if (Array.isArray(source)) {
                     if (source.length === 7) return '每日';
                     if (source.length) return '每周 [' + source.slice().map(x => +x || 7).sort().join(',') + ']';
                 }
@@ -3534,7 +3536,7 @@ let $$init = {
             let _blist_cvr = [];
             let _blist_usr = [];
 
-            if (classof(_blist_sto, 'Array')) {
+            if (Array.isArray(_blist_sto)) {
                 _blist_data = _blist_sto.slice();
             } else if (classof(_blist_sto, 'Object')) {
                 _blist_data = Object.keys(_blist_sto).map((name) => ({
@@ -3690,7 +3692,6 @@ let $$init = {
             $$lsn.removeAllListeners();
             threads.shutDownAll();
             imagesx.recycleGlobal();
-            ui.setContentView(ui.inflate(<frame/>));
             ui.main.getParent().removeAllViews();
 
             ui.finish();
@@ -4058,12 +4059,12 @@ $$view.setHomePage($$def.homepage_title)
                 let _thd_load_avt;
 
                 _add_view.setTag('about_page');
-                _add_view.close.on('click', () => {
+                _add_view['close'].on('click', () => {
                     _stop_load_avt_sgn = true;
                     _thd_load_avt && _thd_load_avt.interrupt();
                     _closeAbout();
                 });
-                _add_view.close.on('long_click', (e) => {
+                _add_view['close'].on('long_click', (e) => {
                     e.consumed = true;
                     if ($$ses.avatar_recycle_opr_working_flag) {
                         return;
@@ -4121,7 +4122,7 @@ $$view.setHomePage($$def.homepage_title)
                     }
                 });
 
-                $$ses.back_btn_consumed_func = () => _add_view.close.click();
+                $$ses.back_btn_consumed_func = () => _add_view['close'].click();
 
                 let _stat_bar_col_bak = activity.getWindow().getStatusBarColor();
                 ui.statusBarColor(android.graphics.Color.TRANSPARENT);
@@ -5716,6 +5717,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
             newWindow() {
                 let _cfg_conj = this.config_conj;
 
+                // noinspection HttpUrlsUsage
                 dialogsx
                     .builds(['本地日志写入模式', '写入模式示例:\n\n' +
                     '%m%n\n%d - [%p::%c::%C] - %m%n\n%d{yyyy-MM-dd HH:mm}%m%n\n\n' +
@@ -6317,7 +6319,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                     .show();
                             })
                             .on('negative', (d) => {
-                                if (type_code !== 0 && !classof(type_code, 'Array')) {
+                                if (type_code !== 0 && !Array.isArray(type_code)) {
                                     return dialogsx.builds([
                                         '无法编辑',
                                         '仅以下类型的任务可供编辑:\n\n' +

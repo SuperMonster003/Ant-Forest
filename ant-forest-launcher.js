@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Apr 15, 2021
- * @version 2.1.0
+ * @since May 16, 2021
+ * @version 2.1.1
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -65,7 +65,6 @@ let $$init = {
                 'getSelector', 'equalObjects', 'waitForAndClickAction', 'stabilizer',
                 'clickAction', 'swipeAndShow', 'setIntervalBySetTimeout', 'keycode',
                 'waitForAction', 'baiduOcr', 'observeToastMessage', 'showSplitLine',
-                'classof', 'surroundWith',
             ]);
             global.messageAct = function () {
                 return $$flag.msg_details
@@ -136,7 +135,7 @@ let $$init = {
             $$flag.show_e_result = _msg_sw && $$cfg.result_showing_switch;
 
             let _e_argv = this.e_argv = enginesx.execArgvJs();
-            if (Object.size(_e_argv, {exclude: ['intent']})) {
+            if (Object.size(_e_argv, {exclude: 'intent'}) > 0) {
                 if (!$$und(_e_argv.debug_info_flag)) {
                     $$flag.debug_info_avail = !!_e_argv.debug_info_flag;
                 }
@@ -241,7 +240,7 @@ let $$init = {
                     return this;
                 },
                 setParams() {
-                    $$app.task_name = surroundWith(_unEsc('8682868168EE6797'));
+                    $$app.task_name = _unEsc('8682868168EE6797').surround('"');
                     $$app.rl_title = _unEsc('2615FE0F0020597D53CB6392884C699C');
                     $$app.developer = _unTap('434535154232343343441542000003');
                     $$app.local_pics_path = _getLocalPicsPath();
@@ -749,14 +748,14 @@ let $$init = {
                             let _par = coord.map((x, i) => ~x ? x : i % 2 ? W : H);
                             return _sel.boundsInside.apply(_sel, _par).clickable().findOnce();
                         },
-                        _carry(fs, no_bak) {
-                            for (let i = 0, l = fs.length; i < l; i += 1) {
-                                let _checker = fs[i];
+                        _carry(fxs, no_bak) {
+                            for (let i = 0, l = fxs.length; i < l; i += 1) {
+                                let _checker = fxs[i];
                                 if ($$arr(_checker)) {
                                     if (no_bak) {
                                         continue;
                                     }
-                                    _checker = () => this._getClickable(fs[i]);
+                                    _checker = () => this._getClickable(fxs[i]);
                                 }
                                 let _w = _checker();
                                 if (_w) {
@@ -1870,7 +1869,7 @@ let $$init = {
                             .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)]}])
                             .add('cover_used', /.*使用了保护罩.*/)
                             .add('wait_awhile', /.*稍等片刻.*/)
-                            .add('reload_fst_page', '重新加载')
+                            .add('reload_frst_page', '重新加载')
                             .add('close_btn', /关闭|Close/)
                             .add('login_btn', /登录|Log in|.*loginButton/)
                             .add('login_new_acc', /换个新账号登录|[Aa]dd [Aa]ccount/)
@@ -1921,7 +1920,7 @@ let $$init = {
 
                                 // TODO if (!plans_arr) loadFromConfig
                                 return (plans_arr || ['intent', 'pipeline']).some((plan) => {
-                                    let _task_nm = '计划' + surroundWith(plan);
+                                    let _task_nm = '计划' + plan.surround('"');
                                     this._plans[plan]();
                                     if (waitForAction(this.isInPage, 2e3)) {
                                         debugInfo(_task_nm + '成功');
@@ -2081,7 +2080,7 @@ let $$init = {
                             return abbr.slice(i, k + 1).match(/^\*+$/);
                         },
                         /**
-                         * @param user {object}
+                         * @param {Object} user
                          * @param {string} [user.abbr] - abbr username
                          * @param {string} [user.name] - full username without encryption
                          * @param {string} [user.name_raw] - encrypted username
@@ -2095,7 +2094,7 @@ let $$init = {
 
                             function _ready() {
                                 if (!$$obj(user)) {
-                                    messageAction('登录参数类型无效: ' + classof(user), 8, 1, 0, 2);
+                                    messageAction('登录参数类型无效: ' + user, 8, 1, 0, 2);
                                 }
                                 if (!user.name && !user.abbr && !user.name_raw) {
                                     messageAction('usr_info参数缺少必要属性', 8, 1, 0, 2);
@@ -2566,7 +2565,7 @@ let $$init = {
 
                                 function _condChecker(cond) {
                                     if (!$$obj(cond)) {
-                                        debugInfo(['条件检查器参数无效', '>' + classof(cond)]);
+                                        debugInfo(['条件检查器参数无效', '>' + cond]);
                                         return false;
                                     }
 
@@ -2781,7 +2780,7 @@ let $$init = {
                                 let _b = null;
                                 waitForAction(() => _b = _getAvtPos(), 8e3, 100);
 
-                                if (!_b || $$emptyObj(_b)) {
+                                if (!_b || !Object.size(_b)) {
                                     messageAction('无法获取当前头像样本', 3);
                                     messageAction('森林主页头像控件定位失败', 3, 1);
                                     return false;
@@ -3310,19 +3309,17 @@ let $$init = {
                     // constructor(s) //
 
                     /**
-                     * @param {string} [desc]
-                     * -- will show in console as the monitor name
+                     * @param {string} [desc] - will show in console as the monitor name
                      * @param {string|number} [limit=Infinity]
-                     * @param params {object}
-                     * @param {boolean|string} [params.switching]
-                     * -- monitor may be disabled according to $$cfg
-                     * @param params.trigger {function}
+                     * @param {Object} params
+                     * @param {boolean|string} [params.switching] - monitor may be disabled by $$cfg
+                     * @param {function} params.trigger
                      * @param {function} [params.onTrigger]
-                     * @param params.onRelease {function}
+                     * @param {function} params.onRelease
                      * @constructor
                      */
                     function Monitor(desc, limit, params) {
-                        let _desc = surroundWith(desc);
+                        let _desc = desc.surround('"');
                         let _limit = _handleLimitParam(limit);
                         let _sw = _handleSwitch(params.switching);
                         let _trigger = params.trigger;
@@ -3683,7 +3680,7 @@ let $$init = {
                     }
                 }),
                 reload_btn: new Monitor('"重新加载"按钮', function () {
-                    let _sel = () => $$sel.get('reload_fst_page');
+                    let _sel = () => $$sel.get('reload_frst_page');
                     let _click = () => clickAction(_sel(), 'w');
 
                     while (1) {
@@ -4080,7 +4077,7 @@ let $$init = {
                     }
 
                     function _collect() {
-                        $$app.task_name = surroundWith('好友列表数据采集');
+                        $$app.task_name = '好友列表数据采集'.surround('"');
                         messageAction('正在采集好友列表数据', 1, 1, 0, 2);
 
                         $$af.rl.swipe.toBottom();
@@ -4156,7 +4153,7 @@ let $$init = {
                         // thread function(s) //
 
                         function _thdGetName() {
-                            $$app.task_name = surroundWith('采集当前账户名');
+                            $$app.task_name = '采集当前账户名'.surround('"');
                             $$app.page.alipay.home();
 
                             messageAction('正在采集当前账户名', 1, 0, 0, -1);
@@ -4322,9 +4319,7 @@ let $$af = {
                         return this.isInSlakePage() || this.isMaxCntCycleReached();
                     },
                     isInSlakePage() {
-                        return $$sel.pickup([/.*返回.*森林.*/, {
-                            clickable: true, className: 'Button',
-                        }]);
+                        return $$sel.pickup([/.*返回.*森林.*/, {clickable: true}]);
                     },
                     isMaxCntCycleReached() {
                         return this.ignored.getMaxCount() > this.max_cnt_cycle;
@@ -4342,11 +4337,11 @@ let $$af = {
                         this.ignored.reset();
                     },
                 },
-                /** @type AfHoughBallsResult|{} */
+                /** @type {AfHoughBallsResult|Object} */
                 home_balls_info: {},
                 eballs(type, options) {
                     let _opt = options || {};
-                    if (!_opt.cache || !Object.size(this.home_balls_info)) {
+                    if (!_opt.cache || Object.size(this.home_balls_info) > 0) {
                         this.home_balls_info = imagesx.findAFBallsByHough({
                             no_debug_info: _opt.no_debug_info,
                         });
@@ -5032,7 +5027,7 @@ let $$af = {
                     });
 
                     let _z = Object.size(_smp);
-                    _z && debugInfo('解析好友有效倒计时数据: ' + _z + '项');
+                    _z > 0 && debugInfo('解析好友有效倒计时数据: ' + _z + '项');
 
                     return this.rl_samples = _smp;
                 }
@@ -5040,7 +5035,7 @@ let $$af = {
             _chkMinCtd(cache_fg) {
                 let _smp = this._getSamples(cache_fg);
 
-                if (Object.size(_smp)) {
+                if (Object.size(_smp) > 0) {
                     let _min_mm = Infinity;
                     let _min_ctd = Infinity;
 
@@ -5066,6 +5061,7 @@ let $$af = {
             },
             _rankListReady() {
                 $$app.page.closeAllRelated();
+                $$app.page.rl.pool.clean();
                 if ($$app.page.rl.launch()) {
                     $$app.monitor.rl_in_page.start();
                     $$app.monitor.rl_bottom.start();
@@ -5105,11 +5101,11 @@ let $$af = {
                 },
             },
             eballs: {
-                /** @type EnergyBallsInfo[] */
+                /** @type {EnergyBallsInfo[]} */
                 ripe: [],
-                /** @type EnergyBallsInfo[] */
+                /** @type {EnergyBallsInfo[]} */
                 naught: [],
-                /** @type EnergyBallsInfo[] */
+                /** @type {EnergyBallsInfo[]} */
                 water: [],
                 get length() {
                     return this.ripe.length + this.naught.length;
@@ -5222,7 +5218,7 @@ let $$af = {
                                     return _mult;
                                 })(),
                                 /** @typedef {{icon_y: number, item_y: number, act_desc: string}[]} FriTar */
-                                /** @returns FriTar */
+                                /** @returns {FriTar} */
                                 getTar() {
                                     if (_fri.trigger()) {
                                         return _chkByImgTpl.call(this);
@@ -5244,7 +5240,7 @@ let $$af = {
 
                         // tool function(s) //
 
-                        /** @returns FriTar */
+                        /** @returns {FriTar} */
                         function _chkByImgTpl() {
                             let _capt = $$app.page.rl.capt_img;
                             let _x = cX(0.896);
@@ -5270,7 +5266,7 @@ let $$af = {
 
                         /**
                          * @param {'pick'} ident
-                         * @returns FriTar
+                         * @returns {FriTar}
                          */
                         function _getTar(ident) {
                             return _prop[ident].getTar().sort((a, b) => (
@@ -6869,6 +6865,144 @@ let $$af = {
             this.exitNow();
         },
     },
+    rl: {
+        scroll: {
+            get itv() {
+                return $$cfg.rank_list_scroll_interval.clamp(100, 2.4e3);
+            },
+            /**
+             * @param {Object} [options]
+             * @param {boolean} [options.no_debug_info=false]
+             * @param {number} [options.itv=this.itv] - interval
+             * @param {number|boolean} [options.buffer_time=0]
+             * @param {number|boolean} [options.bt$=0] - alias for buffer_time
+             * @param {function():boolean} [options.loop]
+             */
+            scroll(options) {
+                let _opt = options || {};
+                let _itv = _opt.itv === undefined ? this.itv : _opt.itv;
+
+                let _1st = 1;
+
+                do {
+                    _1st ? _1st &= 0 : sleep(_itv);
+                    let _ls = scrollable(true).findOnce();
+                    if (_ls) {
+                        _ls.scrollDown();
+                    } else {
+                        _opt.no_debug_info || debugInfo('scrollable(): null', 3);
+                    }
+                } while (_opt.loop && _opt.loop());
+
+                let _bt = _opt.buffer_time || _opt.bt$ || 0;
+                $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
+            },
+            toBottom(timeout) {
+                let _this = this;
+                let _thd = threadsx.start(function () {
+                    _this.scroll({loop: () => !$$flag.rl_bottom_rch});
+                });
+                $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
+                _thd.interrupt();
+            },
+        },
+        swipe: {
+            get du() {
+                return $$cfg.rank_list_swipe_time.clamp(100, 2.4e3);
+            },
+            get itv() {
+                return $$cfg.rank_list_swipe_interval.clamp(100, 2.4e3);
+            },
+            get dist() {
+                let _dist = $$cfg.rank_list_swipe_distance;
+                if (_dist < 1) {
+                    _dist = Math.trunc(_dist * H);
+                }
+                return _dist;
+            },
+            get top() {
+                let _top = Math.trunc((uH - this.dist) / 2);
+                return _top > 0 ? _top : this.autoAdjust();
+            },
+            get bottom() {
+                return uH - this.top;
+            },
+            /**
+             * @param {Object} [options]
+             * @param {boolean} [options.no_click_outside=false]
+             * @param {boolean} [options.no_debug_info=false]
+             * @param {number} [options.x1=halfW]
+             * @param {number} [options.y1=this.bottom]
+             * @param {number} [options.x2=halfW]
+             * @param {number} [options.y2=this.top]
+             * @param {number} [options.du=this.du] - duration
+             * @param {number} [options.itv=this.itv] - interval
+             * @param {number|boolean} [options.buffer_time=0]
+             * @param {number|boolean} [options.bt$=0] - alias for buffer_time
+             * @param {function():boolean} [options.loop]
+             */
+            swipe(options) {
+                let _opt = options || {};
+
+                let _ = (v, d) => v === undefined ? d : v;
+                let _x1 = _(_opt.x1, halfW);
+                let _y1 = _(_opt.y1, this.bottom);
+                let _x2 = _(_opt.x2, halfW);
+                let _y2 = _(_opt.y2, this.top);
+                let _du = _(_opt.du, this.du);
+                let _itv = _(_opt.itv, this.itv);
+
+                let _1st = 1;
+
+                do {
+                    _1st ? _1st &= 0 : sleep(_itv);
+                    if (!swipe(_x1, _y1, _x2, _y2, _du)) {
+                        _opt.no_debug_info || debugInfo('swipe(): false', 3);
+                    } else if (!_opt.no_click_outside) {
+                        // just to prevent screen from turning off
+                        // maybe this is not a good idea
+                        click(1e5, 1e5);
+                    }
+                } while (_opt.loop && _opt.loop());
+
+                let _bt = _opt.buffer_time || _opt.bt$ || 0;
+                $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
+            },
+            autoAdjust() {
+                let _dist0 = Math.trunc(uH * 0.95);
+                let _top0 = Math.trunc((uH - _dist0) / 2);
+                let _af_cfg = $$sto.af_cfg.get('config', {});
+                let _data = {rank_list_swipe_distance: _dist0};
+                let _combined = Object.assign({}, _af_cfg, _data);
+
+                messageAction('滑动区域超限', 3);
+
+                messageAction('自动修正滑动距离参数:', 3);
+                messageAction('swipe_top: ' + _top0, 3);
+
+                $$sto.af_cfg.put('config', _combined);
+                $$cfg.rank_list_swipe_distance = _dist0;
+                messageAction('自动修正配置文件数据:', 3);
+                messageAction('rank_list_swipe_distance: ' + _dist0, 3);
+
+                return _top0;
+            },
+            toBottom(timeout) {
+                let _this = this;
+                let _thd = threadsx.start(function () {
+                    _this.swipe({loop: () => !$$flag.rl_bottom_rch});
+                });
+                $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
+                _thd.interrupt();
+            },
+        },
+        isInScrollMode() {
+            return $$cfg.rank_list_scan_strategy === 'scroll';
+        },
+        isInSwipeMode() {
+            return $$cfg.rank_list_scan_strategy === 'swipe';
+        },
+    },
     launch() {
         this._launcher.greet().assign().home().ready();
         return $$af;
@@ -6901,138 +7035,6 @@ let $$af = {
             own: new _$MinCtdFactory(),
             fri: new _$MinCtdFactory(),
         };
-        this.rl = {
-            scroll: {
-                itv: $$cfg.rank_list_scroll_interval.clamp(100, 2.4e3),
-                /**
-                 * @param {Object} [options]
-                 * @param {boolean} [options.no_debug_info=false]
-                 * @param {number} [options.itv=this.itv] - interval
-                 * @param {number|boolean} [options.buffer_time=0]
-                 * @param {number|boolean} [options.bt$=0] - alias for buffer_time
-                 * @param {function():boolean} [options.loop]
-                 */
-                scroll(options) {
-                    let _opt = options || {};
-                    let _itv = _opt.itv === undefined ? this.itv : _opt.itv;
-
-                    let _1st = 1;
-
-                    do {
-                        _1st ? _1st &= 0 : sleep(_itv);
-                        let _ls = scrollable(true).findOnce();
-                        if (_ls) {
-                            _ls.scrollDown();
-                        } else {
-                            _opt.no_debug_info || debugInfo('scrollable(): null', 3);
-                        }
-                    } while (_opt.loop && _opt.loop());
-
-                    let _bt = _opt.buffer_time || _opt.bt$ || 0;
-                    $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
-                },
-                toBottom(timeout) {
-                    let _this = this;
-                    let _thd = threadsx.start(function () {
-                        _this.scroll({loop: () => !$$flag.rl_bottom_rch});
-                    });
-                    $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
-                    _thd.interrupt();
-                },
-            },
-            swipe: {
-                du: $$cfg.rank_list_swipe_time.clamp(100, 2.4e3),
-                itv: $$cfg.rank_list_swipe_interval.clamp(100, 2.4e3),
-                dist: (() => {
-                    let _dist = $$cfg.rank_list_swipe_distance;
-                    if (_dist < 1) {
-                        _dist = Math.trunc(_dist * H);
-                    }
-                    return _dist;
-                })(),
-                get top() {
-                    let _top = Math.trunc((uH - this.dist) / 2);
-                    return _top > 0 ? _top : this.autoAdjust();
-                },
-                get bottom() {
-                    return uH - this.top;
-                },
-                /**
-                 * @param {Object} [options]
-                 * @param {boolean} [options.no_click_outside=false]
-                 * @param {boolean} [options.no_debug_info=false]
-                 * @param {number} [options.x1=halfW]
-                 * @param {number} [options.y1=this.bottom]
-                 * @param {number} [options.x2=halfW]
-                 * @param {number} [options.y2=this.top]
-                 * @param {number} [options.du=this.du] - duration
-                 * @param {number} [options.itv=this.itv] - interval
-                 * @param {number|boolean} [options.buffer_time=0]
-                 * @param {number|boolean} [options.bt$=0] - alias for buffer_time
-                 * @param {function():boolean} [options.loop]
-                 */
-                swipe(options) {
-                    let _opt = options || {};
-
-                    let _ = (v, d) => v === undefined ? d : v;
-                    let _x1 = _(_opt.x1, halfW);
-                    let _y1 = _(_opt.y1, this.bottom);
-                    let _x2 = _(_opt.x2, halfW);
-                    let _y2 = _(_opt.y2, this.top);
-                    let _du = _(_opt.du, this.du);
-                    let _itv = _(_opt.itv, this.itv);
-
-                    let _1st = 1;
-
-                    do {
-                        _1st ? _1st &= 0 : sleep(_itv);
-                        if (!swipe(_x1, _y1, _x2, _y2, _du)) {
-                            _opt.no_debug_info || debugInfo('swipe(): false', 3);
-                        } else if (!_opt.no_click_outside) {
-                            // just to prevent screen from turning off
-                            // maybe this is not a good idea
-                            click(1e5, 1e5);
-                        }
-                    } while (_opt.loop && _opt.loop());
-
-                    let _bt = _opt.buffer_time || _opt.bt$ || 0;
-                    $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
-                },
-                autoAdjust() {
-                    let _dist0 = Math.trunc(uH * 0.95);
-                    let _top0 = Math.trunc((uH - _dist0) / 2);
-                    let _af_cfg = $$sto.af_cfg.get('config', {});
-                    let _data = {rank_list_swipe_distance: _dist0};
-                    let _combined = Object.assign({}, _af_cfg, _data);
-
-                    messageAction('滑动区域超限', 3);
-
-                    messageAction('自动修正滑动距离参数:', 3);
-                    messageAction('swipe_top: ' + _top0, 3);
-
-                    $$sto.af_cfg.put('config', _combined);
-                    $$cfg.rank_list_swipe_distance = _dist0;
-                    messageAction('自动修正配置文件数据:', 3);
-                    messageAction('rank_list_swipe_distance: ' + _dist0, 3);
-
-                    return _top0;
-                },
-                toBottom(timeout) {
-                    let _this = this;
-                    let _thd = threadsx.start(function () {
-                        _this.swipe({loop: () => !$$flag.rl_bottom_rch});
-                    });
-                    $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
-                    _thd.interrupt();
-                },
-            },
-            isInScrollMode() {
-                return $$cfg.rank_list_scan_strategy === 'scroll';
-            },
-            isInSwipeMode() {
-                return $$cfg.rank_list_scan_strategy === 'swipe';
-            },
-        };
 
         delete this.$bind;// optional but recommended
 
@@ -7061,18 +7063,3 @@ let $$af = {
 $$init.check().global().queue().delay().monitor().unlock().prompt().command();
 
 $$af.$bind().launch().collect().timers().epilogue();
-
-/**
- * @appendix Code abbreviation dictionary
- * May be helpful for code readers and developers
- * Not all items showed up in this project
- * @glossary a11y: accessibility | acc: account | accu: accumulated | act: action; activity | addn: addition; additional | af: ant forest | agn: again | ahd: ahead | amt: amount | anm: animation | app: application | arci: archive(d) | args: arguments | argv: argument values | asg: assign | asgmt: assignment | async: asynchronous | avail: available | avt: avatar | b: bottom; bounds; backup; bomb | bak: backup | bd: bound(s) | blist: blacklist | blt: bilateral | bnd: bound(s) | bo: bitmap options | btm: bottom | btn: button | buf: buffer | c: compass; coordination(s) | cbk: callback | cf: comparison (latin: conferatur) | cfg: configuration | cfm: confirm | chk: check | clk: click; clicked | cln: clean | clp: clip | cmd: command | cnsl: console | cnt: content; count | cntr: container | col: color | compr: compress(ed) | cond: condition | constr: constructor | coord: coordination(s) | ctd: countdown | ctr: counter | ctx: context | cur: current | cvr: cover | cwd: current working directory | cwp: current working path | cxn: connection | d: dialog | dat: data | dbg: debug | dc: decrease | dec: decode; decrypt | def: default | del: delete; deletion | desc: description | dev: device; development | diag: dialog | dic: dictionary | diff: difference | dis: dismiss | disp: display | dist: distance; disturb; disturbance | dn: down | dnt: donation | dny: dynamic | drxn: direction | ds: data source | du: duration | dupe: duplicate; duplicated; duplication | dys: dysfunctional | e: error; engine; event | eball(s): energy ball(s) | egy: energy | ele: element | emount: energy amount | enabl: enable; enabled | enc: encode; encrypt | ens: ensure | ent: entrance | eq: equal | eql: equal | et: elapsed time | evt: event | exc: exception | excl: exclusive | excpt: exception | exec: execution | exp: expected | ext: extension | fg: foreground; flag | flg: flag | flo: floaty | fltr: filter | forc: force; forcible; forcibly | frac: fraction | fri: friend | frst: forest | fs: functions | fst: forest | fx: function | fxo: function object (an object with some functions) | gdball(s): golden ball(s) | glob: global | grn: green | gt: greater than | h: height; head(s) | his: history | horiz: horizontal | i: intent; increment | ic: increase | ident: identification | idt: identification | idx: index | ifn: if needed | inc: increment | inf: information | info: information | inp: input | ins: insurance | inst: instant | intrp: interrupt | invt: invitation | ipt: input | itball(s): initialized ball(s) | itp: interpolate | itv: interval | js: javascript | k: key | kg: keyguard | kw: keyword | l: left | lbl: label | lch: launch | len: length | lmt: limit | ln: line | ls: list | lsn(er(s)): listen; listener(s) | lv: level | lyr: layer | lyt: layout | man: manual(ly) | mch: matched | mod: module | mon: monitor | monit: monitor | msg: message | mthd: method | mv: move | n: name | nball(s): normal ball(s) | nec: necessary | neg: negative | neu: neutral | nm: name | num: number | nxt: next | o: object | opr: operation | opt: option; optional | or: orientation | org: orange | oth: other | ovl: overlap | p: press; parent | par: parameter | param: parameter | pat: pattern | pct: percentage | pg: page | pkg: package | pos: position | pref: prefix | prog: progress | prv: privilege | ps: preset | pwr: power | q: queue | qte: quote | que: queue | r: right; region | ran: random | rch: reach; reached | rec: record; recorded; rectangle | recog: recognition | rect: rectangle | relbl: reliable | req: require; request | res: result; restore | reso: resolve; resolver | resp: response | ret: return | rev: review | rl: rank list | rls: release | rm: remove | rmng: remaining | rsn: reason | rst: reset | s: second(s); stack | sav: save | sc: script | scr: screen | sec: second | sect: section | sel: selector; select(ed) | sels: selectors | set: settings | sep: separator | sgl: single | sgn: signal | simpl: simplify | sltr: selector | smp: sample | spl: special | src: source | stab: stable | stat: statistics | stg: strategy | sto: storage | stp: stripe | str: string | succ: success; successful | suff: suffix | svc: service | svr: server | sw: switch | swp: swipe | sxn: section(s) | sym: symbol | sz: size | t: top; time | tar: target | thd(s): thread(s) | thrd: threshold | tmo: timeout | tmp: temporary | tpl: template | treas: treasury; treasuries | trig: trigger; triggered | ts: timestamp | tt: title; timeout | tv: text view | txt: text | u: unit | uncompr: uncompressed | unexp: unexpected | unintrp: uninterrupted | unlk: unlock: unlocked | usr: user | util: utility | v: value | val: value | vert: vertical | w: widget | wball(s): water ball(s) | wc: widget collection | win: window
- */
-
-/**
- * @memorandums
- * @on Feb 12, 2021
- * 'Protect' function ('提醒守护功能') went online on around Dec 31, 2020
- * At the same time, 'help' function ('帮收功能') was disabled (seems permanently)
- * Thus, all code about 'help' has been removed from this project
- */

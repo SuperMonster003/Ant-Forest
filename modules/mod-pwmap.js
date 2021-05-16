@@ -17,7 +17,7 @@
  * // generate or regenerate 'PWMAP' file
  * // use with caution
  * pwmap.generate();
- * @since Nov 5, 2020
+ * @since May 14, 2021
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
@@ -29,6 +29,8 @@ let _cfg = {
     separator: '_.|._',
     encrypt_power: 2,
 };
+
+require('./ext-global').load('String');
 
 module.exports = {
     encrypt: _encrypt,
@@ -52,11 +54,15 @@ function _encrypt(input) {
     }
     _thd_mon.interrupt();
 
-    let _res = '[' + _encrypted.map((s) => '"' + s + '"') + ']';
+    let _res = _encrypted.map((s) => {
+        return s.toString().surround('"');
+    }).toString().surround('[]');
+
     if (!arguments.length) {
         global['setClip'](_res);
         toast('密文数组已复制剪切板');
     }
+
     return _res;
 
     // tool function(s) //

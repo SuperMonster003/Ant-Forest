@@ -8,7 +8,7 @@ let ext = {
      * @async
      * @param {string} url
      * @param {function(value:number)} callback
-     * @param {{}} [options]
+     * @param {Object} [options]
      * @param {number} [options.timeout=10e3]
      * @param {number} [options.concurrence=12]
      * @example

@@ -97,7 +97,7 @@ let _ext = {
         return runtime.getImages().initOpenCvIfNeeded();
     },
     /**
-     * @param {native.Array<org.opencv.core.Point>} points
+     * @param {org.opencv.core.Point[]} points
      * @returns {org.opencv.core.Point[]}
      */
     _toPointArray(points) {
@@ -137,7 +137,7 @@ let _ext = {
             data: {R: _R, G: _G, B: _B},
             arr: _arr,
             std: Number(Math.std(_arr)),
-            string: '[' + _arr.join(', ') + ']',
+            string: _arr.join(', ').surround('[]'),
         };
     },
     isRecycled(img, is_strict) {
@@ -250,31 +250,45 @@ let _ext = {
         }
         delete global._$_request_screen_capture;
     },
-    permit(params) {
+    /**
+     * Request for screen capture permission (with throttling and dialog auto dismissing)
+     * @param {Object} [options={}]
+     * @param {boolean} [options.restart_e_flag=true] - try restarting the engine when failed
+     * @param {Object} [options.restart_e_params={}]
+     * @param {number} [options.restart_e_params.max_restart_e_times=3]
+     * @param {boolean} [options.no_debug_info=false]
+     * @returns {boolean}
+     */
+    permit(options) {
         if (global._$_request_screen_capture) {
             return true;
         }
         let $_und = x => typeof x === 'undefined';
-        let _par = params || {};
+        let _opt = options || {};
 
-        debugInfo('开始申请截图权限');
+        let _no_dbg = _opt.no_debug_info;
+        let _debugInfo = function () {
+            _no_dbg || debugInfo.apply(null, arguments);
+        };
+
+        _debugInfo('开始申请截图权限');
 
         let $_sel = getSelector();
 
-        if ($_und(_par.restart_e_flag)) {
-            _par.restart_e_flag = true;
+        if ($_und(_opt.restart_e_flag)) {
+            _opt.restart_e_flag = true;
         } else {
-            let _self = _par.restart_e_flag;
-            _par.restart_e_flag = !!_self;
+            let _self = _opt.restart_e_flag;
+            _opt.restart_e_flag = !!_self;
         }
-        if (!_par.restart_e_params) {
-            _par.restart_e_params = {};
+        if (!_opt.restart_e_params) {
+            _opt.restart_e_params = {};
         }
-        if (!_par.restart_e_params.max_restart_e_times) {
-            _par.restart_e_params.max_restart_e_times = 3;
+        if (!_opt.restart_e_params.max_restart_e_times) {
+            _opt.restart_e_params.max_restart_e_times = 3;
         }
 
-        debugInfo('已开启弹窗监测线程');
+        _debugInfo('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
             let _sltr_remember = id('com.android.systemui:id/remember');
@@ -284,18 +298,18 @@ let _ext = {
 
             if (waitForAction(_sel_sure, 5e3)) {
                 if (waitForAction(_sel_remember, 1e3)) {
-                    debugInfo('勾选"不再提示"复选框');
+                    _debugInfo('勾选"不再提示"复选框');
                     clickAction(_sel_remember(), 'w');
                 }
                 if (waitForAction(_sel_sure, 2e3)) {
                     let _w = _sel_sure();
                     let _act_msg = '点击"' + _sel_sure('txt') + '"按钮';
 
-                    debugInfo(_act_msg);
+                    _debugInfo(_act_msg);
                     clickAction(_w, 'w');
 
                     if (!waitForAction(() => !_sel_sure(), 1e3)) {
-                        debugInfo('尝试click()方法再次' + _act_msg);
+                        _debugInfo('尝试click()方法再次' + _act_msg);
                         clickAction(_w, 'click');
                     }
                 }
@@ -305,30 +319,31 @@ let _ext = {
         let _thread_monitor = threads.start(function () {
             if (waitForAction(() => !!_req_result, 3.6e3, 300)) {
                 _thread_prompt.interrupt();
-                return debugInfo('截图权限申请结果: 成功');
+                return _debugInfo('截图权限申请结果: 成功');
             }
             if (typeof $$flag !== 'undefined') {
                 if (!$$flag.debug_info_avail) {
                     $$flag.debug_info_avail = true;
-                    debugInfo('开发者测试模式已自动开启', 3);
+                    _no_dbg = false;
+                    _debugInfo('开发者测试模式已自动开启', 3);
                 }
             }
-            if (_par.restart_e_flag) {
-                debugInfo('截图权限申请结果: 失败', 3);
+            if (_opt.restart_e_flag) {
+                _debugInfo('截图权限申请结果: 失败', 3);
                 try {
                     let _m = android.os.Build.MANUFACTURER.toLowerCase();
                     if (_m.match(/xiaomi/)) {
-                        debugInfo('__split_line__dash__');
-                        debugInfo('检测到当前设备制造商为小米', 3);
-                        debugInfo('可能需要给Auto.js以下权限:', 3);
-                        debugInfo('"后台弹出界面"', 3);
-                        debugInfo('__split_line__dash__');
+                        _debugInfo('__split_line__dash__');
+                        _debugInfo('检测到当前设备制造商为小米', 3);
+                        _debugInfo('可能需要给Auto.js以下权限:', 3);
+                        _debugInfo('"后台弹出界面"', 3);
+                        _debugInfo('__split_line__dash__');
                     }
                 } catch (e) {
                     // nothing to do here
                 }
                 if (files.exists('./ext-engines')) {
-                    return require('./ext-engines').restart(_par.restart_e_params);
+                    return require('./ext-engines').restart(_opt.restart_e_params);
                 }
             }
             messageAction('截图权限申请失败', 8, 1, 0, 1);
@@ -343,7 +358,7 @@ let _ext = {
     /**
      * @param {ImageWrapper$} img - should be recycled manually if needed
      * @param {ImageWrapper$|string} template - should be recycled manually if needed
-     * @param {{}} [options]
+     * @param {Object} [options]
      * @param {string} [options.local_cache_name] - when cache name is given (like 'abc'), the file named 'abc.jpg' in the path files.getSdcardPath() + '/.local/pics/' will be: a, directly as template image -- 'abc.jpg' exists already; b, generated when matched -- 'abc.jpg' not exists; when not given, new matching will be made each time, regardless of the existence of storage file with the same name
      * @param {number} [options.template_device_width=W] - screen display width of the template; see {@link getDisplay} -> {@link cX}
      * @param {number} [options.max_results=5] - max matched results; see {@link images.matchTemplate}
@@ -418,7 +433,7 @@ let _ext = {
         function _byBase64() {
             if (typeof template === 'string') {
                 try {
-                    /** @type _Base64Image */
+                    /** @type {_Base64Image} */
                     let _img = require('./mod-treasury-vault').image_base64_data[template];
                     return _microResize(_img.getImage(), _img.src_dev_width);
                 } catch (e) {
@@ -520,7 +535,7 @@ let _ext = {
      *     duration?: boolean,
      *     region?: number[],
      * }} [options]
-     * @returns AfHoughBallsResult
+     * @returns {AfHoughBallsResult}
      */
     findAFBallsByHough(options) {
         timeRecorder('hough_beginning');
@@ -550,9 +565,7 @@ let _ext = {
          *     water?: EnergyBallsInfo[]
          * }} EnergyBallsInfoClassified
          */
-        /**
-         * @type EnergyBallsInfoClassified
-         */
+        /** @type {EnergyBallsInfoClassified} */
         let _balls_data_o = {};
         let _pool = _opt.pool || {
             data: [],
@@ -620,7 +633,7 @@ let _ext = {
          *         img_samples_processing: number,
          *     },
          * }} EnergyBallsDuration */
-        /** @type EnergyBallsDuration */
+        /** @type {EnergyBallsDuration} */
         let _du_o = _opt.duration !== false ? {
             duration: Object.assign({
                 _map: [
@@ -654,7 +667,7 @@ let _ext = {
          */
         return Object.assign(_balls_data_o, _du_o, {
             expand() {
-                /** @type EnergyBallsInfo[] */
+                /** @type {EnergyBallsInfo[]} */
                 let _data = [];
                 for (let i in this) {
                     if (this.hasOwnProperty(i)) {
@@ -1051,9 +1064,7 @@ let _ext = {
                      *     width: function(): number, height: function(): number
                      * }} EnergyBallsExtProp
                      */
-                    /**
-                     * @returns EnergyBallsMixedProp
-                     */
+                    /** @returns {EnergyBallsMixedProp} */
                     function _extProps(o) {
                         let {x: _x, y: _y, r: _r} = o;
                         return Object.assign(o, {
@@ -1393,7 +1404,7 @@ let _ext = {
     /**
      * @param {ImageWrapper$} img
      * @param {ImageWrapper$} template
-     * @param [options]
+     * @param {Object} [options]
      * @param {number} [options.threshold=0.9]
      * @param {number} [options.weakThreshold=0.6]
      * @param {number} [options.level=-1]

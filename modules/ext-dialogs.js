@@ -406,7 +406,7 @@ let ext = {
     /**
      * Replace or append a message in dialogs content view
      * @param {JsDialog$|MaterialDialog$} d
-     * @param msg {string} - message shown in content view
+     * @param {string} msg - message shown in content view
      * @param {boolean|'append'} [is_append=false]
      * - whether original content is reserved or not
      */
@@ -918,7 +918,7 @@ let ext = {
     },
     /**
      * Build a dialog with flow steps
-     * @param {{}} [config]
+     * @param {Object} [config]
      * @param {string} [config.title]
      * @param {*} [config.initial_value]
      * @param {DialogsxButtonText} [config.on_interrupt_btn_text='B']
@@ -1140,7 +1140,7 @@ let ext = {
     },
     /**
      * Build a dialog with progress view
-     * @param {{}} [config]
+     * @param {Object} [config]
      * @param {string} [config.title]
      * @param {string} [config.content]
      * @param {string} [config.desc] - alias for config.content

@@ -88,10 +88,8 @@ let ext = {
         Array.isArray(view) ? view.forEach(_set) : _set(view);
     },
     /**
-     *
      * @param {android.widget.TextView|android.widget.TextView[]} view
-     * @param color
-     * @private
+     * @param {ColorParam} color
      */
     setTextColor(view, color) {
         let _set = v => v.setTextColor(colorsx.toInt(color));
@@ -106,7 +104,7 @@ let ext = {
      * @param {function(e:*):*} [callback.onFailure]
      * @param {Object} options
      * @param {number} [options.duration=180] - scroll duration
-     * @param {array} options.pages_pool - pool for storing pages (parent views)
+     * @param {Array} options.pages_pool - pool for storing pages (parent views)
      * @param {android.view.View} [options.base_view=ui.main] - specified view for attaching parent views
      */
     smoothScrollPage(direction, callback, options) {

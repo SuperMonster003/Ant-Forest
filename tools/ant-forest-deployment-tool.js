@@ -384,7 +384,7 @@
                 }, {
                     desc: _steps.backup,
                     action: (v, d) => new Promise((resolve, reject) => {
-                        if (!_appx.getProjectLocalPath()) {
+                        if (!_appx.getProjectLocalPath() || !_appx.getProjectLocalVerName()) {
                             d.setStepDesc(3, '  [ 跳过 ]', true);
                             return resolve(v);
                         }
@@ -428,31 +428,46 @@
             if (!_path) {
                 throw Error('Cannot locate project path for appx.getProjectLocal()');
             }
-            let _json = _path + '/project.json';
-            let _main = _path + '/ant-forest-launcher.js';
-            try {
-                if (files.exists(_json)) {
-                    let _o = JSON.parse(filesx.read(_json));
-                    _main = _o.main;
-                    _ver_name = 'v' + _o.versionName;
-                    _ver_code = Number(_o.versionCode);
-                } else {
-                    _ver_name = 'v' + filesx.read(_main)
-                        .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8);
-                }
-            } catch (e) {
-                console.warn(e.message);
-                console.warn(e.stack);
-            }
-            return {
+            let _sep = java.io.File.separator;
+            let _json_name = 'project.json';
+            let _json_path = _path + _sep + _json_name;
+            let _main_name = 'ant-forest-launcher.js';
+            let _main_path = _path + _sep + _main_name;
+            let _res = {
                 version_name: _ver_name,
                 version_code: _ver_code,
-                main: _main,
+                main: _main_path,
                 path: _path,
             };
+            if (files.exists(_json_path)) {
+                try {
+                    let _o = JSON.parse(filesx.read(_json_path));
+                    return Object.assign(_res, {
+                        version_name: 'v' + _o.versionName,
+                        version_code: Number(_o.versionCode),
+                        main: _o.main,
+                    });
+                } catch (e) {
+                    console.warn(e.message);
+                    console.warn(e.stack);
+                }
+            }
+            if (files.exists(_main_path)) {
+                try {
+                    return Object.assign(_res, {
+                        version_name: 'v' + filesx.read(_main_path)
+                            .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8),
+                    });
+                } catch (e) {
+                    console.warn(e.message);
+                    console.warn(e.stack);
+                }
+            }
+            console.warn('Both ' + _json_name + ' and ' + _main_name + ' are not exist');
+            return _res;
         },
         /**
-         * @param {{}} [options]
+         * @param {Object} [options]
          * @param {number} [options.max_items=Infinity]
          * @param {number} [options.per_page=30]
          * @param {string} [options.min_version_name='v0.0.0']
@@ -975,7 +990,7 @@
             return this.getProjectLocal().version_name;
         },
         /**
-         * @param {string|{version_name:string}} ver
+         * @param {string|number|{version_name:string}} ver
          * @param {Object} [options]
          * @param {'number'|'string'|'string_with_prefix'} [options.type='string']
          * @example
@@ -993,11 +1008,11 @@
                 throw Error('A "version" must be defined for appx.getVerHex()');
             }
             let _opt = options || {};
-            let _rex = /^v?(\d+)\.(\d+)\.(\d+)\s*(a(?:lpha)?|b(?:eta)?)?\s*(\d*)$/i;
-            let _hexStr = s => ('00' + Number(s).toString(16)).slice(-2);
+            let _hexStr = s => ('00' + Number(s || 0).toString(16)).slice(-2);
             let _max_a = 0x80;
             let _max_b = 0xff - _max_a;
-            let _str = ver.trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
+            let _rex = /^[a-z\s]*(\d+)(?:\.(\d+)(?:\.(\d+)(?:-\d+)?\s*(a(?:lpha)?|b(?:eta)?)?\s*(\d*))?)?$/i;
+            let _str = ver.toString().trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
                 let _$a = [$1, $2, $3].map(s => _hexStr(s)).reduce((a, b) => a + b);
                 let _$5 = $5 ? Number($5) : 1;
                 let _$4 = 0xff;
@@ -1021,7 +1036,7 @@
             return _opt.type === 'number' ? Number(_hex) : _opt.type === 'string_with_prefix' ? _hex : _str;
         },
         /**
-         * @param {{}} [options]
+         * @param {Object} [options]
          * @param {string} [options.min_version_name='v0.0.0']
          * @param {boolean} [options.no_extend=false]
          * @param {boolean} [options.show_progress_dialog=false]
@@ -1055,7 +1070,7 @@
          * @async
          * @param {string} url
          * @param {function(value:number)} callback
-         * @param {{}} [options]
+         * @param {Object} [options]
          * @param {number} [options.timeout=10e3]
          * @param {number} [options.concurrence=12]
          * @example
@@ -1800,7 +1815,7 @@
          *         setTimeout(() => _diag.dismiss(), 2e3);
          *     },
          * }) && toastLog('OK');
-         * @return {boolean}
+         * @returns {boolean}
          */
         copy(src, target, options, callback) {
             let _cbk = callback || {};
@@ -2305,7 +2320,7 @@
         },
         /**
          * Build a dialog with flow steps
-         * @param {{}} [config]
+         * @param {Object} [config]
          * @param {string} [config.title]
          * @param {*} [config.initial_value]
          * @param {DialogsxButtonText} [config.on_interrupt_btn_text='B']
@@ -2527,7 +2542,7 @@
         },
         /**
          * Build a dialog with progress view
-         * @param {{}} [config]
+         * @param {Object} [config]
          * @param {string} [config.title]
          * @param {string} [config.content]
          * @param {string} [config.desc] - alias for config.content

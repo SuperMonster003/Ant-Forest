@@ -74,9 +74,10 @@ function Storage(name) {
             console.warn(e.message);
         }
 
-        let _cA = _classof(new_val, 'Object');
-        let _cB = _classof(_old[key], 'Object');
+        let _cA = Object.prototype.toString.call(new_val).slice(8, -1) === 'Object';
+        let _cB = Object.prototype.toString.call(_old[key]).slice(8, -1) === 'Object';
         let _both_type_o = _cA && _cB;
+
         let _keyLen = () => Object.keys(new_val).length;
 
         if (!forc && _both_type_o && _keyLen()) {
@@ -110,11 +111,6 @@ function Storage(name) {
 
     function _clear() {
         files.remove(_full_path);
-    }
-
-    function _classof(src, chk) {
-        let _s = Object.prototype.toString.call(src).slice(8, -1);
-        return chk ? _s.toUpperCase() === chk.toUpperCase() : _s;
     }
 
     function _jsonParseFile(reviver) {

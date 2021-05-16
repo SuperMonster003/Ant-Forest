@@ -29,7 +29,7 @@ let ext = {
      */
     atomic(x) {
         let _res = threads.atomic(x);
-        if (classof(_res, 'JavaObject')) {
+        if (_res instanceof java.util.concurrent.atomic.AtomicLong) {
             return _res;
         }
         // TODO threads.lock() might be worth a try :)

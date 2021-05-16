@@ -1,7 +1,4 @@
-let {
-    showSplitLine,
-    classof,
-} = require('../modules/mod-monster-func');
+let {showSplitLine} = require('../modules/mod-monster-func');
 
 require('../modules/ext-global').load('Global');
 
@@ -16,7 +13,7 @@ threads.start(function () {
             // tool function(s) //
 
             function _showInfo(sltr) {
-                let _sltr_pref = classof(sltr, 'Array') ? sltr.slice() : [sltr];
+                let _sltr_pref = Array.isArray(sltr) ? sltr.slice() : [sltr];
                 let _info_shown = false;
                 _sltr_pref.forEach((pref) => {
                     let _wc = selector()[pref + 'Matches'](/.+/).find();

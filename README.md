@@ -1,6 +1,6 @@
 # Ant Forest
 
-![AF_Pic](https://github.com/SuperMonster002/Hello-Sockpuppet/raw/master/Ant_Forest_Banner_361%C3%97103.png)
+![AF_Banner](https://github.com/SuperMonster002/Hello-Sockpuppet/raw/master/Ant_Forest_Banner_361%C3%97103.png)
 
 ###### 蚂蚁森林能量智能收取脚本 (基于Auto.js)
 
@@ -115,6 +115,14 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.1.1
+###### 2021/05/16
+* `新增` 能量雨收集工具 (简易) (/tools/energy-rain-harvesting.js)
+* `修复` 配置工具采集排行榜列表数据功能异常 _[`issue #462`](https://github.com/SuperMonster003/Ant-Forest/issues/462)_
+* `修复` 部署工具备份本地项目时无法处理空项目目录的问题 _[`issue #459`](https://github.com/SuperMonster003/Ant-Forest/issues/459)_
+* `优化` 完善Auto.js版本异常检测列表及异常提示界面样式
+* `优化` 逛一逛按钮采集方案结束页面判断条件 _[`issue #391`](https://github.com/SuperMonster003/Ant-Forest/issues/391#issuecomment-840679845)_
+
 # v2.1.0
 ###### 2021/04/15
 * `新增` 增加"逛一逛按钮"采集策略 (默认为"排行榜列表"采集策略) _[`issue #449`](https://github.com/SuperMonster003/Ant-Forest/issues/449)_ _[`#446`](https://github.com/SuperMonster003/Ant-Forest/issues/446)_ _[`#391`](https://github.com/SuperMonster003/Ant-Forest/issues/391)_
@@ -132,13 +140,6 @@
 * `修复` 排行榜可点击样本位于屏幕底部区域时可能出现的点击偏移问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
 * `优化` 运行提示对话框放弃任务时增加不再提示选项 _[`issue #445`](https://github.com/SuperMonster003/Ant-Forest/issues/445)_
 * `优化` 清除配置工具参数文件中混入的非必要参数数据
-
-# v2.0.4
-###### 2021/03/15
-* `修复` 好友森林动态列表首次展开后无法继续展开的问题 _[`issue #436`](https://github.com/SuperMonster003/Ant-Forest/issues/436)_
-* `修复` 配置工具采集排行榜列表数据时可能会出现假死的问题 _[`issue #443`](https://github.com/SuperMonster003/Ant-Forest/issues/443)_
-* `修复` 配置工具数据统计初始化时与日期范围默认值未联动的问题
-* `优化` 分离高频读写参数到独立配置文件中降低配置文件损坏概率
 
 ##### 更多版本历史可参阅
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/documents/CHANGELOG-2.md)  ( 2.x 版本 )

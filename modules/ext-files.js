@@ -498,7 +498,7 @@ let ext = {
      *         setTimeout(() => _diag.dismiss(), 2e3);
      *     },
      * }) && toastLog('OK');
-     * @return {boolean}
+     * @returns {boolean}
      */
     copy(src, target, options, callback) {
         let _cbk = callback || {};

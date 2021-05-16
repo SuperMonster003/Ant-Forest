@@ -29,7 +29,6 @@ let ext = {
     equalObjects: equalObjects,
     observeToastMessage: observeToastMessage,
     getSelector: getSelector,
-    surroundWith: surroundWith,
     timeRecorder: timeRecorder,
     clickActionsPipeline: clickActionsPipeline,
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
@@ -81,7 +80,10 @@ module.exports.load = function () {
  *     -- 1 - '-> I got you now' <br>
  *     -- 2 - '--> I got you now' <br>
  *     -- 3 - '---> I got you now'
- * @param {number|'both'|'both_dash'|'both_n'|'both_dash_n'|'dash'|'up'|'up_dash'|'2_dash'|string} [if_split_line=0] - if split line(s) needed
+ * @param {
+ *     number|'up'|'dash'|'up_dash'|'both'|'both_dash'|'2_dash'|
+ *     'both_n'|'2_n'|'both_dash_n'|'2_dash_n'|string
+ * } [if_split_line=0] - if split line(s) needed
  * <br>
  *     -- 0 - nothing to show additionally <br>
  *     -- 1 - '------------' - hyphen line (length: 33) <br>
@@ -91,7 +93,7 @@ module.exports.load = function () {
  *     -- /up|-1/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
- * @param {object} [params] reserved
+ * @param {Object} [params] reserved
  * @example
  * messageAction('hello', 1);
  * messageAction('hello'); // same as above
@@ -107,7 +109,7 @@ module.exports.load = function () {
  * messageAction('ERROR', 8, 1, 0, 'both_n');
  * messageAction('ERROR', 9, 1, 2, 'dash_n');
  * messageAction('only toast', null, 1);
- * @return {boolean} - whether message level is not warn and error
+ * @returns {boolean} - whether message level is not warn and error
  **/
 function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
     let $_flag = global.$$flag = global.$$flag || {};
@@ -115,10 +117,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         return !~[3, 4, 'warn', 'w', 'error', 'e'].indexOf(msg_level);
     }
 
-    let _msg_lv = msg_level;
-    if (typeof _msg_lv === 'undefined') {
-        _msg_lv = 1;
-    }
+    let _msg_lv = msg_level === undefined ? 1 : msg_level;
     if (typeof _msg_lv !== 'number' && typeof msg_level !== 'string') {
         _msg_lv = -1;
     }
@@ -253,7 +252,7 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
  * showSplitLine();
  * showSplitLine('\n');
  * showSplitLine('', 'dash');
- * @return {boolean} - always true
+ * @returns {boolean} - always true
  */
 function showSplitLine(extra, style) {
     console.log((
@@ -267,15 +266,12 @@ function showSplitLine(extra, style) {
 /**
  * Wait a period of time until 'condition' is met
  * @global
- * @param condition {
- *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|(
+ * @param {UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|(
  *         UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|
- *         waitForAction$condition$logic_flag
- *     )[]
- * } - if condition is not true then waiting
+ *         waitForAction$condition$logic_flag)[]} condition - if condition is not true then waiting
  * @param {number} [timeout_or_times=10e3] - if < 100, takes as times
  * @param {number} [interval=200]
- * @param {object} [options]
+ * @param {Object} [options]
  * @param {boolean} [options.no_impeded=false]
  * @example
  * log(waitForAction('文件'));
@@ -295,7 +291,7 @@ function showSplitLine(extra, style) {
  * log(waitForAction(['Settings', 'Exit', ';or'], 5e3, 80)); // same as above
  * // do not invoke like the way as below, unless you know what this exactly means
  * log(waitForAction([text('Settings').findOnce(), text('Exit').findOnce(), ';or'], 5e3, 80));
- * @return {boolean} - whether 'condition' is met before timed out or not
+ * @returns {boolean} - whether 'condition' is met before timed out or not
  */
 function waitForAction(condition, timeout_or_times, interval, options) {
     let _par = options || {};
@@ -374,11 +370,12 @@ function waitForAction(condition, timeout_or_times, interval, options) {
  * @global
  * @param {UiSelector$|UiObject$|number[]|AndroidRect$|{x:number,y:number}|OpencvPoint$} o
  * @param {'c'|'click'|'p'|'press'|'w'|'widget'} [strategy='click'] - decide the way of click
- * @param {object|string} [options]
+ * @param {Object} [options]
  * @param {number} [options.press_time=1] - only effective for 'press' strategy
  * @param {number} [options.pt$=1] - alias for press_time
  * @param {number} [options.buffer_time=0] - sleep milliseconds after the click action
  * @param {number} [options.bt$=1] - alias for buffer_time
+ * @param {number} [options.no_impeded=false]
  * @param {'disappear'|'disappear_in_place'|function():boolean|null} [options.condition_success=function():true]
  * @param {number} [options.check_time_once=500]
  * @param {number} [options.max_check_times=0] - if condition_success is specified, default will be 3
@@ -396,7 +393,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
  *     // padding: [+15, -7],
  *     padding: -7,
  * });
- * @return {boolean}
+ * @returns {boolean}
  */
 function clickAction(o, strategy, options) {
     let _opt = options || {};
@@ -506,58 +503,36 @@ function clickAction(o, strategy, options) {
             : click(_x, _y);
     }
 
-    function _checkType(f) {
-        let _type_f = _chkJavaO(f) || _chkCoords(f) || _chkObjXY(f);
-        if (!_type_f) {
-            showSplitLine();
-            messageAction('不支持的clickAction()的目标参数', 4, 1);
-            messageAction('参数类型: ' + typeof f, 4, 0, 1);
-            messageAction('参数类值: ' + classof(f), 4, 0, 1);
-            messageAction('参数字串: ' + f.toString(), 4, 0, 1);
-            showSplitLine();
-            exit();
+    function _checkType(o) {
+        if (o instanceof org.opencv.core.Point) {
+            return 'Points';
         }
-        return _type_f;
-
-        // tool function(s) //
-
-        function _chkJavaO(o) {
-            if (classof(o) !== 'JavaObject') {
-                return;
-            }
-            if (o.getClass().getName().match(/Point$/)) {
-                return 'Points';
-            }
-            let string = o.toString();
-            if (string.match(/^Rect\(/)) {
-                return 'Bounds';
-            }
-            if (string.match(/UiObject/)) {
-                return 'UiObject';
-            }
+        if (o instanceof android.graphics.Rect) {
+            return 'Bounds';
+        }
+        if (o instanceof com.stardust.automator.UiObject) {
+            return 'UiObject';
+        }
+        if (o instanceof com.stardust.autojs.core.accessibility.UiSelector) {
             return 'UiSelector';
         }
-
-        function _chkCoords(arr) {
-            if (classof(f) !== 'Array') {
-                return;
-            }
-            if (arr.length !== 2) {
+        if (Array.isArray(o)) {
+            if (o.length !== 2) {
                 messageAction('clickAction()坐标参数非预期值: 2', 8, 1, 0, 1);
             }
-            if (typeof arr[0] !== 'number' || typeof arr[1] !== 'number') {
+            if (typeof o[0] !== 'number' || typeof o[1] !== 'number') {
                 messageAction('clickAction()坐标参数非number', 8, 1, 0, 1);
             }
             return 'CoordsArray';
         }
-
-        function _chkObjXY(o) {
-            if (classof(o) === 'Object') {
-                if ($_num(o.x) && $_num(o.y)) {
-                    return 'ObjXY';
-                }
-            }
+        if (typeof o === 'object' && $_num(o.x) && $_num(o.y)) {
+            return 'ObjXY';
         }
+        showSplitLine();
+        messageAction('不支持的clickAction()的目标参数', 4, 1);
+        messageAction('参数类型: ' + typeof o, 4);
+        showSplitLine();
+        exit();
     }
 
     function _parsePadding(arr) {
@@ -627,13 +602,13 @@ function clickAction(o, strategy, options) {
  * Wait for an UiObject showing up and click it
  * -- This is a combination function which means independent use is not recommended
  * @global
- * @param f {object} - only JavaObject is supported
+ * @param {UiSelector$|UiObject$} f
  * @param {number} [timeout_or_times=10e3]
  * <br>
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- less than 100 - take as times
  * @param {number} [interval=300]
- * @param {object} [click_params]
+ * @param {Object} [click_params]
  * @param {number} [click_params.intermission=200]
  * @param {string} [click_params.click_strategy] - decide the way of click
  * <br>
@@ -657,11 +632,13 @@ function clickAction(o, strategy, options) {
  * <br>
  *     -- ['x', -10]|[-10, 0] - x=x-10; <br>
  *     -- ['y', 69]|[0, 69]|[69]|69 - y=y+69;
- * @return {boolean} - waitForAction(...) && clickAction(...)
+ * @returns {boolean} - waitForAction(...) && clickAction(...)
  */
 function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
-    if (classof(f) !== 'JavaObject') {
-        messageAction('waitForAndClickAction不支持非JavaObject参数', 8, 1);
+    if (!(f instanceof com.stardust.autojs.core.accessibility.UiSelector)) {
+        if (!(f instanceof com.stardust.automator.UiObject)) {
+            messageAction('不支持的waitForAndClickAction参数:\n' + f, 8, 1);
+        }
     }
     let _par = click_params || {};
     let _intermission = _par.intermission || 200;
@@ -670,29 +647,30 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
         sleep(_intermission);
         return clickAction(f, _strategy, _par);
     }
+    return false;
 }
 
 /**
  * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of 'f'
  * @global
  * @param {UiSelector$|ImageWrapper$} f
- * @param {object} [params]
- * @param {number} [params.max_swipe_times=12]
- * @param {number|string} [params.swipe_direction='auto']
+ * @param {Object} [options]
+ * @param {number} [options.max_swipe_times=12]
+ * @param {number|'l'|'left'|'u'|'up'|'r'|'right'|'d'|'down'|'auto'} [options.swipe_direction='auto']
  * <br>
  *     -- 0|'l'|'left', 1|'u'|'up', 2|'r'|'right', 3|'d'|'down' - direction to swipe each time <br>
  *     -- 'auto' - if 'f' exists but not in aim area, direction will be auto-set decided by position of 'f', or direction will be 'up'
- * @param {number} [params.swipe_time=150] - the time spent for each swiping - set bigger as needed
- * @param {number} [params.swipe_interval=300] - the time spent between every swiping - set bigger as needed
- * @param {number[]} [params.swipe_area=[0.1, 0.1, 0.9, 0.9]] - swipe from a center-point to another
- * @param {number[]} [params.aim_area=[0, 0, -1, -1]] - restrict for smaller aim area
+ * @param {number} [options.swipe_time=150] - the time spent for each swiping - set bigger as needed
+ * @param {number} [options.swipe_interval=300] - the time spent between every swiping - set bigger as needed
+ * @param {number[]} [options.swipe_area=[0.1, 0.1, 0.9, 0.9]] - swipe from a center-point to another
+ * @param {number[]} [options.aim_area=[0, 0, -1, -1]] - restrict for smaller aim area
  * <br>
  *     -- area params - x|0<=x<1: x * (height|width), -1: full-height or full-width, -2: set with default value <br>
  *     -- [%left%, %top%, %right%, %bottom%] <br>
  *     -- [1, 50, 700, 1180] - [1, 50, 700, 1180] <br>
  *     -- [1, 50, 700, -1] - [1, 50, 700, device.height] <br>
  *     -- [0.1, 0.2, -1, -1] - [0.1 * device.width, 0.2 * device.height, device.width, device.height]
- * @param {number=1|2} [params.condition_meet_sides=1]
+ * @param {number} [options.condition_meet_sides=1]
  * <br>
  *     -- example A: condition_meet_sides = 1 <br>
  *     -- aim: [0, 0, 720, 1004], direction: 'up', swipe distance: 200 <br>
@@ -703,21 +681,22 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
  *     -- swipe once - bounds: [0, 1100, 720, 1350] - neither top nor bottom < 1004 - continue swiping <br>
  *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004, but not bottom - swipe will not stop <br>
  *     -- swipe once - bounds: [0, 700, 720, 950] - top < 1004, and so is bottom - swipe will stop
+ * @param {number} [options.no_impeded=false]
  * @returns {boolean} - if timed out or max swipe times reached
  */
-function swipeAndShow(f, params) {
-    let _par = params || {};
-    _par.no_impeded || typeof $$impeded === 'function' && $$impeded(swipeAndShow.name);
+function swipeAndShow(f, options) {
+    let _opt = options || {};
+    _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(swipeAndShow.name);
 
-    let _swp_itv = _par.swipe_interval || 150;
-    let _swp_max = _par.max_swipe_times || 12;
-    let _swp_time = _par.swipe_time || 150;
-    let _cond_meet_sides = parseInt(_par.condition_meet_sides);
+    let _swp_itv = _opt.swipe_interval || 150;
+    let _swp_max = _opt.max_swipe_times || 12;
+    let _swp_time = _opt.swipe_time || 150;
+    let _cond_meet_sides = parseInt(_opt.condition_meet_sides.toString());
     if (_cond_meet_sides !== 1 || _cond_meet_sides !== 2) {
         _cond_meet_sides = 1;
     }
-    let _swp_area = _setAreaParams(_par.swipe_area, [0.1, 0.1, 0.9, 0.9]);
-    let _aim_area = _setAreaParams(_par.aim_area, [0, 0, -1, -1]);
+    let _swp_area = _setAreaParams(_opt.swipe_area, [0.1, 0.1, 0.9, 0.9]);
+    let _aim_area = _setAreaParams(_opt.aim_area, [0, 0, -1, -1]);
     let _swp_drxn = _setSwipeDirection();
     let _ret = true;
 
@@ -740,7 +719,7 @@ function swipeAndShow(f, params) {
     }
 
     function _setSwipeDirection() {
-        let _swp_drxn = _par.swipe_direction;
+        let _swp_drxn = _opt.swipe_direction;
         if (typeof _swp_drxn === 'string' && _swp_drxn !== 'auto') {
             if (_swp_drxn.match(/$[Lf](eft)?^/)) {
                 return 'left';
@@ -917,7 +896,7 @@ function swipeAndShow(f, params) {
  * @global
  * -- This is a combination function which means independent use is not recommended
  * @param {UiSelector$|ImageWrapper$} f
- * @param {object} [swipe_params]
+ * @param {Object} [swipe_params]
  * @param {number} [swipe_params.max_swipe_times=12]
  * @param {number|string} [swipe_params.swipe_direction='auto']
  * <br>
@@ -944,7 +923,7 @@ function swipeAndShow(f, params) {
  *     -- swipe once - bounds: [0, 1100, 720, 1350] - neither top nor bottom < 1004 - continue swiping <br>
  *     -- swipe once - bounds: [0, 900, 720, 1150] - top < 1004, but not bottom - swipe will not stop <br>
  *     -- swipe once - bounds: [0, 700, 720, 950] - top < 1004, and so is bottom - swipe will stop
- * @param {object} [click_params]
+ * @param {Object} [click_params]
  * @param {number} [click_params.intermission=300]
  * @param {string} [click_params.click_strategy] - decide the way of click
  * <br>
@@ -981,11 +960,12 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
 /**
  * Simulates touch, keyboard or key press events (by shell or functions based on accessibility service)
  * @global
- * @param code {string|number} - {@link https://developer.android.com/reference/android/view/KeyEvent}
- * @param {object} [params]
- * @param {boolean} [params.force_shell] - don't use accessibility functions like back(), home() or recents()
- * @param {boolean} [params.no_err_msg] - don't print error message when keycode() failed
- * @param {boolean} [params.double] - simulate keycode twice with tiny interval
+ * @param {string|number} code - {@link https://developer.android.com/reference/android/view/KeyEvent}
+ * @param {Object} [options]
+ * @param {boolean} [options.force_shell] - don't use accessibility functions like back(), home() or recents()
+ * @param {boolean} [options.no_err_msg] - don't print error message when keycode() failed
+ * @param {boolean} [options.double] - simulate keycode twice with tiny interval
+ * @param {boolean} [options.no_impeded=false]
  * @example
  * // home key
  * keycode('home');
@@ -1001,20 +981,20 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
  * keycode('recent_apps');
  * keycode('recent');
  * keycode('KEYCODE_APP_SWITCH');
- * @return {boolean}
+ * @returns {boolean}
  */
-function keycode(code, params) {
-    let _par = params || {};
-    _par.no_impeded || typeof $$impeded === 'function' && $$impeded(keycode.name);
+function keycode(code, options) {
+    let _opt = options || {};
+    _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(keycode.name);
 
-    if (_par.force_shell) {
+    if (_opt.force_shell) {
         return keyEvent(code);
     }
     let _tidy_code = code.toString().toLowerCase()
         .replace(/^keycode_|s$/, '')
         .replace(/_([a-z])/g, ($0, $1) => $1.toUpperCase());
     let _res = simulateKey();
-    return _par.double ? simulateKey() && _res : _res;
+    return _opt.double ? simulateKey() && _res : _res;
 
     // tool function(s) //
 
@@ -1061,7 +1041,7 @@ function keycode(code, params) {
             try {
                 return !shell('input keyevent ' + keycode, true).code;
             } catch (e) {
-                if (!_par.no_err_msg) {
+                if (!_opt.no_err_msg) {
                     messageAction('按键模拟失败', 0);
                     messageAction('键值: ' + keycode, 0, 0, 1);
                 }
@@ -1102,22 +1082,27 @@ function keycode(code, params) {
 /**
  * Print a message in console with verbose mode for debugging
  * @global
- * @param msg {'__split_line__'|'__split_line__dash__'|string|string[]} - message will be formatted with prefix '>> '
- * <br>
- *     - 'sum is much smaller' - '>> sum is much smaller' <br>
- *     - '>sum is much smaller' - '>>> sum is much smaller'
- * @param {'up'|'up_2'|'up_3'|'up_4'|'Up'|'Up_2'|'Up_3'|'Up_4'|'both'|'both_2'|'both_3'|'both_4'|'both_dash'|'both_dash_2'|'both_dash_3'|'both_dash_4'|'up_dash'|'Up_both_dash'|string|number} [msg_level=0] - 'Up': black up line; 'up': grey up line; 'Up_dash': not supported
- * @param {boolean} [forcible_flag=undefined] - forcibly enabled with truthy; forcibly disabled with false (not falsy)
+ * @param {
+ *     '__split_line__'|'__split_line__dash__'|string|string[]
+ * } msg - message will be formatted with prefix '>> '
+ * @param {
+ *     'up'|'up_2'|'up_3'|'up_4'|
+ *     'Up'|'Up_2'|'Up_3'|'Up_4'|
+ *     'both'|'both_2'|'both_3'|'both_4'|
+ *     'both_dash'|'both_dash_2'|'both_dash_3'|'both_dash_4'|
+ *     'up_dash'|'Up_both_dash'|string|number
+ * } [msg_level=0] - 'Up': black up line; 'up': grey up line; 'Up_dash': not supported
+ * @param {boolean} [forcible_flag] - forcibly enabled with truthy; forcibly disabled with false (not falsy)
+ * @example
+ * debugInfo('sum is much smaller') // '>> sum is much smaller'
+ * debugInfo('>sum is much smaller') // '>>> sum is much smaller'
  */
 function debugInfo(msg, msg_level, forcible_flag) {
     let $_flag = global.$$flag = global.$$flag || {};
 
     let _glob_fg = $_flag.debug_info_avail;
     let _forc_fg = forcible_flag;
-    if (!_glob_fg && !_forc_fg) {
-        return;
-    }
-    if (_glob_fg === false || _forc_fg === false) {
+    if (!_glob_fg && !_forc_fg || _glob_fg === false || _forc_fg === false) {
         return;
     }
 
@@ -1134,7 +1119,7 @@ function debugInfo(msg, msg_level, forcible_flag) {
     if (typeof msg === 'string' && msg.match(/^__split_line_/)) {
         msg = _getLineStr(msg);
     }
-    if (classof(msg) === 'Array') {
+    if (Array.isArray(msg)) {
         msg.forEach(m => debugInfo(m, _msg_lv_num, _forc_fg));
     } else {
         messageAction((msg || '').replace(/^(>*)( *)/, ($0, $1) => {
@@ -1159,7 +1144,7 @@ function debugInfo(msg, msg_level, forcible_flag) {
  * @global
  * @param {*} obj_a
  * @param {*} obj_b
- * @return {boolean}
+ * @returns {boolean}
  */
 function equalObjects(obj_a, obj_b) {
     let _classOf = value => Object.prototype.toString.call(value).slice(8, -1);
@@ -1239,8 +1224,8 @@ function equalObjects(obj_a, obj_b) {
 /**
  * Deep clone a certain object (generalized)
  * @global
- * @param obj {*}
- * @return {*}
+ * @param {Object} obj
+ * @returns {Object}
  */
 function deepCloneObject(obj) {
     let classOfObj = Object.prototype.toString.call(obj).slice(8, -1);
@@ -1257,11 +1242,11 @@ function deepCloneObject(obj) {
 /**
  * Observe message(s) from Toast by events.observeToast()
  * @global
- * @param aim_app_pkg {string}
- * @param aim_msg {RegExp|string} - regular expression or a certain specific string
+ * @param {string} aim_app_pkg
+ * @param {RegExp|string} aim_msg - regular expression or a certain specific string
  * @param {number} [timeout=8e3]
  * @param {number} [aim_amount=1] - events will be cleared if aim_amount messages have been got
- * @return {string[]}
+ * @returns {string[]}
  */
 function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
     let _tt = +timeout || 8e3;
@@ -1294,7 +1279,7 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 /**
  * Returns a UiSelector with additional function(s)
  * @global
- * @param {object} [options]
+ * @param {Object} [options]
  * @param {boolean} [options.debug_info_flag]
  */
 function getSelector(options) {
@@ -1313,7 +1298,7 @@ function getSelector(options) {
          *     UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean
          * } UiSelector$pickup$return_value
          * @typedef {
-         *     'w'|'widget'|'w_collection'|'widget_collection'|'wcollection'|'widgetcollection'|'w_c'|'widget_c'|'wc'|'widgetc'|'widgets'|'wids'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'sstr'|'selstr'|'selectorstr'|'s_str'|'sel_str'|'selector_str'|'sstring'|'selstring'|'selectorstring'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string
+         *     'w'|'widget'|'w_collection'|'widget_collection'|'w_c'|'widget_c'|'wc'|'widgets'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'selstr'|'s_str'|'sel_str'|'selector_str'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string
          * } UiSelector$pickup$res_type
          */
         /**
@@ -1331,7 +1316,7 @@ function getSelector(options) {
          *     -- 'txt': available text()/desc() value or empty string
          *     -- 'clickable': boolean value of widget.clickable()
          *     -- 'wc': widget collection which is traversable
-         * @param {object} [par]
+         * @param {Object} [par]
          * @param {'desc'|'text'} [par.selector_prefer='desc'] - unique selector you prefer to check first
          * @param {boolean} [par.debug_info_flag]
          * @example
@@ -1381,7 +1366,7 @@ function getSelector(options) {
          * @returns {UiSelector$pickup$return_value}
          */
         pickup(sel_body, res_type, mem_sltr_kw, par) {
-            let _sel_body = classof(sel_body) === 'Array' ? sel_body.slice() : [sel_body];
+            let _sel_body = Array.isArray(sel_body) ? sel_body.slice() : [sel_body];
             let _params = Object.assign({}, _opt, par);
             let _res_type = (res_type || '').toString();
 
@@ -1477,18 +1462,18 @@ function getSelector(options) {
 
                 function _selGenerator() {
                     let _prefer = _params.selector_prefer;
-                    let _body_class = classof(_body);
                     let _sel_keys_abbr = {
                         bi$: 'boundsInside',
                         c$: 'clickable',
                         cn$: 'className',
                     };
 
-                    if (_body_class === 'JavaObject') {
-                        if (_body.toString().match(/UiObject/)) {
-                            addition && debugInfo('UiObject无法使用额外选择器', 3);
-                            return _body;
-                        }
+                    if (_body instanceof com.stardust.automator.UiObject) {
+                        addition && debugInfo('UiObject无法使用额外选择器', 3);
+                        return _body;
+                    }
+
+                    if (_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
                         return _chkSels(_body);
                     }
 
@@ -1498,13 +1483,13 @@ function getSelector(options) {
                             : _chkSels(desc(_body), text(_body), id(_body));
                     }
 
-                    if (_body_class === 'RegExp') {
+                    if (_body instanceof RegExp) {
                         return _prefer === 'text'
                             ? _chkSels(textMatches(_body), descMatches(_body), idMatches(_body))
                             : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
                     }
 
-                    if (_body_class === 'Object') {
+                    if (_body && typeof _body === 'object') {
                         let _s = selector();
                         Object.keys(_body).forEach((k) => {
                             let _arg = _body[k];
@@ -1529,12 +1514,12 @@ function getSelector(options) {
                         // tool function(s) //
 
                         function _chkSel(sel) {
-                            if (classof(addition) === 'Array') {
+                            if (Array.isArray(addition)) {
                                 let _o = {};
                                 _o[addition[0]] = addition[1];
                                 addition = _o;
                             }
-                            if (classof(addition) === 'Object') {
+                            if (addition && typeof addition === 'object') {
                                 let _keys = Object.keys(addition);
                                 for (let i = 0, l = _keys.length; i < l; i += 1) {
                                     let _k = _keys[i];
@@ -1565,32 +1550,25 @@ function getSelector(options) {
 
             /**
              * Returns a relative widget (UiObject) by compass string
-             * @returns {UiObject|null}
+             * @returns {UiObject$|null}
              */
             function _relativeWidget(w_info) {
-                let _w_o = classof(w_info) === 'Array' ? w_info.slice() : [w_info];
+                let _w_o = Array.isArray(w_info) ? w_info.slice() : [w_info];
                 let _w = _w_o[0];
-                let _w_class = classof(_w);
-                let _w_str = (_w || '').toString();
 
                 if (typeof _w === 'undefined') {
                     debugInfo('relativeWidget的widget参数为Undefined');
                     return null;
                 }
-                if (_w === null) {
+                if (_w === null || _w instanceof android.graphics.Rect) {
                     return null;
                 }
-                if (_w_str.match(/^Rect\(/)) {
-                    return null;
-                }
-                if (_w_class === 'JavaObject') {
-                    if (!_w_str.match(/UiObject/)) {
-                        _w = _w.findOnce();
-                        if (!_w) {
-                            return null;
-                        }
+                if (_w instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    if (!(_w = _w.findOnce())) {
+                        return null;
                     }
-                } else {
+                }
+                if (!(_w instanceof com.stardust.automator.UiObject)) {
                     debugInfo('未知的relativeWidget的widget参数', 3);
                     return null;
                 }
@@ -1601,6 +1579,7 @@ function getSelector(options) {
                 }
                 _compass = _compass.toString();
 
+                // noinspection SpellCheckingInspection
                 while (_compass.length) {
                     let _mch_p, _mch_c, _mch_s;
                     // p2 ( .parent().parent() )
@@ -1756,26 +1735,6 @@ function getSelector(options) {
 }
 
 /**
- * Returns a new string with a certain mark surrounded
- * @global
- * @param target {*} - will be converted to String format
- * @param {*} [mark_left='''] - will be converted to String format
- * @param {*} [mark_right=mark_left] - will be converted to String format
- * @example
- * surroundedBy('ABC') // 'ABC'
- * surroundedBy('ABC', '#') // '#ABC#'
- * surroundedBy([1, 2].join('+'), '{', '}') // {1+2}
- * @returns {string}
- */
-function surroundWith(target, mark_left, mark_right) {
-    if (typeof target === 'undefined' || target === null) return '';
-    target = target.toString();
-    mark_left = (mark_left || '"').toString();
-    mark_right = (mark_right || mark_left).toString();
-    return mark_left + target.toString() + mark_right;
-}
-
-/**
  * Record a timestamp then get the time gap by a certain keyword
  * @global
  * @param keyword {string}
@@ -1865,13 +1824,13 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
             if (_h) prefix += _h + getSuffix('hour');
             result %= base_unit.hour;
             let _min = ~~(result / base_unit.min);
-            if (_min) {
-                result /= base_unit.min;
-                suffix = getSuffix('min');
-            } else {
+            if (!_min) {
                 result %= base_unit.min;
                 result /= base_unit.sec;
                 suffix = getSuffix('sec');
+            } else {
+                result /= base_unit.min;
+                suffix = getSuffix('min');
             }
         } else if (result >= base_unit.hour) {
             let _hr = ~~(result / base_unit.hour);
@@ -1939,7 +1898,7 @@ function clickActionsPipeline(pipeline, options) {
 
     let $_sel = getSelector();
 
-    let _ppl_name = _opt.name ? surroundWith(_opt.name) : '';
+    let _ppl_name = typeof _opt.name === 'string' ? _opt.name.surround('"') : '';
 
     let _res = pipeline
         .filter(value => typeof value !== 'undefined')
@@ -1977,7 +1936,7 @@ function clickActionsPipeline(pipeline, options) {
                 return true;
             }
             messageAction(_ppl_name + '管道破裂', 3, 1, 0, 'up_dash');
-            messageAction(surroundWith(_sel_body), 3, 0, 1, 'dash');
+            messageAction(_sel_body.toString().surround('"'), 3, 0, 1, 'dash');
         });
 
     _res && debugInfo(_ppl_name + '管道完工');
@@ -2016,12 +1975,13 @@ function timedTaskTimeFlagConverter(timeFlag) {
  * Fetching data by calling OCR API from Baidu
  * @global
  * @param {[]|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into Image
- * @param {object} [par]
- * @param {boolean} [par.no_toast_msg_flag=false]
- * @param {number} [par.fetch_times=1]
- * @param {number} [par.fetch_interval=100]
- * @param {boolean} [par.debug_info_flag=false]
- * @param {number} [par.timeout=60e3] -- no less than 5e3
+ * @param {Object} [options]
+ * @param {ImageWrapper$} [options.capt_img]
+ * @param {boolean} [options.no_toast_msg_flag=false]
+ * @param {number} [options.fetch_times=1]
+ * @param {number} [options.fetch_interval=100]
+ * @param {boolean} [options.debug_info_flag=false]
+ * @param {number} [options.timeout=60e3] -- no less than 5e3
  * @returns {Array|Array[]} -- [] or [[], [], []...]
  * @example
  * // @see 'mod-monster-func.js'
@@ -2032,12 +1992,12 @@ function timedTaskTimeFlagConverter(timeFlag) {
  *     timeout: 12e3
  * }));
  */
-function baiduOcr(src, par) {
+function baiduOcr(src, options) {
     if (!src) {
         return [];
     }
-    let _par = par || {};
-    let _tt = _par.timeout || 60e3;
+    let _opt = options || {};
+    let _tt = _opt.timeout || 60e3;
     if (!+_tt || _tt < 5e3) {
         _tt = 5e3;
     }
@@ -2050,17 +2010,18 @@ function baiduOcr(src, par) {
         global._$_request_screen_capture = true;
     }
 
-    let _capt = _par.capt_img || images.captureScreen();
+    let _capt = _opt.capt_img || images.captureScreen();
 
     let _msg = '使用baiduOcr获取数据';
     debugInfo(_msg);
-    _par.no_toast_msg_flag || toast(_msg);
+    _opt.no_toast_msg_flag || toast(_msg);
 
     let _token = '';
     let _max_token = 10;
     let _thd_token = threads.start(function () {
         while (_max_token--) {
             try {
+                // noinspection SpellCheckingInspection
                 _token = http.get(
                     'https://aip.baidubce.com/oauth/2.0/token' +
                     '?grant_type=client_credentials' +
@@ -2076,7 +2037,7 @@ function baiduOcr(src, par) {
     });
     _thd_token.join(_tt);
 
-    let _lv = +!_par.no_toast_msg_flag;
+    let _lv = +!_opt.no_toast_msg_flag;
     let _e = s => messageAction(s, 3, _lv, 0, 'both_dash');
     if (_max_token < 0) {
         _e('baiduOcr获取access_token失败');
@@ -2087,9 +2048,9 @@ function baiduOcr(src, par) {
         return [];
     }
 
-    let _max = _par.fetch_times || 1;
+    let _max = _opt.fetch_times || 1;
     let _max_b = _max;
-    let _itv = _par.fetch_interval || 300;
+    let _itv = _opt.fetch_interval || 300;
     let _res = [];
     let _thds = [];
     let _allDead = () => _thds.every(thd => !thd.isAlive());
@@ -2140,7 +2101,7 @@ function baiduOcr(src, par) {
                 _thds.forEach(thd => thd.interrupt());
 
                 let _msg = 'baiduOcr获取数据超时';
-                let _toast = +!_par.no_toast_msg_flag;
+                let _toast = +!_opt.no_toast_msg_flag;
                 messageAction(_msg, 3, _toast, 0, 'up_dash');
 
                 if (_res.length) {
@@ -2154,7 +2115,7 @@ function baiduOcr(src, par) {
 
     while (1) {
         if (_allDead()) {
-            if (!_par.no_toast_msg_flag && _res.length) {
+            if (!_opt.no_toast_msg_flag && _res.length) {
                 toast('baiduOcr获取数据完毕');
             }
             return _max_b === 1 ? _res[0] : _res;

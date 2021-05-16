@@ -2,11 +2,6 @@ require('./mod-monster-func').load('getSelector', 'debugInfo');
 
 let ext = {
     Global() {
-        let _classof = (src, chk) => {
-            let _s = Object.prototype.toString.call(src).slice(8, -1);
-            return chk ? _s.toUpperCase() === chk.toUpperCase() : _s;
-        };
-        let _keysLen = (o, n) => Object.keys(o).length === n;
         let _compare = {
             '<': (a, b) => a < b,
             '<=': (a, b) => a <= b,
@@ -14,9 +9,6 @@ let ext = {
             '>=': (a, b) => a >= b,
             '=': (a, b) => a === b,
         };
-        let _isNum = o => _classof(o, 'Number');
-        let _isStr = o => _classof(o, 'String');
-
         Object.assign(global, {
             $$0: x => x === 0,
             $$1: x => x === 1,
@@ -25,18 +17,18 @@ let ext = {
                 let _args = arguments;
                 let _len = _args.length;
                 if (_len === 1) {
-                    return _isNum(x);
+                    return typeof x === 'number';
                 }
                 if (_len === 2) {
                     return x === _args[1];
                 }
                 for (let i = 1; i < _len; i += 2) {
                     let _opr = _args[i]; // operational symbol
-                    if (!_isStr(_opr) || !(_opr in _compare)) {
+                    if (typeof _opr !== 'string' || !(_opr in _compare)) {
                         return false;
                     }
                     let _b = _args[i + 1];
-                    if (!_isNum(_b)) {
+                    if (typeof _b !== 'number') {
                         return false;
                     }
                     let _a = _args[i - 1];
@@ -50,7 +42,7 @@ let ext = {
                 let _args = arguments;
                 let _len = _args.length;
                 if (_len === 1) {
-                    return _isStr(x);
+                    return typeof x === 'string';
                 }
                 if (_len === 2) {
                     return x === _args[1];
@@ -80,9 +72,8 @@ let ext = {
             $$symb: x => typeof x === 'symbol',
             $$bigint: x => typeof x === 'bigint',
             $$func: x => typeof x === 'function',
-            $$arr: x => _classof(x, 'Array'),
-            $$obj: x => _classof(x, 'Object'),
-            $$emptyObj: x => _classof(x, 'Object') && _keysLen(x, 0),
+            $$arr: x => Array.isArray(x),
+            $$obj: x => Object.prototype.toString.call(x).slice(8, -1) === 'Object',
             $$T: x => x === true,
             $$F: x => x === false,
             isInteger(x) {
@@ -144,13 +135,13 @@ let ext = {
             let _msg = _nullish(msg) ? '' : msg.toString();
             let _if_long = (() => {
                 if (typeof if_long === 'number') {
-                    return +!!if_long;
+                    return Number(!!if_long);
                 }
                 if (typeof if_long === 'string') {
-                    return +!!(if_long.toUpperCase().match(/^L(ONG)?$/));
+                    return Number(!!(if_long.toUpperCase().match(/^L(ONG)?$/)));
                 }
                 if (typeof if_long === 'boolean') {
-                    return +if_long;
+                    return Number(if_long);
                 }
                 return 0;
             })();
@@ -169,8 +160,8 @@ let ext = {
 
         /**
          * Invoke some functions (returns undefined or $$link only) one by one
-         * @param {function} f
-         * @param {{}} [this_arg]
+         * @param {function():('__break__'|(void|Function))} f
+         * @param {Object} [this_arg]
          * @example
          * let a = () => console.log('A');
          * let s = () => console.log('S');
@@ -186,14 +177,15 @@ let ext = {
          * function d() {void 0};
          * // with two groups of warning messages printed in console
          * $$link(a).$(b).$(c).$(d);
-         * @returns {Function|'__break__'}
+         * @returns {Function}
          */
         global.$$link = function (f, this_arg) {
             if (typeof f !== 'function') {
                 throw TypeError('$$link invoked with a non-function argument');
             }
+            /** @type {'__break__'|(void|Function)} */
             let _res = f.call(this_arg);
-            if (_res === '__break__') {
+            if (typeof _res === 'string' && _res === '__break__') {
                 $$link.$ = () => $$link;
             } else {
                 $$link.$ = (f, this_arg) => $$link(f, this_arg);
@@ -530,7 +522,7 @@ let ext = {
             /**
              * Returns parsed url with a data object
              * @param {string} src
-             * @param {{}} [data]
+             * @param {Object} [data]
              * @param {string|string[]} [exclude]
              * @example
              * // 'http://abc.com?apple=9&pear=3&others=&buyer=003&message=thx'
@@ -657,6 +649,145 @@ let ext = {
                 },
             });
         }
+        if (!String.prototype.surround) {
+            Object.defineProperty(String.prototype, 'surround', {
+                /**
+                 * Returns a new string with a certain mark surrounded
+                 * @function String.prototype.surround
+                 * @param {string|*} [pad]
+                 * @param {Object} [options={}]
+                 * @param {boolean} [options.no_symmetrical=false] - 'ABC' + 'CBA'
+                 * @param {boolean} [options.no_intelli_brackets=false] - '(' + ')'
+                 * @example
+                 * console.log('hello'.surround('+')); // '+hello+'
+                 * console.log('hello'.surround('^_^')); // '^_^hello^_^'
+                 *
+                 * console.log('hello'.surround('|-')); // '|-hello-|'
+                 * console.log('hello'.surround('|-', {no_symmetrical: true})); // '|-hello|-'
+                 * console.log('hello'.surround('135')); // '135hello531'
+                 * console.log('hello'.surround('135', {no_symmetrical: true})); // '135hello135'
+                 *
+                 * console.log('hello'.surround('(')); // '(hello)'
+                 * console.log('hello'.surround('(', {no_intelli_brackets: true})); // '(hello('
+                 *
+                 * console.log('hello'.surround('()')); // '(hello)'
+                 * console.log('hello'.surround('()', {no_intelli_brackets: true})); // '()hello)('
+                 * console.log('hello'.surround('()', {no_intelli_brackets: true, no_symmetrical: true})); // '()hello()'
+                 *
+                 * console.log('hello'.surround('(){}')); // '({hello})'
+                 * console.log('hello'.surround('({})')); // '({hello)}'
+                 * console.log('hello'.surround('({})[]')); // '({[hello])}'
+                 * console.log('hello'.surround('(){}', {no_symmetrical: true})); // '({hello)}'
+                 * console.log('hello'.surround('(){}[[]]', {no_symmetrical: true})); // '({[[hello)}]]'
+                 * @returns {string}
+                 */
+                value(pad, options) {
+                    if (pad === undefined || pad === null) {
+                        return this.valueOf();
+                    }
+                    let _opt = options || {};
+                    let _is_intelli_brackets = _opt.no_intelli_brackets === undefined
+                        || !_opt.no_intelli_brackets;
+                    let _is_symmetrical = _opt.no_symmetrical === undefined
+                        || !_opt.no_symmetrical;
+
+                    let _brackets = [
+                        '()', '[]', '{}', '<>', // half-width char
+                        '（）', '［］', '｛｝', '〈〉', '《》', // full-width char
+                        '〔〕', '【】', '〖〗', '‘’', '“”', // full-width char
+                    ];
+                    let _brackets_map = _genBracketsMap(_brackets);
+
+                    let _pad = pad.toString();
+                    let _pad_left = _pad.split('');
+                    let _pad_right = _pad.split('');
+
+                    if (_is_intelli_brackets) {
+                        let _container = [];
+                        if (_isValidParentheses(_pad, _brackets, _container)) {
+                            [_pad_left, _pad_right] = _container;
+                        } else {
+                            _pad_left.forEach((s, i) => {
+                                if (s in _brackets_map) {
+                                    _pad_right[i] = _brackets_map[s];
+                                }
+                            });
+                        }
+                    }
+                    if (_is_symmetrical) {
+                        _pad_right = _pad_right.reverse();
+                    }
+
+                    return _pad_left.join('') + this.valueOf() + _pad_right.join('');
+
+                    // tool function(s) //
+
+                    function _genBracketsMap(elements) {
+                        let _map = {};
+                        elements.forEach((s) => {
+                            _map[s[0]] = s[1];
+                            _map[s[1]] = s[0];
+                        });
+                        return _map;
+                    }
+
+                    /**
+                     * Returns if a string is valid parentheses
+                     * @param {string} str
+                     * @param {string[]} [brackets] - default: ['()','[]','{}']
+                     * @param {string[][]} [container] - intermediate will be kept
+                     * @example
+                     * isValidParentheses('()'); // true
+                     * isValidParentheses('()[]{}'); // true
+                     * isValidParentheses('(]'); // false
+                     * isValidParentheses('([)]'); // false
+                     * isValidParentheses('{[]}'); // true
+                     * @returns {boolean}
+                     * @see https://leetcode.com/problems/valid-parentheses/
+                     */
+                    function _isValidParentheses(str, brackets, container) {
+                        let _brackets = brackets || ['()', '[]', '{}'];
+                        let _brackets_map_left = _genBracketsMapLeft(_brackets);
+                        let _brackets_map_right = _genBracketsMapRight(_brackets);
+
+                        let _cache = [];
+                        container = container || [];
+                        container[0] = [];
+                        container[1] = [];
+
+                        for (let s of str) {
+                            if (s in _brackets_map_left) {
+                                _cache.push(s);
+                                container[0].push(s);
+                            } else if (s in _brackets_map_right) {
+                                if (_brackets_map_right[s] !== _cache.pop()) {
+                                    return false;
+                                }
+                                container[1].push(s);
+                            } else {
+                                return false;
+                            }
+                        }
+                        return !_cache.length;
+
+                        // tool function(s) //
+
+                        function _genBracketsMapLeft(elements) {
+                            let _map = {};
+                            elements.forEach(s => _map[s[0]] = s[1]);
+                            return _map;
+                        }
+
+                        function _genBracketsMapRight(elements) {
+                            let _map = {};
+                            elements.forEach(s => _map[s[1]] = s[0]);
+                            return _map;
+                        }
+                    }
+                },
+            });
+        }
+
         if (!String.prototype.ts) {
             Object.defineProperty(String.prototype, 'ts', {
                 /**
@@ -751,39 +882,26 @@ let ext = {
         if (!Object.size) {
             Object.defineProperty(Object, 'size', {
                 /**
-                 * @summary Object.keys(o).length
                  * @function Object.size
-                 * @param {Object} o
+                 * @param {Array|Object|*} o
                  * @param {Object} [opt] - additional options
-                 * @param {string[]} [opt.exclude] - exclude specified keys
-                 * @param {string[]} [opt.include] - include specified keys ONLY, and o.exclude will be invalid
-                 * @returns {number}
+                 * @param {string|string[]} [opt.exclude=[]] - exclude specified keys
+                 * @param {string|string[]} [opt.include=[]] - include specified keys ONLY, and o.exclude will be invalid
+                 * @returns {number} - { x >= -1 and x ∈ Z }
                  */
                 value(o, opt) {
                     if (typeof o !== 'object') {
-                        return 0;
+                        return Array.isArray(o) ? o.length : -1;
                     }
+                    let _arrayify = o => Array.isArray(o) ? o : o === undefined ? [] : [o];
                     let _opt = opt || {};
-                    let _inc = _opt.include;
-                    let _exc = _opt.exclude;
-                    let _cnt = 0;
-                    for (let i in o) {
-                        if (o.hasOwnProperty(i)) {
-                            if (_inc) {
-                                if (~_inc.indexOf(i)) {
-                                    _cnt += 1;
-                                }
-                                continue;
-                            }
-                            if (_exc) {
-                                if (~_exc.indexOf(i)) {
-                                    continue;
-                                }
-                            }
-                            _cnt += 1;
-                        }
-                    }
-                    return _cnt;
+
+                    let _inc = _arrayify(_opt.include);
+                    let _exc = _arrayify(_opt.exclude);
+
+                    return Object.keys(o).filter((k) => {
+                        return _inc.length ? ~_inc.indexOf(k) : !~_exc.indexOf(k);
+                    }).length;
                 },
             });
         }
@@ -791,7 +909,7 @@ let ext = {
             Object.defineProperty(Object, 'getOwnNonEnumerableNames', {
                 /**
                  * @function Object.getOwnNonEnumerableNames
-                 * @param o
+                 * @param {Object} o
                  * @returns {string[]}
                  */
                 value: o => Object.getOwnPropertyNames(o)
@@ -802,7 +920,7 @@ let ext = {
             Object.defineProperty(Object, 'getNonEnumerableNames', {
                 /**
                  * @function Object.getNonEnumerableNames
-                 * @param o
+                 * @param {Object} o
                  * @returns {string[]}
                  */
                 value(o) {
@@ -822,7 +940,7 @@ let ext = {
             Object.defineProperty(Object, 'getAllPropertyNames', {
                 /**
                  * @function Object.getAllPropertyNames
-                 * @param o
+                 * @param {Object} o
                  * @returns {string[]}
                  */
                 value(o) {
@@ -842,7 +960,7 @@ let ext = {
             Object.defineProperty(Object, 'getOwnPropertyDescriptors', {
                 /**
                  * @function Object.getOwnPropertyDescriptors
-                 * @param o
+                 * @param {Object} o
                  * @returns {Object.<string,PropertyDescriptor>} <!-- or {PropertyDescriptorMap} -->
                  */
                 value(o) {
@@ -858,8 +976,8 @@ let ext = {
             Object.defineProperty(Object, 'assignDescriptors', {
                 /**
                  * @function Object.assignDescriptors
-                 * @param {{}} o
-                 * @param {...{}} descriptors
+                 * @param {Object} o
+                 * @param {...Object} descriptors
                  * @example
                  * let o = {
                  *     a: 1,
@@ -997,7 +1115,7 @@ let ext = {
                  * @name ICU
                  * @memberOf! Number#
                  * @constant 996
-                 * @type number
+                 * @type {number}
                  * @example
                  * (1).ICU; // 996
                  * (80).ICU; // 996
@@ -1175,7 +1293,7 @@ let ext = {
     Math() {
         Object.assign(Math, {
             /**
-             * @return {[]}
+             * @returns {[]}
              * @private
              */
             _parseArgs(num_arr, fraction) {
@@ -1189,7 +1307,7 @@ let ext = {
                 return [_arr, _fraction];
             },
             /**
-             * @return {[]}
+             * @returns {[]}
              * @private
              */
             _spreadArr(arr) {
@@ -1611,9 +1729,9 @@ let ext = {
             /**
              * Returns the logarithm (with both base and antilogarithm) of two numbers.
              * @function Math.logMn
-             * @param base - zh-CN: 底数
-             * @param antilogarithm - zh-CN: 真数
-             * @param [fraction=13] - zh-CN: 尾数
+             * @param {number} base - zh-CN: 底数
+             * @param {number} antilogarithm - zh-CN: 真数
+             * @param {number} [fraction=13] - zh-CN: 尾数
              * @example
              * console.log(Math.logMn(10, 100)); // 2 -- 10 ^ (2) = 100
              * console.log(Math.logMn(2, 1024)); // 10 -- 2 ^ (10) = 1024

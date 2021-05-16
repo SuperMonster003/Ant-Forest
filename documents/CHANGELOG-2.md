@@ -1,6 +1,14 @@
 ******
 ### 版本历史 - 2.x
 ******
+# v2.1.1
+###### 2021/05/16
+* `新增` 能量雨收集工具 (简易) (/tools/energy-rain-harvesting.js)
+* `修复` 配置工具采集排行榜列表数据功能异常 _[`issue #462`](https://github.com/SuperMonster003/Ant-Forest/issues/462)_
+* `修复` 部署工具备份本地项目时无法处理空项目目录的问题 _[`issue #459`](https://github.com/SuperMonster003/Ant-Forest/issues/459)_
+* `优化` 完善Auto.js版本异常检测列表及异常提示界面样式
+* `优化` 逛一逛按钮采集方案结束页面判断条件 _[`issue #391`](https://github.com/SuperMonster003/Ant-Forest/issues/391#issuecomment-840679845)_
+
 # v2.1.0
 ###### 2021/04/15
 * `新增` 增加"逛一逛按钮"采集策略 (默认为"排行榜列表"采集策略) _[`issue #449`](https://github.com/SuperMonster003/Ant-Forest/issues/449)_ _[`#446`](https://github.com/SuperMonster003/Ant-Forest/issues/446)_ _[`#391`](https://github.com/SuperMonster003/Ant-Forest/issues/391)_

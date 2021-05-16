@@ -209,7 +209,7 @@ module.exports.load = () => global.timersx = ext;
 // tool function(s) //
 
 /**
- * @param {object} c
+ * @param {Object} c
  * @param {number} [c.delay=0]
  * @param {number} [c.interval=0]
  * @param {number} [c.loopTimes=1]

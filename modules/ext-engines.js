@@ -60,14 +60,14 @@ let ext = {
      *     -- new file - like 'hello.js', '../hello.js' or 'hello'
      * @param {boolean|string} [params.debug_info_flag]
      * @param {number} [params.max_restart_e_times=1] - max restart times for avoiding infinite recursion
-     * @param {*} [params.instant_run_flag] - whether to perform an instant run or not
+     * @param {boolean} [params.instant_run_flag] - whether to perform an instant run or not
      * @example
      * enginesx.restart({
      *    debug_info_flag: true,
      *    max_restart_e_times: 3,
      *    instant_run_flag: false,
      * });
-     * @return {boolean}
+     * @returns {boolean}
      */
     restart(params) {
         let _params = params || {};
