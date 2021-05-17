@@ -10,7 +10,7 @@ let $$init = {
                 console.error('ext-app模块不存在');
                 console.error('请检查项目目录结构');
             }
-            throw e;
+            throw Error(e);
         }
     },
     check() {

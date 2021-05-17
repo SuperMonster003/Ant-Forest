@@ -1,6 +1,6 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since May 16, 2021
+ * @since May 17, 2021
  * @version 2.1.1
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
@@ -17,7 +17,7 @@ let $$init = {
                 console.error('ext-app模块不存在');
                 console.error('请检查项目目录结构');
             }
-            throw e;
+            throw Error(e);
         }
     },
     check() {
