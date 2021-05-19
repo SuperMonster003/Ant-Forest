@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since May 17, 2021
- * @version 2.1.1
+ * @since May 19, 2021
+ * @version 2.1.2
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -23,8 +23,8 @@ let $$init = {
     check() {
         this.appx().load();
         appx.checkModules([
-            'mod-default-config', 'mod-pwmap', 'mod-storage',
-            'mod-treasury-vault', 'mod-database', 'mod-monster-func',
+            'mod-default-config', 'mod-pwmap', 'mod-monster-func',
+            'mod-treasury-vault', 'mod-database', 'ext-storages',
             'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
             'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
         ], {is_load: true});
@@ -62,9 +62,9 @@ let $$init = {
         function setGlobalFunctions() {
             require('./modules/mod-monster-func').load([
                 'messageAction', 'debugInfo', 'timeRecorder', 'clickActionsPipeline',
-                'getSelector', 'equalObjects', 'waitForAndClickAction', 'stabilizer',
                 'clickAction', 'swipeAndShow', 'setIntervalBySetTimeout', 'keycode',
-                'waitForAction', 'baiduOcr', 'observeToastMessage', 'showSplitLine',
+                'waitForAction', 'observeToastMessage', 'showSplitLine',
+                'equalObjects', 'waitForAndClickAction', 'stabilizer',
             ]);
             global.messageAct = function () {
                 return $$flag.msg_details
@@ -83,12 +83,12 @@ let $$init = {
             };
 
             global.$$sto = {
-                af: require('./modules/mod-storage').create('af'),
-                af_next: require('./modules/mod-storage').create('af_auto'),
-                af_ins: require('./modules/mod-storage').create('af_ins'),
-                af_cfg: require('./modules/mod-storage').create('af_cfg'),
-                af_blist: require('./modules/mod-storage').create('af_blist'),
-                af_flist: require('./modules/mod-storage').create('af_flist'),
+                af: storagesx.create('af'),
+                af_next: storagesx.create('af_auto'),
+                af_ins: storagesx.create('af_ins'),
+                af_cfg: storagesx.create('af_cfg'),
+                af_blist: storagesx.create('af_blist'),
+                af_flist: storagesx.create('af_flist'),
             };
 
             global.$$cfg = Object.assign({},
@@ -1880,7 +1880,7 @@ let $$init = {
                             .add('login_next_step', /下一步|Next|.*nextButton/)
                             .add('input_lbl_acc', /账号|Account/)
                             .add('input_lbl_code', /密码|Password/)
-                            .add('acc_sw_pg_ident', /账号切换|Accounts/)
+                            .add('switch_to_other_acc', idMatches(/.+_item_account/))
                             .add('login_err_ensure', idMatches(/.*ensure/))
                             .add('login_err_msg', (type) => {
                                 let _t = type || 'txt';
@@ -1935,12 +1935,12 @@ let $$init = {
                                     messageAction('当前非账户切换页面', 8, 0, 1, 1);
                                 }
 
-                                let _sltr = idMatches(/.*list_arrow/);
-                                waitForAction(_sltr, 2e3); // just in case
-                                sleep(300);
+                                let _sltr = idMatches(/.+_item_current/);
+                                waitForAction(_sltr, 2e3, 80); // just in case
+                                sleep(240);
 
                                 // current logged in user abbr (with a list arrow)
-                                let _cur_abbr = $$sel.pickup([_sltr, 's<1c0>0'], 'txt');
+                                let _cur_abbr = $$sel.pickup([_sltr, 's-1'], 'txt');
                                 // abbr of param 'name_str'
                                 let _name_abbr = this.getAbbrFromList(name_str);
                                 // let _is_logged_in = $$acc.isMatchAbbr(name_str, _cur_abbr);
@@ -1955,12 +1955,13 @@ let $$init = {
                                 };
                             },
                             isInList(name_str) {
-                                return $$sel.pickup(/.+\*{3,}.+/, 'wc').some((w) => {
-                                    let _abbr_name = $$sel.pickup(w, 'txt');
-                                    if ($$acc.isMatchAbbr(name_str, _abbr_name)) {
-                                        return this.abbr_name_in_list = _abbr_name;
-                                    }
-                                });
+                                return $$sel.pickup([/.+\*{3,}.+/, {cn$: 'TextView'}], 'wc')
+                                    .some((w) => {
+                                        let _abbr_name = $$sel.pickup(w, 'txt');
+                                        if ($$acc.isMatchAbbr(name_str, _abbr_name)) {
+                                            return this.abbr_name_in_list = _abbr_name;
+                                        }
+                                    });
                             },
                             isInPage() {
                                 return $$acc.isInSwAccPg();
@@ -2041,7 +2042,7 @@ let $$init = {
                         },
                         isInSwAccPg() {
                             return $$sel.get('login_new_acc')
-                                || $$sel.get('acc_sw_pg_ident');
+                                || $$sel.get('switch_to_other_acc');
                         },
                         isMatchAbbr(name_str, abbr) {
                             name_str = name_str.toString();
@@ -4669,7 +4670,7 @@ let $$af = {
                                         return _img;
                                     })();
 
-                                    let _raw_data = baiduOcr(_stitched, {
+                                    let _raw_data = imagesx.baiduOcr(_stitched, {
                                         fetch_times: 3,
                                         fetch_interval: 500,
                                         no_toast_msg_flag: true,
@@ -5365,7 +5366,7 @@ let $$af = {
                                     if (!waitForAction(() => _w = $$sel.pickup(/.*加载更多\s*/), 3e3)) {
                                         return debugInfo('定位"加载更多"按钮超时', 3);
                                     }
-                                    debugInfo('成功定位"' + $$sel.pickup(_w, 'txt') + '"按钮');
+                                    debugInfo('成功定位' + $$sel.pickup(_w, 'txt').surround('"') + '按钮');
 
                                     while (_ctr++ < 50) {
                                         waitForAndClickAction(_w, 3e3, 120, {click_strategy: 'w'});

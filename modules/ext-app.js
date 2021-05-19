@@ -923,12 +923,7 @@ let ext = {
                         _f.call(_cbk, _data);
                     }
                     if (_opt.is_save_storage) {
-                        let _pp = _appx.getProjectLocalPath();
-                        let _mod = files.path(_pp + '/modules/mod-storage.js');
-                        if (!files.exists(_mod)) {
-                            throw Error('Module mod-storage doesn\'t exist');
-                        }
-                        let _af_bak = require(_mod).create('af_bak');
+                        let _af_bak = storagesx.create('af_bak');
                         let _sto_data = _af_bak.get('project', []);
                         _af_bak.put('project', _sto_data.concat(_data));
                     }
@@ -1337,7 +1332,7 @@ let ext = {
 
                 // version > Pro 8.3.16
                 if (ver.match(/^Pro ([89]|\d{2})\./)) {
-                    devicex.a11y.bridge.resetWindowFilter();
+                    $$a11y.bridge.resetWindowFilter();
                     return 0;
                 }
 
@@ -1547,24 +1542,20 @@ let ext = {
         // tool function(s) //
 
         function _checkSvc() {
-            let _a11y = devicex.a11y;
-            if (_a11y.state()) {
+            if ($$a11y.state()) {
                 return;
             }
 
             let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
             let _pkg_n_perm = context.packageName + ' ' + _perm;
 
-            if (files.exists('../modules/mod-storage.js')) {
-                let _mod_sto = require('../modules/mod-storage');
-                let $_cfg = _mod_sto.create('af_cfg').get('config', {});
-                if ($_cfg.auto_enable_a11y_svc === 'OFF') {
-                    return;
-                }
+            let $_cfg = storagesx.create('af_cfg').get('config', {});
+            if ($_cfg.auto_enable_a11y_svc === 'OFF') {
+                return;
             }
 
             if (typeof activity !== 'undefined') {
-                if (_a11y.enable(true)) {
+                if ($$a11y.enable(true)) {
                     toast('已自动开启无障碍服务\n请重新运行一次配置工具');
                 }
                 return ui.finish();
@@ -1624,7 +1615,7 @@ let ext = {
             }
 
             function _tryEnableAndRestart() {
-                if (_a11y.enable(true)) {
+                if ($$a11y.enable(true)) {
                     showSplitLine();
                     messageAction('已自动开启无障碍服务');
                     messageAction('尝试一次项目重启操作');
@@ -1687,10 +1678,10 @@ let ext = {
             }
         }).some((mod, idx, arr) => {
             let _str = '';
-            _str += '脚本无法继续|以下模块缺失或路径错误:|';
-            _str += _dash() + '|';
-            arr.forEach(n => _str += '-> "' + n + '"|');
-            _str += _dash() + '|';
+            _str += '脚本无法继续|以下模块缺失或路径错误:';
+            _str += _dash().surround('|');
+            arr.forEach(n => _str += '-> ' + n.surround('"'));
+            _str += _dash().surround('|');
             _str += '请检查或重新放置模块';
             console.log(_line());
             _str.split('|').forEach(s => console.error(s));
@@ -2040,8 +2031,8 @@ let ext = {
 
             if (!_opt.no_message_flag) {
                 let _msg = _task_name
-                    ? '重新开始"' + _task_name + '"任务'
-                    : '重新启动"' + _app_name + '"应用';
+                    ? '重新开始' + _task_name.surround('"') + '任务'
+                    : '重新启动' + _app_name.surround('"') + '应用';
                 if (!_1st_launch) {
                     messageAction(_msg, null, 1);
                 } else if (_is_show_greeting) {
@@ -2077,7 +2068,7 @@ let ext = {
             }
 
             if (_max_lch < 0) {
-                messageAction('打开"' + _app_name + '"失败', 8, 1, 0, 1);
+                messageAction('打开' + _app_name.surround('"') + '失败', 8, 1, 0, 1);
             }
 
             if (typeof _cond_ready === 'undefined') {
@@ -2232,7 +2223,7 @@ let ext = {
             try {
                 _shell_result = !shell('am force-stop ' + _pkg_name, true).code;
             } catch (e) {
-                debugInfo('shell()方法强制关闭"' + _app_name + '"失败');
+                debugInfo('shell()方法强制关闭' + _app_name.surround('"') + '失败');
             }
         } else {
             debugInfo('参数不接受shell()方法');
@@ -2243,17 +2234,17 @@ let ext = {
                 return _tryMinimizeApp();
             }
             debugInfo('参数不接受模拟返回方法');
-            messageAction('关闭"' + _app_name + '"失败', 4, 1);
+            messageAction('关闭' + _app_name.surround('"') + '失败', 4, 1);
             return messageAction('无可用的应用关闭方式', 4, 0, 1);
         }
 
         let _et = Date.now() - _shell_start_ts;
         if (waitForAction(_cond_success, _shell_max_wait_time)) {
-            debugInfo('shell()方法强制关闭"' + _app_name + '"成功');
+            debugInfo('shell()方法强制关闭' + _app_name.surround('"') + '成功');
             debugInfo('>关闭用时: ' + _et + '毫秒');
             return true;
         }
-        messageAction('关闭"' + _app_name + '"失败', 4, 1);
+        messageAction('关闭' + _app_name.surround('"') + '失败', 4, 1);
         debugInfo('>关闭用时: ' + _et + '毫秒');
         return messageAction('关闭时间已达最大超时', 4, 0, 1);
 
@@ -2498,12 +2489,10 @@ let ext = {
 };
 
 ext.checkModules([
-    'ext-dialogs', 'ext-global',
-    'ext-engines', 'ext-device',
-    'ext-threads', 'ext-files', 'ext-http',
+    'mod-monster-func', 'ext-dialogs', 'ext-storages',
+    'ext-device', 'ext-http', 'ext-a11y', 'ext-files',
+    'ext-global', 'ext-engines', 'ext-threads',
 ], {is_load: true});
-
-require('./mod-monster-func').load();
 
 module.exports = ext;
 module.exports.load = () => global.appx = ext;

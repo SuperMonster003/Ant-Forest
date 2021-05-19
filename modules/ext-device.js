@@ -1,232 +1,18 @@
 global.devicex = typeof global.devicex === 'object' ? global.devicex : {};
 
-require('./mod-monster-func').load();
+require('./mod-monster-func').load([
+    'debugInfo', 'waitForAction', 'messageAction', 'keycode', 'clickAction',
+]);
+require('./ext-storages').load();
+require('./ext-a11y').load();
 
-let Secure = android.provider.Settings.Secure;
 let Intent = android.content.Intent;
 let IntentFilter = android.content.IntentFilter;
 let BatteryManager = android.os.BatteryManager;
 
-let _ctx_reso = context.getContentResolver();
-let _aj_svc = context.packageName + '/com.stardust.autojs' +
-    '.core.accessibility.AccessibilityService';
-
 // noinspection JSUnusedGlobalSymbols
 let ext = {
     _unlock: _unlockGenerator(),
-    a11y: {
-        /**
-         * @param {IArguments} args
-         * @returns {{svc: [string], forcible: boolean}}
-         */
-        _parseArgs(args) {
-            let _svc = [_aj_svc];
-            let _forcible = false;
-            let _type0 = typeof args[0];
-            if (_type0 !== 'undefined') {
-                if (_type0 === 'object') {
-                    _svc = args[0];
-                    _forcible = !!args[1];
-                } else if (_type0 === 'string') {
-                    _svc = [args[0]];
-                    _forcible = !!args[1];
-                } else if (_type0 === 'boolean') {
-                    _forcible = args[0];
-                }
-            }
-            return {
-                forcible: _forcible,
-                svc: _svc,
-            };
-        },
-        /** @returns {string} */
-        _getString() {
-            // getString() may be null on some Android OS
-            return Secure.getString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || '';
-        },
-        bridge: {
-            /**
-             * @param {android.view.accessibility.AccessibilityWindowInfo} wi
-             * @returns {boolean}
-             * @private
-             */
-            _isLatestPackage(wi) {
-                return wi.getRoot().getPackageName() === runtime.info.getLatestPackage();
-            },
-            /**
-             * @param {
-             *     function(info:android.view.accessibility.AccessibilityWindowInfo):boolean
-             * } filter
-             */
-            setWindowFilter(filter) {
-                auto.setWindowFilter(function (wi) {
-                    try {
-                        return filter(wi);
-                    } catch (e) {
-                        // eg: TypeError: Cannot call method "getPackageName" of null
-                        return false;
-                    }
-                });
-            },
-            /** @param {string[]} blacklist */
-            setWindowBlacklist(blacklist) {
-                this.setWindowFilter(wi => this._isLatestPackage(wi)
-                    && !~blacklist.indexOf(wi.getRoot().getPackageName()));
-            },
-            /** @param {string[]} whitelist */
-            setWindowWhitelist(whitelist) {
-                this.setWindowFilter(wi => this._isLatestPackage(wi)
-                    && !!~whitelist.indexOf(wi.getRoot().getPackageName()));
-            },
-            setWindowAllowAll() {
-                this.setWindowFilter(() => true);
-            },
-            resetWindowFilter() {
-                this.setWindowFilter(wi => this._isLatestPackage(wi));
-            },
-        },
-        /**
-         * @param {...boolean|string|string[]} [arguments]
-         * @example
-         * // import module with a new instance
-         * let {a11y} = require('./modules/ext-device');
-         * // enable Auto.js itself
-         * a11y.enable();
-         * a11y.enable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
-         * a11y.enable('org.autojs.autojs/com.stardust... , true); // enable forcibly
-         * a11y.enable(true); // enable forcibly
-         * // enable other specified service(s)
-         * a11y.enable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
-         * a11y.enable('com.ext.star.wars/com.dahuo.sunflower... , true); // enable forcibly
-         * // enable multi services
-         * a11y.enable([
-         *     'org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService',
-         *     'com.sp.protector.free/com.sp.protector.free.engine.AppChangeDetectingAccessibilityService',
-         * ]);
-         * a11y.enable([...], true); // enable forcibly
-         * @returns {boolean} - !!(all_services_started_successfully)
-         */
-        enable() {
-            try {
-                let _this = this;
-                let {forcible, svc} = this._parseArgs(arguments);
-                let _svc;
-                if (!this.state(svc)) {
-                    _svc = this.enabled_svc.split(':')
-                        .filter(x => !~svc.indexOf(x))
-                        .concat(svc).join(':');
-                } else if (forcible) {
-                    _svc = this.enabled_svc;
-                }
-                if (_svc) {
-                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                    if (!waitForAction(() => _this.state(svc), 2e3)) {
-                        let _m = 'Operation timed out';
-                        toast(_m);
-                        console.error(_m);
-                    }
-                }
-                return true;
-            } catch (e) {
-                return false;
-            }
-        },
-        /**
-         * @param {...boolean|string|string[]} [arguments]
-         * @see this.enable
-         * @example
-         * // import module with a new instance
-         * let {a11y} = require('./modules/ext-device');
-         * // disable all services (clear current a11y svc list)
-         * a11y.disable('all'); // doesn't matter whether with true param or not
-         * // disable Auto.js itself
-         * a11y.disable();
-         * a11y.disable('org.autojs.autojs/com.stardust.autojs.core.accessibility.AccessibilityService');
-         * a11y.disable('org.autojs.autojs/com.stardust... , true); // disable forcibly
-         * a11y.disable(true); // disable forcibly
-         * // disable other specified service(s)
-         * a11y.disable('com.ext.star.wars/com.dahuo.sunflower.assistant.services.AssistantServicesGestures');
-         * a11y.disable('com.ext.star.wars/com.dahuo.sunflower... , true); // disable forcibly
-         * // disable multi services
-         * a11y.disable([...]);
-         * a11y.disable([...], true); // disable forcibly
-         * @returns {boolean} - !!(all_services_stopped_successfully)
-         */
-        disable() {
-            try {
-                let _args0 = arguments[0];
-                let $_str = x => typeof x === 'string';
-                if ($_str(_args0) && _args0.toLowerCase() === 'all') {
-                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, '');
-                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                    return true;
-                }
-                let {forcible, svc} = this._parseArgs(arguments);
-                let _enabled_svc = this._getString();
-                let _contains = function () {
-                    for (let i = 0, l = svc.length; i < l; i += 1) {
-                        if (~_enabled_svc.indexOf(svc[i])) {
-                            return true;
-                        }
-                    }
-                };
-                let _svc;
-                if (_contains()) {
-                    _svc = _enabled_svc.split(':').filter(x => !~svc.indexOf(x)).join(':');
-                } else if (forcible) {
-                    _svc = _enabled_svc;
-                }
-                if (_svc) {
-                    Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                    Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
-                    _enabled_svc = this._getString();
-                    if (!waitForAction(() => !_contains(), 2e3)) {
-                        let _m = 'Operation timed out';
-                        toast(_m);
-                        console.error(_m);
-                    }
-                }
-                return true;
-            } catch (e) {
-                return false;
-            }
-        },
-        /**
-         * @param {...boolean|string|string[]} [arguments]
-         * @see this.enable
-         * @see this.disable
-         * @returns {boolean}
-         */
-        restart() {
-            return this.disable.apply(this, arguments) && this.enable.apply(this, arguments);
-        },
-        /**
-         * @param {string|string[]} [services]
-         * @returns {boolean} - all services enabled or not
-         */
-        state(services) {
-            let _enabled_svc = this.enabled_svc = this._getString();
-            let _services = [];
-            if (Array.isArray(services)) {
-                _services = services.slice();
-            } else if (typeof services === 'undefined') {
-                _services = [_aj_svc];
-            } else if (typeof services === 'string') {
-                _services = [services];
-            } else {
-                throw TypeError('Unknown a11y state type');
-            }
-            return _services.every(svc => ~_enabled_svc.indexOf(svc));
-        },
-        /**
-         * Returns all enabled a11y services
-         * @returns {string[]} - [] for empty data (rather than falsy)
-         */
-        services() {
-            return this._getString().split(':').filter(x => !!x);
-        },
-    },
     /** @type {com.stardust.util.ScreenMetrics} */
     screen_metrics: runtime.getScreenMetrics(),
     /**
@@ -920,6 +706,9 @@ let ext = {
             delete this['_screen_metrics_h'];
         }
     },
+    // TODO...
+    // saveCurrentAccelerometerRotation() {},
+    // restoreSavedAccelerometerRotation() {},
     $bind() {
         Object.assign(this.unlock, this._unlock);
         delete this.$bind;
@@ -949,10 +738,9 @@ function _unlockGenerator() {
     let $_arr = x => Array.isArray(x);
     let $_flag = global.$$flag = global.$$flag || {};
 
-    let $_sel = getSelector();
     let $_unlk = _unlkSetter();
 
-    let _sto = require('./mod-storage').create('unlock');
+    let _sto = storagesx.create('unlock');
     let _cfg = Object.assign({
         /* default unlock configs which updated at Mar 1, 2021 */
         unlock_code: null,
@@ -1009,9 +797,8 @@ function _unlockGenerator() {
         function captureErrScreen(key_name, options) {
             if (typeof imagesx === 'object') {
                 imagesx.permit();
-            } else if (!global._$_request_screen_capture) {
+            } else {
                 images.requestScreenCapture();
-                global._$_request_screen_capture = true;
             }
 
             let _opt = options || {};
@@ -1105,7 +892,7 @@ function _unlockGenerator() {
                         desc: 'MIUI10',
                         sel: idMatches(_as + '(.*lock_screen_container|notification_(container|panel).*|keyguard_.*)'),
                     }, {
-                        sel: $_sel.pickup(/上滑.{0,4}解锁/, 'selector'),
+                        sel: $$sel.pickup(/上滑.{0,4}解锁/, 'selector'),
                     }].some((smp) => {
                         let {desc: _desc, sel: _sel} = smp;
                         if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
@@ -1114,7 +901,7 @@ function _unlockGenerator() {
                                     debugInfo('匹配到' + _desc + '解锁提示层控件');
                                 } else {
                                     debugInfo('匹配到解锁提示层文字:');
-                                    debugInfo($_sel.pickup(_sel, 'txt'));
+                                    debugInfo($$sel.pickup(_sel, 'txt'));
                                 }
                                 return (this.trigger = _sel.exists.bind(_sel))();
                             }
@@ -1127,11 +914,11 @@ function _unlockGenerator() {
                         [{
                             desc: 'QQ锁屏消息弹框控件',
                             trigger() {
-                                return $_sel.pickup('按住录音')
-                                    || $_sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
+                                return $$sel.pickup('按住录音')
+                                    || $$sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
                             },
                             handle() {
-                                clickAction($_sel.pickup('关闭'), 'w');
+                                clickAction($$sel.pickup('关闭'), 'w');
                                 let _cond = this.trigger.bind(this);
                                 waitForAction(_cond, 3e3)
                                     ? debugInfo('关闭弹框控件成功')
@@ -1595,7 +1382,7 @@ function _unlockGenerator() {
                             }
 
                             let _cfm_btn = (type) => (
-                                $_sel.pickup([/确.|完成|[Cc]onfirm|[Ee]nter/, {
+                                $$sel.pickup([/确.|完成|[Cc]onfirm|[Ee]nter/, {
                                     className: 'Button', clickable: true,
                                 }], type)
                             );
@@ -1770,7 +1557,7 @@ function _unlockGenerator() {
                                     }
                                     if ($_num(_suff) || $_str(_suff) || $_rex(_suff)) {
                                         debugInfo('辅助按键后置填充类型: 文本');
-                                        return clickAction($_sel.pickup('(key.?)?' + _suff));
+                                        return clickAction($$sel.pickup('(key.?)?' + _suff));
                                     }
                                     return _err(['密码解锁失败', '无法判断末位字符类型']);
                                 }
@@ -2097,9 +1884,9 @@ function _unlockGenerator() {
                     // tool function(s) //
 
                     function _correct() {
-                        let _w_bad = $_sel.pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
+                        let _w_bad = $$sel.pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
                         if (_w_bad) {
-                            return _err_shown_fg || debugInfo($_sel.pickup(_w_bad, 'txt'), 3);
+                            return _err_shown_fg || debugInfo($$sel.pickup(_w_bad, 'txt'), 3);
                         }
                         if (idMatches(new RegExp(_ak + 'phone_locked_textview')).exists()) {
                             return _err_shown_fg || debugInfo('密码错误', 3);
@@ -2108,7 +1895,7 @@ function _unlockGenerator() {
                     }
 
                     function _chkTryAgain() {
-                        let _chk = () => $_sel.pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
+                        let _chk = () => $$sel.pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
                         if (_chk()) {
                             debugInfo('正在等待重试超时');
                             waitForAction(() => !_chk(), 65e3, 500);
@@ -2116,9 +1903,9 @@ function _unlockGenerator() {
                     }
 
                     function _chkOKBtn() {
-                        let _w_ok = $_sel.pickup(/OK|确([认定])|好的?/);
+                        let _w_ok = $$sel.pickup(/OK|确([认定])|好的?/);
                         if (_w_ok) {
-                            debugInfo('点击"' + $_sel.pickup(_w_ok, 'txt') + '"按钮');
+                            debugInfo('点击"' + $$sel.pickup(_w_ok, 'txt') + '"按钮');
                             clickAction(_w_ok, 'w');
                             sleep(1e3);
                         }

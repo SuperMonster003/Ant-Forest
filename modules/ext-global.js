@@ -1,4 +1,4 @@
-require('./mod-monster-func').load('getSelector', 'debugInfo');
+require('./mod-monster-func').load('debugInfo');
 
 let ext = {
     Global() {
@@ -224,11 +224,10 @@ let ext = {
             return sleep(Math.max(millis_min, 0));
         };
 
-        global.$$sel = getSelector();
-
         global.$$cvt = _cvtBuilder();
 
         global.okhttp3 = Packages.okhttp3;
+        global.androidx = Packages.androidx;
 
         // tool function(s) //
 

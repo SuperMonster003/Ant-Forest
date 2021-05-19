@@ -3,8 +3,10 @@ global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
 require('./mod-monster-func').load();
 require('./ext-global').load();
 require('./ext-device').load();
+require('./ext-a11y').load();
 
-let _ext = {
+let ext = {
+    _has_scr_capt_permission: threads.atomic(0),
     /**
      * Copied from Auto.js 4.1.1 alpha2 source code by SuperMonster003 at Jan 10, 2021
      */
@@ -108,6 +110,9 @@ let _ext = {
         return _arr;
     },
     _buildRegion(region, img) {
+        if (!img) {
+            throw Error('img is required for imagesx._buildRegion()');
+        }
         if (region === undefined) {
             region = [];
         }
@@ -117,9 +122,10 @@ let _ext = {
         let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
         let r = new org.opencv.core.Rect(x, y, width, height);
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
-            throw new Error('Out of region: ' +
-                'region = [' + [x, y, width, height] + '], ' +
-                'image.size = [' + [img.width, img.height] + ']');
+            throw new Error('Out of region:\n' +
+                'region: ' + [x, y, width, height].join(', ').surround('[ ') + '\n' +
+                'region size: ' + [x + width, y + height].join(', ').surround('[ ') + '\n' +
+                'image size: ' + [img.width, img.height].join(', ').surround('[ '));
         }
         return r;
     },
@@ -217,55 +223,60 @@ let _ext = {
         return this.capt(compress_level);
     },
     /**
+     * @typedef {
+     *     boolean|'AUTO'|'LANDSCAPE'|'PORTRAIT'|*
+     * } ScreenCapturerOrientation - true for 'LANDSCAPE'; false for 'PORTRAIT'; default for 'AUTO'
+     */
+    /**
      * Substitution of images.requestScreenCapture() for avoiding unresponsive running when invoked more than once
-     * @param {boolean} [landscape=undefined] - true for landscape; false for portrait; others for auto
+     * @param {ScreenCapturerOrientation} [landscape='AUTO']
      * @returns {boolean}
      */
     requestScreenCapture(landscape) {
-        let _aj_pkg = context.packageName;
-        let _is_pro = _aj_pkg.match(/[Pp]ro/);
-        let _is_pro_7 = _is_pro && app.autojs.versionName.match(/^Pro 7/);
-        if (global._$_request_screen_capture) {
+        if (this._has_scr_capt_permission.get() > 0) {
             return true;
         }
-        global._$_request_screen_capture = threads.atomic(1);
+        this._has_scr_capt_permission.incrementAndGet();
 
         let javaImages = runtime.getImages();
         let ResultAdapter = require.call(global, 'result_adapter');
         let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
 
-        let _orientation = typeof landscape !== 'boolean'
-            ? ScreenCapturer.ORIENTATION_AUTO
-            : landscape
-                ? ScreenCapturer.ORIENTATION_LANDSCAPE
-                : ScreenCapturer.ORIENTATION_PORTRAIT;
+        let _is_pro = context.packageName.match(/[Pp]ro/);
+        let _orientation = landscape === undefined || landscape === 'AUTO'
+            ? ScreenCapturer.ORIENTATION_AUTO : typeof landscape === 'boolean'
+                ? landscape
+                    ? ScreenCapturer.ORIENTATION_LANDSCAPE
+                    : ScreenCapturer.ORIENTATION_PORTRAIT
+                : landscape === 'LANDSCAPE' ? ScreenCapturer.ORIENTATION_LANDSCAPE
+                    : landscape === 'PORTRAIT' ? ScreenCapturer.ORIENTATION_PORTRAIT
+                        : ScreenCapturer.ORIENTATION_AUTO;
         let _adapter = !_is_pro
             ? javaImages.requestScreenCapture(_orientation)
             : javaImages.requestScreenCapture.apply(javaImages, [
                 _orientation, -1, /* width */ -1, /* height */ false, /* isAsync */
-            ].slice(0, _is_pro_7 ? 3 : 4));
+            ].slice(0, _is_pro && app.autojs.versionName.match(/^Pro 7/) ? 3 : 4));
 
         if (ResultAdapter.wait(_adapter)) {
             return true;
         }
-        delete global._$_request_screen_capture;
+        this._has_scr_capt_permission.decrementAndGet();
     },
     /**
      * Request for screen capture permission (with throttling and dialog auto dismissing)
      * @param {Object} [options={}]
      * @param {boolean} [options.restart_e_flag=true] - try restarting the engine when failed
+     * @param {ScreenCapturerOrientation} [options.screen_capturer_orientation='PORTRAIT']
      * @param {Object} [options.restart_e_params={}]
      * @param {number} [options.restart_e_params.max_restart_e_times=3]
      * @param {boolean} [options.no_debug_info=false]
      * @returns {boolean}
      */
     permit(options) {
-        if (global._$_request_screen_capture) {
+        if (this._has_scr_capt_permission.get() > 0) {
             return true;
         }
-        let $_und = x => typeof x === 'undefined';
         let _opt = options || {};
-
         let _no_dbg = _opt.no_debug_info;
         let _debugInfo = function () {
             _no_dbg || debugInfo.apply(null, arguments);
@@ -273,9 +284,7 @@ let _ext = {
 
         _debugInfo('开始申请截图权限');
 
-        let $_sel = getSelector();
-
-        if ($_und(_opt.restart_e_flag)) {
+        if (typeof _opt.restart_e_flag === 'undefined') {
             _opt.restart_e_flag = true;
         } else {
             let _self = _opt.restart_e_flag;
@@ -292,18 +301,18 @@ let _ext = {
 
         let _thread_prompt = threads.start(function () {
             let _sltr_remember = id('com.android.systemui:id/remember');
-            let _sel_remember = () => $_sel.pickup(_sltr_remember);
+            let _sel_remember = () => $$sel.pickup(_sltr_remember);
             let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
-            let _sel_sure = type => $_sel.pickup(_rex_sure, type);
+            let _sel_sure = type => $$sel.pickup(_rex_sure, type);
 
-            if (waitForAction(_sel_sure, 5e3)) {
-                if (waitForAction(_sel_remember, 1e3)) {
+            if (waitForAction(_sel_sure, 4.8e3)) {
+                if (waitForAction(_sel_remember, 600)) {
                     _debugInfo('勾选"不再提示"复选框');
                     clickAction(_sel_remember(), 'w');
                 }
-                if (waitForAction(_sel_sure, 2e3)) {
+                if (waitForAction(_sel_sure, 2.4e3)) {
                     let _w = _sel_sure();
-                    let _act_msg = '点击"' + _sel_sure('txt') + '"按钮';
+                    let _act_msg = '点击' + _sel_sure('txt').surround('"') + '按钮';
 
                     _debugInfo(_act_msg);
                     clickAction(_w, 'w');
@@ -317,7 +326,7 @@ let _ext = {
         });
 
         let _thread_monitor = threads.start(function () {
-            if (waitForAction(() => !!_req_result, 3.6e3, 300)) {
+            if (waitForAction(() => !!_req_result, 4.8e3, 80)) {
                 _thread_prompt.interrupt();
                 return _debugInfo('截图权限申请结果: 成功');
             }
@@ -349,7 +358,9 @@ let _ext = {
             messageAction('截图权限申请失败', 8, 1, 0, 1);
         });
 
-        let _req_result = this.requestScreenCapture(false);
+        let _sco = _opt.screen_capturer_orientation;
+        _sco = _sco === undefined ? 'PORTRAIT' : _sco;
+        let _req_result = this.requestScreenCapture(_sco);
 
         _thread_monitor.join();
 
@@ -648,10 +659,9 @@ let _ext = {
                 total: Number(timeRecorder('hough_beginning', 'L')),
                 showDebugInfo() {
                     debugInfo('__split_line__dash__');
-                    debugInfo('图像填池: ' +
-                        this.fill_up_pool + 'ms' + '  [ ' +
-                        _cfg.forest_balls_pool_itv + ', ' +
-                        _cfg.forest_balls_pool_limit + ' ]');
+                    debugInfo('图像填池: ' + this.fill_up_pool + 'ms  ' + [
+                        _cfg.forest_balls_pool_itv, _cfg.forest_balls_pool_limit,
+                    ].join(', ').surround('[ '));
                     this._map.filter(a => this[a[0]]).forEach((a) => {
                         debugInfo(a[1] + ': ' + this[a[0]] + 'ms');
                     });
@@ -1447,7 +1457,219 @@ let _ext = {
         }
         return _result;
     },
+    /**
+     * Fetching data by calling OCR API from Baidu
+     * @param {[]|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into ImageWrapper$
+     * @param {Object} [options]
+     * @param {ImageWrapper$} [options.capt_img]
+     * @param {boolean} [options.no_toast_msg_flag=false]
+     * @param {number} [options.fetch_times=1]
+     * @param {number} [options.fetch_interval=100]
+     * @param {boolean} [options.debug_info_flag=false]
+     * @param {number} [options.timeout=60e3] -- no less than 5e3
+     * @example
+     * require('ext-a11y').load();
+     * // [[], [], []] -- 3 groups of data
+     * console.log(imagesx.baiduOcr($$sel.pickup(/\xa0/, 'widgets'), {
+     *     fetch_times: 3,
+     *     timeout: 12e3
+     * }));
+     * @returns {Array|Array[]} -- [] or [[], [], []...]
+     */
+    baiduOcr(src, options) {
+        if (!src) {
+            return [];
+        }
+        let _opt = options || {};
+        let _tt = _opt.timeout || 60e3;
+        if (!+_tt || _tt < 5e3) {
+            _tt = 5e3;
+        }
+        let _tt_ts = Date.now() + _tt;
+
+        let _imagesx = this;
+        let _capt = _opt.capt_img || this.capt();
+
+        let _msg = '使用baiduOcr获取数据';
+        debugInfo(_msg);
+        _opt.no_toast_msg_flag || toast(_msg);
+
+        let _token = '';
+        let _max_token = 10;
+        let _thd_token = threads.start(function () {
+            while (_max_token--) {
+                try {
+                    // noinspection SpellCheckingInspection
+                    _token = http.get(
+                        'https://aip.baidubce.com/oauth/2.0/token' +
+                        '?grant_type=client_credentials' +
+                        '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
+                        '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj')
+                        .body.json()['access_token'];
+                    debugInfo('access_token准备完毕');
+                    break;
+                } catch (e) {
+                    sleep(200);
+                }
+            }
+        });
+        _thd_token.join(_tt);
+
+        let _lv = Number(!_opt.no_toast_msg_flag);
+        let _err = s => messageAction(s, 3, _lv, 0, 'both_dash');
+        if (_max_token < 0) {
+            _err('baiduOcr获取access_token失败');
+            return [];
+        }
+        if (_thd_token.isAlive()) {
+            _err('baiduOcr获取access_token超时');
+            return [];
+        }
+
+        let _max = _opt.fetch_times || 1;
+        let _max_b = _max;
+        let _itv = _opt.fetch_interval || 300;
+        let _res = [];
+        let _thds = [];
+        let _allDead = () => _thds.every(thd => !thd.isAlive());
+
+        while (_max--) {
+            _thds.push(threads.start(function () {
+                let _max_img = 10;
+                let _img = _stitchImgs(src);
+                while (_max_img--) {
+                    if (!_img || !_max_img) {
+                        return [];
+                    }
+                    if (!_imagesx.isRecycled(_img)) {
+                        break;
+                    }
+                    _img = _stitchImgs(src);
+                }
+                let _cur = _max_b - _max;
+                let _suffix = _max_b > 1 ? ' [' + _cur + '] ' : '';
+                debugInfo('stitched image' + _suffix + '准备完毕');
+
+                try {
+                    let _words = JSON.parse(http.post('https://aip.baidubce.com/' +
+                        'rest/2.0/ocr/v1/general_basic?access_token=' + _token, {
+                        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                        image: images.toBase64(_img),
+                        image_type: 'BASE64',
+                    }).body.string())['words_result'];
+                    if (_words) {
+                        debugInfo('数据' + _suffix + '获取成功');
+                        _res.push(_words.map(val => val['words']));
+                    }
+                } catch (e) {
+                    if (!e.message.match(/InterruptedIOException/)) {
+                        throw (e);
+                    }
+                } finally {
+                    _img.recycle();
+                    _img = null;
+                }
+            }));
+            sleep(_itv);
+        }
+
+        threads.start(function () {
+            while (!_allDead()) {
+                if (Date.now() >= _tt_ts) {
+                    _thds.forEach(thd => thd.interrupt());
+
+                    let _msg = 'baiduOcr获取数据超时';
+                    let _toast = Number(!_opt.no_toast_msg_flag);
+                    messageAction(_msg, 3, _toast, 0, 'up_dash');
+
+                    if (_res.length) {
+                        messageAction('已获取的数据可能不完整', 3);
+                    }
+                    return showSplitLine('', 'dash');
+                }
+                sleep(500);
+            }
+        });
+
+        while (1) {
+            if (_allDead()) {
+                if (!_opt.no_toast_msg_flag && _res.length) {
+                    toast('baiduOcr获取数据完毕');
+                }
+                return _max_b === 1 ? _res[0] : _res;
+            }
+            sleep(500);
+        }
+
+        // tool function(s) //
+
+        function _stitchImgs(imgs) {
+            if (!Array.isArray(imgs)) {
+                imgs = [imgs].slice();
+            }
+
+            imgs = imgs.map((img) => {
+                let type = _getType(img);
+                if (type === 'UiObject') {
+                    return _widgetToImage(img);
+                }
+                if (type === 'UiObjectCollection') {
+                    return _widgetsToImage(img);
+                }
+                return img;
+            }).filter(img => !!img);
+
+            return _stitchImg(imgs);
+
+            // tool function(s) //
+
+            function _getType(o) {
+                let matched = o.toString().match(/\w+(?=@)/);
+                return matched ? matched[0] : '';
+            }
+
+            function _widgetToImage(widget) {
+                try {
+                    // FIXME Nov 11, 2019
+                    // there is a strong possibility that `widget.bounds()` would throw an exception
+                    // like 'Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde'
+                    let [$1, $2, $3, $4] = widget.toString()
+                        .match(/.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/)
+                        .map(x => Number(x)).slice(1);
+                    return images.clip(_capt, $1, $2, $3 - $1, $4 - $2);
+                } catch (e) {
+                    // Wrapped java.lang.IllegalArgumentException: x + width must be <= bitmap.width()
+                }
+            }
+
+            function _widgetsToImage(widgets) {
+                let imgs = [];
+                widgets.forEach((widget) => {
+                    let img = _widgetToImage(widget);
+                    img && imgs.push(img);
+                });
+                return _stitchImg(imgs);
+            }
+
+            function _stitchImg(imgs) {
+                let _isImgWrap = o => _getType(o) === 'ImageWrapper';
+                if (_isImgWrap(imgs) && !Array.isArray(imgs)) {
+                    return imgs;
+                }
+                if (imgs.length === 1) {
+                    return imgs[0];
+                }
+                let _stitched = imgs[0];
+                imgs.forEach((img, idx) => {
+                    if (idx) {
+                        _stitched = images.concat(_stitched, img, 'BOTTOM');
+                    }
+                });
+                return _stitched;
+            }
+        }
+    },
 };
 
-module.exports = _ext;
-module.exports.load = () => global.imagesx = _ext;
+module.exports = ext;
+module.exports.load = () => global.imagesx = ext;

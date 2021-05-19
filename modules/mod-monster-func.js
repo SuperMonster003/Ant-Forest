@@ -28,11 +28,9 @@ let ext = {
     deepCloneObject: deepCloneObject,
     equalObjects: equalObjects,
     observeToastMessage: observeToastMessage,
-    getSelector: getSelector,
     timeRecorder: timeRecorder,
     clickActionsPipeline: clickActionsPipeline,
     timedTaskTimeFlagConverter: timedTaskTimeFlagConverter,
-    baiduOcr: baiduOcr,
     setIntervalBySetTimeout: setIntervalBySetTimeout,
     classof: classof,
     stabilizer: stabilizer,
@@ -297,7 +295,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
     let _par = options || {};
     _par.no_impeded || typeof $$impeded === 'function' && $$impeded(waitForAction.name);
 
-    let $_sel = getSelector();
+    _makeSureSelObject();
 
     if (typeof timeout_or_times !== 'number') {
         timeout_or_times = Number(timeout_or_times) || 10e3;
@@ -334,7 +332,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
             return condition();
         }
         if (!Array.isArray(condition)) {
-            return $_sel.pickup(condition);
+            return $$sel.pickup(condition);
         }
         if (condition === undefined || condition === null) {
             return false;
@@ -878,9 +876,8 @@ function swipeAndShow(f, options) {
         function _chk_img() {
             if (typeof imagesx === 'object') {
                 imagesx.permit();
-            } else if (!global._$_request_screen_capture) {
+            } else {
                 images.requestScreenCapture();
-                global._$_request_screen_capture = true;
             }
 
             let _mch = images.findImage(images.captureScreen(), f);
@@ -1277,464 +1274,6 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 }
 
 /**
- * Returns a UiSelector with additional function(s)
- * @global
- * @param {Object} [options]
- * @param {boolean} [options.debug_info_flag]
- */
-function getSelector(options) {
-    let _opt = options || {};
-    let _sel = Object.create(selector());
-
-    let _sel_ext = {
-        _sel_body_pool: {},
-        _cache_pool: {},
-        /**
-         * @typedef {
-         *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|
-         *     (UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]
-         * } UiSelector$pickup$sel_body
-         * @typedef {
-         *     UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean
-         * } UiSelector$pickup$return_value
-         * @typedef {
-         *     'w'|'widget'|'w_collection'|'widget_collection'|'w_c'|'widget_c'|'wc'|'widgets'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'selstr'|'s_str'|'sel_str'|'selector_str'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string
-         * } UiSelector$pickup$res_type
-         */
-        /**
-         * Returns a selector (UiSelector) or widget (UiObject) or some attribute values
-         * If no widgets (UiObject) were found, returns null or '' or false
-         * If memory keyword was found in this session memory, use a memorized selector directly
-         * @function UiSelector$.prototype.pickup
-         * @param {UiSelector$pickup$sel_body} sel_body
-         * <br>
-         *     -- array mode 1: [selector_body: any, compass: string]
-         *     -- array mode 2: [selector_body: any, additional_sel: array|object, compass: string]
-         * @param {string} [mem_sltr_kw] - memory keyword
-         * @param {UiSelector$pickup$res_type} [res_type='widget'] -
-         * <br>
-         *     -- 'txt': available text()/desc() value or empty string
-         *     -- 'clickable': boolean value of widget.clickable()
-         *     -- 'wc': widget collection which is traversable
-         * @param {Object} [par]
-         * @param {'desc'|'text'} [par.selector_prefer='desc'] - unique selector you prefer to check first
-         * @param {boolean} [par.debug_info_flag]
-         * @example
-         * // text/desc/id('abc').findOnce();
-         * pickup('abc'); // UiObject
-         * pickup('abc', 'w'); // same as above
-         * pickup('abc', 'w', 'my_alphabet'); // with memory keyword
-         *
-         * // text/desc/id('abc');
-         * pickup('abc', 'sel', 'my_alphabet'); // UiSelector
-         *
-         * // text('abc').findOnce()
-         * pickup(text('abc'), 'w', 'my_alphabet'); // with UiObject selector body
-         *
-         * // get the string of selector
-         * pickup(/^abc.+z/, 'sel_str'); // returns 'id'|'text'|'desc'...
-         *
-         * // text/desc/id('morning').exists()
-         * pickup('morning', 'exists'); // boolean
-         *
-         * // text/desc/id('morning').findOnce().parent().parent().child(3).id()
-         * pickup(['morning', 'p2c3'], 'id');
-         *
-         * // text/desc/id('hello').findOnce().parent().child(%childCount% - 3)['text'|'desc']
-         * pickup(['hello', 's-3'], 'txt');
-         *
-         * // text/desc/id('hello').findOnce().parent().child(%indexInParent% + 2)['text'|'desc']
-         * pickup(['hello', 's>2'], 'txt');
-         *
-         * // desc('a').className(...).boundsInside(...).findOnce().parent().child(%indexInParent% + 1).clickable()
-         * pickup([desc('a').className('Button'), {boundsInside: [0, 0, 720, 1000]}, 's>1'], 'clickable', 'back_btn');
-         *
-         * // className('Button').findOnce()
-         * pickup({className: 'Button'});
-         *
-         * // w = className('Button').findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
-         * // w.parent().child(0);
-         * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s0']);
-         *
-         * // w = className('Button').findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
-         * // w.parent(w.indexInParent() - 1);
-         * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s<1']);
-         *
-         * // w = className('Button').findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
-         * // w.parent().child(w.parent().childCount() - 1);
-         * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s-1']);
-         * @returns {UiSelector$pickup$return_value}
-         */
-        pickup(sel_body, res_type, mem_sltr_kw, par) {
-            let _sel_body = Array.isArray(sel_body) ? sel_body.slice() : [sel_body];
-            let _params = Object.assign({}, _opt, par);
-            let _res_type = (res_type || '').toString();
-
-            if (!_res_type || _res_type.match(/^w(idget)?$/)) {
-                _res_type = 'widget';
-            } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
-                _res_type = 'widgets';
-            } else if (_res_type.match(/^s(el(ector)?)?$/)) {
-                _res_type = 'selector';
-            } else if (_res_type.match(/^e(xist(s)?)?$/)) {
-                _res_type = 'exists';
-            } else if (_res_type.match(/^t(xt)?$/)) {
-                _res_type = 'txt';
-            } else if (_res_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
-                _res_type = 'selector_string';
-            }
-
-            if (typeof _sel_body[1] === 'string') {
-                // take it as 'compass' variety
-                _sel_body.splice(1, 0, '');
-            }
-
-            let [_body, _addi_sel, _compass] = _sel_body;
-
-            let _sltr = _getSelector(_addi_sel);
-            /** @type {UiObject$|null} */
-            let _w = null;
-            let _wc = [];
-            if (_sltr && _sltr.toString().match(/UiObject/)) {
-                _w = _sltr;
-                if (_res_type === 'widgets') {
-                    _wc = [_sltr];
-                }
-                _sltr = null;
-            } else {
-                _w = _sltr ? _sltr.findOnce() : null;
-                if (_res_type === 'widgets') {
-                    _wc = _sltr ? _sltr.find() : [];
-                }
-            }
-
-            if (_compass) {
-                _w = _relativeWidget([_sltr || _w, _compass]);
-            }
-
-            let _res = {
-                selector: _sltr,
-                widget: _w,
-                widgets: _wc,
-                exists: !!_w,
-                get selector_string() {
-                    return _sltr ? _sltr.toString().match(/[a-z]+/)[0] : '';
-                },
-                get txt() {
-                    let _text = _w && _w.text() || '';
-                    let _desc = _w && _w.desc() || '';
-                    return _desc.length > _text.length ? _desc : _text;
-                },
-            };
-
-            if (_res_type in _res) {
-                return _res[_res_type];
-            }
-
-            try {
-                return _w ? _w[_res_type]() : null;
-            } catch (e) {
-                try {
-                    return _w[_res_type];
-                } catch (e) {
-                    debugInfo(e.message, 3);
-                    return null;
-                }
-            }
-
-            // tool function(s)//
-
-            function _getSelector(addition) {
-                let _mem_key = '_$_mem_sltr_' + mem_sltr_kw;
-                if (mem_sltr_kw) {
-                    let _mem_sltr = global[_mem_key];
-                    if (_mem_sltr) {
-                        return _mem_sltr;
-                    }
-                }
-                let _sltr = _selGenerator();
-                if (mem_sltr_kw && _sltr) {
-                    global[_mem_key] = _sltr;
-                }
-                return _sltr;
-
-                // tool function(s) //
-
-                function _selGenerator() {
-                    let _prefer = _params.selector_prefer;
-                    let _sel_keys_abbr = {
-                        bi$: 'boundsInside',
-                        c$: 'clickable',
-                        cn$: 'className',
-                    };
-
-                    if (_body instanceof com.stardust.automator.UiObject) {
-                        addition && debugInfo('UiObject无法使用额外选择器', 3);
-                        return _body;
-                    }
-
-                    if (_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                        return _chkSels(_body);
-                    }
-
-                    if (typeof _body === 'string') {
-                        return _prefer === 'text'
-                            ? _chkSels(text(_body), desc(_body), id(_body))
-                            : _chkSels(desc(_body), text(_body), id(_body));
-                    }
-
-                    if (_body instanceof RegExp) {
-                        return _prefer === 'text'
-                            ? _chkSels(textMatches(_body), descMatches(_body), idMatches(_body))
-                            : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
-                    }
-
-                    if (_body && typeof _body === 'object') {
-                        let _s = selector();
-                        Object.keys(_body).forEach((k) => {
-                            let _arg = _body[k];
-                            let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
-                            _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
-                        });
-                        return _s;
-                    }
-
-                    // tool function(s) //
-
-                    function _chkSels(sels) {
-                        let _sels = Array.isArray(sels) ? sels : [].slice.call(arguments);
-                        for (let i = 0, l = _sels.length; i < l; i += 1) {
-                            let _res = _chkSel(_sels[i]);
-                            if (_res) {
-                                return _res;
-                            }
-                        }
-                        return null;
-
-                        // tool function(s) //
-
-                        function _chkSel(sel) {
-                            if (Array.isArray(addition)) {
-                                let _o = {};
-                                _o[addition[0]] = addition[1];
-                                addition = _o;
-                            }
-                            if (addition && typeof addition === 'object') {
-                                let _keys = Object.keys(addition);
-                                for (let i = 0, l = _keys.length; i < l; i += 1) {
-                                    let _k = _keys[i];
-                                    let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
-                                    if (!sel[_sel_k]) {
-                                        debugInfo(['无效的additional_selector属性值:', _sel_k], 3);
-                                        return null;
-                                    }
-                                    let _arg = addition[_k];
-                                    _arg = Array.isArray(_arg) ? _arg : [_arg];
-                                    try {
-                                        sel = sel[_sel_k].apply(sel, _arg);
-                                    } catch (e) {
-                                        debugInfo(['无效的additional_selector选择器:', _sel_k], 3);
-                                        return null;
-                                    }
-                                }
-                            }
-                            try {
-                                return sel && sel.exists() ? sel : null;
-                            } catch (e) {
-                                return null;
-                            }
-                        }
-                    }
-                }
-            }
-
-            /**
-             * Returns a relative widget (UiObject) by compass string
-             * @returns {UiObject$|null}
-             */
-            function _relativeWidget(w_info) {
-                let _w_o = Array.isArray(w_info) ? w_info.slice() : [w_info];
-                let _w = _w_o[0];
-
-                if (typeof _w === 'undefined') {
-                    debugInfo('relativeWidget的widget参数为Undefined');
-                    return null;
-                }
-                if (_w === null || _w instanceof android.graphics.Rect) {
-                    return null;
-                }
-                if (_w instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                    if (!(_w = _w.findOnce())) {
-                        return null;
-                    }
-                }
-                if (!(_w instanceof com.stardust.automator.UiObject)) {
-                    debugInfo('未知的relativeWidget的widget参数', 3);
-                    return null;
-                }
-
-                let _compass = _w_o[1];
-                if (!_compass) {
-                    return _w;
-                }
-                _compass = _compass.toString();
-
-                // noinspection SpellCheckingInspection
-                while (_compass.length) {
-                    let _mch_p, _mch_c, _mch_s;
-                    // p2 ( .parent().parent() )
-                    // pppp  ( p4 )
-                    // p  ( p1 )
-                    // p4pppp12p  ( p4 ppp p12 p -> 4 + 3 + 12 + 1 -> p20 )
-                    if ((_mch_p = /^p[p\d]*/.exec(_compass))) {
-                        let _len = _compass.match(/p\d+|p+(?!\d)/g).reduce((a, b) => (
-                            a + (/\d/.test(b) ? +b.slice(1) : b.length)
-                        ), 0);
-                        while (_len--) {
-                            if (!(_w = _w.parent())) {
-                                return null;
-                            }
-                        }
-                        _compass = _compass.slice(_mch_p[0].length);
-                        continue;
-                    }
-                    // c0c2c0c1  ( .child(0).child(2).child(0).child(1) )
-                    // c0>2>0>1  ( .child(0).child(2).child(0).child(1) )
-                    // c-3  ( .child(childCount()-3) )
-                    // c-3c2c-1  ( .child(childCount()-3).child(2).child(childCount()-1) )
-                    // c1>2>3>0>-1>1  ( c1 c2 c3 c0 c-1 c1 )
-                    if ((_mch_c = /^c-?\d+([>c]?-?\d+)*/.exec(_compass))) {
-                        let _nums = _mch_c[0].split(/[>c]/);
-                        for (let s of _nums) {
-                            if (s.length) {
-                                let _i = +s;
-                                if (!_w) {
-                                    return null;
-                                }
-                                let _cc = _w.childCount();
-                                if (_i < 0) {
-                                    _i += _cc;
-                                }
-                                if (_i < 0 || _i >= _cc) {
-                                    return null;
-                                }
-                                _w = _w.child(_i);
-                            }
-                        }
-                        _compass = _compass.slice(_mch_c[0].length);
-                        continue;
-                    }
-                    // s2  ( .parent().child(2) )
-                    // s-2  ( .parent().child(childCount()-2) )
-                    // s>2  ( .parent().child(idxInParent()+2) )
-                    // s<2  ( .parent().child(idxInParent()-2) )
-                    if ((_mch_s = /^s[<>]?-?\d+/.exec(_compass))) {
-                        let _parent = _w.parent();
-                        if (!_parent) {
-                            return null;
-                        }
-                        let _idx = _w.indexInParent();
-                        if (!~_idx) {
-                            return null;
-                        }
-                        let _cc = _parent.childCount();
-                        let _str = _mch_s[0];
-                        let _offset = +_str.match(/-?\d+/)[0];
-                        if (~String.prototype.search.call(_str, '>')) {
-                            _idx += _offset;
-                        } else if (~String.prototype.search.call(_str, '<')) {
-                            _idx -= _offset;
-                        } else {
-                            _idx = _offset < 0 ? _offset + _cc : _offset;
-                        }
-                        if (_idx < 0 || _idx >= _cc) {
-                            return null;
-                        }
-                        _w = _parent.child(_idx);
-                        _compass = _compass.slice(_mch_s[0].length);
-                        continue;
-                    }
-
-                    throw Error('无法解析剩余罗盘参数: ' + _compass);
-                }
-
-                return _w || null;
-            }
-        },
-        /**
-         * @param {string} key
-         * @param {UiSelector$pickup$sel_body|(function(string):UiSelector$pickup$return_value)} sel_body
-         * @param {string} [mem]
-         * @example
-         * $$sel.add('list', className('ListView'));
-         *  // recommended
-         * console.log($$sel.get('list', 'bounds'));
-         * // NullPointerException may occur
-         * console.log($$sel.get('list').bounds());
-         * // traditional way, and NullPointerException may occur
-         * console.log(className('ListView').findOnce().bounds());
-         * @returns {UiSelector$}
-         */
-        add(key, sel_body, mem) {
-            this._sel_body_pool[key] = typeof sel_body === 'function'
-                ? type => sel_body(type)
-                : type => this.pickup(sel_body, type, mem || key);
-            return _sel; // to make method chaining possible
-        },
-        /**
-         * @param {string} key
-         * @param {UiSelector$pickup$res_type|'cache'} [type]
-         * @example
-         * $$sel.add('list', className('ListView'));
-         *  // recommended
-         * console.log($$sel.get('list', 'bounds'));
-         * // NullPointerException may occur
-         * console.log($$sel.get('list').bounds());
-         * // traditional way, and NullPointerException may occur
-         * console.log(className('ListView').findOnce().bounds());
-         * @throws {Error} `sel key '${key}' not set in pool`
-         * @returns {UiSelector$pickup$return_value|null}
-         */
-        get(key, type) {
-            if (!(key in this._sel_body_pool)) {
-                throw Error('Key \'' + key + '\' not set in pool');
-            }
-            let _picker = this._sel_body_pool[key];
-            return !_picker ? null : type === 'cache'
-                ? (this._cache_pool[key] = _picker('w'))
-                : _picker(type);
-        },
-        getAndCache(key) {
-            // only 'widget' type can be returned
-            return this.get(key, 'cache');
-        },
-        cache: {
-            save: (key) => _sel.getAndCache(key),
-            /** @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean|null} */
-            load(key, type) {
-                let _cache = _sel._cache_pool[key];
-                return _cache ? _sel.pickup(_cache, type) : null;
-            },
-            refresh(key) {
-                let _cache = _sel._cache_pool[key];
-                _cache && _cache.refresh();
-                this.save(key);
-            },
-            reset(key) {
-                delete _sel._cache_pool[key];
-                return _sel.getAndCache(key);
-            },
-            recycle(key) {
-                let _cache = _sel._cache_pool[key];
-                _cache && _cache.recycle();
-            },
-        },
-    };
-
-    return Object.assign(_sel, _sel_ext);
-}
-
-/**
  * Record a timestamp then get the time gap by a certain keyword
  * @global
  * @param keyword {string}
@@ -1896,7 +1435,7 @@ function clickActionsPipeline(pipeline, options) {
     _max = isNaN(_max) ? 5 : _max;
     let _max_bak = _max;
 
-    let $_sel = getSelector();
+    _makeSureSelObject();
 
     let _ppl_name = typeof _opt.name === 'string' ? _opt.name.surround('"') : '';
 
@@ -1914,7 +1453,7 @@ function clickActionsPipeline(pipeline, options) {
             if (value[2] === undefined) {
                 value[2] = function () {
                     let _idx = arr[idx + 1] ? idx + 1 : idx;
-                    return $_sel.pickup(arr[_idx][0]);
+                    return $$sel.pickup(arr[_idx][0]);
                 };
             }
             if (typeof value[2] === 'function') {
@@ -1926,7 +1465,7 @@ function clickActionsPipeline(pipeline, options) {
         .every((pipe) => {
             _max = _max_bak;
             let [_sel_body, _stg, _cond] = pipe;
-            let _w = $_sel.pickup(_sel_body);
+            let _w = $$sel.pickup(_sel_body);
             do {
                 _cond !== null && clickAction(_w, _stg);
                 sleep(_itv);
@@ -1968,239 +1507,6 @@ function timedTaskTimeFlagConverter(timeFlag) {
         return Array(7).join(' ').split(' ')
             .map((value, idx) => +info[idx] ? idx : null)
             .filter(value => value !== null);
-    }
-}
-
-/**
- * Fetching data by calling OCR API from Baidu
- * @global
- * @param {[]|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into Image
- * @param {Object} [options]
- * @param {ImageWrapper$} [options.capt_img]
- * @param {boolean} [options.no_toast_msg_flag=false]
- * @param {number} [options.fetch_times=1]
- * @param {number} [options.fetch_interval=100]
- * @param {boolean} [options.debug_info_flag=false]
- * @param {number} [options.timeout=60e3] -- no less than 5e3
- * @returns {Array|Array[]} -- [] or [[], [], []...]
- * @example
- * // @see 'mod-monster-func.js'
- * let sel = getSelector();
- * // [[], [], []] -- 3 groups of data
- * console.log(baiduOcr(sel.pickup(/\xa0/, 'widgets'), {
- *     fetch_times: 3,
- *     timeout: 12e3
- * }));
- */
-function baiduOcr(src, options) {
-    if (!src) {
-        return [];
-    }
-    let _opt = options || {};
-    let _tt = _opt.timeout || 60e3;
-    if (!+_tt || _tt < 5e3) {
-        _tt = 5e3;
-    }
-    let _tt_ts = Date.now() + _tt;
-
-    if (typeof imagesx === 'object') {
-        imagesx.permit();
-    } else if (!global._$_request_screen_capture) {
-        images.requestScreenCapture();
-        global._$_request_screen_capture = true;
-    }
-
-    let _capt = _opt.capt_img || images.captureScreen();
-
-    let _msg = '使用baiduOcr获取数据';
-    debugInfo(_msg);
-    _opt.no_toast_msg_flag || toast(_msg);
-
-    let _token = '';
-    let _max_token = 10;
-    let _thd_token = threads.start(function () {
-        while (_max_token--) {
-            try {
-                // noinspection SpellCheckingInspection
-                _token = http.get(
-                    'https://aip.baidubce.com/oauth/2.0/token' +
-                    '?grant_type=client_credentials' +
-                    '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
-                    '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj')
-                    .body.json()['access_token'];
-                debugInfo('access_token准备完毕');
-                break;
-            } catch (e) {
-                sleep(200);
-            }
-        }
-    });
-    _thd_token.join(_tt);
-
-    let _lv = +!_opt.no_toast_msg_flag;
-    let _e = s => messageAction(s, 3, _lv, 0, 'both_dash');
-    if (_max_token < 0) {
-        _e('baiduOcr获取access_token失败');
-        return [];
-    }
-    if (_thd_token.isAlive()) {
-        _e('baiduOcr获取access_token超时');
-        return [];
-    }
-
-    let _max = _opt.fetch_times || 1;
-    let _max_b = _max;
-    let _itv = _opt.fetch_interval || 300;
-    let _res = [];
-    let _thds = [];
-    let _allDead = () => _thds.every(thd => !thd.isAlive());
-
-    while (_max--) {
-        _thds.push(threads.start(function () {
-            let _max_img = 10;
-            let _img = _stitchImgs(src);
-            while (_max_img--) {
-                if (!_img || !_max_img) {
-                    return [];
-                }
-                if (!_isRecycled(_img)) {
-                    break;
-                }
-                _img = _stitchImgs(src);
-            }
-            let _cur = _max_b - _max;
-            let _suffix = _max_b > 1 ? ' [' + _cur + '] ' : '';
-            debugInfo('stitched image' + _suffix + '准备完毕');
-
-            try {
-                let _words = JSON.parse(http.post('https://aip.baidubce.com/' +
-                    'rest/2.0/ocr/v1/general_basic?access_token=' + _token, {
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                    image: images.toBase64(_img),
-                    image_type: 'BASE64',
-                }).body.string())['words_result'];
-                if (_words) {
-                    debugInfo('数据' + _suffix + '获取成功');
-                    _res.push(_words.map(val => val['words']));
-                }
-            } catch (e) {
-                if (!e.message.match(/InterruptedIOException/)) {
-                    throw (e);
-                }
-            } finally {
-                _img.recycle();
-                _img = null;
-            }
-        }));
-        sleep(_itv);
-    }
-
-    threads.start(function () {
-        while (!_allDead()) {
-            if (Date.now() >= _tt_ts) {
-                _thds.forEach(thd => thd.interrupt());
-
-                let _msg = 'baiduOcr获取数据超时';
-                let _toast = +!_opt.no_toast_msg_flag;
-                messageAction(_msg, 3, _toast, 0, 'up_dash');
-
-                if (_res.length) {
-                    messageAction('已获取的数据可能不完整', 3);
-                }
-                return showSplitLine('', 'dash');
-            }
-            sleep(500);
-        }
-    });
-
-    while (1) {
-        if (_allDead()) {
-            if (!_opt.no_toast_msg_flag && _res.length) {
-                toast('baiduOcr获取数据完毕');
-            }
-            return _max_b === 1 ? _res[0] : _res;
-        }
-        sleep(500);
-    }
-
-    // tool function(s) //
-
-    function _stitchImgs(imgs) {
-        if (!Array.isArray(imgs)) {
-            imgs = [imgs].slice();
-        }
-
-        imgs = imgs.map((img) => {
-            let type = _getType(img);
-            if (type === 'UiObject') {
-                return _widgetToImage(img);
-            }
-            if (type === 'UiObjectCollection') {
-                return _widgetsToImage(img);
-            }
-            return img;
-        }).filter(img => !!img);
-
-        return _stitchImg(imgs);
-
-        // tool function(s) //
-
-        function _getType(o) {
-            let matched = o.toString().match(/\w+(?=@)/);
-            return matched ? matched[0] : '';
-        }
-
-        function _widgetToImage(widget) {
-            try {
-                // FIXME Nov 11, 2019
-                // there is a strong possibility that `widget.bounds()` would throw an exception
-                // like 'Cannot find function bounds in object xxx.xxx.xxx.UiObject@abcde'
-                let [$1, $2, $3, $4] = widget.toString()
-                    .match(/.*boundsInScreen:.*\((\d+), (\d+) - (\d+), (\d+)\).*/)
-                    .map(x => Number(x)).slice(1);
-                return images.clip(_capt, $1, $2, $3 - $1, $4 - $2);
-            } catch (e) {
-                // Wrapped java.lang.IllegalArgumentException: x + width must be <= bitmap.width()
-            }
-        }
-
-        function _widgetsToImage(widgets) {
-            let imgs = [];
-            widgets.forEach((widget) => {
-                let img = _widgetToImage(widget);
-                img && imgs.push(img);
-            });
-            return _stitchImg(imgs);
-        }
-
-        function _stitchImg(imgs) {
-            let _isImgWrap = o => _getType(o) === 'ImageWrapper';
-            if (_isImgWrap(imgs) && !Array.isArray(imgs)) {
-                return imgs;
-            }
-            if (imgs.length === 1) {
-                return imgs[0];
-            }
-            let _stitched = imgs[0];
-            imgs.forEach((img, idx) => {
-                if (idx) {
-                    _stitched = images.concat(_stitched, img, 'BOTTOM');
-                }
-            });
-            return _stitched;
-        }
-    }
-
-    function _isRecycled(img) {
-        if (!img) {
-            return true;
-        }
-        try {
-            img.getHeight();
-            return false;
-        } catch (e) {
-            return !!e.message.match(/has been recycled/);
-        }
     }
 }
 
@@ -2286,4 +1592,15 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
     }
 
     return _old;
+}
+
+// tool function(s) //
+
+function _makeSureSelObject() {
+    if (typeof $$sel === 'undefined') {
+        if (!files.exists('./ext-a11y.js')) {
+            throw Error('Cannot locate ext-a11y.js');
+        }
+        require('./ext-a11y').load();
+    }
 }

@@ -1,11 +1,12 @@
 require('../modules/ext-global').load();
 require('../modules/ext-dialogs').load();
 require('../modules/ext-device').load();
+require('../modules/ext-storages').load();
 
 let [_dx, _dy] = [cX(0.35), cY(0.45)];
 let _rect = [cX(0.35), cY(0.45), cX(0.65), cY(0.55)];
 let [_l, _t, _r, _b] = _rect;
-let $_sto = require('../modules/mod-storage').create('af_cfg');
+let $_sto = storagesx.create('af_cfg');
 let _o = {
     rect: _rect,
     af_rect: $_sto.get('config', {}).eballs_recognition_region

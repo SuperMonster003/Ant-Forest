@@ -1,12 +1,12 @@
-updateMethodRequire();
-
-let {waitForAction, messageAction, keycode} = require('../modules/mod-monster-func');
-
+require('../modules/mod-monster-func').load([
+    'messageAction', 'waitForAction', 'keycode',
+]);
 require('../modules/ext-images').load().permit();
 require('../modules/ext-dialogs').load();
 require('../modules/ext-device').load();
+require('../modules/ext-storages').load();
 
-let storage_unlock = require('../modules/mod-storage').create('unlock');
+let storage_unlock = storagesx.create('unlock');
 let config_storage = storage_unlock.get('config', {});
 let config_default = require('../modules/mod-default-config').unlock;
 
@@ -128,30 +128,6 @@ dialogsx
     .show();
 
 // tool function(s) //
-
-function updateMethod(o, name, f) {
-    let _old = o[name];
-    o[name] = function () {
-        let _isF = f => typeof f === 'function';
-        return _isF(_old) ? _old.apply(this, _isF(f) ? f(arguments) : arguments) : _old;
-    };
-}
-
-function updateMethodRequire() {
-    updateMethod(global, 'require', (args) => {
-        let _path = args[0] || '';
-        _path = './' + _path.replace(/^([./]*)(?=\w)/, '').replace(/(\.js)*$/, '') + '.js';
-        for (let i = 0; ; i += 1) {
-            if (files.exists(_path)) {
-                return [_path];
-            }
-            if (i === 3) {
-                return [args[0]];
-            }
-            _path = '.' + _path;
-        }
-    });
-}
 
 function captSelectorInfo(title) {
     let split_line = '-'.repeat(23);

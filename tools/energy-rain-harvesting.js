@@ -4,20 +4,18 @@
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
 
+global.$$flag = Object.assign(global.$$flag || {}, {debug_info_avail: false});
+global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.AlipayGphone'});
+
 !function () {
     'use strict';
 
     let requireMod = s => require(files.path('../modules/' + s));
 
     requireMod('mod-monster-func').load();
-
-    let $$flag = {debug_info_avail: false};
-    let $$app = {alipay_pkg: 'com.eg.android.AlipayGphone'};
-    let $$sel = getSelector();
-
     requireMod('ext-app').load();
     requireMod('ext-global').load();
-    requireMod('ext-images').load();
+    requireMod('ext-images').load().permit();
     requireMod('ext-threads').load();
     requireMod('ext-device').load().getDisplay(true);
 
@@ -67,17 +65,18 @@
             return messageAction('没有"能量雨"收集机会', 3, 1, 0, 2);
         }
 
-        threadsx.start(function monitorEntButton() {
-            sleep(320);
-            while (1) {
-                clickAction(_w_ent, 'w');
-                if (waitForAction(() => !_cond_ent(), 1.2e3, 80)) {
-                    break;
-                }
+        let _max = 5;
+        sleep(320);
+        while (_max--) {
+            clickAction(_w_ent, 'w');
+            if (waitForAction(() => !_cond_ent(), 2e3, 80)) {
+                break;
             }
-        });
-
-        return imagesx.permit({no_debug_info: true});
+        }
+        if (_max < 0) {
+            return messageAction('点击"能量雨"开始按钮失败', 3, 1, 0, 2);
+        }
+        return true;
     }
 
     function monitor() {

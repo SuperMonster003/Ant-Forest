@@ -1,20 +1,36 @@
 ﻿/**
- * Implement of 'storages' with 'files' api.
- * @since Jun 19, 2020
+ * Substitution of 'storages' with 'files' api.
+ * @since May 18, 2021
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
-module.exports = {
+global.storagesx = typeof global.storagesx === 'object' ? global.storagesx : {};
+
+let _ext = {
+    /**
+     * @param {string} name
+     * @returns {Storage}
+     */
     create(name) {
         return new Storage(name);
     },
+    /**
+     * @param {string} name
+     */
     remove(name) {
         this.create(name).clear();
     },
 };
 
+module.exports = _ext;
+module.exports.load = () => global.storagesx = _ext;
+
 // constructor(s) //
 
+/**
+ * @param {string} name
+ * @constructor
+ */
 function Storage(name) {
     let _dir = files.getSdcardPath() + '/.local/';
     let _full_path = _dir + name + '.nfe';
@@ -201,6 +217,6 @@ function Storage(name) {
         console.warn(_dir + _new_file_name);
         console.warn('以供手动排查配置文件中的问题');
 
-        return Error('JSON.parse() failed in mod-storage');
+        return Error('JSON.parse() failed in ext-storages');
     }
 }

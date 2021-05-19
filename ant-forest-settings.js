@@ -16,8 +16,8 @@ let $$init = {
     check() {
         this.appx().load();
         appx.checkModules([
-            'mod-pwmap', 'mod-treasury-vault', 'mod-database',
-            'mod-monster-func', 'mod-storage', 'mod-default-config',
+            'mod-pwmap', 'mod-treasury-vault', 'mod-default-config',
+            'mod-monster-func', 'mod-database', 'ext-storages', 'ext-a11y',
             'ext-app', 'ext-files', 'ext-dialogs', 'ext-timers', 'ext-colors',
             'ext-device', 'ext-global', 'ext-threads', 'ext-ui', 'ext-images',
         ], {is_load: true});
@@ -117,12 +117,12 @@ let $$init = {
         };
 
         global.$$sto = {
-            af: require('./modules/mod-storage').create('af'),
-            af_cfg: require('./modules/mod-storage').create('af_cfg'),
-            af_blist: require('./modules/mod-storage').create('af_blist'),
-            af_flist: require('./modules/mod-storage').create('af_flist'),
-            af_bak: require('./modules/mod-storage').create('af_bak'),
-            unlock: require('./modules/mod-storage').create('unlock'),
+            af: storagesx.create('af'),
+            af_cfg: storagesx.create('af_cfg'),
+            af_blist: storagesx.create('af_blist'),
+            af_flist: storagesx.create('af_flist'),
+            af_bak: storagesx.create('af_bak'),
+            unlock: storagesx.create('unlock'),
             def: require('./modules/mod-default-config'),
             vault: require('./modules/mod-treasury-vault'),
         };
@@ -5665,9 +5665,9 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                 // tool function(s) //
 
                 function _buildContent(input) {
-                    return '支持相对路径\n' +
-                        '如"./log/"等同于"' + files.cwd() + '/log/"\n\n' +
-                        '当前输入的目录状态:\n' + _checkInput(input) + '\n';
+                    return '支持相对路径\n如' + './log/'.surround('"') +
+                        '等同于' + (files.cwd() + '/log/').surround('"') + '\n\n' +
+                        '当前输入的目录状态:' + _checkInput(input).surround('\n');
 
                     // tool function(s) //
 
@@ -7329,34 +7329,21 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                         dialogsx
                             .builds([
                                 '关于自动开启无障碍服务', 'about_auto_enable_a11y_svc',
-                                ['复制授权指令', 'hint'],
-                                ['测试权限', 'hint'],
-                                'C', 1,
+                                ['复制授权指令', 'hint'], ['测试权限', 'hint'], 'C', 1,
                             ])
                             .on('neutral', () => {
                                 let _pkg = context.packageName;
                                 let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-                                let _shell_sc = 'adb shell pm grant ' + _pkg + ' ' + _perm;
-                                setClip(_shell_sc);
+                                setClip('adb shell pm grant ' + _pkg + ' ' + _perm);
                                 toast('授权指令已复制到剪切板');
                             })
                             .on('negative', () => {
-                                let _a11y = require('./modules/ext-device').a11y;
-                                let _ts = Date.now();
-                                let _par = ['%test%' + _ts, true];
-                                _a11y.enable.apply(_a11y, _par);
-                                let _res = _a11y.disable.apply(_a11y, _par);
-                                dialogsx
-                                    .builds([
-                                        '权限测试结果', '测试' + (_res ? '' : '未') + '通过\n\n' +
-                                        '此设备' + (_res ? '拥有' : '没有') + '以下权限:\n' +
-                                        'WRITE_SECURE_SETTINGS',
-                                        0, 0, 'C', 1,
-                                    ])
-                                    .on('positive', (d) => {
-                                        d.dismiss();
-                                    })
-                                    .show();
+                                let _res = $$a11y.test();
+                                dialogsx.builds([
+                                    '权限测试结果', '测试' + (_res ? '' : '未') + '通过\n\n' +
+                                    '此设备' + (_res ? '拥有' : '没有') + '以下权限:\n' +
+                                    'WRITE_SECURE_SETTINGS', 0, 0, 'C', 1,
+                                ]).on('positive', d => d.dismiss()).show();
                             })
                             .on('positive', (d) => {
                                 d.dismiss();
