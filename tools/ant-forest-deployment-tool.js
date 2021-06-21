@@ -304,7 +304,12 @@
             // like: 'v2.0.4.zip'
             let _file_full_name = _file_name + '.' + _file_ext;
             // like: '/sdcard/.local/bak/ant-forest'
-            let _bak_path = require('../modules/mod-default-config').settings.local_backup_path;
+            let _bak_path = (() => {
+                let _sep = java.io.File.separator;
+                let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
+                files.exists(_path) || files.createWithDirs(_path + _sep);
+                return new java.io.File(_path).getAbsolutePath();
+            })();
             // like: '/sdcard/.local/bak/ant-forest/v2.0.4.zip'
             let _full_path = _bak_path + java.io.File.separator + _file_full_name;
 
@@ -475,7 +480,7 @@
                     console.warn(e.stack);
                 }
             }
-            console.warn('Both ' + _json_name + ' and ' + _main_name + ' are not exist');
+            console.warn('Both ' + _json_name + ' and ' + _main_name + ' do not exist');
             return _res;
         },
         /**

@@ -182,7 +182,7 @@ let ext = {
                 console.warn(e.stack);
             }
         }
-        console.warn('Both ' + _json_name + ' and ' + _main_name + ' are not exist');
+        console.warn('Both ' + _json_name + ' and ' + _main_name + ' do not exist');
         return _res;
     },
     /**
