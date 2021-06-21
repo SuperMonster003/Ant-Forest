@@ -2,9 +2,9 @@
     'use strict';
 
     let $$cvt = function () {
+        /** @typedef {number|string} $$cvt$src */
+        /** @typedef {string} $$cvt$init_unit */
         /**
-         * @typedef {number|string} $$cvt$src
-         * @typedef {string} $$cvt$init_unit
          * @typedef {{
          *     step?: number, potential_step?: number,
          *     space?: string|boolean, fixed?: number,
@@ -280,6 +280,17 @@
             if (version === undefined || version === null) {
                 throw Error('A version for appx.deployProject() must be defined');
             }
+            if (typeof version === 'string') {
+                version = _getVersionByTag(version);
+                if (!version) {
+                    if (global._$_get_proj_releases_interrupted) {
+                        delete global._$_get_proj_releases_interrupted;
+                        return;
+                    } else {
+                        throw Error('Cannot parse version tag for appx.deployProject()');
+                    }
+                }
+            }
             if (typeof version !== 'object') {
                 throw Error('Cannot parse version for appx.deployProject()');
             }
@@ -293,12 +304,7 @@
             // like: 'v2.0.4.zip'
             let _file_full_name = _file_name + '.' + _file_ext;
             // like: '/sdcard/.local/bak/ant-forest'
-            let _bak_path = (() => {
-                let _sep = java.io.File.separator;
-                let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
-                files.exists(_path) || files.createWithDirs(_path + _sep);
-                return new java.io.File(_path).getAbsolutePath();
-            })();
+            let _bak_path = require('../modules/mod-default-config').settings.local_backup_path;
             // like: '/sdcard/.local/bak/ant-forest/v2.0.4.zip'
             let _full_path = _bak_path + java.io.File.separator + _file_full_name;
 
@@ -328,8 +334,6 @@
                 steps: [{
                     desc: _steps.download,
                     action: (v, d) => new Promise((resolve, reject) => {
-                        let _result = null;
-                        let _error = null;
                         httpx.okhttp3Request(_url, _full_path, {
                             onStart() {
                                 let _l = _cont_len / 1024;
@@ -337,28 +341,20 @@
                                 dialogsx.setProgressNumberFormat(d, _p);
                             },
                             onDownloadProgress(o) {
-                                let _p = o.processed / 1024;
                                 o.total = Math.max(o.total, _cont_len);
                                 let _t = o.total / 1024;
+                                let _p = o.processed / 1024;
                                 dialogsx.setProgressNumberFormat(d, '%.1fKB/%.1fKB', [_p, _t]);
                                 d.setProgressData(o);
                             },
                             onDownloadSuccess(r) {
+                                resolve(r);
                                 dialogsx.clearProgressNumberFormat(d);
-                                // FIXME `resolve(r)` will make a suspension with a small possibility
-                                _result = r;
                             },
                             onDownloadFailure(e) {
-                                // FIXME `reject(e)` will make a suspension with a small possibility
-                                _error = e;
+                                reject(e);
                             },
                         }, {is_async: true});
-                        threadsx.start(function () {
-                            while (!_result && !_error) {
-                                sleep(120);
-                            }
-                            _result ? resolve(_result) : _error && reject(_error);
-                        });
                     }),
                 }, {
                     desc: _steps.decompress,
@@ -415,6 +411,22 @@
                     }),
                 }],
             }).act();
+
+            // tool function(s) //
+
+            function _getVersionByTag(tag) {
+                if (tag.match(/^(newest|latest)$/)) {
+                    return _appx.getProjectNewestRelease({show_progress_dialog: true});
+                }
+                if (tag.match(/^(newest|latest)_cared$/)) {
+                    return _appx.getProjectNewestReleaseCared({show_progress_dialog: true});
+                }
+                let _ver = null;
+                _appx.getProjectReleases({
+                    per_page: 100, show_progress_dialog: true,
+                }).some(o => (_ver = o).version_name === tag);
+                return _ver;
+            }
         },
         /**
          * @example
@@ -2182,19 +2194,13 @@
                 return _dialogsx._text._btn[text] || text;
             }
         },
-        /**
-         * Substitution of dialog.build()
-         * @returns {JsDialog$}
-         */
-        /**
-         * @typedef {string|[string, DialogsxColorTitle]} Builds$title
-         * @typedef {string|[string, DialogsxColorContent]} Builds$content
-         * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral
-         * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative
-         * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive
-         * @typedef {number|boolean} Builds$keep
-         * @typedef {number|boolean|string} Builds$checkbox
-         */
+        /** @typedef {string|[string, DialogsxColorTitle]} Builds$title */
+        /** @typedef {string|[string, DialogsxColorContent]} Builds$content */
+        /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral */
+        /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative */
+        /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive */
+        /** @typedef {number|boolean} Builds$keep */
+        /** @typedef {number|boolean|string} Builds$checkbox */
         /**
          * @param {
          *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox]|

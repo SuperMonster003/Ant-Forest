@@ -249,12 +249,16 @@ let ext = {
             _cache_pool: {},
             /**
              * @typedef {
-             *     UiSelector$|UiObject$|string|RegExp|AdditionalSelector|
-             *     (UiSelector$|UiObject$|string|RegExp|AdditionalSelector)[]
+             *     UiObject$|UiSelector$|string|RegExp|AdditionalSelector|
+             *     (UiObject$|UiSelector$|string|RegExp|AdditionalSelector)[]
              * } UiSelector$pickup$sel_body
+             */
+            /**
              * @typedef {
-             *     UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean
+             *     UiObjectCollection$|UiObject$|UiSelector$|AndroidRect$|string|boolean
              * } UiSelector$pickup$return_value
+             */
+            /**
              * @typedef {
              *     'w'|'widget'|'w_collection'|'widget_collection'|'w_c'|'widget_c'|'wc'|'widgets'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'selstr'|'s_str'|'sel_str'|'selector_str'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string
              * } UiSelector$pickup$res_type
@@ -274,9 +278,9 @@ let ext = {
              *     -- 'txt': available text()/desc() value or empty string
              *     -- 'clickable': boolean value of widget.clickable()
              *     -- 'wc': widget collection which is traversable
-             * @param {Object} [par]
-             * @param {'desc'|'text'} [par.selector_prefer='desc'] - unique selector you prefer to check first
-             * @param {boolean} [par.debug_info_flag]
+             * @param {Object} [options]
+             * @param {'desc'|'text'} [options.selector_prefer='desc'] - unique selector you prefer to check first
+             * @param {boolean} [options.debug_info_flag]
              * @example
              * // text/desc/id('abc').findOnce();
              * pickup('abc'); // UiObject
@@ -323,9 +327,9 @@ let ext = {
              * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s-1']);
              * @returns {UiSelector$pickup$return_value}
              */
-            pickup(sel_body, res_type, mem_sltr_kw, par) {
+            pickup(sel_body, res_type, mem_sltr_kw, options) {
                 let _sel_body = Array.isArray(sel_body) ? sel_body.slice() : [sel_body];
-                let _params = Object.assign({}, _opt, par);
+                let _options = Object.assign({}, _opt, options);
                 let _res_type = (res_type || '').toString();
 
                 if (!_res_type || _res_type.match(/^w(idget)?$/)) {
@@ -419,7 +423,7 @@ let ext = {
                     // tool function(s) //
 
                     function _selGenerator() {
-                        let _prefer = _params.selector_prefer;
+                        let _prefer = _options.selector_prefer;
                         let _sel_keys_abbr = {
                             bi$: 'boundsInside',
                             c$: 'clickable',
@@ -633,7 +637,6 @@ let ext = {
              * console.log($$sel.get('list').bounds());
              * // traditional way, and NullPointerException may occur
              * console.log(className('ListView').findOnce().bounds());
-             * @returns {UiSelector$}
              */
             add(key, sel_body, mem) {
                 this._sel_body_pool[key] = typeof sel_body === 'function'

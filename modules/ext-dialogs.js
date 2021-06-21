@@ -239,15 +239,14 @@ let ext = {
             return _dialogsx._text._btn[text] || text;
         }
     },
-    /**
-     * @typedef {string|[string, DialogsxColorTitle]} Builds$title
-     * @typedef {string|[string, DialogsxColorContent]} Builds$content
-     * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral
-     * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative
-     * @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive
-     * @typedef {number|boolean} Builds$keep
-     * @typedef {number|boolean|string} Builds$checkbox
-     * @typedef {
+    /** @typedef {string|[string, DialogsxColorTitle]} Builds$title */
+    /** @typedef {string|[string, DialogsxColorContent]} Builds$content */
+    /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral */
+    /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative */
+    /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive */
+    /** @typedef {number|boolean} Builds$keep */
+    /** @typedef {number|boolean|string} Builds$checkbox */
+    /** @typedef {
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox]|
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep]|
      *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive]|
@@ -256,6 +255,8 @@ let ext = {
      *     [Builds$title, Builds$content]|
      *     [Builds$title]|string
      * } Builds$Properties
+     */
+    /**
      * @typedef {DialogsBuildProperties & {
      *     disable_back?: boolean|Function,
      *     linkify?: Dialogsx$Linkify$Mask,
@@ -860,6 +861,8 @@ let ext = {
          *     onTimeout?: function(d:BuildCountdownExtendedJsDialog),
          *     onUnblock?: function(d:BuildCountdownExtendedJsDialog),
          * }} BuildCountdownExtendedBlockOptions
+         */
+        /**
          * @typedef {{
          *     act: function(): BuildCountdownExtendedJsDialog,
          *     block: function(o:BuildCountdownExtendedBlockOptions): BuildCountdownExtendedJsDialog,

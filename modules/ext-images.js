@@ -5,6 +5,15 @@ require('./ext-global').load();
 require('./ext-device').load();
 require('./ext-a11y').load();
 
+let Scalar = org.opencv.core.Scalar;
+let Rect = org.opencv.core.Rect;
+let Point = org.opencv.core.Point;
+let Core = org.opencv.core.Core;
+let Imgproc = org.opencv.imgproc.Imgproc;
+let Mat = com.stardust.autojs.core.opencv.Mat;
+let OpenCVHelper = com.stardust.autojs.core.opencv.OpenCVHelper;
+let ImageWrapper = com.stardust.autojs.core.image.ImageWrapper;
+
 let ext = {
     _has_scr_capt_permission: threads.atomic(0),
     /**
@@ -18,7 +27,7 @@ let ext = {
             'bottom': (l, r) => r.point.y - l.point.y,
         };
 
-        function _F(list) {
+        function _Result(list) {
             if (Array.isArray(list)) {
                 this.matches = list;
             } else {
@@ -32,13 +41,13 @@ let ext = {
             });
         }
 
-        _F.prototype.first = function () {
+        _Result.prototype.first = function () {
             return this.matches.length ? this.matches[0] : null;
         };
-        _F.prototype.last = function () {
+        _Result.prototype.last = function () {
             return this.matches.length ? this.matches[this.matches.length - 1] : null;
         };
-        _F.prototype.findMax = function (cmp) {
+        _Result.prototype.findMax = function (cmp) {
             if (!this.matches.length) {
                 return null;
             }
@@ -46,25 +55,25 @@ let ext = {
             this.matches.forEach(m => target = cmp(target, m) > 0 ? m : target);
             return target;
         };
-        _F.prototype.leftmost = function () {
+        _Result.prototype.leftmost = function () {
             return this.findMax(_comparators.left);
         };
-        _F.prototype.topmost = function () {
+        _Result.prototype.topmost = function () {
             return this.findMax(_comparators.top);
         };
-        _F.prototype.rightmost = function () {
+        _Result.prototype.rightmost = function () {
             return this.findMax(_comparators.right);
         };
-        _F.prototype.bottommost = function () {
+        _Result.prototype.bottommost = function () {
             return this.findMax(_comparators.bottom);
         };
-        _F.prototype.worst = function () {
+        _Result.prototype.worst = function () {
             return this.findMax((l, r) => l.similarity - r.similarity);
         };
-        _F.prototype.best = function () {
+        _Result.prototype.best = function () {
             return this.findMax((l, r) => r.similarity - l.similarity);
         };
-        _F.prototype.sortBy = function (cmp) {
+        _Result.prototype.sortBy = function (cmp) {
             let comparatorFn = null;
             if (typeof cmp == 'string') {
                 cmp.split('-').forEach(direction => {
@@ -90,13 +99,13 @@ let ext = {
             }
             let clone = this.matches.slice();
             clone.sort(comparatorFn);
-            return new _F(clone);
+            return new _Result(clone);
         };
 
-        return _F;
+        return _Result;
     })(),
     _initIfNeeded() {
-        return runtime.getImages().initOpenCvIfNeeded();
+        runtime.getImages().initOpenCvIfNeeded();
     },
     /**
      * @param {org.opencv.core.Point[]} points
@@ -120,7 +129,7 @@ let ext = {
         let y = region[1] === undefined ? 0 : region[1];
         let width = region[2] === undefined ? img.getWidth() - x : region[2];
         let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
-        let r = new org.opencv.core.Rect(x, y, width, height);
+        let r = new Rect(x, y, width, height);
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
             throw new Error('Out of region:\n' +
                 'region: ' + [x, y, width, height].join(', ').surround('[ ') + '\n' +
@@ -135,7 +144,7 @@ let ext = {
     },
     getMean(img) {
         /** @type {number[]} */
-        let _v = org.opencv.core.Core.mean(img.getMat()).val;
+        let _v = Core.mean(img.getMat()).val;
         let [R, G, B] = _v;
         let [_R, _G, _B] = [R, G, B].map(x => Number(x.toFixed(2)));
         let _arr = [_R, _G, _B];
@@ -184,6 +193,7 @@ let ext = {
      * @returns {ImageWrapper$}
      */
     capt(compress_level /* inSampleSize */) {
+        let _err = null;
         let _max = 10;
         while (_max--) {
             try {
@@ -200,12 +210,14 @@ let ext = {
                 }
                 return _copy;
             } catch (e) {
+                _err = e;
                 sleep(120 + Math.random() * 120);
             }
         }
         let _msg = '截取当前屏幕失败';
         console.error(_msg);
         toast(_msg);
+        _err !== null && console.warn(_err.message);
         exit();
     },
     /**
@@ -254,7 +266,7 @@ let ext = {
         let _adapter = !_is_pro
             ? javaImages.requestScreenCapture(_orientation)
             : javaImages.requestScreenCapture.apply(javaImages, [
-                _orientation, -1, /* width */ -1, /* height */ false, /* isAsync */
+                _orientation, /* width: */ -1, /* height: */ -1, /* isAsync: */ false,
             ].slice(0, _is_pro && app.autojs.versionName.match(/^Pro 7/) ? 3 : 4));
 
         if (ResultAdapter.wait(_adapter)) {
@@ -300,15 +312,15 @@ let ext = {
         _debugInfo('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
-            let _sltr_remember = id('com.android.systemui:id/remember');
-            let _sel_remember = () => $$sel.pickup(_sltr_remember);
-            let _rex_sure = /S(tart|TART) [Nn][Oo][Ww]|立即开始|允许/;
-            let _sel_sure = type => $$sel.pickup(_rex_sure, type);
+            /** @return {UiSelector$pickup$return_value} */
+            let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
+            /** @return {UiSelector$pickup$return_value} */
+            let _sel_sure = t => $$sel.pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/, t);
 
             if (waitForAction(_sel_sure, 4.8e3)) {
-                if (waitForAction(_sel_remember, 600)) {
+                if (waitForAction(_sel_rem, 600)) {
                     _debugInfo('勾选"不再提示"复选框');
-                    clickAction(_sel_remember(), 'w');
+                    clickAction(_sel_rem(), 'w');
                 }
                 if (waitForAction(_sel_sure, 2.4e3)) {
                     let _w = _sel_sure();
@@ -413,11 +425,11 @@ let ext = {
             }
             let _i = this.compress(img, _lv);
             let _t = this.compress(_tpl, _lv);
-            devicex.saveCurrentScreenMetrics();
-            devicex.setScreenMetricsRatio(1 / _lv);
+            devicex.screen_metrics.saveState();
+            devicex.screen_metrics.setRatio(1 / _lv);
             let _matched = images.matchTemplate(_i, _t, _options);
             imagesx.reclaim(_i, _t);
-            devicex.restoreSavedScreenMetrics();
+            devicex.screen_metrics.loadState();
             return _matched;
         })() || (_opt.not_null ? {points: []} : null);
 
@@ -531,11 +543,11 @@ let ext = {
      */
     bilateralFilter(img, d, sigma_color, sigma_space, border_type) {
         this._initIfNeeded();
-        let _mat = new com.stardust.autojs.core.opencv.Mat();
-        org.opencv.imgproc.Imgproc.bilateralFilter(
+        let _mat = new Mat();
+        Imgproc.bilateralFilter(
             img.mat, _mat,
             d || 0, sigma_color || 40, sigma_space || 20,
-            org.opencv.core.Core['BORDER_' + (border_type || 'DEFAULT')]);
+            Core['BORDER_' + (border_type || 'DEFAULT')]);
         return images.matToImage(_mat);
     },
     /**
@@ -1035,10 +1047,9 @@ let ext = {
                         return imagesx.isRipeBall(o, capt);
                     }
 
-                    /**
-                     * @typedef {EnergyBallsBasicProp & EnergyBallsExtProp} EnergyBallsMixedProp
-                     * @typedef {EnergyBallsMixedProp & {type: EnergyBallsType}} EnergyBallsInfo
-                     */
+                    /** @typedef {EnergyBallsBasicProp & EnergyBallsExtProp} EnergyBallsMixedProp */
+
+                    /** @typedef {EnergyBallsMixedProp & {type: EnergyBallsType}} EnergyBallsInfo */
                     /**
                      * @param {EnergyBallsMixedProp} o
                      * @param {EnergyBallsType} type
@@ -1217,13 +1228,6 @@ let ext = {
         let _finder_ext = {
             // compatible with Auto.js Pro versions
             findAllPointsForColor(image, color, threshold, rect) {
-                let Core = org.opencv.core.Core;
-                let Scalar = org.opencv.core.Scalar;
-                let Mat = com.stardust.autojs.core.opencv.Mat;
-                let OpenCVHelper = com.stardust.autojs.core.opencv.OpenCVHelper;
-
-                let _screen_metrics = runtime.getScreenMetrics();
-
                 let _mat_of_point = _findColorInner(image, color, threshold, rect);
                 if (_mat_of_point === null) {
                     return [];
@@ -1231,6 +1235,7 @@ let ext = {
                 let _points = _mat_of_point.toArray();
                 OpenCVHelper.release(_mat_of_point);
 
+                let _screen_metrics = runtime.getScreenMetrics();
                 if (rect !== null) {
                     for (let i = 0; i < _points.length; i++) {
                         _points[i].x = _screen_metrics.scaleX(_points[i].x + rect.x);
@@ -1300,7 +1305,7 @@ let ext = {
         let _bo = new android.graphics.BitmapFactory.Options();
         _bo.inSampleSize = Math.max(Number(compress_level) || 1, 1);
         let _bitmap = android.graphics.BitmapFactory.decodeFile(files.path(path), _bo);
-        return com.stardust.autojs.core.image.ImageWrapper.ofBitmap(_bitmap);
+        return ImageWrapper.ofBitmap(_bitmap);
     },
     /**
      * Read out the outWidth and outHeight of a local image file (without allocating the memory for its pixels)
@@ -1346,7 +1351,7 @@ let ext = {
             let _bo = new android.graphics.BitmapFactory.Options();
             _bo.inSampleSize = _lv;
             let _new_bitmap = android.graphics.BitmapFactory.decodeByteArray(_bytes, 0, _bytes.length, _bo);
-            _new_wrapper = com.stardust.autojs.core.image.ImageWrapper.ofBitmap(_new_bitmap);
+            _new_wrapper = ImageWrapper.ofBitmap(_new_bitmap);
         }
         is_recycle_img && img.recycle();
         return _new_wrapper;
@@ -1442,12 +1447,12 @@ let ext = {
             }
             let _img = this.compress(img, _lv);
             let _tpl = this.compress(template, _lv);
-            devicex.saveCurrentScreenMetrics();
-            devicex.setScreenMetricsRatio(1 / _lv);
+            devicex.screen_metrics.saveState();
+            devicex.screen_metrics.setRatio(1 / _lv);
             let _res = images.findImage(_img, _tpl, options);
             imagesx.reclaim(_img, _tpl);
-            devicex.restoreSavedScreenMetrics();
-            return _res && new org.opencv.core.Point(_res.x * _lv, _res.y * _lv);
+            devicex.screen_metrics.loadState();
+            return _res && new Point(_res.x * _lv, _res.y * _lv);
         })();
         if (_opt.is_recycle_all) {
             imagesx.reclaim(img, template);

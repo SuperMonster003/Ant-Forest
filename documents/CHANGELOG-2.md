@@ -1,6 +1,20 @@
 ******
 ### 版本历史 - 2.x
 ******
+# v2.1.3
+###### 2021/06/21
+* `修复` 森林主页出现复活能量球时无法自动收取的问题
+* `修复` 项目部署工具下载项目数据包后可能出现的假死问题 (试修)
+* `修复` 解锁功能在屏幕关闭事件触发后受到阻塞的问题
+* `修复` 解锁功能在闹钟应用前置于锁屏页面时无法工作的问题
+* `修复` 解锁功能在单次项目运行中连续使用出现的高失败率问题
+* `修复` 屏幕关闭事件触发后排行榜底部监测线程未能阻塞的问题
+* `优化` 提取devicex.screenOff()方法并优化内部逻辑
+* `优化` 解锁功能"通用PIN容器"方案优化内部执行逻辑 _[`issue #463`](https://github.com/SuperMonster003/Ant-Forest/issues/463)_
+* `优化` 截图权限申请方法的允许按钮自动点击增加兼容性 _[`issue #475`](https://github.com/SuperMonster003/Ant-Forest/issues/475)_
+* `优化` 增加屏幕方向状态管理避免横屏启动时部分截图方法异常 _[`issue #477`](https://github.com/SuperMonster003/Ant-Forest/issues/477)_ _[`#471`](https://github.com/SuperMonster003/Ant-Forest/issues/471)_ _[`#468`](https://github.com/SuperMonster003/Ant-Forest/issues/468)_
+* `优化` 能量雨收集工具优化识别条件并增加额外机会的自动处理
+
 # v2.1.2
 ###### 2021/05/19
 * `修复` 能量雨收集工具高概率出现截图权限申请失败的问题 _[`issue #467`](https://github.com/SuperMonster003/Ant-Forest/issues/467)_

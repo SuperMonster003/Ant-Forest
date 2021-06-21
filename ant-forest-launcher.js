@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since May 19, 2021
- * @version 2.1.2
+ * @since Jun 21, 2021
+ * @version 2.1.3
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -44,9 +44,10 @@ let $$init = {
         debugInfo('开发者测试日志已启用', 'Up_both_dash');
         debugInfo('设备型号: ' + device.brand + ' ' + device.product);
 
+        devicex.setUserRotationPortrait();
         devicex.getDisplay(true);
 
-        appSetter().setEngine().setTask().setParams().setBlist().setPages().setLayout().init();
+        appSetter().setTask().setBlist().setPages().setLayout().setIntent();
         accSetter().setParams().setMain();
 
         debugInfo('Auto.js版本: ' + $$app.autojs_ver_name);
@@ -104,13 +105,37 @@ let $$init = {
             ], {alter: 'union'});
 
             global.$$app = {
-                alipay_pkg: global._$_alipay_pkg,
+                developer: _unTap('434535154232343343441542000003'),
+                rl_title: _unEsc('2615FE0F0020597D53CB6392884C699C'),
+                task_name: _unEsc('8682868168EE6797').surround('"'),
                 autojs_name: appx.getAutoJsName(),
                 autojs_pkg: appx.getAutoJsPkgName(),
+                alipay_pkg: global._$_alipay_pkg,
                 autojs_ver_name: appx.getAutoJsVerName(),
                 project_ver_name: appx.getProjectLocalVerName(),
-                get cur_pkg() {
-                    return currentPackage();
+                init_scr_on: devicex.is_init_screen_on,
+                init_fg_pkg: currentPackage(),
+                engines_exec_argv: enginesx.my_engine_exec_argv,
+                cwd: enginesx.cwd,
+                cwp: enginesx.cwp,
+                local_pics_path: _getLocalPicsPath(),
+                has_root: $$flag.autojs_has_root,
+                fri_drop_by: {
+                    _pool: [],
+                    _max: 5,
+                    ic(name) {
+                        let _ctr = this._pool[name] || 0;
+                        if (_ctr === this._max) {
+                            debugInfo('发送排行榜复查停止信号');
+                            debugInfo('>已达连续好友访问最大阈值');
+                            $$flag.rl_review_stop = true;
+                        }
+                        this._pool[name] = ++_ctr;
+                    },
+                    dc(name) {
+                        let _ctr = this._pool[name] || 0;
+                        this._pool[name] = _ctr > 1 ? --_ctr : 0;
+                    },
                 },
                 get now() {
                     return new Date();
@@ -121,7 +146,88 @@ let $$init = {
                 get ts_sec() {
                     return Date.now() / 1e3 >> 0;
                 },
+                exit: (quiet) => {
+                    if (quiet !== true) {
+                        $$app.layout.closeAll();
+                        floaty.closeAll(); // just in case
+                        debugInfo('关闭所有floaty悬浮窗');
+                        if ($$app.queue.excl_tasks_all_len > 1) {
+                            debugInfo('移除当前脚本广播监听器');
+                            events.broadcast.removeAllListeners();
+                            debugInfo('发送初始屏幕开关状态广播');
+                            events.broadcast.emit('init_scr_on_state_change', $$app.init_scr_on);
+                        }
+                        messageAction($$app.task_name + '任务结束', 1, 0, 0, '2_n');
+                    }
+                    // exit() might cause ScriptInterruptedException
+                    // as $$app.exit might invoked within Promise
+                    ui.post(exit);
+                },
             };
+
+            global.$$sel.add('af', '蚂蚁森林')
+                .add('alipay_home', [/首页|Homepage/, {bi$: [0, cY(0.7), W, H]}])
+                .add('af_title', [/蚂蚁森林|Ant Forest/, {bi$: [0, 0, cX(0.4), cY(0.2)]}])
+                .add('af_home', /合种|背包|通知|攻略|任务|.*大树养成.*/)
+                .add('energy_amt', /^\s*\d+(\.\d+)?(k?g|t)\s*$/)
+                .add('rl_title', $$app.rl_title)
+                .add('rl_ent', /查看更多好友|View more friends/)
+                .add('rl_end_idt', /.*没有更多.*/)
+                .add('list', className('ListView'))
+                .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)]}])
+                .add('cover_used', /.*使用了保护罩.*/)
+                .add('wait_awhile', /.*稍等片刻.*/)
+                .add('reload_frst_page', '重新加载')
+                .add('close_btn', /关闭|Close/)
+                .add('login_btn', /登录|Log in|.*loginButton/)
+                .add('login_new_acc', /换个新账号登录|[Aa]dd [Aa]ccount/)
+                .add('login_other_acc', /换个账号登录|.*switchAccount/)
+                .add('login_other_mthd_init_pg', /其他登录方式|Other accounts/)
+                .add('login_other_mthd', /换个方式登录|.*[Ss]w.+[Ll]og.+thod/)
+                .add('login_by_code', /密码登录|Log ?in with password/)
+                .add('login_next_step', /下一步|Next|.*nextButton/)
+                .add('input_lbl_acc', /账号|Account/)
+                .add('input_lbl_code', /密码|Password/)
+                .add('switch_to_other_acc', idMatches(/.+_item_account/))
+                .add('login_err_ensure', idMatches(/.*ensure/))
+                .add('login_err_msg', (type) => {
+                    let _t = type || 'txt';
+                    return $$sel.pickup(id('com.alipay.mobile.antui:id/message'), _t)
+                        || $$sel.pickup([$$sel.get('login_err_ensure'), 'p2c0>0>0'], _t);
+                })
+                .add('acc_logged_out', new RegExp('.*('
+                    + /在其他设备登录|logged +in +on +another/.source + '|'
+                    + /.*账号于.*通过.*登录.*|account +logged +on +to/.source + ').*'));
+
+            // tool function(s) //
+
+            function _unEsc(s) {
+                return typeof String.fromCharCode === 'function'
+                    ? s.replace(/.{4}/g, $ => String.fromCharCode(parseInt($, 16)))
+                    : unescape(s.replace(/.{4}/g, '%u$&'));
+            }
+
+            function _unTap(s) {
+                // Person of Interest Season 2 Episode 2 at 00:39:03
+                // Tap code in this episode was '4442112433434433'
+                let _map = [
+                    ['A', 'B', 'C', 'D', 'E'],
+                    ['F', 'G', 'H', 'I', 'J'],
+                    ['L', 'M', 'N', 'O', 'P'],
+                    ['Q', 'R', 'S', 'T', 'U'],
+                    ['V', 'W', 'X', 'Y', 'Z'],
+                ];
+                return s.match(/../g).reduce((a, b) => {
+                    let [_row, _col] = b;
+                    return a + (+_row ? _map[--_row][--_col] : _col);
+                }, String());
+            }
+
+            function _getLocalPicsPath() {
+                let _path = files.getSdcardPath() + '/.local/pics/';
+                files.createWithDirs(_path);
+                return _path;
+            }
         }
 
         function setGlobalFlags() {
@@ -134,7 +240,7 @@ let $$init = {
             $$flag.debug_info_avail = _dbg_info_sw && _console_msg_sw;
             $$flag.show_e_result = _msg_sw && $$cfg.result_showing_switch;
 
-            let _e_argv = this.e_argv = enginesx.execArgvJs();
+            let _e_argv = $$app.engines_exec_argv;
             if (Object.size(_e_argv, {exclude: 'intent'}) > 0) {
                 if (!$$und(_e_argv.debug_info_flag)) {
                     $$flag.debug_info_avail = !!_e_argv.debug_info_flag;
@@ -158,41 +264,7 @@ let $$init = {
         }
 
         function appSetter() {
-            let _this = this;
             return {
-                setEngine() {
-                    let _e_argv = _this.e_argv;
-                    let _my_engine = engines.myEngine();
-
-                    $$app.my_engine = _my_engine;
-                    $$app.my_engine_id = _my_engine.id;
-                    $$app.my_engine_argv = _e_argv;
-                    $$app.init_scr_on = _e_argv.init_scr_on || devicex.is_init_screen_on;
-                    $$app.init_fg_pkg = _e_argv.init_fg_pkg || currentPackage();
-                    $$app.cwd = _my_engine.cwd(); // `files.cwd()` also fine
-                    $$app.cwp = _my_engine.source.toString().match(/\[remote]/)
-                        ? _my_engine.cwd() + '/ant-forest-launcher.js'
-                        : _my_engine.source.toString();
-                    $$app.exit = (quiet) => {
-                        if (quiet !== true) {
-                            $$app.layout.closeAll();
-                            floaty.closeAll(); // just in case
-                            debugInfo('关闭所有floaty悬浮窗');
-                            if ($$init.queue.queue.excl_tasks_all_len > 1) {
-                                debugInfo('移除当前脚本广播监听器');
-                                events.broadcast.removeAllListeners();
-                                debugInfo('发送初始屏幕开关状态广播');
-                                events.broadcast.emit('init_scr_on_state_change', $$app.init_scr_on);
-                            }
-                            messageAction($$app.task_name + '任务结束', 1, 0, 0, '2_n');
-                        }
-                        // exit() might cause ScriptInterruptedException
-                        // as $$app.exit might invoked within Promise
-                        ui.post(exit);
-                    };
-
-                    return this;
-                },
                 setTask() {
                     $$app.setPostponedTask = (du, if_toast) => {
                         $$flag.task_deploying || threadsx.start(function () {
@@ -238,116 +310,6 @@ let $$init = {
                     };
 
                     return this;
-                },
-                setParams() {
-                    $$app.task_name = _unEsc('8682868168EE6797').surround('"');
-                    $$app.rl_title = _unEsc('2615FE0F0020597D53CB6392884C699C');
-                    $$app.developer = _unTap('434535154232343343441542000003');
-                    $$app.local_pics_path = _getLocalPicsPath();
-                    $$app.rex_energy_amt = /^\s*\d+(\.\d+)?(k?g|t)\s*$/;
-                    $$app.has_root = $$flag.autojs_has_root;
-                    $$app.intent = {
-                        home: {
-                            url: {
-                                src: 'alipays://platformapi/startapp',
-                                query: {
-                                    saId: 20000067,
-                                    url: 'https://60000002.h5app.alipay.com/www/home.html',
-                                    __webview_options__: {
-                                        transparentTitle: 'auto', // other option(s): 'none'
-                                        backgroundColor: '-1',
-                                        appClearTop: true, // alias: 'YES'
-                                        startMultApp: true,
-                                        enableCubeView: false, // alias: 'NO'
-                                        enableScrollBar: false,
-                                    },
-                                },
-                            },
-                            packageName: $$app.alipay_pkg,
-                        },
-                        rl: {
-                            url: {
-                                src: 'alipays://platformapi/startapp',
-                                query: {
-                                    saId: 20000067,
-                                    url: 'https://60000002.h5app.alipay.com/www/listRank.html',
-                                    __webview_options__: {
-                                        transparentTitle: 'none', // other option(s): 'auto'
-                                        backgroundColor: '-1',
-                                        canPullDown: false, // alias: 'NO'
-                                        gestureBack: true, // alias: 'YES'
-                                        backBehavior: 'back', // other option(s): 'pop'
-                                        enableCubeView: false,
-                                        appClearTop: true,
-                                        startMultApp: true,
-                                        showOptionMenu: true,
-                                        enableScrollBar: false,
-                                        closeCurrentWindow: true,
-                                        defaultTitle: $$app.rl_title,
-                                    },
-                                },
-                                exclude: 'defaultTitle',
-                            },
-                            packageName: $$app.alipay_pkg,
-                        },
-                        acc_man: {
-                            data: 'alipays://platformapi/startapp?appId=20000027',
-                            packageName: $$app.alipay_pkg,
-                        },
-                        acc_login: {
-                            data: 'alipays://platformapi/startapp?appId=20000008',
-                            packageName: $$app.alipay_pkg,
-                        },
-                    };
-                    $$app.fri_drop_by = {
-                        _pool: [],
-                        _max: 5,
-                        ic(name) {
-                            let _ctr = this._pool[name] || 0;
-                            if (_ctr === this._max) {
-                                debugInfo('发送排行榜复查停止信号');
-                                debugInfo('>已达连续好友访问最大阈值');
-                                $$flag.rl_review_stop = true;
-                            }
-                            this._pool[name] = ++_ctr;
-                        },
-                        dc(name) {
-                            let _ctr = this._pool[name] || 0;
-                            this._pool[name] = _ctr > 1 ? --_ctr : 0;
-                        },
-                    };
-
-                    return this;
-
-                    // tool function(s) //
-
-                    function _unEsc(s) {
-                        return typeof String.fromCharCode === 'function'
-                            ? s.replace(/.{4}/g, $ => String.fromCharCode(parseInt($, 16)))
-                            : unescape(s.replace(/.{4}/g, '%u$&'));
-                    }
-
-                    function _unTap(s) {
-                        // Person of Interest Season 2 Episode 2 at 00:39:03
-                        // Tap code in this episode was '4442112433434433'
-                        let _map = [
-                            ['A', 'B', 'C', 'D', 'E'],
-                            ['F', 'G', 'H', 'I', 'J'],
-                            ['L', 'M', 'N', 'O', 'P'],
-                            ['Q', 'R', 'S', 'T', 'U'],
-                            ['V', 'W', 'X', 'Y', 'Z'],
-                        ];
-                        return s.match(/../g).reduce((a, b) => {
-                            let [_row, _col] = b;
-                            return a + (+_row ? _map[--_row][--_col] : _col);
-                        }, String());
-                    }
-
-                    function _getLocalPicsPath() {
-                        let _path = files.getSdcardPath() + '/.local/pics/';
-                        files.createWithDirs(_path);
-                        return _path;
-                    }
                 },
                 setBlist() {
                     $$app.blist = {
@@ -961,7 +923,7 @@ let $$init = {
                                 debugInfo(_tOut() ? '页面关闭可能未成功' : _succ);
                             },
                             isInPage() {
-                                return $$app.cur_pkg === $$app.alipay_pkg
+                                return $$app.alipay_pkg === currentPackage()
                                     || $$sel.get('rl_ent')
                                     || $$sel.get('af_home')
                                     || $$sel.get('wait_awhile');
@@ -1257,6 +1219,15 @@ let $$init = {
                             }
                         },
                     };
+
+                    if ($$app.page.autojs.spring_board.on()) {
+                        $$app.init_autojs_state = {
+                            init_fg: $$app.page.autojs.is_fg,
+                            init_home: $$app.page.autojs.is_home,
+                            init_log: $$app.page.autojs.is_log,
+                            init_settings: $$app.page.autojs.is_settings,
+                        };
+                    }
 
                     return this;
                 },
@@ -1839,58 +1810,62 @@ let $$init = {
                         });
                     }
                 },
-                init() {
-                    _setInitAutojsState();
-                    _addSelectors();
+                setIntent() {
+                    $$app.intent = {
+                        home: {
+                            url: {
+                                src: 'alipays://platformapi/startapp',
+                                query: {
+                                    saId: 20000067,
+                                    url: 'https://60000002.h5app.alipay.com/www/home.html',
+                                    __webview_options__: {
+                                        transparentTitle: 'auto', // other option(s): 'none'
+                                        backgroundColor: '-1',
+                                        appClearTop: true, // alias: 'YES'
+                                        startMultApp: true,
+                                        enableCubeView: false, // alias: 'NO'
+                                        enableScrollBar: false,
+                                    },
+                                },
+                            },
+                            packageName: $$app.alipay_pkg,
+                        },
+                        rl: {
+                            url: {
+                                src: 'alipays://platformapi/startapp',
+                                query: {
+                                    saId: 20000067,
+                                    url: 'https://60000002.h5app.alipay.com/www/listRank.html',
+                                    __webview_options__: {
+                                        transparentTitle: 'none', // other option(s): 'auto'
+                                        backgroundColor: '-1',
+                                        canPullDown: false, // alias: 'NO'
+                                        gestureBack: true, // alias: 'YES'
+                                        backBehavior: 'back', // other option(s): 'pop'
+                                        enableCubeView: false,
+                                        appClearTop: true,
+                                        startMultApp: true,
+                                        showOptionMenu: true,
+                                        enableScrollBar: false,
+                                        closeCurrentWindow: true,
+                                        defaultTitle: $$app.rl_title,
+                                    },
+                                },
+                                exclude: 'defaultTitle',
+                            },
+                            packageName: $$app.alipay_pkg,
+                        },
+                        acc_man: {
+                            data: 'alipays://platformapi/startapp?appId=20000027',
+                            packageName: $$app.alipay_pkg,
+                        },
+                        acc_login: {
+                            data: 'alipays://platformapi/startapp?appId=20000008',
+                            packageName: $$app.alipay_pkg,
+                        },
+                    };
 
-                    // tool function(s) //
-
-                    function _setInitAutojsState() {
-                        let _aj = $$app.page.autojs;
-                        if (_aj.spring_board.on()) {
-                            $$app.init_autojs_state = {
-                                init_fg: _aj.is_fg,
-                                init_home: _aj.is_home,
-                                init_log: _aj.is_log,
-                                init_settings: _aj.is_settings,
-                            };
-                        }
-                    }
-
-                    function _addSelectors() {
-                        $$sel.add('af', '蚂蚁森林')
-                            .add('alipay_home', [/首页|Homepage/, {bi$: [0, cY(0.7), W, H]}])
-                            .add('af_title', [/蚂蚁森林|Ant Forest/, {bi$: [0, 0, cX(0.4), cY(0.2)]}])
-                            .add('af_home', /合种|背包|通知|攻略|任务|.*大树养成.*/)
-                            .add('rl_title', $$app.rl_title)
-                            .add('rl_ent', /查看更多好友|View more friends/)
-                            .add('rl_end_idt', /.*没有更多.*/)
-                            .add('list', className('ListView'))
-                            .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)]}])
-                            .add('cover_used', /.*使用了保护罩.*/)
-                            .add('wait_awhile', /.*稍等片刻.*/)
-                            .add('reload_frst_page', '重新加载')
-                            .add('close_btn', /关闭|Close/)
-                            .add('login_btn', /登录|Log in|.*loginButton/)
-                            .add('login_new_acc', /换个新账号登录|[Aa]dd [Aa]ccount/)
-                            .add('login_other_acc', /换个账号登录|.*switchAccount/)
-                            .add('login_other_mthd_init_pg', /其他登录方式|Other accounts/)
-                            .add('login_other_mthd', /换个方式登录|.*[Ss]w.+[Ll]og.+thod/)
-                            .add('login_by_code', /密码登录|Log ?in with password/)
-                            .add('login_next_step', /下一步|Next|.*nextButton/)
-                            .add('input_lbl_acc', /账号|Account/)
-                            .add('input_lbl_code', /密码|Password/)
-                            .add('switch_to_other_acc', idMatches(/.+_item_account/))
-                            .add('login_err_ensure', idMatches(/.*ensure/))
-                            .add('login_err_msg', (type) => {
-                                let _t = type || 'txt';
-                                return $$sel.pickup(id('com.alipay.mobile.antui:id/message'), _t)
-                                    || $$sel.pickup([$$sel.get('login_err_ensure'), 'p2c0>0>0'], _t);
-                            })
-                            .add('acc_logged_out', new RegExp('.*('
-                                + /在其他设备登录|logged +in +on +another/.source + '|'
-                                + /.*账号于.*通过.*登录.*|account +logged +on +to/.source + ').*'));
-                    }
+                    return this;
                 },
             };
         }
@@ -2896,8 +2871,8 @@ let $$init = {
         }
     },
     queue() {
-        let _my_e = $$app.my_engine;
-        let _my_e_id = $$app.my_engine_id;
+        let _my_e = enginesx.my_engine;
+        let _my_e_id = enginesx.my_engine_id;
         let _excl_tag = 'exclusive_task';
         let _ts_tag = 'launch_timestamp';
         _my_e.setTag(_excl_tag, 'af');
@@ -2906,13 +2881,8 @@ let $$init = {
         let _b = bombSetter();
         _b.trigger() && _b.explode();
 
-        let _q = queueSetter();
+        let _q = $$app.queue = queueSetter();
         _q.trigger() && _q.monitor() && _q.queue();
-
-        Object.defineProperties(this.queue, {
-            bomb: {value: _b},
-            queue: {value: _q},
-        });
 
         return $$init;
 
@@ -2986,7 +2956,7 @@ let $$init = {
 
                     events.broadcast.on('init_scr_on_state_change', (v) => {
                         debugInfo('接收到初始屏幕开关状态广播');
-                        if (!$$init.queue.queue.excl_tasks_ahead_len) {
+                        if (!$$app.queue.excl_tasks_ahead_len) {
                             debugInfo('根据广播消息修改状态参数');
                             $$app.init_scr_on_from_broadcast = v;
                         } else {
@@ -3147,7 +3117,7 @@ let $$init = {
                     if (!$$cfg.timers_insurance_switch) {
                         return debugInfo('意外保险未开启');
                     }
-                    if ($$app.my_engine_argv.no_insurance_flag) {
+                    if ($$app.engines_exec_argv.no_insurance_flag) {
                         return debugInfo('检测到"无需保险"引擎参数');
                     }
                     let _max = $$cfg[_keys.ins_accu_max];
@@ -3257,37 +3227,25 @@ let $$init = {
                     threadsx.start(function () {
                         let _keyMsg = (e) => {
                             let _code = e.getKeyCode();
-                            let _name = android.view.KeyEvent.keyCodeToString(_code);
-                            return _name + ' (' + _code + ')';
+                            return android.view.KeyEvent.keyCodeToString(_code) +
+                                ' ' + _code.toString().surround('()');
                         };
                         events.observeKey();
                         events.setKeyInterceptionEnabled('volume_down', true);
-                        events.onceKeyDown('volume_down', function (e) {
-                            let {
-                                volDownKeyDownAppendedListener: _fx_down,
-                            } = typeof $$app === 'undefined' ? {} : $$app;
-
-                            typeof _fx_down === 'function' && _fx_down();
-
+                        events.onceKeyUp('volume_down', function (e) {
                             messageAction('强制停止当前脚本', 3, 1, 0, -1);
                             messageAction('触发按键: 音量减/VOL-', 3, 0, 1);
                             messageAction(_keyMsg(e), 3, 0, 1, 1);
-
+                            devicex.restoreUserRotationIFN();
                             $$app.monitor.insurance.reset();
                             engines.myEngine().forceStop();
                         });
                         events.setKeyInterceptionEnabled('volume_up', true);
-                        events.onceKeyDown('volume_up', function (e) {
-                            let {
-                                volUpKeyDownAppendedListener: _fx_up,
-                            } = typeof $$app === 'undefined' ? {} : $$app;
-
-                            typeof _fx_up === 'function' && _fx_up();
-
+                        events.onceKeyUp('volume_up', function (e) {
                             messageAction('强制停止所有脚本', 4, 0, 0, -1);
                             messageAction('触发按键: 音量加/VOL+', 4, 0, 1);
                             messageAction(_keyMsg(e), 4, 0, 1, 1);
-
+                            devicex.restoreUserRotationIFN();
                             $$app.monitor.insurance.reset();
                             engines.stopAllAndToast();
                         });
@@ -3703,12 +3661,11 @@ let $$init = {
                     }
                 }),
                 rl_bottom: new Monitor('排行榜底部', function () {
-                    $$impeded('排行榜底部监测线程');
-
                     /** @type {UiSelector$pickup$return_value|null} */
                     let _list_w = null, _rl_end_w = null;
 
                     while (!$$flag.rl_bottom_rch) {
+                        $$impeded('排行榜底部监测线程');
                         try {
                             return _locate() && $$link(_text).$(_height).$(_signal);
                         } catch (e /* TypeError: Cannot call method "childCount" of null */) {
@@ -3815,6 +3772,13 @@ let $$init = {
                         clickAction(_w, 'w');
                     }
                 }),
+                collect_confirm: new Monitor('立即收取', function () {
+                    while (1) {
+                        let _w = $$sel.pickup('立即收取');
+                        _w && clickAction(_w, 'w');
+                        sleep(300);
+                    }
+                }),
                 permission_allow: new Monitor('允许权限', function (tt) {
                     // occasionally, especially when Alipay was storage-cleaned or reinstalled
                     // a permission dialog (like location permission request)
@@ -3912,7 +3876,7 @@ let $$init = {
                     if (!$$cfg.message_showing_switch) {
                         return debugInfo('"消息提示"未开启');
                     }
-                    if ($$app.my_engine_argv.instant_run_flag) {
+                    if ($$app.engines_exec_argv.instant_run_flag) {
                         return debugInfo(['跳过"运行前提示"', '>检测到"立即运行"引擎参数']);
                     }
                     if ($$cfg.prompt_before_running_auto_skip) {
@@ -4055,7 +4019,7 @@ let $$init = {
         // tool function(s) //
 
         function cmdSetter() {
-            let _cmd = $$app.my_engine_argv.cmd;
+            let _cmd = $$app.engines_exec_argv.cmd;
             /**
              * @typedef {
              *     'launch_rank_list'|'get_rank_list_names'|'get_current_acc_name'
@@ -4097,7 +4061,7 @@ let $$init = {
 
                         function _getListData() {
                             let _data = [];
-                            $$sel.pickup($$app.rex_energy_amt, 'wc').slice(1).forEach((w, i) => {
+                            $$sel.get('energy_amt', 'wc').slice(1).forEach((w, i) => {
                                 let _nick = $$sel.pickup([w, 'p2c2>0>0'], 'txt');
                                 let _rank = i < 3 ? i + 1 : $$sel.pickup([w, 'p2c0>0'], 'txt');
                                 _data.push({rank_num: _rank.toString(), nickname: _nick});
@@ -4367,7 +4331,7 @@ let $$af = {
             return this;
         },
         ready() {
-            $$link(_capt).$(_display).$(_language).$(_mainAcc);
+            $$link(_capt).$(_language).$(_mainAcc);
 
             return this;
 
@@ -4381,10 +4345,6 @@ let $$af = {
                 // as capture permission will be forcibly interrupted
                 // with this thread killed in a short time (about 300ms)
                 imagesx.permit();
-            }
-
-            function _display() {
-                scrO === 0 || devicex.getDisplay(true);
             }
 
             function _language() {
@@ -4760,9 +4720,10 @@ let $$af = {
                             while (timeRecorder('monitor_own', 'L') < _tt) {
                                 _debugPageState();
                                 if ($$flag.af_home_in_page) {
+                                    let _o_arg = {fixed: true, no_debug_info: true};
                                     // ripe balls recognition will be performed
                                     // in some fixed area(s) without new captures
-                                    if (_checkRipeBalls({fixed: true})) {
+                                    if (_checkRipeBalls(_o_arg)) {
                                         break;
                                     }
                                 }
@@ -4819,8 +4780,10 @@ let $$af = {
                         };
                         if (_wb_cache.length) {
                             debugInfo('发现浇水回赠能量球');
+                            $$app.monitor.collect_confirm.start();
                             _wb_cache.forEach(_fetch);
                             _sustain();
+                            $$app.monitor.collect_confirm.interrupt();
                         }
                         if (_ctr > 0) {
                             debugInfo('收取浇水回赠能量球: ' + _ctr + '个');
@@ -6604,7 +6567,7 @@ let $$af = {
                 $$app.init_scr_on = $$app.init_scr_on_from_broadcast;
             }
 
-            if ($$init.queue.queue.excl_tasks_all_len > 1) {
+            if ($$app.queue.excl_tasks_all_len > 1) {
                 return debugInfo(['跳过关闭屏幕', '>当前存在排他性排队任务']);
             }
 
@@ -6617,252 +6580,41 @@ let $$af = {
             }
 
             $$flag.glob_e_scr_paused = true;
-            debugInfo('尝试关闭屏幕');
 
-            if (_scrOffByKeyCode()) {
-                return debugInfo('关闭屏幕成功');
-            }
-
-            let _err = e => messageAction(e.message, 4, 0, 1, 1);
-            return Promise.resolve()
-                .then(_scrOffBySetAsync)
-                .catch(_err)
-                .then(_scrOffResult);
-
-            // tool function(s) //
-
-            function _scrOffByKeyCode() {
-                debugInfo('尝试策略: 模拟电源按键');
-
-                if (!_bugModel() && !_noRootAccess()) {
-                    timeRecorder('scr_off_tt');
-                    let _code = 26;
-                    if (keycode(_code, {no_err_msg: true})) {
-                        let _et = timeRecorder('scr_off_tt', 'L', 'auto');
-                        debugInfo(['策略执行成功', '用时: ' + _et]);
-                        return true;
-                    }
-                    debugInfo(['策略执行失败', '>按键模拟失败', '>键值: ' + _code]);
-                }
-
-                // tool function(s) //
-
-                function _bugModel() {
-                    let _bug_models = [/[Mm]eizu/];
-                    return _bug_models.some((mod) => {
-                        if (device.brand.match(mod)) {
-                            debugInfo('跳过当前策略');
-                            debugInfo('>设备型号不支持KeyCode方法');
-                            debugInfo('`>设备型号: ${device.brand}`'.ts);
-                            return true;
-                        }
-                    });
-                }
-
-                function _noRootAccess() {
-                    if (!$$app.has_root) {
-                        debugInfo(['跳过当前策略', '>设备未获取Root权限']);
-                        return true;
-                    }
-                }
-            }
-
-            // by modifying android settings provider
-            function _scrOffBySetAsync() {
-                let System = android.provider.Settings.System;
-                let Global = android.provider.Settings.Global;
-                let Secure = android.provider.Settings.Secure;
-
-                let _sto = storages.create('scr_off_by_set');
-                let _scr_off_tt = System.SCREEN_OFF_TIMEOUT;
-                let _dev_set_enabl = Secure.DEVELOPMENT_SETTINGS_ENABLED;
-                let _stay_on_plug = Global.STAY_ON_WHILE_PLUGGED_IN;
-                let _ctx_reso = context.getContentResolver();
-                let _tt_k = 'SCREEN_OFF_TIMEOUT';
-                let _stay_on_k = 'STAY_ON_WHILE_PLUGGED_IN';
-                let _res = false;
-
-                debugInfo('尝试策略: 修改屏幕超时参数');
-
-                if (!System.canWrite(context)) {
-                    let _nm = 'auto.js-write-settings-permission-helper';
-                    let _path = files.path('./tools/' + _nm + '.js');
-                    let _msg = '需要"修改系统设置"权限';
-
-                    messageAction('策略执行失败', 3, 0, 0, -1);
-                    messageAction(_msg, 3, 0, 1);
-                    messageAction('可使用以下工具获得帮助支持', 3, 0, 1);
-                    messageAction(_path, 3, 0, 1, 1);
-
-                    return $$toast('关闭屏幕失败\n' + _msg, 'Long');
-                }
-
-                return Promise.resolve()
-                    .then(_initScrOffState)
-                    .then(_monScrStatAsync)
-                    .then(_restoreScrState)
-                    .catch(e => messageAction(e, 4));
-
-                // tool function(s) //
-
-                function _initScrOffState() {
-                    timeRecorder('set_provider');
-                    $$link(_toast).$(_backup).$(_listeners);
-
-                    // tool function(s) //
-
-                    function _toast() {
+            devicex.screenOff({
+                provider: {
+                    hint() {
                         if ($$flag.floaty_result_set) {
                             $$app.layout.screen_turning_off.deploy();
-                        } else {
-                            $$toast([
-                                '正在尝试关闭屏幕...', '此过程可能需要几秒钟...\n',
-                                '触摸屏幕任意区域', '或按下任意按键可终止关屏',
-                            ].join('\n'), 'Long');
                         }
-                    }
+                    },
+                    listener(brake) {
+                        events.on('key_down', function (kc) {
+                            $$flag.floaty_result_set && $$app.layout.closeAll();
+                            brake('终止屏幕关闭', '>检测到按键行为', '>键值: ' + kc);
+                        });
 
-                    function _backup() {
-                        _sto.put(_tt_k, System.getInt(_ctx_reso, _scr_off_tt, 0));
-                        _setScrOffTt(0); // screen off asap
-                        _sto.remove(_stay_on_k);
-
-                        let _aim_stay_on = 0;
-                        let _cur_stay_on = Global.getInt(_ctx_reso, _stay_on_plug, 0);
-                        let _cur_dev_enabl = Secure.getInt(_ctx_reso, _dev_set_enabl, 0);
-
-                        if (_cur_dev_enabl && _cur_stay_on) {
-                            if (_cur_stay_on !== _aim_stay_on) {
-                                if ($$flag.autojs_has_secure) {
-                                    _sto.put(_stay_on_k, _cur_stay_on);
-                                    _setStayOnStat(_aim_stay_on);
-                                } else {
-                                    debugInfo('__split_line__');
-                                    debugInfo(['当前设备开启了"充电唤醒"', '即: 充电时屏幕不会休眠'], 3);
-                                    debugInfo('充电唤醒参数: 0b' + _cur_stay_on.toString(2), 3);
-                                    debugInfo(['但设备缺少以下权限:', 'WRITE_SECURE_SETTINGS'], 3);
-                                    debugInfo(['导致某些充电情况下无法自动关屏', '如AC充电/USB充电/无线充电等'], 3);
-                                    debugInfo(['有关如何获得上述权限', '可参阅[配置工具]脚本'], 3);
-                                    debugInfo(['->[运行与安全]', '->[自动开启无障碍服务]'], 3);
-                                    debugInfo('__split_line__');
-                                }
-                            }
-                        }
-                    }
-
-                    function _listeners() {
-                        $$link(_volKeysAppend).$(_scrTouch).$(_keyPress);
-
-                        // tool function(s) //
-
-                        function _volKeysAppend() {
-                            let _f = () => {
-                                _msg('终止屏幕关闭', '>检测到音量键按键行为');
-                                _restoreScrState();
-                            };
-                            $$app.volUpKeyDownAppendedListener = _f;
-                            $$app.volDownKeyDownAppendedListener = _f;
-                        }
-
-                        function _scrTouch() {
-                            if ($$flag.floaty_result_set) {
-                                $$app.layout.fullscreen_cover.setOnClickListener(function () {
-                                    if ($$flag.cover_user_touched) {
-                                        $$flag.scr_off_intrp_by_usr = true;
-                                        _msg('终止屏幕关闭', '>检测到屏幕触碰');
-                                        $$app.layout.closeAll();
-                                    }
-                                });
-                            }
-                        }
-
-                        function _keyPress() {
-                            events.observeKey();
-                            events.on('key_down', function (kc) {
-                                if (kc !== keys.volume_up && kc !== keys.volume_down) {
-                                    $$flag.scr_off_intrp_by_usr = true;
-                                    _msg('终止屏幕关闭', '>检测到按键行为', '>键值: ' + kc);
+                        if ($$flag.floaty_result_set) {
+                            $$app.layout.fullscreen_cover.setOnClickListener(function () {
+                                if ($$flag.cover_user_touched) {
+                                    brake('终止屏幕关闭', '>检测到屏幕触碰');
+                                    $$app.layout.closeAll();
                                 }
                             });
                         }
-
-                        function _msg() {
-                            let _args = [].slice.call(arguments);
-                            let _toast_msg = _args.map(s => s.replace(/^>*/, '')).join('\n');
-                            $$toast(_toast_msg, 'Long', 'Force');
-                            debugInfo('__split_line__');
-                            debugInfo(_args);
-                            debugInfo('__split_line__');
-                        }
-                    }
-                }
-
-                function _monScrStatAsync() {
-                    return new Promise((reso) => {
-                        setIntervalBySetTimeout(_check, 200, _cond);
-
-                        // tool function(s) //
-
-                        function _check() {
-                            if (timeRecorder('set_provider', 'L') > 40e3) {
-                                debugInfo(['策略执行失败', '>等待屏幕关闭时间已达阈值'], 3);
-                                reso(_monScrStatAsync.uphold = false);
-                            }
-                            if ($$flag.scr_off_intrp_by_usr) {
-                                reso(_monScrStatAsync.uphold = false);
-                            }
-                        }
-
-                        function _cond() {
-                            if ($$F(_monScrStatAsync.uphold)) {
-                                return true;
-                            }
-                            if (!devicex.isScreenOn()) {
-                                let _et = timeRecorder('set_provider', 'L', 'auto');
-                                debugInfo(['策略执行成功', '用时: ' + _et]);
-                                reso(_res = true);
-                                return true;
-                            }
-                        }
-                    });
-                }
-
-                function _restoreScrState() {
-                    debugInfo('恢复修改前的设置参数:');
-
-                    _setScrOffTt(_sto.get(_tt_k, 120e3));
-                    _setStayOnStat(_sto.get(_stay_on_k));
-
-                    storages.remove('scr_off_by_set');
-
-                    return _res;
-                }
-
-                function _setScrOffTt(tt_value) {
-                    if (!$$und(tt_value)) {
-                        debugInfo(_tt_k + ': ' + tt_value);
-                        System.putInt(_ctx_reso, _scr_off_tt, tt_value);
-                    }
-                }
-
-                function _setStayOnStat(stat) {
-                    if (!$$und(stat) && $$flag.autojs_has_secure) {
-                        debugInfo(_stay_on_k + ': ' + stat);
-                        Global.putInt(_ctx_reso, _stay_on_plug, stat);
-                    }
-                }
-            }
-
-            function _scrOffResult(result) {
-                $$flag.scr_off_intrp_by_usr
-                    ? debugInfo('关闭屏幕操作已被中断')
-                    : debugInfo('关闭屏幕' + (result ? '成功' : '失败'));
-            }
+                    },
+                },
+            });
+        },
+        restoreRotationIFN() {
+            devicex.restoreUserRotationIFN();
         },
         exitNow: () => $$app.exit(),
         err(e) {
-            messageAction(e.message, 4, 1, 0, -1);
-            messageAction(e.stack, 4, 0, 0, 1);
+            if (!e.message.match(/InterruptedException/)) {
+                messageAction(e.message, 4, 1, 0, -1);
+                messageAction(e.stack, 4, 0, 0, 1);
+            }
             this.exitNow();
         },
     },
@@ -7024,6 +6776,7 @@ let $$af = {
         _.logBackIFN();
         Promise.all([_.showResult(), _.readyExit()])
             .then(_.scrOffIFN)
+            .then(_.restoreRotationIFN)
             .then(_.exitNow)
             .catch(_.err);
     },

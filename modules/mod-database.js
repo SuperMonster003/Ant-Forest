@@ -20,6 +20,8 @@
          *     'numeric'|'integer'|'real'|'text'|'blob'|
          *     'NUMERIC'|'INTEGER'|'REAL'|'TEXT'|'BLOB'
          * } SQLiteDataType
+         */
+        /**
          * @typedef {{
          *     name: string,
          *     type?: SQLiteDataType,
@@ -27,6 +29,8 @@
          *     not_null?: boolean,
          *     primary_key?: boolean,
          * }} SQLite$table_column
+         */
+        /**
          * @typedef {SQLite$table_column[]} SQLite$table_columns
          */
         /**

@@ -17,13 +17,17 @@ global.$$impeded = (name) => {
 
 let ext = {
     clickAction: clickAction,
+    clickAction$: _detachFromImpeded(clickAction, 2),
     waitForAction: waitForAction,
+    waitForAction$: _detachFromImpeded(waitForAction, 3),
     waitForAndClickAction: waitForAndClickAction,
     swipeAndShow: swipeAndShow,
+    swipeAndShow$: _detachFromImpeded(swipeAndShow, 1),
     swipeAndShowAndClickAction: swipeAndShowAndClickAction,
     messageAction: messageAction,
     showSplitLine: showSplitLine,
     keycode: keycode,
+    keycode$: _detachFromImpeded(keycode, 1),
     debugInfo: debugInfo,
     deepCloneObject: deepCloneObject,
     equalObjects: equalObjects,
@@ -292,8 +296,8 @@ function showSplitLine(extra, style) {
  * @returns {boolean} - whether 'condition' is met before timed out or not
  */
 function waitForAction(condition, timeout_or_times, interval, options) {
-    let _par = options || {};
-    _par.no_impeded || typeof $$impeded === 'function' && $$impeded(waitForAction.name);
+    let _opt = options || {};
+    _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(waitForAction.name);
 
     _makeSureSelObject();
 
@@ -606,44 +610,44 @@ function clickAction(o, strategy, options) {
  *     -- *DEFAULT* - take as timeout (default: 10 sec) <br>
  *     -- less than 100 - take as times
  * @param {number} [interval=300]
- * @param {Object} [click_params]
- * @param {number} [click_params.intermission=200]
- * @param {string} [click_params.click_strategy] - decide the way of click
+ * @param {Object} [click_options]
+ * @param {number} [click_options.intermission=200]
+ * @param {string} [click_options.click_strategy] - decide the way of click
  * <br>
  *     -- 'click'|*DEFAULT* - click(coord_A, coord_B); <br>
  *     -- 'press' - press(coord_A, coord_B, 1); <br>
  *     -- 'widget' - text('abc').click();
- * @param {string|function} [click_params.condition_success=()=>true]
+ * @param {string|function} [click_options.condition_success=()=>true]
  * <br>
  *     -- *DEFAULT* - () => true <br>
  *     -- /disappear(ed)?/ - (f) => !f.exists(); - disappeared from the whole screen <br>
  *     -- /disappear(ed)?.*in.?place/ - (f) => #some widget info changed#; - disappeared in place <br>
  *     -- func - (f) => func(f);
- * @param {number} [click_params.check_time_once=500]
- * @param {number} [click_params.max_check_times=0]
+ * @param {number} [click_options.check_time_once=500]
+ * @param {number} [click_options.max_check_times=0]
  * <br>
  *     -- if condition_success is specified, then default value of max_check_times will be 3 <br>
  *     --- example: (this is not usage) <br>
  *     -- while (!waitForAction(condition_success, check_time_once) && max_check_times--) ; <br>
  *     -- return max_check_times >= 0;
- * @param {number|array} [click_params.padding]
+ * @param {number|array} [click_options.padding]
  * <br>
  *     -- ['x', -10]|[-10, 0] - x=x-10; <br>
  *     -- ['y', 69]|[0, 69]|[69]|69 - y=y+69;
  * @returns {boolean} - waitForAction(...) && clickAction(...)
  */
-function waitForAndClickAction(f, timeout_or_times, interval, click_params) {
+function waitForAndClickAction(f, timeout_or_times, interval, click_options) {
     if (!(f instanceof com.stardust.autojs.core.accessibility.UiSelector)) {
         if (!(f instanceof com.stardust.automator.UiObject)) {
             messageAction('不支持的waitForAndClickAction参数:\n' + f, 8, 1);
         }
     }
-    let _par = click_params || {};
-    let _intermission = _par.intermission || 200;
-    let _strategy = _par.click_strategy;
+    let _click_opt = click_options || {};
+    let _intermission = _click_opt.intermission || 200;
+    let _strategy = _click_opt.click_strategy;
     if (waitForAction(f, timeout_or_times, interval)) {
         sleep(_intermission);
-        return clickAction(f, _strategy, _par);
+        return clickAction(f, _strategy, _click_opt);
     }
     return false;
 }
@@ -1603,4 +1607,31 @@ function _makeSureSelObject() {
         }
         require('./ext-a11y').load();
     }
+}
+
+/**
+ * Returns a function regardless of global.$$impeded
+ * @private
+ * @param {Function} fn
+ * @param {number} options_idx
+ * @return {Function}
+ */
+function _detachFromImpeded(fn, options_idx) {
+    if (typeof fn !== 'function') {
+        throw TypeError('A "fn" must be defined as a function');
+    }
+    if (typeof options_idx !== 'number') {
+        throw TypeError('A "options_idx" must be defined as a number');
+    }
+    return function () {
+        let _args = [].slice.call(arguments);
+        let _aim_par = _args[options_idx];
+        if (_aim_par === undefined) {
+            _aim_par = {no_impeded: true};
+        } else {
+            _aim_par = Object.assign(_aim_par, {no_impeded: true});
+        }
+        _args[options_idx] = _aim_par;
+        return fn.apply(null, _args);
+    };
 }

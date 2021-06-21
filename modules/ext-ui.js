@@ -69,11 +69,10 @@ let ext = {
      * @see https://developer.android.com/reference/android/app/Activity#setRequestedOrientation(int)
      */
     setRequestedOrientation(requested_orientation) {
-        if (this.makeSureUiMode()) {
-            let _k = 'SCREEN_ORIENTATION_' + requested_orientation;
-            let _activity_info_element = android.content.pm.ActivityInfo[_k];
-            activity.setRequestedOrientation(_activity_info_element);
-        }
+        this.makeSureUiMode();
+        let _k = 'SCREEN_ORIENTATION_' + requested_orientation;
+        let _activity_info_element = android.content.pm.ActivityInfo[_k];
+        activity.setRequestedOrientation(_activity_info_element);
     },
     /**
      * @param {android.widget.ImageView|android.widget.ImageView[]} view

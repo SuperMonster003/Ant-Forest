@@ -41,9 +41,9 @@
 
 ### 功能介绍
 
-收取自己能量 收取好友能量
+收取自己能量 收取好友能量  
 自动解锁 定时任务 黑名单机制  
-循环监测 任务排队 事件监测   
+循环监测 任务排队 事件监测  
 项目管理 账户功能 统计功能  
 图形化配置工具等  
 
@@ -52,7 +52,7 @@
 使用 Auto.js 软件运行 JavaScript 语言代码  
 通过 Auto.js 封装模块及安卓 API 调用  
 实现蚂蚁森林的一系列自动化智能操作  
-如自动点击/滑动/页面跳转等
+如自动点击 / 滑动 / 页面跳转等
 
 ### 工作原理
 
@@ -193,9 +193,9 @@ Auto.js 的自动操作主要基于控件与坐标
   - 项目部署工具的压缩版本
 - auto.js-write-settings-permission-helper.js
   - 辅助跳转到 Auto.js 的 "修改系统设置" 权限页面
-- energy-balls-recognition.js
+- energy-balls-recognition-inspector.js
   - 能量球识别测试工具
-- floaty-rectangle-region.js
+- energy-balls-recognition-region-config.js
   - 能量球识别范围参数配置工具
   - 首次使用点击蓝色 "帮助" 按钮获取使用方法
 - inspect-lock-screen-layout.js

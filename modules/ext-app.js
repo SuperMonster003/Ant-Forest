@@ -723,8 +723,6 @@ let ext = {
             steps: [{
                 desc: _steps.download,
                 action: (v, d) => new Promise((resolve, reject) => {
-                    let _result = null;
-                    let _error = null;
                     httpx.okhttp3Request(_url, _full_path, {
                         onStart() {
                             let _l = _cont_len / 1024;
@@ -732,26 +730,20 @@ let ext = {
                             dialogsx.setProgressNumberFormat(d, _p);
                         },
                         onDownloadProgress(o) {
-                            let _p = o.processed / 1024;
                             o.total = Math.max(o.total, _cont_len);
                             let _t = o.total / 1024;
+                            let _p = o.processed / 1024;
                             dialogsx.setProgressNumberFormat(d, '%.1fKB/%.1fKB', [_p, _t]);
                             d.setProgressData(o);
                         },
                         onDownloadSuccess(r) {
+                            resolve(r);
                             dialogsx.clearProgressNumberFormat(d);
-                            // FIXME `resolve(r)` will make a suspension with a certain possibility
-                            _result = r;
                         },
                         onDownloadFailure(e) {
-                            // FIXME `reject(e)` will make a suspension with a certain possibility
-                            _error = e;
+                            reject(e);
                         },
                     }, {is_async: true});
-                    threadsx.start(function () {
-                        waitForAction(() => _result || _error, 0, 120);
-                        _result ? resolve(_result) : _error && reject(_error);
-                    });
                 }),
             }, {
                 desc: _steps.decompress,
@@ -1035,8 +1027,6 @@ let ext = {
                         let _bak_path = require('./mod-default-config').settings.local_backup_path;
                         let _full_path = _bak_path + java.io.File.separator + _file_name + '.zip';
 
-                        let _result = null;
-                        let _error = null;
                         httpx.okhttp3Request(source, _full_path, {
                             onStart() {
                                 let _l = _cont_len / 1024;
@@ -1051,18 +1041,13 @@ let ext = {
                                 d.setProgressData(o);
                             },
                             onDownloadSuccess(r) {
+                                resolve({zip_src_file: r.downloaded_path});
                                 dialogsx.clearProgressNumberFormat(d);
-                                _result = {zip_src_file: r.downloaded_path};
                             },
                             onDownloadFailure(e) {
-                                _error = e;
+                                reject(e);
                             },
                         }, {is_async: true});
-
-                        threadsx.start(function () {
-                            waitForAction(() => _result || _error, 0, 120);
-                            _result ? resolve(_result) : _error && reject(_error);
-                        });
                     }),
                 },
             },
@@ -1072,6 +1057,7 @@ let ext = {
         if (!files.exists(source)) {
             _mode = 'server';
             if (!source.match(/^https?:\/\//)) {
+                // noinspection HttpUrlsUsage
                 source = 'http://' + source;
             }
         }
@@ -1083,8 +1069,8 @@ let ext = {
             show_min_max: true,
             onStart(v, d) {
                 _onStart();
-                dialogsx.clearProgressNumberFormat(d);
                 dialogsx.setProgressColorTheme(d, 'restore');
+                dialogsx.clearProgressNumberFormat(d);
             },
             onSuccess: _cbk.onRestoreSuccess || _cbk.onSuccess,
             onFailure: _cbk.onRestoreFailure || _cbk.onFailure,
@@ -1674,11 +1660,12 @@ let ext = {
                 console.warn(_path);
                 console.log(_dash());
                 console.warn(e.message);
+                console.warn(e.stack);
                 return true;
             }
         }).some((mod, idx, arr) => {
             let _str = '';
-            _str += '脚本无法继续|以下模块缺失或路径错误:';
+            _str += '脚本无法继续|以下模块缺失或加载失败:';
             _str += _dash().surround('|');
             arr.forEach(n => _str += '-> ' + n.surround('"'));
             _str += _dash().surround('|');
@@ -1686,7 +1673,7 @@ let ext = {
             console.log(_line());
             _str.split('|').forEach(s => console.error(s));
             console.log(_line());
-            toast('模块缺失或路径错误');
+            toast('模块缺失或加载失败');
             exit();
         });
     },
@@ -2188,8 +2175,8 @@ let ext = {
      * @returns {boolean}
      */
     kill(source, options) {
-        let _par = options || {};
-        _par.no_impeded || typeof $$impeded === 'function' && $$impeded(this.kill.name);
+        let _opt = options || {};
+        _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.kill.name);
 
         let _src = source || '';
         if (!_src) {
@@ -2205,20 +2192,20 @@ let ext = {
         }
 
         let _shell_acceptable = (
-            _par.shell_acceptable === undefined ? true : _par.shell_acceptable
+            _opt.shell_acceptable === undefined ? true : _opt.shell_acceptable
         );
         let _keycode_back_acceptable = (
-            _par.keycode_back_acceptable === undefined ? true : _par.keycode_back_acceptable
+            _opt.keycode_back_acceptable === undefined ? true : _opt.keycode_back_acceptable
         );
-        let _keycode_back_twice = _par.keycode_back_twice || false;
-        let _cond_success = _par.condition_success || (() => {
+        let _keycode_back_twice = _opt.keycode_back_twice || false;
+        let _cond_success = _opt.condition_success || (() => {
             let _cond = () => currentPackage() === _pkg_name;
             return waitForAction(() => !_cond(), 12e3) && !waitForAction(_cond, 3, 150);
         });
 
         let _shell_result = false;
         let _shell_start_ts = Date.now();
-        let _shell_max_wait_time = _par.shell_max_wait_time || 10e3;
+        let _shell_max_wait_time = _opt.shell_max_wait_time || 10e3;
         if (_shell_acceptable) {
             try {
                 _shell_result = !shell('am force-stop ' + _pkg_name, true).code;
@@ -2347,6 +2334,14 @@ let ext = {
         let _chk_perm = context.checkCallingOrSelfPermission(_perm);
         let _perm_granted = android.content.pm.PackageManager.PERMISSION_GRANTED;
         return _chk_perm === _perm_granted;
+    },
+    /**
+     * Checks if the specified app can modify system settings.
+     * @return {boolean}
+     * @see https://developer.android.com/reference/android/provider/Settings.System#canWrite(android.content.Context)
+     */
+    canWriteSystem() {
+        return android.provider.Settings.System.canWrite(context);
     },
     /**
      * Easy-to-use encapsulation for android.content.pm.PackageManager.getInstalledApplications

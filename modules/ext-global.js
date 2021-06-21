@@ -183,16 +183,22 @@ let ext = {
             if (typeof f !== 'function') {
                 throw TypeError('$$link invoked with a non-function argument');
             }
-            /** @type {'__break__'|(void|Function)} */
-            let _res = f.call(this_arg);
-            if (typeof _res === 'string' && _res === '__break__') {
-                $$link.$ = () => $$link;
-            } else {
-                $$link.$ = (f, this_arg) => $$link(f, this_arg);
-                if (_res !== $$link && typeof _res !== 'undefined') {
-                    debugInfo('fx in $$link returns non-undefined', 3);
-                    debugInfo('>name: ' + (f.name || '<anonymous>'), 3);
-                    debugInfo('>returns: ' + _res, 3);
+            try {
+                /** @type {'__break__'|(void|Function)} */
+                let _res = f.call(this_arg);
+                if (typeof _res === 'string' && _res === '__break__') {
+                    $$link.$ = () => $$link;
+                } else {
+                    $$link.$ = (f, this_arg) => $$link(f, this_arg);
+                    if (_res !== $$link && typeof _res !== 'undefined') {
+                        debugInfo('fx in $$link returns non-undefined', 3);
+                        debugInfo('>name: ' + (f.name || '<anonymous>'), 3);
+                        debugInfo('>returns: ' + _res, 3);
+                    }
+                }
+            } catch (e) {
+                if (!e.message.match(/InterruptedException/)) {
+                    throw (e);
                 }
             }
             return $$link;
@@ -232,9 +238,9 @@ let ext = {
         // tool function(s) //
 
         function _cvtBuilder() {
+            /** @typedef {number|string} $$cvt$src */
+            /** @typedef {string} $$cvt$init_unit */
             /**
-             * @typedef {number|string} $$cvt$src
-             * @typedef {string} $$cvt$init_unit
              * @typedef {{
              *     step?: number, potential_step?: number,
              *     space?: string|boolean, fixed?: number,
