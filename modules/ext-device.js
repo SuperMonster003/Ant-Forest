@@ -120,7 +120,7 @@ let ext = {
             return this.isAcPlugged() || this.isUsbPlugged() || this.isWirelessPlugged();
         },
         isPluggedAndStayingOn() {
-            let _state = this.stay_on_while_plugged_in.get(true); // 0-7
+            let _state = devicex.stay_on_while_plugged_in.get(true); // 0-7
             let _isOn = x => (x & _state) === x;
             return this.isAcPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_AC)
                 || this.isUsbPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_USB)
