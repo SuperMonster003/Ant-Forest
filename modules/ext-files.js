@@ -105,12 +105,26 @@ let ext = {
             file_name = 'ant-forest-' + file_name.slice(0, -1) + '.js';
         }
         let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + '.js'));
-        return !e_args ? app.startActivity({
-            action: 'VIEW',
-            packageName: context.packageName,
-            className: 'org.autojs.autojs.external.open.RunIntentActivity',
-            data: 'file://' + _path,
-        }) : engines.execScriptFile(_path, {arguments: e_args});
+        let _pkg = context.getPackageName();
+        if (e_args) {
+            return engines.execScriptFile(_path, {arguments: e_args});
+        }
+        try {
+            return _startActivity('org.autojs.autojs');
+        } catch (e) {
+            return _startActivity(_pkg);
+        }
+
+        // tool function(s) //
+
+        function _startActivity(override_class_name_prefix) {
+            let _class_name_prefix = override_class_name_prefix || _pkg;
+            return app.startActivity({
+                packageName: _pkg,
+                className: _class_name_prefix + '.external.open.RunIntentActivity',
+                data: 'file://' + _path,
+            });
+        }
     },
     /**
      * Zip a file or a directory by java.io.FileOutputStream
@@ -583,8 +597,11 @@ let ext = {
      * @returns {string}
      */
     getScriptDirPath() {
-        // @see R.string.default_value_script_dir_path (Default: '脚本'; en: 'Scripts')
-        return org.autojs.autojs.Pref.getScriptDirPath();
+        if (typeof org.autojs.autojs.Pref.getScriptDirPath === 'function') {
+            return org.autojs.autojs.Pref.getScriptDirPath();
+        }
+        // for Auto.js Pro versions
+        return com.stardust.autojs.core.pref.Pref.INSTANCE['getScriptDirPath']();
     },
     /**
      * @param {string} path

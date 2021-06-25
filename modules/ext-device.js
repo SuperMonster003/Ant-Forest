@@ -120,7 +120,7 @@ let ext = {
             return this.isAcPlugged() || this.isUsbPlugged() || this.isWirelessPlugged();
         },
         isPluggedAndStayingOn() {
-            let _state = devicex.stay_on_while_plugged_in.get(true); // 0-7
+            let _state = this.stay_on_while_plugged_in.get(true); // 0-7
             let _isOn = x => (x & _state) === x;
             return this.isAcPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_AC)
                 || this.isUsbPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_USB)
@@ -338,6 +338,7 @@ let ext = {
         let _opt_key_code = _opt.key_code || {};
         let _opt_provider = _opt.provider || {};
         let _flag = {};
+        let _this = this;
 
         let _msg = {
             key_code: {
@@ -465,8 +466,8 @@ let ext = {
 
             /** Wss means Write Secure Settings permission */
             function _checkWssIfNecessary() {
-                if (devicex.development_settings_enabled.verify(1)) {
-                    if (devicex.battery.isPluggedAndStayingOn()) {
+                if (_this.development_settings_enabled.verify(1)) {
+                    if (_this.battery.isPluggedAndStayingOn()) {
                         return _flag.is_plugged_n_staying_on = appx.hasSecure();
                     }
                 }
@@ -488,8 +489,9 @@ let ext = {
             }
 
             function _listeners() {
-                let _lsn = _opt_provider.listener;
-                typeof _lsn === 'function' && _lsn(_brake);
+                if (typeof _opt_provider.listener === 'function') {
+                    _opt_provider.listener(_brake);
+                }
             }
 
             function _monitor() {
@@ -501,7 +503,7 @@ let ext = {
                         debugInfo(['策略执行失败', '>等待屏幕关闭时间已达阈值'], 3);
                         break;
                     }
-                    if (!devicex.isScreenOn()) {
+                    if (!_this.isScreenOn()) {
                         let _et = timeRecorder('set_provider', 'L', 'auto');
                         _msg.successWithElapsedTime(_et);
                         _res = true;
@@ -515,14 +517,14 @@ let ext = {
         function _backup() {
             debugInfo('备份并设置相关参数:');
 
-            devicex.stay_on_while_plugged_in.clearStorage();
+            _this.stay_on_while_plugged_in.clearStorage();
 
-            devicex.screen_off_timeout.saveStorage();
-            devicex.screen_off_timeout.put(0);
+            _this.screen_off_timeout.saveStorage();
+            _this.screen_off_timeout.put(0);
 
             if (_flag.is_plugged_n_staying_on) {
-                devicex.stay_on_while_plugged_in.saveStorage();
-                devicex.stay_on_while_plugged_in.put(0x0);
+                _this.stay_on_while_plugged_in.saveStorage();
+                _this.stay_on_while_plugged_in.put(0x0);
             }
         }
 
@@ -530,8 +532,8 @@ let ext = {
             if (!_flag.is_settings_restored) {
                 debugInfo('恢复修改前的设置参数:');
 
-                devicex.screen_off_timeout.loadStorageIFN();
-                devicex.stay_on_while_plugged_in.loadStorageIFN();
+                _this.screen_off_timeout.loadStorageIFN();
+                _this.stay_on_while_plugged_in.loadStorageIFN();
 
                 _flag.is_settings_restored = true;
             }
@@ -1107,16 +1109,18 @@ let ext = {
     },
     $bind() {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
-            global._$_is_init_scr_on = ext.isScreenOn();
+            global._$_is_init_scr_on = this.isScreenOn();
         }
-        ext.is_init_screen_on = global._$_is_init_scr_on;
+        this.is_init_screen_on = global._$_is_init_scr_on;
 
         if (typeof global._$_is_init_unlk !== 'boolean') {
-            global._$_is_init_unlk = ext.isUnlocked();
+            global._$_is_init_unlk = this.isUnlocked();
         }
-        ext.is_init_unlocked = global._$_is_init_unlk;
+        this.is_init_unlocked = global._$_is_init_unlk;
 
-        global._$_display_params_inited || ext.getDisplay(global._$_display_params_inited = true);
+        if (global._$_display_params_inited !== true) {
+            this.getDisplay(global._$_display_params_inited = true);
+        }
 
         delete this.$bind;
         return this;

@@ -200,8 +200,8 @@ let ext = {
                 this.permit();
                 let _capt = images.captureScreen();
 
-                // prevent '_capt" from being auto-recycled
-                let _copy = images.copy(_capt);
+                // prevent '_capt" from being recycled automatically
+                let _copy = _capt.clone();
 
                 this.reclaim(_capt);
 

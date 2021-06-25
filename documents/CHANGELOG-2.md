@@ -1,6 +1,13 @@
 ******
 ### 版本历史 - 2.x
 ******
+
+# v2.1.4
+###### 2021/06/25
+* `修复` Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
+* `修复` Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
+* `修复` Pro版本无法获取脚本文件路径配置信息的问题
+
 # v2.1.3
 ###### 2021/06/21
 * `修复` 森林主页出现复活能量球时无法自动收取的问题

@@ -698,8 +698,7 @@ let ext = {
     setActionButtonColor(d, action, color) {
         let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
         let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
-        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
-        d.getActionButton(_action).setTextColor(_csl);
+        d.getActionButton(_action).setTextColor(_c_int);
     },
     /**
      * @param {Builds$Properties} props

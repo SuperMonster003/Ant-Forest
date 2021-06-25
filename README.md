@@ -95,7 +95,8 @@
 * 项目管理  
   · 在线更新项目  
   · 本地备份项目  
-  · 本地或服务器还原项目 · 项目更新提示/版本忽略
+  · 本地或服务器还原项目  
+  · 项目更新提示/版本忽略
 * 信息加密存储  
   · 自动生成密文字典文件  
   · 使用密文存储账户信息/解锁密码等敏感信息
@@ -113,6 +114,12 @@
 ******
 
 [comment]: <> (Version history only shows last 3 versions)
+
+# v2.1.4
+###### 2021/06/25
+* `修复` Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
+* `修复` Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
+* `修复` Pro版本无法获取脚本文件路径配置信息的问题
 
 # v2.1.3
 ###### 2021/06/21
@@ -134,16 +141,6 @@
 * `修复` 支付宝应用控件变更导致主账户登录失败的问题
 * `优化` 独立无障碍服务模块(a11y)及本地存储扩展模块(storage)
 * `优化` 截图权限申请扩展方法在多线程等极端条件下的适应性
-
-# v2.1.1
-###### 2021/05/17
-* `新增` 能量雨收集工具 (简易) (/tools/energy-rain-harvesting.js)
-* `修复` 配置工具采集排行榜列表数据功能异常 _[`issue #462`](https://github.com/SuperMonster003/Ant-Forest/issues/462)_
-* `修复` 部署工具备份本地项目时无法处理空项目目录的问题 _[`issue #459`](https://github.com/SuperMonster003/Ant-Forest/issues/459)_
-* `优化` 完善Auto.js版本异常检测列表及异常提示界面样式
-* `优化`
-  逛一逛按钮采集方案结束页面判断条件 _[`issue #391`](https://github.com/SuperMonster003/Ant-Forest/issues/391#issuecomment-840679845)_
-* `优化` 去除"修改系统设置权限"辅助工具的模块依赖 _[`issue #465`](https://github.com/SuperMonster003/Ant-Forest/issues/465)_
 
 ##### 更多版本历史可参阅
 

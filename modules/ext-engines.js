@@ -27,7 +27,10 @@ let ext = {
         return _o;
     },
     get my_engine_src_name() {
-        return this.my_engine.source.getName();
+        if (typeof this.my_engine.source.getName === 'function') {
+            return this.my_engine.source.getName();
+        }
+        return this.my_engine.source.toString().replace(/(.+?)(.(js|auto))?$/, '$1');
     },
     /**
      * @return {com.stardust.autojs.engine.ScriptEngine[]}

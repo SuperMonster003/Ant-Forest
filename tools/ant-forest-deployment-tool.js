@@ -1332,8 +1332,11 @@
          * @returns {string}
          */
         getScriptDirPath() {
-            // @see R.string.default_value_script_dir_path (Default: '脚本'; en: 'Scripts')
-            return org.autojs.autojs.Pref.getScriptDirPath();
+            if (typeof org.autojs.autojs.Pref.getScriptDirPath === 'function') {
+                return org.autojs.autojs.Pref.getScriptDirPath();
+            }
+            // for Auto.js Pro versions
+            return com.stardust.autojs.core.pref.Pref.INSTANCE['getScriptDirPath']();
         },
         /**
          * Unzip a zip file by java.io.FileOutputStream
@@ -2707,9 +2710,10 @@
          */
         setActionButtonColor(d, action, color) {
             let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
-            let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
-            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
-            d.getActionButton(_action).setTextColor(_csl);
+            if (_action instanceof com.afollestad.materialdialogs.DialogAction) {
+                let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
+                d.getActionButton(_action).setTextColor(_c_int);
+            }
         },
         /**
          * @param {JsDialog$|MaterialDialog$} d
@@ -2894,7 +2898,7 @@
                     '.' + _tar.slice(_root.length + _tar.search(_root)));
                 d.on('positive', (d) => {
                     d.dismiss();
-                    if (engines.myEngine().source.name.match(/^Ant.Forest.+er/)) {
+                    if (engines.myEngine().source.toString().match(/^Ant.Forest.+er/)) {
                         _showHintForLegacy();
                     } else {
                         _showStatement();
@@ -2929,11 +2933,19 @@
                                 d.dismiss();
                                 if (d.isPromptCheckBoxChecked()) {
                                     let _pkg = context.getPackageName();
-                                    app.startActivity({
-                                        packageName: _pkg,
-                                        className: _pkg + '.external.open.RunIntentActivity',
-                                        data: 'file://' + _tar + '/ant-forest-launcher.js',
-                                    });
+                                    let _startActivity = (override_class_name_prefix) => {
+                                        let _cls_n_pref = override_class_name_prefix || _pkg;
+                                        app.startActivity({
+                                            packageName: _pkg,
+                                            className: _cls_n_pref + '.external.open.RunIntentActivity',
+                                            data: 'file://' + _tar + '/ant-forest-launcher.js',
+                                        });
+                                    };
+                                    try {
+                                        _startActivity('org.autojs.autojs');
+                                    } catch (e) {
+                                        _startActivity(_pkg);
+                                    }
                                 }
                                 exit();
                             })
