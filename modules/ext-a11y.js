@@ -437,38 +437,38 @@ let ext = {
                      */
                     function _checkSelectors(sels) {
                         let _res = [].slice.call(arguments)
-                            .map(sel => ({sel: sel, w: _getValidUiObj(sel)}))
-                            .filter(o => o.w !== null);
+                            .map(sel => _getValidSel(sel))
+                            .filter(o => o !== null);
                         if (_res.length === 0) {
                             return null;
                         }
                         if (_res.length === 1) {
-                            return _res[0].w;
+                            return _res[0];
                         }
-                        let _uio = {};
+                        let _sels = {};
                         _res.forEach((o) => {
-                            if (/^desc(Matches)?\(/.test(o.sel.toString())) {
-                                return _uio.desc = o.w;
+                            if (/^desc(Matches)?\(/.test(o.toString())) {
+                                return _sels.desc = o;
                             }
-                            if (/^text(Matches)?\(/.test(o.sel.toString())) {
-                                return _uio.text = o.w;
+                            if (/^text(Matches)?\(/.test(o.toString())) {
+                                return _sels.text = o;
                             }
-                            if (/^id(Matches)?\(/.test(o.sel.toString())) {
-                                return _uio.id = o.w;
+                            if (/^id(Matches)?\(/.test(o.toString())) {
+                                return _sels.id = o;
                             }
                         });
-                        return _uio.desc || _uio.text
-                            ? _getTxtLen(_uio.desc) > _getTxtLen(_uio.text)
-                                ? _uio.desc : _uio.text
-                            : _uio.id || null;
+                        return _sels.desc || _sels.text
+                            ? _getTxtLen(_sels.desc) > _getTxtLen(_sels.text)
+                                ? _sels.desc : _sels.text
+                            : _sels.id || null;
 
                         // tool function(s) //
 
                         /**
                          * @param {UiSelector$} sel
-                         * @returns {UiObject$|null}
+                         * @returns {UiSelector$|null}
                          */
-                        function _getValidUiObj(sel) {
+                        function _getValidSel(sel) {
                             if (typeof addi === 'object' && addi !== null) {
                                 let _keys = Object.keys(addi);
                                 for (let i = 0, l = _keys.length; i < l; i += 1) {
@@ -491,19 +491,21 @@ let ext = {
                                 }
                             }
                             try {
-                                return sel.findOnce() || null;
+                                return sel || null;
                             } catch (e) {
                                 return null;
                             }
                         }
 
                         /**
-                         * @param {UiObject$} w
+                         * @param {UiSelector$} w
                          * @returns {number}
                          */
                         function _getTxtLen(w) {
-                            let _text = w && w.text() || '';
-                            let _desc = w && w.desc() || '';
+                            let _text = w && w.findOnce();
+                            _text = _text === null ? '' : _text.text() || '';
+                            let _desc = w && w.findOnce();
+                            _desc = _desc === null ? '' : _desc.desc() || '';
                             return Math.max(_desc.length, _text.length);
                         }
                     }
