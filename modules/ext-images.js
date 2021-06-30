@@ -39,68 +39,68 @@ let ext = {
                 }
                 return this.__points__;
             });
-        }
 
-        _Result.prototype.first = function () {
-            return this.matches.length ? this.matches[0] : null;
-        };
-        _Result.prototype.last = function () {
-            return this.matches.length ? this.matches[this.matches.length - 1] : null;
-        };
-        _Result.prototype.findMax = function (cmp) {
-            if (!this.matches.length) {
-                return null;
-            }
-            let target = this.matches[0];
-            this.matches.forEach(m => target = cmp(target, m) > 0 ? m : target);
-            return target;
-        };
-        _Result.prototype.leftmost = function () {
-            return this.findMax(_comparators.left);
-        };
-        _Result.prototype.topmost = function () {
-            return this.findMax(_comparators.top);
-        };
-        _Result.prototype.rightmost = function () {
-            return this.findMax(_comparators.right);
-        };
-        _Result.prototype.bottommost = function () {
-            return this.findMax(_comparators.bottom);
-        };
-        _Result.prototype.worst = function () {
-            return this.findMax((l, r) => l.similarity - r.similarity);
-        };
-        _Result.prototype.best = function () {
-            return this.findMax((l, r) => r.similarity - l.similarity);
-        };
-        _Result.prototype.sortBy = function (cmp) {
-            let comparatorFn = null;
-            if (typeof cmp == 'string') {
-                cmp.split('-').forEach(direction => {
-                    let buildInFn = _comparators[direction];
-                    if (!buildInFn) {
-                        throw new Error('unknown direction \'' + direction + '\' in \'' + cmp + '\'');
-                    }
-                    (function (fn) {
-                        if (comparatorFn == null) {
-                            comparatorFn = fn;
-                        } else {
-                            comparatorFn = (function (comparatorFn, fn) {
-                                return function (l, r) {
-                                    let cmpValue = comparatorFn(l, r);
-                                    return cmpValue === 0 ? fn(l, r) : cmpValue;
-                                };
-                            })(comparatorFn, fn);
+            this.first = function () {
+                return this.matches.length ? this.matches[0] : null;
+            };
+            this.last = function () {
+                return this.matches.length ? this.matches[this.matches.length - 1] : null;
+            };
+            this.findMax = function (cmp) {
+                if (!this.matches.length) {
+                    return null;
+                }
+                let target = this.matches[0];
+                this.matches.forEach(m => target = cmp(target, m) > 0 ? m : target);
+                return target;
+            };
+            this.leftmost = function () {
+                return this.findMax(_comparators.left);
+            };
+            this.topmost = function () {
+                return this.findMax(_comparators.top);
+            };
+            this.rightmost = function () {
+                return this.findMax(_comparators.right);
+            };
+            this.bottommost = function () {
+                return this.findMax(_comparators.bottom);
+            };
+            this.worst = function () {
+                return this.findMax((l, r) => l.similarity - r.similarity);
+            };
+            this.best = function () {
+                return this.findMax((l, r) => r.similarity - l.similarity);
+            };
+            this.sortBy = function (cmp) {
+                let comparatorFn = null;
+                if (typeof cmp == 'string') {
+                    cmp.split('-').forEach(direction => {
+                        let buildInFn = _comparators[direction];
+                        if (!buildInFn) {
+                            throw new Error('unknown direction \'' + direction + '\' in \'' + cmp + '\'');
                         }
-                    })(buildInFn);
-                });
-            } else {
-                comparatorFn = cmp;
-            }
-            let clone = this.matches.slice();
-            clone.sort(comparatorFn);
-            return new _Result(clone);
-        };
+                        (function (fn) {
+                            if (comparatorFn == null) {
+                                comparatorFn = fn;
+                            } else {
+                                comparatorFn = (function (comparatorFn, fn) {
+                                    return function (l, r) {
+                                        let cmpValue = comparatorFn(l, r);
+                                        return cmpValue === 0 ? fn(l, r) : cmpValue;
+                                    };
+                                })(comparatorFn, fn);
+                            }
+                        })(buildInFn);
+                    });
+                } else {
+                    comparatorFn = cmp;
+                }
+                let clone = this.matches.slice();
+                clone.sort(comparatorFn);
+                return new _Result(clone);
+            };
+        }
 
         return _Result;
     })(),
@@ -208,7 +208,9 @@ let ext = {
                 if (typeof compress_level === 'number' && compress_level > 1) {
                     return this.compress(_copy, compress_level, true);
                 }
-                return _copy;
+                if (_copy instanceof com.stardust.autojs.core.image.ImageWrapper) {
+                    return _copy;
+                }
             } catch (e) {
                 _err = e;
                 sleep(120 + Math.random() * 120);
@@ -312,9 +314,9 @@ let ext = {
         _debugInfo('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
-            /** @return {UiSelector$pickup$return_value} */
+            /** @return {SelectorPickupResult} */
             let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
-            /** @return {UiSelector$pickup$return_value} */
+            /** @return {SelectorPickupResult} */
             let _sel_sure = t => $$sel.pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/, t);
 
             if (waitForAction(_sel_sure, 4.8e3)) {

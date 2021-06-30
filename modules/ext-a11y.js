@@ -74,7 +74,14 @@ let ext = {
             this.setWindowFilter(() => true);
         },
         resetWindowFilter() {
-            this.setWindowFilter(wi => this._isLatestPackage(wi));
+            this.setWindowFilter(wi => {
+                return devicex.isLocked() || this._isLatestPackage(wi);
+            });
+        },
+    },
+    service: {
+        refreshServiceInfo() {
+            auto.service.setServiceInfo(auto.service.getServiceInfo());
         },
     },
     /**
@@ -237,50 +244,27 @@ let ext = {
     },
     /**
      * Returns a UiSelector with additional function(s)
-     * @param {Object} [options]
-     * @param {boolean} [options.debug_info_flag]
      */
-    selector(options) {
-        let _opt = options || {};
-        let _sel = Object.create(selector());
-
-        let _sel_ext = {
+    selector() {
+        let $_sel = Object.create(global.selector());
+        let $_sel_ext = {
             _sel_body_pool: {},
             _cache_pool: {},
-            /**
-             * @typedef {
-             *     UiObject$|UiSelector$|string|RegExp|AdditionalSelector|
-             *     (UiObject$|UiSelector$|string|RegExp|AdditionalSelector)[]
-             * } UiSelector$pickup$sel_body
-             */
-            /**
-             * @typedef {
-             *     UiObjectCollection$|UiObject$|UiSelector$|AndroidRect$|string|boolean
-             * } UiSelector$pickup$return_value
-             */
-            /**
-             * @typedef {
-             *     'w'|'widget'|'w_collection'|'widget_collection'|'w_c'|'widget_c'|'wc'|'widgets'|'s'|'sel'|'selector'|'e'|'exist'|'exists'|'t'|'txt'|'ss'|'sels'|'selectors'|'s_s'|'sel_s'|'selector_s'|'selstr'|'s_str'|'sel_str'|'selector_str'|'s_string'|'sel_string'|'selector_string'|UiObjectProperties|string
-             * } UiSelector$pickup$res_type
-             */
             /**
              * Returns a selector (UiSelector) or widget (UiObject) or some attribute values
              * If no widgets (UiObject) were found, returns null or '' or false
              * If memory keyword was found in this session memory, use a memorized selector directly
              * @function UiSelector$.prototype.pickup
-             * @param {UiSelector$pickup$sel_body} sel_body
+             * @param {BaseSelectorParam} selector
              * <br>
-             *     -- array mode 1: [selector_body: any, compass: string]
-             *     -- array mode 2: [selector_body: any, additional_sel: array|object, compass: string]
-             * @param {string} [mem_sltr_kw] - memory keyword
-             * @param {UiSelector$pickup$res_type} [res_type='widget'] -
+             *     -- array mode 1: [base_selector: any, compass: string]
+             *     -- array mode 2: [base_selector: any, additional_sel: array|object, compass: string]
+             * @param {SelectorResultType} [result_type='widget']
              * <br>
              *     -- 'txt': available text()/desc() value or empty string
              *     -- 'clickable': boolean value of widget.clickable()
              *     -- 'wc': widget collection which is traversable
-             * @param {Object} [options]
-             * @param {'desc'|'text'} [options.selector_prefer='desc'] - unique selector you prefer to check first
-             * @param {boolean} [options.debug_info_flag]
+             * @param {*} [default_value]
              * @example
              * // text/desc/id('abc').findOnce();
              * pickup('abc'); // UiObject
@@ -325,191 +309,237 @@ let ext = {
              * // w = className('Button').findOnce().parent().parent().parent().parent().parent().child(1).child(0).child(0).child(0).child(1);
              * // w.parent().child(w.parent().childCount() - 1);
              * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s-1']);
-             * @returns {UiSelector$pickup$return_value}
+             * @returns {SelectorPickupResult}
              */
-            pickup(sel_body, res_type, mem_sltr_kw, options) {
-                let _sel_body = Array.isArray(sel_body) ? sel_body.slice() : [sel_body];
-                let _options = Object.assign({}, _opt, options);
-                let _res_type = (res_type || '').toString();
+            pickup(selector, result_type, default_value) {
+                let _sel_data = _getSelectorData(selector);
+                /** @type {BaseSelector} */
+                let _base = _sel_data.base;
+                /** @type {AdditionalSelectorParam} */
+                let _addi = _sel_data.addi;
+                /** @type {string} */
+                let _compass = _sel_data.compass;
 
-                if (!_res_type || _res_type.match(/^w(idget)?$/)) {
-                    _res_type = 'widget';
-                } else if (_res_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
-                    _res_type = 'widgets';
-                } else if (_res_type.match(/^s(el(ector)?)?$/)) {
-                    _res_type = 'selector';
-                } else if (_res_type.match(/^e(xist(s)?)?$/)) {
-                    _res_type = 'exists';
-                } else if (_res_type.match(/^t(xt)?$/)) {
-                    _res_type = 'txt';
-                } else if (_res_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
-                    _res_type = 'selector_string';
+                let _res_type = _getResultType(result_type);
+                let _selector = _getAssembledSelector(_base, _addi);
+                let {w: _w, wc: _wc, sel: _sel} = _getWidgetInfo(_selector);
+                let _result = _getResult();
+
+                if (_result !== null && _result !== undefined) {
+                    return _result;
                 }
-
-                if (typeof _sel_body[1] === 'string') {
-                    // take it as 'compass' variety
-                    _sel_body.splice(1, 0, '');
-                }
-
-                let [_body, _addi_sel, _compass] = _sel_body;
-
-                let _sltr = _getSelector(_addi_sel);
-                /** @type {UiObject$|null} */
-                let _w = null;
-                let _wc = [];
-                if (_sltr && _sltr.toString().match(/UiObject/)) {
-                    _w = _sltr;
-                    if (_res_type === 'widgets') {
-                        _wc = [_sltr];
-                    }
-                    _sltr = null;
-                } else {
-                    _w = _sltr ? _sltr.findOnce() : null;
-                    if (_res_type === 'widgets') {
-                        _wc = _sltr ? _sltr.find() : [];
-                    }
-                }
-
-                if (_compass) {
-                    _w = _relativeWidget([_sltr || _w, _compass]);
-                }
-
-                let _res = {
-                    selector: _sltr,
-                    widget: _w,
-                    widgets: _wc,
-                    exists: !!_w,
-                    get selector_string() {
-                        return _sltr ? _sltr.toString().match(/[a-z]+/)[0] : '';
-                    },
-                    get txt() {
-                        let _text = _w && _w.text() || '';
-                        let _desc = _w && _w.desc() || '';
-                        return _desc.length > _text.length ? _desc : _text;
-                    },
-                };
-
-                if (_res_type in _res) {
-                    return _res[_res_type];
-                }
-
-                try {
-                    return _w ? _w[_res_type]() : null;
-                } catch (e) {
-                    try {
-                        return _w[_res_type];
-                    } catch (e) {
-                        console.warn(e.message);
-                        return null;
-                    }
-                }
+                return default_value === undefined ? null : default_value;
 
                 // tool function(s)//
 
-                function _getSelector(addition) {
-                    let _mem_key = '_$_mem_sltr_' + mem_sltr_kw;
-                    if (mem_sltr_kw) {
-                        let _mem_sltr = global[_mem_key];
-                        if (_mem_sltr) {
-                            return _mem_sltr;
-                        }
+                function _getSelectorData(o) {
+                    let _a = Array.isArray(o) ? o.slice() : [o];
+                    if (typeof _a[1] === 'string') {
+                        // take it as 'compass' variable
+                        // _a: [base_sel, addi_sel: null, compass]
+                        _a.splice(1, 0, null);
                     }
-                    let _sltr = _selGenerator();
-                    if (mem_sltr_kw && _sltr) {
-                        global[_mem_key] = _sltr;
+                    let [_base_sel, _addi_sel, _compass] = _a;
+                    if (typeof _base_sel === 'boolean'
+                        || _base_sel instanceof Array
+                        || _base_sel instanceof android.graphics.Rect
+                    ) (_base_sel = null);
+                    return {base: _base_sel, addi: _addi_sel, compass: _compass};
+                }
+
+                /**
+                 * @param {SelectorResultType} t
+                 * @returns {'widgets'|'selector'|'exists'|'txt'|'selector_name'|'widget'|'point'|'points'|*}
+                 */
+                function _getResultType(t) {
+                    let _type = t ? t.toString() : null;
+                    if (_type === null || _type.match(/^w(idget)?$/)) {
+                        return 'widget';
                     }
-                    return _sltr;
+                    if (_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
+                        return 'widgets';
+                    }
+                    if (_type.match(/^t(xt)?$/)) {
+                        return 'txt';
+                    }
+                    if (_type.match(/^s(el(ector)?)?$/)) {
+                        return 'selector';
+                    }
+                    if (_type.match(/^e(xist(s)?)?$/)) {
+                        return 'exists';
+                    }
+                    if (_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
+                        return 'selector_name';
+                    }
+                    if (_type.match(/^p(oin)?ts?$/)) {
+                        return _type.indexOf('s') !== -1 ? 'points' : 'point';
+                    }
+                    return _type;
+                }
+
+                /**
+                 * @param {string} type
+                 * @returns {boolean}
+                 */
+                function _isArrResType(type) {
+                    return !!type.match(/^(widgets|points)$/);
+                }
+
+                /**
+                 * @param {BaseSelectorParam} base
+                 * @param {AdditionalSelectorParam} addi
+                 * @returns {UiObject$|UiSelector$|null}
+                 */
+                function _getAssembledSelector(base, addi) {
+                    /** @see {AdditionalSelectorAbbr} */
+                    let _keys_abbr = {
+                        bi$: 'boundsInside',
+                        c$: 'clickable',
+                        cn$: 'className',
+                    };
+
+                    if (base === null || base === undefined) {
+                        return null;
+                    }
+
+                    if (base instanceof com.stardust.automator.UiObject) {
+                        addi && console.warn('UiObject无法使用额外选择器');
+                        return base;
+                    }
+
+                    if (base instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                        return _checkSelectors(base);
+                    }
+
+                    if (typeof base === 'string' || typeof base === 'number') {
+                        return _checkSelectors(desc(base), text(base), id(base));
+                    }
+
+                    if (base instanceof RegExp) {
+                        return _checkSelectors(descMatches(base), textMatches(base), idMatches(base));
+                    }
+
+                    if (typeof base === 'object') {
+                        let _s = global.selector();
+                        Object.keys(base).forEach((k) => {
+                            let _arg = base[k];
+                            let _k = k in _keys_abbr ? _keys_abbr[k] : k;
+                            _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
+                        });
+                        return _s;
+                    }
 
                     // tool function(s) //
 
-                    function _selGenerator() {
-                        let _prefer = _options.selector_prefer;
-                        let _sel_keys_abbr = {
-                            bi$: 'boundsInside',
-                            c$: 'clickable',
-                            cn$: 'className',
-                        };
-
-                        if (_body instanceof com.stardust.automator.UiObject) {
-                            addition && console.warn('UiObject无法使用额外选择器');
-                            return _body;
+                    /**
+                     * @param {...UiSelector$} sels
+                     * @returns {UiObject$|null}
+                     */
+                    function _checkSelectors(sels) {
+                        let _res = [].slice.call(arguments)
+                            .map(sel => ({sel: sel, w: _getValidUiObj(sel)}))
+                            .filter(o => o.w !== null);
+                        if (_res.length === 0) {
+                            return null;
                         }
-
-                        if (_body instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                            return _chkSels(_body);
+                        if (_res.length === 1) {
+                            return _res[0].w;
                         }
-
-                        if (typeof _body === 'string') {
-                            return _prefer === 'text'
-                                ? _chkSels(text(_body), desc(_body), id(_body))
-                                : _chkSels(desc(_body), text(_body), id(_body));
-                        }
-
-                        if (_body instanceof RegExp) {
-                            return _prefer === 'text'
-                                ? _chkSels(textMatches(_body), descMatches(_body), idMatches(_body))
-                                : _chkSels(descMatches(_body), textMatches(_body), idMatches(_body));
-                        }
-
-                        if (_body && typeof _body === 'object') {
-                            let _s = selector();
-                            Object.keys(_body).forEach((k) => {
-                                let _arg = _body[k];
-                                let _k = k in _sel_keys_abbr ? _sel_keys_abbr[k] : k;
-                                _s = _s[_k].apply(_s, Array.isArray(_arg) ? _arg : [_arg]);
-                            });
-                            return _s;
-                        }
+                        let _uio = {};
+                        _res.forEach((o) => {
+                            if (/^desc(Matches)?\(/.test(o.sel.toString())) {
+                                return _uio.desc = o.w;
+                            }
+                            if (/^text(Matches)?\(/.test(o.sel.toString())) {
+                                return _uio.text = o.w;
+                            }
+                            if (/^id(Matches)?\(/.test(o.sel.toString())) {
+                                return _uio.id = o.w;
+                            }
+                        });
+                        return _uio.desc || _uio.text
+                            ? _getTxtLen(_uio.desc) > _getTxtLen(_uio.text)
+                                ? _uio.desc : _uio.text
+                            : _uio.id || null;
 
                         // tool function(s) //
 
-                        function _chkSels(sels) {
-                            let _sels = Array.isArray(sels) ? sels : [].slice.call(arguments);
-                            for (let i = 0, l = _sels.length; i < l; i += 1) {
-                                let _res = _chkSel(_sels[i]);
-                                if (_res) {
-                                    return _res;
-                                }
-                            }
-                            return null;
-
-                            // tool function(s) //
-
-                            function _chkSel(sel) {
-                                if (Array.isArray(addition)) {
-                                    let _o = {};
-                                    _o[addition[0]] = addition[1];
-                                    addition = _o;
-                                }
-                                if (addition && typeof addition === 'object') {
-                                    let _keys = Object.keys(addition);
-                                    for (let i = 0, l = _keys.length; i < l; i += 1) {
-                                        let _k = _keys[i];
-                                        let _sel_k = _k in _sel_keys_abbr ? _sel_keys_abbr[_k] : _k;
-                                        if (!sel[_sel_k]) {
-                                            console.warn('无效的additional_selector属性值:');
-                                            console.warn(_sel_k);
-                                            return null;
-                                        }
-                                        let _arg = addition[_k];
+                        /**
+                         * @param {UiSelector$} sel
+                         * @returns {UiObject$|null}
+                         */
+                        function _getValidUiObj(sel) {
+                            if (typeof addi === 'object' && addi !== null) {
+                                let _keys = Object.keys(addi);
+                                for (let i = 0, l = _keys.length; i < l; i += 1) {
+                                    let _k = _keys[i];
+                                    let _sel_k = _k in _keys_abbr ? _keys_abbr[_k] : _k;
+                                    if (!sel[_sel_k]) {
+                                        console.warn('无效的additional_selector属性值:');
+                                        console.warn(_sel_k);
+                                        return null;
+                                    }
+                                    try {
+                                        let _arg = addi[_k];
                                         _arg = Array.isArray(_arg) ? _arg : [_arg];
-                                        try {
-                                            sel = sel[_sel_k].apply(sel, _arg);
-                                        } catch (e) {
-                                            console.warn('无效的additional_selector选择器:');
-                                            console.warn(_sel_k);
-                                            return null;
-                                        }
+                                        sel = sel[_sel_k].apply(sel, _arg);
+                                    } catch (e) {
+                                        console.warn('无效的additional_selector选择器:');
+                                        console.warn(_sel_k);
+                                        return null;
                                     }
                                 }
-                                try {
-                                    return sel && sel.exists() ? sel : null;
-                                } catch (e) {
-                                    return null;
-                                }
+                            }
+                            try {
+                                return sel.findOnce() || null;
+                            } catch (e) {
+                                return null;
                             }
                         }
+
+                        /**
+                         * @param {UiObject$} w
+                         * @returns {number}
+                         */
+                        function _getTxtLen(w) {
+                            let _text = w && w.text() || '';
+                            let _desc = w && w.desc() || '';
+                            return Math.max(_desc.length, _text.length);
+                        }
                     }
+                }
+
+                /**
+                 * @param {UiObject$|UiSelector$|null} sel
+                 * @returns {{w: (UiObject$|null), sel: (UiObject$|UiSelector$|null), wc: UiObject$[]}}
+                 */
+                function _getWidgetInfo(sel) {
+                    /** @type {UiObject$|null} */
+                    let _w = null;
+                    /** @type {UiObject$[]} */
+                    let _wc = [];
+                    /** @type { UiObject$|UiSelector$|null} */
+                    let _sel = sel;
+
+                    if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                        _w = _sel.findOnce();
+                        if (_isArrResType(_res_type)) {
+                            _wc = _sel.find().toArray();
+                        }
+                    } else {
+                        if (_sel instanceof com.stardust.automator.UiObject) {
+                            _w = _sel;
+                            if (_isArrResType(_res_type)) {
+                                _wc = [_sel];
+                            }
+                            _sel = null;
+                        }
+                    }
+
+                    if (_compass) {
+                        _w = _relativeWidget([_sel || _w, _compass]);
+                    }
+                    return {w: _w, wc: _wc, sel: _sel};
                 }
 
                 /**
@@ -624,11 +654,58 @@ let ext = {
 
                     return _w || null;
                 }
+
+                /**
+                 * @returns {UiSelector$|UiObject$|UiObject$[]|OpencvPoint$|OpencvPoints$|string|null|void}
+                 */
+                function _getPresetResult() {
+                    let _presets = {
+                        selector: _sel,
+                        widget: _w,
+                        widgets: _wc,
+                        exists: !!_w,
+                        get selector_name() {
+                            return !_sel ? '' : _sel.toString().match(/[a-z]+/)[0];
+                        },
+                        get txt() {
+                            let _text = _w && _w.text() || '';
+                            let _desc = _w && _w.desc() || '';
+                            return _desc.length > _text.length ? _desc : _text;
+                        },
+                        get point() {
+                            return !(_w && _w.bounds()) ? null : new org.opencv.core
+                                .Point(_w.bounds().centerX(), _w.bounds().centerY());
+                        },
+                        get points() {
+                            return _wc.map(w => new org.opencv.core
+                                .Point(w.bounds().centerX(), w.bounds().centerY()));
+                        },
+                    };
+                    if (_res_type in _presets) {
+                        return _presets[_res_type];
+                    }
+                }
+
+                /**
+                 * @returns {UiSelector$|UiObject$|UiObject$[]|OpencvPoint$|OpencvPoints$|string|null|*}
+                 */
+                function _getResult() {
+                    let _preset_res = _getPresetResult();
+                    if (typeof _preset_res !== 'undefined') {
+                        return _preset_res;
+                    }
+                    if (_w === null) {
+                        return null;
+                    }
+                    if (typeof _w[_res_type] === 'function') {
+                        return _w[_res_type]();
+                    }
+                    return _w[_res_type];
+                }
             },
             /**
              * @param {string} key
-             * @param {UiSelector$pickup$sel_body|(function(string):UiSelector$pickup$return_value)} sel_body
-             * @param {string} [mem]
+             * @param {BaseSelectorParam|(function(string):SelectorPickupResult)} sel
              * @example
              * $$sel.add('list', className('ListView'));
              *  // recommended
@@ -638,15 +715,17 @@ let ext = {
              * // traditional way, and NullPointerException may occur
              * console.log(className('ListView').findOnce().bounds());
              */
-            add(key, sel_body, mem) {
-                this._sel_body_pool[key] = typeof sel_body === 'function'
-                    ? type => sel_body(type)
-                    : type => this.pickup(sel_body, type, mem || key);
-                return _sel; // to make method chaining possible
+            add(key, sel) {
+                if (typeof sel === 'function') {
+                    this._sel_body_pool[key] = type => sel(type);
+                } else {
+                    this._sel_body_pool[key] = type => this.pickup(sel, type);
+                }
+                return $_sel; // to make method chaining possible
             },
             /**
              * @param {string} key
-             * @param {UiSelector$pickup$res_type|'cache'} [type]
+             * @param {SelectorResultType|'cache'} [type]
              * @example
              * $$sel.add('list', className('ListView'));
              *  // recommended
@@ -656,7 +735,7 @@ let ext = {
              * // traditional way, and NullPointerException may occur
              * console.log(className('ListView').findOnce().bounds());
              * @throws {Error} `sel key '${key}' not set in pool`
-             * @returns {UiSelector$pickup$return_value|null}
+             * @returns {SelectorPickupResult}
              */
             get(key, type) {
                 if (!(key in this._sel_body_pool)) {
@@ -667,34 +746,37 @@ let ext = {
                     ? (this._cache_pool[key] = _picker('w'))
                     : _picker(type);
             },
+            /**
+             * @param {string} key
+             * @returns {SelectorPickupResult}
+             */
             getAndCache(key) {
                 // only 'widget' type can be returned
                 return this.get(key, 'cache');
             },
             cache: {
-                save: (key) => _sel.getAndCache(key),
-                /** @returns {UiObject$|UiObjectCollection$|UiSelector$|AndroidRect$|string|boolean|null} */
+                save: (key) => $_sel.getAndCache(key),
+                /** @returns {SelectorPickupResult} */
                 load(key, type) {
-                    let _cache = _sel._cache_pool[key];
-                    return _cache ? _sel.pickup(_cache, type) : null;
+                    let _cache = $_sel._cache_pool[key];
+                    return _cache ? $_sel.pickup(_cache, type) : null;
                 },
                 refresh(key) {
-                    let _cache = _sel._cache_pool[key];
+                    let _cache = $_sel._cache_pool[key];
                     _cache && _cache.refresh();
                     this.save(key);
                 },
                 reset(key) {
-                    delete _sel._cache_pool[key];
-                    return _sel.getAndCache(key);
+                    delete $_sel._cache_pool[key];
+                    return $_sel.getAndCache(key);
                 },
                 recycle(key) {
-                    let _cache = _sel._cache_pool[key];
+                    let _cache = $_sel._cache_pool[key];
                     _cache && _cache.recycle();
                 },
             },
         };
-
-        return Object.assign(_sel, _sel_ext);
+        return Object.assign($_sel, $_sel_ext);
     },
 };
 

@@ -198,7 +198,10 @@ let ext = {
                 }
             } catch (e) {
                 if (!e.message.match(/InterruptedException/)) {
-                    throw (e);
+                    throw Error(e);
+                }
+                if (typeof $$link.$ !== 'function') {
+                    $$link.$ = () => $$link;
                 }
             }
             return $$link;

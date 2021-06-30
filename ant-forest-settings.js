@@ -16,10 +16,10 @@ let $$init = {
     check() {
         this.appx().load();
         appx.checkModules([
-            'mod-pwmap', 'mod-treasury-vault', 'mod-default-config',
-            'mod-monster-func', 'mod-database', 'ext-storages', 'ext-a11y',
-            'ext-app', 'ext-files', 'ext-dialogs', 'ext-timers', 'ext-colors',
-            'ext-device', 'ext-global', 'ext-threads', 'ext-ui', 'ext-images',
+            'mod-pwmap', 'mod-treasury-vault', 'mod-database', 'mod-monster-func',
+            'mod-default-config', 'ext-a11y', 'ext-console', 'ext-storages',
+            'ext-timers', 'ext-dialogs', 'ext-colors', 'ext-files', 'ext-app',
+            'ext-device', 'ext-threads', 'ext-images', 'ext-global', 'ext-ui',
         ], {is_load: true});
         appx.checkSdkAndAJVer();
         appx.checkAccessibility();
@@ -5599,7 +5599,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                 // tool function(s) //
 
                 function _on() {
-                    console.setGlobalLogConfig({
+                    consolex.setGlobalLogConfig({
                         file: $$cfg.sto.global_log_cfg_path + 'auto.js-log.log',
                         filePattern: $$cfg.sto.global_log_cfg_file_pattern,
                         maxBackupSize: $$cfg.sto.global_log_cfg_max_backup_size,

@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Jun 25, 2021
- * @version 2.1.4
+ * @since Jun 30, 2021
+ * @version 2.1.5
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -23,10 +23,10 @@ let $$init = {
     check() {
         this.appx().load();
         appx.checkModules([
-            'mod-default-config', 'mod-pwmap', 'mod-monster-func',
-            'mod-treasury-vault', 'mod-database', 'ext-storages',
-            'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs',
-            'ext-threads', 'ext-global', 'ext-device', 'ext-ui', 'ext-app',
+            'mod-treasury-vault', 'mod-database', 'mod-pwmap',
+            'mod-default-config', 'mod-monster-func', 'ext-storages',
+            'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs', 'ext-ui',
+            'ext-threads', 'ext-global', 'ext-device', 'ext-console', 'ext-app',
         ], {is_load: true});
         appx.checkAlipayPackage();
         appx.checkSdkAndAJVer();
@@ -44,8 +44,7 @@ let $$init = {
         debugInfo('开发者测试日志已启用', 'Up_both_dash');
         debugInfo('设备型号: ' + device.brand + ' ' + device.product);
 
-        devicex.setUserRotationPortrait();
-        devicex.getDisplay(true);
+        setDisplay();
 
         appSetter().setTask().setBlist().setPages().setLayout().setIntent();
         accSetter().setParams().setMain();
@@ -238,7 +237,8 @@ let $$init = {
             $$flag.msg_details = _cnsl_detail || _dbg_info_sw;
             $$flag.no_msg_action = !_console_msg_sw;
             $$flag.debug_info_avail = _dbg_info_sw && _console_msg_sw;
-            $$flag.show_e_result = _msg_sw && $$cfg.result_showing_switch;
+            $$flag.show_energy_result = _msg_sw && $$cfg.result_showing_switch;
+            $$flag.show_floaty_result = $$cfg.floaty_result_switch;
 
             let _e_argv = $$app.engines_exec_argv;
             if (Object.size(_e_argv, {exclude: 'intent'}) > 0) {
@@ -255,12 +255,20 @@ let $$init = {
         }
 
         function setGlobalLog() {
-            $$cfg.global_log_switch && console.setGlobalLogConfig({
+            $$cfg.global_log_switch && consolex.setGlobalLogConfig({
                 file: $$cfg.global_log_cfg_path + 'auto.js-log.log',
                 filePattern: $$cfg.global_log_cfg_file_pattern,
                 maxBackupSize: $$cfg.global_log_cfg_max_backup_size,
                 maxFileSize: $$cfg.global_log_cfg_max_file_size * 1024,
             });
+        }
+
+        function setDisplay() {
+            if (devicex.getDisplayRotation() !== 0) {
+                $$flag.init_display_not_vertical = true;
+                $$flag.show_floaty_result = false;
+            }
+            devicex.getDisplay(true);
         }
 
         function appSetter() {
@@ -489,7 +497,7 @@ let $$init = {
                         _plans: {
                             back: (() => {
                                 let _text = () => {
-                                    return $$sel.pickup(['返回', 'c0', {c$: true}])
+                                    return $$sel.pickup(['返回', {c$: true}, 'c0'])
                                         || $$sel.pickup(['返回', {c$: true}]);
                                 };
                                 let _id = () => {
@@ -501,7 +509,7 @@ let $$init = {
                             })(),
                             close: (() => {
                                 let _text = () => {
-                                    return $$sel.pickup([/关闭|Close/, 'c0', {c$: true}])
+                                    return $$sel.pickup([/关闭|Close/, {c$: true}, 'c0'])
                                         || $$sel.pickup([/关闭|Close/, {c$: true}]);
                                 };
                                 let _id = () => null; // so far
@@ -526,7 +534,7 @@ let $$init = {
                                                 let _nec_sel_key = 'af_title';
                                                 let _opt_sel_keys = ['af_home', 'rl_ent'];
 
-                                                if (_necessary() && _optional()) {
+                                                if (_necessary() && _orientation() && _optional()) {
                                                     delete $$flag.launch_necessary;
                                                     delete $$flag.launch_optional;
                                                     return true;
@@ -548,13 +556,20 @@ let $$init = {
                                                     return $$flag.launch_necessary = false;
                                                 }
 
+                                                function _orientation() {
+                                                    if ($$flag.init_display_not_vertical) {
+                                                        devicex.getDisplay(true);
+                                                    }
+                                                    return devicex.getDisplayRotation() === 0;
+                                                }
+
                                                 function _optional() {
                                                     if (!$$bool($$flag.launch_optional)) {
                                                         debugInfo('等待启动可选条件');
                                                     }
                                                     return _opt_sel_keys.some((key) => {
                                                         if ($$sel.get(key)) {
-                                                            debugInfo(['已满足启动可选条件', '>' + key]);
+                                                            debugInfo(['已满足启动可选条件:', key]);
                                                             return true;
                                                         }
                                                     }) || ($$flag.launch_optional = false);
@@ -923,10 +938,10 @@ let $$init = {
                                 debugInfo(_tOut() ? '页面关闭可能未成功' : _succ);
                             },
                             isInPage() {
-                                return $$app.alipay_pkg === currentPackage()
+                                return !!($$app.alipay_pkg === currentPackage()
                                     || $$sel.get('rl_ent')
                                     || $$sel.get('af_home')
-                                    || $$sel.get('wait_awhile');
+                                    || $$sel.get('wait_awhile'));
                             },
                         },
                         rl: {
@@ -1278,19 +1293,13 @@ let $$init = {
                                 <img id="img" src="@drawable/ic_alarm_on_black_48dp"
                                      height="55" margin="0 12 0 10" gravity="center"
                                      bg="?selectableItemBackgroundBorderless"/>
-                                <text id="text" fontFamily="sans-serif-condensed" size="17"
+                                <text id="text" typeface="sans-serif-condensed" size="17"
                                       marginBottom="8" gravity="center" lineSpacingExtra="7"/>
                             </vertical>,
-                            deploy() {
-                                let _this = this;
-                                threadsx.start(function () {
-                                    _this._deploy();
-                                });
-                            },
                             close() {
                                 _closeWindow.call(this);
                             },
-                            _deploy() {
+                            deploy() {
                                 _initCfgColors.call(this);
                                 let _w = this.cfg.layout_width;
                                 let _y = this.cfg.position_y;
@@ -1386,7 +1395,7 @@ let $$init = {
                                 $$app.layout.closeAll();
 
                                 if ($$app.next_auto_task_ts) {
-                                    filesx.run('./tools/show-next-auto-task-countdown-dialog', {
+                                    filesx.run('./tools/show-next-auto-task-countdown', {
                                         timestamp: $$app.next_auto_task_ts,
                                     });
                                 }
@@ -1597,10 +1606,10 @@ let $$init = {
                                          height="29" paddingRight="5" adjustViewBounds="true"
                                          bg="?selectableItemBackgroundBorderless"/>
                                     <text id="text_title" size="16" gravity="center"
-                                          fontFamily="sans-serif-condensed"/>
+                                          typeface="sans-serif-condensed"/>
                                 </horizontal>
                                 <text id="text_ver" gravity="center" paddingBottom="11"
-                                      fontFamily="sans-serif-condensed" size="16"/>
+                                      typeface="sans-serif-condensed" size="16"/>
                             </vertical>,
                             deploy() {
                                 let _this = this;
@@ -1717,11 +1726,11 @@ let $$init = {
                                      bg="?selectableItemBackgroundBorderless"
                                      height="55" gravity="center" margin="0 12 0 15"/>
                                 <text id="title" gravity="center" lineSpacingExtra="7"
-                                      size="19" fontFamily="sans-serif-condensed"/>
+                                      size="19" typeface="sans-serif-condensed"/>
                                 <text id="hint_duration" gravity="center" lineSpacingExtra="7"
-                                      size="16" fontFamily="sans-serif-condensed" marginTop="80"/>
+                                      size="16" typeface="sans-serif-condensed" marginTop="80"/>
                                 <text id="hint_interrupt" gravity="center" lineSpacingExtra="7"
-                                      size="16" fontFamily="sans-serif-condensed" marginTop="20"/>
+                                      size="16" typeface="sans-serif-condensed" marginTop="20"/>
                             </vertical>,
                             cfg: {
                                 layout_width: W,
@@ -3236,7 +3245,6 @@ let $$init = {
                             messageAction('强制停止当前脚本', 3, 1, 0, -1);
                             messageAction('触发按键: 音量减/VOL-', 3, 0, 1);
                             messageAction(_keyMsg(e), 3, 0, 1, 1);
-                            devicex.restoreUserRotationIFN();
                             $$app.monitor.insurance.reset();
                             engines.myEngine().forceStop();
                         });
@@ -3245,7 +3253,6 @@ let $$init = {
                             messageAction('强制停止所有脚本', 4, 0, 0, -1);
                             messageAction('触发按键: 音量加/VOL+', 4, 0, 1);
                             messageAction(_keyMsg(e), 4, 0, 1, 1);
-                            devicex.restoreUserRotationIFN();
                             $$app.monitor.insurance.reset();
                             engines.stopAllAndToast();
                         });
@@ -3569,7 +3576,7 @@ let $$init = {
                     function maskLayerSetter() {
                         /**
                          * @type {{
-                         *     trig: UiSelector$pickup$sel_body|function: UiSelector$pickup$return_value,
+                         *     trig: BaseSelectorParam|function():SelectorPickupResult,
                          *     desc: string,
                          * }[]}
                          */
@@ -3650,7 +3657,7 @@ let $$init = {
                 af_home_in_page: new Monitor('森林主页页面', function () {
                     while (1) {
                         sleep(360);
-                        $$flag.af_home_in_page = !!$$app.page.af.isInPage();
+                        $$flag.af_home_in_page = $$app.page.af.isInPage();
                     }
                 }),
                 rl_in_page: new Monitor('排行榜页面', function () {
@@ -3661,7 +3668,6 @@ let $$init = {
                     }
                 }),
                 rl_bottom: new Monitor('排行榜底部', function () {
-                    /** @type {UiSelector$pickup$return_value|null} */
                     let _list_w = null, _rl_end_w = null;
 
                     while (!$$flag.rl_bottom_rch) {
@@ -4711,8 +4717,9 @@ let $$af = {
                             let _tt = _thrd * 60e3 + 3e3;
                             let _old_em = $$af.emount_c_own;
 
-                            toast('Non-stop checking time');
-                            debugInfo('开始监测自己能量');
+                            let _msg_start = '开始监测自己能量';
+                            $$toast(_msg_start, 'Long');
+                            debugInfo(_msg_start);
                             timeRecorder('monitor_own');
 
                             $$app.monitor.af_home_in_page.start();
@@ -4735,25 +4742,25 @@ let $$af = {
                             delete $$flag.af_home_in_page;
                             $$af.cleaner.eballs(); // clear cache
 
-                            toast('Checking completed');
-                            debugInfo('自己能量监测完毕');
+                            let _msg_fin = '自己能量监测完毕';
+                            $$toast(_msg_fin, 'Long');
+                            debugInfo(_msg_fin);
                             debugInfo('本次监测收取结果: ' + ($$af.emount_c_own - _old_em) + 'g');
                             debugInfo('监测用时: ' + timeRecorder('monitor_own', 'L', 'auto'));
 
                             // speculated helpful for _thdToast() within which
                             // toast message didn't show up after clickAction()
-                            sleep(1.8e3); //// TEST ////
+                            sleep(1.8e3);
 
                             // tool function(s) //
 
                             function _debugPageState() {
                                 let _fg = +$$flag.af_home_in_page;
-                                if (_fg !== _debug_page_state_flip) {
-                                    if (timeRecorder('monitor_own', 'L') > 1e3) {
-                                        debugInfo('当前页面' + (_fg ? '' : '不') + '满足森林主页条件');
-                                        debugInfo((_fg ? '继续' : '暂停') + '监测自己能量');
-                                    }
+                                if (_debug_page_state_flip !== _fg) {
                                     _debug_page_state_flip = _fg;
+                                    timeRecorder('monitor_own', 'L') > 1e3 && debugInfo(_fg
+                                        ? ['当前页面满足森林主页条件', '继续监测自己能量']
+                                        : ['当前页面不满足森林主页条件', '暂停监测自己能量']);
                                 }
                             }
                         }
@@ -5341,7 +5348,7 @@ let $$af = {
                                     debugInfo('开始采集能量罩使用时间');
 
                                     let _getFeedLegends = () => (
-                                        $$sel.pickup({className: 'ListView'}, 'children') || []
+                                        $$sel.pickup({className: 'ListView'}, 'children', [])
                                     ).filter((w) => {
                                         return w.childCount() === 0
                                             && w.indexInParent() < w.parent().childCount() - 1;
@@ -6293,7 +6300,7 @@ let $$af = {
                     _sxn_str && messageAct('受制区间: ' + _sxn_str, 1, 0, 1);
                     messageAct('任务类型: ' + _type.desc, 1, 0, 1, 1);
 
-                    if ($$flag.show_e_result && $$cfg.auto_task_show_on_e_result) {
+                    if ($$flag.show_energy_result && $$cfg.auto_task_show_on_e_result) {
                         threadsx.start(function () {
                             if (waitForAction(() => $$flag.floaty_result_set, 12e3, 120)) {
                                 $$app.layout.next_auto_task.deploy();
@@ -6350,7 +6357,7 @@ let $$af = {
             return new Promise((reso) => {
                 let _e_own = $$af.emount_c_own;
                 let _e_fri = $$af.emount_c_fri;
-                if ($$flag.show_e_result) {
+                if ($$flag.show_energy_result) {
                     debugInfo('开始展示统计结果');
                     debugInfo('自己能量收取值: ' + _e_own);
                     debugInfo('好友能量收取值: ' + _e_fri);
@@ -6379,7 +6386,7 @@ let $$af = {
                     if (msg.match(/失败/)) {
                         _e_own = -1;
                     }
-                    $$cfg.floaty_result_switch ? _floatyResult() : _toastResult();
+                    $$flag.show_floaty_result ? _floatyResult() : _toastResult();
 
                     // tool function(s) //
 
@@ -6447,19 +6454,15 @@ let $$af = {
                         if ($$cfg.auto_task_show_on_e_result) {
                             let _ts = $$app.next_auto_task_ts;
                             if (_ts) {
-                                msg = 'Next auto task:' + '\n'
-                                    + new Date(_ts).toLocaleTimeString() + '\n'
-                                    + _line + '\n' + msg;
+                                msg = ['Next auto task:', $$cvt.date(_ts), _line, msg].join('\n');
                             }
                         }
-
                         if ($$cfg.update_auto_check_switch && $$cfg.update_show_on_e_result) {
                             let _ver = $$app.newest_release_ver_name;
                             if (_ver && appx.isNewerVersion(_ver, $$app.project_ver_name)) {
-                                msg += '\n' + _line + '\nUpdate available:\n' + _ver;
+                                msg += '\n' + [_line, 'Update available:', _ver].join('\n');
                             }
                         }
-
                         $$toast(msg, 'Long');
                         debugInfo('统计结果展示完毕');
                     }
@@ -6605,9 +6608,6 @@ let $$af = {
                     },
                 },
             });
-        },
-        restoreRotationIFN() {
-            devicex.restoreUserRotationIFN();
         },
         exitNow: () => $$app.exit(),
         err(e) {
@@ -6776,7 +6776,6 @@ let $$af = {
         _.logBackIFN();
         Promise.all([_.showResult(), _.readyExit()])
             .then(_.scrOffIFN)
-            .then(_.restoreRotationIFN)
             .then(_.exitNow)
             .catch(_.err);
     },

@@ -12,9 +12,11 @@ let ext = {
         try {
             return threads.start(f);
         } catch (e) {
-            let _regexp = /(Script)?InterruptedEx|script exiting/;
-            if (!e.message.match(_regexp) && !no_err_msg) {
-                throw Error(e);
+            if (!com.stardust.autojs.runtime.exception.ScriptInterruptedException
+                .causedByInterrupted(new java.lang.Throwable(e))) {
+                if (!e.message.match(/script exiting/) && !no_err_msg) {
+                    throw Error(e);
+                }
             }
         }
     },

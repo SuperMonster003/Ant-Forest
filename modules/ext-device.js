@@ -174,11 +174,11 @@ let ext = {
      * devicex.user_rotation.put(0); // 0: 0; 1: 90; 2: 180; 3: 270
      * @example
      * devicex.accelerometer_rotation.toggle();
+     * @see android.view.Surface.ROTATION_0
+     * @see android.view.Surface.ROTATION_90
+     * @see android.view.Surface.ROTATION_180
+     * @see android.view.Surface.ROTATION_270
      * @see https://developer.android.com/reference/android/provider/Settings.System#USER_ROTATION
-     * @see https://developer.android.com/reference/android/view/Surface#ROTATION_0
-     * @see https://developer.android.com/reference/android/view/Surface#ROTATION_90
-     * @see https://developer.android.com/reference/android/view/Surface#ROTATION_180
-     * @see https://developer.android.com/reference/android/view/Surface#ROTATION_270
      */
     user_rotation: new StateManager('System', 'USER_ROTATION', 'Int', [
         /* 0: */ Surface.ROTATION_0,
@@ -466,12 +466,12 @@ let ext = {
 
             /** Wss means Write Secure Settings permission */
             function _checkWssIfNecessary() {
-                if (_this.development_settings_enabled.verify(1)) {
-                    if (_this.battery.isPluggedAndStayingOn()) {
-                        return _flag.is_plugged_n_staying_on = appx.hasSecure();
-                    }
+                if (!_this.battery.isPluggedAndStayingOn()) {
+                    return true;
                 }
-                return true;
+                if (appx.hasSecure()) {
+                    return _flag.staying_on_state_matters = true;
+                }
             }
 
             function _hint() {
@@ -499,8 +499,12 @@ let ext = {
                     if (_flag.brake_is_triggered) {
                         break;
                     }
-                    if (timeRecorder('set_provider', 'L') > 40e3) {
+                    let _et = timeRecorder('set_provider', 'L');
+                    let _et_str = timeRecorder('set_provider', 'L', 'auto');
+                    let _et_limit = 55.23e3;
+                    if (_et > _et_limit) {
                         debugInfo(['策略执行失败', '>等待屏幕关闭时间已达阈值'], 3);
+                        debugInfo('>已耗时: ' + _et_str, 3);
                         break;
                     }
                     if (!_this.isScreenOn()) {
@@ -522,7 +526,7 @@ let ext = {
             _this.screen_off_timeout.saveStorage();
             _this.screen_off_timeout.put(0);
 
-            if (_flag.is_plugged_n_staying_on) {
+            if (_flag.staying_on_state_matters) {
                 _this.stay_on_while_plugged_in.saveStorage();
                 _this.stay_on_while_plugged_in.put(0x0);
             }
@@ -700,8 +704,7 @@ let ext = {
          */
         let _disp = null;
         let _metrics = new DisplayMetrics();
-        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
-        let _win_svc_disp = _win_svc.getDefaultDisplay();
+        let _win_svc_disp = this.getDefaultDisplay();
         _win_svc_disp.getRealMetrics(_metrics);
 
         let _scale = {cX: cX, cY: cY, cYx: cYx};
@@ -1036,6 +1039,22 @@ let ext = {
             }
         }
     },
+    getDefaultDisplay() {
+        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+        return _win_svc.getDefaultDisplay();
+    },
+    /**
+     * Returns the rotation of the screen from its "natural" orientation
+     * @returns {number}
+     * @see android.view.Surface.ROTATION_0
+     * @see android.view.Surface.ROTATION_90
+     * @see android.view.Surface.ROTATION_180
+     * @see android.view.Surface.ROTATION_270
+     * @see https://developer.android.com/reference/android/view/Display#getRotation()
+     */
+    getDisplayRotation() {
+        return this.getDefaultDisplay().getRotation();
+    },
     /**
      * @param {number} rotation
      * @param {boolean} [is_async=false]
@@ -1057,11 +1076,12 @@ let ext = {
             throw Error('Unknown rotation for devicex.setUserRotation()');
         }
 
-        if (!this.user_rotation.verify(_aim_user_rotation)) {
+        let _cond = () => this.getDisplayRotation() === _aim_user_rotation;
+        if (!_cond()) {
             this.user_rotation.saveState();
             this.user_rotation.put(_aim_user_rotation);
             if (!is_async) {
-                waitForAction(() => this.user_rotation.verify(_aim_user_rotation), 2e3, 80);
+                waitForAction(_cond, 2e3, 80);
                 sleep(360);
             }
         }
@@ -1190,7 +1210,7 @@ function StateManager(provider, key, data_type, state_set) {
     };
     /** @param {'keep'|*} [is_keeping_state] */
     this.loadState = function (is_keeping_state) {
-        if (this._last_state === undefined) {
+        if (this._last_state === undefined || this._last_state === null) {
             throw Error('State must be saved before loading');
         }
         this.put(this._last_state);
@@ -1198,7 +1218,9 @@ function StateManager(provider, key, data_type, state_set) {
     };
     /** @param {'keep'|*} [is_keeping_state] */
     this.loadStateIFN = function (is_keeping_state) {
-        this._last_state === undefined || this.put(this._last_state);
+        if (this._last_state !== undefined && this._last_state !== null) {
+            this.put(this._last_state);
+        }
         is_keeping_state || this.clearState();
     };
     this.clearState = function () {
@@ -1212,7 +1234,7 @@ function StateManager(provider, key, data_type, state_set) {
     /** @param {'keep'|*} [is_keeping_storage] */
     this.loadStorage = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
-        if (_val === undefined) {
+        if (_val === undefined || _val === null) {
             throw Error('Storage must be saved before loading');
         }
         debugInfo(this.key + ' -> ' + _val);
@@ -1222,7 +1244,9 @@ function StateManager(provider, key, data_type, state_set) {
     /** @param {'keep'|*} [is_keeping_storage] */
     this.loadStorageIFN = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
-        _val === undefined || this.put(_val);
+        if (_val !== undefined && _val !== null) {
+            this.put(_val);
+        }
         is_keeping_storage || this.clearStorage();
     };
     this.clearStorage = function () {
@@ -1271,29 +1295,65 @@ function StateManager(provider, key, data_type, state_set) {
     }
 
     function _parseGetFnAndCall() {
-        switch (data_type) {
-            case 'String':
-                return Provider.getString.apply(Provider, arguments);
-            case 'Long':
-                return Provider.getLong.apply(Provider, arguments);
-            case 'Float':
-                return Provider.getFloat.apply(Provider, arguments);
-            default:
-                return Provider.getInt.apply(Provider, arguments);
+        try {
+            switch (data_type) {
+                case 'Int':
+                    return Provider.getInt.apply(Provider, arguments);
+                case 'Long':
+                    return Provider.getLong.apply(Provider, arguments);
+                case 'Float':
+                    return Provider.getFloat.apply(Provider, arguments);
+                case 'String':
+                    return Provider.getString.apply(Provider, arguments);
+                default:
+                    debugInfo('Unknown data_type: ' + data_type, 3);
+                    // noinspection ExceptionCaughtLocallyJS
+                    throw Error('Local Exception');
+            }
+        } catch (e) {
+            return _fixDataTypeAndCall('get', arguments);
         }
     }
 
     function _parsePutFnAndCall() {
-        switch (data_type) {
-            case 'String':
-                return Provider.putString.apply(Provider, arguments);
-            case 'Long':
-                return Provider.putLong.apply(Provider, arguments);
-            case 'Float':
-                return Provider.putFloat.apply(Provider, arguments);
-            default:
-                return Provider.putInt.apply(Provider, arguments);
+        try {
+            switch (data_type) {
+                case 'Int':
+                    return Provider.putInt.apply(Provider, arguments);
+                case 'Long':
+                    return Provider.putLong.apply(Provider, arguments);
+                case 'Float':
+                    return Provider.putFloat.apply(Provider, arguments);
+                case 'String':
+                    // will consume lots of time (2.3 seconds around)
+                    return Provider.putString.apply(Provider, arguments);
+                default:
+                    debugInfo('Unknown data_type: ' + data_type, 3);
+                    // noinspection ExceptionCaughtLocallyJS
+                    throw Error('Local Exception');
+            }
+        } catch (e) {
+            return _fixDataTypeAndCall('put', arguments);
         }
+    }
+
+    /**
+     * @param {'get'|'put'|string} act
+     * @param {IArguments} args
+     */
+    function _fixDataTypeAndCall(act, args) {
+        for (let type of ['Int', 'Long', 'Float', 'String']) {
+            if (type !== data_type) {
+                try {
+                    let _val = Provider[act.toLowerCase() + type].apply(Provider, args);
+                    debugInfo('修正"data_type"为' + (data_type = type));
+                    return _val;
+                } catch (e) {
+                    // nothing to do here
+                }
+            }
+        }
+        messageAction('"data_type"修复失败', 8, 1, 0, 2);
     }
 
     function _toTitleCase(str, is_first_caps_only) {
@@ -1804,17 +1864,17 @@ function unlockGenerator() {
                 function _password() {
                     return !_misjudge() && [{
                         desc: '通用',
-                        selector: idMatches('.*passwordEntry'),
+                        sel: idMatches('.*passwordEntry'),
                     }, {
                         desc: 'MIUI',
-                        selector: idMatches(_ak + 'miui_mixed_password_input_field'),
+                        sel: idMatches(_ak + 'miui_mixed_password_input_field'),
                     }, {
                         desc: '锤子科技',
-                        selector: idMatches(_sk + 'passwordEntry(_.+)?').className('EditText'),
+                        sel: idMatches(_sk + 'passwordEntry(_.+)?').className('EditText'),
                     }].some((smp) => {
-                        if (smp.selector.exists()) {
+                        if (smp.sel.exists()) {
                             debugInfo('匹配到' + smp.desc + '密码解锁控件');
-                            return _trigger(smp.selector, _stg);
+                            return _trigger(smp.sel, _stg);
                         }
                     });
 
@@ -2027,6 +2087,48 @@ function unlockGenerator() {
                     }, {
                         desc: 'VIVO',
                         sel: idMatches(_as + 'vivo_pin_view'),
+                    }, {
+                        desc: '拨号盘阵列',
+                        get sel() {
+                            let _dial = {
+                                _side: 3,
+                                _nums: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
+                                _ft: cX(0.0125), // fault-tolerant
+                                _checkPoints() {
+                                    this._points = this._points || {};
+                                    return this._nums.every((n) => {
+                                        return this._points[n] = $$sel.pickup(n, 'point');
+                                    });
+                                },
+                                _checkOffset() {
+                                    let _fill = a => a.join('|').split('|').map(() => []);
+                                    let _side = _dial._side;
+                                    let _rows = _fill(Array(_side));
+                                    let _cols = _fill(Array(_side));
+                                    let _pt = (idx, k) => _dial._points[_dial._nums[idx]][k];
+                                    for (let i = 0; i < _side; i += 1) {
+                                        for (let j = 0; j < _side; j += 1) {
+                                            _rows[i][j] = _pt(j + i * _side, 'y');
+                                            _cols[j][i] = _pt(j + i * _side, 'x');
+                                        }
+                                    }
+                                    return _rows.every(a => a.every((y, i) => {
+                                        return !i || Math.abs(y - a[i - 1]) < _dial._ft;
+                                    })) && _cols.every(a => a.every((x, i) => {
+                                        return !i || Math.abs(x - a[i - 1]) < _dial._ft;
+                                    }));
+                                },
+                                isDialLike() {
+                                    return this._checkPoints() && this._checkOffset();
+                                },
+                            };
+                            if (_dial.isDialLike()) {
+                                global._$_dial_points = _dial._points;
+                            } else {
+                                delete global._$_dial_points;
+                            }
+                            return {exists: () => !!global._$_dial_points};
+                        },
                     }].some((smp) => {
                         let _desc = smp.desc;
                         if (smp.sel.exists()) {
@@ -2163,6 +2265,19 @@ function unlockGenerator() {
                                         }
                                     });
                                 },
+                            }, {
+                                desc: '拨号盘阵列PIN',
+                                test: function () {
+                                    if (global._$_dial_points) {
+                                        _dbg.call(this);
+                                        return true;
+                                    }
+                                },
+                                click() {
+                                    return _trig(() => _pw.forEach((n) => {
+                                        clickAction$((global._$_dial_points)[n], 'p', {pt$: 120});
+                                    }));
+                                },
                             }];
                             let _max = 8;
                             while (_max--) {
@@ -2177,7 +2292,7 @@ function unlockGenerator() {
                             // tool function(s) //
 
                             function _dbg() {
-                                debugInfo('匹配到' + this.desc + '解锁控件');
+                                debugInfo('采用' + this.desc + '解锁方案');
                             }
 
                             function _trig(f) {
@@ -2276,7 +2391,7 @@ function unlockGenerator() {
                     return _err('密码为空');
                 }
                 if (!$_func(this.stg)) {
-                    return _err('没有可用的解锁策略');
+                    return _err('没有可用的解锁方案');
                 }
                 devicex.keepOn(5);
                 this.stg();

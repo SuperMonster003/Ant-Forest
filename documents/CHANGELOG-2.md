@@ -2,11 +2,26 @@
 ### 版本历史 - 2.x
 ******
 
+# v2.1.5
+###### 2021/06/30
+* `修复` 部分机型SettingNotFoundException异常并尝试自动修复 (试修) _[`issue #487`](https://github.com/SuperMonster003/Ant-Forest/issues/487)_ _[`#483`](https://github.com/SuperMonster003/Ant-Forest/issues/483)_
+* `修复` imagesx.capt()可能返回falsy值的问题 (试修) _[`issue #488`](https://github.com/SuperMonster003/Ant-Forest/issues/488)_
+* `修复` 前置应用横屏状态启动项目时屏幕数据异常的问题 _[`issue #489`](https://github.com/SuperMonster003/Ant-Forest/issues/489)_
+* `修复` 部分Pro版本无法在锁屏页面获取布局信息的问题 _[`issue #486`](https://github.com/SuperMonster003/Ant-Forest/issues/486)_
+* `修复` 部分Pro版本无法支持Floaty布局中fontFamily属性的问题
+* `修复` 部分Pro版本进入排行榜后准备条件判断随机失效的问题
+* `修复` $$sel.pickup()获取控件集合数量可能不准确的问题
+* `修复` storagesx扩展模块remove方法功能失效的问题
+* `优化` 解锁模块增加拨号盘阵列PIN解锁方案 (试验性)
+* `优化` 重构$$sel.pickup()并摒除低概率功能及参数变量
+* `优化` 静默脚本强制中止时"方法链"方法产生的错误日志
+* `优化` 静默部分Pro版本对控制台日志文件模式参数产生的报警日志
+
 # v2.1.4
 ###### 2021/06/25
-* `修复` Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
-* `修复` Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
-* `修复` Pro版本无法获取脚本文件路径配置信息的问题
+* `修复` 部分Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
+* `修复` 部分Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
+* `修复` 部分Pro版本无法获取脚本文件路径配置信息的问题
 
 # v2.1.3
 ###### 2021/06/21

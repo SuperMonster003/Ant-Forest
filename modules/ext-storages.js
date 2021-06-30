@@ -85,7 +85,7 @@ function Storage(name) {
         let _tmp = {};
 
         try {
-            _old = _jsonParseFile(_reviver);
+            _old = _jsonParseFile();
         } catch (e) {
             console.warn(e.message);
         }
@@ -108,7 +108,7 @@ function Storage(name) {
     }
 
     function _get(key, value) {
-        let _o = _jsonParseFile(_reviver);
+        let _o = _jsonParseFile();
         if (_o && key in _o) {
             return _o[key];
         }
@@ -118,10 +118,10 @@ function Storage(name) {
     function _remove(key) {
         let _o = _jsonParseFile();
         if (key in _o) {
+            delete _o[key];
             let _file = files.open(_full_path, 'w');
             _file.write(JSON.stringify(_o));
             _file.close();
-            delete _o[key];
         }
     }
 
@@ -129,20 +129,20 @@ function Storage(name) {
         files.remove(_full_path);
     }
 
-    function _jsonParseFile(reviver) {
+    function _jsonParseFile() {
         let _str = _readFile();
         try {
-            return _str ? JSON.parse(_str, reviver) : {};
+            return _str ? JSON.parse(_str, _reviver) : {};
         } catch (e) {
             console.warn('JSON.parse()解析配置文件异常');
         }
         try {
-            return _tryRepairEscChar(_str, reviver);
+            return _tryRepairEscChar(_str, _reviver);
         } catch (e) {
             console.warn('转义字符修复失败');
         }
         try {
-            return _tryRepairMojibakeLines(_str, reviver);
+            return _tryRepairMojibakeLines(_str, _reviver);
         } catch (e) {
             console.warn('乱码行修复失败');
         }

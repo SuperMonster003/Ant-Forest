@@ -711,12 +711,14 @@ let ext = {
             success_title: _opt.success_title || '部署完成',
             on_interrupt_btn_text: _opt.on_interrupt_btn_text || 'B',
             show_min_max: true,
-            onStart: (v, d) => {
+            onStart(v, d) {
                 _onStart();
                 dialogsx.setProgressColorTheme(d, 'download');
             },
-            onSuccess: (o, d) => _onSuccess(o, d),
-            onFailure: (e, d) => {
+            onSuccess(o, d) {
+                _onSuccess(o, d);
+            },
+            onFailure(e, d) {
                 _onFailure(e, d);
                 d.setFailureData(e);
             },
@@ -1084,13 +1086,14 @@ let ext = {
                             if (!_appx.isProjectLike(_path)) {
                                 _path += java.io.File.separator + files.listDir(_path)[0];
                             }
-                            if (!_appx.isProjectLike(_path)) {
+                            if (_appx.isProjectLike(_path)) {
+                                resolve(Object.assign(v, {
+                                    unzipped_files_path: r.unzipped_path,
+                                    unzipped_proj_path: _path,
+                                }));
+                            } else {
                                 reject('Cannot locate project path in unzipped files');
                             }
-                            resolve(Object.assign(v, {
-                                unzipped_files_path: r.unzipped_path,
-                                unzipped_proj_path: _path,
-                            }));
                         },
                         onFailure: e => reject(e),
                     }, {to_archive_name_folder: true, is_delete_source: false});
@@ -1225,26 +1228,164 @@ let ext = {
     isNewerVersion(a, b) {
         return this.getVerHex(a) > this.getVerHex(b);
     },
+    makeSureSdkInt(minimum) {
+        let _min = minimum || 24;
+        if (device.sdkInt < _min) {
+            messageAction('脚本无法继续', 4, 0, 0, 'up');
+            messageAction('安卓系统版本低于7.0', 8, 1, 1, 1);
+        }
+    },
     /**
      * Check if device is running compatible (relatively) Auto.js version and android sdk version
      */
     checkSdkAndAJVer() {
-        let _this = this;
+        this.makeSureSdkInt();
 
-        _chkSdk();
-        _chkVer();
+        let _aj_ver = this.getAutoJsVerName();
+        let _bug_chk_res = _checkBugs(_aj_ver);
+        if (_bug_chk_res === 0) {
+            return debugInfo('Bug版本检查: 正常');
+        }
+        if (_bug_chk_res === '') {
+            return debugInfo('Bug版本检查: 未知');
+        }
+        let _bug_chk_content = _bug_chk_res.map((code) => {
+            return '\n' + _getBugDescription(code);
+        });
+
+        debugInfo('Bug版本检查: 确诊');
+
+        let _alert_msg = '此项目无法正常运行\n' + '请更换 Auto.js 版本\n\n' +
+            '软件版本:' + '\n' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
+            '异常详情:' + _bug_chk_content.join('') + '\n\n' +
+            '在项目简介中查看支持版本\n' + '或直接尝试 v4.1.1 Alpha2';
+
+        this.getVerHex(_aj_ver) >= this.getVerHex(7) ? _showDialog() : _alertAndExit();
 
         // tool function(s) //
 
-        function _chkSdk() {
-            if (device.sdkInt < 24) {
-                messageAction('脚本无法继续', 4, 0, 0, 'up');
-                messageAction('安卓系统版本低于7.0', 8, 1, 1, 1);
+        /**
+         * @param {string} ver
+         * @returns {string[]|number|string} -- strings[]: bug codes; 0: normal; '': unrecorded
+         */
+        function _checkBugs(ver) {
+            // version ∈ 4.1.1
+            // version <= Pro 8.3.16-0
+            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
+            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
+            if (ver.match(/^(4\.1\.1.+)$/) ||
+                ver.match(/^Pro 8\.([0-2]\.\d{1,2}-\d|3\.(\d|1[0-6])-0)$/) ||
+                ver.match(/^Pro 7\.0\.(0-[46]|2-4|3-7|4-1)$/)
+            ) {
+                return 0; // known normal
+            }
+
+            // version > Pro 8.3.16
+            if (ver.match(/^Pro ([89]|[1-9]\d)\./)) {
+                $$a11y.bridge.resetWindowFilter();
+                return 0;
+            }
+
+            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
+            if (ver.match(/^4\.1\.0 Alpha[34]$/)) {
+                return ['ab_SimpActAuto', 'dialogs_not_responded'];
+            }
+
+            // version === 4.1.0 Alpha(2|5)?
+            if (ver.match(/^4\.1\.0 Alpha[25]$/)) {
+                return ['dialogs_not_responded'];
+            }
+
+            // 4.0.x versions
+            if (ver.match(/^4\.0\./)) {
+                return ['dialogs_not_responded', 'not_full_function'];
+            }
+
+            // version === Pro 7.0.0-(1|2)
+            if (ver.match(/^Pro 7\.0\.0-[12]$/)) {
+                return ['ab_relative_path'];
+            }
+
+            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
+            if (ver.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
+                return ['crash_autojs'];
+            }
+
+            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
+            if (ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
+                return ['dislocation_floaty', 'ab_inflate', 'not_full_function'];
+            }
+
+            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
+            if (ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
+                return ['un_execArgv', 'ab_inflate', 'not_full_function'];
+            }
+
+            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
+            if (ver.match(/^3\.1\.1 Alpha[34]$/)) {
+                return ['ab_inflate', 'un_engines', 'not_full_function'];
+            }
+
+            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
+            if (ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
+                return ['un_inflate', 'un_engines', 'not_full_function'];
+            }
+
+            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
+            if (ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
+                return ['un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
+            }
+
+            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
+            if (ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
+                return ['ab_cwd', 'un_relative_path', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
+            }
+
+            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
+            if (ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
+                return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
+            }
+
+            // version <= 3.0.0 Alpha20
+            if (ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
+                return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'crash_ui_settings', 'not_full_function'];
+            }
+
+            switch (ver) {
+                case '4.0.3 Alpha6':
+                    return ['ab_floaty', 'ab_inflate', 'not_full_function'];
+                case '4.0.4 Alpha':
+                    return ['dislocation_floaty', 'un_view_bind', 'not_full_function'];
+                case '4.0.4 Alpha3':
+                    return ['dislocation_floaty', 'ab_ui_layout', 'not_full_function'];
+                case '4.0.4 Alpha4':
+                    return ['ab_find_forEach', 'not_full_function'];
+                case '4.0.4 Alpha12':
+                    return ['un_execArgv', 'not_full_function'];
+                case '4.0.5 Alpha':
+                    return ['ab_uiSelector', 'not_full_function'];
+                case 'Pro 7.0.0-0':
+                    return ['na_login'];
+                case 'Pro 7.0.0-3':
+                    return ['crash_ui_call_ui'];
+                case 'Pro 7.0.0-5':
+                    return ['forcibly_update'];
+                case 'Pro 7.0.3-1':
+                    return ['dialogs_event'];
+                case 'Pro 7.0.3-4':
+                    return ['ab_setGlobalLogConfig'];
+                case 'Pro 7.0.3-5':
+                    return ['ab_floaty_rawWindow'];
+                case 'Pro 7.0.3-6':
+                    return ['ab_engines_setArguments', 'press_block'];
+                case 'Pro 7.0.4-0':
+                    return ['crash_ui_settings'];
+                default:
+                    return ''; // unrecorded version
             }
         }
 
-        function _chkVer() {
-            let _aj_ver = _this.getAutoJsVerName();
+        function _getBugDescription(key) {
             let _bugs_map = {
                 failed: '版本信息获取失败',
                 ab_cwd: 'cwd()方法功能异常',
@@ -1277,242 +1418,100 @@ let ext = {
                 not_full_function: '此版本未包含所需全部功能',
                 alipay_a11y_blocked: '支付宝无障碍功能被屏蔽',
             };
+            return _bugs_map[key] || '无效的Bug描述';
+        }
 
-            let _bug_chk_res = _chkBugs(_aj_ver);
-            if (_bug_chk_res === 0) {
-                return debugInfo('Bug版本检查: 正常');
-            }
-            if (_bug_chk_res === '') {
-                return debugInfo('Bug版本检查: 未知');
-            }
-            let _bug_chk_content = _bug_chk_res.map((code) => {
-                return '\n' + (_bugs_map[code] || '/* 无效的Bug描述 */');
+        function _showDialog() {
+            // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+            let _view = ui.inflate(
+                <vertical gravity="center">
+                    <img id="img" src="@drawable/ic_warning_black_48dp"
+                         height="70" margin="0 26 0 18" gravity="center"
+                         bg="?selectableItemBackgroundBorderless"/>
+                    <vertical>
+                        <text id="text" gravity="center" color="#ddf3e5f5"
+                              padding="5 0 5 20" size="19"/>
+                    </vertical>
+                    <horizontal w="auto">
+                        <button id="btn" type="button" layout_weight="1"
+                                text="EXIT" backgroundTint="#ddad1457"
+                                textColor="#ddffffff" marginBottom="9"/>
+                    </horizontal>
+                </vertical>);
+            let _diag = dialogs.build({
+                customView: _view,
+                autoDismiss: false,
+                canceledOnTouchOutside: false,
+            }).show();
+
+            let _is_continued = false;
+
+            ui.run(() => {
+                _diag.setOnKeyListener({
+                    onKey(diag, key_code) {
+                        if (key_code === android.view.KeyEvent.KEYCODE_BACK) {
+                            _exitNow();
+                            return true;
+                        }
+                        return false;
+                    },
+                });
+
+                _view['btn'].on('click', _exitNow);
+                _view['btn'].on('long_click', (e) => {
+                    e.consumed = _is_continued = true;
+                    if (typeof activity !== 'undefined') {
+                        return _exitNow();
+                    }
+                    _diag.dismiss();
+                    let _msg = '仍然尝试运行项目';
+                    toast(_msg);
+                    console.error(_msg);
+                });
+                _view['text'].setText(_alert_msg);
+                _setTint(_view['img'], '#ff9100');
+
+                let _win = _diag.getWindow();
+                _win.setBackgroundDrawableResource(android.R.color.transparent);
+                _win.setWindowAnimations(android.R.style.Animation_InputMethod);
+                _win.setDimAmount(0.85);
+
             });
 
-            debugInfo('Bug版本检查: 确诊');
+            if (typeof activity !== 'undefined') {
+                return setTimeout(() => exit(), 1e3);
+            }
 
-            let _alert_msg = '此项目无法正常运行\n' + '请更换 Auto.js 版本\n\n' +
-                '软件版本:' + '\n' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
-                '异常详情:' + _bug_chk_content.join('') + '\n\n' +
-                '在项目简介中查看支持版本\n' + '或直接尝试 v4.1.1 Alpha2';
-
-            _this.getVerHex(_aj_ver) >= _this.getVerHex(7) ? _dialog() : _alert();
+            let _start = Date.now();
+            while (!_is_continued) {
+                sleep(200);
+                if (Date.now() - _start > 120e3) {
+                    let _msg = '等待用户操作超时';
+                    console.error(_msg);
+                    return _exitNow(_msg);
+                }
+            }
 
             // tool function(s) //
 
-            /**
-             * @param {string} ver
-             * @returns {string[]|number|string} -- strings[]: bug codes; 0: normal; '': unrecorded
-             */
-            function _chkBugs(ver) {
-                // version ∈ 4.1.1
-                // version <= Pro 8.3.16-0
-                // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-                // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
-                if (ver.match(/^(4\.1\.1.+)$/) ||
-                    ver.match(/^Pro 8\.([0-2]\.\d{1,2}-\d|3\.(\d|1[0-6])-0)$/) ||
-                    ver.match(/^Pro 7\.0\.(0-[46]|2-4|3-7|4-1)$/)
-                ) {
-                    return 0; // known normal
+            function _setTint(view, color) {
+                if (typeof color === 'number') {
+                    color = colors.toString(color);
                 }
-
-                // version > Pro 8.3.16
-                if (ver.match(/^Pro ([89]|\d{2})\./)) {
-                    $$a11y.bridge.resetWindowFilter();
-                    return 0;
-                }
-
-                // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
-                if (ver.match(/^4\.1\.0 Alpha[34]$/)) {
-                    return ['ab_SimpActAuto', 'dialogs_not_responded'];
-                }
-
-                // version === 4.1.0 Alpha(2|5)?
-                if (ver.match(/^4\.1\.0 Alpha[25]$/)) {
-                    return ['dialogs_not_responded'];
-                }
-
-                // 4.0.x versions
-                if (ver.match(/^4\.0\./)) {
-                    return ['dialogs_not_responded', 'not_full_function'];
-                }
-
-                // version === Pro 7.0.0-(1|2)
-                if (ver.match(/^Pro 7\.0\.0-[12]$/)) {
-                    return ['ab_relative_path'];
-                }
-
-                // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
-                if (ver.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
-                    return ['crash_autojs'];
-                }
-
-                // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-                if (ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
-                    return ['dislocation_floaty', 'ab_inflate', 'not_full_function'];
-                }
-
-                // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-                if (ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
-                    return ['un_execArgv', 'ab_inflate', 'not_full_function'];
-                }
-
-                // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-                if (ver.match(/^3\.1\.1 Alpha[34]$/)) {
-                    return ['ab_inflate', 'un_engines', 'not_full_function'];
-                }
-
-                // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-                if (ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
-                    return ['un_inflate', 'un_engines', 'not_full_function'];
-                }
-
-                // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-                if (ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
-                    return ['un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-                }
-
-                // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-                if (ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
-                    return ['ab_cwd', 'un_relative_path', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-                }
-
-                // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-                if (ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
-                    return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-                }
-
-                // version <= 3.0.0 Alpha20
-                if (ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
-                    return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'crash_ui_settings', 'not_full_function'];
-                }
-
-                switch (ver) {
-                    case '4.0.3 Alpha6':
-                        return ['ab_floaty', 'ab_inflate', 'not_full_function'];
-                    case '4.0.4 Alpha':
-                        return ['dislocation_floaty', 'un_view_bind', 'not_full_function'];
-                    case '4.0.4 Alpha3':
-                        return ['dislocation_floaty', 'ab_ui_layout', 'not_full_function'];
-                    case '4.0.4 Alpha4':
-                        return ['ab_find_forEach', 'not_full_function'];
-                    case '4.0.4 Alpha12':
-                        return ['un_execArgv', 'not_full_function'];
-                    case '4.0.5 Alpha':
-                        return ['ab_uiSelector', 'not_full_function'];
-                    case 'Pro 7.0.0-0':
-                        return ['na_login'];
-                    case 'Pro 7.0.0-3':
-                        return ['crash_ui_call_ui'];
-                    case 'Pro 7.0.0-5':
-                        return ['forcibly_update'];
-                    case 'Pro 7.0.3-1':
-                        return ['dialogs_event'];
-                    case 'Pro 7.0.3-4':
-                        return ['ab_setGlobalLogConfig'];
-                    case 'Pro 7.0.3-5':
-                        return ['ab_floaty_rawWindow'];
-                    case 'Pro 7.0.3-6':
-                        return ['ab_engines_setArguments', 'press_block'];
-                    case 'Pro 7.0.4-0':
-                        return ['crash_ui_settings'];
-                    default:
-                        return ''; // unrecorded version
-                }
+                view.setColorFilter(com.stardust.autojs.core.ui.inflater
+                    .util.Colors.parse(view, color));
             }
 
-            function _dialog() {
-                // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                let _view = ui.inflate(
-                    <vertical gravity="center">
-                        <img id="img" src="@drawable/ic_warning_black_48dp"
-                             height="70" margin="0 26 0 18" gravity="center"
-                             bg="?selectableItemBackgroundBorderless"/>
-                        <vertical>
-                            <text id="text" gravity="center" color="#ddf3e5f5"
-                                  padding="5 0 5 20" size="19"/>
-                        </vertical>
-                        <horizontal w="auto">
-                            <button id="btn" type="button" layout_weight="1"
-                                    text="EXIT" backgroundTint="#ddad1457"
-                                    textColor="#ddffffff" marginBottom="9"/>
-                        </horizontal>
-                    </vertical>);
-                let _diag = dialogs.build({
-                    customView: _view,
-                    autoDismiss: false,
-                    canceledOnTouchOutside: false,
-                }).show();
-
-                let _is_continued = false;
-
-                ui.run(() => {
-                    _diag.setOnKeyListener({
-                        onKey(diag, key_code) {
-                            if (key_code === android.view.KeyEvent.KEYCODE_BACK) {
-                                _exitNow();
-                                return true;
-                            }
-                            return false;
-                        },
-                    });
-
-                    _view['btn'].on('click', _exitNow);
-                    _view['btn'].on('long_click', (e) => {
-                        e.consumed = _is_continued = true;
-                        if (typeof activity !== 'undefined') {
-                            return _exitNow();
-                        }
-                        _diag.dismiss();
-                        let _msg = '仍然尝试运行项目';
-                        toast(_msg);
-                        console.error(_msg);
-                    });
-                    _view['text'].setText(_alert_msg);
-                    _setTint(_view['img'], '#ff9100');
-
-                    let _win = _diag.getWindow();
-                    _win.setBackgroundDrawableResource(android.R.color.transparent);
-                    _win.setWindowAnimations(android.R.style.Animation_InputMethod);
-                    _win.setDimAmount(0.85);
-
-                });
-
-                if (typeof activity !== 'undefined') {
-                    return setTimeout(() => exit(), 1e3);
-                }
-
-                let _start = Date.now();
-                while (!_is_continued) {
-                    sleep(200);
-                    if (Date.now() - _start > 120e3) {
-                        let _msg = '等待用户操作超时';
-                        console.error(_msg);
-                        return _exitNow(_msg);
-                    }
-                }
-
-                // tool function(s) //
-
-                function _setTint(view, color) {
-                    if (typeof color === 'number') {
-                        color = colors.toString(color);
-                    }
-                    view.setColorFilter(com.stardust.autojs.core.ui.inflater
-                        .util.Colors.parse(view, color));
-                }
-
-                function _exitNow(msg) {
-                    _diag.dismiss();
-                    typeof msg === 'string' && toast(msg);
-                    exit();
-                }
-            }
-
-            function _alert() {
-                alert('\n' + _alert_msg);
+            function _exitNow(msg) {
+                _diag.dismiss();
+                typeof msg === 'string' && toast(msg);
                 exit();
             }
+        }
+
+        function _alertAndExit() {
+            alert('\n' + _alert_msg);
+            exit();
         }
     },
     /**
@@ -1793,7 +1792,7 @@ let ext = {
             if (o.root) {
                 shell('am start ' + app.intentToShell(o), true);
             } else {
-                context.startActivity(this.intent(o).addFlags(_flag));
+                context.startActivity(this.intent(o, {flag: _flag}));
             }
         } else if (typeof o === 'string') {
             let _cls = runtime.getProperty('class.' + o);
@@ -1809,9 +1808,10 @@ let ext = {
     /**
      * Substitution of app.intent()
      * @param {IntentExtension} o
+     * @param {{flag?: number, category?: string}} [options]
      * @returns {android.content.Intent}
      */
-    intent(o) {
+    intent(o, options) {
         let _i = new android.content.Intent();
 
         if (o.url) {
@@ -1871,6 +1871,13 @@ let ext = {
             _i.setData(android.net.Uri.parse(o.data));
         }
 
+        let _opt = options || {};
+        if (_opt.flag !== undefined) {
+            _i = _i.addFlags(_opt.flag);
+        }
+        if (_opt.category !== undefined) {
+            _i = _i.addCategory(_opt.category);
+        }
         return _i;
 
         // tool function(s) //
@@ -1986,22 +1993,25 @@ let ext = {
         debugInfo('启动目标名称: ' + _name);
         debugInfo('启动参数类型: ' + typeof _trig);
 
-        let _cond_ready = _opt.condition_ready;
-        let _cond_launch = _opt.condition_launch;
-        let _dist = _opt.disturbance;
-        let _thd_dist;
-        let _max_retry = _opt.global_retry_times || 2;
-        let _max_retry_b = _max_retry;
-        let _is_show_greeting = _opt.is_show_greeting;
+        let _cond_ready = typeof _opt.condition_ready !== 'function'
+            ? null : () => {
+                $$a11y.service.refreshServiceInfo();
+                return _opt.condition_ready();
+            };
 
+        let _cond_launch = typeof _opt.condition_launch !== 'function'
+            ? () => currentPackage() === _pkg_name : () => {
+                $$a11y.service.refreshServiceInfo();
+                return _opt.condition_launch();
+            };
+
+        let _is_show_greeting = _opt.is_show_greeting;
         if (typeof _is_show_greeting === 'undefined') {
             _is_show_greeting = true;
         }
 
-        if (!_cond_launch) {
-            _cond_launch = () => currentPackage() === _pkg_name;
-        }
-
+        let _thd_dist;
+        let _dist = _opt.disturbance;
         if (_dist) {
             debugInfo('已开启干扰排除线程');
             _thd_dist = threadsx.start(function () {
@@ -2012,6 +2022,8 @@ let ext = {
             });
         }
 
+        let _max_retry = _opt.global_retry_times || 2;
+        let _max_retry_b = _max_retry;
         while (_max_retry--) {
             let _max_lch = _opt.launch_retry_times || 3;
             let _max_lch_b = _max_lch;
@@ -2042,8 +2054,6 @@ let ext = {
                     _trig();
                 }
 
-                _waitForScrOrReady();
-
                 let _succ = waitForAction(_cond_launch, 5e3, 800);
                 debugInfo('应用启动' + (
                     _succ ? '成功' : '超时 (' + (_max_lch_b - _max_lch) + '/' + _max_lch_b + ')'
@@ -2058,7 +2068,7 @@ let ext = {
                 messageAction('打开' + _app_name.surround('"') + '失败', 8, 1, 0, 1);
             }
 
-            if (typeof _cond_ready === 'undefined') {
+            if (_cond_ready === undefined || _cond_ready === null) {
                 debugInfo('未设置启动完成条件参数');
                 break;
             }
@@ -2121,35 +2131,6 @@ let ext = {
             if (!_app_name && !_pkg_name) {
                 messageAction('未找到应用', 4, 1);
                 messageAction(_trig, 8, 0, 1, 1);
-            }
-        }
-
-        function _waitForScrOrReady() {
-            let _isHoriz = () => {
-                let _disp = devicex.getDisplay();
-                return _disp.WIDTH > _disp.HEIGHT;
-            };
-            let _isVert = () => {
-                let _disp = devicex.getDisplay();
-                return _disp.WIDTH < _disp.HEIGHT;
-            };
-            let _scr_o_par = _opt.screen_orientation;
-            if (_scr_o_par === 1 && _isVert()) {
-                debugInfo('需等待屏幕方向为横屏');
-                if (waitForAction(_isHoriz, 8e3, 80)) {
-                    debugInfo('屏幕方向已就绪');
-                    sleep(500);
-                } else {
-                    messageAction('等待屏幕方向变化超时', 4);
-                }
-            } else if (_scr_o_par === 0 && _isHoriz()) {
-                debugInfo('需等待屏幕方向为竖屏');
-                if (waitForAction(_isVert, 8e3, 80)) {
-                    debugInfo('屏幕方向已就绪');
-                    sleep(500);
-                } else {
-                    messageAction('等待屏幕方向变化超时', 4);
-                }
             }
         }
     },

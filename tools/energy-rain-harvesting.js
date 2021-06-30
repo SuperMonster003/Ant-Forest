@@ -10,14 +10,14 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
 !function () {
     'use strict';
 
-    require('../modules/mod-monster-func').load();
-    require('../modules/ext-app').load();
     require('../modules/ext-global').load();
     require('../modules/ext-threads').load();
+    require('../modules/mod-monster-func').load();
+    require('../modules/ext-app').load().checkSdkAndAJVer();
     require('../modules/ext-images').load().permit();
     require('../modules/ext-device').load().getDisplay(true);
 
-    /** @type {Object<string,UiSelector$pickup$sel_body>} */
+    /** @type {Object<string,BaseSelectorParam>} */
     let sels = {
         entrance: '开始拯救绿色能量',
         finish: /本次拯救绿色能量数|.*(机会已用完|明天再来|返回蚂蚁森林).*/,

@@ -268,8 +268,8 @@ function showSplitLine(extra, style) {
 /**
  * Wait a period of time until 'condition' is met
  * @global
- * @param {UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|(
- *         UiSelector$|UiObject$|string|RegExp|AdditionalSelector|function|
+ * @param {UiSelector$|UiObject$|string|RegExp|AdditionalSelectorParam|function|(
+ *         UiSelector$|UiObject$|string|RegExp|AdditionalSelectorParam|function|
  *         waitForAction$condition$logic_flag)[]} condition - if condition is not true then waiting
  * @param {number} [timeout_or_times=10e3] - if < 100, takes as times
  * @param {number} [interval=200]
