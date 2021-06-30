@@ -1,6 +1,6 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Jun 30, 2021
+ * @since Jul 1, 2021
  * @version 2.1.5
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest

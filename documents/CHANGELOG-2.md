@@ -3,7 +3,7 @@
 ******
 
 # v2.1.5
-###### 2021/06/30
+###### 2021/07/01
 * `修复` 部分机型SettingNotFoundException异常并尝试自动修复 (试修) _[`issue #487`](https://github.com/SuperMonster003/Ant-Forest/issues/487)_ _[`#483`](https://github.com/SuperMonster003/Ant-Forest/issues/483)_
 * `修复` imagesx.capt()可能返回falsy值的问题 (试修) _[`issue #488`](https://github.com/SuperMonster003/Ant-Forest/issues/488)_
 * `修复` 前置应用横屏状态启动项目时屏幕数据异常的问题 _[`issue #489`](https://github.com/SuperMonster003/Ant-Forest/issues/489)_
