@@ -2,6 +2,12 @@ global.enginesx = typeof global.enginesx === 'object' ? global.enginesx : {};
 
 require('./mod-monster-func').load('messageAction', 'debugInfo');
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let ScriptConfig = com.stardust.autojs.project.ScriptConfig;
+let ExecutionConfig = com.stardust.autojs.execution.ExecutionConfig;
+
 let ext = {
     get my_engine() {
         return engines.myEngine();
@@ -71,7 +77,12 @@ let ext = {
         return runtime.engines.execScript(name, script, _fillConfig(config));
     },
     execScriptFile: (path, config) => {
-        return runtime.engines.execScriptFile(path, _fillConfig(config));
+        try {
+            return runtime.engines.execScriptFile(path, _fillConfig(config));
+        } catch (e) {
+            // Auto.js Pro version
+            return engines.execScriptFile(path, config);
+        }
     },
     execAutoFile: (path, config) => {
         return runtime.engines.execAutoFile(path, _fillConfig(config));
@@ -153,7 +164,7 @@ module.exports.load = () => global.enginesx = ext;
 // tool function(s) //
 
 function _fillConfig(c) {
-    let _cfg = new com.stardust.autojs.execution.ExecutionConfig();
+    let _cfg = new ExecutionConfig();
     let _c = c || {};
     _cfg.workingDirectory = _c.path || files.cwd();
     _cfg.delay = _c.delay || 0;
@@ -163,7 +174,7 @@ function _fillConfig(c) {
     if (typeof _c.scriptConfig === 'object') {
         let _features = _c.scriptConfig.useFeatures || [];
         let _ui_mode = _c.scriptConfig.uiMode === undefined ? false : _c.scriptConfig.uiMode;
-        _cfg.scriptConfig = new com.stardust.autojs.project.ScriptConfig(_features, _ui_mode);
+        _cfg.scriptConfig = new ScriptConfig(_features, _ui_mode);
     }
     return _cfg;
 }

@@ -275,7 +275,7 @@ module.exports = {
             '严重降低设备的安全性 ' +
             '甚至导致隐私泄露或财产损失 请谨慎使用\n\n' +
             '如欲了解设备遗失对策\n' +
-            '请点击"了解详情"\n\n' +
+            '请点击"了解更多"\n\n' +
             '确定要继续吗',
         about_lost_device_solution: // 关于设备遗失对策
             '一旦设备遗失或被盗\n' +
@@ -734,13 +734,15 @@ module.exports = {
         rank_list_bottom_template_hint_not_exists: // 排行榜底部控件图片模板不存在附加提示
             '当前暂未生成图片模板\n' +
             '脚本在下次运行时将自动生成新模板',
+        about_root_access_functions: // 关于Root权限功能
+            '',
         about_auto_enable_a11y_svc: // 关于自动开启无障碍服务
             '通过修改系统无障碍服务的列表参数\n' +
             '实现Auto.js无障碍服务的自动开启\n' +
             '此过程需要授予Auto.js以下权限:\n\n' +
             'WRITE_SECURE_SETTINGS\n\n' +
             '如果设备已经获取Root权限\n' +
-            '脚本会自动自我授权\n' +
+            '脚本将自动完成上述所需权限的授权\n' +
             '否则需要将手机连接到计算机\n' +
             '然后在计算机使用ADB工具\n' +
             '执行以下指令(无换行):\n\n' +
@@ -751,7 +753,8 @@ module.exports = {
             'grant替换为revoke\n\n' +
             '注: 如果没有权限授权\n' +
             '脚本则会在需要的时候\n' +
-            '提示用户手动开启无障碍服务',
+            '提示用户手动开启无障碍服务\n\n' +
+            '* 参数默认值: 禁用自动启动',
         about_app_launch_springboard: // 关于启动跳板
             '某些设备或应用无法直接调用 APP\n' +
             '如 launch() 或 startActivity() 等\n' +
@@ -759,6 +762,7 @@ module.exports = {
             '当脚本运行结束时\n' +
             '可自动关闭调用过的 Auto.js 页面\n' +
             '以实现跳板的无痕特性\n\n' +
+            '* 参数默认值: 关闭跳板\n' +
             '* 无痕特性以跳板页面暴露为前提',
         about_timed_task_type: // 关于定时任务类型设置
             '一次性任务执行后将自动失效\n' +

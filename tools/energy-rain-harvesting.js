@@ -77,6 +77,11 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
         }
         debugInfo('进入"能量雨"主页成功');
 
+        if ($$disp.is_display_rotation_landscape) {
+            debugInfo('重新获取当前设备屏幕显示信息');
+            devicex.getDisplay(true);
+        }
+
         sleep(320);
         // just in case
         _cond();

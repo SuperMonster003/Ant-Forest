@@ -1,5 +1,13 @@
 global.threadsx = typeof global.threadsx === 'object' ? global.threadsx : {};
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let Throwable = java.lang.Throwable;
+let AtomicLong = java.util.concurrent.atomic.AtomicLong;
+let TimerThread = com.stardust.autojs.core.looper.TimerThread;
+let ScriptInterruptedException = com.stardust.autojs.runtime.exception.ScriptInterruptedException;
+
 let ext = {
     /**
      * Prevent script exiting error from showing up (for both
@@ -12,8 +20,7 @@ let ext = {
         try {
             return threads.start(f);
         } catch (e) {
-            if (!com.stardust.autojs.runtime.exception.ScriptInterruptedException
-                .causedByInterrupted(new java.lang.Throwable(e))) {
+            if (!ScriptInterruptedException.causedByInterrupted(new Throwable(e))) {
                 if (!e.message.match(/script exiting/) && !no_err_msg) {
                     throw Error(e);
                 }
@@ -31,7 +38,7 @@ let ext = {
      */
     atomic(x) {
         let _res = threads.atomic(x);
-        if (_res instanceof java.util.concurrent.atomic.AtomicLong) {
+        if (_res instanceof AtomicLong) {
             return _res;
         }
         // TODO threads.lock() might be worth a try :)
@@ -61,7 +68,7 @@ let ext = {
      * @param {com.stardust.autojs.core.looper.TimerThread|*} thd
      */
     interrupt(thd) {
-        if (thd instanceof com.stardust.autojs.core.looper.TimerThread) {
+        if (thd instanceof TimerThread) {
             thd.isAlive() && thd.interrupt();
         }
     },

@@ -1,22 +1,20 @@
-// better compatibility for both free and some Pro versions of Auto.js
-
 global.timersx = typeof global.timersx === 'object' ? global.timersx : {};
 
 require('./mod-monster-func').load('waitForAction');
 
-let is_pro = context.packageName.match(/[Pp]ro/);
-let timing = is_pro ? com.stardust.autojs.core.timing : org.autojs.autojs.timing;
-let TimedTask = is_pro ? timing.TimedTask.Companion : timing.TimedTask;
+let is_pro = context.getPackageName().match(/Pro\b/i);
+let timing = is_pro ? com.stardust.autojs.core['timing'] : org.autojs.autojs.timing;
+let TimedTask = is_pro ? timing.TimedTask['Companion'] : timing.TimedTask;
 let TimedTaskManager = timing.TimedTaskManager;
-let TimedTaskMgr = is_pro ? TimedTaskManager.Companion.getInstance() : TimedTaskManager.getInstance();
-let bridges = require.call(global, '__bridges__');
+let TimedTaskMgr = is_pro ? TimedTaskManager['Companion'].getInstance() : TimedTaskManager.getInstance();
+let bridges = require.call(this, '__bridges__');
 let days_ident = [
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
     'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
     '一', '二', '三', '四', '五', '六', '日',
     1, 2, 3, 4, 5, 6, 0,
     1, 2, 3, 4, 5, 6, 7,
-].map(value => value.toString());
+].map(x => typeof x === 'string' ? x : x.toString());
 
 let ext = {
     /**

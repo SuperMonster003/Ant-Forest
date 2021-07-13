@@ -1,7 +1,206 @@
-require('./mod-monster-func').load('debugInfo');
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let Looper = android.os.Looper;
+let Runnable = java.lang.Runnable;
+let Toast = android.widget.Toast;
+let MessageDigest = java.security.MessageDigest;
+let GZIPInputStream = java.util.zip.GZIPInputStream;
+let ByteArrayInputStream = java.io.ByteArrayInputStream;
+let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
 let ext = {
-    Global() {
+    $polyfill() {
+        if (!String.prototype.padStart) {
+            /**
+             * Pads the current string with a given string to reach a given length (left padding).
+             * @function String.prototype.padStart
+             * @param {number} target_len
+             * @param {string|number} [pad_str=' ']
+             * @returns {string}
+             */
+            Object.defineProperty(String.prototype, 'padStart', {
+                value(target_len, pad_str) {
+                    return _getPadStr.apply(this, arguments) + this.valueOf();
+                },
+            });
+        }
+        if (!String.prototype.padEnd) {
+            Object.defineProperty(String.prototype, 'padEnd', {
+                /**
+                 * Pads the current string with a given string to reach a given length (right padding).
+                 * @function String.prototype.padEnd
+                 * @param {number} target_len
+                 * @param {string|number} [pad_str=' ']
+                 * @returns {string}
+                 */
+                value(target_len, pad_str) {
+                    return this.valueOf() + _getPadStr.apply(this, arguments);
+                },
+            });
+        }
+        if (!String.prototype.trimStart) {
+            Object.defineProperty(String.prototype, 'trimStart', {
+                /**
+                 * Removes the leading white space and line terminator characters from a string.
+                 * @function String.prototype.trimStart
+                 * @returns {string}
+                 */
+                value() {
+                    return String.prototype.trimLeft.apply(this, arguments);
+                },
+            });
+        }
+        if (!String.prototype.trimEnd) {
+            Object.defineProperty(String.prototype, 'trimEnd', {
+                /**
+                 * Removes the trailing white space and line terminator characters from a string.
+                 * @function String.prototype.trimEnd
+                 * @returns {string}
+                 */
+                value() {
+                    return String.prototype.trimRight.apply(this, arguments);
+                },
+            });
+        }
+
+        if (!Object.values) {
+            Object.defineProperty(Object, 'values', {
+                /**
+                 * @function Object.values
+                 * @param {Iterable|Object} o
+                 * @returns {*[]}
+                 */
+                value(o) {
+                    if (o[Symbol['iterator']] !== undefined) {
+                        let _res = [];
+                        for (let v of o) {
+                            _res.push(v);
+                        }
+                        return _res;
+                    }
+                    return Object.keys(o).map(k => o[k]);
+                },
+            });
+        }
+        if (!Object.getOwnPropertyDescriptors) {
+            Object.defineProperty(Object, 'getOwnPropertyDescriptors', {
+                /**
+                 * @function Object.getOwnPropertyDescriptors
+                 * @param {Object} o
+                 * @returns {Object.<string,PropertyDescriptor>} <!-- or {PropertyDescriptorMap} -->
+                 */
+                value(o) {
+                    let _descriptor = {};
+                    Object.getOwnPropertyNames(o).forEach((k) => {
+                        _descriptor[k] = Object.getOwnPropertyDescriptor(o, k);
+                    });
+                    return _descriptor;
+                },
+            });
+        }
+
+        if (!Array.from) {
+            // code from polyfill on the web page below
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
+            // modified by SuperMonster003 at Sep 21, 2020
+            Array.from = function (arrayLike, mapFn, thisArg) {
+                let isFunc = f => typeof f === 'function';
+                let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
+                let items = Object(arrayLike);
+                if (arrayLike === undefined || arrayLike === null) {
+                    throw TypeError('arrayLike of Array.from must be an array-like object');
+                }
+                if (mapFn !== undefined && !isFunc(mapFn)) {
+                    throw TypeError('mapFn of Array.from must be a function or undefined');
+                }
+                let len = Math.min(Math.max(toInt(items.length), 0), Number.MAX_SAFE_INTEGER);
+                let arr = isFunc(this) ? Object(new this(len)) : new Array(len);
+                let self = thisArg === undefined ? this : thisArg;
+                for (let i = 0; i < len; i += 1) {
+                    arr[i] = mapFn ? mapFn.call(self, items[i], i) : items[i];
+                }
+                arr.length = len;
+                return arr;
+            };
+        }
+        if (!Array.prototype.includes) {
+            Object.defineProperty(Array.prototype, 'includes', {
+                value(x, i) {
+                    return this.slice(i).some((v) => {
+                        if (typeof x !== 'undefined') {
+                            return Number.isNaN(x) ? Number.isNaN(v) : x === v;
+                        }
+                    });
+                },
+            });
+        }
+        if (!Array.prototype.fill) {
+            Object.defineProperty(Array.prototype, 'fill', {
+                value(v, start, end) {
+                    let _len = this.length;
+                    let _a = start >> 0;
+                    _a = _a < 0 ? _a + _len : _a > _len ? _len : _a;
+                    let _b = end === undefined ? _len : end >> 0;
+                    _b = _b < 0 ? _b + _len : _b > _len ? _len : _b;
+                    for (let i = _a; i < _b; i += 1) {
+                        this[i] = v;
+                    }
+                    return this;
+                },
+            });
+        }
+        if (!Array.prototype.flat) {
+            Object.defineProperty(Array.prototype, 'flat', {
+                value(depth) {
+                    return (function _flat(arr, d) {
+                        return d <= 0 ? arr : arr.reduce((a, b) => {
+                            return a.concat(Array.isArray(b) ? _flat(b, d - 1) : b);
+                        }, []);
+                    })(this.slice(), depth || 1);
+                },
+            });
+        }
+        if (!Array.prototype.keys) {
+            /** @returns {IterableIterator<number>} */
+            Array.prototype.keys = function () {
+                let _it_keys = this.map((v, i) => i)[Symbol.iterator];
+                return _it_keys();
+            };
+        }
+        if (!Array.prototype.values) {
+            // noinspection JSCheckFunctionSignatures
+            /** @returns {IterableIterator<any>} */
+            Array.prototype.values = function () {
+                return this[Symbol.iterator]();
+            };
+        }
+        if (!Array.prototype.entries) {
+            /** @returns {IterableIterator<[number, any]>} */
+            Array.prototype.entries = function () {
+                let _it_entries = this.map((v, i) => [i, v])[Symbol.iterator];
+                return _it_entries();
+            };
+        }
+
+        delete this.$polyfill;
+        return this;
+
+        // tool function(s) //
+
+        function _getPadStr(target_len, pad_str) {
+            let _tar_len = Number(target_len);
+            let _this_len = this.length;
+            if (_tar_len <= _this_len) {
+                return '';
+            }
+            let _pad_str = pad_str === undefined ? ' ' : String(pad_str);
+            let _gap = _tar_len - _this_len;
+            let _times = Math.ceil(_gap / _pad_str.length);
+            return _pad_str.repeat(_times).slice(0, _gap);
+        }
+    },
+    global() {
         let _compare = {
             '<': (a, b) => a < b,
             '<=': (a, b) => a <= b,
@@ -102,7 +301,7 @@ let ext = {
          * string (or object with toString method) to toast
          * @param {boolean|string|number} [if_long=0] -
          * controlling toast duration (falsy for LENGTH_SHORT; truthy for LENGTH_LONG)
-         * @param {boolean|*} [if_force] -
+         * @param {boolean|*} [if_forcible] -
          * controlling whether showing current new toast immediately or not
          * @example
          * // toast 'Hello' for around 2 seconds
@@ -116,21 +315,21 @@ let ext = {
          * // only toast 'Hello again' for around 3.5 seconds
          * // because 'Hello' was cancelled by 'Hello again' immediately
          * $$toast('Hello');
-         * $$toast('Hello again', 'Long', 'Force');
+         * $$toast('Hello again', 'Long', 'Forcible');
          * // toast 'Hello' for around 1 second
          * // and then toast 'Hello again' for around 3.5 seconds
          * $$toast('Hello');
          * sleep(1000);
-         * $$toast('Hello again', 'Long', 'Force');
+         * $$toast('Hello again', 'Long', 'Forcible');
          * // as you imagined, toast 'Hello' for around 3.5 seconds
          * // then toast 'Hello again' for around 3.5 seconds
-         * $$toast('Hello', 'Long', 'Force');
+         * $$toast('Hello', 'Long', 'Forcible');
          * $$toast('Hello again', 'Long');
          * // only toast 'Hello again' for around 2 seconds
-         * $$toast('Hello', 'Long', 'Force');
-         * $$toast('Hello again', 0, 'Force');
+         * $$toast('Hello', 'Long', 'Forcible');
+         * $$toast('Hello again', 0, 'Forcible');
          */
-        global.$$toast = function (msg, if_long, if_force) {
+        global.$$toast = function (msg, if_long, if_forcible) {
             let _nullish = o => o === null || o === undefined;
             let _msg = _nullish(msg) ? '' : msg.toString();
             let _if_long = (() => {
@@ -145,17 +344,21 @@ let ext = {
                 }
                 return 0;
             })();
-            let _s_handler = new android.os.Handler(android.os.Looper.getMainLooper());
-            _s_handler.post(new java.lang.Runnable({
+            new android.os.Handler(Looper.getMainLooper()).post(new Runnable({
                 run() {
-                    if (if_force && global['_toast_']) {
-                        global['_toast_'].cancel();
-                        global['_toast_'] = null;
-                    }
-                    global['_toast_'] = android.widget.Toast.makeText(context, _msg, _if_long);
+                    if_forcible && $$toast.dismiss();
+                    // noinspection JSCheckFunctionSignatures
+                    global['_toast_'] = Toast.makeText(context, _msg, _if_long);
                     global['_toast_'].show();
                 },
             }));
+        };
+
+        $$toast.dismiss = function () {
+            if (global['_toast_'] instanceof Toast) {
+                global['_toast_'].cancel();
+                global['_toast_'] = null;
+            }
         };
 
         /**
@@ -191,9 +394,11 @@ let ext = {
                 } else {
                     $$link.$ = (f, this_arg) => $$link(f, this_arg);
                     if (_res !== $$link && typeof _res !== 'undefined') {
-                        debugInfo('fx in $$link returns non-undefined', 3);
-                        debugInfo('>name: ' + (f.name || '<anonymous>'), 3);
-                        debugInfo('>returns: ' + _res, 3);
+                        if (typeof debugInfo === 'function') {
+                            debugInfo('fx in $$link returns non-undefined', 3);
+                            debugInfo('>name: ' + (f.name || '<anonymous>'), 3);
+                            debugInfo('>returns: ' + _res, 3);
+                        }
                     }
                 }
             } catch (e) {
@@ -428,23 +633,34 @@ let ext = {
 
             /**
              * @param {Date|string|number} [src=Date()]
-             * @param {'d'|'dd'|'h'|'h:m'|'h:m:s'|'h:m:ss'|'h:mm'|'h:mm:s'|'h:mm:ss'|'hh'|'hh:m'|'hh:m:s'|'hh:m:ss'|'hh:mm'|'hh:mm:s'|'hh:mm:ss'|'M'|'m'|'M/d h:m'|'M/d h:m:s'|'M/d h:m:ss'|'M/d h:mm'|'M/d h:mm:s'|'M/d h:mm:ss'|'M/d hh:m'|'M/d hh:m:s'|'M/d hh:m:ss'|'M/d hh:mm'|'M/d hh:mm:s'|'M/d hh:mm:ss'|'M/d'|'M/dd h:m'|'M/dd h:m:s'|'M/dd h:m:ss'|'M/dd h:mm'|'M/dd h:mm:s'|'M/dd h:mm:ss'|'M/dd hh:m'|'M/dd hh:m:s'|'M/dd hh:m:ss'|'M/dd hh:mm'|'M/dd hh:mm:s'|'M/dd hh:mm:ss'|'M/dd'|'m:s'|'m:ss'|'MM'|'mm'|'MM/d h:m'|'MM/d h:m:s'|'MM/d h:m:ss'|'MM/d h:mm'|'MM/d h:mm:s'|'MM/d h:mm:ss'|'MM/d hh:m'|'MM/d hh:m:s'|'MM/d hh:m:ss'|'MM/d hh:mm'|'MM/d hh:mm:s'|'MM/d hh:mm:ss'|'MM/d'|'MM/dd h:m'|'MM/dd h:m:s'|'MM/dd h:m:ss'|'MM/dd h:mm'|'MM/dd h:mm:s'|'MM/dd h:mm:ss'|'MM/dd hh:m'|'MM/dd hh:m:s'|'MM/dd hh:m:ss'|'MM/dd hh:mm'|'MM/dd hh:mm:s'|'MM/dd hh:mm:ss'|'MM/dd'|'mm:s'|'mm:ss'|'s'|'ss'|'yy'|'yy/M'|'yy/M/d h:m'|'yy/M/d h:m:s'|'yy/M/d h:m:ss'|'yy/M/d h:mm'|'yy/M/d h:mm:s'|'yy/M/d h:mm:ss'|'yy/M/d hh:m'|'yy/M/d hh:m:s'|'yy/M/d hh:m:ss'|'yy/M/d hh:mm'|'yy/M/d hh:mm:s'|'yy/M/d hh:mm:ss'|'yy/M/d'|'yy/M/dd h:m'|'yy/M/dd h:m:s'|'yy/M/dd h:m:ss'|'yy/M/dd h:mm'|'yy/M/dd h:mm:s'|'yy/M/dd h:mm:ss'|'yy/M/dd hh:m'|'yy/M/dd hh:m:s'|'yy/M/dd hh:m:ss'|'yy/M/dd hh:mm'|'yy/M/dd hh:mm:s'|'yy/M/dd hh:mm:ss'|'yy/M/dd'|'yy/MM'|'yy/MM/d h:m'|'yy/MM/d h:m:s'|'yy/MM/d h:m:ss'|'yy/MM/d h:mm'|'yy/MM/d h:mm:s'|'yy/MM/d h:mm:ss'|'yy/MM/d hh:m'|'yy/MM/d hh:m:s'|'yy/MM/d hh:m:ss'|'yy/MM/d hh:mm'|'yy/MM/d hh:mm:s'|'yy/MM/d hh:mm:ss'|'yy/MM/d'|'yy/MM/dd h:m'|'yy/MM/dd h:m:s'|'yy/MM/dd h:m:ss'|'yy/MM/dd h:mm'|'yy/MM/dd h:mm:s'|'yy/MM/dd h:mm:ss'|'yy/MM/dd hh:m'|'yy/MM/dd hh:m:s'|'yy/MM/dd hh:m:ss'|'yy/MM/dd hh:mm'|'yy/MM/dd hh:mm:s'|'yy/MM/dd hh:mm:ss'|'yy/MM/dd'|'yyyy'|'yyyy/M'|'yyyy/M/d h:m'|'yyyy/M/d h:m:s'|'yyyy/M/d h:m:ss'|'yyyy/M/d h:mm'|'yyyy/M/d h:mm:s'|'yyyy/M/d h:mm:ss'|'yyyy/M/d hh:m'|'yyyy/M/d hh:m:s'|'yyyy/M/d hh:m:ss'|'yyyy/M/d hh:mm'|'yyyy/M/d hh:mm:s'|'yyyy/M/d hh:mm:ss'|'yyyy/M/d'|'yyyy/M/dd h:m'|'yyyy/M/dd h:m:s'|'yyyy/M/dd h:m:ss'|'yyyy/M/dd h:mm'|'yyyy/M/dd h:mm:s'|'yyyy/M/dd h:mm:ss'|'yyyy/M/dd hh:m'|'yyyy/M/dd hh:m:s'|'yyyy/M/dd hh:m:ss'|'yyyy/M/dd hh:mm'|'yyyy/M/dd hh:mm:s'|'yyyy/M/dd hh:mm:ss'|'yyyy/M/dd'|'yyyy/MM'|'yyyy/MM/d h:m'|'yyyy/MM/d h:m:s'|'yyyy/MM/d h:m:ss'|'yyyy/MM/d h:mm'|'yyyy/MM/d h:mm:s'|'yyyy/MM/d h:mm:ss'|'yyyy/MM/d hh:m'|'yyyy/MM/d hh:m:s'|'yyyy/MM/d hh:m:ss'|'yyyy/MM/d hh:mm'|'yyyy/MM/d hh:mm:s'|'yyyy/MM/d hh:mm:ss'|'yyyy/MM/d'|'yyyy/MM/dd h:m'|'yyyy/MM/dd h:m:s'|'yyyy/MM/dd h:m:ss'|'yyyy/MM/dd h:mm'|'yyyy/MM/dd h:mm:s'|'yyyy/MM/dd h:mm:ss'|'yyyy/MM/dd hh:m'|'yyyy/MM/dd hh:m:s'|'yyyy/MM/dd hh:m:ss'|'yyyy/MM/dd hh:mm'|'yyyy/MM/dd hh:mm:s'|'yyyy/MM/dd hh:mm:ss'|'yyyy/MM/dd'|string} [format='yyyy/MM/dd hh:mm:ss']
+             * @param {'d'|'dd'|'h'|'h:m'|'h:m:s'|'h:m:ss'|'h:mm'|'h:mm:s'|'h:mm:ss'|'hh'|'hh:m'|'hh:m:s'|'hh:m:ss'|'hh:mm'|'hh:mm:s'|'hh:mm:ss'|'M'|'m'|'M/d h:m'|'M/d h:m:s'|'M/d h:m:ss'|'M/d h:mm'|'M/d h:mm:s'|'M/d h:mm:ss'|'M/d hh:m'|'M/d hh:m:s'|'M/d hh:m:ss'|'M/d hh:mm'|'M/d hh:mm:s'|'M/d hh:mm:ss'|'M/d'|'M/dd h:m'|'M/dd h:m:s'|'M/dd h:m:ss'|'M/dd h:mm'|'M/dd h:mm:s'|'M/dd h:mm:ss'|'M/dd hh:m'|'M/dd hh:m:s'|'M/dd hh:m:ss'|'M/dd hh:mm'|'M/dd hh:mm:s'|'M/dd hh:mm:ss'|'M/dd'|'m:s'|'m:ss'|'MM'|'mm'|'MM/d h:m'|'MM/d h:m:s'|'MM/d h:m:ss'|'MM/d h:mm'|'MM/d h:mm:s'|'MM/d h:mm:ss'|'MM/d hh:m'|'MM/d hh:m:s'|'MM/d hh:m:ss'|'MM/d hh:mm'|'MM/d hh:mm:s'|'MM/d hh:mm:ss'|'MM/d'|'MM/dd h:m'|'MM/dd h:m:s'|'MM/dd h:m:ss'|'MM/dd h:mm'|'MM/dd h:mm:s'|'MM/dd h:mm:ss'|'MM/dd hh:m'|'MM/dd hh:m:s'|'MM/dd hh:m:ss'|'MM/dd hh:mm'|'MM/dd hh:mm:s'|'MM/dd hh:mm:ss'|'MM/dd'|'mm:s'|'mm:ss'|'s'|'ss'|'yy'|'yy/M'|'yy/M/d h:m'|'yy/M/d h:m:s'|'yy/M/d h:m:ss'|'yy/M/d h:mm'|'yy/M/d h:mm:s'|'yy/M/d h:mm:ss'|'yy/M/d hh:m'|'yy/M/d hh:m:s'|'yy/M/d hh:m:ss'|'yy/M/d hh:mm'|'yy/M/d hh:mm:s'|'yy/M/d hh:mm:ss'|'yy/M/d'|'yy/M/dd h:m'|'yy/M/dd h:m:s'|'yy/M/dd h:m:ss'|'yy/M/dd h:mm'|'yy/M/dd h:mm:s'|'yy/M/dd h:mm:ss'|'yy/M/dd hh:m'|'yy/M/dd hh:m:s'|'yy/M/dd hh:m:ss'|'yy/M/dd hh:mm'|'yy/M/dd hh:mm:s'|'yy/M/dd hh:mm:ss'|'yy/M/dd'|'yy/MM'|'yy/MM/d h:m'|'yy/MM/d h:m:s'|'yy/MM/d h:m:ss'|'yy/MM/d h:mm'|'yy/MM/d h:mm:s'|'yy/MM/d h:mm:ss'|'yy/MM/d hh:m'|'yy/MM/d hh:m:s'|'yy/MM/d hh:m:ss'|'yy/MM/d hh:mm'|'yy/MM/d hh:mm:s'|'yy/MM/d hh:mm:ss'|'yy/MM/d'|'yy/MM/dd h:m'|'yy/MM/dd h:m:s'|'yy/MM/dd h:m:ss'|'yy/MM/dd h:mm'|'yy/MM/dd h:mm:s'|'yy/MM/dd h:mm:ss'|'yy/MM/dd hh:m'|'yy/MM/dd hh:m:s'|'yy/MM/dd hh:m:ss'|'yy/MM/dd hh:mm'|'yy/MM/dd hh:mm:s'|'yy/MM/dd hh:mm:ss'|'yy/MM/dd'|'yyyy'|'yyyy/M'|'yyyy/M/d h:m'|'yyyy/M/d h:m:s'|'yyyy/M/d h:m:ss'|'yyyy/M/d h:mm'|'yyyy/M/d h:mm:s'|'yyyy/M/d h:mm:ss'|'yyyy/M/d hh:m'|'yyyy/M/d hh:m:s'|'yyyy/M/d hh:m:ss'|'yyyy/M/d hh:mm'|'yyyy/M/d hh:mm:s'|'yyyy/M/d hh:mm:ss'|'yyyy/M/d'|'yyyy/M/dd h:m'|'yyyy/M/dd h:m:s'|'yyyy/M/dd h:m:ss'|'yyyy/M/dd h:mm'|'yyyy/M/dd h:mm:s'|'yyyy/M/dd h:mm:ss'|'yyyy/M/dd hh:m'|'yyyy/M/dd hh:m:s'|'yyyy/M/dd hh:m:ss'|'yyyy/M/dd hh:mm'|'yyyy/M/dd hh:mm:s'|'yyyy/M/dd hh:mm:ss'|'yyyy/M/dd'|'yyyy/MM'|'yyyy/MM/d h:m'|'yyyy/MM/d h:m:s'|'yyyy/MM/d h:m:ss'|'yyyy/MM/d h:mm'|'yyyy/MM/d h:mm:s'|'yyyy/MM/d h:mm:ss'|'yyyy/MM/d hh:m'|'yyyy/MM/d hh:m:s'|'yyyy/MM/d hh:m:ss'|'yyyy/MM/d hh:mm'|'yyyy/MM/d hh:mm:s'|'yyyy/MM/d hh:mm:ss'|'yyyy/MM/d'|'yyyy/MM/dd h:m'|'yyyy/MM/dd h:m:s'|'yyyy/MM/dd h:m:ss'|'yyyy/MM/dd h:mm'|'yyyy/MM/dd h:mm:s'|'yyyy/MM/dd h:mm:ss'|'yyyy/MM/dd hh:m'|'yyyy/MM/dd hh:m:s'|'yyyy/MM/dd hh:m:ss'|'yyyy/MM/dd hh:mm'|'yyyy/MM/dd hh:mm:s'|'yyyy/MM/dd hh:mm:ss'|'yyyy/MM/dd'|'h:m:s.S'|'h:mm:s.S'|'hh:m:s.S'|'hh:mm:s.S'|'M/d h:m:s.S'|'M/d h:mm:s.S'|'M/d hh:m:s.S'|'M/d hh:mm:s.S'|'M/dd h:m:s.S'|'M/dd h:mm:s.S'|'M/dd hh:m:s.S'|'M/dd hh:mm:s.S'|'m:s.S'|'MM/d h:m:s.S'|'MM/d h:mm:s.S'|'MM/d hh:m:s.S'|'MM/d hh:mm:s.S'|'MM/dd h:m:s.S'|'MM/dd h:mm:s.S'|'MM/dd hh:m:s.S'|'MM/dd hh:mm:s.S'|'mm:s.S'|'yy/M/d h:m:s.S'|'yy/M/d h:mm:s.S'|'yy/M/d hh:m:s.S'|'yy/M/d hh:mm:s.S'|'yy/M/dd h:m:s.S'|'yy/M/dd h:mm:s.S'|'yy/M/dd hh:m:s.S'|'yy/M/dd hh:mm:s.S'|'yy/MM/d h:m:s.S'|'yy/MM/d h:mm:s.S'|'yy/MM/d hh:m:s.S'|'yy/MM/d hh:mm:s.S'|'yy/MM/dd h:m:s.S'|'yy/MM/dd h:mm:s.S'|'yy/MM/dd hh:m:s.S'|'yy/MM/dd hh:mm:s.S'|'yyyy/M/d h:m:s.S'|'yyyy/M/d h:mm:s.S'|'yyyy/M/d hh:m:s.S'|'yyyy/M/d hh:mm:s.S'|'yyyy/M/dd h:m:s.S'|'yyyy/M/dd h:mm:s.S'|'yyyy/M/dd hh:m:s.S'|'yyyy/M/dd hh:mm:s.S'|'yyyy/MM/d h:m:s.S'|'yyyy/MM/d h:mm:s.S'|'yyyy/MM/d hh:m:s.S'|'yyyy/MM/d hh:mm:s.S'|'yyyy/MM/dd h:m:s.S'|'yyyy/MM/dd h:mm:s.S'|'yyyy/MM/dd hh:m:s.S'|'yyyy/MM/dd hh:mm:s.S'|'h:m:s.SS'|'h:mm:s.SS'|'hh:m:s.SS'|'hh:mm:s.SS'|'M/d h:m:s.SS'|'M/d h:mm:s.SS'|'M/d hh:m:s.SS'|'M/d hh:mm:s.SS'|'M/dd h:m:s.SS'|'M/dd h:mm:s.SS'|'M/dd hh:m:s.SS'|'M/dd hh:mm:s.SS'|'m:s.SS'|'MM/d h:m:s.SS'|'MM/d h:mm:s.SS'|'MM/d hh:m:s.SS'|'MM/d hh:mm:s.SS'|'MM/dd h:m:s.SS'|'MM/dd h:mm:s.SS'|'MM/dd hh:m:s.SS'|'MM/dd hh:mm:s.SS'|'mm:s.SS'|'yy/M/d h:m:s.SS'|'yy/M/d h:mm:s.SS'|'yy/M/d hh:m:s.SS'|'yy/M/d hh:mm:s.SS'|'yy/M/dd h:m:s.SS'|'yy/M/dd h:mm:s.SS'|'yy/M/dd hh:m:s.SS'|'yy/M/dd hh:mm:s.SS'|'yy/MM/d h:m:s.SS'|'yy/MM/d h:mm:s.SS'|'yy/MM/d hh:m:s.SS'|'yy/MM/d hh:mm:s.SS'|'yy/MM/dd h:m:s.SS'|'yy/MM/dd h:mm:s.SS'|'yy/MM/dd hh:m:s.SS'|'yy/MM/dd hh:mm:s.SS'|'yyyy/M/d h:m:s.SS'|'yyyy/M/d h:mm:s.SS'|'yyyy/M/d hh:m:s.SS'|'yyyy/M/d hh:mm:s.SS'|'yyyy/M/dd h:m:s.SS'|'yyyy/M/dd h:mm:s.SS'|'yyyy/M/dd hh:m:s.SS'|'yyyy/M/dd hh:mm:s.SS'|'yyyy/MM/d h:m:s.SS'|'yyyy/MM/d h:mm:s.SS'|'yyyy/MM/d hh:m:s.SS'|'yyyy/MM/d hh:mm:s.SS'|'yyyy/MM/dd h:m:s.SS'|'yyyy/MM/dd h:mm:s.SS'|'yyyy/MM/dd hh:m:s.SS'|'yyyy/MM/dd hh:mm:s.SS'|'h:m:s.SSS'|'h:mm:s.SSS'|'hh:m:s.SSS'|'hh:mm:s.SSS'|'M/d h:m:s.SSS'|'M/d h:mm:s.SSS'|'M/d hh:m:s.SSS'|'M/d hh:mm:s.SSS'|'M/dd h:m:s.SSS'|'M/dd h:mm:s.SSS'|'M/dd hh:m:s.SSS'|'M/dd hh:mm:s.SSS'|'m:s.SSS'|'MM/d h:m:s.SSS'|'MM/d h:mm:s.SSS'|'MM/d hh:m:s.SSS'|'MM/d hh:mm:s.SSS'|'MM/dd h:m:s.SSS'|'MM/dd h:mm:s.SSS'|'MM/dd hh:m:s.SSS'|'MM/dd hh:mm:s.SSS'|'mm:s.SSS'|'yy/M/d h:m:s.SSS'|'yy/M/d h:mm:s.SSS'|'yy/M/d hh:m:s.SSS'|'yy/M/d hh:mm:s.SSS'|'yy/M/dd h:m:s.SSS'|'yy/M/dd h:mm:s.SSS'|'yy/M/dd hh:m:s.SSS'|'yy/M/dd hh:mm:s.SSS'|'yy/MM/d h:m:s.SSS'|'yy/MM/d h:mm:s.SSS'|'yy/MM/d hh:m:s.SSS'|'yy/MM/d hh:mm:s.SSS'|'yy/MM/dd h:m:s.SSS'|'yy/MM/dd h:mm:s.SSS'|'yy/MM/dd hh:m:s.SSS'|'yy/MM/dd hh:mm:s.SSS'|'yyyy/M/d h:m:s.SSS'|'yyyy/M/d h:mm:s.SSS'|'yyyy/M/d hh:m:s.SSS'|'yyyy/M/d hh:mm:s.SSS'|'yyyy/M/dd h:m:s.SSS'|'yyyy/M/dd h:mm:s.SSS'|'yyyy/M/dd hh:m:s.SSS'|'yyyy/M/dd hh:mm:s.SSS'|'yyyy/MM/d h:m:s.SSS'|'yyyy/MM/d h:mm:s.SSS'|'yyyy/MM/d hh:m:s.SSS'|'yyyy/MM/d hh:mm:s.SSS'|'yyyy/MM/dd h:m:s.SSS'|'yyyy/MM/dd h:mm:s.SSS'|'yyyy/MM/dd hh:m:s.SSS'|'yyyy/MM/dd hh:mm:s.SSS'|'M-d h:m'|'M-d h:m:s'|'M-d h:m:ss'|'M-d h:mm'|'M-d h:mm:s'|'M-d h:mm:ss'|'M-d hh:m'|'M-d hh:m:s'|'M-d hh:m:ss'|'M-d hh:mm'|'M-d hh:mm:s'|'M-d hh:mm:ss'|'M-d'|'M-dd h:m'|'M-dd h:m:s'|'M-dd h:m:ss'|'M-dd h:mm'|'M-dd h:mm:s'|'M-dd h:mm:ss'|'M-dd hh:m'|'M-dd hh:m:s'|'M-dd hh:m:ss'|'M-dd hh:mm'|'M-dd hh:mm:s'|'M-dd hh:mm:ss'|'M-dd'|'MM-d h:m'|'MM-d h:m:s'|'MM-d h:m:ss'|'MM-d h:mm'|'MM-d h:mm:s'|'MM-d h:mm:ss'|'MM-d hh:m'|'MM-d hh:m:s'|'MM-d hh:m:ss'|'MM-d hh:mm'|'MM-d hh:mm:s'|'MM-d hh:mm:ss'|'MM-d'|'MM-dd h:m'|'MM-dd h:m:s'|'MM-dd h:m:ss'|'MM-dd h:mm'|'MM-dd h:mm:s'|'MM-dd h:mm:ss'|'MM-dd hh:m'|'MM-dd hh:m:s'|'MM-dd hh:m:ss'|'MM-dd hh:mm'|'MM-dd hh:mm:s'|'MM-dd hh:mm:ss'|'MM-dd'|'yy-M'|'yy-M-d h:m'|'yy-M-d h:m:s'|'yy-M-d h:m:ss'|'yy-M-d h:mm'|'yy-M-d h:mm:s'|'yy-M-d h:mm:ss'|'yy-M-d hh:m'|'yy-M-d hh:m:s'|'yy-M-d hh:m:ss'|'yy-M-d hh:mm'|'yy-M-d hh:mm:s'|'yy-M-d hh:mm:ss'|'yy-M-d'|'yy-M-dd h:m'|'yy-M-dd h:m:s'|'yy-M-dd h:m:ss'|'yy-M-dd h:mm'|'yy-M-dd h:mm:s'|'yy-M-dd h:mm:ss'|'yy-M-dd hh:m'|'yy-M-dd hh:m:s'|'yy-M-dd hh:m:ss'|'yy-M-dd hh:mm'|'yy-M-dd hh:mm:s'|'yy-M-dd hh:mm:ss'|'yy-M-dd'|'yy-MM'|'yy-MM-d h:m'|'yy-MM-d h:m:s'|'yy-MM-d h:m:ss'|'yy-MM-d h:mm'|'yy-MM-d h:mm:s'|'yy-MM-d h:mm:ss'|'yy-MM-d hh:m'|'yy-MM-d hh:m:s'|'yy-MM-d hh:m:ss'|'yy-MM-d hh:mm'|'yy-MM-d hh:mm:s'|'yy-MM-d hh:mm:ss'|'yy-MM-d'|'yy-MM-dd h:m'|'yy-MM-dd h:m:s'|'yy-MM-dd h:m:ss'|'yy-MM-dd h:mm'|'yy-MM-dd h:mm:s'|'yy-MM-dd h:mm:ss'|'yy-MM-dd hh:m'|'yy-MM-dd hh:m:s'|'yy-MM-dd hh:m:ss'|'yy-MM-dd hh:mm'|'yy-MM-dd hh:mm:s'|'yy-MM-dd hh:mm:ss'|'yy-MM-dd'|'yyyy-M'|'yyyy-M-d h:m'|'yyyy-M-d h:m:s'|'yyyy-M-d h:m:ss'|'yyyy-M-d h:mm'|'yyyy-M-d h:mm:s'|'yyyy-M-d h:mm:ss'|'yyyy-M-d hh:m'|'yyyy-M-d hh:m:s'|'yyyy-M-d hh:m:ss'|'yyyy-M-d hh:mm'|'yyyy-M-d hh:mm:s'|'yyyy-M-d hh:mm:ss'|'yyyy-M-d'|'yyyy-M-dd h:m'|'yyyy-M-dd h:m:s'|'yyyy-M-dd h:m:ss'|'yyyy-M-dd h:mm'|'yyyy-M-dd h:mm:s'|'yyyy-M-dd h:mm:ss'|'yyyy-M-dd hh:m'|'yyyy-M-dd hh:m:s'|'yyyy-M-dd hh:m:ss'|'yyyy-M-dd hh:mm'|'yyyy-M-dd hh:mm:s'|'yyyy-M-dd hh:mm:ss'|'yyyy-M-dd'|'yyyy-MM'|'yyyy-MM-d h:m'|'yyyy-MM-d h:m:s'|'yyyy-MM-d h:m:ss'|'yyyy-MM-d h:mm'|'yyyy-MM-d h:mm:s'|'yyyy-MM-d h:mm:ss'|'yyyy-MM-d hh:m'|'yyyy-MM-d hh:m:s'|'yyyy-MM-d hh:m:ss'|'yyyy-MM-d hh:mm'|'yyyy-MM-d hh:mm:s'|'yyyy-MM-d hh:mm:ss'|'yyyy-MM-d'|'yyyy-MM-dd h:m'|'yyyy-MM-dd h:m:s'|'yyyy-MM-dd h:m:ss'|'yyyy-MM-dd h:mm'|'yyyy-MM-dd h:mm:s'|'yyyy-MM-dd h:mm:ss'|'yyyy-MM-dd hh:m'|'yyyy-MM-dd hh:m:s'|'yyyy-MM-dd hh:m:ss'|'yyyy-MM-dd hh:mm'|'yyyy-MM-dd hh:mm:s'|'yyyy-MM-dd hh:mm:ss'|'yyyy-MM-dd'|'M-d h:m:s.S'|'M-d h:mm:s.S'|'M-d hh:m:s.S'|'M-d hh:mm:s.S'|'M-dd h:m:s.S'|'M-dd h:mm:s.S'|'M-dd hh:m:s.S'|'M-dd hh:mm:s.S'|'MM-d h:m:s.S'|'MM-d h:mm:s.S'|'MM-d hh:m:s.S'|'MM-d hh:mm:s.S'|'MM-dd h:m:s.S'|'MM-dd h:mm:s.S'|'MM-dd hh:m:s.S'|'MM-dd hh:mm:s.S'|'yy-M-d h:m:s.S'|'yy-M-d h:mm:s.S'|'yy-M-d hh:m:s.S'|'yy-M-d hh:mm:s.S'|'yy-M-dd h:m:s.S'|'yy-M-dd h:mm:s.S'|'yy-M-dd hh:m:s.S'|'yy-M-dd hh:mm:s.S'|'yy-MM-d h:m:s.S'|'yy-MM-d h:mm:s.S'|'yy-MM-d hh:m:s.S'|'yy-MM-d hh:mm:s.S'|'yy-MM-dd h:m:s.S'|'yy-MM-dd h:mm:s.S'|'yy-MM-dd hh:m:s.S'|'yy-MM-dd hh:mm:s.S'|'yyyy-M-d h:m:s.S'|'yyyy-M-d h:mm:s.S'|'yyyy-M-d hh:m:s.S'|'yyyy-M-d hh:mm:s.S'|'yyyy-M-dd h:m:s.S'|'yyyy-M-dd h:mm:s.S'|'yyyy-M-dd hh:m:s.S'|'yyyy-M-dd hh:mm:s.S'|'yyyy-MM-d h:m:s.S'|'yyyy-MM-d h:mm:s.S'|'yyyy-MM-d hh:m:s.S'|'yyyy-MM-d hh:mm:s.S'|'yyyy-MM-dd h:m:s.S'|'yyyy-MM-dd h:mm:s.S'|'yyyy-MM-dd hh:m:s.S'|'yyyy-MM-dd hh:mm:s.S'|'M-d h:m:s.SS'|'M-d h:mm:s.SS'|'M-d hh:m:s.SS'|'M-d hh:mm:s.SS'|'M-dd h:m:s.SS'|'M-dd h:mm:s.SS'|'M-dd hh:m:s.SS'|'M-dd hh:mm:s.SS'|'MM-d h:m:s.SS'|'MM-d h:mm:s.SS'|'MM-d hh:m:s.SS'|'MM-d hh:mm:s.SS'|'MM-dd h:m:s.SS'|'MM-dd h:mm:s.SS'|'MM-dd hh:m:s.SS'|'MM-dd hh:mm:s.SS'|'yy-M-d h:m:s.SS'|'yy-M-d h:mm:s.SS'|'yy-M-d hh:m:s.SS'|'yy-M-d hh:mm:s.SS'|'yy-M-dd h:m:s.SS'|'yy-M-dd h:mm:s.SS'|'yy-M-dd hh:m:s.SS'|'yy-M-dd hh:mm:s.SS'|'yy-MM-d h:m:s.SS'|'yy-MM-d h:mm:s.SS'|'yy-MM-d hh:m:s.SS'|'yy-MM-d hh:mm:s.SS'|'yy-MM-dd h:m:s.SS'|'yy-MM-dd h:mm:s.SS'|'yy-MM-dd hh:m:s.SS'|'yy-MM-dd hh:mm:s.SS'|'yyyy-M-d h:m:s.SS'|'yyyy-M-d h:mm:s.SS'|'yyyy-M-d hh:m:s.SS'|'yyyy-M-d hh:mm:s.SS'|'yyyy-M-dd h:m:s.SS'|'yyyy-M-dd h:mm:s.SS'|'yyyy-M-dd hh:m:s.SS'|'yyyy-M-dd hh:mm:s.SS'|'yyyy-MM-d h:m:s.SS'|'yyyy-MM-d h:mm:s.SS'|'yyyy-MM-d hh:m:s.SS'|'yyyy-MM-d hh:mm:s.SS'|'yyyy-MM-dd h:m:s.SS'|'yyyy-MM-dd h:mm:s.SS'|'yyyy-MM-dd hh:m:s.SS'|'yyyy-MM-dd hh:mm:s.SS'|'M-d h:m:s.SSS'|'M-d h:mm:s.SSS'|'M-d hh:m:s.SSS'|'M-d hh:mm:s.SSS'|'M-dd h:m:s.SSS'|'M-dd h:mm:s.SSS'|'M-dd hh:m:s.SSS'|'M-dd hh:mm:s.SSS'|'MM-d h:m:s.SSS'|'MM-d h:mm:s.SSS'|'MM-d hh:m:s.SSS'|'MM-d hh:mm:s.SSS'|'MM-dd h:m:s.SSS'|'MM-dd h:mm:s.SSS'|'MM-dd hh:m:s.SSS'|'MM-dd hh:mm:s.SSS'|'yy-M-d h:m:s.SSS'|'yy-M-d h:mm:s.SSS'|'yy-M-d hh:m:s.SSS'|'yy-M-d hh:mm:s.SSS'|'yy-M-dd h:m:s.SSS'|'yy-M-dd h:mm:s.SSS'|'yy-M-dd hh:m:s.SSS'|'yy-M-dd hh:mm:s.SSS'|'yy-MM-d h:m:s.SSS'|'yy-MM-d h:mm:s.SSS'|'yy-MM-d hh:m:s.SSS'|'yy-MM-d hh:mm:s.SSS'|'yy-MM-dd h:m:s.SSS'|'yy-MM-dd h:mm:s.SSS'|'yy-MM-dd hh:m:s.SSS'|'yy-MM-dd hh:mm:s.SSS'|'yyyy-M-d h:m:s.SSS'|'yyyy-M-d h:mm:s.SSS'|'yyyy-M-d hh:m:s.SSS'|'yyyy-M-d hh:mm:s.SSS'|'yyyy-M-dd h:m:s.SSS'|'yyyy-M-dd h:mm:s.SSS'|'yyyy-M-dd hh:m:s.SSS'|'yyyy-M-dd hh:mm:s.SSS'|'yyyy-MM-d h:m:s.SSS'|'yyyy-MM-d h:mm:s.SSS'|'yyyy-MM-d hh:m:s.SSS'|'yyyy-MM-d hh:mm:s.SSS'|'yyyy-MM-dd h:m:s.SSS'|'yyyy-MM-dd h:mm:s.SSS'|'yyyy-MM-dd hh:m:s.SSS'|'yyyy-MM-dd hh:mm:s.SSS'|'h:m:s:S'|'h:mm:s:S'|'hh:m:s:S'|'hh:mm:s:S'|'M/d h:m:s:S'|'M/d h:mm:s:S'|'M/d hh:m:s:S'|'M/d hh:mm:s:S'|'M/dd h:m:s:S'|'M/dd h:mm:s:S'|'M/dd hh:m:s:S'|'M/dd hh:mm:s:S'|'m:s:S'|'MM/d h:m:s:S'|'MM/d h:mm:s:S'|'MM/d hh:m:s:S'|'MM/d hh:mm:s:S'|'MM/dd h:m:s:S'|'MM/dd h:mm:s:S'|'MM/dd hh:m:s:S'|'MM/dd hh:mm:s:S'|'mm:s:S'|'yy/M/d h:m:s:S'|'yy/M/d h:mm:s:S'|'yy/M/d hh:m:s:S'|'yy/M/d hh:mm:s:S'|'yy/M/dd h:m:s:S'|'yy/M/dd h:mm:s:S'|'yy/M/dd hh:m:s:S'|'yy/M/dd hh:mm:s:S'|'yy/MM/d h:m:s:S'|'yy/MM/d h:mm:s:S'|'yy/MM/d hh:m:s:S'|'yy/MM/d hh:mm:s:S'|'yy/MM/dd h:m:s:S'|'yy/MM/dd h:mm:s:S'|'yy/MM/dd hh:m:s:S'|'yy/MM/dd hh:mm:s:S'|'yyyy/M/d h:m:s:S'|'yyyy/M/d h:mm:s:S'|'yyyy/M/d hh:m:s:S'|'yyyy/M/d hh:mm:s:S'|'yyyy/M/dd h:m:s:S'|'yyyy/M/dd h:mm:s:S'|'yyyy/M/dd hh:m:s:S'|'yyyy/M/dd hh:mm:s:S'|'yyyy/MM/d h:m:s:S'|'yyyy/MM/d h:mm:s:S'|'yyyy/MM/d hh:m:s:S'|'yyyy/MM/d hh:mm:s:S'|'yyyy/MM/dd h:m:s:S'|'yyyy/MM/dd h:mm:s:S'|'yyyy/MM/dd hh:m:s:S'|'yyyy/MM/dd hh:mm:s:S'|'h:m:s:SS'|'h:mm:s:SS'|'hh:m:s:SS'|'hh:mm:s:SS'|'M/d h:m:s:SS'|'M/d h:mm:s:SS'|'M/d hh:m:s:SS'|'M/d hh:mm:s:SS'|'M/dd h:m:s:SS'|'M/dd h:mm:s:SS'|'M/dd hh:m:s:SS'|'M/dd hh:mm:s:SS'|'m:s:SS'|'MM/d h:m:s:SS'|'MM/d h:mm:s:SS'|'MM/d hh:m:s:SS'|'MM/d hh:mm:s:SS'|'MM/dd h:m:s:SS'|'MM/dd h:mm:s:SS'|'MM/dd hh:m:s:SS'|'MM/dd hh:mm:s:SS'|'mm:s:SS'|'yy/M/d h:m:s:SS'|'yy/M/d h:mm:s:SS'|'yy/M/d hh:m:s:SS'|'yy/M/d hh:mm:s:SS'|'yy/M/dd h:m:s:SS'|'yy/M/dd h:mm:s:SS'|'yy/M/dd hh:m:s:SS'|'yy/M/dd hh:mm:s:SS'|'yy/MM/d h:m:s:SS'|'yy/MM/d h:mm:s:SS'|'yy/MM/d hh:m:s:SS'|'yy/MM/d hh:mm:s:SS'|'yy/MM/dd h:m:s:SS'|'yy/MM/dd h:mm:s:SS'|'yy/MM/dd hh:m:s:SS'|'yy/MM/dd hh:mm:s:SS'|'yyyy/M/d h:m:s:SS'|'yyyy/M/d h:mm:s:SS'|'yyyy/M/d hh:m:s:SS'|'yyyy/M/d hh:mm:s:SS'|'yyyy/M/dd h:m:s:SS'|'yyyy/M/dd h:mm:s:SS'|'yyyy/M/dd hh:m:s:SS'|'yyyy/M/dd hh:mm:s:SS'|'yyyy/MM/d h:m:s:SS'|'yyyy/MM/d h:mm:s:SS'|'yyyy/MM/d hh:m:s:SS'|'yyyy/MM/d hh:mm:s:SS'|'yyyy/MM/dd h:m:s:SS'|'yyyy/MM/dd h:mm:s:SS'|'yyyy/MM/dd hh:m:s:SS'|'yyyy/MM/dd hh:mm:s:SS'|'h:m:s:SSS'|'h:mm:s:SSS'|'hh:m:s:SSS'|'hh:mm:s:SSS'|'M/d h:m:s:SSS'|'M/d h:mm:s:SSS'|'M/d hh:m:s:SSS'|'M/d hh:mm:s:SSS'|'M/dd h:m:s:SSS'|'M/dd h:mm:s:SSS'|'M/dd hh:m:s:SSS'|'M/dd hh:mm:s:SSS'|'m:s:SSS'|'MM/d h:m:s:SSS'|'MM/d h:mm:s:SSS'|'MM/d hh:m:s:SSS'|'MM/d hh:mm:s:SSS'|'MM/dd h:m:s:SSS'|'MM/dd h:mm:s:SSS'|'MM/dd hh:m:s:SSS'|'MM/dd hh:mm:s:SSS'|'mm:s:SSS'|'yy/M/d h:m:s:SSS'|'yy/M/d h:mm:s:SSS'|'yy/M/d hh:m:s:SSS'|'yy/M/d hh:mm:s:SSS'|'yy/M/dd h:m:s:SSS'|'yy/M/dd h:mm:s:SSS'|'yy/M/dd hh:m:s:SSS'|'yy/M/dd hh:mm:s:SSS'|'yy/MM/d h:m:s:SSS'|'yy/MM/d h:mm:s:SSS'|'yy/MM/d hh:m:s:SSS'|'yy/MM/d hh:mm:s:SSS'|'yy/MM/dd h:m:s:SSS'|'yy/MM/dd h:mm:s:SSS'|'yy/MM/dd hh:m:s:SSS'|'yy/MM/dd hh:mm:s:SSS'|'yyyy/M/d h:m:s:SSS'|'yyyy/M/d h:mm:s:SSS'|'yyyy/M/d hh:m:s:SSS'|'yyyy/M/d hh:mm:s:SSS'|'yyyy/M/dd h:m:s:SSS'|'yyyy/M/dd h:mm:s:SSS'|'yyyy/M/dd hh:m:s:SSS'|'yyyy/M/dd hh:mm:s:SSS'|'yyyy/MM/d h:m:s:SSS'|'yyyy/MM/d h:mm:s:SSS'|'yyyy/MM/d hh:m:s:SSS'|'yyyy/MM/d hh:mm:s:SSS'|'yyyy/MM/dd h:m:s:SSS'|'yyyy/MM/dd h:mm:s:SSS'|'yyyy/MM/dd hh:m:s:SSS'|'yyyy/MM/dd hh:mm:s:SSS'|'M-d h:m:s:S'|'M-d h:mm:s:S'|'M-d hh:m:s:S'|'M-d hh:mm:s:S'|'M-dd h:m:s:S'|'M-dd h:mm:s:S'|'M-dd hh:m:s:S'|'M-dd hh:mm:s:S'|'MM-d h:m:s:S'|'MM-d h:mm:s:S'|'MM-d hh:m:s:S'|'MM-d hh:mm:s:S'|'MM-dd h:m:s:S'|'MM-dd h:mm:s:S'|'MM-dd hh:m:s:S'|'MM-dd hh:mm:s:S'|'yy-M-d h:m:s:S'|'yy-M-d h:mm:s:S'|'yy-M-d hh:m:s:S'|'yy-M-d hh:mm:s:S'|'yy-M-dd h:m:s:S'|'yy-M-dd h:mm:s:S'|'yy-M-dd hh:m:s:S'|'yy-M-dd hh:mm:s:S'|'yy-MM-d h:m:s:S'|'yy-MM-d h:mm:s:S'|'yy-MM-d hh:m:s:S'|'yy-MM-d hh:mm:s:S'|'yy-MM-dd h:m:s:S'|'yy-MM-dd h:mm:s:S'|'yy-MM-dd hh:m:s:S'|'yy-MM-dd hh:mm:s:S'|'yyyy-M-d h:m:s:S'|'yyyy-M-d h:mm:s:S'|'yyyy-M-d hh:m:s:S'|'yyyy-M-d hh:mm:s:S'|'yyyy-M-dd h:m:s:S'|'yyyy-M-dd h:mm:s:S'|'yyyy-M-dd hh:m:s:S'|'yyyy-M-dd hh:mm:s:S'|'yyyy-MM-d h:m:s:S'|'yyyy-MM-d h:mm:s:S'|'yyyy-MM-d hh:m:s:S'|'yyyy-MM-d hh:mm:s:S'|'yyyy-MM-dd h:m:s:S'|'yyyy-MM-dd h:mm:s:S'|'yyyy-MM-dd hh:m:s:S'|'yyyy-MM-dd hh:mm:s:S'|'M-d h:m:s:SS'|'M-d h:mm:s:SS'|'M-d hh:m:s:SS'|'M-d hh:mm:s:SS'|'M-dd h:m:s:SS'|'M-dd h:mm:s:SS'|'M-dd hh:m:s:SS'|'M-dd hh:mm:s:SS'|'MM-d h:m:s:SS'|'MM-d h:mm:s:SS'|'MM-d hh:m:s:SS'|'MM-d hh:mm:s:SS'|'MM-dd h:m:s:SS'|'MM-dd h:mm:s:SS'|'MM-dd hh:m:s:SS'|'MM-dd hh:mm:s:SS'|'yy-M-d h:m:s:SS'|'yy-M-d h:mm:s:SS'|'yy-M-d hh:m:s:SS'|'yy-M-d hh:mm:s:SS'|'yy-M-dd h:m:s:SS'|'yy-M-dd h:mm:s:SS'|'yy-M-dd hh:m:s:SS'|'yy-M-dd hh:mm:s:SS'|'yy-MM-d h:m:s:SS'|'yy-MM-d h:mm:s:SS'|'yy-MM-d hh:m:s:SS'|'yy-MM-d hh:mm:s:SS'|'yy-MM-dd h:m:s:SS'|'yy-MM-dd h:mm:s:SS'|'yy-MM-dd hh:m:s:SS'|'yy-MM-dd hh:mm:s:SS'|'yyyy-M-d h:m:s:SS'|'yyyy-M-d h:mm:s:SS'|'yyyy-M-d hh:m:s:SS'|'yyyy-M-d hh:mm:s:SS'|'yyyy-M-dd h:m:s:SS'|'yyyy-M-dd h:mm:s:SS'|'yyyy-M-dd hh:m:s:SS'|'yyyy-M-dd hh:mm:s:SS'|'yyyy-MM-d h:m:s:SS'|'yyyy-MM-d h:mm:s:SS'|'yyyy-MM-d hh:m:s:SS'|'yyyy-MM-d hh:mm:s:SS'|'yyyy-MM-dd h:m:s:SS'|'yyyy-MM-dd h:mm:s:SS'|'yyyy-MM-dd hh:m:s:SS'|'yyyy-MM-dd hh:mm:s:SS'|'M-d h:m:s:SSS'|'M-d h:mm:s:SSS'|'M-d hh:m:s:SSS'|'M-d hh:mm:s:SSS'|'M-dd h:m:s:SSS'|'M-dd h:mm:s:SSS'|'M-dd hh:m:s:SSS'|'M-dd hh:mm:s:SSS'|'MM-d h:m:s:SSS'|'MM-d h:mm:s:SSS'|'MM-d hh:m:s:SSS'|'MM-d hh:mm:s:SSS'|'MM-dd h:m:s:SSS'|'MM-dd h:mm:s:SSS'|'MM-dd hh:m:s:SSS'|'MM-dd hh:mm:s:SSS'|'yy-M-d h:m:s:SSS'|'yy-M-d h:mm:s:SSS'|'yy-M-d hh:m:s:SSS'|'yy-M-d hh:mm:s:SSS'|'yy-M-dd h:m:s:SSS'|'yy-M-dd h:mm:s:SSS'|'yy-M-dd hh:m:s:SSS'|'yy-M-dd hh:mm:s:SSS'|'yy-MM-d h:m:s:SSS'|'yy-MM-d h:mm:s:SSS'|'yy-MM-d hh:m:s:SSS'|'yy-MM-d hh:mm:s:SSS'|'yy-MM-dd h:m:s:SSS'|'yy-MM-dd h:mm:s:SSS'|'yy-MM-dd hh:m:s:SSS'|'yy-MM-dd hh:mm:s:SSS'|'yyyy-M-d h:m:s:SSS'|'yyyy-M-d h:mm:s:SSS'|'yyyy-M-d hh:m:s:SSS'|'yyyy-M-d hh:mm:s:SSS'|'yyyy-M-dd h:m:s:SSS'|'yyyy-M-dd h:mm:s:SSS'|'yyyy-M-dd hh:m:s:SSS'|'yyyy-M-dd hh:mm:s:SSS'|'yyyy-MM-d h:m:s:SSS'|'yyyy-MM-d h:mm:s:SSS'|'yyyy-MM-d hh:m:s:SSS'|'yyyy-MM-d hh:mm:s:SSS'|'yyyy-MM-dd h:m:s:SSS'|'yyyy-MM-dd h:mm:s:SSS'|'yyyy-MM-dd hh:m:s:SSS'|'yyyy-MM-dd hh:mm:s:SSS'|'iso'|'ISO'|string} [format='yyyy/MM/dd hh:mm:ss']
              */
             $_cvt.date = function (src, format) {
-                let _pad = n => ('0' + n).slice(-2);
                 let _date = _parseDate(src || new Date());
+                let _fmt = (format || 'yyyy/MM/dd hh:mm:ss').toString();
+                if (_fmt.toUpperCase() === 'ISO') {
+                    let _d = new Date(_date);
+                    let _ts = _d.getTime() + _d.getTimezoneOffset() * 60e3;
+                    let _format = 'yyyy-MM-dd' + 'T' + 'hh:mm:ss.SSS' + 'Z';
+                    return this.date(_ts, _format);
+                }
+
                 let _yyyy = _date.getFullYear();
                 let _yy = _yyyy.toString().slice(-2);
                 let _M = _date.getMonth() + 1;
-                let _MM = _pad(_M);
+                let _MM = _M.toString().padStart(2, '0');
                 let _d = _date.getDate();
-                let _dd = _pad(_d);
+                let _dd = _d.toString().padStart(2, '0');
                 let _h = _date.getHours();
-                let _hh = _pad(_h);
+                let _hh = _h.toString().padStart(2, '0');
                 let _m = _date.getMinutes();
-                let _mm = _pad(_m);
+                let _mm = _m.toString().padStart(2, '0');
                 let _s = _date.getSeconds();
-                let _ss = _pad(_s);
+                let _ss = _s.toString().padStart(2, '0');
+                let _milli = (_date.getMilliseconds() % 1e3);
+                let _S = _milli.toString().padEnd(3, '0').slice(0, 1);
+                let _SS = _milli.toString().padEnd(3, '0').slice(0, 2);
+                let _SSS = _milli.toString().padEnd(3, '0').slice(0, 3);
 
                 let _units = {
                     yyyy: _yyyy, yy: _yy,
@@ -454,8 +670,25 @@ let ext = {
                     mm: _mm, m: _m,
                     ss: _ss, s: _s,
                 };
+                let _descriptor = function (ret_val) {
+                    let _this = this;
+                    return {
+                        get() {
+                            delete _this.S;
+                            delete _this.SS;
+                            delete _this.SSS;
+                            return ret_val;
+                        },
+                        configurable: true,
+                    };
+                };
+                Object.defineProperties(_units, {
+                    S: _descriptor.call(_units, _S),
+                    SS: _descriptor.call(_units, _SS),
+                    SSS: _descriptor.call(_units, _SSS),
+                });
 
-                return _parseFormat(format || 'yyyy/MM/dd hh:mm:ss');
+                return _parseFormat(_fmt);
 
                 // tool function(s) //
 
@@ -503,23 +736,22 @@ let ext = {
                 }
 
                 function _parseFormat(str) {
-                    let _str = str.toString();
                     let _res = '';
 
-                    while (_str.length) {
+                    while (str.length) {
                         let _max = 4;
                         while (_max) {
-                            let _unit = _str.slice(0, _max);
+                            let _unit = str.slice(0, _max);
                             if (_unit in _units) {
                                 _res += _units[_unit];
-                                _str = _str.slice(_max);
+                                str = str.slice(_max);
                                 break;
                             }
                             _max -= 1;
                         }
                         if (!_max) {
-                            _res += _str[0];
-                            _str = _str.slice(1);
+                            _res += str[0];
+                            str = str.slice(1);
                         }
                     }
 
@@ -574,6 +806,27 @@ let ext = {
                 }
             };
 
+            /**
+             * MD5 by both JavaScript and Java.
+             * Returns empty string with falsy input.
+             */
+            $_cvt.md5 = function (string) {
+                if (!string) {
+                    return '';
+                }
+                let _a = _md5Java(string);
+                let _b = _md5JS(string);
+                if (_a !== _b) {
+                    throw Error('md5Java() !== md5JS()');
+                }
+                return _b;
+            };
+            $_cvt.md5.js = _md5JS;
+            $_cvt.md5.java = _md5Java;
+
+            $_cvt.gzip = Object.create(null);
+            $_cvt.gzip.decode = _decodeGZip;
+
             return $_cvt;
 
             // tool function(s) //
@@ -582,9 +835,465 @@ let ext = {
                 let _init = init_unit === undefined ? {} : {init_unit: init_unit};
                 return $_cvt(src, Object.assign(_init, presets, options));
             }
+
+            // noinspection SpellCheckingInspection
+            /**
+             * JavaScript MD5
+             * https://github.com/blueimp/JavaScript-MD5
+             *
+             * Copyright 2011, Sebastian Tschan
+             * https://blueimp.net
+             *
+             * Licensed under the MIT license:
+             * https://opensource.org/licenses/MIT
+             *
+             * Based on
+             * A JavaScript implementation of the RSA Data Security, Inc. MD5 Message
+             * Digest Algorithm, as defined in RFC 1321.
+             * Version 2.2 Copyright (C) Paul Johnston 1999 - 2009
+             * Other contributors: Greg Holt, Andrew Kepert, Ydnar, Lostinet
+             * Distributed under the BSD License
+             * See http://pajhome.org.uk/crypt/md5 for more info.
+             */
+            function _md5JS(string, key, raw) {
+                'use strict';
+
+                return md5(string, key, raw).toUpperCase();
+
+                /**
+                 * Add integers, wrapping at 2^32.
+                 * This uses 16-bit operations internally to work around bugs in interpreters.
+                 *
+                 * @param {number} x First integer
+                 * @param {number} y Second integer
+                 * @returns {number} Sum
+                 */
+                function safeAdd(x, y) {
+                    let lsw = (x & 0xffff) + (y & 0xffff);
+                    let msw = (x >> 16) + (y >> 16) + (lsw >> 16);
+                    return (msw << 16) | (lsw & 0xffff);
+                }
+
+                /**
+                 * Bitwise rotate a 32-bit number to the left.
+                 *
+                 * @param {number} num 32-bit number
+                 * @param {number} cnt Rotation count
+                 * @returns {number} Rotated number
+                 */
+                function bitRotateLeft(num, cnt) {
+                    return (num << cnt) | (num >>> (32 - cnt));
+                }
+
+                /**
+                 * Basic operation the algorithm uses.
+                 *
+                 * @param {number} q q
+                 * @param {number} a a
+                 * @param {number} b b
+                 * @param {number} x x
+                 * @param {number} s s
+                 * @param {number} t t
+                 * @returns {number} Result
+                 */
+                function md5cmn(q, a, b, x, s, t) {
+                    return safeAdd(bitRotateLeft(safeAdd(safeAdd(a, q), safeAdd(x, t)), s), b);
+                }
+
+                /**
+                 * Basic operation the algorithm uses.
+                 *
+                 * @param {number} a a
+                 * @param {number} b b
+                 * @param {number} c c
+                 * @param {number} d d
+                 * @param {number} x x
+                 * @param {number} s s
+                 * @param {number} t t
+                 * @returns {number} Result
+                 */
+                function md5ff(a, b, c, d, x, s, t) {
+                    return md5cmn((b & c) | (~b & d), a, b, x, s, t);
+                }
+
+                /**
+                 * Basic operation the algorithm uses.
+                 *
+                 * @param {number} a a
+                 * @param {number} b b
+                 * @param {number} c c
+                 * @param {number} d d
+                 * @param {number} x x
+                 * @param {number} s s
+                 * @param {number} t t
+                 * @returns {number} Result
+                 */
+                function md5gg(a, b, c, d, x, s, t) {
+                    return md5cmn((b & d) | (c & ~d), a, b, x, s, t);
+                }
+
+                /**
+                 * Basic operation the algorithm uses.
+                 *
+                 * @param {number} a a
+                 * @param {number} b b
+                 * @param {number} c c
+                 * @param {number} d d
+                 * @param {number} x x
+                 * @param {number} s s
+                 * @param {number} t t
+                 * @returns {number} Result
+                 */
+                function md5hh(a, b, c, d, x, s, t) {
+                    return md5cmn(b ^ c ^ d, a, b, x, s, t);
+                }
+
+                /**
+                 * Basic operation the algorithm uses.
+                 *
+                 * @param {number} a a
+                 * @param {number} b b
+                 * @param {number} c c
+                 * @param {number} d d
+                 * @param {number} x x
+                 * @param {number} s s
+                 * @param {number} t t
+                 * @returns {number} Result
+                 */
+                function md5ii(a, b, c, d, x, s, t) {
+                    return md5cmn(c ^ (b | ~d), a, b, x, s, t);
+                }
+
+                /**
+                 * Calculate the MD5 of an array of little-endian words, and a bit length.
+                 *
+                 * @param {Array} x Array of little-endian words
+                 * @param {number} len Bit length
+                 * @returns {Array<number>} MD5 Array
+                 */
+                function binlMD5(x, len) {
+                    /* append padding */
+                    x[len >> 5] |= 0x80 << len % 32;
+                    x[(((len + 64) >>> 9) << 4) + 14] = len;
+
+                    let i;
+                    let old_a;
+                    let old_b;
+                    let old_c;
+                    let old_d;
+                    let a = 1732584193;
+                    let b = -271733879;
+                    let c = -1732584194;
+                    let d = 271733878;
+
+                    for (i = 0; i < x.length; i += 16) {
+                        old_a = a;
+                        old_b = b;
+                        old_c = c;
+                        old_d = d;
+
+                        a = md5ff(a, b, c, d, x[i], 7, -680876936);
+                        d = md5ff(d, a, b, c, x[i + 1], 12, -389564586);
+                        c = md5ff(c, d, a, b, x[i + 2], 17, 606105819);
+                        b = md5ff(b, c, d, a, x[i + 3], 22, -1044525330);
+                        a = md5ff(a, b, c, d, x[i + 4], 7, -176418897);
+                        d = md5ff(d, a, b, c, x[i + 5], 12, 1200080426);
+                        c = md5ff(c, d, a, b, x[i + 6], 17, -1473231341);
+                        b = md5ff(b, c, d, a, x[i + 7], 22, -45705983);
+                        a = md5ff(a, b, c, d, x[i + 8], 7, 1770035416);
+                        d = md5ff(d, a, b, c, x[i + 9], 12, -1958414417);
+                        c = md5ff(c, d, a, b, x[i + 10], 17, -42063);
+                        b = md5ff(b, c, d, a, x[i + 11], 22, -1990404162);
+                        a = md5ff(a, b, c, d, x[i + 12], 7, 1804603682);
+                        d = md5ff(d, a, b, c, x[i + 13], 12, -40341101);
+                        c = md5ff(c, d, a, b, x[i + 14], 17, -1502002290);
+                        b = md5ff(b, c, d, a, x[i + 15], 22, 1236535329);
+
+                        a = md5gg(a, b, c, d, x[i + 1], 5, -165796510);
+                        d = md5gg(d, a, b, c, x[i + 6], 9, -1069501632);
+                        c = md5gg(c, d, a, b, x[i + 11], 14, 643717713);
+                        b = md5gg(b, c, d, a, x[i], 20, -373897302);
+                        a = md5gg(a, b, c, d, x[i + 5], 5, -701558691);
+                        d = md5gg(d, a, b, c, x[i + 10], 9, 38016083);
+                        c = md5gg(c, d, a, b, x[i + 15], 14, -660478335);
+                        b = md5gg(b, c, d, a, x[i + 4], 20, -405537848);
+                        a = md5gg(a, b, c, d, x[i + 9], 5, 568446438);
+                        d = md5gg(d, a, b, c, x[i + 14], 9, -1019803690);
+                        c = md5gg(c, d, a, b, x[i + 3], 14, -187363961);
+                        b = md5gg(b, c, d, a, x[i + 8], 20, 1163531501);
+                        a = md5gg(a, b, c, d, x[i + 13], 5, -1444681467);
+                        d = md5gg(d, a, b, c, x[i + 2], 9, -51403784);
+                        c = md5gg(c, d, a, b, x[i + 7], 14, 1735328473);
+                        b = md5gg(b, c, d, a, x[i + 12], 20, -1926607734);
+
+                        a = md5hh(a, b, c, d, x[i + 5], 4, -378558);
+                        d = md5hh(d, a, b, c, x[i + 8], 11, -2022574463);
+                        c = md5hh(c, d, a, b, x[i + 11], 16, 1839030562);
+                        b = md5hh(b, c, d, a, x[i + 14], 23, -35309556);
+                        a = md5hh(a, b, c, d, x[i + 1], 4, -1530992060);
+                        d = md5hh(d, a, b, c, x[i + 4], 11, 1272893353);
+                        c = md5hh(c, d, a, b, x[i + 7], 16, -155497632);
+                        b = md5hh(b, c, d, a, x[i + 10], 23, -1094730640);
+                        a = md5hh(a, b, c, d, x[i + 13], 4, 681279174);
+                        d = md5hh(d, a, b, c, x[i], 11, -358537222);
+                        c = md5hh(c, d, a, b, x[i + 3], 16, -722521979);
+                        b = md5hh(b, c, d, a, x[i + 6], 23, 76029189);
+                        a = md5hh(a, b, c, d, x[i + 9], 4, -640364487);
+                        d = md5hh(d, a, b, c, x[i + 12], 11, -421815835);
+                        c = md5hh(c, d, a, b, x[i + 15], 16, 530742520);
+                        b = md5hh(b, c, d, a, x[i + 2], 23, -995338651);
+
+                        a = md5ii(a, b, c, d, x[i], 6, -198630844);
+                        d = md5ii(d, a, b, c, x[i + 7], 10, 1126891415);
+                        c = md5ii(c, d, a, b, x[i + 14], 15, -1416354905);
+                        b = md5ii(b, c, d, a, x[i + 5], 21, -57434055);
+                        a = md5ii(a, b, c, d, x[i + 12], 6, 1700485571);
+                        d = md5ii(d, a, b, c, x[i + 3], 10, -1894986606);
+                        c = md5ii(c, d, a, b, x[i + 10], 15, -1051523);
+                        b = md5ii(b, c, d, a, x[i + 1], 21, -2054922799);
+                        a = md5ii(a, b, c, d, x[i + 8], 6, 1873313359);
+                        d = md5ii(d, a, b, c, x[i + 15], 10, -30611744);
+                        c = md5ii(c, d, a, b, x[i + 6], 15, -1560198380);
+                        b = md5ii(b, c, d, a, x[i + 13], 21, 1309151649);
+                        a = md5ii(a, b, c, d, x[i + 4], 6, -145523070);
+                        d = md5ii(d, a, b, c, x[i + 11], 10, -1120210379);
+                        c = md5ii(c, d, a, b, x[i + 2], 15, 718787259);
+                        b = md5ii(b, c, d, a, x[i + 9], 21, -343485551);
+
+                        a = safeAdd(a, old_a);
+                        b = safeAdd(b, old_b);
+                        c = safeAdd(c, old_c);
+                        d = safeAdd(d, old_d);
+                    }
+                    return [a, b, c, d];
+                }
+
+                /**
+                 * Convert an array of little-endian words to a string
+                 *
+                 * @param {Array<number>} input MD5 Array
+                 * @returns {string} MD5 string
+                 */
+                function binl2rstr(input) {
+                    let i;
+                    let output = '';
+                    let length32 = input.length * 32;
+                    for (i = 0; i < length32; i += 8) {
+                        output += String.fromCharCode((input[i >> 5] >>> i % 32) & 0xff);
+                    }
+                    return output;
+                }
+
+                /**
+                 * Convert a raw string to an array of little-endian words
+                 * Characters >255 have their high-byte silently ignored.
+                 *
+                 * @param {string} input Raw input string
+                 * @returns {Array<number>} Array of little-endian words
+                 */
+                function rstr2binl(input) {
+                    let i;
+                    let output = [];
+                    output[(input.length >> 2) - 1] = undefined;
+                    for (i = 0; i < output.length; i += 1) {
+                        output[i] = 0;
+                    }
+                    let length8 = input.length * 8;
+                    for (i = 0; i < length8; i += 8) {
+                        output[i >> 5] |= (input.charCodeAt(i / 8) & 0xff) << i % 32;
+                    }
+                    return output;
+                }
+
+                /**
+                 * Calculate the MD5 of a raw string
+                 *
+                 * @param {string} s Input string
+                 * @returns {string} Raw MD5 string
+                 */
+                function rstrMD5(s) {
+                    return binl2rstr(binlMD5(rstr2binl(s), s.length * 8));
+                }
+
+                /**
+                 * Calculates the HMAC-MD5 of a key and some data (raw strings)
+                 *
+                 * @param {string} key HMAC key
+                 * @param {string} data Raw input string
+                 * @returns {string} Raw MD5 string
+                 */
+                function rstrHMACMD5(key, data) {
+                    let i;
+                    let b_key = rstr2binl(key);
+                    let i_pad = [];
+                    let o_pad = [];
+                    let hash;
+                    i_pad[15] = o_pad[15] = undefined;
+                    if (b_key.length > 16) {
+                        b_key = binlMD5(b_key, key.length * 8);
+                    }
+                    for (i = 0; i < 16; i += 1) {
+                        i_pad[i] = b_key[i] ^ 0x36363636;
+                        o_pad[i] = b_key[i] ^ 0x5c5c5c5c;
+                    }
+                    hash = binlMD5(i_pad.concat(rstr2binl(data)), 512 + data.length * 8);
+                    return binl2rstr(binlMD5(o_pad.concat(hash), 512 + 128));
+                }
+
+                /**
+                 * Convert a raw string to a hex string
+                 *
+                 * @param {string} input Raw input string
+                 * @returns {string} Hex encoded string
+                 */
+                function rstr2hex(input) {
+                    // noinspection SpellCheckingInspection
+                    let hexTab = '0123456789abcdef';
+                    let output = '';
+                    let x;
+                    let i;
+                    for (i = 0; i < input.length; i += 1) {
+                        x = input.charCodeAt(i);
+                        output += hexTab.charAt((x >>> 4) & 0x0f) + hexTab.charAt(x & 0x0f);
+                    }
+                    return output;
+                }
+
+                /**
+                 * Encode a string as UTF-8
+                 *
+                 * @param {string} input Input string
+                 * @returns {string} UTF8 string
+                 */
+                function str2rstrUTF8(input) {
+                    return unescape(encodeURIComponent(input));
+                }
+
+                /**
+                 * Encodes input string as raw MD5 string
+                 *
+                 * @param {string} s Input string
+                 * @returns {string} Raw MD5 string
+                 */
+                function rawMD5(s) {
+                    return rstrMD5(str2rstrUTF8(s));
+                }
+
+                /**
+                 * Encodes input string as Hex encoded string
+                 *
+                 * @param {string} s Input string
+                 * @returns {string} Hex encoded string
+                 */
+                function hexMD5(s) {
+                    return rstr2hex(rawMD5(s));
+                }
+
+                /**
+                 * Calculates the raw HMAC-MD5 for the given key and data
+                 *
+                 * @param {string} k HMAC key
+                 * @param {string} d Input string
+                 * @returns {string} Raw MD5 string
+                 */
+                function rawHMACMD5(k, d) {
+                    return rstrHMACMD5(str2rstrUTF8(k), str2rstrUTF8(d));
+                }
+
+                /**
+                 * Calculates the Hex encoded HMAC-MD5 for the given key and data
+                 *
+                 * @param {string} k HMAC key
+                 * @param {string} d Input string
+                 * @returns {string} Raw MD5 string
+                 */
+                function hexHMACMD5(k, d) {
+                    return rstr2hex(rawHMACMD5(k, d));
+                }
+
+                /**
+                 * Calculates MD5 value for a given string.
+                 * If a key is provided, calculates the HMAC-MD5 value.
+                 * Returns a Hex encoded string unless the raw argument is given.
+                 *
+                 * @param {string} string Input string
+                 * @param {string} [key] HMAC key
+                 * @param {boolean} [raw] Raw output switch
+                 * @returns {string} MD5 output
+                 */
+                function md5(string, key, raw) {
+                    return key
+                        ? raw ? rawHMACMD5(key, string) : hexHMACMD5(key, string)
+                        : raw ? rawMD5(string) : hexMD5(string);
+                }
+            }
+
+            /** Java MD5 */
+            function _md5Java(string) {
+                let MD5Kit = {
+                    yT: [
+                        '0', '1', '2', '3', '4', '5', '6', '7',
+                        '8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+                    ],
+                    parse(paramArrayOfByte) {
+                        let localMessageDigest = MessageDigest.getInstance('MD5');
+                        localMessageDigest.update(paramArrayOfByte);
+                        return this.toHexString(localMessageDigest.digest());
+                    },
+                    toHexString(paramArrayOfByte) {
+                        let s = '';
+                        if (!paramArrayOfByte) {
+                            return s;
+                        }
+                        let i = 0;
+                        while (i < paramArrayOfByte.length) {
+                            s += this.yT[((paramArrayOfByte[i] & 0xF0) >>> 4)];
+                            s += this.yT[(paramArrayOfByte[i] & 0xF)];
+                            i += 1;
+                        }
+                        return s;
+                    },
+                    toMd5(str) {
+                        if (!str) {
+                            return '';
+                        }
+                        try {
+                            // noinspection JSVoidFunctionReturnValueUsed,JSValidateTypes,JSDeprecatedSymbols,JSCheckFunctionSignatures
+                            return this.parse(new java.lang.String(str).getBytes('UTF-8'));
+                        } catch (e) {
+                            // nothing to do here
+                        }
+                        return '';
+                    },
+                };
+
+                return MD5Kit.toMd5(string).toUpperCase();
+            }
+
+            /**
+             * @param {number[]} [bytes]
+             * @param {'js_string'|'java_string'|'json'} [format='js_string']
+             * @returns {string|*}
+             */
+            function _decodeGZip(bytes, format) {
+                let os = new ByteArrayOutputStream();
+                let is = new GZIPInputStream(new ByteArrayInputStream(bytes));
+                let buffer = util.java.array('byte', 1024);
+                let num;
+                while ((num = is.read(buffer)) !== -1) {
+                    os.write(buffer, 0, num);
+                }
+                // noinspection JSValidateTypes
+                let _java_str = new java.lang.String(os.toByteArray());
+                if (format === 'java_string') {
+                    return _java_str;
+                }
+                let _js_str = String(_java_str);
+                return format === 'json' ? JSON.parse(_js_str) : _js_str;
+            }
         }
     },
-    String() {
+    string() {
         if (!String.prototype.toTitleCase) {
             Object.defineProperty(String.prototype, 'toTitleCase', {
                 /**
@@ -602,58 +1311,6 @@ let ext = {
                     return this.replace(/([A-Za-z])([A-Za-z]*)/g, ($0, $1, $2) => {
                         return $1.toUpperCase() + (is_first_caps_only ? $2 : $2.toLowerCase());
                     });
-                },
-            });
-        }
-        if (!String.prototype.padStart) {
-            /**
-             * Pads the current string with a given string to reach a given length (left padding).
-             * @function String.prototype.padStart
-             * @param {number} target_len
-             * @param {string|number} [pad_str=' ']
-             * @returns {string}
-             */
-            Object.defineProperty(String.prototype, 'padStart', {
-                value(target_len, pad_str) {
-                    return _getPadStr.apply(this, arguments) + this.valueOf();
-                },
-            });
-        }
-        if (!String.prototype.padEnd) {
-            Object.defineProperty(String.prototype, 'padEnd', {
-                /**
-                 * Pads the current string with a given string to reach a given length (right padding).
-                 * @function String.prototype.padEnd
-                 * @param {number} target_len
-                 * @param {string|number} [pad_str=' ']
-                 * @returns {string}
-                 */
-                value(target_len, pad_str) {
-                    return this.valueOf() + _getPadStr.apply(this, arguments);
-                },
-            });
-        }
-        if (!String.prototype.trimStart) {
-            Object.defineProperty(String.prototype, 'trimStart', {
-                /**
-                 * Removes the leading white space and line terminator characters from a string.
-                 * @function String.prototype.trimStart
-                 * @returns {string}
-                 */
-                value() {
-                    return String.prototype.trimLeft.apply(this, arguments);
-                },
-            });
-        }
-        if (!String.prototype.trimEnd) {
-            Object.defineProperty(String.prototype, 'trimEnd', {
-                /**
-                 * Removes the trailing white space and line terminator characters from a string.
-                 * @function String.prototype.trimEnd
-                 * @returns {string}
-                 */
-                value() {
-                    return String.prototype.trimRight.apply(this, arguments);
                 },
             });
         }
@@ -795,7 +1452,6 @@ let ext = {
                 },
             });
         }
-
         if (!String.prototype.ts) {
             Object.defineProperty(String.prototype, 'ts', {
                 /**
@@ -852,41 +1508,8 @@ let ext = {
                 configurable: true,
             });
         }
-
-        // tool function(s) //
-
-        function _getPadStr(target_len, pad_str) {
-            let _tar_len = Number(target_len);
-            let _this_len = this.length;
-            if (_tar_len <= _this_len) {
-                return '';
-            }
-            let _pad_str = pad_str === undefined ? ' ' : String(pad_str);
-            let _gap = _tar_len - _this_len;
-            let _times = Math.ceil(_gap / _pad_str.length);
-            return _pad_str.repeat(_times).slice(0, _gap);
-        }
     },
-    Object() {
-        if (!Object.values) {
-            Object.defineProperty(Object, 'values', {
-                /**
-                 * @function Object.values
-                 * @param {Iterable|Object} o
-                 * @returns {*[]}
-                 */
-                value(o) {
-                    if (o[Symbol['iterator']] !== undefined) {
-                        let _res = [];
-                        for (let v of o) {
-                            _res.push(v);
-                        }
-                        return _res;
-                    }
-                    return Object.keys(o).map(k => o[k]);
-                },
-            });
-        }
+    object() {
         if (!Object.size) {
             Object.defineProperty(Object, 'size', {
                 /**
@@ -964,22 +1587,6 @@ let ext = {
                 },
             });
         }
-        if (!Object.getOwnPropertyDescriptors) {
-            Object.defineProperty(Object, 'getOwnPropertyDescriptors', {
-                /**
-                 * @function Object.getOwnPropertyDescriptors
-                 * @param {Object} o
-                 * @returns {Object.<string,PropertyDescriptor>} <!-- or {PropertyDescriptorMap} -->
-                 */
-                value(o) {
-                    let _descriptor = {};
-                    Object.getOwnPropertyNames(o).forEach((k) => {
-                        _descriptor[k] = Object.getOwnPropertyDescriptor(o, k);
-                    });
-                    return _descriptor;
-                },
-            });
-        }
         if (!Object.assignDescriptors) {
             Object.defineProperty(Object, 'assignDescriptors', {
                 /**
@@ -1031,91 +1638,7 @@ let ext = {
             });
         }
     },
-    Array() {
-        if (!Array.from) {
-            // code from polyfill on the web page below
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
-            // modified by SuperMonster003 at Sep 21, 2020
-            Array.from = function (arrayLike, mapFn, thisArg) {
-                let isFunc = f => typeof f === 'function';
-                let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
-                let items = Object(arrayLike);
-                if (arrayLike === undefined || arrayLike === null) {
-                    throw TypeError('arrayLike of Array.from must be an array-like object');
-                }
-                if (mapFn !== undefined && !isFunc(mapFn)) {
-                    throw TypeError('mapFn of Array.from must be a function or undefined');
-                }
-                let len = Math.min(Math.max(toInt(items.length), 0), Number.MAX_SAFE_INTEGER);
-                let arr = isFunc(this) ? Object(new this(len)) : new Array(len);
-                let self = thisArg === undefined ? this : thisArg;
-                for (let i = 0; i < len; i += 1) {
-                    arr[i] = mapFn ? mapFn.call(self, items[i], i) : items[i];
-                }
-                arr.length = len;
-                return arr;
-            };
-        }
-        if (!Array.prototype.includes) {
-            Object.defineProperty(Array.prototype, 'includes', {
-                value(x, i) {
-                    return this.slice(i).some((v) => {
-                        if (typeof x !== 'undefined') {
-                            return Number.isNaN(x) ? Number.isNaN(v) : x === v;
-                        }
-                    });
-                },
-            });
-        }
-        if (!Array.prototype.fill) {
-            Object.defineProperty(Array.prototype, 'fill', {
-                value(v, start, end) {
-                    let _len = this.length;
-                    let _a = start >> 0;
-                    _a = _a < 0 ? _a + _len : _a > _len ? _len : _a;
-                    let _b = end === undefined ? _len : end >> 0;
-                    _b = _b < 0 ? _b + _len : _b > _len ? _len : _b;
-                    for (let i = _a; i < _b; i += 1) {
-                        this[i] = v;
-                    }
-                    return this;
-                },
-            });
-        }
-        if (!Array.prototype.flat) {
-            Object.defineProperty(Array.prototype, 'flat', {
-                value(depth) {
-                    return (function _flat(arr, d) {
-                        return d <= 0 ? arr : arr.reduce((a, b) => {
-                            return a.concat(Array.isArray(b) ? _flat(b, d - 1) : b);
-                        }, []);
-                    })(this.slice(), depth || 1);
-                },
-            });
-        }
-        if (!Array.prototype.keys) {
-            /** @returns {IterableIterator<number>} */
-            Array.prototype.keys = function () {
-                let _it_keys = this.map((v, i) => i)[Symbol.iterator];
-                return _it_keys();
-            };
-        }
-        if (!Array.prototype.values) {
-            // noinspection JSCheckFunctionSignatures
-            /** @returns {IterableIterator<any>} */
-            Array.prototype.values = function () {
-                return this[Symbol.iterator]();
-            };
-        }
-        if (!Array.prototype.entries) {
-            /** @returns {IterableIterator<[number, any]>} */
-            Array.prototype.entries = function () {
-                let _it_entries = this.map((v, i) => [i, v])[Symbol.iterator];
-                return _it_entries();
-            };
-        }
-    },
-    Number() {
+    number() {
         if (!Number.prototype.ICU) {
             Object.defineProperty(Number.prototype, 'ICU', {
                 /**
@@ -1298,7 +1821,7 @@ let ext = {
             };
         }
     },
-    Math() {
+    math() {
         Object.assign(Math, {
             /**
              * @returns {[]}
@@ -1822,11 +2345,11 @@ let ext = {
             },
         });
     },
-};
+}.$polyfill();
 
 module.exports.load = function () {
     let _args = Array.isArray(arguments[0]) ? arguments[0] : arguments;
     let _keys = _args.length ? [].slice.call(_args) : Object.keys(ext);
-    _keys.forEach(k => k in ext && ext[k].call(ext));
+    _keys.map(k => k.toLowerCase()).forEach(k => k in ext && ext[k].call(ext));
     return ext;
 };

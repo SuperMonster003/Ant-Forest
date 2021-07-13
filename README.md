@@ -115,6 +115,12 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.1.6
+###### 2021/07/13
+* `新增` Root权限功能配置
+* `修复` 模块交叉引用导致部分模块独立引用失败的问题
+* `修复` 版本忽略管理匹配输入时结果可能出现错误的问题
+
 # v2.1.5
 ###### 2021/07/01
 * `修复` 部分机型SettingNotFoundException异常并尝试自动修复 (试修) _[`issue #487`](https://github.com/SuperMonster003/Ant-Forest/issues/487)_ _[`#483`](https://github.com/SuperMonster003/Ant-Forest/issues/483)_
@@ -135,20 +141,6 @@
 * `修复` 部分Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
 * `修复` 部分Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
 * `修复` 部分Pro版本无法获取脚本文件路径配置信息的问题
-
-# v2.1.3
-###### 2021/06/21
-* `修复` 森林主页出现复活能量球时无法自动收取的问题
-* `修复` 项目部署工具下载项目数据包后可能出现的假死问题 (试修)
-* `修复` 解锁功能在屏幕关闭事件触发后受到阻塞的问题
-* `修复` 解锁功能在闹钟应用前置于锁屏页面时无法工作的问题
-* `修复` 解锁功能在单次项目运行中连续使用出现的高失败率问题
-* `修复` 屏幕关闭事件触发后排行榜底部监测线程未能阻塞的问题
-* `优化` 提取devicex.screenOff()方法并优化内部逻辑
-* `优化` 解锁功能"通用PIN容器"方案优化内部执行逻辑 _[`issue #463`](https://github.com/SuperMonster003/Ant-Forest/issues/463)_
-* `优化` 截图权限申请方法的允许按钮自动点击增加兼容性 _[`issue #475`](https://github.com/SuperMonster003/Ant-Forest/issues/475)_
-* `优化` 增加屏幕方向状态管理避免横屏启动时部分截图方法异常 _[`issue #477`](https://github.com/SuperMonster003/Ant-Forest/issues/477)_ _[`#471`](https://github.com/SuperMonster003/Ant-Forest/issues/471)_ _[`#468`](https://github.com/SuperMonster003/Ant-Forest/issues/468)_
-* `优化` 能量雨收集工具优化识别条件并增加额外机会的自动处理
 
 ##### 更多版本历史可参阅
 

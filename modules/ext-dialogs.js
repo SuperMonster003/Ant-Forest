@@ -1,15 +1,18 @@
-// given that there are bugs with dialogs modules
-// in auto.js versions like 4.1.0 Alpha5 and 4.1.1 Alpha2
-
-// in another way, extended functions like
-// dialogsx.builds() and dialogsx.getContentText()
-// could make things easier to some extent
-
 global.dialogsx = typeof global.dialogsx === 'object' ? global.dialogsx : {};
 
 require('./ext-colors').load();
 
-let isUiThread = () => android.os.Looper.myLooper() === android.os.Looper.getMainLooper();
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let Looper = android.os.Looper;
+let Linkify = android.text.util.Linkify;
+let KeyEvent = android.view.KeyEvent;
+let ColorStateList = android.content.res.ColorStateList;
+let DialogAction = com.afollestad.materialdialogs.DialogAction;
+let MaterialDialog = com.afollestad.materialdialogs.MaterialDialog;
+
+let isUiThread = () => Looper.myLooper() === Looper.getMainLooper();
 let rtDialogs = () => isUiThread() ? runtime.dialogs : runtime.dialogs.nonUiDialogs;
 
 let ext = {
@@ -100,13 +103,14 @@ let ext = {
          * @description N: continue
          * @description M: sure to modify
          * @description R: reset to default
-         * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'} DialogsxButtonText
+         * @description T: show details
+         * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'|'T'} DialogsxButtonText
          */
         _btn: {
             F: '完成', B: '返回', Q: '放弃', X: '退出',
             I: '终止', K: '确定', S: '确认',
             C: '关闭', D: '删除', N: '继续',
-            M: '确认修改', R: '设为默认值',
+            M: '确认修改', R: '使用默认值', T: '了解更多',
         },
         no_more_prompt: '不再提示',
         user_interrupted: '用户终止',
@@ -257,7 +261,7 @@ let ext = {
      * } Builds$Properties
      */
     /**
-     * @typedef {DialogsBuildProperties & {
+     * @typedef {DialogsBuildProperties | {
      *     disable_back?: boolean|Function,
      *     linkify?: Dialogsx$Linkify$Mask,
      * }} Builds$Extensions
@@ -310,7 +314,9 @@ let ext = {
                 if (_text) {
                     _ext[key] = text_lib && text_lib[_text] || _text;
                 }
-                _ext[key + 'Color'] = color_lib[_color] || _color || color_lib.default;
+                let _k_c = key + 'Color';
+                let _c = _ext[_k_c] || color_lib[_color] || _color || color_lib.default;
+                _ext[_k_c] = colorsx.toInt(_c);
             }
         }
     },
@@ -514,7 +520,7 @@ let ext = {
         d.setOnKeyListener({
             onKey(diag, key_code) {
                 typeof f === 'function' && f();
-                return key_code === android.view.KeyEvent.KEYCODE_BACK;
+                return key_code === KeyEvent.KEYCODE_BACK;
             },
         });
         return d;
@@ -640,26 +646,31 @@ let ext = {
             let _cnt_vw = d.getContentView();
             ui.run(() => {
                 let _cnt_text = _cnt_vw.getText().toString();
-                _cnt_vw.setAutoLinkMask(android.text.util.Linkify[mask || 'ALL']);
+                _cnt_vw.setAutoLinkMask(Linkify[mask || 'ALL']);
                 _cnt_vw.setText(_cnt_text);
             });
         }
     },
     /**
      * @param {'positive'|'negative'|'neutral'} action
-     * @returns {com.afollestad.materialdialogs.DialogAction}
+     * @returns {com.afollestad.materialdialogs.DialogAction|null}
      */
     getDialogAction(action) {
-        switch (action) {
-            case 'positive':
-                return com.afollestad.materialdialogs.DialogAction.POSITIVE;
-            case 'negative':
-                return com.afollestad.materialdialogs.DialogAction.NEGATIVE;
-            case 'neutral':
-                return com.afollestad.materialdialogs.DialogAction.NEUTRAL;
-            default:
-                throw TypeError('unknown action of dialogsx.getDialogAction');
+        try {
+            switch (action) {
+                case 'positive':
+                    return DialogAction.POSITIVE;
+                case 'negative':
+                    return DialogAction.NEGATIVE;
+                case 'neutral':
+                    return DialogAction.NEUTRAL;
+            }
+        } catch (e) {
+            // Java class "com.afollestad.materialdialogs.DialogAction"
+            // has no public instance field or method named "%ACTION%"
+            return null;
         }
+        throw TypeError('unknown action of dialogsx.getDialogAction');
     },
     /**
      * Compatible for MaterialDialog.getActionButton()
@@ -668,7 +679,7 @@ let ext = {
      * @returns {string}
      */
     getActionButton(d, action) {
-        return d instanceof com.afollestad.materialdialogs.MaterialDialog
+        return d instanceof MaterialDialog
             ? d.getActionButton(this.getDialogAction(action)).getText().toString()
             : d.getActionButton(action);
     },
@@ -680,7 +691,7 @@ let ext = {
      * @param {string|null} title
      */
     setActionButton(d, action, title, color) {
-        return d instanceof com.afollestad.materialdialogs.MaterialDialog
+        return d instanceof MaterialDialog
             ? ui.run(() => {
                 d.setActionButton(this.getDialogAction(action), title);
                 color && this.setActionButtonColor(d, action, color);
@@ -696,9 +707,11 @@ let ext = {
      * @param {ColorParam|DialogsxColorButton} color
      */
     setActionButtonColor(d, action, color) {
-        let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
-        let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
-        d.getActionButton(_action).setTextColor(_c_int);
+        let _action = this.getDialogAction(action.toLowerCase());
+        if (_action !== null) {
+            let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
+            d.getActionButton(_action).setTextColor(_c_int);
+        }
     },
     /**
      * @param {Builds$Properties} props
@@ -716,13 +729,13 @@ let ext = {
      *         negative?: string|[RegExp|string,string],
      *         positive?: string|[RegExp|string,string],
      *     },
-     * }} ext
+     * }} extensions
      * @returns {BuildCountdownExtendedJsDialog}
      */
-    buildCountdown(props, ext) {
+    buildCountdown(props, extensions) {
         let _ext = Object.assign({
             disable_back: () => _act.pause(100),
-        }, ext);
+        }, extensions);
 
         let _onNeutral = _ext.onNeutral || (r => r);
         let _onNegative = _ext.onNegative || (r => r);
@@ -767,42 +780,42 @@ let ext = {
                         void [{
                             key: 'title',
                             get(d) {
-                                return dialogsx.getTitleText(d);
+                                return ext.getTitleText(d);
                             },
                             set(d, k, v) {
-                                dialogsx.setTitleText(d, v);
+                                ext.setTitleText(d, v);
                             },
                         }, {
                             key: 'content',
                             get(d) {
-                                return dialogsx.getContentText(d);
+                                return ext.getContentText(d);
                             },
                             set(d, k, v) {
-                                dialogsx.setContentText(d, v);
+                                ext.setContentText(d, v);
                             },
                         }, {
                             key: 'neutral',
                             get(d, k) {
-                                return dialogsx.getActionButton(d, k);
+                                return ext.getActionButton(d, k);
                             },
                             set(d, k, v) {
-                                dialogsx.setActionButton(d, k, v);
+                                ext.setActionButton(d, k, v);
                             },
                         }, {
                             key: 'negative',
                             get(d, k) {
-                                return dialogsx.getActionButton(d, k);
+                                return ext.getActionButton(d, k);
                             },
                             set(d, k, v) {
-                                dialogsx.setActionButton(d, k, v);
+                                ext.setActionButton(d, k, v);
                             },
                         }, {
                             key: 'positive',
                             get(d, k) {
-                                return dialogsx.getActionButton(d, k);
+                                return ext.getActionButton(d, k);
                             },
                             set(d, k, v) {
-                                dialogsx.setActionButton(d, k, v);
+                                ext.setActionButton(d, k, v);
                             },
                         }].forEach((o) => {
                             let _k = o.key;
@@ -848,7 +861,7 @@ let ext = {
             },
         };
 
-        let _diag = Object.create(dialogsx.builds(props, _ext)
+        let _diag = Object.create(ext.builds(props, _ext)
             .on('neutral', () => _act.neutral())
             .on('negative', () => _act.negative())
             .on('positive', () => _act.positive()));
@@ -867,7 +880,7 @@ let ext = {
          *     block: function(o:BuildCountdownExtendedBlockOptions): BuildCountdownExtendedJsDialog,
          * }} BuildCountdownExtended
          */
-        /** @typedef {JsDialog$ & BuildCountdownExtended} BuildCountdownExtendedJsDialog */
+        /** @typedef {JsDialog$ | BuildCountdownExtended} BuildCountdownExtendedJsDialog */
         let _diag_ext = {
             act() {
                 _diag.isShowing() || _diag.show();
@@ -886,7 +899,7 @@ let ext = {
         let _diag_mixed = Object.assign(_diag, _diag_ext);
 
         let _thd_et = threads.start(function () {
-            let _cont = dialogsx.getContentText(_diag);
+            let _cont = ext.getContentText(_diag);
             let _rex = /%timeout%/;
             let _setContent = _cont.match(_rex) ? function (t) {
                 _diag.setContent(_cont.replace(_rex, t.toString()));
@@ -1000,7 +1013,7 @@ let ext = {
          *     setFailureData:function(error:string|Error):BuildFlowExtendedJsDialog,
          * }} BuildFlowExtended
          */
-        /** @typedef {JsDialog$ & BuildFlowExtended} BuildFlowExtendedJsDialog */
+        /** @typedef {JsDialog$ | BuildFlowExtended} BuildFlowExtendedJsDialog */
         let _diag_ext = {
             act() {
                 let _promise = new Promise((resolve) => {
@@ -1184,7 +1197,7 @@ let ext = {
          *     setFailureData:function(error:string|Error):BuildProgressExtendedJsDialog,
          * }} BuildProgressExtended
          */
-        /** @typedef {JsDialog$ & BuildProgressExtended} BuildProgressExtendedJsDialog */
+        /** @typedef {JsDialog$ | BuildProgressExtended} BuildProgressExtendedJsDialog */
         let _diag_ext = {
             act() {
                 Promise.resolve(config.initial_value)
@@ -1291,7 +1304,7 @@ let ext = {
      */
     setProgressTintList(d, color) {
         let _c_int = colorsx.toInt(this._colors.wrap(color, 'progress'));
-        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+        let _csl = ColorStateList.valueOf(_c_int);
         d.getProgressBar().setProgressTintList(_csl);
     },
     /**
@@ -1339,7 +1352,7 @@ let ext = {
      */
     setProgressBackgroundTintList(d, color) {
         let _c_int = colorsx.toInt(color);
-        let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+        let _csl = ColorStateList.valueOf(_c_int);
         d.getProgressBar().setProgressBackgroundTintList(_csl);
     },
     /**

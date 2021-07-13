@@ -1,5 +1,32 @@
 global.appx = typeof global.appx === 'object' ? global.appx : {};
 
+require('./mod-monster-func').load();
+require('./ext-dialogs').load();
+require('./ext-threads').load();
+require('./ext-global').load();
+require('./ext-files').load();
+require('./ext-a11y').load();
+
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let R = android.R;
+let URL = java.net.URL;
+let Uri = android.net.Uri;
+let Intent = android.content.Intent;
+let KeyEvent = android.view.KeyEvent;
+let System = android.provider.Settings.System;
+let ApplicationInfo = android.content.pm.ApplicationInfo;
+let PackageManager = android.content.pm.PackageManager;
+let File = java.io.File;
+let StringBuilder = java.lang.StringBuilder;
+let BufferedReader = java.io.BufferedReader;
+let InputStreamReader = java.io.InputStreamReader;
+let HttpURLConnection = java.net.HttpURLConnection;
+let ScriptFile = org.autojs.autojs.model.script.ScriptFile;
+let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
+let ShortcutCreateActivity = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity;
+
 let ext = {
     _project_structure: [
         {name: '/documents'},
@@ -147,7 +174,7 @@ let ext = {
         if (!_path) {
             throw Error('Cannot locate project path for appx.getProjectLocal()');
         }
-        let _sep = java.io.File.separator;
+        let _sep = File.separator;
         let _json_name = 'project.json';
         let _json_path = _path + _sep + _json_name;
         let _main_name = 'ant-forest-launcher.js';
@@ -193,12 +220,12 @@ let ext = {
         if (this.isProjectLike(_cwd)) {
             return _cwd;
         }
-        _cwd = new java.io.File(_cwd).getParent();
+        _cwd = new File(_cwd).getParent();
         if (this.isProjectLike(_cwd)) {
             return _cwd;
         }
         let _aj_wd = filesx.getScriptDirPath();
-        let _sep = java.io.File.separator;
+        let _sep = File.separator;
         let _proj_def_n = 'Ant-Forest-003';
         let _root_proj_path = _aj_wd + _sep + _proj_def_n;
         if (files.isDir(_root_proj_path)) {
@@ -509,7 +536,7 @@ let ext = {
                 // tool function(s) //
 
                 function _getRespByHttpCxn(url) {
-                    let _url = new java.net.URL(url);
+                    let _url = new URL(url);
                     let _cxn = _url.openConnection();
                     _cxn.setRequestMethod('GET');
                     _cxn.setConnectTimeout(15e3);
@@ -517,7 +544,7 @@ let ext = {
                     _cxn.connect();
 
                     let _code = _cxn.getResponseCode();
-                    if (_code !== java.net.HttpURLConnection.HTTP_OK) {
+                    if (_code !== HttpURLConnection.HTTP_OK) {
                         if (!_max) {
                             _onFailure('请求失败: ' + _code);
                         }
@@ -529,8 +556,8 @@ let ext = {
                         return null;
                     }
                     let _is = _cxn.getInputStream();
-                    let _br = new java.io.BufferedReader(new java.io.InputStreamReader(_is));
-                    let _sb = new java.lang.StringBuilder();
+                    let _br = new BufferedReader(new InputStreamReader(_is));
+                    let _sb = new StringBuilder();
                     let _line = null;
                     let _readLine = () => _line = _br.readLine();
                     while (_readLine() !== null) {
@@ -623,14 +650,14 @@ let ext = {
             return false;
         }
 
-        let _files = files.listDir(_path = new java.io.File(_path).getAbsolutePath());
+        let _files = files.listDir(_path = new File(_path).getAbsolutePath());
 
         return this._project_structure.filter(o => o.necessary).map((o) => (
             o.name[0] === '/' ? {name: o.name.slice(1), is_dir: true} : {name: o.name}
         )).every((o) => {
             if (~_files.indexOf(o.name)) {
                 let _cA = o.is_dir;
-                let _cB = files.isDir(_path + java.io.File.separator + o.name);
+                let _cB = files.isDir(_path + File.separator + o.name);
                 return _cA && _cB || !_cA && !_cB;
             }
         });
@@ -658,6 +685,8 @@ let ext = {
      * appx.deployProject('latest');
      */
     deployProject(version, callback, options) {
+        require('./ext-http').load();
+
         let _appx = this;
         let _opt = options || {};
 
@@ -695,7 +724,7 @@ let ext = {
         // like: '/sdcard/.local/bak/ant-forest'
         let _bak_path = require('./mod-default-config').settings.local_backup_path;
         // like: '/sdcard/.local/bak/ant-forest/v2.0.4.zip'
-        let _full_path = _bak_path + java.io.File.separator + _file_full_name;
+        let _full_path = _bak_path + File.separator + _file_full_name;
 
         let _cont_len = -1;
         httpx.getContentLength(_url, function (value) {
@@ -755,7 +784,7 @@ let ext = {
                         onUnzipSuccess(r) {
                             let _path = r.unzipped_path;
                             if (!_appx.isProjectLike(_path)) {
-                                _path += java.io.File.separator + files.listDir(_path)[0];
+                                _path += File.separator + files.listDir(_path)[0];
                             }
                             if (!_appx.isProjectLike(_path)) {
                                 reject('Cannot locate project path in unzipped files');
@@ -838,7 +867,7 @@ let ext = {
      */
     backupProject(callback, options) {
         let _appx = this;
-        let _sep = java.io.File.separator;
+        let _sep = File.separator;
         let _cbk = callback || {};
         let _opt = options || {};
 
@@ -917,6 +946,7 @@ let ext = {
                         _f.call(_cbk, _data);
                     }
                     if (_opt.is_save_storage) {
+                        require('./ext-storages').load();
                         let _af_bak = storagesx.create('af_bak');
                         let _sto_data = _af_bak.get('project', []);
                         _af_bak.put('project', _sto_data.concat(_data));
@@ -960,12 +990,12 @@ let ext = {
                 if (_appx.isProjectLike(_cwd)) {
                     return _cwd;
                 }
-                _cwd = new java.io.File(_cwd).getParent();
+                _cwd = new File(_cwd).getParent();
                 if (_appx.isProjectLike(_cwd)) {
                     return _cwd;
                 }
                 let _aj_wd = filesx.getScriptDirPath();
-                let _sep = java.io.File.separator;
+                let _sep = File.separator;
                 let _proj_def_n = 'Ant-Forest-003';
                 _cwd = _aj_wd + _sep + _proj_def_n;
                 if (_appx.isProjectLike(_cwd)) {
@@ -988,6 +1018,8 @@ let ext = {
      * @returns {boolean|BuildProgressExtendedJsDialog}
      */
     restoreProject(source, callback) {
+        require('./ext-http').load();
+
         let _appx = this;
         let _steps = this._project_step;
 
@@ -1027,7 +1059,7 @@ let ext = {
 
                         let _file_name = source.slice(source.lastIndexOf('/') + 1);
                         let _bak_path = require('./mod-default-config').settings.local_backup_path;
-                        let _full_path = _bak_path + java.io.File.separator + _file_name + '.zip';
+                        let _full_path = _bak_path + File.separator + _file_name + '.zip';
 
                         httpx.okhttp3Request(source, _full_path, {
                             onStart() {
@@ -1084,7 +1116,7 @@ let ext = {
                         onSuccess(r) {
                             let _path = r.unzipped_path;
                             if (!_appx.isProjectLike(_path)) {
-                                _path += java.io.File.separator + files.listDir(_path)[0];
+                                _path += File.separator + files.listDir(_path)[0];
                             }
                             if (_appx.isProjectLike(_path)) {
                                 resolve(Object.assign(v, {
@@ -1143,22 +1175,22 @@ let ext = {
         let _hexStr = s => ('00' + Number(s || 0).toString(16)).slice(-2);
         let _max_a = 0x80;
         let _max_b = 0xff - _max_a;
-        let _rex = /^[a-z\s]*(\d+)(?:\.(\d+)(?:\.(\d+)(?:-\d+)?\s*(a(?:lpha)?|b(?:eta)?)?\s*(\d*))?)?$/i;
+        let _rex = /^[a-z\s]*(\d+)(?:\.(\d+)(?:\.(\d+)(?:-\d+)?\s*(b(?:eta)?|a(?:lpha)?)?\s*(\d*))?)?$/i;
         let _str = ver.toString().trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
             let _$a = [$1, $2, $3].map(s => _hexStr(s)).reduce((a, b) => a + b);
             let _$5 = $5 ? Number($5) : 1;
             let _$4 = 0xff;
             if ($4) {
-                if ($4.match(/a(lpha)?/i)) {
+                if ($4.match(/b(eta)?/i)) {
+                    if (_$5 >= _max_b) {
+                        throw Error('Beta version code must be smaller than ' + _max_b);
+                    }
+                    _$4 = _max_a;
+                } else if ($4.match(/a(lpha)?/i)) {
                     if (_$5 > _max_a) {
                         throw Error('Alpha version code cannot be greater than ' + _max_a);
                     }
                     _$4 = 0;
-                } else if ($4.match(/b(eta)?/i)) {
-                    if (_$5 >= _max_b) {
-                        throw Error('Alpha version code must be smaller than ' + _max_b);
-                    }
-                    _$4 = _max_a;
                 }
             }
             let _$b = _hexStr(Math.min(_$4 + _$5, 0xff));
@@ -1449,7 +1481,7 @@ let ext = {
             ui.run(() => {
                 _diag.setOnKeyListener({
                     onKey(diag, key_code) {
-                        if (key_code === android.view.KeyEvent.KEYCODE_BACK) {
+                        if (key_code === KeyEvent.KEYCODE_BACK) {
                             _exitNow();
                             return true;
                         }
@@ -1472,10 +1504,9 @@ let ext = {
                 _setTint(_view['img'], '#ff9100');
 
                 let _win = _diag.getWindow();
-                _win.setBackgroundDrawableResource(android.R.color.transparent);
-                _win.setWindowAnimations(android.R.style.Animation_InputMethod);
+                _win.setBackgroundDrawableResource(R.color.transparent);
+                _win.setWindowAnimations(R.style.Animation_InputMethod);
                 _win.setDimAmount(0.85);
-
             });
 
             if (typeof activity !== 'undefined') {
@@ -1498,8 +1529,7 @@ let ext = {
                 if (typeof color === 'number') {
                     color = colors.toString(color);
                 }
-                view.setColorFilter(com.stardust.autojs.core.ui.inflater
-                    .util.Colors.parse(view, color));
+                view.setColorFilter(Colors.parse(view, color));
             }
 
             function _exitNow(msg) {
@@ -1532,8 +1562,9 @@ let ext = {
             }
 
             let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-            let _pkg_n_perm = context.packageName + ' ' + _perm;
+            let _pkg_n_perm = _appx.getAutoJsPkgName() + ' ' + _perm;
 
+            require('./ext-storages').load();
             let $_cfg = storagesx.create('af_cfg').get('config', {});
             if ($_cfg.auto_enable_a11y_svc === 'OFF') {
                 return;
@@ -1605,11 +1636,14 @@ let ext = {
                     messageAction('已自动开启无障碍服务');
                     messageAction('尝试一次项目重启操作');
                     showSplitLine();
+
+                    require('./ext-engines').load();
                     enginesx.restart({
                         debug_info_flag: true,
                         instant_run_flag: false,
                         max_restart_e_times: 1,
                     });
+
                     sleep(5e3);
                     exit();
                 }
@@ -1714,8 +1748,6 @@ let ext = {
         // checker for legacy bug (before v1.9.24 Beta)
         // which may cause a tiny value for `System.SCREEN_OFF_TIMEOUT`
 
-        let System = android.provider.Settings.System;
-
         let _scr_off_tt = System.SCREEN_OFF_TIMEOUT;
         let _ctx_reso = context.getContentResolver();
 
@@ -1785,9 +1817,9 @@ let ext = {
      * @returns {void}
      */
     startActivity(o) {
-        let _flag = android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
-        if (o instanceof android.content.Intent) {
-            context.startActivity(new android.content.Intent(o).addFlags(_flag));
+        let _flag = Intent.FLAG_ACTIVITY_NEW_TASK;
+        if (o instanceof Intent) {
+            context.startActivity(new Intent(o).addFlags(_flag));
         } else if (typeof o === 'object') {
             if (o.root) {
                 shell('am start ' + app.intentToShell(o), true);
@@ -1799,7 +1831,7 @@ let ext = {
             if (!_cls) {
                 throw new Error('Class ' + o + ' not found');
             }
-            let _intent = new android.content.Intent(context, _cls).addFlags(_flag);
+            let _intent = new Intent(context, _cls).addFlags(_flag);
             context.startActivity(_intent);
         } else {
             throw Error('Unknown param for appx.startActivity()');
@@ -1812,7 +1844,7 @@ let ext = {
      * @returns {android.content.Intent}
      */
     intent(o, options) {
-        let _i = new android.content.Intent();
+        let _i = new Intent();
 
         if (o.url) {
             o.data = parseIntentUrl(o);
@@ -1868,7 +1900,7 @@ let ext = {
                 _i.setType(o.type);
             }
         } else if (o.data) {
-            _i.setData(android.net.Uri.parse(o.data));
+            _i.setData(Uri.parse(o.data));
         }
 
         let _opt = options || {};
@@ -1884,7 +1916,7 @@ let ext = {
 
         function parseIntentFlag(flag) {
             if (typeof flag === 'string') {
-                return (android.content.Intent)['FLAG_' + flag.toUpperCase()];
+                return Intent['FLAG_' + flag.toUpperCase()];
             }
             return flag;
         }
@@ -2313,7 +2345,7 @@ let ext = {
     hasSecure() {
         let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
         let _chk_perm = context.checkCallingOrSelfPermission(_perm);
-        let _perm_granted = android.content.pm.PackageManager.PERMISSION_GRANTED;
+        let _perm_granted = PackageManager.PERMISSION_GRANTED;
         return _chk_perm === _perm_granted;
     },
     /**
@@ -2322,7 +2354,7 @@ let ext = {
      * @see https://developer.android.com/reference/android/provider/Settings.System#canWrite(android.content.Context)
      */
     canWriteSystem() {
-        return android.provider.Settings.System.canWrite(context);
+        return System.canWrite(context);
     },
     /**
      * Easy-to-use encapsulation for android.content.pm.PackageManager.getInstalledApplications
@@ -2443,10 +2475,10 @@ let ext = {
             throw Error('File is not existed');
         }
 
-        let _cls = new org.autojs.autojs.ui.shortcut.ShortcutCreateActivity().getClass();
-        let _ef = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity.EXTRA_FILE;
-        let _sf = new org.autojs.autojs.model.script.ScriptFile(_file);
-        let _intent = new android.content.Intent(context, _cls).putExtra(_ef, _sf);
+        let _cls = new ShortcutCreateActivity().getClass();
+        let _ef = ShortcutCreateActivity.EXTRA_FILE;
+        let _sf = new ScriptFile(_file);
+        let _intent = new Intent(context, _cls).putExtra(_ef, _sf);
         this.startActivity(_intent);
     },
     /**
@@ -2454,21 +2486,15 @@ let ext = {
      * @returns {boolean}
      */
     isSystemApp(source) {
-        if (!(source instanceof android.content.pm.ApplicationInfo)) {
+        if (!(source instanceof ApplicationInfo)) {
             throw Error('Source must be the instance of ApplicationInfo');
         }
         if (typeof source.isSystemApp === 'function') {
             return source.isSystemApp();
         }
-        return (source.flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) !== 0;
+        return (source.flags & ApplicationInfo.FLAG_SYSTEM) !== 0;
     },
 };
-
-ext.checkModules([
-    'mod-monster-func', 'ext-dialogs', 'ext-storages',
-    'ext-device', 'ext-http', 'ext-a11y', 'ext-files',
-    'ext-global', 'ext-engines', 'ext-threads',
-], {is_load: true});
 
 module.exports = ext;
 module.exports.load = () => global.appx = ext;

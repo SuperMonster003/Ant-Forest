@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Jul 1, 2021
- * @version 2.1.5
+ * @since Jul 13, 2021
+ * @version 2.1.6 Alpha4
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -53,7 +53,7 @@ let $$init = {
         debugInfo('项目版本: ' + $$app.project_ver_name);
         debugInfo('安卓SDK版本: ' + device.sdkInt);
         debugInfo('安卓系统版本: ' + device.release);
-        debugInfo('Root权限: ' + ($$app.has_root ? '有效' : '无效'));
+        debugInfo('Root权限: ' + ($$app.has_root ? '已获取' : '未获取'));
 
         return $$init;
 
@@ -119,6 +119,7 @@ let $$init = {
                 cwp: enginesx.cwp,
                 local_pics_path: _getLocalPicsPath(),
                 has_root: $$flag.autojs_has_root,
+                root_fxs: $$cfg.root_access_functions,
                 fri_drop_by: {
                     _pool: [],
                     _max: 5,
@@ -264,11 +265,13 @@ let $$init = {
         }
 
         function setDisplay() {
-            if (devicex.getDisplayRotation() !== 0) {
-                $$flag.init_display_not_vertical = true;
-                $$flag.show_floaty_result = false;
+            if (devicex.getDisplay(true).is_display_rotation_landscape) {
+                if ($$flag.show_energy_result) {
+                    debugInfo('当前设备屏幕为水平显示方向');
+                    debugInfo('悬浮窗结果展示方式已被禁用');
+                    $$flag.show_floaty_result = false;
+                }
             }
-            devicex.getDisplay(true);
         }
 
         function appSetter() {
@@ -557,10 +560,11 @@ let $$init = {
                                                 }
 
                                                 function _orientation() {
-                                                    if ($$flag.init_display_not_vertical) {
+                                                    if ($$disp.is_display_rotation_landscape) {
+                                                        debugInfo('重新获取当前设备屏幕显示信息');
                                                         devicex.getDisplay(true);
                                                     }
-                                                    return devicex.getDisplayRotation() === 0;
+                                                    return $$disp.is_display_rotation_portrait;
                                                 }
 
                                                 function _optional() {
@@ -888,7 +892,7 @@ let $$init = {
                             close() {
                                 debugInfo('关闭支付宝');
                                 if (appx.kill($$app.alipay_pkg, {
-                                    shell_acceptable: $$app.has_root,
+                                    shell_acceptable: $$app.has_root && $$app.root_fxs.force_stop,
                                 })) {
                                     debugInfo('支付宝关闭完毕');
                                     return $$flag.alipay_closed = true;
@@ -1290,11 +1294,11 @@ let $$init = {
                                 },
                             },
                             xml: <vertical id="view">
-                                <img id="img" src="@drawable/ic_alarm_on_black_48dp"
-                                     height="55" margin="0 12 0 10" gravity="center"
-                                     bg="?selectableItemBackgroundBorderless"/>
-                                <text id="text" typeface="sans-serif-condensed" size="17"
-                                      marginBottom="8" gravity="center" lineSpacingExtra="7"/>
+                                <x-img id="img" src="@drawable/ic_alarm_on_black_48dp"
+                                       bg="?selectableItemBackgroundBorderless"
+                                       marginBottom="5" height="66" gravity="center"/>
+                                <x-text id="text" size="17" marginBottom="8" gravity="center"
+                                        fontFamily="sans-serif-condensed" line_spacing="5cx"/>
                             </vertical>,
                             close() {
                                 _closeWindow.call(this);
@@ -1307,8 +1311,8 @@ let $$init = {
                                 _win.setSize(_w, -2);
                                 _win.setPosition(halfW - _w / 2, _y);
                                 _win['view'].on('click', this._onClick.bind(this));
-                                uix.setImageTint(_win['img'], this.cfg.colors.img);
-                                _win['text'].setTextColor(this.cfg.colors.text);
+                                _win['img'].attr('tint_color', this.cfg.colors.img);
+                                _win['text'].attr('color', this.cfg.colors.text);
 
                                 this._countdown($$app.next_auto_task_ts);
                             },
@@ -1416,15 +1420,15 @@ let $$init = {
                             uni: {
                                 xml: <vertical>
                                     <frame id="hint" h="{{cX(0.078)}}px">
-                                        <text id="text" gravity="center" size="14"/>
+                                        <x-text id="text" gravity="center" size="14"/>
                                     </frame>
                                     <frame id="stp_up" h="{{cX(0.0156)}}px"/>
                                     <frame id="sum" h="{{cX(0.111)}}px">
-                                        <text id="text" gravity="center" size="24"/>
+                                        <x-text id="text" gravity="center" size="24"/>
                                     </frame>
                                     <frame id="stp_dn" h="{{cX(0.0156)}}px"/>
                                     <frame id="ctd" h="{{cX(0.078)}}px">
-                                        <text id="text" gravity="center" size="14"/>
+                                        <x-text id="text" gravity="center" size="14"/>
                                     </frame>
                                 </vertical>,
                                 deploy(data) {
@@ -1466,22 +1470,22 @@ let $$init = {
                             du: {
                                 xml: <vertical>
                                     <horizontal id="hint" h="{{cX(0.078)}}px">
-                                        <text id="own" gravity="center" size="14" layout_weight="1"/>
-                                        <text id="fri" gravity="center" size="14" layout_weight="1"/>
+                                        <x-text id="own" gravity="center" size="14" layout_weight="1"/>
+                                        <x-text id="fri" gravity="center" size="14" layout_weight="1"/>
                                     </horizontal>
                                     <horizontal id="stp_up" h="{{cX(0.0156)}}px">
                                         <frame id="own" layout_weight="1" h="*"/>
                                         <frame id="fri" layout_weight="1" h="*"/>
                                     </horizontal>
                                     <frame id="sum" h="{{cX(0.111)}}px">
-                                        <text id="text" gravity="center" size="24"/>
+                                        <x-text id="text" gravity="center" size="24"/>
                                     </frame>
                                     <horizontal id="stp_dn" h="{{cX(0.0156)}}px">
                                         <frame id="own" layout_weight="1" h="*"/>
                                         <frame id="fri" layout_weight="1" h="*"/>
                                     </horizontal>
                                     <frame id="ctd" h="{{cX(0.078)}}px">
-                                        <text id="text" gravity="center" size="14"/>
+                                        <x-text id="text" gravity="center" size="14"/>
                                     </frame>
                                 </vertical>,
                                 deploy(data) {
@@ -1602,14 +1606,14 @@ let $$init = {
                             },
                             xml: <vertical id="view">
                                 <horizontal gravity="center" height="45">
-                                    <img id="img" src="@drawable/ic_fiber_new_black_48dp"
-                                         height="29" paddingRight="5" adjustViewBounds="true"
-                                         bg="?selectableItemBackgroundBorderless"/>
-                                    <text id="text_title" size="16" gravity="center"
-                                          typeface="sans-serif-condensed"/>
+                                    <x-img id="img" src="@drawable/ic_fiber_new_black_48dp"
+                                           height="29" paddingRight="5" adjustViewBounds="true"
+                                           bg="?selectableItemBackgroundBorderless"/>
+                                    <x-text id="text_title" size="16" gravity="center"
+                                            fontFamily="sans-serif-condensed"/>
                                 </horizontal>
-                                <text id="text_ver" gravity="center" paddingBottom="11"
-                                      typeface="sans-serif-condensed" size="16"/>
+                                <x-text id="text_ver" gravity="center" paddingBottom="11"
+                                        fontFamily="sans-serif-condensed" size="16"/>
                             </vertical>,
                             deploy() {
                                 let _this = this;
@@ -1638,10 +1642,11 @@ let $$init = {
                                     _win.setSize(_w, -2);
                                     _win.setPosition(halfW - _w / 2, _y);
                                     _win['view'].on('click', this._onClick.bind(this));
-                                    _win['text_title'].setText('Update available');
-                                    _win['text_ver'].setText(_ver_local + '  ->  ' + _ver_newest);
-                                    uix.setTextColor([_win['text_title'], _win['text_ver']], _c.text);
-                                    uix.setImageTint(_win['img'], _c.img);
+                                    _win['text_title'].attr('text', 'Update available');
+                                    _win['text_title'].attr('color', _c.text);
+                                    _win['text_ver'].attr('text', _ver_local + '  ->  ' + _ver_newest);
+                                    _win['text_ver'].attr('color', _c.text);
+                                    _win['img'].attr('tint_color', _c.img);
                                 }
                             },
                             _onClick() {
@@ -1722,15 +1727,15 @@ let $$init = {
                         },
                         screen_turning_off: {
                             xml: <vertical id="view">
-                                <img id="img" src="@drawable/ic_hourglass_empty_black_48dp"
-                                     bg="?selectableItemBackgroundBorderless"
-                                     height="55" gravity="center" margin="0 12 0 15"/>
-                                <text id="title" gravity="center" lineSpacingExtra="7"
-                                      size="19" typeface="sans-serif-condensed"/>
-                                <text id="hint_duration" gravity="center" lineSpacingExtra="7"
-                                      size="16" typeface="sans-serif-condensed" marginTop="80"/>
-                                <text id="hint_interrupt" gravity="center" lineSpacingExtra="7"
-                                      size="16" typeface="sans-serif-condensed" marginTop="20"/>
+                                <x-img id="img" src="@drawable/ic_hourglass_empty_black_48dp"
+                                       bg="?selectableItemBackgroundBorderless"
+                                       height="55" gravity="center" margin="0 12 0 15"/>
+                                <x-text id="title" gravity="center" line_spacing="8cx"
+                                        size="19" fontFamily="sans-serif-condensed"/>
+                                <x-text id="hint_duration" gravity="center" line_spacing="7cx"
+                                        size="16" fontFamily="sans-serif-condensed" marginTop="80"/>
+                                <x-text id="hint_interrupt" gravity="center" line_spacing="7cx"
+                                        size="16" fontFamily="sans-serif-condensed" marginTop="30"/>
                             </vertical>,
                             cfg: {
                                 layout_width: W,
@@ -1771,18 +1776,38 @@ let $$init = {
                                         .start();
                                 }, 2.4e3);
 
-                                _w_title.setText(
-                                    'Please wait while turning off screen\n' +
-                                    'is in progress...\n' +
-                                    '正在尝试关闭屏幕...');
-                                _w_duration.setText(
-                                    'This may take a few seconds\n' +
-                                    '此过程可能需要几秒钟');
-                                _w_interrupt.setText(
-                                    'Touch anywhere or press any key to interrupt\n' +
-                                    '触摸屏幕或按下任意按键可终止关屏');
-                                uix.setImageTint(_w_img, _c.img);
-                                uix.setTextColor([_w_title, _w_duration, _w_interrupt], _c.text);
+                                let _msg = {
+                                    title: {
+                                        eng: 'Please wait while turning off screen\n' +
+                                            'is in progress...',
+                                        chs: '正在尝试关闭屏幕...',
+                                    },
+                                    duration: {
+                                        eng: 'This may take a few seconds',
+                                        chs: '此过程可能需要几秒钟',
+                                    },
+                                    interrupt: {
+                                        eng: 'Touch anywhere or press any key to interrupt',
+                                        chs: '触摸屏幕或按下任意按键可终止关屏',
+                                    },
+                                    $bind() {
+                                        Object.keys(this).forEach((k) => {
+                                            this[k].toString = () => {
+                                                return this[k].eng + '\n' + this[k].chs;
+                                            };
+                                        });
+                                        delete this.$bind;
+                                        return this;
+                                    },
+                                }.$bind();
+
+                                _w_title.attr('text', _msg.title);
+                                _w_title.attr('color', _c.text);
+                                _w_duration.attr('text', _msg.duration);
+                                _w_duration.attr('color', _c.text);
+                                _w_interrupt.attr('text', _msg.interrupt);
+                                _w_interrupt.attr('color', _c.text);
+                                _w_img.attr('tint_color', _c.img);
                             },
                         },
                     };
@@ -3116,6 +3141,41 @@ let $$init = {
             };
 
             return {
+                _thread: {
+                    start(this_arg) {
+                        this._thd = threadsx.start(function () {
+                            setInterval(() => {
+                                if (this_arg.task) {
+                                    this_arg.task.setMillis(this_arg._next_task_time);
+                                    timersx.updateTimedTask(this_arg.task);
+                                }
+                            }, 10e3);
+                        });
+                    },
+                    interrupt() {
+                        if (this._thd) {
+                            this._thd.interrupt();
+                        }
+                    },
+                },
+                get id() {
+                    if (this.task) {
+                        return this.task.id || -1;
+                    }
+                },
+                get _sto_accu() {
+                    return Number($$sto.af_ins.get(_keys.ins_accu, 0));
+                },
+                set _sto_accu(v) {
+                    $$sto.af_ins.put(_keys.ins_accu, Number(v));
+                },
+                get _sto_ids() {
+                    return $$sto.af_ins.get(_keys.ins_tasks, [])
+                        .filter(id => timersx.getTimedTask(id));
+                },
+                get _next_task_time() {
+                    return $$app.ts + $$cfg[_keys.ins_itv] * 60e3;
+                },
                 trigger() {
                     if (!$$cfg.timers_switch) {
                         return debugInfo('定时循环功能未开启');
@@ -3136,24 +3196,6 @@ let $$init = {
                     debugInfo('本次会话不再设置保险定时任务');
                     debugInfo('>任务已达最大连续次数限制: ' + _max);
                     this.clean().reset();
-                },
-                get id() {
-                    if (this.task) {
-                        return this.task.id || -1;
-                    }
-                },
-                get _sto_accu() {
-                    return Number($$sto.af_ins.get(_keys.ins_accu, 0));
-                },
-                set _sto_accu(v) {
-                    $$sto.af_ins.put(_keys.ins_accu, Number(v));
-                },
-                get _sto_ids() {
-                    return $$sto.af_ins.get(_keys.ins_tasks, [])
-                        .filter(id => timersx.getTimedTask(id));
-                },
-                get _next_task_time() {
-                    return $$app.ts + $$cfg[_keys.ins_itv] * 60e3;
                 },
                 clean() {
                     let _ids = this._sto_ids;
@@ -3191,19 +3233,11 @@ let $$init = {
                     return this;
                 },
                 monitor() {
-                    let _this = this;
-                    this._thread = threadsx.start(function () {
-                        setInterval(() => {
-                            if (_this.task) {
-                                _this.task.setMillis(_this._next_task_time);
-                                timersx.updateTimedTask(_this.task);
-                            }
-                        }, 10e3);
-                    });
+                    this._thread.start(this);
                     return this;
                 },
                 interrupt() {
-                    this._thread && this._thread.interrupt();
+                    this._thread.interrupt();
                     return this;
                 },
                 remove() {
@@ -3604,18 +3638,17 @@ let $$init = {
                                 return _samples.some((o) => {
                                     let _w = o.trig();
                                     if (_w) {
-                                        this.smp = Object.assign({widget: _w}, o);
+                                        this._smp = Object.assign({widget: _w}, o);
                                         return true;
                                     }
                                 });
                             },
                             trigger() {
-                                delete this.smp;
-                                let _cond = this._cond.bind(this);
-                                return waitForAction(_cond, 8e3);
+                                delete this._smp;
+                                return waitForAction(this._cond.bind(this), 8e3);
                             },
                             enforce() {
-                                let _smp = this.smp;
+                                let _smp = this._smp;
 
                                 debugInfo('检测到' + _smp.desc);
                                 timeRecorder('_mask_layer');
@@ -6302,7 +6335,7 @@ let $$af = {
 
                     if ($$flag.show_energy_result && $$cfg.auto_task_show_on_e_result) {
                         threadsx.start(function () {
-                            if (waitForAction(() => $$flag.floaty_result_set, 12e3, 120)) {
+                            if (waitForAction(() => $$flag.floaty_result_all_set, 12e3, 120)) {
                                 $$app.layout.next_auto_task.deploy();
                             }
                         });
@@ -6425,7 +6458,7 @@ let $$af = {
                             return false;
                         });
 
-                        $$flag.floaty_result_set = true;
+                        $$flag.floaty_result_all_set = true;
 
                         $$app.layout.eballs_pick_result.deploy({
                             own: _e_own, fri: _e_fri,
@@ -6489,39 +6522,31 @@ let $$af = {
             }
 
             function _floatyReady() {
-                if ($$flag.floaty_result_set) {
-                    return new Promise((reso) => {
-                        debugInfo('监测Floaty结束等待信号');
-                        timeRecorder('floaty_result_waiting');
-                        setIntervalBySetTimeout(function () {
-                            let _ctd = $$cfg.floaty_result_countdown_sec;
-                            let _max = (_ctd + 5) * 1e3;
-                            if (timeRecorder('floaty_result_waiting', 'L') > _max) {
-                                $$flag.floaty_result_fin = true;
-                                debugInfo('放弃等待Floaty消息结束信号', 3);
-                                debugInfo('>等待结束信号超时', 3);
-                            }
-                        }, 200, function () {
-                            if (_cond()) {
-                                debugInfo('检测到Floaty结束等待信号');
-                                reso(_updateDialogAsync());
-                                return true;
-                            }
-                        });
+                return $$flag.show_floaty_result && new Promise((reso) => {
+                    debugInfo('监测Floaty结束等待信号');
+                    timeRecorder('floaty_result_waiting');
+                    setIntervalBySetTimeout(function () {
+                        let _ctd = $$cfg.floaty_result_countdown_sec;
+                        let _max = (_ctd + 5) * 1e3;
+                        if (timeRecorder('floaty_result_waiting', 'L') > _max) {
+                            $$flag.floaty_result_fin = true;
+                            debugInfo('放弃等待Floaty消息结束信号', 3);
+                            debugInfo('>等待结束信号超时', 3);
+                        }
+                    }, 200, function () {
+                        if ($$flag.floaty_result_fin) {
+                            debugInfo('检测到Floaty结束等待信号');
+                            $$app.layout.closeAll('without_cover');
+                            reso(_updateDialogAsync());
+                            return true;
+                        }
                     });
-                }
+                });
 
                 // tool function(s) //
 
-                function _cond() {
-                    if ($$flag.floaty_result_fin) {
-                        $$app.layout.closeAll('without_cover');
-                        return true;
-                    }
-                }
-
                 function _updateDialogAsync() {
-                    return $$flag.update_dialog_uphold ? new Promise((resolve) => {
+                    return $$flag.update_dialog_uphold && new Promise((resolve) => {
                         debugInfo('等待更新对话框结束信号');
                         timeRecorder('update_dialog_uphold');
                         let _fin = (msg) => {
@@ -6538,7 +6563,7 @@ let $$af = {
                                 _fin('放弃等待更新对话框结束信号');
                             }
                         }, 200);
-                    }) : true;
+                    });
                 }
             }
 
@@ -6585,19 +6610,22 @@ let $$af = {
             $$flag.glob_e_scr_paused = true;
 
             devicex.screenOff({
+                key_code: {
+                    is_disabled: !($$app.has_root && $$app.root_fxs.screen_off),
+                },
                 provider: {
                     hint() {
-                        if ($$flag.floaty_result_set) {
+                        if ($$flag.floaty_result_all_set) {
                             $$app.layout.screen_turning_off.deploy();
                         }
                     },
                     listener(brake) {
                         events.on('key_down', function (kc) {
-                            $$flag.floaty_result_set && $$app.layout.closeAll();
+                            $$flag.floaty_result_all_set && $$app.layout.closeAll();
                             brake('终止屏幕关闭', '>检测到按键行为', '>键值: ' + kc);
                         });
 
-                        if ($$flag.floaty_result_set) {
+                        if ($$flag.floaty_result_all_set) {
                             $$app.layout.fullscreen_cover.setOnClickListener(function () {
                                 if ($$flag.cover_user_touched) {
                                     brake('终止屏幕关闭', '>检测到屏幕触碰');
@@ -6789,7 +6817,8 @@ let $$af = {
             fri: new _$MinCtdFactory(),
         };
 
-        delete this.$bind;// optional but recommended
+        // optional but recommended
+        delete this.$bind;
 
         return this;
 

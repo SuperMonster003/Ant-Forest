@@ -1,9 +1,16 @@
 global.$$a11y = typeof global.$$a11y === 'object' ? global.$$a11y : {};
 
-let Secure = android.provider.Settings.Secure;
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let _ctx_reso = context.getContentResolver();
-let _aj_svc = context.packageName + '/com.stardust.autojs' +
+let Rect = android.graphics.Rect;
+let Point = org.opencv.core.Point;
+let Secure = android.provider.Settings.Secure;
+let UiObject = com.stardust.automator.UiObject;
+let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
+
+let ctx_reso = context.getContentResolver();
+let autojs_a11y_svc = context.getPackageName() + '/com.stardust.autojs' +
     '.core.accessibility.AccessibilityService';
 
 let ext = {
@@ -12,7 +19,7 @@ let ext = {
      * @returns {{svc: [string], forcible: boolean}}
      */
     _parseArgs(args) {
-        let _svc = [_aj_svc];
+        let _svc = [autojs_a11y_svc];
         let _forcible = false;
         let _type0 = typeof args[0];
         if (_type0 !== 'undefined') {
@@ -34,7 +41,7 @@ let ext = {
     /** @returns {string} */
     _getString() {
         // getString() may be null on some Android OS
-        return Secure.getString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || '';
+        return Secure.getString(ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES) || '';
     },
     bridge: {
         /**
@@ -117,8 +124,8 @@ let ext = {
                 _svc = this.enabled_svc;
             }
             if (_svc) {
-                Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                Secure.putString(ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                Secure.putInt(ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                 let _start = Date.now();
                 while (Date.now() - _start < 2e3) {
                     if (_this.state(svc)) {
@@ -160,8 +167,8 @@ let ext = {
             let _args0 = arguments[0];
             let $_str = x => typeof x === 'string';
             if ($_str(_args0) && _args0.toLowerCase() === 'all') {
-                Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, '');
-                Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                Secure.putString(ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, '');
+                Secure.putInt(ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                 return true;
             }
             let {forcible, svc} = this._parseArgs(arguments);
@@ -180,8 +187,8 @@ let ext = {
                 _svc = _enabled_svc;
             }
             if (_svc) {
-                Secure.putString(_ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
-                Secure.putInt(_ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
+                Secure.putString(ctx_reso, Secure.ENABLED_ACCESSIBILITY_SERVICES, _svc);
+                Secure.putInt(ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                 _enabled_svc = this._getString();
                 let _start = Date.now();
                 while (Date.now() - _start < 2e3) {
@@ -218,7 +225,7 @@ let ext = {
         if (Array.isArray(services)) {
             _services = services.slice();
         } else if (typeof services === 'undefined') {
-            _services = [_aj_svc];
+            _services = [autojs_a11y_svc];
         } else if (typeof services === 'string') {
             _services = [services];
         } else {
@@ -342,7 +349,7 @@ let ext = {
                     let [_base_sel, _addi_sel, _compass] = _a;
                     if (typeof _base_sel === 'boolean'
                         || _base_sel instanceof Array
-                        || _base_sel instanceof android.graphics.Rect
+                        || _base_sel instanceof Rect
                     ) (_base_sel = null);
                     return {base: _base_sel, addi: _addi_sel, compass: _compass};
                 }
@@ -402,12 +409,12 @@ let ext = {
                         return null;
                     }
 
-                    if (base instanceof com.stardust.automator.UiObject) {
+                    if (base instanceof UiObject) {
                         addi && console.warn('UiObject无法使用额外选择器');
                         return base;
                     }
 
-                    if (base instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    if (base instanceof UiSelector) {
                         return _checkSelectors(base);
                     }
 
@@ -523,13 +530,13 @@ let ext = {
                     /** @type { UiObject$|UiSelector$|null} */
                     let _sel = sel;
 
-                    if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    if (_sel instanceof UiSelector) {
                         _w = _sel.findOnce();
                         if (_isArrResType(_res_type)) {
                             _wc = _sel.find().toArray();
                         }
                     } else {
-                        if (_sel instanceof com.stardust.automator.UiObject) {
+                        if (_sel instanceof UiObject) {
                             _w = _sel;
                             if (_isArrResType(_res_type)) {
                                 _wc = [_sel];
@@ -556,15 +563,15 @@ let ext = {
                         console.warn('relativeWidget的widget参数为Undefined');
                         return null;
                     }
-                    if (_w === null || _w instanceof android.graphics.Rect) {
+                    if (_w === null || _w instanceof Rect) {
                         return null;
                     }
-                    if (_w instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    if (_w instanceof UiSelector) {
                         if (!(_w = _w.findOnce())) {
                             return null;
                         }
                     }
-                    if (!(_w instanceof com.stardust.automator.UiObject)) {
+                    if (!(_w instanceof UiObject)) {
                         console.warn('未知的relativeWidget的widget参数');
                         return null;
                     }
@@ -675,12 +682,15 @@ let ext = {
                             return _desc.length > _text.length ? _desc : _text;
                         },
                         get point() {
-                            return !(_w && _w.bounds()) ? null : new org.opencv.core
-                                .Point(_w.bounds().centerX(), _w.bounds().centerY());
+                            if (_w && _w.bounds()) {
+                                return new Point(_w.bounds().centerX(), _w.bounds().centerY());
+                            }
+                            return null;
                         },
                         get points() {
-                            return _wc.map(w => new org.opencv.core
-                                .Point(w.bounds().centerX(), w.bounds().centerY()));
+                            return _wc.map((w) => {
+                                return new Point(w.bounds().centerX(), w.bounds().centerY());
+                            });
                         },
                     };
                     if (_res_type in _presets) {
@@ -785,5 +795,5 @@ let ext = {
 module.exports = ext;
 module.exports.load = () => {
     global.$$a11y = ext;
-    global.$$sel = ext.selector();
+    global.$$sel = global.$$sel || ext.selector();
 };

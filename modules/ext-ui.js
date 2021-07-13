@@ -1,7 +1,13 @@
 global.uix = typeof global.uix === 'object' ? global.uix : {};
 
 require('./ext-colors').load();
-require('./ext-device').load();
+
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let ActivityInfo = android.content.pm.ActivityInfo;
+let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
+let Dimensions = com.stardust.autojs.core.ui.inflater.util.Dimensions;
 
 let ext = {
     _colors: {
@@ -53,6 +59,103 @@ let ext = {
             throw Error('UI mode is required');
         }
     },
+    makeSureWidgetExclusive(name) {
+        if (name in ui.__widgets__) {
+            throw Error('Extended widget node <' + name + '> has' +
+                ' already registered and should not be overwritten');
+        }
+    },
+    /**
+     * @typedef {{
+     *     attr_name: string,
+     *     getter?: function(view:AutojsUiWidgetViews, name:string, default_getter:Function):*,
+     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:Function),
+     * }|{
+     *     attr_name: string,
+     *     attr_alias?: string,
+     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:Function),
+     * }} UiRegisterWidgetAttrDefiner
+     */
+    /**
+     *
+     * @param {string} name
+     * @param {'/'|string|Xml|Function} render
+     * @param {UiRegisterWidgetAttrDefiner|UiRegisterWidgetAttrDefiner[]} [attr_definers]
+     */
+    registerWidget(name, render, attr_definers) {
+        util.extend(ExtLayout, ui.Widget);
+
+        ExtLayout.prototype.render = renderGetter;
+
+        this.makeSureWidgetExclusive(name);
+        ui.registerWidget(name, ExtLayout);
+
+        // constructor(s) //
+
+        function ExtLayout() {
+            ui.Widget.call(this);
+
+            if (typeof attr_definers !== 'undefined') {
+                if (Array.isArray(attr_definers)) {
+                    attr_definers.forEach(o => defineAttr.call(this, o));
+                } else {
+                    defineAttr.call(this, attr_definers);
+                }
+            }
+        }
+
+        // tool function(s) //
+
+        function renderGetter() {
+            // noinspection JSTypeOfValues
+            if (typeof render === 'xml') {
+                return render;
+            }
+            if (typeof render === 'function') {
+                return render();
+            }
+            if (typeof render === 'string') {
+                if (render === '/') {
+                    return '<' + name.replace(/^x-/, '') + '/>';
+                }
+                if (render.match(/^\w+$/)) {
+                    return '<' + render + '/>';
+                }
+                if (render.slice(0, 1) === '<') {
+                    if (render.slice(-1) === '>') {
+                        return render;
+                    }
+                }
+            }
+            throw Error('Argument render cannot be parsed');
+        }
+
+        /**
+         * @param {UiRegisterWidgetAttrDefiner} o
+         */
+        function defineAttr(o) {
+            let _setter = function (view, name, value, default_setter) {
+                if (typeof o.setter === 'function') {
+                    o.setter(view, name, value, default_setter);
+                }
+                if (typeof this._value === 'undefined') {
+                    this._value = value;
+                }
+            };
+            let _getter = function (view, name, default_getter) {
+                if (typeof o.getter === 'function') {
+                    return o.getter(view, name, default_getter);
+                }
+                return this._value || '';
+            };
+
+            if (o.attr_alias) {
+                this.defineAttr(o.attr_name, o.attr_alias, _setter.bind(o));
+            } else {
+                this.defineAttr(o.attr_name, _getter.bind(o), _setter.bind(o));
+            }
+        }
+    },
     /**
      * @typedef {
      *     'UNSET'|'UNSPECIFIED'|'LANDSCAPE'|'PORTRAIT'|'USER'|'BEHIND'|'SENSOR'|'NOSENSOR'|
@@ -71,7 +174,7 @@ let ext = {
     setRequestedOrientation(requested_orientation) {
         this.makeSureUiMode();
         let _k = 'SCREEN_ORIENTATION_' + requested_orientation;
-        let _activity_info_element = android.content.pm.ActivityInfo[_k];
+        let _activity_info_element = ActivityInfo[_k];
         activity.setRequestedOrientation(_activity_info_element);
     },
     /**
@@ -79,12 +182,15 @@ let ext = {
      * @param {ColorParam} color
      */
     setImageTint(view, color) {
-        let _set = (v) => {
-            let _c_str = colorsx.toStr(color);
-            let _c_int = com.stardust.autojs.core.ui.inflater.util.Colors.parse(v, _c_str);
-            return v.setColorFilter(_c_int);
-        };
+        let _set = (v) => this.setColorFilter(v, color);
         Array.isArray(view) ? view.forEach(_set) : _set(view);
+    },
+    /**
+     * @param {android.widget.ImageView} view
+     * @param {number} color
+     */
+    setColorFilter(view, color) {
+        view.setColorFilter(Colors.parse(view, colorsx.toStr(color)));
     },
     /**
      * @param {android.widget.TextView|android.widget.TextView[]} view
@@ -104,7 +210,7 @@ let ext = {
      * @param {Object} options
      * @param {number} [options.duration=180] - scroll duration
      * @param {Array} options.pages_pool - pool for storing pages (parent views)
-     * @param {android.view.View} [options.base_view=ui.main] - specified view for attaching parent views
+     * @param {AutojsUiWidgetViews} [options.base_view=ui.main] - specified view for attaching parent views
      */
     smoothScrollPage(direction, callback, options) {
         let _cbk = callback || {};
@@ -129,6 +235,7 @@ let ext = {
         let _abs = num => num < 0 ? -num : num;
 
         if (!global.WIDTH || !global.HEIGHT) {
+            require('ext-device').load();
             let _data = devicex.getDisplay();
             [global.WIDTH, global.HEIGHT] = [_data.WIDTH, _data.HEIGHT];
         }
@@ -186,7 +293,56 @@ let ext = {
             console.warn(e.message);
         }
     },
+    /**
+     * Register extended widget nodes whose name starts with 'x-'
+     */
+    $node() {
+        this.registerWidget('x-img', '/', {
+            attr_name: 'tint_color',
+            setter: (view, name, value) => ext.setImageTint(view, value),
+        });
+        this.registerWidget('x-text', '/', [{
+            attr_name: 'text',
+            setter: (view, name, value) => view.setText(value),
+        }, {
+            attr_name: 'color',
+            setter: (view, name, value) => view.setTextColor(colorsx.toInt(value)),
+        }, {
+            attr_name: 'line_spacing',
+            setter: (view, name, value) => {
+                let _setLineSpacing = (val) => {
+                    let _int = Dimensions.parseToIntPixel(val, view);
+                    view.setLineSpacing(_int, view.getLineSpacingMultiplier());
+                };
+                if (!value.match(/cy|cy?x/i)) {
+                    return _setLineSpacing(value);
+                }
+                if (typeof cX !== 'function' || typeof cY !== 'function') {
+                    if (files.exists('./ext-device.js')) {
+                        require('./ext-device').getDisplay(true);
+                    } else {
+                        return _setLineSpacing(value);
+                    }
+                }
+                let _rex = /(\d+(?:\.\d+)?)?(cy|cy?x)\(?(\d+(?:\.\d+)?)?\)?\s*/i;
+                let _val = value.replace(_rex, ($0, $1, $2, $3) => {
+                    let _num = $1 || $3;
+                    let _func = $2.toLowerCase();
+                    return _func === 'cx'
+                        ? cX(_num) : _func === 'cy'
+                            ? cY(_num) : _func === 'cyx'
+                                ? cYx(_num) : _num;
+                });
+                return _setLineSpacing(_val);
+            },
+        }]);
+
+        delete this.$node;
+        return this;
+    },
 };
+
+ext.$node();
 
 module.exports = ext;
 module.exports.load = () => global.uix = ext;

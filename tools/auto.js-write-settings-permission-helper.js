@@ -70,7 +70,7 @@
         d.dismiss();
         let _s = android.provider.Settings.ACTION_MANAGE_WRITE_SETTINGS;
         let _intent = new android.content.Intent(_s)
-            .setData(android.net.Uri.parse('package:' + context.packageName))
+            .setData(android.net.Uri.parse('package:' + context.getPackageName()))
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK);
         app.startActivity(_intent);
     }).show();

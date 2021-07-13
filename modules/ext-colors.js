@@ -7,6 +7,11 @@ let ext = {
      * @returns {string}
      */
     toStr(color, alpha) {
+        if (typeof color === 'string') {
+            if (Number(color).toString() === color) {
+                color = Number(color);
+            }
+        }
         let _c = typeof color === 'number' ? colors.toString(color) : color;
         if (typeof _c !== 'string') {
             throw TypeError('Unknown type of color for colorsx.toStr()');
@@ -20,7 +25,7 @@ let ext = {
             return _c;
         }
         if (alpha === false || alpha === 'none' || alpha === 6) {
-            return colors.toString(colors.rgb(_R, _G, _B));
+            return '#' + colors.toString(colors.rgb(_R, _G, _B)).slice(-6);
         }
         if (alpha === 'auto') {
             return _A < 255 ? _c : colors.toString(colors.rgb(_R, _G, _B));
@@ -32,6 +37,11 @@ let ext = {
      * @returns {number}
      */
     toInt(color) {
+        if (typeof color === 'string') {
+            if (Number(color).toString() === color) {
+                color = Number(color);
+            }
+        }
         let _c;
         try {
             _c = typeof color === 'string' ? colors.parseColor(color) : color;

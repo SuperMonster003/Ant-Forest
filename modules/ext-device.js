@@ -3,14 +3,9 @@ global.devicex = typeof global.devicex === 'object' ? global.devicex : {};
 require('./mod-monster-func').load([
     'debugInfo', 'waitForAction$', 'messageAction', 'keycode$', 'clickAction$',
 ]);
-require('./ext-storages').load();
-require('./ext-a11y').load();
-require('./ext-app').load();
 
-/*
-    Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm.
-    The same is true of destructuring assignment syntax (like `let {Uri} = android.net`).
-*/
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
 let Settings = android.provider.Settings;
 let System = Settings.System;
@@ -120,7 +115,7 @@ let ext = {
             return this.isAcPlugged() || this.isUsbPlugged() || this.isWirelessPlugged();
         },
         isPluggedAndStayingOn() {
-            let _state = devicex.stay_on_while_plugged_in.get(true); // 0-7
+            let _state = ext.stay_on_while_plugged_in.get(true); // 0-7
             let _isOn = x => (x & _state) === x;
             return this.isAcPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_AC)
                 || this.isUsbPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_USB)
@@ -327,13 +322,15 @@ let ext = {
      * @param {Object} [options]
      * @param {Devicex$ScreenOff$Strategy$Options} [options.key_code]
      * @param {
-     *     Devicex$ScreenOff$Strategy$Options & {
+     *     Devicex$ScreenOff$Strategy$Options | {
      *         listener?: {function(function(string[]=):*):*},
      *     }
      * } [options.provider]
      * @return {boolean}
      */
     screenOff(options) {
+        require('./ext-app').load();
+
         let _opt = options || {};
         let _opt_key_code = _opt.key_code || {};
         let _opt_provider = _opt.provider || {};
@@ -560,7 +557,7 @@ let ext = {
         return !this.isScreenOn();
     },
     isLocked() {
-        return context.getSystemService(context.KEYGUARD_SERVICE).isKeyguardLocked();
+        return context.getSystemService(Context.KEYGUARD_SERVICE).isKeyguardLocked();
     },
     isUnlocked() {
         return !this.isLocked();
@@ -628,7 +625,7 @@ let ext = {
      */
     getCallState() {
         let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
-        let _svc_ctx = context.getSystemService(context.TELEPHONY_SERVICE);
+        let _svc_ctx = context.getSystemService(Context.TELEPHONY_SERVICE);
 
         return +_svr_mgr.getCallState() | +_svc_ctx.getCallState();
     },
@@ -645,7 +642,7 @@ let ext = {
      * let {
      *   WIDTH, HEIGHT, cX, cY, cYx,
      *   USABLE_WIDTH, USABLE_HEIGHT,
-     *   screen_orientation,
+     *   display_rotation,
      *   status_bar_height,
      *   navigation_bar_height,
      *   navigation_bar_height_computed,
@@ -664,13 +661,15 @@ let ext = {
      * console.log(cYx(0.6, 16/9), cYx(0.6, -1), cYx(0.6)); // all the same
      * console.log(cYx(0.6, 21/9), cYx(0.6, -2), cYx(0.6, 9/21)); // all the same
      * @returns {{
-           [WIDTH]: number, [USABLE_WIDTH]: number,
-           [HEIGHT]: number, [USABLE_HEIGHT]: number,
-           [screen_orientation]: ScrOrientation,
-           [status_bar_height]: number,
-           [navigation_bar_height]: number,
-           [navigation_bar_height_computed]: number,
-           [action_bar_default_height]: number,
+           WIDTH?: number, USABLE_WIDTH?: number,
+           HEIGHT?: number, USABLE_HEIGHT?: number,
+           display_rotation?: DisplayRotation,
+           is_display_rotation_portrait?: boolean,
+           is_display_rotation_landscape?: boolean,
+           status_bar_height?: number,
+           navigation_bar_height?: number,
+           navigation_bar_height_computed?: number,
+           action_bar_default_height?: number,
            cYx: (function((number|*), number?): number),
            cX: (function((number|*), number?): number),
            cY: (function((number|*), number?): number)
@@ -695,7 +694,9 @@ let ext = {
          *     HEIGHT: number
          *     USABLE_WIDTH: number,
          *     USABLE_HEIGHT: number,
-         *     screen_orientation: ScrOrientation,
+         *     display_rotation: DisplayRotation,
+         *     is_display_rotation_portrait: boolean,
+         *     is_display_rotation_landscape: boolean,
          *     navigation_bar_height: number,
          *     navigation_bar_height_computed: number,
          *     action_bar_default_height: number,
@@ -956,11 +957,11 @@ let ext = {
                  * 1: 90°, device is rotated 90 degree counter-clockwise
                  * 2: 180°, device is reverse portrait
                  * 3: 270°, device is rotated 90 degree clockwise
-                 * @typedef {number} ScrOrientation
+                 * @typedef {number} DisplayRotation
                  */
-                /** @type {ScrOrientation} */
-                let _SCR_O = _win_svc_disp.getRotation();
-                let _is_scr_port = ~[0, 2].indexOf(_SCR_O);
+                /** @type {DisplayRotation} */
+                let _ROT = _win_svc_disp.getRotation();
+                let _is_scr_port = ~[0, 2].indexOf(_ROT);
 
                 // let _MAX = _win_svc_disp.maximumSizeDimension;
                 let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
@@ -982,7 +983,11 @@ let ext = {
                     USABLE_WIDTH: _UW,
                     HEIGHT: _H,
                     USABLE_HEIGHT: _UH,
-                    screen_orientation: _SCR_O,
+                    display_rotation: _ROT,
+                    is_display_rotation_portrait:
+                        _ROT === Surface.ROTATION_0 || _ROT === Surface.ROTATION_180,
+                    is_display_rotation_landscape:
+                        _ROT === Surface.ROTATION_90 || _ROT === Surface.ROTATION_270,
                     status_bar_height: _dimen('status_bar_height'),
                     navigation_bar_height: _dimen('navigation_bar_height'),
                     navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
@@ -1009,38 +1014,29 @@ let ext = {
         }
 
         function _assignGlob() {
-            if (_glob_asg) {
-                Object.assign(global, {
-                    /** Screen width */
-                    W: _W, WIDTH: _W,
-                    /** Half of screen width */
-                    halfW: Math.round(_W / 2),
-                    /** Usable screen width */
-                    uW: Number(_disp.USABLE_WIDTH),
-                    /** Screen height */
-                    H: _H, HEIGHT: _H,
-                    /** Usable screen height */
-                    uH: Number(_disp.USABLE_HEIGHT),
-                    /**
-                     * Screen orientation
-                     * @type {ScrOrientation}
-                     */
-                    scrO: Number(_disp.screen_orientation),
-                    /** Status bar height */
-                    staH: Number(_disp.status_bar_height),
-                    /** Navigation bar height */
-                    navH: Number(_disp.navigation_bar_height),
-                    /** Computed navigation bar height */
-                    navHC: Number(_disp.navigation_bar_height_computed),
-                    /** Action bar default height */
-                    actH: Number(_disp.action_bar_default_height),
-                    cX: cX, cY: cY, cYx: cYx,
-                });
-            }
+            _glob_asg && Object.assign(global, {
+                /** Screen width */
+                W: _W, WIDTH: _W,
+                /** Screen height */
+                H: _H, HEIGHT: _H,
+                /** Half of screen width */
+                halfW: Math.round(_W / 2),
+                /** Usable screen width */
+                uW: Number(_disp.USABLE_WIDTH),
+                /** Usable screen height */
+                uH: Number(_disp.USABLE_HEIGHT),
+                /** @type {DisplayRotation} */
+                ROT: _disp.display_rotation,
+                /** @type {DisplayRotation} */
+                ROTATION: _disp.display_rotation,
+                cX: cX, cY: cY, cYx: cYx,
+                $$disp: _disp,
+            });
         }
     },
+    /** @returns {android.view.Display} */
     getDefaultDisplay() {
-        let _win_svc = context.getSystemService(context.WINDOW_SERVICE);
+        let _win_svc = context.getSystemService(Context.WINDOW_SERVICE);
         return _win_svc.getDefaultDisplay();
     },
     /**
@@ -1063,13 +1059,13 @@ let ext = {
         this.setAutoRotationDisabled(is_async);
 
         let _aim_user_rotation = {
-            0: android.view.Surface.ROTATION_0,
-            1: android.view.Surface.ROTATION_90,
-            2: android.view.Surface.ROTATION_180,
-            3: android.view.Surface.ROTATION_270,
-            90: android.view.Surface.ROTATION_90,
-            180: android.view.Surface.ROTATION_180,
-            270: android.view.Surface.ROTATION_270,
+            0: Surface.ROTATION_0,
+            1: Surface.ROTATION_90,
+            2: Surface.ROTATION_180,
+            3: Surface.ROTATION_270,
+            90: Surface.ROTATION_90,
+            180: Surface.ROTATION_180,
+            270: Surface.ROTATION_270,
         }[rotation];
 
         if (_aim_user_rotation === undefined) {
@@ -1087,16 +1083,16 @@ let ext = {
         }
     },
     setUserRotationPortrait(is_async) {
-        this.setUserRotation(android.view.Surface.ROTATION_0, is_async);
+        this.setUserRotation(Surface.ROTATION_0, is_async);
     },
     setUserRotationInverted(is_async) {
-        this.setUserRotation(android.view.Surface.ROTATION_180, is_async);
+        this.setUserRotation(Surface.ROTATION_180, is_async);
     },
     setUserRotationLandscapeRight(is_async) {
-        this.setUserRotation(android.view.Surface.ROTATION_90, is_async);
+        this.setUserRotation(Surface.ROTATION_90, is_async);
     },
     setUserRotationLandscapeLeft(is_async) {
-        this.setUserRotation(android.view.Surface.ROTATION_270, is_async);
+        this.setUserRotation(Surface.ROTATION_270, is_async);
     },
     setAutoRotationEnabled(is_async) {
         let _aim_acc_rotation = 1;
@@ -1147,7 +1143,9 @@ let ext = {
     },
 };
 
-module.exports = ext.$bind();
+ext.$bind();
+
+module.exports = ext;
 module.exports.load = () => global.devicex = ext;
 
 // constructor(s) //
@@ -1366,6 +1364,9 @@ function StateManager(provider, key, data_type, state_set) {
 // tool function(s) //
 
 function unlockGenerator() {
+    require('./ext-a11y').load();
+    require('./ext-storages').load();
+
     let $_und = x => typeof x === 'undefined';
     let $_nul = x => x === null;
     let $_func = x => typeof x === 'function';
@@ -1517,7 +1518,7 @@ function unlockGenerator() {
                     let _gesture_par = [_time].concat(_pts.map(y => [halfW, cY(y)]));
 
                     let _max = 30, _ctr = 0;
-                    devicex.keepOn(3);
+                    ext.keepOn(3);
                     while (!_lmt()) {
                         _debugAct('消除解锁页面提示层', _ctr, _max);
                         debugInfo('滑动时长: ' + _time + '毫秒');
@@ -1548,7 +1549,7 @@ function unlockGenerator() {
                             debugInfo('参数增量: ' + _increment);
                         }
                     }
-                    devicex.cancelOn();
+                    ext.cancelOn();
 
                     debugInfo('解锁页面提示层消除成功');
                     _this.succ_fg = true;
@@ -1599,7 +1600,7 @@ function unlockGenerator() {
             trigger() {
                 let _this = this;
 
-                if (!devicex.isScreenOn()) {
+                if (!ext.isScreenOn()) {
                     return debugInfo(['跳过解锁控件检测', '>屏幕未亮起']);
                 }
                 return _pattern() || _password() || _pin() || _specials() || _unmatched();
@@ -2343,7 +2344,7 @@ function unlockGenerator() {
                 }
 
                 function _unmatched() {
-                    devicex.isUnlocked() || debugInfo('未匹配到可用的解锁控件');
+                    ext.isUnlocked() || debugInfo('未匹配到可用的解锁控件');
                 }
 
                 function _trigger(sel, stg) {
@@ -2393,9 +2394,9 @@ function unlockGenerator() {
                 if (!$_func(this.stg)) {
                     return _err('没有可用的解锁方案');
                 }
-                devicex.keepOn(5);
+                ext.keepOn(5);
                 this.stg();
-                devicex.cancelOn();
+                ext.cancelOn();
             },
             handle() {
                 return this.trigger() && this.dismiss();
@@ -2407,7 +2408,7 @@ function unlockGenerator() {
                     if (_correct()) {
                         _chkTryAgain();
                         _chkOKBtn();
-                        return devicex.isUnlocked();
+                        return ext.isUnlocked();
                     }
                     _err_shown_fg = true;
                 };
@@ -2484,7 +2485,7 @@ function unlockGenerator() {
         _wakeUpWithBuffer();
 
         let _counter = 0;
-        while (!devicex.isUnlocked() && !_lmtRch()) {
+        while (!ext.isUnlocked() && !_lmtRch()) {
             $_unlk.p_container.handle();
             $_unlk.unlock_view.handle();
         }
@@ -2524,7 +2525,7 @@ function unlockGenerator() {
     }
 
     function _err(s) {
-        devicex.cancelOn();
+        ext.cancelOn();
         messageAction('解锁失败', 4, 1, 0, -1);
 
         ($_str(s) ? [s] : s).forEach(m => messageAction(m, 4, 0, 1));
@@ -2532,7 +2533,7 @@ function unlockGenerator() {
 
         captureErrScreen('unlock_failed', {log_level: 1});
 
-        if (devicex.is_init_screen_on) {
+        if (ext.is_init_screen_on) {
             messageAction('自动关闭屏幕' + (keycode$(26) ? '' : '失败'), 1, 0, 0, 1);
         }
 
@@ -2600,8 +2601,8 @@ function unlockGenerator() {
     }
 
     function _wakeUpWithBuffer() {
-        if (!devicex.isScreenOn()) {
-            if (devicex.wakeUpWithBuffer()) {
+        if (!ext.isScreenOn()) {
+            if (ext.wakeUpWithBuffer()) {
                 debugInfo('设备唤起成功');
                 device.keepScreenOn(2 * 60e3);
             } else {

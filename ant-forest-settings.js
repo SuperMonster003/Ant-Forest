@@ -152,7 +152,7 @@ let $$init = {
                     return dialogsx
                         .builds([
                             _opt.title || this.title, _cfg_conj,
-                            ['使用默认值', 'reset'], 'B', 'M', 1,
+                            ['R', 'reset'], 'B', 'M', 1,
                         ], {inputHint: 'rgb(RR,GG,BB) | #RRGGBB'})
                         .on('neutral', (d) => {
                             dialogsx.setInputText(d, $$sto.def.af[_cfg_conj]);
@@ -254,7 +254,7 @@ let $$init = {
                     return dialogsx
                         .builds([
                             _title, $$und(_content) ? _cfg_conj : $$nul(_content) ? '' : _content,
-                            $$0(_neutral) || $$nul(_neutral) ? 0 : ['使用默认值', 'reset'],
+                            $$0(_neutral) || $$nul(_neutral) ? 0 : ['R', 'reset'],
                             $$0(_negative) || $$nul(_negative) ? 0 : 'B',
                             $$0(_positive) || $$nul(_positive) ? 0 : 'M',
                             1,
@@ -296,7 +296,7 @@ let $$init = {
                     dialogsx
                         .builds([
                             _title, _cfg_conj,
-                            '使用默认值', 'Q', 'M', 1,
+                            'R', 'Q', 'M', 1,
                         ], {inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%'})
                         .on('neutral', (d) => {
                             dialogsx.setInputText(d, $$sto.def[_def_key][_cfg_conj].join(','));
@@ -386,13 +386,13 @@ let $$init = {
                         _neu_value = 0;
                         _neu_lsn = () => null;
                     } else if ($$func(_neutral)) {
-                        _neu_value = ['了解详情', 'hint'];
+                        _neu_value = ['T', 'hint'];
                         _neu_lsn = d => _neutral.call(this, d);
                     } else if ($$obj(_neutral)) {
                         _neu_value = _neutral.value;
                         _neu_lsn = d => _neutral.listener.call(this, d);
                     } else {
-                        _neu_value = ['使用默认值', 'reset'];
+                        _neu_value = ['R', 'reset'];
                         _neu_lsn = d => d.setSelectedIndex(_def_sto_idx);
                     }
 
@@ -1458,11 +1458,9 @@ let $$init = {
                                     if (items.length === 1 && items[0] === '列表为空') {
                                         return;
                                     }
-                                    if (items) {
-                                        items.forEach((name) => {
-                                            _tmp_sel_fri.push(name.split('. ')[1]);
-                                        });
-                                    }
+                                    items.forEach((name) => {
+                                        _tmp_sel_fri.push(name.split('. ')[1]);
+                                    });
                                 });
                                 _diag_add_from_lst.show();
 
@@ -5172,8 +5170,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                         dialogsx
                             .builds([
                                 '风险提示', 'unlock_code_safe_confirm',
-                                ['了解详情', 'hint'],
-                                'Q', ['N', 'caution'], 1, 1,
+                                ['T', 'hint'], 'Q', ['N', 'caution'], 1, 1,
                             ])
                             .on('check', (c) => {
                                 _unlk_safe_fg = !!c;
@@ -5566,7 +5563,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('split_line')
         .add('subhead', new Layout('帮助与支持'))
-        .add('button', new Layout('了解详情', {
+        .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
                     '关于消息提示配置', 'about_message_showing_function',
@@ -5627,7 +5624,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                 dialogsx
                     .builds([
                         '本地日志文件路径', _buildContent(),
-                        ['使用默认值', 'reset'], 'B', 'M', 1,
+                        ['R', 'reset'], 'B', 'M', 1,
                     ], {
                         inputHint: '输入路径',
                     })
@@ -5717,13 +5714,14 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
             newWindow() {
                 let _cfg_conj = this.config_conj;
 
-                // noinspection HttpUrlsUsage
+                // noinspection HttpUrlsUsage,SpellCheckingInspection
                 dialogsx
-                    .builds(['本地日志写入模式', '写入模式示例:\n\n' +
-                    '%m%n\n%d - [%p::%c::%C] - %m%n\n%d{yyyy-MM-dd HH:mm}%m%n\n\n' +
-                    '详情参阅:\nhttp://logging.apache.org/log4j/1.2/apidocs/org/apache/' +
-                    'log4j/PatternLayout.html',
-                        ['使用默认值', 'reset'], 'B', 'M', 1,
+                    .builds(['本地日志写入模式', (() => context.getPackageName().match(/Pro\b/i)
+                        ? '注意:\n当前Auto.js为Pro版本\n可能不支持自定义日志写入模式\n\n' : '')() +
+                    '写入模式示例:\n%m%n\n%d - [%p::%c::%C] - %m%n\n' +
+                    '%d{yyyy-MM-dd HH:mm}%m%n\n\n详情参阅:\nhttp://logging.apache.org/' +
+                    'log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html',
+                        ['R', 'reset'], 'B', 'M', 1,
                     ], {
                         inputHint: '输入日志写入模式',
                         linkify: 'WEB_URLS',
@@ -5743,7 +5741,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
         }))
         .add('split_line')
         .add('subhead', new Layout('帮助与支持'))
-        .add('button', new Layout('了解详情', {
+        .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
                     '关于本地日志功能', 'about_global_log_page',
@@ -6182,7 +6180,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
         }))
         .add('split_line')
         .add('subhead', new Layout('帮助与支持'))
-        .add('button', new Layout('了解详情', {
+        .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
                     '关于定时任务自动管理机制', 'about_timers_self_manage',
@@ -6949,7 +6947,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
         }))
         .add('split_line')
         .add('subhead', new Layout('帮助与支持'))
-        .add('button', new Layout('了解详情', {
+        .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
                     '关于账户功能', 'about_account_function', 0, 0, 'C', 1,
@@ -7040,7 +7038,7 @@ $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
         }))
         .add('split_line')
         .add('subhead', new Layout('帮助与支持'))
-        .add('button', new Layout('了解详情', {
+        .add('button', new Layout('了解更多', {
             newWindow() {
                 dialogsx.builds([
                     '关于黑名单管理', 'about_blacklist', 0, 0, 'C', 1,
@@ -7317,6 +7315,45 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                 view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' ms');
             },
         }))
+        .add('button', new Layout('Root权限功能', 'hint', {
+            config_conj: 'root_access_functions',
+            newWindow() {
+                let _cfg_conj = this.config_conj;
+                let _data = $$cfg.ses[_cfg_conj];
+                let _fxs = [
+                    {key: 'screen_off', desc: '关闭屏幕'},
+                    {key: 'force_stop', desc: '关闭应用'},
+                ];
+                dialogsx.builds([
+                    'Root权限功能', appx.hasRoot()
+                        ? ['当前Root权限状态: 已获取', '#005005']
+                        : ['当前Root权限状态: 未获取', '#A30000'],
+                    ['T', 'hint'], 'B', 'M', 1,
+                ], {
+                    items: _fxs.map(o => o.desc),
+                    itemsSelectMode: 'multi',
+                    itemsSelectedIndex: _fxs
+                        .map((o, i) => _data[o.key] ? i : -1)
+                        .filter(x => x !== -1),
+                }).on('multi_choice', (indices) => {
+                    _fxs.forEach((o, i) => _data[o.key] = indices.indexOf(i) > -1);
+                }).on('neutral', () => {
+                    dialogsx.builds([
+                        '关于Root权限功能', 'about_root_access_functions', 0, 0, 'C', 1,
+                    ]).on('positive', d => d.dismiss()).show();
+                }).on('negative', (d) => {
+                    d.dismiss();
+                }).on('positive', (d) => {
+                    d.dismiss();
+                    $$save.session(_cfg_conj, _data);
+                }).show();
+            },
+            updateOpr(view) {
+                let _value = $$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj];
+                let _fxs_len = Object.keys(_value).filter(k => _value[k]).length;
+                view.setHintText(_fxs_len ? '已启用 ' + _fxs_len + ' 项' : '已全部禁用');
+            },
+        }))
         .add('button', new Layout('自动开启无障碍服务', 'hint', {
             config_conj: 'auto_enable_a11y_svc',
             map: {
@@ -7332,7 +7369,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                                 ['复制授权指令', 'hint'], ['测试权限', 'hint'], 'C', 1,
                             ])
                             .on('neutral', () => {
-                                let _pkg = context.packageName;
+                                let _pkg = context.getPackageName();
                                 let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
                                 setClip('adb shell pm grant ' + _pkg + ' ' + _perm);
                                 toast('授权指令已复制到剪切板');
@@ -7998,10 +8035,12 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
                     .on('neutral', (d) => {
                         d.dismiss();
 
-                        let _none = ' [ 无输入 ]';
-                        let _invalid = ' [ 不合法 ]';
-                        let _cont = '示例:\n\nv2.0.3\n2.0.3\nv2.0.4 Alpha6\n' +
-                            '2.0.4 alpha6\n2.0.4 a6\n2.0.4a6\n\n解析的输入值: ';
+                        let _none = '无输入'.surround('[ ');
+                        let _invalid = '不合法'.surround('[ ');
+                        let _cont = [
+                            '示例:', '', 'v2.0.11', '2.0.11', '2.0.11 Beta5',
+                            '2.0.11 beta5', '2.0.11 b5', '2.0.11b5', '', '解析的输入值: ',
+                        ].join('\n');
 
                         dialogsx
                             .builds(['添加忽略版本', _cont + _none, 0, 'Q', 'K', 1], {

@@ -1,5 +1,20 @@
 global.filesx = typeof global.filesx === 'object' ? global.filesx : {};
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let File = java.io.File;
+let FileInputStream = java.io.FileInputStream;
+let FileOutputStream = java.io.FileOutputStream;
+let BufferedInputStream = java.io.BufferedInputStream;
+let BufferedOutputStream = java.io.BufferedOutputStream;
+let CheckedOutputStream = java.util.zip.CheckedOutputStream;
+let ZipOutputStream = java.util.zip.ZipOutputStream;
+let ZipEntry = java.util.zip.ZipEntry;
+let ZipFile = java.util.zip.ZipFile;
+let CRC32 = java.util.zip.CRC32;
+let Pref = org.autojs.autojs.Pref;
+
 let ext = {
     /**
      * Substitution of files.copy() with callback
@@ -27,7 +42,7 @@ let ext = {
         let _onFailure = _cbk.onCopyFailure || _cbk.onFailure || console.error;
 
         try {
-            return _copyStream(new java.io.FileInputStream(_path_from), _path_to);
+            return _copyStream(new FileInputStream(_path_from), _path_to);
         } catch (e) {
             _onFailure(e);
             return false;
@@ -45,10 +60,10 @@ let ext = {
             _onStart();
 
             files.createWithDirs(path);
-            let _i_file = new java.io.File(path);
+            let _i_file = new File(path);
             try {
                 /** @type {java.io.FileOutputStream} */
-                let _fos = new java.io.FileOutputStream(_i_file);
+                let _fos = new FileOutputStream(_i_file);
                 _write(is, _fos, true);
                 return true;
             } catch (e) {
@@ -66,7 +81,7 @@ let ext = {
              */
             function _write(is, os, close) {
                 let _buffer = util.java.array('byte', 8192);
-                let _total = new java.io.File(_path_from).length();
+                let _total = new File(_path_from).length();
                 let _processed = 0;
                 try {
                     while (is.available() > 0) {
@@ -193,14 +208,14 @@ let ext = {
         if (!files.exists(_i_path)) {
             throw Error('无效的压缩源');
         }
-        let _i_file = new java.io.File(_i_path);
+        let _i_file = new File(_i_path);
         _i_path = _i_file.getAbsolutePath();
 
         let _o_path = output_path ? files.path(output_path) : _i_path + '.zip';
-        let _o_file = new java.io.File(_o_path);
+        let _o_file = new File(_o_path);
         _o_path = _o_file.getAbsolutePath();
         if (files.getExtension(_o_path) !== 'zip') {
-            _o_file = new java.io.File(_o_path += '.zip');
+            _o_file = new File(_o_path += '.zip');
         }
         if (files.exists(_o_path)) {
             files.remove(_o_path);
@@ -210,9 +225,9 @@ let ext = {
         let _i_path_size = this.getDirSize(_i_path);
 
         try {
-            _fos = new java.io.FileOutputStream(_o_file);
-            _cos = new java.util.zip.CheckedOutputStream(_fos, new java.util.zip.CRC32());
-            _zos = new java.util.zip.ZipOutputStream(_cos);
+            _fos = new FileOutputStream(_o_file);
+            _cos = new CheckedOutputStream(_fos, new CRC32());
+            _zos = new ZipOutputStream(_cos);
 
             _zip(_i_file);
 
@@ -245,16 +260,16 @@ let ext = {
             // tool function(s) //
 
             function _compressFile(file, parent) {
-                let _parent = parent ? parent + java.io.File.separator : '';
+                let _parent = parent ? parent + File.separator : '';
                 let _file_name = _parent + file.getName();
                 if (file.isFile()) {
                     let _read_bytes;
                     let _buf_len = 1024;
                     let _buf_bytes = util.java.array('byte', _buf_len);
 
-                    _zos.putNextEntry(new java.util.zip.ZipEntry(_file_name));
-                    _fis = new java.io.FileInputStream(file);
-                    _bis = new java.io.BufferedInputStream(_fis);
+                    _zos.putNextEntry(new ZipEntry(_file_name));
+                    _fis = new FileInputStream(file);
+                    _bis = new BufferedInputStream(_fis);
 
                     while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
                         if (global._$_dialog_flow_interrupted) {
@@ -345,7 +360,7 @@ let ext = {
             _start();
         }
 
-        let _sep = java.io.File.separator;
+        let _sep = File.separator;
         let _opt = options || {};
 
         let _i_path = files.path(input_path);
@@ -356,7 +371,7 @@ let ext = {
             throw Error('解压缩源不存在');
         }
 
-        let _i_file = new java.io.File(_i_path);
+        let _i_file = new File(_i_path);
         let _i_file_size = _i_file.length();
         let _i_file_name = _i_file.getName();
         let _i_file_name_no_ext = _i_file_name.slice(0, _i_file_name.lastIndexOf('.'));
@@ -374,7 +389,7 @@ let ext = {
             let _processed_bytes = 0;
             let _buf_len = 1024;
             let _buf_bytes = util.java.array('byte', _buf_len);
-            let _z_i_file = new java.util.zip.ZipFile(_i_file);
+            let _z_i_file = new ZipFile(_i_file);
             let _z_entries = _z_i_file.entries();
 
             while (_z_entries.hasMoreElements()) {
@@ -384,16 +399,16 @@ let ext = {
                 let _entry_path = files.path(_o_path + _sep + _entry_name);
                 files.createWithDirs(_entry_path);
 
-                let _entry_file = new java.io.File(_entry_path);
+                let _entry_file = new File(_entry_path);
                 if (_entry_file.isDirectory()) {
                     continue;
                 }
 
                 let _read_bytes = -1;
 
-                _fos = new java.io.FileOutputStream(_entry_file);
-                _bos = new java.io.BufferedOutputStream(_fos);
-                _bis = new java.io.BufferedInputStream(_z_i_file.getInputStream(_entry));
+                _fos = new FileOutputStream(_entry_file);
+                _bos = new BufferedOutputStream(_fos);
+                _bis = new BufferedInputStream(_z_i_file.getInputStream(_entry));
 
                 while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
                     if (global._$_dialog_flow_interrupted) {
@@ -437,14 +452,14 @@ let ext = {
             return false;
         }
         /** @type {java.io.File} */
-        let _file = new java.io.File(_path);
+        let _file = new File(_path);
         if (files.getExtension(_file.getName()) !== 'zip') {
             return false;
         }
         /** @type {java.util.zip.ZipFile} */
         let _zip_file = null;
         try {
-            _zip_file = new java.util.zip.ZipFile(_file);
+            _zip_file = new ZipFile(_file);
             return true;
         } catch (e) {
             return false;
@@ -529,10 +544,10 @@ let ext = {
         }
 
         let _filesx = this;
-        let _sep = java.io.File.separator;
+        let _sep = File.separator;
 
-        let _src = new java.io.File(files.path(src)).getAbsolutePath();
-        let _tar = new java.io.File(files.path(target)).getAbsolutePath();
+        let _src = new File(files.path(src)).getAbsolutePath();
+        let _tar = new File(files.path(target)).getAbsolutePath();
 
         let _opt = options || {};
         let _is_unbundle = _opt.is_unbundled;
@@ -597,22 +612,22 @@ let ext = {
      * @returns {string}
      */
     getScriptDirPath() {
-        if (typeof org.autojs.autojs.Pref.getScriptDirPath === 'function') {
-            return org.autojs.autojs.Pref.getScriptDirPath();
+        if (typeof Pref.getScriptDirPath === 'function') {
+            return Pref.getScriptDirPath();
         }
         // for Auto.js Pro versions
-        return com.stardust.autojs.core.pref.Pref.INSTANCE['getScriptDirPath']();
+        return com.stardust.autojs.core['pref']['Pref']['INSTANCE']['getScriptDirPath']();
     },
     /**
      * @param {string} path
      * @returns {boolean}
      */
     isScriptDirPath(path) {
-        return new java.io.File(files.path(path)).getAbsolutePath() === this.getScriptDirPath();
+        return new File(files.path(path)).getAbsolutePath() === this.getScriptDirPath();
     },
     /**
      * Returns the files size in a directory or file
-     * @param {string} path
+     * @param {string|java.io.File} path
      * @example
      * console.log(filesx.getDirSize('.')); // current working directory
      * @returns {*}
@@ -623,9 +638,9 @@ let ext = {
             throw Error('path of filesx.getDirSize() is not exist');
         }
         if (files.isFile(_path)) {
-            return new java.io.File(_path).length();
+            return new File(_path).length();
         }
-        return new java.io.File(_path).listFiles().reduce((sum, f) => {
+        return new File(_path).listFiles().reduce((sum, f) => {
             return sum + (f.isDirectory() ? this.getDirSize(f) : f.length());
         }, 0);
     },
@@ -672,7 +687,7 @@ let ext = {
                 _res = _remove(path);
             } else if (files.isDir(path)) {
                 let _list = files.listDir(path);
-                let _sep = java.io.File.separator;
+                let _sep = File.separator;
                 _total = _list.length;
                 _list.forEach((file) => {
                     _res = _remove(path + _sep + file) && _res;
@@ -702,7 +717,7 @@ let ext = {
         let _res = [];
 
         if (typeof file === 'string') {
-            file = new java.io.File(files.path(file));
+            file = new File(files.path(file));
         }
 
         (function _list(file) {
@@ -722,7 +737,7 @@ let ext = {
      */
     deleteRecursively(file) {
         if (typeof file === 'string') {
-            file = new java.io.File(files.path(file));
+            file = new File(files.path(file));
         }
         if (file.isDirectory()) {
             let _files = file.listFiles();

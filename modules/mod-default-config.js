@@ -189,6 +189,7 @@ module.exports = {
         e_rain_switch: false,
         stroll_btn_match_threshold: 10,
         stroll_btn_locate_main_color: '#ff7e00',
+        root_access_functions: {force_stop: false, screen_off: true},
     },
     unlock: {
         // when we first met, i do not know your name, your age, or, your sexual orientation, wow...

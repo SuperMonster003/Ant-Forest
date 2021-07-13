@@ -16,7 +16,7 @@ let ext = {
      * @see console.setGlobalLogConfig
      */
     setGlobalLogConfig(config) {
-        if (context.packageName.match(/Pro\b/i)) {
+        if (context.getPackageName().match(/Pro\b/i)) {
             delete config.filePattern;
         }
         console.setGlobalLogConfig(config);

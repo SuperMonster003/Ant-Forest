@@ -2,17 +2,26 @@ global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
 
 require('./mod-monster-func').load();
 require('./ext-global').load();
-require('./ext-device').load();
-require('./ext-a11y').load();
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let Build = android.os.Build;
 let Scalar = org.opencv.core.Scalar;
-let Rect = org.opencv.core.Rect;
 let Point = org.opencv.core.Point;
 let Core = org.opencv.core.Core;
 let Imgproc = org.opencv.imgproc.Imgproc;
+let OpencvRect = org.opencv.core.Rect;
+let Rect = android.graphics.Rect;
+let Bitmap = android.graphics.Bitmap;
+let BitmapFactory = android.graphics.BitmapFactory;
 let Mat = com.stardust.autojs.core.opencv.Mat;
 let OpenCVHelper = com.stardust.autojs.core.opencv.OpenCVHelper;
 let ImageWrapper = com.stardust.autojs.core.image.ImageWrapper;
+let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
+let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
+let UiObject = com.stardust.automator.UiObject;
+let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
 let ext = {
     _has_scr_capt_permission: threads.atomic(0),
@@ -129,7 +138,7 @@ let ext = {
         let y = region[1] === undefined ? 0 : region[1];
         let width = region[2] === undefined ? img.getWidth() - x : region[2];
         let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
-        let r = new Rect(x, y, width, height);
+        let r = new OpencvRect(x, y, width, height);
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
             throw new Error('Out of region:\n' +
                 'region: ' + [x, y, width, height].join(', ').surround('[ ') + '\n' +
@@ -183,7 +192,7 @@ let ext = {
         });
     },
     isImageWrapper(img) {
-        return img instanceof com.stardust.autojs.core.image.ImageWrapper;
+        return img instanceof ImageWrapper;
     },
     reclaim() {
         [].slice.call(arguments).forEach(i => this.isImageWrapper(i) && i.recycle());
@@ -208,7 +217,7 @@ let ext = {
                 if (typeof compress_level === 'number' && compress_level > 1) {
                     return this.compress(_copy, compress_level, true);
                 }
-                if (_copy instanceof com.stardust.autojs.core.image.ImageWrapper) {
+                if (_copy instanceof ImageWrapper) {
                     return _copy;
                 }
             } catch (e) {
@@ -254,9 +263,8 @@ let ext = {
 
         let javaImages = runtime.getImages();
         let ResultAdapter = require.call(global, 'result_adapter');
-        let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
 
-        let _is_pro = context.packageName.match(/[Pp]ro/);
+        let _is_pro = context.getPackageName().match(/Pro\b/i);
         let _orientation = landscape === undefined || landscape === 'AUTO'
             ? ScreenCapturer.ORIENTATION_AUTO : typeof landscape === 'boolean'
                 ? landscape
@@ -314,6 +322,7 @@ let ext = {
         _debugInfo('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
+            require('./ext-a11y').load();
             /** @return {SelectorPickupResult} */
             let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
             /** @return {SelectorPickupResult} */
@@ -354,7 +363,7 @@ let ext = {
             if (_opt.restart_e_flag) {
                 _debugInfo('截图权限申请结果: 失败', 3);
                 try {
-                    let _m = android.os.Build.MANUFACTURER.toLowerCase();
+                    let _m = Build.MANUFACTURER.toLowerCase();
                     if (_m.match(/xiaomi/)) {
                         _debugInfo('__split_line__dash__');
                         _debugInfo('检测到当前设备制造商为小米', 3);
@@ -417,6 +426,7 @@ let ext = {
         let _opt = options || {};
         let _tpl = _byLocal() || _byBase64() || _byTemplate();
         return _tpl && (() => {
+            require('./ext-device').load();
             let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
             let _options = {
                 max: _opt.max_results,
@@ -430,7 +440,7 @@ let ext = {
             devicex.screen_metrics.saveState();
             devicex.screen_metrics.setRatio(1 / _lv);
             let _matched = images.matchTemplate(_i, _t, _options);
-            imagesx.reclaim(_i, _t);
+            ext.reclaim(_i, _t);
             devicex.screen_metrics.loadState();
             return _matched;
         })() || (_opt.not_null ? {points: []} : null);
@@ -468,7 +478,7 @@ let ext = {
         }
 
         function _byTemplate() {
-            if (template instanceof com.stardust.autojs.core.image.ImageWrapper) {
+            if (template instanceof ImageWrapper) {
                 return _microResize(template, _opt.template_device_width);
             }
         }
@@ -480,7 +490,7 @@ let ext = {
             for (let i = _w_min; i <= _w_max; i += 1) {
                 for (let j = 0; j <= 1; j += 1) {
                     let _resized = images.resize(tpl, [i, i * _h / _w + j], 'LANCZOS4');
-                    let _matched = imagesx.findImage(img, _resized, {
+                    let _matched = ext.findImage(img, _resized, {
                         threshold: _opt.threshold_find,
                         region: _opt.region_find,
                         compress_level: _opt.compress_level,
@@ -509,15 +519,15 @@ let ext = {
      */
     findColorInBounds(img, bounds_src, color, threshold) {
         let _bounds;
-        if (bounds_src instanceof android.graphics.Rect) {
+        if (bounds_src instanceof Rect) {
             _bounds = bounds_src;
-        } else if (bounds_src instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+        } else if (bounds_src instanceof UiSelector) {
             let _w = bounds_src.findOnce();
             if (!_w) {
                 return null;
             }
             _bounds = _w.bounds();
-        } else if (bounds_src instanceof com.stardust.automator.UiObject) {
+        } else if (bounds_src instanceof UiObject) {
             _bounds = bounds_src.bounds();
         } else {
             throw Error('findColorInBounds()的bounds_src参数类型无效');
@@ -686,7 +696,7 @@ let ext = {
 
         /**
          * @typedef {
-         *     EnergyBallsInfoClassified & EnergyBallsDuration & {expand: function(): EnergyBallsInfo[]}
+         *     EnergyBallsInfoClassified | EnergyBallsDuration | {expand: function(): EnergyBallsInfo[]}
          * } AfHoughBallsResult
          */
         return Object.assign(_balls_data_o, _du_o, {
@@ -720,8 +730,8 @@ let ext = {
         }
 
         function _setWballExtFunction() {
-            if (!imagesx.inTreeArea) {
-                imagesx.inTreeArea = (o) => {
+            if (!ext.inTreeArea) {
+                ext.inTreeArea = (o) => {
                     // TODO...
                     let _tree_area = {x: halfW, y: cYx(670), r: cX(182)};
                     if (typeof o !== 'object' || !o.r) {
@@ -734,8 +744,8 @@ let ext = {
                     return _ct_dist < _ct_dist_min;
                 };
             }
-            if (!imagesx.isWaterBall) {
-                imagesx.isWaterBall = (o, capt, container) => {
+            if (!ext.isWaterBall) {
+                ext.isWaterBall = (o, capt, container) => {
                     let _ctx = o.x;
                     let _cty = o.y;
                     let _cty_max = cYx(386);
@@ -789,9 +799,9 @@ let ext = {
                     }
                 };
             }
-            if (!imagesx.isRipeBall) {
-                imagesx.isRipeBall = (o, capt, container) => {
-                    if (imagesx.inTreeArea(o)) {
+            if (!ext.isRipeBall) {
+                ext.isRipeBall = (o, capt, container) => {
+                    if (ext.inTreeArea(o)) {
                         return;
                     }
                     let _capt = capt || _this.capt();
@@ -1038,7 +1048,7 @@ let ext = {
                     _balls.map(_extProps).filter(_filterActBtn).forEach((o) => {
                         if (_isRipeBall(o)) {
                             _addBall(o, 'ripe');
-                        } else if (!imagesx.inTreeArea(o)) {
+                        } else if (!ext.inTreeArea(o)) {
                             _addBall(o, 'naught');
                         }
                     });
@@ -1046,12 +1056,11 @@ let ext = {
                     // tool function(s) //
 
                     function _isRipeBall(o) {
-                        return imagesx.isRipeBall(o, capt);
+                        return ext.isRipeBall(o, capt);
                     }
 
-                    /** @typedef {EnergyBallsBasicProp & EnergyBallsExtProp} EnergyBallsMixedProp */
-
-                    /** @typedef {EnergyBallsMixedProp & {type: EnergyBallsType}} EnergyBallsInfo */
+                    /** @typedef {EnergyBallsBasicProp | EnergyBallsExtProp} EnergyBallsMixedProp */
+                    /** @typedef {EnergyBallsMixedProp | {type: EnergyBallsType}} EnergyBallsInfo */
                     /**
                      * @param {EnergyBallsMixedProp} o
                      * @param {EnergyBallsType} type
@@ -1170,10 +1179,10 @@ let ext = {
 
                 function _filterWball(o) {
                     if (o) {
-                        if (imagesx.isRipeBall(o, capt)) {
+                        if (ext.isRipeBall(o, capt)) {
                             return true;
                         }
-                        return !imagesx.isWaterBall(o, capt, _wballs);
+                        return !ext.isWaterBall(o, capt, _wballs);
                     }
                 }
             }
@@ -1304,9 +1313,9 @@ let ext = {
      * @returns {ImageWrapper$}
      */
     read(path, compress_level /* inSampleSize */) {
-        let _bo = new android.graphics.BitmapFactory.Options();
+        let _bo = new BitmapFactory.Options();
         _bo.inSampleSize = Math.max(Number(compress_level) || 1, 1);
-        let _bitmap = android.graphics.BitmapFactory.decodeFile(files.path(path), _bo);
+        let _bitmap = BitmapFactory.decodeFile(files.path(path), _bo);
         return ImageWrapper.ofBitmap(_bitmap);
     },
     /**
@@ -1315,9 +1324,9 @@ let ext = {
      * @returns {{width: number, height: number}}
      */
     readBounds(path) {
-        let _bo = new android.graphics.BitmapFactory.Options();
+        let _bo = new BitmapFactory.Options();
         _bo.inJustDecodeBounds = true;
-        android.graphics.BitmapFactory.decodeFile(files.path(path), _bo); // returns null
+        BitmapFactory.decodeFile(files.path(path), _bo); // returns null
         return {
             width: _bo.outWidth,
             height: _bo.outHeight,
@@ -1347,12 +1356,12 @@ let ext = {
         let _lv = Math.floorPow(2, Math.max(Number(compress_level) || 1, 1));
         let _new_wrapper = img;
         if (_lv > 1) {
-            let _os = new java.io.ByteArrayOutputStream();
-            img.getBitmap().compress(android.graphics.Bitmap.CompressFormat.JPEG, 100, _os);
+            let _os = new ByteArrayOutputStream();
+            img.getBitmap().compress(Bitmap.CompressFormat.JPEG, 100, _os);
             let _bytes = _os.toByteArray();
-            let _bo = new android.graphics.BitmapFactory.Options();
+            let _bo = new BitmapFactory.Options();
             _bo.inSampleSize = _lv;
-            let _new_bitmap = android.graphics.BitmapFactory.decodeByteArray(_bytes, 0, _bytes.length, _bo);
+            let _new_bitmap = BitmapFactory.decodeByteArray(_bytes, 0, _bytes.length, _bo);
             _new_wrapper = ImageWrapper.ofBitmap(_new_bitmap);
         }
         is_recycle_img && img.recycle();
@@ -1447,17 +1456,18 @@ let ext = {
             if (_lv <= 1) {
                 return images.findImage(img, template, options);
             }
+            require('./ext-device').load();
             let _img = this.compress(img, _lv);
             let _tpl = this.compress(template, _lv);
             devicex.screen_metrics.saveState();
             devicex.screen_metrics.setRatio(1 / _lv);
             let _res = images.findImage(_img, _tpl, options);
-            imagesx.reclaim(_img, _tpl);
+            ext.reclaim(_img, _tpl);
             devicex.screen_metrics.loadState();
             return _res && new Point(_res.x * _lv, _res.y * _lv);
         })();
         if (_opt.is_recycle_all) {
-            imagesx.reclaim(img, template);
+            ext.reclaim(img, template);
         } else {
             _opt.is_recycle_img && img.recycle();
             _opt.is_recycle_template && template.recycle();

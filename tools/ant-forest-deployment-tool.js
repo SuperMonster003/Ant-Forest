@@ -1,3 +1,29 @@
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let JavaArray = java.lang.reflect.Array;
+let StringBuilder = java.lang.StringBuilder;
+let KeyEvent = android.view.KeyEvent;
+let Linkify = android.text.util.Linkify;
+let ColorStateList = android.content.res.ColorStateList;
+let DialogAction = com.afollestad.materialdialogs.DialogAction;
+let Pref = org.autojs.autojs.Pref;
+let File = java.io.File;
+let FileInputStream = java.io.FileInputStream;
+let FileOutputStream = java.io.FileOutputStream;
+let InputStreamReader = java.io.InputStreamReader;
+let BufferedReader = java.io.BufferedReader;
+let BufferedInputStream = java.io.BufferedInputStream;
+let BufferedOutputStream = java.io.BufferedOutputStream;
+let CheckedOutputStream = java.util.zip.CheckedOutputStream;
+let ZipOutputStream = java.util.zip.ZipOutputStream;
+let ZipEntry = java.util.zip.ZipEntry;
+let ZipFile = java.util.zip.ZipFile;
+let CRC32 = java.util.zip.CRC32;
+let URL = java.net.URL;
+let Request = Packages.okhttp3.Request;
+let HttpURLConnection = java.net.HttpURLConnection;
+
 !function () {
     'use strict';
 
@@ -305,13 +331,13 @@
             let _file_full_name = _file_name + '.' + _file_ext;
             // like: '/sdcard/.local/bak/ant-forest'
             let _bak_path = (() => {
-                let _sep = java.io.File.separator;
+                let _sep = File.separator;
                 let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
                 files.exists(_path) || files.createWithDirs(_path + _sep);
-                return new java.io.File(_path).getAbsolutePath();
+                return new File(_path).getAbsolutePath();
             })();
             // like: '/sdcard/.local/bak/ant-forest/v2.0.4.zip'
-            let _full_path = _bak_path + java.io.File.separator + _file_full_name;
+            let _full_path = _bak_path + File.separator + _file_full_name;
 
             let _cont_len = -1;
             httpx.getContentLength(_url, function (value) {
@@ -369,7 +395,7 @@
                             onUnzipSuccess(r) {
                                 let _path = r.unzipped_path;
                                 if (!_appx.isProjectLike(_path)) {
-                                    _path += java.io.File.separator + files.listDir(_path)[0];
+                                    _path += File.separator + files.listDir(_path)[0];
                                 }
                                 if (!_appx.isProjectLike(_path)) {
                                     reject('Cannot locate project path in unzipped files');
@@ -445,7 +471,7 @@
             if (!_path) {
                 throw Error('Cannot locate project path for appx.getProjectLocal()');
             }
-            let _sep = java.io.File.separator;
+            let _sep = File.separator;
             let _json_name = 'project.json';
             let _json_path = _path + _sep + _json_name;
             let _main_name = 'ant-forest-launcher.js';
@@ -716,7 +742,7 @@
                     // tool function(s) //
 
                     function _getRespByHttpCxn(url) {
-                        let _url = new java.net.URL(url);
+                        let _url = new URL(url);
                         let _cxn = _url.openConnection();
                         _cxn.setRequestMethod('GET');
                         _cxn.setConnectTimeout(15e3);
@@ -724,7 +750,7 @@
                         _cxn.connect();
 
                         let _code = _cxn.getResponseCode();
-                        if (_code !== java.net.HttpURLConnection.HTTP_OK) {
+                        if (_code !== HttpURLConnection.HTTP_OK) {
                             if (!_max) {
                                 _onFailure('请求失败: ' + _code);
                             }
@@ -736,8 +762,8 @@
                             return null;
                         }
                         let _is = _cxn.getInputStream();
-                        let _br = new java.io.BufferedReader(new java.io.InputStreamReader(_is));
-                        let _sb = new java.lang.StringBuilder();
+                        let _br = new BufferedReader(new InputStreamReader(_is));
+                        let _sb = new StringBuilder();
                         let _line = null;
                         let _readLine = () => _line = _br.readLine();
                         while (_readLine() !== null) {
@@ -797,14 +823,14 @@
                 return false;
             }
 
-            let _files = files.listDir(_path = new java.io.File(_path).getAbsolutePath());
+            let _files = files.listDir(_path = new File(_path).getAbsolutePath());
 
             return this._project_structure.filter(o => o.necessary).map((o) => (
                 o.name[0] === '/' ? {name: o.name.slice(1), is_dir: true} : {name: o.name}
             )).every((o) => {
                 if (~_files.indexOf(o.name)) {
                     let _cA = o.is_dir;
-                    let _cB = files.isDir(_path + java.io.File.separator + o.name);
+                    let _cB = files.isDir(_path + File.separator + o.name);
                     return _cA && _cB || !_cA && !_cB;
                 }
             });
@@ -817,12 +843,12 @@
             if (this.isProjectLike(_cwd)) {
                 return _cwd;
             }
-            _cwd = new java.io.File(_cwd).getParent();
+            _cwd = new File(_cwd).getParent();
             if (this.isProjectLike(_cwd)) {
                 return _cwd;
             }
             let _aj_wd = filesx.getScriptDirPath();
-            let _sep = java.io.File.separator;
+            let _sep = File.separator;
             let _proj_def_n = 'Ant-Forest-003';
             let _root_proj_path = _aj_wd + _sep + _proj_def_n;
             if (files.isDir(_root_proj_path)) {
@@ -853,7 +879,7 @@
          */
         backupProject(callback, options) {
             let _appx = this;
-            let _sep = java.io.File.separator;
+            let _sep = File.separator;
             let _cbk = callback || {};
             let _opt = options || {};
 
@@ -862,10 +888,10 @@
             let _local_ver_hex = _appx.getVerHex(_local_ver_name);
 
             let _def_bak_path = (() => {
-                let _sep = java.io.File.separator;
+                let _sep = File.separator;
                 let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
                 files.exists(_path) || files.createWithDirs(_path + _sep);
-                return new java.io.File(_path).getAbsolutePath();
+                return new File(_path).getAbsolutePath();
             })();
             let _bak_file_name = $$cvt.date(_now_ts, 'yyMMddhhmmss') + '-' + _local_ver_hex + '.zip';
             let _bak_dest_path = _def_bak_path + _sep + _bak_file_name;
@@ -980,12 +1006,12 @@
                     if (_appx.isProjectLike(_cwd)) {
                         return _cwd;
                     }
-                    _cwd = new java.io.File(_cwd).getParent();
+                    _cwd = new File(_cwd).getParent();
                     if (_appx.isProjectLike(_cwd)) {
                         return _cwd;
                     }
                     let _aj_wd = filesx.getScriptDirPath();
-                    let _sep = java.io.File.separator;
+                    let _sep = File.separator;
                     let _proj_def_n = 'Ant-Forest-003';
                     _cwd = _aj_wd + _sep + _proj_def_n;
                     if (_appx.isProjectLike(_cwd)) {
@@ -1111,7 +1137,7 @@
             let _executor = function (resolve) {
                 let _thd = threadsx.start(function () {
                     try {
-                        let _cxn = new java.net.URL(url).openConnection();
+                        let _cxn = new URL(url).openConnection();
                         _cxn.setRequestProperty('Accept-Encoding', 'identity');
                         _cxn.setConnectTimeout(_tt);
                         let _len = _cxn.getContentLengthLong();
@@ -1182,7 +1208,7 @@
                 try {
                     _onStart();
 
-                    let _builder = new Packages.okhttp3.Request.Builder();
+                    let _builder = new Request.Builder();
                     Object.keys(_opt.headers || {}).forEach((k) => {
                         _builder.addHeader(k, _opt.headers[k]);
                     });
@@ -1191,7 +1217,7 @@
                     _onResponse(r);
 
                     let _buf_len = 4096;
-                    let _buf_bytes = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, _buf_len);
+                    let _buf_bytes = JavaArray.newInstance(java.lang.Byte.TYPE, _buf_len);
                     let _read_bytes;
                     let _processed = 0;
 
@@ -1200,9 +1226,9 @@
                         _onFailure(_code + ' ' + r.message());
                     }
                     _bs = r.body().byteStream();
-                    _bis = new java.io.BufferedInputStream(_bs);
-                    _fos = new java.io.FileOutputStream(new java.io.File(_path));
-                    _bos = new java.io.BufferedOutputStream(_fos);
+                    _bis = new BufferedInputStream(_bs);
+                    _fos = new FileOutputStream(new File(_path));
+                    _bos = new BufferedOutputStream(_fos);
 
                     let _total = r.body().contentLength();
 
@@ -1262,7 +1288,7 @@
             let _onFailure = _cbk.onCopyFailure || _cbk.onFailure || console.error;
 
             try {
-                return _copyStream(new java.io.FileInputStream(_path_from), _path_to);
+                return _copyStream(new FileInputStream(_path_from), _path_to);
             } catch (e) {
                 _onFailure(e);
                 return false;
@@ -1280,10 +1306,10 @@
                 _onStart();
 
                 files.createWithDirs(path);
-                let _i_file = new java.io.File(path);
+                let _i_file = new File(path);
                 try {
                     /** @type {java.io.FileOutputStream} */
-                    let _fos = new java.io.FileOutputStream(_i_file);
+                    let _fos = new FileOutputStream(_i_file);
                     _write(is, _fos, true);
                     return true;
                 } catch (e) {
@@ -1301,7 +1327,7 @@
                  */
                 function _write(is, os, close) {
                     let _buffer = util.java.array('byte', 8192);
-                    let _total = new java.io.File(_path_from).length();
+                    let _total = new File(_path_from).length();
                     let _processed = 0;
                     try {
                         while (is.available() > 0) {
@@ -1332,11 +1358,11 @@
          * @returns {string}
          */
         getScriptDirPath() {
-            if (typeof org.autojs.autojs.Pref.getScriptDirPath === 'function') {
-                return org.autojs.autojs.Pref.getScriptDirPath();
+            if (typeof Pref.getScriptDirPath === 'function') {
+                return Pref.getScriptDirPath();
             }
             // for Auto.js Pro versions
-            return com.stardust.autojs.core.pref.Pref.INSTANCE['getScriptDirPath']();
+            return com.stardust.autojs.core['pref']['Pref']['INSTANCE']['getScriptDirPath']();
         },
         /**
          * Unzip a zip file by java.io.FileOutputStream
@@ -1402,7 +1428,7 @@
                 _start();
             }
 
-            let _sep = java.io.File.separator;
+            let _sep = File.separator;
             let _opt = options || {};
 
             let _i_path = files.path(input_path);
@@ -1413,7 +1439,7 @@
                 throw Error('解压缩源不存在');
             }
 
-            let _i_file = new java.io.File(_i_path);
+            let _i_file = new File(_i_path);
             let _i_file_size = _i_file.length();
             let _i_file_name = _i_file.getName();
             let _i_file_name_no_ext = _i_file_name.slice(0, _i_file_name.lastIndexOf('.'));
@@ -1431,7 +1457,7 @@
                 let _processed_bytes = 0;
                 let _buf_len = 1024;
                 let _buf_bytes = util.java.array('byte', _buf_len);
-                let _z_i_file = new java.util.zip.ZipFile(_i_file);
+                let _z_i_file = new ZipFile(_i_file);
                 let _z_entries = _z_i_file.entries();
 
                 while (_z_entries.hasMoreElements()) {
@@ -1441,16 +1467,16 @@
                     let _entry_path = files.path(_o_path + _sep + _entry_name);
                     files.createWithDirs(_entry_path);
 
-                    let _entry_file = new java.io.File(_entry_path);
+                    let _entry_file = new File(_entry_path);
                     if (_entry_file.isDirectory()) {
                         continue;
                     }
 
                     let _read_bytes = -1;
 
-                    _fos = new java.io.FileOutputStream(_entry_file);
-                    _bos = new java.io.BufferedOutputStream(_fos);
-                    _bis = new java.io.BufferedInputStream(_z_i_file.getInputStream(_entry));
+                    _fos = new FileOutputStream(_entry_file);
+                    _bos = new BufferedOutputStream(_fos);
+                    _bis = new BufferedInputStream(_z_i_file.getInputStream(_entry));
 
                     while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
                         if (global._$_dialog_flow_interrupted) {
@@ -1527,7 +1553,7 @@
                     _res = _remove(path);
                 } else if (files.isDir(path)) {
                     let _list = files.listDir(path);
-                    let _sep = java.io.File.separator;
+                    let _sep = File.separator;
                     _total = _list.length;
                     _list.forEach((file) => {
                         _res = _remove(path + _sep + file) && _res;
@@ -1608,7 +1634,7 @@
             let _res = [];
 
             if (typeof file === 'string') {
-                file = new java.io.File(files.path(file));
+                file = new File(files.path(file));
             }
 
             (function _list(file) {
@@ -1689,14 +1715,14 @@
             if (!files.exists(_i_path)) {
                 throw Error('无效的压缩源');
             }
-            let _i_file = new java.io.File(_i_path);
+            let _i_file = new File(_i_path);
             _i_path = _i_file.getAbsolutePath();
 
             let _o_path = output_path ? files.path(output_path) : _i_path + '.zip';
-            let _o_file = new java.io.File(_o_path);
+            let _o_file = new File(_o_path);
             _o_path = _o_file.getAbsolutePath();
             if (files.getExtension(_o_path) !== 'zip') {
-                _o_file = new java.io.File(_o_path += '.zip');
+                _o_file = new File(_o_path += '.zip');
             }
             if (files.exists(_o_path)) {
                 files.remove(_o_path);
@@ -1706,9 +1732,9 @@
             let _i_path_size = this.getDirSize(_i_path);
 
             try {
-                _fos = new java.io.FileOutputStream(_o_file);
-                _cos = new java.util.zip.CheckedOutputStream(_fos, new java.util.zip.CRC32());
-                _zos = new java.util.zip.ZipOutputStream(_cos);
+                _fos = new FileOutputStream(_o_file);
+                _cos = new CheckedOutputStream(_fos, new CRC32());
+                _zos = new ZipOutputStream(_cos);
 
                 _zip(_i_file);
 
@@ -1741,16 +1767,16 @@
                 // tool function(s) //
 
                 function _compressFile(file, parent) {
-                    let _parent = parent ? parent + java.io.File.separator : '';
+                    let _parent = parent ? parent + File.separator : '';
                     let _file_name = _parent + file.getName();
                     if (file.isFile()) {
                         let _read_bytes;
                         let _buf_len = 1024;
                         let _buf_bytes = util.java.array('byte', _buf_len);
 
-                        _zos.putNextEntry(new java.util.zip.ZipEntry(_file_name));
-                        _fis = new java.io.FileInputStream(file);
-                        _bis = new java.io.BufferedInputStream(_fis);
+                        _zos.putNextEntry(new ZipEntry(_file_name));
+                        _fis = new FileInputStream(file);
+                        _bis = new BufferedInputStream(_fis);
 
                         while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
                             if (global._$_dialog_flow_interrupted) {
@@ -1847,10 +1873,10 @@
             }
 
             let _filesx = this;
-            let _sep = java.io.File.separator;
+            let _sep = File.separator;
 
-            let _src = new java.io.File(files.path(src)).getAbsolutePath();
-            let _tar = new java.io.File(files.path(target)).getAbsolutePath();
+            let _src = new File(files.path(src)).getAbsolutePath();
+            let _tar = new File(files.path(target)).getAbsolutePath();
 
             let _opt = options || {};
             let _is_unbundle = _opt.is_unbundled;
@@ -1909,7 +1935,7 @@
         },
         /**
          * Returns the files size in a directory or file
-         * @param {string} path
+         * @param {string|java.io.File} path
          * @example
          * console.log(filesx.getDirSize('.')); // current working directory
          * @returns {*}
@@ -1920,9 +1946,9 @@
                 throw Error('path of filesx.getDirSize() is not exist');
             }
             if (files.isFile(_path)) {
-                return new java.io.File(_path).length();
+                return new File(_path).length();
             }
-            return new java.io.File(_path).listFiles().reduce((sum, f) => {
+            return new File(_path).listFiles().reduce((sum, f) => {
                 return sum + (f.isDirectory() ? this.getDirSize(f) : f.length());
             }, 0);
         },
@@ -2063,13 +2089,14 @@
              * @description N: continue
              * @description M: sure to modify
              * @description R: reset to default
-             * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'} DialogsxButtonText
+             * @description T: show details
+             * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'|'T'} DialogsxButtonText
              */
             _btn: {
                 F: '完成', B: '返回', Q: '放弃', X: '退出',
                 I: '终止', K: '确定', S: '确认',
                 C: '关闭', D: '删除', N: '继续',
-                M: '确认修改', R: '设为默认值',
+                M: '确认修改', R: '使用默认值', T: '了解更多',
             },
             no_more_prompt: '不再提示',
             user_interrupted: '用户终止',
@@ -2219,7 +2246,7 @@
          *     [Builds$title, Builds$content]|
          *     [Builds$title]|string
          * } props
-         * @param {DialogsBuildProperties & {
+         * @param {DialogsBuildProperties | {
          *     disable_back?: boolean|Function,
          *     linkify?: Dialogsx$Linkify$Mask,
          * }} [ext]
@@ -2283,6 +2310,27 @@
             });
         },
         /**
+         * @param {'positive'|'negative'|'neutral'} action
+         * @returns {com.afollestad.materialdialogs.DialogAction|null}
+         */
+        getDialogAction(action) {
+            try {
+                switch (action) {
+                    case 'positive':
+                        return DialogAction.POSITIVE;
+                    case 'negative':
+                        return DialogAction.NEGATIVE;
+                    case 'neutral':
+                        return DialogAction.NEUTRAL;
+                }
+            } catch (e) {
+                // Java class "com.afollestad.materialdialogs.DialogAction"
+                // has no public instance field or method named "%ACTION%"
+                return null;
+            }
+            throw TypeError('unknown action of dialogsx.getDialogAction');
+        },
+        /**
          * @typedef {'ALL'|'EMAIL_ADDRESSES'|'MAP_ADDRESSES'|'PHONE_NUMBERS'|'WEB_URLS'} Dialogsx$Linkify$Mask
          */
         /**
@@ -2294,7 +2342,7 @@
                 let _cnt_vw = d.getContentView();
                 ui.run(() => {
                     let _cnt_text = _cnt_vw.getText().toString();
-                    _cnt_vw.setAutoLinkMask(android.text.util.Linkify[mask || 'ALL']);
+                    _cnt_vw.setAutoLinkMask(Linkify[mask || 'ALL']);
                     _cnt_vw.setText(_cnt_text);
                 });
             }
@@ -2409,7 +2457,7 @@
              *     setFailureData:function(error:string|Error):BuildFlowExtendedJsDialog,
              * }} BuildFlowExtended
              */
-            /** @typedef {JsDialog$ & BuildFlowExtended} BuildFlowExtendedJsDialog */
+            /** @typedef {JsDialog$ | BuildFlowExtended} BuildFlowExtendedJsDialog */
             let _diag_ext = {
                 act() {
                     let _promise = new Promise((resolve) => {
@@ -2593,7 +2641,7 @@
              *     setFailureData:function(error:string|Error):BuildProgressExtendedJsDialog,
              * }} BuildProgressExtended
              */
-            /** @typedef {JsDialog$ & BuildProgressExtended} BuildProgressExtendedJsDialog */
+            /** @typedef {JsDialog$ | BuildProgressExtended} BuildProgressExtendedJsDialog */
             let _diag_ext = {
                 act() {
                     Promise.resolve(config.initial_value)
@@ -2709,8 +2757,8 @@
          * @param {ColorParam|DialogsxColorButton} color
          */
         setActionButtonColor(d, action, color) {
-            let _action = com.afollestad.materialdialogs.DialogAction[action.toUpperCase()];
-            if (_action instanceof com.afollestad.materialdialogs.DialogAction) {
+            let _action = this.getDialogAction(action.toLowerCase());
+            if (_action !== null) {
                 let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
                 d.getActionButton(_action).setTextColor(_c_int);
             }
@@ -2721,7 +2769,7 @@
          */
         setProgressTintList(d, color) {
             let _c_int = colorsx.toInt(this._colors.wrap(color, 'progress'));
-            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+            let _csl = ColorStateList.valueOf(_c_int);
             d.getProgressBar().setProgressTintList(_csl);
         },
         /**
@@ -2730,7 +2778,7 @@
          */
         setProgressBackgroundTintList(d, color) {
             let _c_int = colorsx.toInt(color);
-            let _csl = android.content.res.ColorStateList.valueOf(_c_int);
+            let _csl = ColorStateList.valueOf(_c_int);
             d.getProgressBar().setProgressBackgroundTintList(_csl);
         },
         /**
@@ -2758,7 +2806,7 @@
             d.setOnKeyListener({
                 onKey(diag, key_code) {
                     typeof f === 'function' && f();
-                    return key_code === android.view.KeyEvent.KEYCODE_BACK;
+                    return key_code === KeyEvent.KEYCODE_BACK;
                 },
             });
             return d;

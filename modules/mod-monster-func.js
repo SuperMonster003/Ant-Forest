@@ -15,6 +15,16 @@ global.$$impeded = (name) => {
     }
 };
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let Point = org.opencv.core.Point;
+let Rect = android.graphics.Rect;
+let Context = android.content.Context;
+let UiObject = com.stardust.automator.UiObject;
+let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
+let ImageWrapper = com.stardust.autojs.core.image.ImageWrapper;
+
 let ext = {
     clickAction: clickAction,
     clickAction$: _detachFromImpeded(clickAction, 2),
@@ -299,8 +309,6 @@ function waitForAction(condition, timeout_or_times, interval, options) {
     let _opt = options || {};
     _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(waitForAction.name);
 
-    _makeSureSelObject();
-
     if (typeof timeout_or_times !== 'number') {
         timeout_or_times = Number(timeout_or_times) || 10e3;
     }
@@ -336,6 +344,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
             return condition();
         }
         if (!Array.isArray(condition)) {
+            _makeSureExtSelector();
             return $$sel.pickup(condition);
         }
         if (condition === undefined || condition === null) {
@@ -506,16 +515,16 @@ function clickAction(o, strategy, options) {
     }
 
     function _checkType(o) {
-        if (o instanceof org.opencv.core.Point) {
+        if (o instanceof Point) {
             return 'Points';
         }
-        if (o instanceof android.graphics.Rect) {
+        if (o instanceof Rect) {
             return 'Bounds';
         }
-        if (o instanceof com.stardust.automator.UiObject) {
+        if (o instanceof UiObject) {
             return 'UiObject';
         }
-        if (o instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+        if (o instanceof UiSelector) {
             return 'UiSelector';
         }
         if (Array.isArray(o)) {
@@ -637,8 +646,8 @@ function clickAction(o, strategy, options) {
  * @returns {boolean} - waitForAction(...) && clickAction(...)
  */
 function waitForAndClickAction(f, timeout_or_times, interval, click_options) {
-    if (!(f instanceof com.stardust.autojs.core.accessibility.UiSelector)) {
-        if (!(f instanceof com.stardust.automator.UiObject)) {
+    if (!(f instanceof UiSelector)) {
+        if (!(f instanceof UiObject)) {
             messageAction('不支持的waitForAndClickAction参数:\n' + f, 8, 1);
         }
     }
@@ -717,7 +726,7 @@ function swipeAndShow(f, options) {
     // tool function(s) //
 
     function _isImageType(o) {
-        return o instanceof com.stardust.autojs.core.image.ImageWrapper;
+        return o instanceof ImageWrapper;
     }
 
     function _setSwipeDirection() {
@@ -1019,7 +1028,7 @@ function keycode(code, options) {
         function checkPower() {
             let isScreenOn = () => {
                 /** @type {android.os.PowerManager} */
-                let _pow_mgr = context.getSystemService(android.content.Context.POWER_SERVICE);
+                let _pow_mgr = context.getSystemService(Context.POWER_SERVICE);
                 return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
             };
             let isScreenOff = () => !isScreenOn();
@@ -1439,8 +1448,7 @@ function clickActionsPipeline(pipeline, options) {
     _max = isNaN(_max) ? 5 : _max;
     let _max_bak = _max;
 
-    _makeSureSelObject();
-
+    _makeSureExtSelector();
     let _ppl_name = typeof _opt.name === 'string' ? _opt.name.surround('"') : '';
 
     let _res = pipeline
@@ -1600,10 +1608,10 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
 
 // tool function(s) //
 
-function _makeSureSelObject() {
+function _makeSureExtSelector() {
     if (typeof $$sel === 'undefined') {
         if (!files.exists('./ext-a11y.js')) {
-            throw Error('Cannot locate ext-a11y.js');
+            throw Error('Module ext-a11y doesn\'t exist');
         }
         require('./ext-a11y').load();
     }

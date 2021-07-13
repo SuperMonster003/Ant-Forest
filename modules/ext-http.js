@@ -2,6 +2,17 @@ global.httpx = typeof global.httpx === 'object' ? global.httpx : {};
 
 require('./ext-threads').load();
 
+/* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
+/* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
+
+let URL = java.net.URL;
+let File = java.io.File;
+let BufferedInputStream = java.io.BufferedInputStream;
+let FileOutputStream = java.io.FileOutputStream;
+let BufferedOutputStream = java.io.BufferedOutputStream;
+let Builder = okhttp3.Request.Builder;
+let JavaArray = java.lang.reflect.Array;
+
 let ext = {
     /**
      * Substitution of java.net.URLConnection.getContentLengthLong() with concurrency
@@ -37,7 +48,7 @@ let ext = {
         let _executor = function (resolve) {
             let _thd = threadsx.start(function () {
                 try {
-                    let _cxn = new java.net.URL(url).openConnection();
+                    let _cxn = new URL(url).openConnection();
                     _cxn.setRequestProperty('Accept-Encoding', 'identity');
                     _cxn.setConnectTimeout(_tt);
                     let _len = _cxn.getContentLengthLong();
@@ -108,7 +119,7 @@ let ext = {
             try {
                 _onStart();
 
-                let _builder = new okhttp3.Request.Builder();
+                let _builder = new Builder();
                 Object.keys(_opt.headers || {}).forEach((k) => {
                     _builder.addHeader(k, _opt.headers[k]);
                 });
@@ -117,7 +128,7 @@ let ext = {
                 _onResponse(r);
 
                 let _buf_len = 4096;
-                let _buf_bytes = java.lang.reflect.Array.newInstance(java.lang.Byte.TYPE, _buf_len);
+                let _buf_bytes = JavaArray.newInstance(java.lang.Byte.TYPE, _buf_len);
                 let _read_bytes;
                 let _processed = 0;
 
@@ -126,9 +137,9 @@ let ext = {
                     _onFailure(_code + ' ' + r.message());
                 }
                 _bs = r.body().byteStream();
-                _bis = new java.io.BufferedInputStream(_bs);
-                _fos = new java.io.FileOutputStream(new java.io.File(_path));
-                _bos = new java.io.BufferedOutputStream(_fos);
+                _bis = new BufferedInputStream(_bs);
+                _fos = new FileOutputStream(new File(_path));
+                _bos = new BufferedOutputStream(_fos);
 
                 let _total = r.body().contentLength();
 

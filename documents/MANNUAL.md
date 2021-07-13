@@ -202,7 +202,7 @@ Auto.js 的自动操作主要基于控件与坐标
   - 解锁布局抓取工具
 - inspect-specified-screen-layout.js
   - 页面布局捕获工具
-- unlock-config-tool.js
+- unlock-config-tool.js (已临时移除)
   - 解锁功能配置工具
   - 所有参数与项目配置工具的 "自动解锁" 功能同步
 
