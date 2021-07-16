@@ -1119,7 +1119,6 @@ let HttpURLConnection = java.net.HttpURLConnection;
          * }, function (value) {
          *     console.log(value);
          * });
-         * @returns {void}
          */
         getContentLength(url, callback, options) {
             if (typeof url !== 'string') {

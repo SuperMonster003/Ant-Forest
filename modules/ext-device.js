@@ -7,6 +7,7 @@ require('./mod-monster-func').load([
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
+let Runtime = java.lang.Runtime;
 let Settings = android.provider.Settings;
 let System = Settings.System;
 let Global = Settings.Global;
@@ -17,10 +18,13 @@ let KeyEvent = android.view.KeyEvent;
 let Intent = android.content.Intent;
 let Context = android.content.Context;
 let IntentFilter = android.content.IntentFilter;
+let ActivityManager = android.app.ActivityManager;
+let Process = android.os.Process;
 let PowerManager = android.os.PowerManager;
 let BatteryManager = android.os.BatteryManager;
 let ServiceManager = android.os.ServiceManager;
 let DisplayMetrics = android.util.DisplayMetrics;
+let RootTool = org.autojs.autojs.tool.RootTool;
 let ITelephony = com.android.internal.telephony.ITelephony;
 
 // noinspection JSUnusedGlobalSymbols
@@ -79,13 +83,50 @@ let ext = {
         },
         /**
          * @param {
-         *     'HEALTH'|'ICON_SMALL'|'LEVEL'|'PLUGGED'|'PRESENT'|
+         *     'HEALTH'|'ICON_SMALL'|'LEVEL'|'PLUGGED'|'PRESENT'|'BATTERY_LOW'|
          *     'SCALE'|'STATUS'|'TECHNOLOGY'|'TEMPERATURE'|'VOLTAGE'
-         * } extra_key
-         * @returns {number}
+         * } extra_key_short
+         * @param {'Boolean'|'Byte'|'Char'|'Double'|'Float'|'Int'|'Long'|'Short'|'String'|string} [type='Int']
+         * @param {*} [default_value=-1]
+         * @returns {number|boolean|string|*}
          */
-        _getStatus(extra_key) {
-            return this._getStatusIntent().getIntExtra(BatteryManager['EXTRA_' + extra_key], -1);
+        _getStatus(extra_key_short, type, default_value) {
+            let _def = (o) => default_value === undefined ? o : default_value;
+            let _intent = this._getStatusIntent();
+            let _name = BatteryManager['EXTRA_' + extra_key_short];
+            switch (type) {
+                case 'Boolean':
+                    return _intent.getBooleanExtra(_name, _def(false));
+                case 'Byte':
+                    return _intent.getByteExtra(_name, _def(-1));
+                case 'Char':
+                    return _intent.getCharExtra(_name, _def(''));
+                case 'Double':
+                    return _intent.getDoubleExtra(_name, _def(-1));
+                case 'Float':
+                    return _intent.getFloatExtra(_name, _def(-1));
+                case 'Long':
+                    return _intent.getLongExtra(_name, _def(-1));
+                case 'Short':
+                    return _intent.getShortExtra(_name, _def(-1));
+                case 'String':
+                    return _intent.getStringExtra(_name);
+                default:
+                    return _intent.getIntExtra(_name, _def(-1));
+            }
+        },
+        /**
+         * @param {number} src
+         * @param {number} [min]
+         * @param {number} [min_def=-Infinity]
+         * @param {number} [max]
+         * @param {number} [max_def=Infinity]
+         * @returns {boolean}
+         */
+        _checkNumRange(src, min, min_def, max, max_def) {
+            let _norm = (x, def) => x === undefined || isNaN(Number(x)) ? def : Number(x);
+            return src >= _norm(min, min_def || -Infinity)
+                && src <= _norm(max, max_def || Infinity);
         },
         /** @returns {number} */
         getPercentage() {
@@ -94,6 +135,132 @@ let ext = {
             let _level = _i_battery_status.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
             let _scale = _i_battery_status.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
             return _level * 100 / _scale;
+        },
+        checkPercentage(min) {
+            return this._checkNumRange(this.getPercentage(), min, 15);
+        },
+        isBatteryLow() {
+            return this._getStatus('BATTERY_LOW', 'Boolean', false);
+        },
+        /**
+         * @param {{
+         *     format?: 'Celsius'|'C'|'Fahrenheit'|'F'|string,
+         *     unit?: boolean|string,
+         * }} [options]
+         * @returns {number|string}
+         */
+        getTemperature(options) {
+            let _c = this._getStatus('TEMPERATURE') / 10;
+            let _o = options || {};
+            let _fmt = _parseFormat(_o.format || 'C');
+            return {
+                get C() {
+                    let _unit = _parseUnit(_o.unit, '°C');
+                    return _unit === null ? _c : _c + _unit;
+                },
+                get F() {
+                    let _unit = _parseUnit(_o.unit, '°F');
+                    let _f = Number((_c * 9 / 5 + 32).toFixed(1));
+                    return _unit === null ? _f : _f + _unit;
+                },
+            }[_fmt];
+
+            /**
+             * @param {string} s
+             * @returns {string}
+             */
+            function _parseFormat(s) {
+                return s.toUpperCase().slice(0, 1) === 'C' ? 'C' : 'F';
+            }
+
+            /**
+             * @param {boolean|string} u
+             * @param {string} s
+             * @returns {string|null}
+             */
+            function _parseUnit(u, s) {
+                return u === true ? s : typeof u === 'string' ? u : null;
+            }
+        },
+        getTemperatureString() {
+            return this.getTemperature() + '°C';
+        },
+        /**
+         * @param {number} [min=-15]
+         * @param {number} [max=41]
+         * @returns {boolean}
+         */
+        checkTemperature(min, max) {
+            return this._checkNumRange(this.getTemperature(), min, -15, max, 41);
+        },
+        isOverheating() {
+            return this.getHealth() === BatteryManager.BATTERY_HEALTH_OVERHEAT;
+        },
+        isOvercooling() {
+            return this.getHealth() === BatteryManager.BATTERY_HEALTH_COLD;
+        },
+        /**
+         * @example @returns
+         * 1: android.os.BatteryManager.BATTERY_HEALTH_UNKNOWN;
+         * 2: android.os.BatteryManager.BATTERY_HEALTH_GOOD;
+         * 3: android.os.BatteryManager.BATTERY_HEALTH_OVERHEAT;
+         * 4: android.os.BatteryManager.BATTERY_HEALTH_DEAD;
+         * 5: android.os.BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE;
+         * 6: android.os.BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE;
+         * 7: android.os.BatteryManager.BATTERY_HEALTH_COLD
+         * @returns {number}
+         */
+        getHealth() {
+            return this._getStatus('HEALTH', BatteryManager.BATTERY_HEALTH_UNKNOWN);
+        },
+        /**
+         * @param {boolean|'simple'|'detailed'} [is_simple='detailed']
+         * @example
+         * console.log('当前设备电池' + devicex.battery.getHealthDescription());
+         * console.log('当前设备电池状态: ' + devicex.battery.getHealthDescription('simple'));
+         * @returns {string}
+         */
+        getHealthDescription(is_simple) {
+            return is_simple === 'detailed' || is_simple === undefined ? {
+                1: '状态未知', 2: '状态良好', 3: '温度过高', 4: '已损坏',
+                5: '电压过高', 6: '状态未指明', 7: '温度过低',
+            }[this.getHealth()] : {
+                1: '未知', 2: '良好', 3: '过热', 4: '损坏',
+                5: '电压过高', 6: '未指明', 7: '过冷',
+            }[this.getHealth()];
+        },
+        isHealthy() {
+            return this.getHealth() === BatteryManager.BATTERY_HEALTH_GOOD;
+        },
+        $_memory() {
+            let toPct = n => (n * 100).toFixedNum(2) + '%';
+
+            let activityManager = context.getSystemService(Context.ACTIVITY_SERVICE);
+            let memoryInfo = new ActivityManager.MemoryInfo();
+            activityManager.getMemoryInfo(memoryInfo);
+
+            // let mem_is_low = memoryInfo.lowMemory;
+            let mem_total = memoryInfo.totalMem;
+            let mem_avail = memoryInfo.availMem;
+            let mem_used = mem_total - mem_avail;
+
+            log('mem: ' + $$cvt.bytes(mem_used) + ' | ' + $$cvt.bytes(mem_total) + ' | ' + toPct(mem_used / mem_total));
+
+            let pidMemoryInfo = activityManager.getProcessMemoryInfo([Process.myPid()])[0];
+
+            let mi_allocate = pidMemoryInfo.getMemoryStat('summary.java-heap') * 1024;
+            let mi_uss = pidMemoryInfo.getTotalPrivateDirty() * 1024;
+            let mi_pss = pidMemoryInfo.getTotalPss() * 1024;
+
+            let rt_total = Runtime.getRuntime().totalMemory();
+            let rt_free = Runtime.getRuntime().freeMemory();
+            let rt_allocate = rt_total - rt_free;
+            let rt_max = Runtime.getRuntime().maxMemory();
+
+            // log(pidMemoryInfo.getMemoryStats());
+            log('vm heap: ' + $$cvt.bytes(rt_allocate) + ' | ' + toPct(rt_allocate / rt_max));
+            log('vm heap: ' + $$cvt.bytes(mi_allocate) + ' | ' + toPct(mi_allocate / rt_max));
+            log('uss: ' + $$cvt.bytes(mi_uss) + ' | ' + 'pss: ' + $$cvt.bytes(mi_pss));
         },
         isCharging() {
             return this._getStatus('STATUS') === BatteryManager.BATTERY_STATUS_CHARGING
@@ -612,6 +779,21 @@ let ext = {
         }
     },
     /**
+     * Returns if current device has attained root access or not
+     * @see appx.hasRoot
+     * @returns {boolean}
+     */
+    hasRoot() {
+        // Auto.js 4.x
+        if (typeof RootTool.isRootAvailable === 'function') {
+            return RootTool.isRootAvailable();
+        }
+        // Auto.js 8.x
+        if (Object.keys(Shell).indexOf('Companion') > -1) {
+            return Shell.Companion.isRootAvailable();
+        }
+    },
+    /**
      * Returns a state number which indicated phone calling state
      * @returns {number}
      * <br>
@@ -627,7 +809,7 @@ let ext = {
         let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
         let _svc_ctx = context.getSystemService(Context.TELEPHONY_SERVICE);
 
-        return +_svr_mgr.getCallState() | +_svc_ctx.getCallState();
+        return _svr_mgr.getCallState() | _svc_ctx.getCallState();
     },
     /**
      * Returns display screen width and height data and
@@ -1882,16 +2064,9 @@ function unlockGenerator() {
                     // strategy(ies) //
 
                     function _stg() {
-                        let _pw = _code;
-                        let _has_root = (() => {
-                            try {
-                                return shell('date', true).code === 0;
-                            } catch (e) {
-                                return false;
-                            }
-                        })();
-                        if ($_arr(_pw)) {
-                            _pw = _pw.join('');
+                        let _pw_code = _code;
+                        if ($_arr(_pw_code)) {
+                            _pw_code = _pw_code.join('');
                         }
 
                         let _cfm_btn = (type) => (
@@ -1904,7 +2079,7 @@ function unlockGenerator() {
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
                             _debugAct('密码解锁', _ctr, _max);
-                            _this.sel.setText(_pw);
+                            _this.sel.setText(_pw_code);
                             _keypadAssistIFN();
 
                             let _w_cfm = _cfm_btn('widget');
@@ -1919,12 +2094,16 @@ function unlockGenerator() {
                             if (_this.succ(2)) {
                                 break;
                             }
-                            if (_has_root && !shell('input keyevent 66', true).code) {
-                                debugInfo('使用Root权限模拟回车键');
-                                sleep(480);
-                                if (_this.succ()) {
-                                    break;
+                            try {
+                                if (_detectRoot()) {
+                                    debugInfo('使用Root权限模拟回车键');
+                                    sleep(480);
+                                    if (_this.succ()) {
+                                        break;
+                                    }
                                 }
+                            } catch (e) {
+                                // nothing to do here
                             }
                             _ctr += 1;
                             sleep(200);
@@ -1941,9 +2120,14 @@ function unlockGenerator() {
                             ]);
                         }
 
+                        function _detectRoot() {
+                            return shell('date', true).code === 0
+                                && shell('input keyevent 66', true).code === 0;
+                        }
+
                         function _keypadAssistIFN() {
                             /** @type {string} */
-                            let _pw_last = _pw[_pw.length - 1];
+                            let _pw_last = _pw_code[_pw_code.length - 1];
                             /**
                              * @example
                              * let _smp_o = {
@@ -2015,7 +2199,7 @@ function unlockGenerator() {
                                 } else {
                                     _s = _pref.toString();
                                 }
-                                _this.sel.setText(_pw + _s);
+                                _this.sel.setText(_pw_code + _s);
                                 debugInfo('辅助按键前置填充: ' + _s.length + '项');
                             }
 
@@ -2144,8 +2328,6 @@ function unlockGenerator() {
                     // tool function(s) //
 
                     function _stg() {
-                        let _pw = _clean_code;
-
                         let _ctr = 0;
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
@@ -2334,7 +2516,7 @@ function unlockGenerator() {
                         debugInfo('已构建密码区域边界:');
                         debugInfo('Rect(' + _l + ', ' + _t + ' - ' + _r + ', ' + _b + ')');
 
-                        _clickVirtualKeypad(_clean_code, _rect);
+                        _clickVirtualKeypad(_pw, _rect);
 
                         if (_this.succ()) {
                             return true;
@@ -2465,7 +2647,7 @@ function unlockGenerator() {
     }, _sto.get('config'));
 
     let _code = require('./mod-pwmap').decrypt(_cfg.unlock_code) || '';
-    let _clean_code = _code.split(/\D+/).join('').split('');
+    let _pw = _code.split(/\D+/).join('').split('');
     let _max_try = _cfg.unlock_max_try_times;
     let _pat_sz = _cfg.unlock_pattern_size;
 

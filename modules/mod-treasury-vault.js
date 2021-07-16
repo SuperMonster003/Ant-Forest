@@ -735,7 +735,7 @@ module.exports = {
             '当前暂未生成图片模板\n' +
             '脚本在下次运行时将自动生成新模板',
         about_root_access_functions: // 关于Root权限功能
-            '',
+            '开发中...',
         about_auto_enable_a11y_svc: // 关于自动开启无障碍服务
             '通过修改系统无障碍服务的列表参数\n' +
             '实现Auto.js无障碍服务的自动开启\n' +

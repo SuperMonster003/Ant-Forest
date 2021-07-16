@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Jul 13, 2021
- * @version 2.1.6 Alpha4
+ * @since Jul 16, 2021
+ * @version 2.1.6 Alpha5
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -260,7 +260,7 @@ let $$init = {
                 file: $$cfg.global_log_cfg_path + 'auto.js-log.log',
                 filePattern: $$cfg.global_log_cfg_file_pattern,
                 maxBackupSize: $$cfg.global_log_cfg_max_backup_size,
-                maxFileSize: $$cfg.global_log_cfg_max_file_size * 1024,
+                maxFileSize: $$cfg.global_log_cfg_max_file_size << 10,
             });
         }
 
@@ -1845,6 +1845,14 @@ let $$init = {
                     }
                 },
                 setIntent() {
+                    /**
+                     * @type {{
+                     *     home: Appx$StartActivity$Param,
+                     *     rl: Appx$StartActivity$Param,
+                     *     acc_man: Appx$StartActivity$Param,
+                     *     acc_login: Appx$StartActivity$Param,
+                     * }}
+                     */
                     $$app.intent = {
                         home: {
                             url: {
@@ -1853,12 +1861,11 @@ let $$init = {
                                     saId: 20000067,
                                     url: 'https://60000002.h5app.alipay.com/www/home.html',
                                     __webview_options__: {
-                                        transparentTitle: 'auto', // other option(s): 'none'
-                                        backgroundColor: '-1',
-                                        appClearTop: true, // alias: 'YES'
-                                        startMultApp: true,
-                                        enableCubeView: false, // alias: 'NO'
-                                        enableScrollBar: false,
+                                        transparentTitle: 'auto',
+                                        backgroundColor: -1,
+                                        startMultApp: 'YES',
+                                        enableCubeView: 'NO',
+                                        enableScrollBar: 'NO',
                                     },
                                 },
                             },
@@ -1869,19 +1876,21 @@ let $$init = {
                                 src: 'alipays://platformapi/startapp',
                                 query: {
                                     saId: 20000067,
-                                    url: 'https://60000002.h5app.alipay.com/www/listRank.html',
+                                    url: {
+                                        src: 'https://60000002.h5app.alipay.com/www/listRank.html',
+                                        query: {conf: '["totalRank"]'},
+                                    },
                                     __webview_options__: {
-                                        transparentTitle: 'none', // other option(s): 'auto'
-                                        backgroundColor: '-1',
-                                        canPullDown: false, // alias: 'NO'
-                                        gestureBack: true, // alias: 'YES'
-                                        backBehavior: 'back', // other option(s): 'pop'
-                                        enableCubeView: false,
-                                        appClearTop: true,
-                                        startMultApp: true,
-                                        showOptionMenu: true,
-                                        enableScrollBar: false,
-                                        closeCurrentWindow: true,
+                                        transparentTitle: 'none',
+                                        backgroundColor: -1,
+                                        canPullDown: 'NO',
+                                        backBehavior: 'back',
+                                        enableCubeView: 'NO',
+                                        startMultApp: 'YES',
+                                        showOptionMenu: 'YES',
+                                        enableScrollBar: 'NO',
+                                        closeCurrentWindow: 'YES',
+                                        readTitle: 'NO',
                                         defaultTitle: $$app.rl_title,
                                     },
                                 },
@@ -5104,6 +5113,8 @@ let $$af = {
                     typeof t === 'number' ? this._thd.join(t) : this._thd.join();
                 },
             },
+            /** @type {FriTar[]} */
+            targets: [],
             eballs: {
                 /** @type {EnergyBallsInfo[]} */
                 ripe: [],
@@ -5238,9 +5249,9 @@ let $$af = {
 
                         timeRecorder('rl_scan');
 
-                        _fri.tar = [_getTar('pick')];
+                        _fri.targets = [_getTar('pick')];
 
-                        return Math.sum(_fri.tar.map(x => x.length));
+                        return Math.sum(_fri.targets.map(x => x.length));
 
                         // tool function(s) //
 
@@ -5881,8 +5892,8 @@ let $$af = {
 
                     function _byRankList() {
                         _lmt.reset();
-                        _fri.tar.forEach(_act);
-                        _fri.tar.splice(0);
+                        _fri.targets.forEach(_act);
+                        _fri.targets.splice(0);
 
                         // tool function(s) //
 

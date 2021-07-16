@@ -2,6 +2,15 @@
 ### 版本历史 - 2.x
 ******
 
+# v2.1.6
+###### 2021/07/16
+* `新增` Root权限功能配置
+* `修复` 模块交叉引用导致部分模块独立引用失败的问题
+* `修复` 版本忽略管理匹配输入时结果可能出现错误的问题
+* `修复` 排行榜自定义标题无效导致初始状态准备失败的问题 _[`issue #498`](https://github.com/SuperMonster003/Ant-Forest/issues/498)_
+* `修复` 逛一逛方案获取排行榜倒计时可能出现空指针引用的问题
+* `优化` 默认关闭Root权限结束应用防止Floaty结果显示异常
+
 # v2.1.5
 ###### 2021/07/01
 * `修复` 部分机型SettingNotFoundException异常并尝试自动修复 (试修) _[`issue #487`](https://github.com/SuperMonster003/Ant-Forest/issues/487)_ _[`#483`](https://github.com/SuperMonster003/Ant-Forest/issues/483)_

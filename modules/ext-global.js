@@ -421,7 +421,6 @@ let ext = {
          * $$sleep(1e3, 2e3); // sleep for 1000 (inclusive) to 2000 (inclusive) milliseconds
          * $$sleep(1e3, '±300'); // sleep for 700 (inclusive) to 1300 (inclusive) milliseconds
          * $$sleep(1e3, '300'); // same as above
-         * @returns {void}
          */
         global.$$sleep = function (millis_min, millis_max) {
             if (typeof millis_max === 'string') {

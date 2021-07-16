@@ -36,7 +36,7 @@ let ext = {
      * }} [options]
      */
     init(options) {
-        this.makeSureUiMode();
+        this.ensureUiMode();
 
         let _opt = options || {};
 
@@ -54,12 +54,12 @@ let ext = {
     isUiMode() {
         return typeof activity !== 'undefined';
     },
-    makeSureUiMode() {
+    ensureUiMode() {
         if (!this.isUiMode()) {
             throw Error('UI mode is required');
         }
     },
-    makeSureWidgetExclusive(name) {
+    ensureWidgetExclusive(name) {
         if (name in ui.__widgets__) {
             throw Error('Extended widget node <' + name + '> has' +
                 ' already registered and should not be overwritten');
@@ -87,13 +87,13 @@ let ext = {
 
         ExtLayout.prototype.render = renderGetter;
 
-        this.makeSureWidgetExclusive(name);
+        this.ensureWidgetExclusive(name);
         ui.registerWidget(name, ExtLayout);
 
         // constructor(s) //
 
         function ExtLayout() {
-            ui.Widget.call(this);
+            ui.Widget.apply(this, arguments);
 
             if (typeof attr_definers !== 'undefined') {
                 if (Array.isArray(attr_definers)) {
@@ -172,7 +172,7 @@ let ext = {
      * @see https://developer.android.com/reference/android/app/Activity#setRequestedOrientation(int)
      */
     setRequestedOrientation(requested_orientation) {
-        this.makeSureUiMode();
+        this.ensureUiMode();
         let _k = 'SCREEN_ORIENTATION_' + requested_orientation;
         let _activity_info_element = ActivityInfo[_k];
         activity.setRequestedOrientation(_activity_info_element);

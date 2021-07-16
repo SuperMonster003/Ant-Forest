@@ -68,7 +68,7 @@ let ext = {
     isRemote() {
         return !!this.my_engine_src_name.match(/^\[remote]/);
     },
-    makeSureLocal() {
+    ensureLocal() {
         if (!this.isLocal()) {
             throw Error('Script must be running locally rather than remotely');
         }

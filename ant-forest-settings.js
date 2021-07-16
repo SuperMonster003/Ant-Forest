@@ -5600,7 +5600,7 @@ $$view.page.new('本地日志', 'global_log_page', (t) => {
                         file: $$cfg.sto.global_log_cfg_path + 'auto.js-log.log',
                         filePattern: $$cfg.sto.global_log_cfg_file_pattern,
                         maxBackupSize: $$cfg.sto.global_log_cfg_max_backup_size,
-                        maxFileSize: $$cfg.sto.global_log_cfg_max_file_size * 1024,
+                        maxFileSize: $$cfg.sto.global_log_cfg_max_file_size << 10,
                     });
                 }
 

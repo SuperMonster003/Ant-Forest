@@ -344,7 +344,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
             return condition();
         }
         if (!Array.isArray(condition)) {
-            _makeSureExtSelector();
+            _ensureExtSelector();
             return $$sel.pickup(condition);
         }
         if (condition === undefined || condition === null) {
@@ -1448,7 +1448,7 @@ function clickActionsPipeline(pipeline, options) {
     _max = isNaN(_max) ? 5 : _max;
     let _max_bak = _max;
 
-    _makeSureExtSelector();
+    _ensureExtSelector();
     let _ppl_name = typeof _opt.name === 'string' ? _opt.name.surround('"') : '';
 
     let _res = pipeline
@@ -1608,7 +1608,7 @@ function stabilizer(num_generator, init_value, generator_timeout, stable_thresho
 
 // tool function(s) //
 
-function _makeSureExtSelector() {
+function _ensureExtSelector() {
     if (typeof $$sel === 'undefined') {
         if (!files.exists('./ext-a11y.js')) {
             throw Error('Module ext-a11y doesn\'t exist');

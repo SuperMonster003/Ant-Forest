@@ -5,11 +5,31 @@
     "build"
   ],
   "packageName": "com.sm003.ant.forest",
-  "versionName": "2.1.6 Alpha4",
-  "versionCode": 416,
+  "versionName": "2.1.6 Alpha5",
+  "versionCode": 417,
   "launchConfig": {
     "displaySplash": false,
     "hideLogs": false,
+    "splashText": "",
     "stableMode": false
-  }
+  },
+  "assets": [],
+  "build": {
+    "build_number": 0,
+    "build_time": 0,
+    "release": false
+  },
+  "encryptLevel": 0,
+  "useFeatures": [],
+  "optimization": {
+    "removeAccessibilityService": false,
+    "removeOpenCv": false,
+    "unusedResources": false
+  },
+  "permissionConfig": {
+    "requestListOnStartup": [
+      "android.permission.WRITE_EXTERNAL_STORAGE"
+    ]
+  },
+  "scripts": {}
 }

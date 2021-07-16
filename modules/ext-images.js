@@ -1403,7 +1403,7 @@ let ext = {
         return _concat;
     },
     /**
-     * Substitution of images.resize for better dsize compatibility
+     * Substitution of images.resize() for better dsize compatibility
      * @param {ImageWrapper$} src - input image.
      * @param {ImageSize} dsize - output image size (Side|[Width,Height]).
      * @param {InterpolationFlags} [interpolation='LINEAR'] - interpolation method (without 'INTER_' prefix).

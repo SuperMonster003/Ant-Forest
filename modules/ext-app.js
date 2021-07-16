@@ -13,6 +13,8 @@ require('./ext-a11y').load();
 let R = android.R;
 let URL = java.net.URL;
 let Uri = android.net.Uri;
+let Manifest = android.Manifest;
+let Process = android.os.Process;
 let Intent = android.content.Intent;
 let KeyEvent = android.view.KeyEvent;
 let System = android.provider.Settings.System;
@@ -1260,18 +1262,91 @@ let ext = {
     isNewerVersion(a, b) {
         return this.getVerHex(a) > this.getVerHex(b);
     },
-    makeSureSdkInt(minimum) {
+    /**
+     * @param {number} [minimum=24]
+     */
+    ensureSdkInt(minimum) {
+        let _sdk = {
+            1: {version: '1.0', release: 'September 23, 2008'},
+            2: {version: '1.1', release: 'February 9, 2009'},
+            3: {version: '1.5', release: 'April 27, 2009'},
+            4: {version: '1.6', release: 'September 15, 2009'},
+            5: {version: '2.0', release: 'October 27, 2009'},
+            6: {version: '2.0.1', release: 'December 3, 2009'},
+            7: {version: '2.1', release: 'January 11, 2010'},
+            8: {version: ['2.2', '2.2.3'], release: 'May 20, 2010'},
+            9: {version: ['2.3', '2.3.2'], release: 'December 6, 2010'},
+            10: {version: ['2.3.3', '2.3.7'], release: 'February 9, 2011'},
+            11: {version: '3.0', release: 'February 22, 2011'},
+            12: {version: '3.1', release: 'May 10, 2011'},
+            13: {version: ['3.2', '3.2.6'], release: 'July 15, 2011'},
+            14: {version: ['4.0', '4.0.2'], release: 'October 18, 2011'},
+            15: {version: ['4.0.3', '4.0.4'], release: 'December 16, 2011'},
+            16: {version: ['4.1', '4.1.2'], release: 'July 9, 2012'},
+            17: {version: ['4.2', '4.2.2'], release: 'November 13, 2012'},
+            18: {version: ['4.3', '4.3.1'], release: 'July 24, 2013'},
+            19: {version: ['4.4', '4.4.4'], release: 'October 31, 2013'},
+            20: {version: ['4.4W', '4.4W.2'], release: 'June 25, 2014'},
+            21: {version: ['5.0', '5.0.2'], release: 'November 4, 2014'},
+            22: {version: ['5.1', '5.1.1'], release: 'March 2, 2015'},
+            23: {version: ['6.0', '6.0.1'], release: 'October 2, 2015'},
+            24: {version: '7.0', release: 'August 22, 2016'},
+            25: {version: ['7.1', '7.1.2'], release: 'October 4, 2016'},
+            26: {version: '8.0', release: 'August 21, 2017'},
+            27: {version: '8.1', release: 'December 5, 2017'},
+            28: {version: '9', release: 'August 6, 2018'},
+            29: {version: '10', release: 'September 7, 2019'},
+            30: {version: '11', release: 'September 8, 2020'},
+            31: {version: '12', release: ''},
+            /**
+             * @returns {{
+             *     version: {min: string, max: string},
+             *     release: Date|null,
+             * }}
+             */
+            $bind() {
+                let _o = {};
+                let _this = this;
+                let _month_map = {
+                    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+                    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+                };
+                let _parseDate = (s) => {
+                    return !s ? null : new (Function.prototype.bind.apply(Date, [
+                        Date, s.replace(/([A-Z]..)\D+?\s(\d\d?), (\d{4})/, ($0, $1, $2, $3) => {
+                            return [$3, _month_map[$1], $2].join(',');
+                        }).split(','),
+                    ]));
+                };
+                Object.keys(this).forEach((k) => {
+                    if (Number(k).toString() === k) {
+                        let _ver = _this[k].version;
+                        if (!Array.isArray(_ver)) {
+                            _ver = [_ver, _ver];
+                        }
+                        _o[k] = {
+                            version: {min: _ver[0], max: _ver[1]},
+                            release: _parseDate(_this[k].release),
+                        };
+                    }
+                });
+                return _o;
+            },
+        }.$bind();
         let _min = minimum || 24;
         if (device.sdkInt < _min) {
+            let _ver_msg = _min in _sdk
+                ? '安卓系统版本低于' + _sdk[_min].version.min
+                : '安卓系统SDK低于' + _min;
             messageAction('脚本无法继续', 4, 0, 0, 'up');
-            messageAction('安卓系统版本低于7.0', 8, 1, 1, 1);
+            messageAction(_ver_msg, 8, 1, 1, 1);
         }
     },
     /**
      * Check if device is running compatible (relatively) Auto.js version and android sdk version
      */
     checkSdkAndAJVer() {
-        this.makeSureSdkInt();
+        this.ensureSdkInt();
 
         let _aj_ver = this.getAutoJsVerName();
         let _bug_chk_res = _checkBugs(_aj_ver);
@@ -1791,10 +1866,127 @@ let ext = {
         return this.intent(o).resolveActivity(context.getPackageManager());
     },
     /**
-     * A duplicate from Auto.js 4.1.1 Alpha2
-     * because which of Auto.js Pro 7.0.0-4 may behave unexpectedly
-     * @see app.intent
-     * @param {string|android.content.Intent|IntentExtensionWithRoot} o
+     * @typedef {Object} AlipayJSBridgePushWindowParam
+     * @property {string} [defaultTitle=''] - Default title, displayed when page is being loaded. zh-CN: 默认标题, 在页面第一次加载之前显示在标题栏上.
+     * @property {string} [dt=''] - {@alias defaultTitle}
+     * @property {boolean|'YES'|'NO'} [showLoading=false] - Whether or not to display global loading spinner. zh-CN: 是否在页面加载前显示全局菊花.
+     * @property {boolean|'YES'|'NO'} [sl=false] - {@alias showLoading}
+     * @property {boolean|'YES'|'NO'} [readTitle=true] - Whether or not to use webpage title in title bar. zh-CN: 是否读取网页标题显示在titleBar上.
+     * @property {boolean|'YES'|'NO'} [rt=true] - {@alias readTitle}
+     * @property {string} [bizScenario=''] - 业务场景来源, 这个值会记录到每一个埋点中, 可以用来区分不同来源.
+     * @property {string} [bz=''] - {@alias bizScenario}
+     * @property {boolean|'YES'|'NO'} [pullRefresh=false] - Whether or not to support pull to refresh. zh-CN: 是否支持下拉刷新; 只有集团域/本地文件允许设置为true. (since 8.2)
+     * @property {boolean|'YES'|'NO'} [pr=false] - {@alias pullRefresh}
+     * @property {string} [toolbarMenu=''] - An JSON string that specifies additional menu items. e.g., {'menus':[{'name':'Foo','icon':'H5Service.bundle/h5_popovermenu_share','action':'hello'},{'name':'Bar','icon':'H5Service.bundle/h5_popovermenu_abuse','action':'world'}]}. zh-CN: JSON字符串, 更多的菜单项列表 (放在分享/字号/复制链接后面). 例: {"menus":[{"name":"恭喜","icon":"H5Service.bundle/h5_popovermenu_share","action":"hello"},{"name":"发财","icon":"H5Service.bundle/h5_popovermenu_abuse","action":"world"}]}. (since 8.2)
+     * @property {string} [tm=''] - {@alias toolbarMenu}
+     * @property {boolean|'YES'|'NO'} [canPullDown=true] - Whether or not to support pull down. Obsoleted since 9.9.5, and use 'allowsBounceVertical' instead. zh-CN: 页面是否支持下拉, 即显示出黑色背景或者域名; 只有.alipay.com/.alipay.net/本地文件允许设置为false; 9.9.5废弃, 使用"allowsBounceVertical"替代. (since 8.3, Android; 8.4, iOS)
+     * @property {boolean|'YES'|'NO'} [pd=true] - {@alias canPullDown}
+     * @property {boolean|'YES'|'NO'} [allowsBounceVertical=true] - Whether or not allow vertical bounce. zh-CN: 页面是否支持纵向拽拉超出实际内容; android只支持下拉, 即显示出背景或者域名; 只有.alipay.com/.alipay.net/本地文件允许设置为false. (since 9.9.3)
+     * @property {number|string} [bounceTopColor] - The edge color of bounce top. zh-CN: 下拉超出时的顶部间缝颜色. (eg: 16775138) (since 9.9.3)
+     * @property {number|string} [bounceBottomColor] - The edge color of bounce bottom. zh-CN: 上拉超出时的底部间缝颜色. (eg: 16775138) (since 9.9.3, iOS only)
+     * @property {boolean|'YES'|'NO'} [showTitleLoading=false] - Whether or not to show the title loading spinner. zh-CN: 是否在TitleBar的标题左边显示小菊花. (since 8.6)
+     * @property {boolean|'YES'|'NO'} [tl=false] - {@alias showTitleLoading}
+     * @property {string} [preRpc] - The Start-up parameter for RPC request (in utf-8 encoding), please refer to the RPC API for more details. zh-CN: 在页面启动参数里配置rpc请求的参数preRpc (需要使用utf-8编码), 在打开页面的同时请求rpc (详细使用参考RPC接口介绍). (since 9.3)
+     * @property {boolean|'YES'|'NO'} [delayRender=false] - Whether or not to delay rendering. Note: this parameter is only effective if this feature is enabled in remote configuration. zh-CN: 是否启动延迟渲染功能; 本功能目前由线上开关控制, 若线上开关打开, 且指定启动参数为YES或TRUE则生效. (since 9.3.1, Android only)
+     * @property {'always'|'auto'|'none'|string} [transparentTitle='none'] - Mutually exclusive with titleBarColor. always/auto: If set to always, the title bar is always transparent no matter whether the page is being scrolled up or down. If set to auto, transparency is increased when page is being scrolled down until full transparent when scrollTop == 80pt. Transparency is decreased when page is being scrolled up until full opaque. If transparency transition is not required, please set transparentTitle to none. zh-CN: always/auto: 如果transparentTitle为字符串always, 则当前页面上下滚动时, titleBar一直全透明; 当transparentTitle值为auto, 当页面往下滚动时, 透明度不断增加, 直到scrollTop等于80pt时变成完全不透明, 此时页面再往上滚动则反之, 透明度不断减小直到回到顶部时变成完全不透明. 如果个页面不需要透明效果, 则需要用pushWindow的param参数重新指定transparentTitle为"none". 使用注意: 1. titleBar透明时, 页面内容从屏幕最顶部开始布局, 页面需要预留titleBar的高度防止title遮挡页面内容; 2. Android 5.0以下由于不支持沉浸式状态栏, 所以页面会从状态栏下开始布局; 3. 可以通过 getTitleAndStatusbarHeight JSAPI 获取状态栏和titleBar的高度, 用于页面调整预留高度; 4. 不能与titleBarColor同时使用. (since 9.5.1)
+     * @property {'always'|'auto'|'none'|string} [ttb='none'] - {@alias transparentTitle}
+     * @property {number|string} [titleBarColor] - Mutually exclusive with transparentTitle. zh-CN: 自定义titleBar的背景色 (9.9版本以下不能与transparentTitle同时使用). (eg: 16775138)
+     * @property {number} [scrollDistance] - Only effective if transparentTitle is set to auto. The distance to scroll in order to reach transparency == 0.96. zh-CN: 在transparentTitle="auto"的情况下, 滑动到透明度为0.96的距离. (since 9.9)
+     * @property {boolean|'YES'|'NO'} [startMultApp=false] - Whether or not to start application with the same appID. zh-CN: 是否使用相同的appID启动应用. (since 9.9)
+     * @property {string} [titleImage=''] - The URL to title image. Please use a 3x PNG image, only effective in the current ViewController, please put the image in the global offline package for better user experience. zh-CN: 所要使用的title图片地址, 需 3x PNG 图片; 只影响当前的VC, pushWindow不会自动传递此参数; 为了更好的体验可以把图放在全局运营资源包中 (since 9.9.5)
+     * @property {boolean|'YES'|'NO'} [closeCurrentWindow=false] - Close the current window when opening up new page. zh-CN: 打开窗口的同时, 关闭当前window. (since 9.9.2)
+     * @property {boolean|'YES'|'NO'} [closeAllWindow=false] - zh-CN: 打开窗口的同时, 关闭当前App的所有window. (since 10.0.20)
+     * @property {'push'|'none'|string} [animationType='push'] - Type of animation, available options are none and push. Note: Not available in Android. zh-CN: 动画类型, 默认为"push", 可用枚举"none"/"push". android未实现, 均无动画. (since 10.0.20)
+     * @property {'back'|'pop'|'auto'|string} [backBehavior] - zh-CN: 指定后退按钮行为. back: history.length > 0 ? history.back() : closeWebview(); pop: popWindow(); auto: 在iOS上相当于pop; 在android上, toolbar可见时相当于back, toolbar不可见时相当于pop (8.4及以后不再支持"auto"). back: 点击返回按钮会先判断history.length, 如果为0, 自动退出当前窗口, 效果等同JSAPI:popWindow. 如果history.length>0, 先执行history.back(), 返回当前窗口的历史记录上一页, 同时在导航栏返回按钮的右侧显示出一个"关闭"按钮; pop: 点击返回按钮会直接退出当前窗口, 效果等同JSAPI:popWindow. (若当时appId为通用浏览器模式, 即20000067, 则默认值为"back"; 其它拥有自身appId的H5App默认值均为"pop"). (since 8.1)
+     * @property {'back'|'pop'|'auto'|string} [bb] - {@alias backBehavior}
+     * @property {boolean|'YES'|'NO'} [showProgress=false] - zh-CN: 是否显示加载的进度条. (since 8.2)
+     * @property {boolean|'YES'|'NO'} [sp=false] - {@alias showProgress}
+     * @property {*} [defaultSubtitle] - zh-CN: (暂无描述)
+     * @property {number|string} [backgroundColor] - zh-CN: 设置背景颜色. (eg: 16775138) (since 8.4)
+     * @property {number|string} [bc] - {@alias backgroundColor}
+     * @property {boolean|'YES'|'NO'} [showOptionMenu] - zh-CN: 是否显示右上角"汉堡"按钮 ("三个点"按钮). 默认值: 对于H5App为"NO", 对于非H5App为"YES". (since 8.4)
+     * @property {boolean|'YES'|'NO'} [so] - {@alias showOptionMenu}
+     * @property {boolean|'YES'|'NO'} [showDomain=true] - zh-CN: 页面下拉时是否显示域名. 只有*.alipay.com/*.alipay.net/本地文件允许设置为"NO", 离线包强制设置为false, 不容许显示. (since 9.0.1, Android; 9.0, iOS)
+     * @property {boolean|'YES'|'NO'} [sd=true] - {@alias showDomain}
+     * @property {boolean|'YES'|'NO'} [enableScrollBar=true] - zh-CN: 是否使用webview的滚动条, 包括垂直和水平. 只对Android有效. (since 9.2)
+     * @property {boolean|'YES'|'NO'} [es=true] - {@alias enableScrollBar}
+     * @property {boolean|'YES'|'NO'} [appClearTop]
+     * @property {boolean|'YES'|'NO'} [abv]
+     * @property {string} [bizScenario] - {@example 'search'}
+     * @property {string} [bundlePath] - {@example 'index.bundle.js'}
+     * @property {boolean|'YES'|'NO'} [ca]
+     * @property {boolean|'YES'|'NO'} [canDestroy]
+     * @property {boolean|'YES'|'NO'} [closeAfterPay]
+     * @property {boolean|'YES'|'NO'} [closeAfterPayFinish]
+     * @property {number|string} [cubeRuntimeRequired] - {@example '93'}
+     * @property {boolean|'YES'|'NO'} [enableCube]
+     * @property {boolean|'YES'|'NO'} [enableDSL]
+     * @property {boolean|'YES'|'NO'} [enableInPageRender]
+     * @property {boolean|'YES'|'NO'} [enableJSC]
+     * @property {boolean|'YES'|'NO'} [enableKeepAlive]
+     * @property {boolean|'YES'|'NO'} [enableTabBar]
+     * @property {boolean|'YES'|'NO'} [enableWK]
+     * @property {boolean|'YES'|'NO'} [forceEnableWK]
+     * @property {boolean|'YES'|'NO'} [hideCloseButton]
+     * @property {boolean|'YES'|'NO'} [hideOptionMenu]
+     * @property {boolean|'YES'|'NO'} [isInternalApp]
+     * @property {string} [launchParamsTag] - {@example 'page/component/index'}
+     * @property {string} [loading_icon] - {@example 'https://zos.alipayobjects.com/rmsportal/hfmXQhcgtVXdohdwMAmf.png'}
+     * @property {string} [loading_title]
+     * @property {string} [minSDKVersion] - {@example '1.86.1809071354.2'}
+     * @property {string} [nbapptype] - {@example 'res'}
+     * @property {string} [nboffline] - {@example 'sync'}
+     * @property {string} [nboffmode] - {@example 'try'}
+     * @property {boolean|'YES'|'NO'} [networkIndicator]
+     * @property {boolean|'YES'|'NO'} [offlineH5SsoLoginFirst]
+     * @property {string} [page] - {@example 'pages/index/index'}
+     * @property {boolean|'YES'|'NO'} [prefetchLocation]
+     * @property {boolean|'YES'|'NO'} [preSSOLogin]
+     * @property {boolean|'YES'|'NO'} [preSSOLoginBindingPage]
+     * @property {string} [preSSOLoginUrl]
+     * @property {boolean|'YES'|'NO'} [safePayEnabled]
+     * @property {number|string} [scrollDistance]
+     * @property {string} [shareType] - {@example 'cash'}
+     * @property {boolean|'YES'|'NO'} [showFavorites]
+     * @property {boolean|'YES'|'NO'} [showTitlebar]
+     * @property {boolean|'YES'|'NO'} [smartToolBar]
+     * @property {string} [sub_url] - {@example '[]'}
+     * @property {string} [third_platform] - {@example '{}'}
+     * @property {boolean|'YES'|'NO'} [tinyPubRes]
+     * @property {number|string} [titleColor]
+     * @property {boolean|'YES'|'NO'} [transparentTitleTextAuto]
+     * @property {string} [ttid] - {@example '12zfb0xxxxxx'}
+     * @property {boolean|'YES'|'NO'} [useSW]
+     * @property {number|string} [waitRender] - {@example '300'}
+     * @property {boolean|'YES'|'NO'} [fullscreen]
+     * @property {string} [cAppName]
+     * @property {string} [cAppId] - {@example 'antforesthome'}
+     * @property {string} [cBizId] - {@example 'home'}
+     * @property {*} [autoShowTask] - {@example 1}
+     * @property {*} [autoShowProps] - {@example 1}
+     * @property {*} [autoShowFanghua] - {@example 1}
+     * @property {*} [autoShowHongbao] - {@example 1}
+     * @property {number|string} [_appId] - {@example '20000153'}
+     * @see https://myjsapi.alipay.com/jsapi/context/push-window.html
+     * @see http://nebulasdk.alipay.com/jsapi/startup-params.html
+     */
+    /**
+     * @typedef {string|android.content.Intent|IntentCommon|{
+     *     root?: boolean,
+     *     url?:string|{
+     *         src: string,
+     *         query?: {
+     *             saId?: number|string,
+     *             url?: string,
+     *             __webview_options__?: AlipayJSBridgePushWindowParam,
+     *         },
+     *         exclude?: string | string[],
+     *     },
+     * }} Appx$StartActivity$Param
+     */
+    /**
+     * Substitution of app.startActivity()
+     * @param {Appx$StartActivity$Param} o
      * @example
      * appx.startActivity({
      *     url: {
@@ -1804,17 +1996,15 @@ let ext = {
      *             url: 'https://60000002.h5app.alipay.com/www/home.html',
      *             __webview_options__: {
      *                 transparentTitle: 'auto',
-     *                 backgroundColor: '-1',
-     *                 appClearTop: true,
-     *                 startMultApp: true,
-     *                 enableCubeView: false,
-     *                 enableScrollBar: false,
+     *                 backgroundColor: -1,
+     *                 startMultApp: 'YES',
+     *                 enableScrollBar: 'NO',
      *             },
      *         },
      *     },
      *     packageName: 'com.eg.android.AlipayGphone',
      * });
-     * @returns {void}
+     * @see app.intent
      */
     startActivity(o) {
         let _flag = Intent.FLAG_ACTIVITY_NEW_TASK;
@@ -1947,8 +2137,9 @@ let ext = {
                     }
                     return Object.keys(query).map((key) => {
                         let _val = query[key];
-                        if (typeof _val === 'object') {
-                            _val = '&' + _parse(_val);
+                        if (Object.prototype.toString.call(_val).slice(8, -1) === 'Object') {
+                            _val = key === 'url' ? _parseUrl(_val) : _parse(_val);
+                            _val = (key === '__webview_options__' ? '&' : '') + _val;
                         }
                         if (!~_exclude.indexOf(key)) {
                             _val = encodeURI(_val);
@@ -2308,6 +2499,12 @@ let ext = {
         }
     },
     /**
+     * Main process of Auto.js will be killed
+     */
+    killProcess() {
+        Process.killProcess(Process.myPid());
+    },
+    /**
      * Kill or minimize an app and launch it with options
      * @param {string} [source]
      * @param {{
@@ -2323,6 +2520,7 @@ let ext = {
     },
     /**
      * Returns if Auto.js has attained root access by running a shell command
+     * @see devicex.hasRoot
      * @returns {boolean}
      */
     hasRoot() {
@@ -2343,10 +2541,23 @@ let ext = {
      * @returns {boolean}
      */
     hasSecure() {
-        let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
+        return this.checkPermission('WRITE_SECURE_SETTINGS');
+    },
+    /**
+     * Returns if Auto.js has a certain permission
+     * @param {AndroidManifestPermission|AndroidManifestPermissionAbbr} permission
+     * @returns {boolean}
+     */
+    checkPermission(permission) {
+        if (typeof permission === 'undefined') {
+            throw Error('Argument permission must be specified');
+        }
+        if (typeof permission !== 'string') {
+            throw Error('Argument permission must be string type');
+        }
+        let _perm = Manifest.permission[permission.replace(/[^A-Z_]+/g, '')];
         let _chk_perm = context.checkCallingOrSelfPermission(_perm);
-        let _perm_granted = PackageManager.PERMISSION_GRANTED;
-        return _chk_perm === _perm_granted;
+        return _chk_perm === PackageManager.PERMISSION_GRANTED;
     },
     /**
      * Checks if the specified app can modify system settings.
@@ -2458,7 +2669,6 @@ let ext = {
      * @param {string} file
      * @example
      * appx.createShortcut('./Ant-Forest-003/ant-forest-launcher.js');
-     * @returns {void}
      * @see org.autojs.autojs.ui.shortcut.ShortcutCreateActivity
      */
     createShortcut(file) {
