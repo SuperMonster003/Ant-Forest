@@ -68,18 +68,18 @@ let ext = {
     /**
      * @typedef {{
      *     attr_name: string,
-     *     getter?: function(view:AutojsUiWidgetViews, name:string, default_getter:Function):*,
-     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:Function),
+     *     getter?: function(view:AutojsUiWidgetViews, name:string, default_getter:function):*,
+     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:function),
      * }|{
      *     attr_name: string,
      *     attr_alias?: string,
-     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:Function),
+     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:function),
      * }} UiRegisterWidgetAttrDefiner
      */
     /**
      *
      * @param {string} name
-     * @param {'/'|string|Xml|Function} render
+     * @param {'/'|string|Xml|function} render
      * @param {UiRegisterWidgetAttrDefiner|UiRegisterWidgetAttrDefiner[]} [attr_definers]
      */
     registerWidget(name, render, attr_definers) {

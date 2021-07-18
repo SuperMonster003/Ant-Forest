@@ -25,7 +25,7 @@ let BatteryManager = android.os.BatteryManager;
 let ServiceManager = android.os.ServiceManager;
 let DisplayMetrics = android.util.DisplayMetrics;
 let RootTool = org.autojs.autojs.tool.RootTool;
-let ITelephony = com.android.internal.telephony.ITelephony;
+let ITelecomService = com.android.internal.telephony.ITelecomService;
 
 // noinspection JSUnusedGlobalSymbols
 let ext = {
@@ -412,7 +412,7 @@ let ext = {
     },
     /**
      * @param {number} [max_buffer_time=9e3]
-     * @return {boolean}
+     * @returns {boolean}
      */
     wakeUpWithBuffer(max_buffer_time) {
         let _isScreenOn = this.isScreenOn.bind(this);
@@ -490,10 +490,10 @@ let ext = {
      * @param {Devicex$ScreenOff$Strategy$Options} [options.key_code]
      * @param {
      *     Devicex$ScreenOff$Strategy$Options | {
-     *         listener?: {function(function(string[]=):*):*},
+     *         listener?: {function(function(...string|string[]):*):*},
      *     }
      * } [options.provider]
-     * @return {boolean}
+     * @returns {boolean}
      */
     screenOff(options) {
         require('./ext-app').load();
@@ -794,27 +794,33 @@ let ext = {
         }
     },
     /**
-     * Returns a state number which indicated phone calling state
+     * Returns a state number indicating phone calling state.
+     * @example
+     * // expected: {0: IDLE, 1: RINGING, 2: OFF-HOOK}
+     * // some device may behave abnormally: {2: IDLE, 1: OFF-HOOK}
+     * // furthermore, always returns 0
+     * console.log(devicex.getCallState() === android.telephony.TelephonyManager.CALL_STATE_IDLE);
+     * @see android.telephony.TelephonyManager.CALL_STATE_IDLE
+     * @see android.telephony.TelephonyManager.CALL_STATE_RINGING
+     * @see android.telephony.TelephonyManager.CALL_STATE_OFFHOOK
      * @returns {number}
-     * <br>
-     * -- 0: IDLE; <br>
-     * -- 1: RINGING; <br>
-     * -- 2: OFF-HOOK; <br>
-     * // some device may behave abnormally <br>
-     * -- 2: IDLE; <br>
-     * -- 1: OFF-HOOK; <br>
-     * // even always returns 0
      */
     getCallState() {
-        let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
-        let _svc_ctx = context.getSystemService(Context.TELEPHONY_SERVICE);
+        // TODO remove backed up code at Oct 18, 2021 (around)
+        // let ITelephony = com.android.internal.telephony.ITelephony;
+        // let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
+        // let _svc_ctx = context.getSystemService(Context.TELEPHONY_SERVICE);
+        //
+        // return _svr_mgr.getCallState() | _svc_ctx.getCallState();
 
-        return _svr_mgr.getCallState() | _svc_ctx.getCallState();
+        return ITelecomService.Stub
+            .asInterface(ServiceManager.getService(Context.TELECOM_SERVICE))
+            .getCallState();
     },
     /**
      * Returns display screen width and height data and
-     * converter functions with different aspect ratios <br>
-     * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280)
+     * converter functions with different aspect ratios.
+     * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280).
      * @param {boolean} [is_global_assign=false] -- set true for global assignment
      * @param {Object} [options]
      * @param {boolean} [options.is_global_assign=false]
@@ -1436,7 +1442,6 @@ function StateManager(provider, key, data_type, state_set) {
     // tool function(s) //
 
     /**
-     * @private
      * @this StateManager
      * @param {*[]} states
      * @param {boolean} is_clockwise
@@ -1448,7 +1453,6 @@ function StateManager(provider, key, data_type, state_set) {
     }
 
     /**
-     * @private
      * @param {'clockwise'|'anticlockwise'|'+'|'-'} [direction] - other supported values: +0, -0
      * @returns {boolean}
      */
@@ -1458,8 +1462,7 @@ function StateManager(provider, key, data_type, state_set) {
     }
 
     /**
-     * @returns {Function}
-     * @private
+     * @returns {function}
      */
     function _parseProvider() {
         switch (provider) {

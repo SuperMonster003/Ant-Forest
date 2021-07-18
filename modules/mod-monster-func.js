@@ -1289,13 +1289,12 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
 /**
  * Record a timestamp then get the time gap by a certain keyword
  * @global
- * @param keyword {string}
+ * @param {string} keyword
  * @param {'L'|'l'|'Load'|'load'|'S'|'s'|'Save'|'save'} [operation]
  * @param {number|'auto'} [divisor=1] - 'auto' for picking up a result intelligently
  * @param {array|number} [fixed] - array: max decimal places (last place won't be 0)
  * @param {string} [suffix=''|'$$ch'] - '$$en' or '$$ch' is available when %divisor% is set 'auto'
  * @param {number|Date} [override_timestamp]
- * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  * @example
  * // result eg: 1565080123796
  * timeRecorder('running', 'save');
@@ -1320,6 +1319,7 @@ function observeToastMessage(aim_app_pkg, aim_msg, timeout, aim_amount) {
  * // result eg: '7分钟8.16秒' (meaning 7m 8.16s)
  * timeRecorder('study');
  * timeRecorder('study', 'L', 'auto');
+ * @returns {number|string} - timestamp or time gap with/without a certain format or suffix string
  */
 function timeRecorder(keyword, operation, divisor, fixed, suffix, override_timestamp) {
     global['_$_ts_rec'] = global['_$_ts_rec'] || {};
@@ -1498,7 +1498,6 @@ function clickActionsPipeline(pipeline, options) {
  * Convert a timeFlag into a number array
  * @global
  * @param timeFlag {number|string} -- often a number (or number string) from 0 - 127
- * @returns {number[]|number}
  * @example
  * // [0,1,2,4,5] -- Sun, Mon, Tue, Thu, Fri
  * timedTaskTimeFlagConverter(59);
@@ -1508,6 +1507,7 @@ function clickActionsPipeline(pipeline, options) {
  * timedTaskTimeFlagConverter([0,1,2,3,4,5,6]);
  * // [] -- disposable
  * timedTaskTimeFlagConverter(0);
+ * @returns {number[]|number}
  */
 function timedTaskTimeFlagConverter(timeFlag) {
     if (typeof timeFlag === 'object') {
@@ -1619,10 +1619,9 @@ function _ensureExtSelector() {
 
 /**
  * Returns a function regardless of global.$$impeded
- * @private
- * @param {Function} fn
+ * @param {function} fn
  * @param {number} options_idx
- * @return {Function}
+ * @returns {function}
  */
 function _detachFromImpeded(fn, options_idx) {
     if (typeof fn !== 'function') {

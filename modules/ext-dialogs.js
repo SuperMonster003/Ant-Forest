@@ -262,7 +262,7 @@ let ext = {
      */
     /**
      * @typedef {DialogsBuildProperties | {
-     *     disable_back?: boolean|Function,
+     *     disable_back?: boolean|function,
      *     linkify?: Dialogsx$Linkify$Mask,
      * }} Builds$Extensions
      */
@@ -323,8 +323,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string} [prefill]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*}
      */
     rawInput(title, prefill, callback) {
         return isUiThread() && !callback ? new Promise((res) => {
@@ -336,8 +336,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string} [prefill]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<*>|*}
      */
     input(title, prefill, callback) {
         if (callback) {
@@ -354,8 +354,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string} [prefill]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*}
      */
     alert(title, prefill, callback) {
         return isUiThread() && !callback ? new Promise((res) => {
@@ -432,8 +432,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string} [prefill]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<*>|*}
      */
     prompt(title, prefill, callback) {
         return this.rawInput(title, prefill, callback);
@@ -441,8 +441,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string} [prefill]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*}
      */
     confirm(title, prefill, callback) {
         return isUiThread() && !callback ? new Promise((res) => {
@@ -454,8 +454,8 @@ let ext = {
     /**
      * @param {string} title
      * @param {string[]|string} items
-     * @param {*|string} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*}
      */
     select(title, items, callback) {
         if (items instanceof Array) {
@@ -471,8 +471,8 @@ let ext = {
      * @param {string} title
      * @param {string[]} items
      * @param {number} [index=0]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*}
      */
     singleChoice(title, items, index, callback) {
         return isUiThread() && !callback ? new Promise((res) => {
@@ -485,8 +485,8 @@ let ext = {
      * @param {string} title
      * @param {string[]} items
      * @param {number[]} [indices]
-     * @param {*} [callback]
-     * @returns {Promise<unknown>|*[]}
+     * @param {function} [callback]
+     * @returns {Promise<void>|*[]}
      */
     multiChoice(title, items, indices, callback) {
         let arr = (javaArr) => {
@@ -502,7 +502,7 @@ let ext = {
             : arr(rtDialogs().multiChoice(title, indices || [], items, r => callback(arr(r))));
     },
     /**
-     * @param {...(JsDialog$|MaterialDialog$)} [d]
+     * @param {...JsDialog$|JsDialog$[]|MaterialDialog$|MaterialDialog$[]} [d]
      */
     dismiss(d) {
         (Array.isArray(d) ? d : [].slice.call(arguments)).forEach((o) => {
@@ -510,9 +510,10 @@ let ext = {
         });
     },
     /**
-     * @param {JsDialog$|MaterialDialog$} d
-     * @param {Function} [f]
-     * @returns {JsDialog$|MaterialDialog$}
+     * @template {JsDialog$|MaterialDialog$} DIALOG
+     * @param {DIALOG} d
+     * @param {function} [f]
+     * @returns {DIALOG}
      */
     disableBack(d, f) {
         // to prevent dialog from being dismissed

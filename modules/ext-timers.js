@@ -133,7 +133,7 @@ let ext = {
      */
     removeIntentTask(id, wait_fg) {
         let _task = removeTask(this.getIntentTask(id));
-        return _task && (!wait_fg || waitForAction(() => !this.getTimedTask(_task.id), 3e3, 120)) ? _task : null;
+        return _task && (!wait_fg || waitForAction(() => !this.getIntentTask(id), 3e3, 120)) ? _task : null;
     },
     /**
      * @param {number} id
@@ -142,14 +142,15 @@ let ext = {
      */
     removeTimedTask(id, wait_fg) {
         let _task = removeTask(this.getTimedTask(id));
-        return _task && (!wait_fg || waitForAction(() => !this.getTimedTask(_task.id), 3e3, 120)) ? _task : null;
+        return _task && (!wait_fg || waitForAction(() => !this.getTimedTask(id), 3e3, 120)) ? _task : null;
     },
     /**
-     * @param {org.autojs.autojs.timing.TimedTask|*} [task]
-     * @returns {*|org.autojs.autojs.timing.TimedTask|null}
+     * @template {org.autojs.autojs.timing.TimedTask} TIMED_TASK
+     * @param {TIMED_TASK} [task]
+     * @returns {TIMED_TASK|null}
      */
     updateTimedTask(task) {
-        return task && updateTask(task) || null;
+        return task ? updateTask(task) : null;
     },
     /**
      * @param {{path?:string}} [options]
@@ -243,8 +244,9 @@ function parseDateTime(clazz, date_time) {
 }
 
 /**
- * @param {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} [task]
- * @returns {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask|null}
+ * @template {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} TASK
+ * @param {TASK} [task]
+ * @returns {TASK|null}
  */
 function addTask(task) {
     if (!task) {
@@ -255,20 +257,26 @@ function addTask(task) {
 }
 
 /**
- * @param {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} [task]
- * @returns {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask|null}
+ * @template {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} TASK
+ * @param {TASK} [task]
+ * @returns {TASK|null}
  */
 function removeTask(task) {
     if (!task) {
         return null;
     }
-    TimedTaskMgr[is_pro ? 'removeTaskSync' : 'removeTask'](task);
+    if (is_pro) {
+        TimedTaskMgr['removeTaskSync'](task);
+    } else {
+        TimedTaskMgr.removeTask(task);
+    }
     return task;
 }
 
 /**
- * @param {org.autojs.autojs.timing.TimedTask} [task]
- * @returns {org.autojs.autojs.timing.TimedTask|null}
+ * @template {org.autojs.autojs.timing.TimedTask} TASK
+ * @param {TASK} [task]
+ * @returns {TASK|null}
  */
 function updateTask(task) {
     if (!task) {

@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Jul 16, 2021
- * @version 2.1.6 Alpha5
+ * @since Jul 19, 2021
+ * @version 2.1.6 Alpha6
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -3715,18 +3715,19 @@ let $$init = {
                     while (!$$flag.rl_bottom_rch) {
                         $$impeded('排行榜底部监测线程');
                         try {
-                            return _locate() && $$link(_text).$(_height).$(_signal);
+                            if ($$app.page.rl.isInPage() && _locate()) {
+                                $$link(_text).$(_height).$(_signal);
+                                break;
+                            }
                         } catch (e /* TypeError: Cannot call method "childCount" of null */) {
-                            sleep(2e3);
+                            sleep(1.5e3);
                         }
+                        sleep(480);
                     }
 
                     // tool function(s) //
 
                     function _locate() {
-                        if (_list_w) {
-                            return true;
-                        }
                         debugInfo('开始定位排行榜可滚动控件');
 
                         let _sel = () => _list_w = $$sel.pickup({
@@ -4093,7 +4094,7 @@ let $$init = {
                         $$app.task_name = '好友列表数据采集'.surround('"');
                         messageAction('正在采集好友列表数据', 1, 1, 0, 2);
 
-                        $$af.rl.swipe.toBottom();
+                        $$af.rl.scroll.toBottom({itv: 0});
 
                         let _ls_data = _getListData();
                         $$sto.af.remove('friends_list_data'); // discarded data
@@ -4108,10 +4109,11 @@ let $$init = {
                         // tool function(s) //
 
                         function _getListData() {
+                            let _fri = $$af._collector.fri;
                             let _data = [];
                             $$sel.get('energy_amt', 'wc').slice(1).forEach((w, i) => {
-                                let _nick = $$sel.pickup([w, 'p2c2>0>0'], 'txt');
-                                let _rank = i < 3 ? i + 1 : $$sel.pickup([w, 'p2c0>0'], 'txt');
+                                let _nick = $$sel.pickup([w, _fri.getRlNickCompass(w)], 'txt');
+                                let _rank = i < 3 ? i + 1 : $$sel.pickup([w, _fri.getRlRankNum(w)], 'txt');
                                 _data.push({rank_num: _rank.toString(), nickname: _nick});
                             });
 
@@ -5014,6 +5016,37 @@ let $$af = {
             },
         },
         fri: {
+            _rl_compass: {
+                nick: {
+                    presets: [
+                        'pc2>0', // since Jul 16, 2021 (around)
+                        'pc1>0', // since Jul 16, 2021 (around)
+                        'p2c2>0>0', // legacy
+                    ],
+                    condition(w, c) {
+                        return w && !$$sel.pickup([w, c], 'txt').match(/^\s*$/);
+                    },
+                },
+                rank: {
+                    presets: [
+                        'pc0', // since Jul 16, 2021 (around)
+                        'p2c0>0', // legacy
+                    ],
+                    condition(w, c) {
+                        let _s = w && $$sel.pickup([w, c], 'txt');
+                        return _s && _s.match(/^\s*\d+\s*$/);
+                    },
+                },
+            },
+            _getRlCompass(w, key) {
+                let {presets, condition} = this._rl_compass[key];
+                for (let c of presets) {
+                    if (condition(w, c)) {
+                        return c;
+                    }
+                }
+                return presets[0];
+            },
             _getSamples(cache_fg) {
                 if (cache_fg && this.rl_samples) {
                     return this.rl_samples;
@@ -5029,9 +5062,10 @@ let $$af = {
                 function _parseWidgets() {
                     let _smp = {};
                     _wc.forEach((w) => {
-                        let _mm = +$$sel.pickup(w, 'txt').match(/\d+/)[0];
-                        let _nick = $$sel.pickup([w, 'p2c2>0>0'], 'txt');
-                        if (_mm && _nick) {
+                        let _mm = Number($$sel.pickup(w, 'txt').match(/\d+/)[0]);
+                        if (_mm) {
+                            let _c = this.getRlNickCompass(w);
+                            let _nick = $$sel.pickup([w, _c], 'txt', '?_nick');
                             _smp[_nick] = {
                                 ts: $$app.ts + _mm * 60e3,
                                 minute: _mm,
@@ -5605,7 +5639,7 @@ let $$af = {
                                                 return s.slice(s.lastIndexOf('收取')).match(/\d+(?=g)/);
                                             }
                                         },
-                                        /** @returns {number} amount of items added to the feed */
+                                        /** @returns {number} - amount of items added to the feed */
                                         getEmount() {
                                             let _w_list = this.getListWidget();
                                             if (_w_list) {
@@ -5935,8 +5969,10 @@ let $$af = {
                         $$af.min_ctd.fri.reset();
                     } else if (!isFinite($$af.min_ctd.fri.value)) {
                         if ($$af.stroll.trigger()) {
+                            $$toast('正在准备获取排行榜倒计时数据...', 'Long');
                             $$app.page.rl.launch({is_show_greeting: false});
-                            $$af.rl.swipe.toBottom();
+                            $$af.rl.scroll.toBottom({itv: 0});
+                            $$toast.dismiss();
                         }
                         _fri._chkMinCtd('cache');
                     }
@@ -6171,6 +6207,12 @@ let $$af = {
             },
             reboot() {
                 this.init().collect();
+            },
+            getRlNickCompass(w) {
+                return this._getRlCompass(w, 'nick');
+            },
+            getRlRankNum(w) {
+                return this._getRlCompass(w, 'rank');
             },
         },
     },
@@ -6689,12 +6731,13 @@ let $$af = {
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
                 $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
             },
-            toBottom(timeout) {
+            toBottom(options) {
                 let _this = this;
+                let _opt = options || {};
                 let _thd = threadsx.start(function () {
-                    _this.scroll({loop: () => !$$flag.rl_bottom_rch});
+                    _this.scroll(Object.assign({loop: () => !$$flag.rl_bottom_rch}, _opt));
                 });
-                $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
+                $$app.monitor.rl_bottom.start().join(_opt.timeout || 150e3);
                 _thd.interrupt();
             },
         },
@@ -6779,12 +6822,13 @@ let $$af = {
 
                 return _top0;
             },
-            toBottom(timeout) {
+            toBottom(options) {
                 let _this = this;
+                let _opt = options || {};
                 let _thd = threadsx.start(function () {
-                    _this.swipe({loop: () => !$$flag.rl_bottom_rch});
+                    _this.swipe(Object.assign({loop: () => !$$flag.rl_bottom_rch}, _opt));
                 });
-                $$app.monitor.rl_bottom.start().join(timeout || 5 * 60e3);
+                $$app.monitor.rl_bottom.start().join(_opt.timeout || 150e3);
                 _thd.interrupt();
             },
         },

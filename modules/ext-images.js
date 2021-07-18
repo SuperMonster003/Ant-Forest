@@ -323,9 +323,9 @@ let ext = {
 
         let _thread_prompt = threads.start(function () {
             require('./ext-a11y').load();
-            /** @return {SelectorPickupResult} */
+            /** @returns {SelectorPickupResult} */
             let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
-            /** @return {SelectorPickupResult} */
+            /** @returns {SelectorPickupResult} */
             let _sel_sure = t => $$sel.pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/, t);
 
             if (waitForAction(_sel_sure, 4.8e3)) {
@@ -545,13 +545,14 @@ let ext = {
     },
     /**
      * Applies the bilateral filter to an image
-     * @param {ImageWrapper$} img - Source 8-bit or floating-point, 1-channel or 3-channel image
+     * @template {ImageWrapper$} IW
+     * @param {IW} img - Source 8-bit or floating-point, 1-channel or 3-channel image
      * @param {number} [d=0] - Diameter of each pixel neighborhood that is used during filtering. If it is non-positive, it is computed from sigmaSpace
      * @param {number} [sigma_color=40] - Filter sigma in the color space. A larger value of the parameter means that farther colors within the pixel neighborhood (see sigmaSpace) will be mixed together, resulting in larger areas of semi-equal color
      * @param {number} [sigma_space=20] - Filter sigma in the coordinate space. A larger value of the parameter means that farther pixels will influence each other as long as their colors are close enough (see sigmaColor ). When d>0, it specifies the neighborhood size regardless of sigmaSpace. Otherwise, d is proportional to sigmaSpace
      * @param {BorderTypes} [border_type='DEFAULT'] - border mode used to extrapolate pixels outside of the image
      * @see https://docs.opencv.org/3.4.3/d4/d86/group__imgproc__filter.html#ga9d7064d478c95d60003cf839430737ed
-     * @returns {ImageWrapper$}
+     * @returns {IW}
      */
     bilateralFilter(img, d, sigma_color, sigma_space, border_type) {
         this._initIfNeeded();
@@ -1335,7 +1336,8 @@ let ext = {
     /**
      * Compress ImageWrapper by passing a compress_level (inSampleSize) parameter
      * @function imagesx.compress
-     * @param {ImageWrapper$} img
+     * @template {ImageWrapper$} IW
+     * @param {IW} img
      * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
      * @param {boolean} [is_recycle_img=false] - whether to recycle param img or not
      * @example
@@ -1350,7 +1352,7 @@ let ext = {
      * images.save(compress(capt, 4), files.path('./capt4.png'));
      * images.save(compress(capt, 8), files.path('./capt8.png'));
      * @see https://developer.android.com/reference/android/graphics/BitmapFactory.Options#inSampleSize
-     * @returns {ImageWrapper$}
+     * @returns {IW}
      */
     compress(img, compress_level /* inSampleSize */, is_recycle_img) {
         let _lv = Math.floorPow(2, Math.max(Number(compress_level) || 1, 1));
@@ -1369,13 +1371,14 @@ let ext = {
     },
     /**
      * Substitution of images.clip(image:ImageWrapper$,x:number,y:number,w:number,h:number):ImageWrapper$
-     * @param {ImageWrapper$} img
+     * @template {ImageWrapper$} IW
+     * @param {IW} img
      * @param {number} x
      * @param {number} y
      * @param {number} w
      * @param {number} h
      * @param {boolean} [is_recycle_img=false] - whether to recycle param img or not
-     * @returns {ImageWrapper$}
+     * @returns {IW}
      */
     clip(img, x, y, w, h, is_recycle_img) {
         let _clip = images.clip(img, x, y, w, h);
@@ -1384,11 +1387,12 @@ let ext = {
     },
     /**
      * Substitution of images.concat()
-     * @param {ImageWrapper$} img1
-     * @param {ImageWrapper$} img2
+     * @template {ImageWrapper$} IW
+     * @param {IW} img1
+     * @param {IW} img2
      * @param {'LEFT'|'RIGHT'|'TOP'|'BOTTOM'} [direction='RIGHT']
      * @param {boolean|number|'ALL'} [is_recycle_img=false] - whether to recycle param img or not
-     * @returns {ImageWrapper$}
+     * @returns {IW}
      */
     concat(img1, img2, direction, is_recycle_img) {
         let _concat = images.concat(img1, img2, direction);
@@ -1404,15 +1408,16 @@ let ext = {
     },
     /**
      * Substitution of images.resize() for better dsize compatibility
-     * @param {ImageWrapper$} src - input image.
+     * @template {ImageWrapper$} IW
+     * @param {IW} img - input image.
      * @param {ImageSize} dsize - output image size (Side|[Width,Height]).
      * @param {InterpolationFlags} [interpolation='LINEAR'] - interpolation method (without 'INTER_' prefix).
      * @example
      * images.requestScreenCapture(false);
      * let dst = images.resize(images.captureScreen(), [720, 1280]);
-     * @returns {ImageWrapper$}
+     * @returns {IW}
      */
-    resize(src, dsize, interpolation) {
+    resize(img, dsize, interpolation) {
         let _size = Array.isArray(dsize) ? dsize : [dsize, dsize];
         _size = _size.map((n, i) => {
             if (typeof n === 'string') {
@@ -1425,7 +1430,7 @@ let ext = {
             }
             return n >= 1 ? n : i ? n * H : n * W;
         });
-        return images.resize(src, _size, interpolation);
+        return images.resize(img, _size, interpolation);
     },
     /**
      * @param {ImageWrapper$} img
@@ -1476,7 +1481,7 @@ let ext = {
     },
     /**
      * Fetching data by calling OCR API from Baidu
-     * @param {[]|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into ImageWrapper$
+     * @param {Array|ImageWrapper$|UiObject$|UiObjectCollection$} src -- will be converted into ImageWrapper$
      * @param {Object} [options]
      * @param {ImageWrapper$} [options.capt_img]
      * @param {boolean} [options.no_toast_msg_flag=false]

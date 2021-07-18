@@ -2561,7 +2561,7 @@ let ext = {
     },
     /**
      * Checks if the specified app can modify system settings.
-     * @return {boolean}
+     * @returns {boolean}
      * @see https://developer.android.com/reference/android/provider/Settings.System#canWrite(android.content.Context)
      */
     canWriteSystem() {

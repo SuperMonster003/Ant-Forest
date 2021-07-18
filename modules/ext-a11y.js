@@ -47,7 +47,6 @@ let ext = {
         /**
          * @param {android.view.accessibility.AccessibilityWindowInfo} wi
          * @returns {boolean}
-         * @private
          */
         _isLatestPackage(wi) {
             return wi.getRoot().getPackageName() === runtime.info.getLatestPackage();

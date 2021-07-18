@@ -176,7 +176,7 @@ let ext = {
             };
         }
         if (!Array.prototype.entries) {
-            /** @returns {IterableIterator<[number, any]>} */
+            /** @returns {IterableIterator<[number,any]>} */
             Array.prototype.entries = function () {
                 let _it_entries = this.map((v, i) => [i, v])[Symbol.iterator];
                 return _it_entries();
@@ -363,7 +363,7 @@ let ext = {
 
         /**
          * Invoke some functions (returns undefined or $$link only) one by one
-         * @param {function():('__break__'|(void|Function))} f
+         * @param {function():('__break__'|void|function)} f
          * @param {Object} [this_arg]
          * @example
          * let a = () => console.log('A');
@@ -380,14 +380,14 @@ let ext = {
          * function d() {void 0};
          * // with two groups of warning messages printed in console
          * $$link(a).$(b).$(c).$(d);
-         * @returns {Function}
+         * @returns {function}
          */
         global.$$link = function (f, this_arg) {
             if (typeof f !== 'function') {
                 throw TypeError('$$link invoked with a non-function argument');
             }
             try {
-                /** @type {'__break__'|(void|Function)} */
+                /** @type {'__break__'|(void|function)} */
                 let _res = f.call(this_arg);
                 if (typeof _res === 'string' && _res === '__break__') {
                     $$link.$ = () => $$link;
@@ -1822,10 +1822,7 @@ let ext = {
     },
     math() {
         Object.assign(Math, {
-            /**
-             * @returns {[]}
-             * @private
-             */
+            /** @returns {Array} */
             _parseArgs(num_arr, fraction) {
                 let _arr, _fraction;
                 if (Array.isArray(num_arr)) {
@@ -1836,10 +1833,7 @@ let ext = {
                 }
                 return [_arr, _fraction];
             },
-            /**
-             * @returns {[]}
-             * @private
-             */
+            /** @returns {Array} */
             _spreadArr(arr) {
                 let _plain = [];
                 let _len = (arr || []).length;
@@ -2069,7 +2063,6 @@ let ext = {
                 /**
                  * Sample Standard Deviation (zh-CN: 样本标准差)
                  * @type {number}
-                 * @private
                  */
                 let _std_smp = Math.pow(_acc / (_len - 1), 0.5);
                 let _cv = _std_smp / _avg;

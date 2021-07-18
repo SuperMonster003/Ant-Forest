@@ -39,7 +39,7 @@ let ext = {
         return this.my_engine.source.toString().replace(/(.+?)(.(js|auto))?$/, '$1');
     },
     /**
-     * @return {com.stardust.autojs.engine.ScriptEngine[]}
+     * @returns {com.stardust.autojs.engine.ScriptEngine[]}
      */
     get all_engines() {
         return engines.all();

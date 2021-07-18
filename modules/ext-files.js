@@ -30,7 +30,6 @@ let ext = {
      * @param {function(value:*=):*} [callback.onFailure]
      * @param {function(value:*=):*} [callback.onCopyFailure]
      * @returns {boolean}
-     * @private
      */
     _files$copy(path_from, path_to, callback) {
         let _path_from = files.path(path_from);
@@ -54,7 +53,6 @@ let ext = {
          * @param {java.io.FileInputStream} is
          * @param {string} path
          * @returns {boolean}
-         * @private
          */
         function _copyStream(is, path) {
             _onStart();
@@ -77,7 +75,6 @@ let ext = {
              * @param {java.io.FileInputStream} is
              * @param {java.io.FileOutputStream} os
              * @param {boolean} close
-             * @private
              */
             function _write(is, os, close) {
                 let _buffer = util.java.array('byte', 8192);

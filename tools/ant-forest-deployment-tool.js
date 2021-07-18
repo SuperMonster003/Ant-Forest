@@ -353,12 +353,14 @@ let HttpURLConnection = java.net.HttpURLConnection;
                 success_title: _opt.success_title || '部署完成',
                 on_interrupt_btn_text: _opt.on_interrupt_btn_text || 'B',
                 show_min_max: true,
-                onStart: (v, d) => {
+                onStart(v, d) {
                     _onStart();
                     dialogsx.setProgressColorTheme(d, 'download');
                 },
-                onSuccess: (o, d) => _onSuccess(o, d),
-                onFailure: (e, d) => {
+                onSuccess(o, d) {
+                    _onSuccess(o, d);
+                },
+                onFailure(e, d) {
                     _onFailure(e, d);
                     d.setFailureData(e);
                 },
@@ -1275,7 +1277,6 @@ let HttpURLConnection = java.net.HttpURLConnection;
          * @param {function(value:*=):*} [callback.onFailure]
          * @param {function(value:*=):*} [callback.onCopyFailure]
          * @returns {boolean}
-         * @private
          */
         _files$copy(path_from, path_to, callback) {
             let _path_from = files.path(path_from);
@@ -1299,7 +1300,6 @@ let HttpURLConnection = java.net.HttpURLConnection;
              * @param {java.io.FileInputStream} is
              * @param {string} path
              * @returns {boolean}
-             * @private
              */
             function _copyStream(is, path) {
                 _onStart();
@@ -1322,7 +1322,6 @@ let HttpURLConnection = java.net.HttpURLConnection;
                  * @param {java.io.FileInputStream} is
                  * @param {java.io.FileOutputStream} os
                  * @param {boolean} close
-                 * @private
                  */
                 function _write(is, os, close) {
                     let _buffer = util.java.array('byte', 8192);
@@ -2246,7 +2245,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
          *     [Builds$title]|string
          * } props
          * @param {DialogsBuildProperties | {
-         *     disable_back?: boolean|Function,
+         *     disable_back?: boolean|function,
          *     linkify?: Dialogsx$Linkify$Mask,
          * }} [ext]
          * @returns {JsDialog$}
@@ -2795,9 +2794,10 @@ let HttpURLConnection = java.net.HttpURLConnection;
             });
         },
         /**
-         * @param {JsDialog$|MaterialDialog$} d
-         * @param {Function} [f]
-         * @returns {JsDialog$|MaterialDialog$}
+         * @template {JsDialog$|MaterialDialog$} DIALOG
+         * @param {DIALOG} d
+         * @param {function} [f]
+         * @returns {DIALOG}
          */
         disableBack(d, f) {
             // to prevent dialog from being dismissed
