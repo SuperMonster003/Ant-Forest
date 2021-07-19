@@ -7531,11 +7531,10 @@ $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
                         if (!_input) {
                             return d.dismiss();
                         }
-                        let _num = Number(_input);
+                        let _num = Math.floor(Number(_input));
                         if (isNaN(_num)) {
                             return dialogsx.alertTitle(d, '输入值类型不合法');
                         }
-                        _num = Math.floor(_num);
                         if (_num !== devicex.getCallState()) {
                             dialogsx
                                 .builds([

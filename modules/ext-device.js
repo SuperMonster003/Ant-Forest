@@ -25,7 +25,7 @@ let BatteryManager = android.os.BatteryManager;
 let ServiceManager = android.os.ServiceManager;
 let DisplayMetrics = android.util.DisplayMetrics;
 let RootTool = org.autojs.autojs.tool.RootTool;
-let ITelecomService = com.android.internal.telephony.ITelecomService;
+let ITelecomService = com.android.internal.telecom.ITelecomService;
 
 // noinspection JSUnusedGlobalSymbols
 let ext = {

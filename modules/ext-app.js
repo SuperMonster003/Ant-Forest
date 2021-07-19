@@ -1910,6 +1910,7 @@ let ext = {
      * @property {boolean|'YES'|'NO'} [sd=true] - {@alias showDomain}
      * @property {boolean|'YES'|'NO'} [enableScrollBar=true] - zh-CN: 是否使用webview的滚动条, 包括垂直和水平. 只对Android有效. (since 9.2)
      * @property {boolean|'YES'|'NO'} [es=true] - {@alias enableScrollBar}
+     * @property {boolean|'YES'|'NO'} [titlePenetrate='NO'] - zh-CN: 是否允许导航栏点击穿透. (since 10.1.52)
      * @property {boolean|'YES'|'NO'} [appClearTop]
      * @property {boolean|'YES'|'NO'} [abv]
      * @property {string} [bizScenario] - {@example 'search'}
@@ -1952,10 +1953,12 @@ let ext = {
      * @property {boolean|'YES'|'NO'} [smartToolBar]
      * @property {string} [sub_url] - {@example '[]'}
      * @property {string} [third_platform] - {@example '{}'}
+     * @property {string[]} [nbpkgres] - {@example ['63300002', '66666817', '68687209']}
      * @property {boolean|'YES'|'NO'} [tinyPubRes]
      * @property {number|string} [titleColor]
      * @property {boolean|'YES'|'NO'} [transparentTitleTextAuto]
      * @property {string} [ttid] - {@example '12zfb0xxxxxx'}
+     * @property {string} [url] - {@example '/www/home.html'}
      * @property {boolean|'YES'|'NO'} [useSW]
      * @property {number|string} [waitRender] - {@example '300'}
      * @property {boolean|'YES'|'NO'} [fullscreen]

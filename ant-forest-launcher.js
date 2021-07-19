@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
  * @since Jul 19, 2021
- * @version 2.1.6 Alpha6
+ * @version 2.1.6
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -3719,8 +3719,8 @@ let $$init = {
                                 $$link(_text).$(_height).$(_signal);
                                 break;
                             }
-                        } catch (e /* TypeError: Cannot call method "childCount" of null */) {
-                            sleep(1.5e3);
+                        } catch (e) {
+                            // eg: TypeError: Cannot call method "childCount" of null
                         }
                         sleep(480);
                     }
@@ -3756,7 +3756,12 @@ let $$init = {
                             let _child_cnt;
                             let _child_w = _list_w;
                             while ((_child_cnt = _child_w.childCount())) {
-                                _child_w = _child_w.child(_child_cnt - 1);
+                                let _child_w_tmp = _child_w.child(_child_cnt - 1);
+                                if (_child_w_tmp === null) {
+                                    break;
+                                }
+                                _child_w = _child_w_tmp;
+                                _child_w_tmp = null;
                             }
                             _rl_end_w = _child_w;
                             if ($$sel.pickup(_rl_end_w, 'txt').match(/没有更多/)) {
@@ -6016,16 +6021,13 @@ let $$af = {
                             // tool function(s) //
 
                             function _diffLmtRch() {
-                                if (_pool.isDiff()) {
+                                if ($$flag.rl_bottom_rch || _pool.isDiff()) {
                                     delete $$flag.rl_capt_pool_ctr;
                                     return;
                                 }
-
                                 let _max = $$cfg.rank_list_capt_pool_diff_check_threshold;
-
                                 debugInfo('排行榜截图样本池差异检测:');
                                 debugInfo('检测未通过: (' + ++_ctr + '/' + _max + ')');
-
                                 if (_ctr >= _max) {
                                     debugInfo('发送排行榜停检信号');
                                     debugInfo('>已达截图样本池差异检测阈值');

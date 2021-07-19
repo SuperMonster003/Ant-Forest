@@ -384,7 +384,7 @@ let ext = {
             _titles[d].ori_text = _ori_txt = _ori_view.getText();
         }
         if (!_ori_color) {
-            _titles[d].ori_text_color = _ori_color = _ori_view.getTextColors().colors[0];
+            _titles[d].ori_text_color = _ori_color = _ori_view.getTextColors().getColors()[0];
         }
         if (!_ori_bg_color) {
             let _ori_view_bg_d = _ori_view.getBackground();
@@ -512,7 +512,7 @@ let ext = {
     /**
      * @template {JsDialog$|MaterialDialog$} DIALOG
      * @param {DIALOG} d
-     * @param {function} [f]
+     * @param {function|*} [f]
      * @returns {DIALOG}
      */
     disableBack(d, f) {
@@ -610,12 +610,11 @@ let ext = {
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
-     * @param {string|{toString:function():string}} [str='']
+     * @param {string|{toString:function():string}} [s='']
      */
-    setInputText(d, str) {
-        ui.run(() => {
-            d && d.getInputEditText().setText(str ? str.toString() : '');
-        });
+    setInputText(d, s) {
+        let _s = typeof s === 'string' ? s : typeof s !== 'undefined' ? s.toString() : '';
+        ui.run(() => d && d.getInputEditText().setText(_s));
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
@@ -729,6 +728,7 @@ let ext = {
      *         neutral?: string|[RegExp|string,string],
      *         negative?: string|[RegExp|string,string],
      *         positive?: string|[RegExp|string,string],
+     *         action?: function(d:BuildCountdownExtendedJsDialog),
      *     },
      * }} extensions
      * @returns {BuildCountdownExtendedJsDialog}
