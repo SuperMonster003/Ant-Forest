@@ -1882,8 +1882,8 @@ let isNullish = o => o === null || o === undefined;
 
             let _opt = options || {};
             let _is_unbundle = _opt.is_unbundled;
-            let _filter = _opt.filter || function () {
-                return true;
+            let _filter = function (name) {
+                return typeof _opt.filter !== 'function' || _opt.filter(name);
             };
 
             if (!_opt.is_async) {
