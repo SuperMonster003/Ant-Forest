@@ -5428,9 +5428,9 @@ let $$af = {
 
                         function _cover() {
                             let _is_covered = false;
-                            let _fri = $$app.page.fri;
-                            _fri.cover.ready();
-                            _fri.cover.detect() && _handle();
+                            let _cover = $$app.page.fri.cover;
+                            _cover.ready();
+                            _cover.detect() && _handle();
 
                             return _is_covered;
 
