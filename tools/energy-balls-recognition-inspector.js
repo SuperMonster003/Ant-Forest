@@ -38,7 +38,7 @@ function _() {
     threads.start(function () {
         events.observeKey();
         events.setKeyInterceptionEnabled('volume_down', true);
-        events.onceKeyDown('volume_down', function (e) {
+        events.onceKeyDown('volume_down', function () {
             toast('停止当前测试脚本');
             _wins.forEach((w) => {
                 w.close();
@@ -50,8 +50,9 @@ function _() {
     });
 
     threads.start(function () {
-        while (~sleep(10)) {
+        while (1) {
             _balls_data = imagesx.findAFBallsByHough().expand();
+            sleep(10);
         }
     });
 

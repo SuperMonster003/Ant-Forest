@@ -103,7 +103,7 @@
 
 # v1.9.19
 ###### 2020/06/05 - 代码重构 谨慎升级
-* `新增` 能量球识别测试工具 (简易)
+* `新增` 能量球识别测试工具 (简易) (/tools/energy-balls-recognition-inspector.js)
 * `修复` 主页能量球控件出现延时导致检测异常的问题 _[`issue #312`](https://github.com/SuperMonster003/Ant-Forest/issues/312)_ _[`#321`](https://github.com/SuperMonster003/Ant-Forest/issues/321)_
 * `修复` 潜在的进入好友森林页面超时的问题 _[`issue #315`](https://github.com/SuperMonster003/Ant-Forest/issues/315)_ _[`#324`](https://github.com/SuperMonster003/Ant-Forest/issues/324)_ _[`#329`](https://github.com/SuperMonster003/Ant-Forest/issues/329)_
 * `修复` 解锁模块解锁计数器失效的问题 _[`issue #305`](https://github.com/SuperMonster003/Ant-Forest/issues/305)_

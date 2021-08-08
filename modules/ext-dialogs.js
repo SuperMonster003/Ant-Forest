@@ -9,11 +9,9 @@ let Looper = android.os.Looper;
 let Linkify = android.text.util.Linkify;
 let KeyEvent = android.view.KeyEvent;
 let ColorStateList = android.content.res.ColorStateList;
+let ColorDrawable = android.graphics.drawable.ColorDrawable;
 let DialogAction = com.afollestad.materialdialogs.DialogAction;
 let MaterialDialog = com.afollestad.materialdialogs.MaterialDialog;
-
-let isUiThread = () => Looper.myLooper() === Looper.getMainLooper();
-let rtDialogs = () => isUiThread() ? runtime.dialogs : runtime.dialogs.nonUiDialogs;
 
 let ext = {
     _colors: {
@@ -41,12 +39,14 @@ let ext = {
         /** @typedef {'default'|'caution'|'alert'} DialogsxColorTitle */
         title: {
             default: '#212121', // Auto.js 4.1.1 Alpha2
-            caution: '#880e4f',
+            caution: '#880e0e',
+            warn: '#880e4f',
             alert: ['#c51162', '#ffeffe'],
         },
         /** @typedef {'default'|'warn'|'alert'} DialogsxColorContent */
         content: {
             default: '#757575', // Auto.js 4.1.1 Alpha2
+            caution: '#ad1414',
             warn: '#ad1457',
             alert: ['#283593', '#e1f5fe'],
         },
@@ -91,19 +91,19 @@ let ext = {
     },
     _text: {
         /**
-         * @description F: finish
-         * @description B: back
-         * @description Q: quit
-         * @description X: exit
-         * @description I: interrupt
-         * @description K: ok
-         * @description S: sure
-         * @description C: close
-         * @description D: delete
-         * @description N: continue
-         * @description M: sure to modify
-         * @description R: reset to default
-         * @description T: show details
+         * @description F: finish (zh-CN: 完成)
+         * @description B: back (zh-CN: 返回)
+         * @description Q: quit (zh-CN: 放弃)
+         * @description X: exit (zh-CN: 退出)
+         * @description I: interrupt (zh-CN: 终止)
+         * @description K: ok (zh-CN: 确定)
+         * @description S: sure (zh-CN: 确认)
+         * @description C: close (zh-CN: 关闭)
+         * @description D: delete (zh-CN: 删除)
+         * @description N: continue (zh-CN: 继续)
+         * @description M: sure to modify (zh-CN: 确认修改)
+         * @description R: reset to default (zh-CN: 使用默认值)
+         * @description T: show details (zh-CN: 了解更多)
          * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'|'T'} DialogsxButtonText
          */
         _btn: {
@@ -114,6 +114,9 @@ let ext = {
         },
         no_more_prompt: '不再提示',
         user_interrupted: '用户终止',
+    },
+    _rtDialogs() {
+        return this.isUiThread() ? runtime.dialogs : runtime.dialogs.nonUiDialogs;
     },
     /**
      * Substitution of dialog.build()
@@ -243,8 +246,8 @@ let ext = {
             return _dialogsx._text._btn[text] || text;
         }
     },
-    /** @typedef {string|[string, DialogsxColorTitle]} Builds$title */
-    /** @typedef {string|[string, DialogsxColorContent]} Builds$content */
+    /** @typedef {string|*|[string, DialogsxColorTitle]} Builds$title */
+    /** @typedef {string|*|[string, DialogsxColorContent]} Builds$content */
     /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral */
     /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative */
     /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive */
@@ -262,16 +265,22 @@ let ext = {
      */
     /**
      * @typedef {DialogsBuildProperties | {
-     *     disable_back?: boolean|function,
+     *     disable_back?: boolean|function(JsDialog$),
      *     linkify?: Dialogsx$Linkify$Mask,
-     * }} Builds$Extensions
+     *     background?: 'background_dark'|'background_light'|'black'|'darker_gray'|'holo_blue_bright'|'holo_blue_dark'|'holo_blue_light'|'holo_green_dark'|'holo_green_light'|'holo_orange_dark'|'holo_orange_light'|'holo_purple'|'holo_red_dark'|'holo_red_light'|'primary_text_dark'|'primary_text_dark_nodisable'|'primary_text_light'|'primary_text_light_nodisable'|'secondary_text_dark'|'secondary_text_dark_nodisable'|'secondary_text_light'|'secondary_text_light_nodisable'|'tab_indicator_text'|'tertiary_text_dark'|'tertiary_text_light'|'transparent'|'white'|'widget_edittext_dark'|'#RRGGBB'|'#AARRGGBB'|string|number,
+     *     animation?: 'default'|'activity'|'dialog'|'input_method'|'toast'|'translucent'|string,
+     *     dim_amount?: number,
+     * } | {title: [], content: [], neutral: [], negative: [], positive: []}} Builds$Extensions
      */
     /**
-     * @param {Builds$Properties} props
+     * @param {Builds$Properties|Builds$Extensions} props
      * @param {Builds$Extensions} [ext]
      * @returns {JsDialog$}
      */
     builds(props, ext) {
+        if (Object.prototype.toString.call(props).slice(8, -1) === 'Object') {
+            return this.builds('', props);
+        }
         let [
             $tt, $cnt, $neu, $neg, $pos, $keep, $cbx,
         ] = typeof props === 'string' ? [props] : props;
@@ -293,9 +302,24 @@ let ext = {
             ['neutral', $neu, this._colors.button, this._text._btn],
             ['negative', $neg, this._colors.button, this._text._btn],
             ['positive', $pos, this._colors.button, this._text._btn],
-        ].forEach(arr => _parseAndColorUp.apply(null, arr));
+        ].map((arr) => {
+            let [key, data] = arr;
+            if (data === undefined && _ext[key] !== undefined) {
+                log(arr[0], arr[1]);
+                arr.splice(1, 1, _ext[key]);
+                log(arr[0], arr[1]);
+            }
+            return arr;
+        }).forEach(arr => _parseAndColorUp.apply(null, arr));
 
-        let _diag = this.build(Object.assign(_props, _ext));
+        Object.assign(_props, _ext);
+        ['title', 'content'].forEach((k) => {
+            if (k in _props) {
+                _props[k] = String(_props[k]);
+            }
+        });
+
+        let _diag = this.build(_props);
 
         if (_ext.linkify) {
             this.linkify(_diag);
@@ -304,12 +328,47 @@ let ext = {
             this.disableBack(_diag, _ext.disable_back);
         }
 
+        ui.post(() => {
+            let _win = _diag.getWindow();
+
+            let _dim = _ext.dim_amount;
+            if (typeof _dim === 'number') {
+                while (_dim > 1) {
+                    _dim /= 100;
+                }
+                _win.setDimAmount(_dim);
+            }
+
+            let _bg = _ext.background;
+            if (typeof _bg === 'string') {
+                if (_bg.match(/^#/)) {
+                    _win.setBackgroundDrawable(new ColorDrawable(colorsx.toInt(_bg)));
+                } else {
+                    _win.setBackgroundDrawableResource(android.R.color[_bg]);
+                }
+            } else if (typeof _bg === 'number') {
+                _win.setBackgroundDrawable(new ColorDrawable(_bg));
+            }
+
+            let _anm = _ext.animation;
+            if (typeof _anm === 'string') {
+                _anm = _anm.split('_').map((s) => {
+                    return s.slice(0, 1).toUpperCase() + s.slice(1).toLowerCase();
+                }).join('');
+                if (_anm === 'Default') {
+                    _win.setWindowAnimations(android.R.style.Animation);
+                } else {
+                    _win.setWindowAnimations(android.R.style['Animation_' + _anm]);
+                }
+            }
+        });
+
         return _diag;
 
         // tool function(s) //
 
         function _parseAndColorUp(key, data, color_lib, text_lib) {
-            if (!_ext[key]) {
+            if (!_ext[key] || Array.isArray(_ext[key])) {
                 let [_text, _color] = Array.isArray(data) ? data : [data];
                 if (_text) {
                     _ext[key] = text_lib && text_lib[_text] || _text;
@@ -327,11 +386,11 @@ let ext = {
      * @returns {Promise<void>|*}
      */
     rawInput(title, prefill, callback) {
-        return isUiThread() && !callback ? new Promise((res) => {
-            rtDialogs().rawInput(title, prefill || '', function () {
+        return this.isUiThread() && !callback ? new Promise((res) => {
+            this._rtDialogs().rawInput(title, prefill || '', function () {
                 res.apply(null, [].slice.call(arguments));
             });
-        }) : rtDialogs().rawInput(title, prefill || '', callback || null);
+        }) : this._rtDialogs().rawInput(title, prefill || '', callback || null);
     },
     /**
      * @param {string} title
@@ -343,8 +402,10 @@ let ext = {
         if (callback) {
             return this.rawInput(title, prefill || '', str => callback(eval(str)));
         }
-        if (isUiThread()) {
-            return new Promise(res => rtDialogs().rawInput(title, prefill || '', s => res(eval(s))));
+        if (this.isUiThread()) {
+            return new Promise((res) => {
+                this._rtDialogs().rawInput(title, prefill || '', s => res(eval(s)));
+            });
         }
         let input = this.rawInput(title, prefill || '', callback || null);
         if (typeof input === 'string') {
@@ -358,11 +419,11 @@ let ext = {
      * @returns {Promise<void>|*}
      */
     alert(title, prefill, callback) {
-        return isUiThread() && !callback ? new Promise((res) => {
-            rtDialogs().alert(title, prefill || '', function () {
+        return this.isUiThread() && !callback ? new Promise((res) => {
+            this._rtDialogs().alert(title, prefill || '', function () {
                 res.apply(null, [].slice.call(arguments));
             });
-        }) : rtDialogs().alert(title, prefill || '', callback || null);
+        }) : this._rtDialogs().alert(title, prefill || '', callback || null);
     },
     /**
      * Show a message in dialogs title view (as toast message may be covered by dialog view)
@@ -445,11 +506,11 @@ let ext = {
      * @returns {Promise<void>|*}
      */
     confirm(title, prefill, callback) {
-        return isUiThread() && !callback ? new Promise((res) => {
-            rtDialogs().confirm(title, prefill || '', function () {
+        return this.isUiThread() && !callback ? new Promise((res) => {
+            this._rtDialogs().confirm(title, prefill || '', function () {
                 res.apply(null, [].slice.call(arguments));
             });
-        }) : rtDialogs().confirm(title, prefill || '', callback || null);
+        }) : this._rtDialogs().confirm(title, prefill || '', callback || null);
     },
     /**
      * @param {string} title
@@ -459,13 +520,13 @@ let ext = {
      */
     select(title, items, callback) {
         if (items instanceof Array) {
-            return isUiThread() && !callback ? new Promise((res) => {
-                rtDialogs().select(title, items, function () {
+            return this.isUiThread() && !callback ? new Promise((res) => {
+                this._rtDialogs().select(title, items, function () {
                     res.apply(null, [].slice.call(arguments));
                 });
-            }) : rtDialogs().select(title, items, callback || null);
+            }) : this._rtDialogs().select(title, items, callback || null);
         }
-        return rtDialogs().select(title, [].slice.call(arguments, 1), null);
+        return this._rtDialogs().select(title, [].slice.call(arguments, 1), null);
     },
     /**
      * @param {string} title
@@ -475,11 +536,11 @@ let ext = {
      * @returns {Promise<void>|*}
      */
     singleChoice(title, items, index, callback) {
-        return isUiThread() && !callback ? new Promise((res) => {
-            rtDialogs().singleChoice(title, index || 0, items, function () {
+        return this.isUiThread() && !callback ? new Promise((res) => {
+            this._rtDialogs().singleChoice(title, index || 0, items, function () {
                 res.apply(null, [].slice.call(arguments));
             });
-        }) : rtDialogs().singleChoice(title, index || 0, items, callback || null);
+        }) : this._rtDialogs().singleChoice(title, index || 0, items, callback || null);
     },
     /**
      * @param {string} title
@@ -496,10 +557,13 @@ let ext = {
             }
             return jsArray;
         };
-        return !callback ? isUiThread()
-            ? new Promise(res => rtDialogs().multiChoice(title, indices || [], items, r => res(arr(r))))
-            : arr(rtDialogs().multiChoice(title, indices || [], items, null))
-            : arr(rtDialogs().multiChoice(title, indices || [], items, r => callback(arr(r))));
+        return callback
+            ? arr(this._rtDialogs().multiChoice(title, indices || [], items, r => callback(arr(r))))
+            : this.isUiThread()
+                ? new Promise((res) => {
+                    this._rtDialogs().multiChoice(title, indices || [], items, r => res(arr(r)));
+                })
+                : arr(this._rtDialogs().multiChoice(title, indices || [], items, null));
     },
     /**
      * @param {...JsDialog$|JsDialog$[]|MaterialDialog$|MaterialDialog$[]} [d]
@@ -512,7 +576,7 @@ let ext = {
     /**
      * @template {JsDialog$|MaterialDialog$} DIALOG
      * @param {DIALOG} d
-     * @param {function|*} [f]
+     * @param {function(DIALOG)|*} [f]
      * @returns {DIALOG}
      */
     disableBack(d, f) {
@@ -520,7 +584,7 @@ let ext = {
         // by pressing 'back' button (usually by accident)
         d.setOnKeyListener({
             onKey(diag, key_code) {
-                typeof f === 'function' && f();
+                typeof f === 'function' && f(d);
                 return key_code === KeyEvent.KEYCODE_BACK;
             },
         });
@@ -686,20 +750,24 @@ let ext = {
     /**
      * Compatible for MaterialDialog.setActionButton()
      * @param {JsDialog$|MaterialDialog$} d
-     * @param {'positive'|'negative'|'neutral'} action
+     * @param {'positive'|'negative'|'neutral'|('positive'|'negative'|'neutral')[]} action
      * @param {ColorParam|DialogsxColorButton} [color]
      * @param {string|null} title
      */
     setActionButton(d, action, title, color) {
-        return d instanceof MaterialDialog
-            ? ui.run(() => {
-                d.setActionButton(this.getDialogAction(action), title);
-                color && this.setActionButtonColor(d, action, color);
-            })
-            : ui.run(() => {
-                d.setActionButton(action, title);
-                color && this.setActionButtonColor(d, action, color);
-            });
+        let _set = function (action) {
+            d instanceof MaterialDialog
+                ? ui.run(() => {
+                    d.setActionButton(this.getDialogAction(action), title);
+                    color && this.setActionButtonColor(d, action, color);
+                })
+                : ui.run(() => {
+                    d.setActionButton(action, title);
+                    color && this.setActionButtonColor(d, action, color);
+                });
+        }.bind(this);
+
+        Array.isArray(action) ? action.forEach(_set) : _set(action);
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
@@ -1371,6 +1439,14 @@ let ext = {
      */
     clearProgressNumberFormat(d) {
         ui.run(() => d.setProgressNumberFormat(''));
+    },
+    /**
+     * Same as uix.isUiThread() but not as uix.isUiMode()
+     * @returns {boolean}
+     * @see uix.isUiThread
+     */
+    isUiThread() {
+        return Looper.myLooper() === Looper.getMainLooper();
     },
 };
 

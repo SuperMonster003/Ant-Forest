@@ -69,7 +69,7 @@ dialogsx
             }
 
             if (!waitForAction(devicex.isScreenOff.bind(devicex), 30e3)) {
-                messageAction('等待屏幕关闭超时', 8, 1);
+                messageAction('等待屏幕关闭超时', 8, 4);
             }
 
             sleep(500);
@@ -79,7 +79,7 @@ dialogsx
                 device.wakeUp();
             }
             if (max < 0) {
-                messageAction('唤起设备失败', 8, 1);
+                messageAction('唤起设备失败', 8, 4);
             }
             sleep(1e3);
 

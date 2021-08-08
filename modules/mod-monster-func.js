@@ -25,6 +25,8 @@ let UiObject = com.stardust.automator.UiObject;
 let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
 let ImageWrapper = com.stardust.autojs.core.image.ImageWrapper;
 
+let isNullish = o => o === null || o === undefined;
+
 let ext = {
     clickAction: clickAction,
     clickAction$: _detachFromImpeded(clickAction, 2),
@@ -86,8 +88,13 @@ module.exports.load = function () {
  *      -- t/title - msg becomes a title like '[ title ]' <br>
  *      -- null - do not show message in console
  *
- * @param {number} [if_toast=0] - if toast the message needed
- * @param {number} [if_arrow=0] - if an arrow before msg needed (not for toast)
+ * @param {number} [is_toast=0] - if toast the message needed
+ * <br>
+ *     -- 1: short; <br>
+ *     -- 2: long; <br>
+ *     -- 3: short and forcible; <br>
+ *     -- 4: long and forcible
+ * @param {number} [arrow=0] - if an arrow before msg needed (not for toast)
  * <br>
  *     -- 1 - '-> I got you now' <br>
  *     -- 2 - '--> I got you now' <br>
@@ -95,7 +102,7 @@ module.exports.load = function () {
  * @param {
  *     number|'up'|'dash'|'up_dash'|'both'|'both_dash'|'2_dash'|
  *     'both_n'|'2_n'|'both_dash_n'|'2_dash_n'|string
- * } [if_split_line=0] - if split line(s) needed
+ * } [split_line=0] - if split line(s) needed
  * <br>
  *     -- 0 - nothing to show additionally <br>
  *     -- 1 - '------------' - hyphen line (length: 33) <br>
@@ -105,7 +112,6 @@ module.exports.load = function () {
  *     -- /up|-1/ - show a line before message <br>
  *     -- /both/ - show a line before and another one after message <br>
  *     -- /both_n/ - show a line before and another one after message, then print a blank new line
- * @param {Object} [params] reserved
  * @example
  * messageAction('hello', 1);
  * messageAction('hello'); // same as above
@@ -123,7 +129,7 @@ module.exports.load = function () {
  * messageAction('only toast', null, 1);
  * @returns {boolean} - whether message level is not warn and error
  **/
-function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params) {
+function messageAction(msg, msg_level, is_toast, arrow, split_line) {
     let $_flag = global.$$flag = global.$$flag || {};
     if ($_flag.no_msg_action) {
         return !~[3, 4, 'warn', 'w', 'error', 'e'].indexOf(msg_level);
@@ -140,39 +146,63 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
         return messageAction.apply(null, [_msg, 1].concat([].slice.call(arguments, 2)));
     }
 
-    if_toast && toast(_msg);
+    if (is_toast) {
+        let _toast = (function $iiFe() {
+            if (typeof $$toast === 'function') {
+                return $$toast;
+            }
+            if (files.exists('./ext-global.js')) {
+                require('./ext-global').load();
+                return $$toast;
+            }
+            return toast;
+        })();
+        switch (is_toast) {
+            case 2:
+                _toast(_msg, 'L');
+                break;
+            case 3:
+                _toast(_msg, 'S', 'F');
+                break;
+            case 4:
+                _toast(_msg, 'L', 'F');
+                break;
+            default:
+                _toast(_msg);
+        }
+    }
 
-    let _if_arrow = if_arrow || 0;
-    let _if_spl_ln = if_split_line || 0;
-    _if_spl_ln = ~if_split_line ? _if_spl_ln === 2 ? 'both' : _if_spl_ln : 'up';
+    let _arrow = arrow || 0;
+    let _spl_ln = split_line || 0;
+    _spl_ln = ~split_line ? _spl_ln === 2 ? 'both' : _spl_ln : 'up';
     let _spl_ln_style = 'solid';
     let _saveLnStyle = () => $_flag.last_cnsl_spl_ln_type = _spl_ln_style;
     let _loadLnStyle = () => $_flag.last_cnsl_spl_ln_type;
     let _clearLnStyle = () => delete $_flag.last_cnsl_spl_ln_type;
     let _matchLnStyle = () => _loadLnStyle() === _spl_ln_style;
 
-    if (typeof _if_spl_ln === 'string') {
-        if (_if_spl_ln.match(/dash/)) {
+    if (typeof _spl_ln === 'string') {
+        if (_spl_ln.match(/dash/)) {
             _spl_ln_style = 'dash';
         }
-        if (_if_spl_ln.match(/both|up|^2/)) {
+        if (_spl_ln.match(/both|up|^2/)) {
             if (!_matchLnStyle()) {
                 showSplitLine('', _spl_ln_style);
             }
-            if (_if_spl_ln.match(/_n|n_/)) {
-                _if_spl_ln = '\n';
-            } else if (_if_spl_ln.match(/both|^2/)) {
-                _if_spl_ln = 1;
-            } else if (_if_spl_ln.match(/up/)) {
-                _if_spl_ln = 0;
+            if (_spl_ln.match(/_n|n_/)) {
+                _spl_ln = '\n';
+            } else if (_spl_ln.match(/both|^2/)) {
+                _spl_ln = 1;
+            } else if (_spl_ln.match(/up/)) {
+                _spl_ln = 0;
             }
         }
     }
 
     _clearLnStyle();
 
-    if (_if_arrow) {
-        _msg = '-'.repeat(Math.min(_if_arrow, 10)) + '> ' + _msg;
+    if (_arrow) {
+        _msg = '-'.repeat(Math.min(_arrow, 10)) + '> ' + _msg;
     }
 
     let _exit_flag = false;
@@ -222,13 +252,13 @@ function messageAction(msg, msg_level, if_toast, if_arrow, if_split_line, params
             _show_ex_msg_flag = true;
     }
 
-    if (_if_spl_ln) {
+    if (_spl_ln) {
         let _spl_ln_extra = '';
-        if (typeof _if_spl_ln === 'string') {
-            if (_if_spl_ln.match(/dash/)) {
-                _spl_ln_extra = _if_spl_ln.match(/_n|n_/) ? '\n' : '';
+        if (typeof _spl_ln === 'string') {
+            if (_spl_ln.match(/dash/)) {
+                _spl_ln_extra = _spl_ln.match(/_n|n_/) ? '\n' : '';
             } else {
-                _spl_ln_extra = _if_spl_ln;
+                _spl_ln_extra = _spl_ln;
             }
         }
         if (!_spl_ln_extra.match(/\n/)) {
@@ -347,7 +377,7 @@ function waitForAction(condition, timeout_or_times, interval, options) {
             _ensureExtSelector();
             return $$sel.pickup(condition);
         }
-        if (condition === undefined || condition === null) {
+        if (isNullish(condition)) {
             return false;
         }
 
@@ -410,7 +440,7 @@ function clickAction(o, strategy, options) {
     let _opt = options || {};
     _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(clickAction.name);
 
-    if (o === undefined || o === null) {
+    if (isNullish(o)) {
         return false;
     }
 
@@ -434,13 +464,14 @@ function clickAction(o, strategy, options) {
         _max_chk_cnt = 3;
     }
 
-    if (_cond_succ === undefined || _cond_succ === null) {
+    if (isNullish(_cond_succ)) {
         _cond_succ = () => true;
     } else if ($_str(_cond_succ) && _cond_succ.match(/disappear/)) {
         _cond_succ = () => _type.match(/^Ui/) ? _checkDisappearance() : true;
     }
 
-    let _buffer = () => sleep(_opt.buffer_time || _opt.bt$ || 0);
+    let _buff = _opt.buffer_time || _opt.bt$ || 0;
+    let _buffer = () => _buff && sleep(_buff);
 
     while (~_clickOnce() && _max_chk_cnt--) {
         if (waitForAction(_cond_succ, _chk_t_once, 50)) {
@@ -529,10 +560,10 @@ function clickAction(o, strategy, options) {
         }
         if (Array.isArray(o)) {
             if (o.length !== 2) {
-                messageAction('clickAction()坐标参数非预期值: 2', 8, 1, 0, 1);
+                messageAction('clickAction()坐标参数非预期值: 2', 8, 4, 0, 1);
             }
             if (typeof o[0] !== 'number' || typeof o[1] !== 'number') {
-                messageAction('clickAction()坐标参数非number', 8, 1, 0, 1);
+                messageAction('clickAction()坐标参数非number', 8, 4, 0, 1);
             }
             return 'CoordsArray';
         }
@@ -555,7 +586,7 @@ function clickAction(o, strategy, options) {
         if (typeof arr === 'number') {
             _coords = [0, arr];
         } else if (!Array.isArray(arr)) {
-            return messageAction('clickAction()坐标偏移参数类型未知', 8, 1, 0, 1);
+            return messageAction('clickAction()坐标偏移参数类型未知', 8, 4, 0, 1);
         }
 
         let _arr_len = arr.length;
@@ -571,14 +602,14 @@ function clickAction(o, strategy, options) {
                 _coords = [_ele, _val];
             }
         } else {
-            return messageAction('clickAction()坐标偏移参数数组个数不合法', 8, 1, 0, 1);
+            return messageAction('clickAction()坐标偏移参数数组个数不合法', 8, 4, 0, 1);
         }
 
         let [_x, _y] = _coords.map(n => Number(n));
         if (!isNaN(_x) && !isNaN(_y)) {
             return {x: _x, y: _y};
         }
-        messageAction('clickAction()坐标偏移计算值不合法', 8, 1, 0, 1);
+        messageAction('clickAction()坐标偏移计算值不合法', 8, 4, 0, 1);
     }
 
     function _checkDisappearance() {
@@ -648,7 +679,7 @@ function clickAction(o, strategy, options) {
 function waitForAndClickAction(f, timeout_or_times, interval, click_options) {
     if (!(f instanceof UiSelector)) {
         if (!(f instanceof UiObject)) {
-            messageAction('不支持的waitForAndClickAction参数:\n' + f, 8, 1);
+            messageAction('不支持的waitForAndClickAction参数:\n' + f, 8, 4);
         }
     }
     let _click_opt = click_options || {};
@@ -664,7 +695,7 @@ function waitForAndClickAction(f, timeout_or_times, interval, click_options) {
 /**
  * Swipe to make a certain specified area, usually fullscreen, contains or overlap the bounds of 'f'
  * @global
- * @param {UiSelector$|ImageWrapper$} f
+ * @param {UiSelector$|ImageWrapper$|function():UiObject$} f
  * @param {Object} [options]
  * @param {number} [options.max_swipe_times=12]
  * @param {number|'l'|'left'|'u'|'up'|'r'|'right'|'d'|'down'|'auto'} [options.swipe_direction='auto']
@@ -699,21 +730,25 @@ function swipeAndShow(f, options) {
     let _opt = options || {};
     _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(swipeAndShow.name);
 
+    /** @type {function():UiObject$|ImageWrapper$} */
+    let _fx = typeof f === 'function' ? f : (() => f instanceof UiSelector ? f.findOnce() : f);
+
     let _swp_itv = _opt.swipe_interval || 150;
     let _swp_max = _opt.max_swipe_times || 12;
     let _swp_time = _opt.swipe_time || 150;
-    let _cond_meet_sides = parseInt(_opt.condition_meet_sides.toString());
+    let _cond_meet_sides = parseInt((_opt.condition_meet_sides || 1).toString());
     if (_cond_meet_sides !== 1 || _cond_meet_sides !== 2) {
         _cond_meet_sides = 1;
     }
     let _swp_area = _setAreaParams(_opt.swipe_area, [0.1, 0.1, 0.9, 0.9]);
     let _aim_area = _setAreaParams(_opt.aim_area, [0, 0, -1, -1]);
     let _swp_drxn = _setSwipeDirection();
-    let _ret = true;
 
-    if (!_swp_drxn || _success()) {
-        return _ret;
+    if (_success()) {
+        return true;
     }
+
+    let _ret = true;
     while (_swp_max--) {
         if (_swipeAndCheck()) {
             break;
@@ -743,10 +778,10 @@ function swipeAndShow(f, options) {
             }
             return 'up';
         }
-        if (_isImageType(f)) {
+        if (_isImageType(_fx())) {
             return 'up';
         }
-        let _widget = f.findOnce();
+        let _widget = _fx();
         if (!_widget) {
             return 'up';
         }
@@ -754,9 +789,6 @@ function swipeAndShow(f, options) {
         let _bnd = _widget.bounds();
         let [_bl, _bt] = [_bnd.left, _bnd.top];
         let [_br, _bb] = [_bnd.right, _bnd.bottom];
-        if (_bb >= _aim_area.b || _bt >= _aim_area.b) {
-            return 'up';
-        }
         if (_bt <= _aim_area.t || _bb <= _aim_area.t) {
             return 'down';
         }
@@ -766,6 +798,7 @@ function swipeAndShow(f, options) {
         if (_bl <= _aim_area.l || _br <= _aim_area.l) {
             return 'right';
         }
+        return 'up';
     }
 
     function _setAreaParams(specified, backup_plan) {
@@ -797,16 +830,21 @@ function swipeAndShow(f, options) {
         // tool function(s) //
 
         function _checkArea(area) {
-            if (Object.prototype.toString.call(area).slice(8, -1) !== 'Array') return;
-            let _len = area.length;
-            if (_len !== 4) return;
-            for (let _i = 0; _i < _len; _i += 1) {
-                let _num = +area[_i];
-                if (isNaN(_num) || (_num < 0 && (_num !== -1 && _num !== -2))) return;
-                if (_i % 2 && _num > device.height) return;
-                if (!(_i % 2) && _num > device.width) return;
+            if (Object.prototype.toString.call(area).slice(8, -1) === 'Array') {
+                let _len = area.length;
+                if (_len === 4) {
+                    for (let _i = 0; _i < _len; _i += 1) {
+                        let _num = +area[_i];
+                        if (isNaN(_num) || (_num < 0 && (_num !== -1 && _num !== -2))) {
+                            return;
+                        }
+                        if (_i % 2 && _num > device.height || !(_i % 2) && _num > device.width) {
+                            return;
+                        }
+                    }
+                    return area;
+                }
             }
-            return area;
         }
     }
 
@@ -836,7 +874,7 @@ function swipeAndShow(f, options) {
     }
 
     function _success() {
-        return _isImageType(f) ? _chk_img() : _chk_widget();
+        return _isImageType(_fx()) ? _chk_img() : _chk_widget();
 
         // tool function(s) //
 
@@ -844,7 +882,7 @@ function swipeAndShow(f, options) {
             let _max = 5;
             let _widget;
             while (_max--) {
-                if ((_widget = f.findOnce())) {
+                if ((_widget = _fx())) {
                     break;
                 }
             }
@@ -857,6 +895,9 @@ function swipeAndShow(f, options) {
             }
             let [_left, _top] = [_bnd.left, _bnd.top];
             let [_right, _bottom] = [_bnd.right, _bnd.bottom];
+            if (Math.abs(_bottom - _top) < 2 || Math.abs(_right - _left) < 2) {
+                return false;
+            }
             if (_cond_meet_sides < 2) {
                 if (_swp_drxn === 'up') {
                     return _top < _aim_area.b;
@@ -893,9 +934,10 @@ function swipeAndShow(f, options) {
                 images.requestScreenCapture();
             }
 
-            let _mch = images.findImage(images.captureScreen(), f);
+            let _img = _fx();
+            let _mch = images.findImage(images.captureScreen(), _img);
             if (_mch) {
-                return _ret = [_mch.x + f.width / 2, _mch.y + f.height / 2];
+                return _ret = [_mch.x + _img.width / 2, _mch.y + _img.height / 2];
             }
         }
     }
@@ -905,7 +947,7 @@ function swipeAndShow(f, options) {
  * Swipe to make a certain specified area, then click it
  * @global
  * -- This is a combination function which means independent use is not recommended
- * @param {UiSelector$|ImageWrapper$} f
+ * @param {UiSelector$|ImageWrapper$|function():UiObject$} f
  * @param {Object} [swipe_params]
  * @param {number} [swipe_params.max_swipe_times=12]
  * @param {number|string} [swipe_params.swipe_direction='auto']
@@ -963,7 +1005,7 @@ function swipeAndShowAndClickAction(f, swipe_params, click_params) {
     if (_res_swipe) {
         let _o = typeof _res_swipe === 'boolean' ? f : _res_swipe;
         let _stg = click_params && click_params.click_strategy;
-        return clickAction(_o, _stg, click_params);
+        return clickAction(typeof _o === 'function' ? _o() : _o, _stg, click_params);
     }
 }
 
@@ -1112,8 +1154,14 @@ function debugInfo(msg, msg_level, forcible_flag) {
 
     let _glob_fg = $_flag.debug_info_avail;
     let _forc_fg = forcible_flag;
-    if (!_glob_fg && !_forc_fg || _glob_fg === false || _forc_fg === false) {
-        return;
+    if (_forc_fg === undefined) {
+        if (!_glob_fg) {
+            return;
+        }
+    } else {
+        if (!_forc_fg) {
+            return;
+        }
     }
 
     let _msg_lv_str = (msg_level || '').toString();
@@ -1437,11 +1485,13 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
  * @param {number} [options.interval=0]
  * @param {number} [options.max_try_times=5]
  * @param {string} [options.default_strategy='click']
- * @param {boolean} [options.debug_info_flag]
+ * @param {boolean} [options.is_debug_info=undefined]
  * @returns {boolean}
  */
 function clickActionsPipeline(pipeline, options) {
     let _opt = options || {};
+    let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
     let _def_stg = _opt.default_strategy || 'click';
     let _itv = +_opt.interval || 0;
     let _max = +_opt.max_try_times;
@@ -1490,7 +1540,7 @@ function clickActionsPipeline(pipeline, options) {
             messageAction(_sel_body.toString().surround('"'), 3, 0, 1, 'dash');
         });
 
-    _res && debugInfo(_ppl_name + '管道完工');
+    _res && debugInfo$(_ppl_name + '管道完工');
     return _res;
 }
 

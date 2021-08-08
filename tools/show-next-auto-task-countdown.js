@@ -130,7 +130,7 @@ function _setCtdText(t) {
             _d.getSeconds().padStart(2, 0);
     };
 
-    let _aim = (() => {
+    let _aim = (function $iiFe() {
         if (typeof t === 'number') {
             _aim_str = _tsToTime(t);
             return new Date(t);
@@ -184,15 +184,23 @@ function _setCtdText(t) {
     };
 
     _setCtdText();
-    setInterval(_setCtdText, 1e3);
+    global._$_itv_set_view = setInterval(_setCtdText, 1e3);
 
-    setTimeout(function () {
+    global._$_tt_timeout = setTimeout(() => {
         _exitNow('自动关闭倒计时悬浮窗');
     }, Math.max(3e3, _aim_ts - Date.now()));
 }
 
 function _exitNow(msg) {
     _diag.dismiss();
-    typeof msg === 'string' && toast(msg);
-    exit();
+    if (typeof msg === 'string') {
+        toast(msg);
+    }
+    if (typeof global._$_itv_set_view === 'number') {
+        clearInterval(global._$_itv_set_view);
+    }
+    if (typeof global._$_tt_timeout === 'number') {
+        clearTimeout(global._$_tt_timeout);
+    }
+    ui.post(() => exit());
 }

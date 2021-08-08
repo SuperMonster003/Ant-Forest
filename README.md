@@ -115,6 +115,18 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.1.7
+###### 2021/08/08
+* `新增` 内存信息工具 (简易) (/tools/auto.js-memory-info-tool.js)
+* `修复` 由项目自动管理的定时任务排他特性失效的问题
+* `修复` Pro版本控件刷新滞缓造成部分条件判断失效的问题
+* `修复` swipeAndShow方法内部逻辑错误导致功能失效的问题
+* `修复` debugInfo方法强制标记参数可能不生效的问题
+* `优化` 增加闹钟事件监测避免执行期间可能的闹钟误触 _[`issue #505`](https://github.com/SuperMonster003/Ant-Forest/issues/505)_
+* `优化` 模块化与排行榜数据样本池相关的实例
+* `优化` 及时回收图片资源避免可能的内存泄漏 _[`issue #497`](https://github.com/SuperMonster003/Ant-Forest/issues/497)_
+* `优化` 能量雨收集工具条件判断完善及网络异常适配
+
 # v2.1.6
 ###### 2021/07/19
 * `新增` Root权限功能配置
@@ -143,12 +155,6 @@
 * `优化` 重构$$sel.pickup()并摒除低概率功能及参数变量
 * `优化` 静默脚本强制中止时"方法链"方法产生的错误日志
 * `优化` 静默部分Pro版本对控制台日志文件模式参数产生的报警日志
-
-# v2.1.4
-###### 2021/06/25
-* `修复` 部分Pro版本无法使用项目部署工具的问题 _[`issue #480`](https://github.com/SuperMonster003/Ant-Forest/issues/480)_
-* `修复` 部分Pro版本运行项目时无法获取引擎名称的问题 _[`issue #481`](https://github.com/SuperMonster003/Ant-Forest/issues/481)_
-* `修复` 部分Pro版本无法获取脚本文件路径配置信息的问题
 
 ##### 更多版本历史可参阅
 

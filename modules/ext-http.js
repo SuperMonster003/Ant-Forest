@@ -104,7 +104,7 @@ let ext = {
             if (typeof _cbk.onDownloadFailure === 'function') {
                 _cbk.onDownloadFailure(e);
             } else {
-                throw Error(e);
+                throw Error(e + '\n' + e.stack);
             }
         };
         if (!url) {

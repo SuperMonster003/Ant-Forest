@@ -22,7 +22,8 @@ let ext = {
         } catch (e) {
             if (!ScriptInterruptedException.causedByInterrupted(new Throwable(e))) {
                 if (!e.message.match(/script exiting/) && !no_err_msg) {
-                    throw Error(e);
+                    toast(e.message);
+                    throw Error(e + '\n' + e.stack);
                 }
             }
         }

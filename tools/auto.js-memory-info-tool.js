@@ -1,0 +1,1 @@
+require('../modules/mod-memory-info').show();

@@ -9,6 +9,8 @@ let GZIPInputStream = java.util.zip.GZIPInputStream;
 let ByteArrayInputStream = java.io.ByteArrayInputStream;
 let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
+let isNullish = o => o === null || o === undefined;
+
 let ext = {
     $polyfill() {
         if (!String.prototype.padStart) {
@@ -108,7 +110,7 @@ let ext = {
                 let isFunc = f => typeof f === 'function';
                 let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
                 let items = Object(arrayLike);
-                if (arrayLike === undefined || arrayLike === null) {
+                if (isNullish(arrayLike)) {
                     throw TypeError('arrayLike of Array.from must be an array-like object');
                 }
                 if (mapFn !== undefined && !isFunc(mapFn)) {
@@ -299,9 +301,9 @@ let ext = {
          * Toast a message in current screen
          * @param {string|{toString:function():string}} [msg=''] -
          * string (or object with toString method) to toast
-         * @param {boolean|string|number} [if_long=0] -
+         * @param {boolean|'Short'|'S'|'Long'|'L'|string|number} [is_long=0] -
          * controlling toast duration (falsy for LENGTH_SHORT; truthy for LENGTH_LONG)
-         * @param {boolean|*} [if_forcible] -
+         * @param {boolean|'F'|'Forcible'|*} [is_forcible] -
          * controlling whether showing current new toast immediately or not
          * @example
          * // toast 'Hello' for around 2 seconds
@@ -329,29 +331,30 @@ let ext = {
          * $$toast('Hello', 'Long', 'Forcible');
          * $$toast('Hello again', 0, 'Forcible');
          */
-        global.$$toast = function (msg, if_long, if_forcible) {
-            let _nullish = o => o === null || o === undefined;
-            let _msg = _nullish(msg) ? '' : msg.toString();
-            let _if_long = (() => {
-                if (typeof if_long === 'number') {
-                    return Number(!!if_long);
+        global.$$toast = function (msg, is_long, is_forcible) {
+            let _msg = isNullish(msg) ? '' : msg.toString();
+            let _is_long = (function $iiFe() {
+                if (typeof is_long === 'number') {
+                    return Number(!!is_long);
                 }
-                if (typeof if_long === 'string') {
-                    return Number(!!(if_long.toUpperCase().match(/^L(ONG)?$/)));
+                if (typeof is_long === 'string') {
+                    return Number(!!(is_long.toUpperCase().match(/^L(ONG)?$/)));
                 }
-                if (typeof if_long === 'boolean') {
-                    return Number(if_long);
+                if (typeof is_long === 'boolean') {
+                    return Number(is_long);
                 }
                 return 0;
             })();
-            new android.os.Handler(Looper.getMainLooper()).post(new Runnable({
-                run() {
-                    if_forcible && $$toast.dismiss();
-                    // noinspection JSCheckFunctionSignatures
-                    global['_toast_'] = Toast.makeText(context, _msg, _if_long);
-                    global['_toast_'].show();
-                },
-            }));
+            ui.post(() => {
+                new android.os.Handler(Looper.getMainLooper()).post(new Runnable({
+                    run() {
+                        is_forcible && $$toast.dismiss();
+                        // noinspection JSCheckFunctionSignatures
+                        global['_toast_'] = Toast.makeText(context, _msg, _is_long);
+                        global['_toast_'].show();
+                    },
+                }));
+            });
         };
 
         $$toast.dismiss = function () {
@@ -403,7 +406,7 @@ let ext = {
                 }
             } catch (e) {
                 if (!e.message.match(/InterruptedException/)) {
-                    throw Error(e);
+                    throw Error(e + '\n' + e.stack);
                 }
                 if (typeof $$link.$ !== 'function') {
                     $$link.$ = () => $$link;
@@ -1346,7 +1349,7 @@ let ext = {
                  * @returns {string}
                  */
                 value(pad, options) {
-                    if (pad === undefined || pad === null) {
+                    if (isNullish(pad)) {
                         return this.valueOf();
                     }
                     let _opt = options || {};
@@ -1652,7 +1655,7 @@ let ext = {
                  * (996).ICU; // 996
                  * Math.random().ICU; // 996
                  */
-                value: (() => {
+                value: (function $iiFe() {
                     let _workdays = 5;
                     let _weekends = 2;
                     let _health = '[your health]';

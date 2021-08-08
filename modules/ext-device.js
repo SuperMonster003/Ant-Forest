@@ -7,7 +7,6 @@ require('./mod-monster-func').load([
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let Runtime = java.lang.Runtime;
 let Settings = android.provider.Settings;
 let System = Settings.System;
 let Global = Settings.Global;
@@ -18,14 +17,14 @@ let KeyEvent = android.view.KeyEvent;
 let Intent = android.content.Intent;
 let Context = android.content.Context;
 let IntentFilter = android.content.IntentFilter;
-let ActivityManager = android.app.ActivityManager;
-let Process = android.os.Process;
 let PowerManager = android.os.PowerManager;
 let BatteryManager = android.os.BatteryManager;
 let ServiceManager = android.os.ServiceManager;
 let DisplayMetrics = android.util.DisplayMetrics;
 let RootTool = org.autojs.autojs.tool.RootTool;
 let ITelecomService = com.android.internal.telecom.ITelecomService;
+
+let isNullish = o => o === null || o === undefined;
 
 // noinspection JSUnusedGlobalSymbols
 let ext = {
@@ -232,36 +231,6 @@ let ext = {
         isHealthy() {
             return this.getHealth() === BatteryManager.BATTERY_HEALTH_GOOD;
         },
-        $_memory() {
-            let toPct = n => (n * 100).toFixedNum(2) + '%';
-
-            let activityManager = context.getSystemService(Context.ACTIVITY_SERVICE);
-            let memoryInfo = new ActivityManager.MemoryInfo();
-            activityManager.getMemoryInfo(memoryInfo);
-
-            // let mem_is_low = memoryInfo.lowMemory;
-            let mem_total = memoryInfo.totalMem;
-            let mem_avail = memoryInfo.availMem;
-            let mem_used = mem_total - mem_avail;
-
-            log('mem: ' + $$cvt.bytes(mem_used) + ' | ' + $$cvt.bytes(mem_total) + ' | ' + toPct(mem_used / mem_total));
-
-            let pidMemoryInfo = activityManager.getProcessMemoryInfo([Process.myPid()])[0];
-
-            let mi_allocate = pidMemoryInfo.getMemoryStat('summary.java-heap') * 1024;
-            let mi_uss = pidMemoryInfo.getTotalPrivateDirty() * 1024;
-            let mi_pss = pidMemoryInfo.getTotalPss() * 1024;
-
-            let rt_total = Runtime.getRuntime().totalMemory();
-            let rt_free = Runtime.getRuntime().freeMemory();
-            let rt_allocate = rt_total - rt_free;
-            let rt_max = Runtime.getRuntime().maxMemory();
-
-            // log(pidMemoryInfo.getMemoryStats());
-            log('vm heap: ' + $$cvt.bytes(rt_allocate) + ' | ' + toPct(rt_allocate / rt_max));
-            log('vm heap: ' + $$cvt.bytes(mi_allocate) + ' | ' + toPct(mi_allocate / rt_max));
-            log('uss: ' + $$cvt.bytes(mi_uss) + ' | ' + 'pss: ' + $$cvt.bytes(mi_pss));
-        },
         isCharging() {
             return this._getStatus('STATUS') === BatteryManager.BATTERY_STATUS_CHARGING
                 || this.isCharged();
@@ -367,7 +336,7 @@ let ext = {
      * @see https://developer.android.com/reference/android/os/BatteryManager#BATTERY_PLUGGED_USB
      * @see https://developer.android.com/reference/android/os/BatteryManager#BATTERY_PLUGGED_WIRELESS
      */
-    stay_on_while_plugged_in: new StateManager('Global', 'STAY_ON_WHILE_PLUGGED_IN', 'Int', (() => {
+    stay_on_while_plugged_in: new StateManager('Global', 'STAY_ON_WHILE_PLUGGED_IN', 'Int', (function $iiFe() {
         let PLUGGED_AC = BatteryManager.BATTERY_PLUGGED_AC;
         let PLUGGED_USB = BatteryManager.BATTERY_PLUGGED_USB;
         let PLUGGED_WIRELESS = BatteryManager.BATTERY_PLUGGED_WIRELESS;
@@ -453,30 +422,29 @@ let ext = {
      * Substitution of device.keepScreenOn()
      * @param {number} [duration=5] - could be minute (less than 100) or second
      * @param {Object} [options]
-     * @param {boolean} [options.debug_info_flag]
+     * @param {boolean} [options.is_debug_info=undefined]
      */
     keepOn(duration, options) {
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
         let _du = duration || 5;
         _du *= _du < 100 ? 60e3 : 1;
+
         device.keepScreenOn(_du);
-        if (_opt.debug_info_flag !== false) {
-            let _mm = +(_du / 60e3).toFixed(2);
-            debugInfo('已设置屏幕常亮');
-            debugInfo('>最大超时时间: ' + _mm + '分钟');
-        }
+        debugInfo$('已设置屏幕常亮');
+        debugInfo$('>最大超时时间: ' + Number((_du / 60e3).toFixed(2)) + '分钟');
     },
     /**
      * Substitution of device.cancelKeepingAwake()
      * @param {Object} [options]
-     * @param {boolean} [options.debug_info_flag]
+     * @param {boolean} [options.is_debug_info=undefined]
      */
     cancelOn(options) {
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
         device.cancelKeepingAwake();
-        if (_opt.debug_info_flag !== false) {
-            debugInfo('屏幕常亮已取消');
-        }
+        debugInfo$('屏幕常亮已取消');
     },
     /**
      * @typedef {{
@@ -488,11 +456,9 @@ let ext = {
      * Turns off screen by KeyCode (root is needed) or by android settings provider
      * @param {Object} [options]
      * @param {Devicex$ScreenOff$Strategy$Options} [options.key_code]
-     * @param {
-     *     Devicex$ScreenOff$Strategy$Options | {
-     *         listener?: {function(function(...string|string[]):*):*},
-     *     }
-     * } [options.provider]
+     * @param {Devicex$ScreenOff$Strategy$Options | {
+     *     listener?: function(function(...string|string[])),
+     * }} [options.provider]
      * @returns {boolean}
      */
     screenOff(options) {
@@ -552,7 +518,7 @@ let ext = {
                     }
                 });
                 let _toast_msg = _messages.map(s => s.replace(/^>*/, '')).join('\n');
-                $$toast(_toast_msg, 'Long', 'Force');
+                $$toast(_toast_msg, 'L', 'F');
                 debugInfo('__split_line__');
                 debugInfo(_messages);
                 debugInfo('__split_line__');
@@ -824,7 +790,7 @@ let ext = {
      * @param {boolean} [is_global_assign=false] -- set true for global assignment
      * @param {Object} [options]
      * @param {boolean} [options.is_global_assign=false]
-     * @param {boolean} [options.debug_info_flag=false]
+     * @param {boolean} [options.is_debug_info=undefined]
      * @example
      * require('./modules/ext-device').load();
      * let {
@@ -864,7 +830,6 @@ let ext = {
      }}
      */
     getDisplay(is_global_assign, options) {
-        let $_flag = global.$$flag = global.$$flag || {};
         let _opt, _glob_asg;
         if (typeof is_global_assign === 'boolean') {
             _opt = options || {};
@@ -874,12 +839,15 @@ let ext = {
             _glob_asg = _opt.is_global_assign;
         }
 
+        let $_flag = global.$$flag = global.$$flag || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
         /** @type {number} */
         let _W, _H;
         /**
          * @type {{
          *     WIDTH: number,
-         *     HEIGHT: number
+         *     HEIGHT: number,
          *     USABLE_WIDTH: number,
          *     USABLE_HEIGHT: number,
          *     display_rotation: DisplayRotation,
@@ -1120,8 +1088,8 @@ let ext = {
 
         function _showDisp() {
             if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-                debugInfo('屏幕宽高: ' + _W + ' × ' + _H);
-                debugInfo('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
+                debugInfo$('屏幕宽高: ' + _W + ' × ' + _H);
+                debugInfo$('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
                 $_flag.display_params_got = true;
             }
         }
@@ -1311,6 +1279,51 @@ let ext = {
     restoreAutoRotationIFN() {
         this.accelerometer_rotation.loadStateIFN();
     },
+    /**
+     * @param {'date'|'toString'|'toDateString'|'toTimeString'|'toLocaleString'|'toLocaleDateString'|'toLocaleTimeString'|'valueOf'|'getTime'|'getFullYear'|'getUTCFullYear'|'getMonth'|'getUTCMonth'|'getDate'|'getUTCDate'|'getDay'|'getUTCDay'|'getHours'|'getUTCHours'|'getMinutes'|'getUTCMinutes'|'getSeconds'|'getUTCSeconds'|'getMilliseconds'|'getUTCMilliseconds'|'getTimezoneOffset'|'setTime'|'setMilliseconds'|'setUTCMilliseconds'|'setSeconds'|'setUTCSeconds'|'setMinutes'|'setUTCMinutes'|'setHours'|'setUTCHours'|'setDate'|'setUTCDate'|'setMonth'|'setUTCMonth'|'setFullYear'|'setUTCFullYear'|'toUTCString'|'toISOString'|'toJSON'|string} [date_function]
+     * @param {...*} args
+     * @returns {Date|string|number|null|*}
+     */
+    getNextAlarmClockTriggerTime(date_function, args) {
+        let _alarm_mgr = context.getSystemService(Context.ALARM_SERVICE);
+        let _next_alarm = _alarm_mgr.getNextAlarmClock();
+        if (_next_alarm === null) {
+            return null;
+        }
+        let _ts = _next_alarm.getTriggerTime();
+        if (!date_function) {
+            return _ts;
+        }
+        let _date = new Date(_ts);
+        if (date_function.toLowerCase() === 'date') {
+            return _date;
+        }
+        if (date_function in _date) {
+            let _o = _date[date_function];
+            if (typeof _o !== 'function') {
+                return _o;
+            }
+            return _date[date_function].apply(_date, [].slice.call(arguments, 1));
+        }
+        return null;
+    },
+    /**
+     * @returns {number}
+     */
+    getNextAlarmClockTriggerGap() {
+        let _ts = this.getNextAlarmClockTriggerTime();
+        let _gap = _ts - Date.now();
+        return _ts === null || isNaN(_gap) ? Infinity : _gap < 0 ? 0 : _gap;
+    },
+    /**
+     * @param {number} [milli=0]
+     * @returns {boolean}
+     */
+    checkNextAlarmClockTriggerTime(milli) {
+        let _milli = Number(milli);
+        _milli = isNaN(_milli) || _milli < 0 ? 0 :  _milli;
+        return this.getNextAlarmClockTriggerGap() > _milli;
+    },
     $bind() {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
             global._$_is_init_scr_on = this.isScreenOn();
@@ -1396,7 +1409,7 @@ function StateManager(provider, key, data_type, state_set) {
     };
     /** @param {'keep'|*} [is_keeping_state] */
     this.loadState = function (is_keeping_state) {
-        if (this._last_state === undefined || this._last_state === null) {
+        if (isNullish(this._last_state)) {
             throw Error('State must be saved before loading');
         }
         this.put(this._last_state);
@@ -1404,9 +1417,7 @@ function StateManager(provider, key, data_type, state_set) {
     };
     /** @param {'keep'|*} [is_keeping_state] */
     this.loadStateIFN = function (is_keeping_state) {
-        if (this._last_state !== undefined && this._last_state !== null) {
-            this.put(this._last_state);
-        }
+        isNullish(this._last_state) || this.put(this._last_state);
         is_keeping_state || this.clearState();
     };
     this.clearState = function () {
@@ -1420,7 +1431,7 @@ function StateManager(provider, key, data_type, state_set) {
     /** @param {'keep'|*} [is_keeping_storage] */
     this.loadStorage = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
-        if (_val === undefined || _val === null) {
+        if (isNullish(_val)) {
             throw Error('Storage must be saved before loading');
         }
         debugInfo(this.key + ' -> ' + _val);
@@ -1430,9 +1441,7 @@ function StateManager(provider, key, data_type, state_set) {
     /** @param {'keep'|*} [is_keeping_storage] */
     this.loadStorageIFN = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
-        if (_val !== undefined && _val !== null) {
-            this.put(_val);
-        }
+        isNullish(_val) || this.put(_val);
         is_keeping_storage || this.clearStorage();
     };
     this.clearStorage = function () {
@@ -1536,7 +1545,7 @@ function StateManager(provider, key, data_type, state_set) {
                 }
             }
         }
-        messageAction('"data_type"修复失败', 8, 1, 0, 2);
+        messageAction('"data_type"修复失败', 8, 4, 0, 2);
     }
 
     function _toTitleCase(str, is_first_caps_only) {
@@ -2151,7 +2160,7 @@ function unlockGenerator() {
                              * };
                              * @type {Object.<string,{
                              *     prefix?: number|{toString:function():string},
-                             *     keys?: string[]|Tuple2<number>,
+                             *     keys?: string[]|Tuple2<number>[],
                              *     keys_map?: Object.<number|string,Tuple2<number>>,
                              *     suffix?: UiSelector$|UiObject$|Tuple2<number>|number|string|RegExp,
                              * }>}
@@ -2160,7 +2169,7 @@ function unlockGenerator() {
                                 'HUAWEI VOG-AL00 9': {prefix: 1, keys: [[1008, 1706]]},
                                 'HUAWEI ELE-AL00 10': {
                                     keys: ['DEL'],
-                                    keys_map: (() => {
+                                    keys_map: (function $iiFe() {
                                         let y = [1188, 1350, 1511, 1674, 1835];
                                         let x = [56, 163, 271, 378, 487, 595, 703, 810, 918, 1027];
                                         let xs = [109.5, 217, 324.5, 432.5, 541, 649, 756.5, 864, 972.5];
@@ -2453,7 +2462,7 @@ function unlockGenerator() {
                                 },
                             }, {
                                 desc: '拨号盘阵列PIN',
-                                test: function () {
+                                test() {
                                     if (global._$_dial_points) {
                                         _dbg.call(this);
                                         return true;
@@ -2751,7 +2760,7 @@ function unlockGenerator() {
             try {
                 files.createWithDirs(_path);
                 images.captureScreen(_path);
-                if (_log_lv !== null && _log_lv !== undefined) {
+                if (!isNullish(_log_lv)) {
                     messageAction('已存储屏幕截图文件:', _log_lv);
                     messageAction(_path, _log_lv);
                 }

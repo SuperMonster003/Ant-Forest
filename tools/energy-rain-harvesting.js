@@ -7,11 +7,12 @@
 global.$$flag = Object.assign(global.$$flag || {}, {debug_info_avail: false});
 global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.AlipayGphone'});
 
-!function () {
+!function $main() {
     'use strict';
 
     require('../modules/ext-global').load();
     require('../modules/ext-threads').load();
+    require('../modules/ext-engines').load();
     require('../modules/mod-monster-func').load();
     require('../modules/ext-app').load().checkSdkAndAJVer();
     require('../modules/ext-images').load().permit();
@@ -20,6 +21,21 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
     /** @type {Object<string,BaseSelectorParam>} */
     let sels = {
         entrance: '开始拯救绿色能量',
+        entrance_disturbance: [
+            /**
+             * @param {UiObject$} w_ent
+             * @returns {boolean}
+             */
+            function (w_ent) {
+                if (w_ent) {
+                    /** @type {UiObject$} */
+                    let _w_bnd = $$sel.pickup('返回蚂蚁森林');
+                    if (_w_bnd) {
+                        return w_ent.bounds().intersect(_w_bnd.bounds());
+                    }
+                }
+                return false;
+            }],
         finish: /本次拯救绿色能量数|.*(机会已用完|明天再来|返回蚂蚁森林).*/,
         bonus: ['再来一次', {clickable: true}],
         manual: /.*送好友机会.*/,
@@ -27,7 +43,12 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
     };
 
     let _w_ent = null;
-    let _cond_ent = () => _w_ent = $$sel.pickup(sels.entrance);
+    let _cond_ent = () => {
+        let _w = $$sel.pickup(sels.entrance);
+        if (_w && !sels.entrance_disturbance.some(f => f(_w))) {
+            return _w_ent = _w;
+        }
+    };
     let _w_bonus = null;
     let _cond_bonus = () => _w_bonus = $$sel.pickup(sels.bonus);
     let _w_fin = null;
@@ -133,6 +154,12 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
                     debugInfo('>' + _chkSel('selstr') + ': ' + _chkSel('txt'));
                     return $$flag.e_rain_finished = true;
                 }
+                if ($$sel.pickup(['立即重试', {c$: true}])) {
+                    let _ctd = 3, _retry = 5;
+                    $$toast('即将在 ' + _ctd + ' 秒内重启能量雨工具', 'L', 'F');
+                    sleep(_ctd * 1e3);
+                    enginesx.restart({max_restart_e_times: _retry});
+                }
                 sleep(120);
             }
             debugInfo(['结束"结束条件"监测线程', '>检测到结束信号']);
@@ -147,7 +174,6 @@ global.$$app = Object.assign(global.$$app || {}, {alipay_pkg: 'com.eg.android.Al
             let _pts = imagesx.findAllPointsForColor(imagesx.capt(), '#daff00', {
                 threshold: 0,
                 region: [0, cY(0.14), W, cYx(0.4)],
-                is_recycle_img: true,
             });
             if (_pts.length) {
                 let _pt = _pts[_pts.length - 1];

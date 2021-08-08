@@ -16,18 +16,23 @@ let Uri = android.net.Uri;
 let Manifest = android.Manifest;
 let Process = android.os.Process;
 let Intent = android.content.Intent;
+let Context = android.content.Context;
 let KeyEvent = android.view.KeyEvent;
 let System = android.provider.Settings.System;
 let ApplicationInfo = android.content.pm.ApplicationInfo;
 let PackageManager = android.content.pm.PackageManager;
-let File = java.io.File;
+let ActivityManager = android.app.ActivityManager;
 let StringBuilder = java.lang.StringBuilder;
+let Runtime = java.lang.Runtime;
+let File = java.io.File;
 let BufferedReader = java.io.BufferedReader;
 let InputStreamReader = java.io.InputStreamReader;
 let HttpURLConnection = java.net.HttpURLConnection;
 let ScriptFile = org.autojs.autojs.model.script.ScriptFile;
 let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
 let ShortcutCreateActivity = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity;
+
+let isNullish = o => o === null || o === undefined;
 
 let ext = {
     _project_structure: [
@@ -167,7 +172,12 @@ let ext = {
     /**
      * @example
      * console.log(appx.getProjectLocal().version_name); // like: 'v2.0.2 Alpha2'
-     * @returns {{version_name: string, version_code: number, main: string, path: string}}
+     * @returns {{
+     *     version_name: string,
+     *     version_code: number,
+     *     main: {name: string, path: string},
+     *     path: string,
+     * }}
      */
     getProjectLocal() {
         let _ver_name = '';
@@ -184,7 +194,7 @@ let ext = {
         let _res = {
             version_name: _ver_name,
             version_code: _ver_code,
-            main: _main_path,
+            main: {name: _main_name, path: _main_path},
             path: _path,
         };
         if (files.exists(_json_path)) {
@@ -193,7 +203,7 @@ let ext = {
                 return Object.assign(_res, {
                     version_name: 'v' + _o.versionName,
                     version_code: Number(_o.versionCode),
-                    main: _o.main,
+                    main: {name: _o.main, path: _path + _sep + _o.main},
                 });
             } catch (e) {
                 console.warn(e.message);
@@ -580,7 +590,7 @@ let ext = {
         function _showEarlier() {
             dialogsx
                 .builds(['选择一个历史版本记录', '', 0, 0, 'B', 1], {
-                    items: (() => {
+                    items: (function $iiFe() {
                         let _items = [];
                         for (let i = 1; i < _ver_num; i += 1) {
                             _items.push('v' + i + '.x');
@@ -657,7 +667,7 @@ let ext = {
         return this._project_structure.filter(o => o.necessary).map((o) => (
             o.name[0] === '/' ? {name: o.name.slice(1), is_dir: true} : {name: o.name}
         )).every((o) => {
-            if (~_files.indexOf(o.name)) {
+            if (_files.includes(o.name)) {
                 let _cA = o.is_dir;
                 let _cB = files.isDir(_path + File.separator + o.name);
                 return _cA && _cB || !_cA && !_cB;
@@ -697,7 +707,7 @@ let ext = {
         let _onSuccess = _cbk.onDeploySuccess || _cbk.onSuccess || (r => r);
         let _onFailure = _cbk.onDeployFailure || _cbk.onFailure || console.error;
 
-        if (version === undefined || version === null) {
+        if (isNullish(version)) {
             throw Error('A version for appx.deployProject() must be defined');
         }
         if (typeof version === 'string') {
@@ -972,9 +982,7 @@ let ext = {
             let _project_structure_names = _appx._project_structure.map(o => o.name.replace(/^\//, ''));
             filesx.copy(_proj_path, _tmp_path, {
                 is_unbundled: true,
-                filter: function (name) {
-                    return !!~_project_structure_names.indexOf(name);
-                },
+                filter: name => _project_structure_names.includes(name),
             });
 
             return _tmp_path;
@@ -1339,7 +1347,7 @@ let ext = {
                 ? '安卓系统版本低于' + _sdk[_min].version.min
                 : '安卓系统SDK低于' + _min;
             messageAction('脚本无法继续', 4, 0, 0, 'up');
-            messageAction(_ver_msg, 8, 1, 1, 1);
+            messageAction(_ver_msg, 8, 4, 1, 1);
         }
     },
     /**
@@ -1714,7 +1722,7 @@ let ext = {
 
                     require('./ext-engines').load();
                     enginesx.restart({
-                        debug_info_flag: true,
+                        is_debug_info: true,
                         instant_run_flag: false,
                         max_restart_e_times: 1,
                     });
@@ -1877,7 +1885,7 @@ let ext = {
      * @property {string} [bz=''] - {@alias bizScenario}
      * @property {boolean|'YES'|'NO'} [pullRefresh=false] - Whether or not to support pull to refresh. zh-CN: 是否支持下拉刷新; 只有集团域/本地文件允许设置为true. (since 8.2)
      * @property {boolean|'YES'|'NO'} [pr=false] - {@alias pullRefresh}
-     * @property {string} [toolbarMenu=''] - An JSON string that specifies additional menu items. e.g., {'menus':[{'name':'Foo','icon':'H5Service.bundle/h5_popovermenu_share','action':'hello'},{'name':'Bar','icon':'H5Service.bundle/h5_popovermenu_abuse','action':'world'}]}. zh-CN: JSON字符串, 更多的菜单项列表 (放在分享/字号/复制链接后面). 例: {"menus":[{"name":"恭喜","icon":"H5Service.bundle/h5_popovermenu_share","action":"hello"},{"name":"发财","icon":"H5Service.bundle/h5_popovermenu_abuse","action":"world"}]}. (since 8.2)
+     * @property {string} [toolbarMenu=''] - An JSON string that specifies additional menu items. e.g., {'menus':[{'name':'Foo','icon':'H5Service.bundle/h5_popovermenu_share','action':'hello'},{'name':'Bar','icon':'H5Service.bundle/h5_popovermenu_abuse','action':'world'}]}. zh-CN: JSON字符串, 更多的菜单项列表 (放在分享/字号/复制链接后面). 例: {'menus':[{'name':'恭喜','icon':'H5Service.bundle/h5_popovermenu_share','action':'hello'},{'name':'发财','icon':'H5Service.bundle/h5_popovermenu_abuse','action':'world'}]}. (since 8.2)
      * @property {string} [tm=''] - {@alias toolbarMenu}
      * @property {boolean|'YES'|'NO'} [canPullDown=true] - Whether or not to support pull down. Obsoleted since 9.9.5, and use 'allowsBounceVertical' instead. zh-CN: 页面是否支持下拉, 即显示出黑色背景或者域名; 只有.alipay.com/.alipay.net/本地文件允许设置为false; 9.9.5废弃, 使用"allowsBounceVertical"替代. (since 8.3, Android; 8.4, iOS)
      * @property {boolean|'YES'|'NO'} [pd=true] - {@alias canPullDown}
@@ -2010,111 +2018,116 @@ let ext = {
      * @see app.intent
      */
     startActivity(o) {
-        let _flag = Intent.FLAG_ACTIVITY_NEW_TASK;
+        let _flags = Intent.FLAG_ACTIVITY_NEW_TASK;
         if (o instanceof Intent) {
-            context.startActivity(new Intent(o).addFlags(_flag));
+            context.startActivity(this.intent(new Intent(o), {flags: _flags}));
         } else if (typeof o === 'object') {
             if (o.root) {
                 shell('am start ' + app.intentToShell(o), true);
             } else {
-                context.startActivity(this.intent(o, {flag: _flag}));
+                context.startActivity(this.intent(o, {flags: _flags}));
             }
         } else if (typeof o === 'string') {
             let _cls = runtime.getProperty('class.' + o);
             if (!_cls) {
                 throw new Error('Class ' + o + ' not found');
             }
-            let _intent = new Intent(context, _cls).addFlags(_flag);
-            context.startActivity(_intent);
+            context.startActivity(this.intent(new Intent(context, _cls), {flags: _flags}));
         } else {
             throw Error('Unknown param for appx.startActivity()');
         }
     },
     /**
      * Substitution of app.intent()
-     * @param {IntentExtension} o
-     * @param {{flag?: number, category?: string}} [options]
+     * @param {IntentExtension | android.content.Intent} o
+     * @param {{flags?: number, category?: string}} [addition]
      * @returns {android.content.Intent}
      */
-    intent(o, options) {
-        let _i = new Intent();
+    intent(o, addition) {
+        let _intent = o instanceof Intent ? o : _getIntentWithOptions(o);
 
-        if (o.url) {
-            o.data = parseIntentUrl(o);
+        let _addi = addition || {};
+        if (_addi.flags !== undefined) {
+            _intent = _intent.addFlags(_addi.flags);
         }
-
-        if (o.packageName) {
-            if (o.className) {
-                _i.setClassName(o.packageName, o.className);
-            } else {
-                // the Intent can only match the components
-                // in the given application package with setPackage().
-                // Otherwise, if there's more than one app that can handle the intent,
-                // the system presents the user with a dialog to pick which app to use
-                _i.setPackage(o.packageName);
-            }
-        }
-        if (o.extras) {
-            Object.keys(o.extras).forEach((key) => {
-                _i.putExtra(key, (o.extras)[key]);
-            });
-        }
-        if (o.category) {
-            if (Array.isArray(o.category)) {
-                for (let i = 0; o < o.category.length; i++) {
-                    _i.addCategory((o.category)[i]);
-                }
-            } else {
-                _i.addCategory(o.category);
-            }
-        }
-        if (o.action) {
-            if (!~o.action.indexOf('.')) {
-                _i.setAction('android.intent.action.' + o.action);
-            } else {
-                _i.setAction(o.action);
-            }
-        }
-        if (o.flags) {
-            let flags = 0;
-            if (flags instanceof Array) {
-                for (let j = 0; j < flags.length; j++) {
-                    flags |= parseIntentFlag(flags[j]);
-                }
-            } else {
-                flags = parseIntentFlag(flags);
-            }
-            _i.setFlags(flags);
-        }
-        if (o.type) {
-            if (o.data) {
-                _i.setDataAndType(app.parseUri(o.data), o.type);
-            } else {
-                _i.setType(o.type);
-            }
-        } else if (o.data) {
-            _i.setData(Uri.parse(o.data));
+        if (_addi.category !== undefined) {
+            _intent = _intent.addCategory(_addi.category);
         }
 
-        let _opt = options || {};
-        if (_opt.flag !== undefined) {
-            _i = _i.addFlags(_opt.flag);
-        }
-        if (_opt.category !== undefined) {
-            _i = _i.addCategory(_opt.category);
-        }
-        return _i;
+        return _intent;
 
         // tool function(s) //
 
-        function parseIntentFlag(flag) {
-            if (typeof flag === 'string') {
-                return Intent['FLAG_' + flag.toUpperCase()];
+        function _getIntentWithOptions(o) {
+            let _i = new Intent();
+
+            if (o.url) {
+                o.data = _parseIntentUrl(o);
             }
-            return flag;
+            if (o.packageName) {
+                if (o.className) {
+                    _i.setClassName(o.packageName, o.className);
+                } else {
+                    // the Intent can only match the components
+                    // in the given application package with setPackage().
+                    // Otherwise, if there's more than one app that can handle the intent,
+                    // the system presents the user with a dialog to pick which app to use
+                    _i.setPackage(o.packageName);
+                }
+            }
+            if (o.extras) {
+                Object.keys(o.extras).forEach((key) => {
+                    _i.putExtra(key, (o.extras)[key]);
+                });
+            }
+            if (o.category) {
+                if (Array.isArray(o.category)) {
+                    for (let i = 0; o < o.category.length; i++) {
+                        _i.addCategory((o.category)[i]);
+                    }
+                } else {
+                    _i.addCategory(o.category);
+                }
+            }
+            if (o.action) {
+                if (o.action.indexOf('.') < 0) {
+                    _i.setAction('android.intent.action.' + o.action);
+                } else {
+                    _i.setAction(o.action);
+                }
+            }
+            if (o.flags) {
+                let flags = 0;
+                if (flags instanceof Array) {
+                    for (let j = 0; j < flags.length; j++) {
+                        flags |= _parseIntentFlag(flags[j]);
+                    }
+                } else {
+                    flags = _parseIntentFlag(flags);
+                }
+                _i.setFlags(flags);
+            }
+            if (o.type) {
+                if (o.data) {
+                    _i.setDataAndType(app.parseUri(o.data), o.type);
+                } else {
+                    _i.setType(o.type);
+                }
+            } else if (o.data) {
+                _i.setData(Uri.parse(o.data));
+            }
+
+            return _i;
         }
 
-        function parseIntentUrl(o) {
+        function _parseIntentFlag(flags) {
+            if (typeof flags === 'string') {
+                return Intent['FLAG_' + flags.toUpperCase()];
+            }
+            return flags;
+        }
+
+        function _parseIntentUrl(o) {
             let _url = o.url;
             if (typeof _url === 'object') {
                 _url = _parseUrl(_url);
@@ -2144,7 +2157,7 @@ let ext = {
                             _val = key === 'url' ? _parseUrl(_val) : _parse(_val);
                             _val = (key === '__webview_options__' ? '&' : '') + _val;
                         }
-                        if (!~_exclude.indexOf(key)) {
+                        if (!_exclude.includes(key)) {
                             _val = encodeURI(_val);
                         }
                         return key + '=' + _val;
@@ -2161,9 +2174,9 @@ let ext = {
      * @property {function():*} [condition_launch]
      * @property {function():*} [condition_ready]
      * @property {function():*} [disturbance]
-     * @property {boolean} [debug_info_flag]
-     * @property {boolean} [is_show_greeting=true]
-     * @property {boolean} [no_message_flag]
+     * @property {boolean} [is_debug_info=undefined]
+     * @property {boolean} [is_show_greeting=false]
+     * @property {boolean|'all'|'none'|'greeting'|'greeting_only'|'no_greeting'} [is_show_toast=false]
      * @property {number} [global_retry_times=2]
      * @property {number} [launch_retry_times=3]
      * @property {number} [ready_retry_times=5]
@@ -2177,9 +2190,7 @@ let ext = {
      * appx.launch('com.eg.android.AlipayGphone');
      * appx.launch('com.eg.android.AlipayGphone', {
      *    task_name: '\u652F\u4ED8\u5B9D\u6D4B\u8BD5',
-     *    // is_show_greeting: true,
-     *    // no_message_flag: false,
-     *    debug_info_flag: true,
+     *    // is_show_toast: true,
      * });
      * appx.launch({
      *     action: 'VIEW',
@@ -2187,7 +2198,6 @@ let ext = {
      * }, {
      *     package_name: 'com.eg.android.AlipayGphone',
      *     task_name: '\u8682\u8681\u68EE\u6797',
-     *     debug_info_flag: true,
      *     condition_launch: () => currentPackage().match(/AlipayGphone/),
      *     condition_ready: () => descMatches(/../).find().size() > 6,
      *     launch_retry_times: 4,
@@ -2199,9 +2209,11 @@ let ext = {
         let _opt = options || {};
         _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.launch.name);
 
-        let _trig = trigger || 0;
-        if (!~['object', 'string', 'function'].indexOf(typeof _trig)) {
-            messageAction('应用启动目标参数无效', 8, 1, 0, 1);
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
+        let _trig = trigger || this.getAutoJsPkgName();
+        if (!['object', 'string', 'function'].includes(typeof _trig)) {
+            messageAction('应用启动目标参数无效', 8, 4, 0, 1);
         }
 
         let _pkg_name = '';
@@ -2216,8 +2228,8 @@ let ext = {
 
         let _name = (_task_name || _app_name).replace(/^["']+|["']+$/g, '');
 
-        debugInfo('启动目标名称: ' + _name);
-        debugInfo('启动参数类型: ' + typeof _trig);
+        debugInfo$('启动目标名称: ' + _name);
+        debugInfo$('启动参数类型: ' + typeof _trig);
 
         let _cond_ready = typeof _opt.condition_ready !== 'function'
             ? null : () => {
@@ -2231,15 +2243,10 @@ let ext = {
                 return _opt.condition_launch();
             };
 
-        let _is_show_greeting = _opt.is_show_greeting;
-        if (typeof _is_show_greeting === 'undefined') {
-            _is_show_greeting = true;
-        }
-
         let _thd_dist;
         let _dist = _opt.disturbance;
         if (_dist) {
-            debugInfo('已开启干扰排除线程');
+            debugInfo$('已开启干扰排除线程');
             _thd_dist = threadsx.start(function () {
                 while (1) {
                     sleep(1.2e3);
@@ -2254,53 +2261,58 @@ let ext = {
             let _max_lch = _opt.launch_retry_times || 3;
             let _max_lch_b = _max_lch;
 
-            if (!_opt.no_message_flag) {
+            let _toast = _opt.is_show_toast;
+            if (_toast && _toast !== 'none') {
                 let _msg = _task_name
                     ? '重新开始' + _task_name.surround('"') + '任务'
                     : '重新启动' + _app_name.surround('"') + '应用';
-                if (!_1st_launch) {
-                    messageAction(_msg, null, 1);
-                } else if (_is_show_greeting) {
-                    messageAction(_msg.replace(/重新/g, ''), 1, 1, 0, 'both');
+                if (_1st_launch) {
+                    if (_toast === true || String(_toast).match(/^(all|greeting(_only)?)$/)) {
+                        messageAction(_msg.replace(/重新/g, ''), 1, 1, 0, 'both');
+                    }
+                } else {
+                    if (!String(_toast).match(/^(greeting(_only)?)$/)) {
+                        messageAction(_msg, null, 1);
+                    }
                 }
             }
 
             while (_max_lch--) {
                 if (typeof _trig === 'object') {
-                    debugInfo('加载intent参数启动应用');
+                    debugInfo$('加载intent参数启动应用');
                     this.startActivity(_trig);
                 } else if (typeof _trig === 'string') {
-                    debugInfo('加载应用包名参数启动应用');
+                    debugInfo$('加载应用包名参数启动应用');
                     if (!app.launchPackage(_pkg_name)) {
-                        debugInfo('加载应用名称参数启动应用');
+                        debugInfo$('加载应用名称参数启动应用');
                         app.launchApp(_app_name);
                     }
                 } else {
-                    debugInfo('使用触发器方法启动应用');
+                    debugInfo$('使用触发器方法启动应用');
                     _trig();
                 }
 
                 let _succ = waitForAction(_cond_launch, 5e3, 800);
-                debugInfo('应用启动' + (
+                debugInfo$('应用启动' + (
                     _succ ? '成功' : '超时 (' + (_max_lch_b - _max_lch) + '/' + _max_lch_b + ')'
                 ));
                 if (_succ) {
                     break;
                 }
-                debugInfo('>' + currentPackage());
+                debugInfo$('>' + currentPackage());
             }
 
             if (_max_lch < 0) {
-                messageAction('打开' + _app_name.surround('"') + '失败', 8, 1, 0, 1);
+                messageAction('打开' + _app_name.surround('"') + '失败', 8, 4, 0, 1);
             }
 
-            if (_cond_ready === undefined || _cond_ready === null) {
-                debugInfo('未设置启动完成条件参数');
+            if (isNullish(_cond_ready)) {
+                debugInfo$('未设置启动完成条件参数');
                 break;
             }
 
             _1st_launch = false;
-            debugInfo('开始监测启动完成条件');
+            debugInfo$('开始监测启动完成条件');
 
             let _max_ready = _opt.ready_retry_times || 3;
             let _max_ready_b = _max_ready;
@@ -2308,34 +2320,34 @@ let ext = {
             while (!waitForAction(_cond_ready, 8e3) && _max_ready--) {
                 let _ctr = (_max_ready_b - _max_ready + '/' + _max_ready_b).surround('()');
                 if (typeof _trig === 'object') {
-                    debugInfo('重新启动Activity ' + _ctr);
+                    debugInfo$('重新启动Activity ' + _ctr);
                     this.startActivity(_trig);
                 } else {
-                    debugInfo('重新启动应用 ' + _ctr);
+                    debugInfo$('重新启动应用 ' + _ctr);
                     app.launchPackage(_trig);
                 }
             }
 
             if (_max_ready >= 0) {
-                debugInfo('启动完成条件监测完毕');
+                debugInfo$('启动完成条件监测完毕');
                 break;
             }
 
-            debugInfo('尝试关闭' + _app_name.surround('"') + '应用:');
-            debugInfo((_max_retry_b - _max_retry + '/' + _max_retry_b).surround('()'));
+            debugInfo$('尝试关闭' + _app_name.surround('"') + '应用:');
+            debugInfo$((_max_retry_b - _max_retry + '/' + _max_retry_b).surround('()'));
             this.kill(_pkg_name);
         }
 
         if (_thd_dist) {
             _thd_dist.interrupt();
-            debugInfo('干扰排除线程结束');
+            debugInfo$('干扰排除线程结束');
             _thd_dist = null;
         }
 
         if (_max_retry < 0) {
-            messageAction(_name.surround('"') + '初始状态准备失败', 8, 1, 0, 1);
+            messageAction(_name.surround('"') + '初始状态准备失败', 8, 4, 0, 1);
         }
-        debugInfo(_name.surround('"') + '初始状态准备完毕');
+        debugInfo$(_name.surround('"') + '初始状态准备完毕');
 
         return true;
 
@@ -2361,13 +2373,27 @@ let ext = {
         }
     },
     /**
+     * @param {string} [pkg=appx.getAutoJsPkgName()]
+     */
+    launchAndClearTop(pkg) {
+        this.startActivity(this.intent(this.getLaunchIntentForPackage(pkg), {
+            flags: Intent.FLAG_ACTIVITY_CLEAR_TOP,
+        }));
+    },
+    /**
+     * @param {string} [pkg=appx.getAutoJsPkgName()]
+     * @returns {android.content.Intent}
+     */
+    getLaunchIntentForPackage(pkg) {
+        return context.getPackageManager().getLaunchIntentForPackage(pkg || this.getAutoJsPkgName());
+    },
+    /**
      * @typedef {Object} Appx$Kill$Options
      * @property {boolean} [shell_acceptable=true]
      * @property {number} [shell_max_wait_time=10e3]
      * @property {boolean} [keycode_back_acceptable=true]
      * @property {boolean} [keycode_back_twice=false]
      * @property {function():boolean} [condition_success]
-     * @property {boolean} [debug_info_flag=false]
      */
     /**
      * Close or minimize a certain app
@@ -2377,7 +2403,6 @@ let ext = {
      * appx.kill('Alipay');
      * appx.kill('com.eg.android.AlipayGphone', {
      *    shell_acceptable: false,
-     *    debug_info_flag: true,
      * });
      * @returns {boolean}
      */
@@ -2395,7 +2420,7 @@ let ext = {
         let _app_name = this.getAppName(_src);
         let _pkg_name = this.getAppPkgName(_src);
         if (!_app_name || !_pkg_name) {
-            messageAction('解析应用名称及包名失败', 8, 1, 0, 1);
+            messageAction('解析应用名称及包名失败', 8, 4, 0, 1);
         }
 
         let _shell_acceptable = (
@@ -2503,9 +2528,51 @@ let ext = {
     },
     /**
      * Main process of Auto.js will be killed
+     * @param {{
+     *     pid?: number,
+     *     pending_task?: TimedTaskOptDisposable|'launcher'|'launcher+3s'|'current'|'current+3s'|string,
+     * }} [options]
      */
-    killProcess() {
-        Process.killProcess(Process.myPid());
+    killProcess(options) {
+        let _opt = options || {};
+
+        pendTimedTaskIFN(_opt.pending_task);
+        killProgress(_opt.pid);
+
+        // tool function(s) //
+
+        function pendTimedTaskIFN(pending_task) {
+            if (pending_task) {
+                global.timersx || require('./ext-timers').load();
+                timersx.addDisposableTask(_parseTask(pending_task));
+            }
+
+            // tool function(s) //
+
+            function _parseTask(task) {
+                if (typeof task === 'object') {
+                    return task;
+                }
+                if (typeof task === 'string') {
+                    if (task.match(/^(launcher|current)(.*\d+s)?$/i)) {
+                        let _mch_min = task.match(/\d+/);
+                        let _path = task.match(/launcher/i)
+                            ? ext.getProjectLocal().main.path
+                            : engines.myEngine().getSource();
+                        return {
+                            path: _path,
+                            date: Date.now() + (_mch_min ? _mch_min[0] : 5) * 1e3,
+                        };
+                    }
+                }
+                throw Error('Cannot parse pending_task for appx.killProcess()');
+            }
+        }
+
+        function killProgress(pid) {
+            let _pid = pid > 0 ? pid : Process.myPid();
+            Process.killProcess(_pid);
+        }
     },
     /**
      * Kill or minimize an app and launch it with options
@@ -2614,23 +2681,13 @@ let ext = {
     getInstalledApplications(options) {
         let _opt = options || {};
         let _include = (o) => {
-            let _included_smp = _opt.include || [];
-            if (typeof _included_smp === 'string') {
-                _included_smp = [_included_smp];
-            }
-            let _excluded_smp = _opt.exclude || [];
-            if (typeof _excluded_smp === 'string') {
-                _excluded_smp = [_excluded_smp];
-            }
-            return (
-                _include = _included_smp.length
-                    ? o => (~_included_smp.indexOf(o.pkg_name)
-                        || ~_included_smp.indexOf(o.app_name))
-                        && !~_excluded_smp.indexOf(o.pkg_name)
-                        && !~_excluded_smp.indexOf(o.app_name)
-                    : o => !~_excluded_smp.indexOf(o.pkg_name)
-                        && !~_excluded_smp.indexOf(o.app_name)
-            )(o);
+            let _w = x => typeof x === 'string' ? [x] : x || [];
+            let _i = _w(_opt.include);
+            let _e = _w(_opt.exclude);
+            return (_include = _i.length
+                ? o => (_i.includes(o.pkg_name) || _i.includes(o.app_name))
+                    && !_e.includes(o.pkg_name) && !_e.includes(o.app_name)
+                : o => !_e.includes(o.pkg_name) && !_e.includes(o.app_name))(o);
         };
         let _getState = k => typeof _opt[k] === 'function' ? _opt[k]() : _opt[k];
 
@@ -2707,7 +2764,89 @@ let ext = {
         }
         return (source.flags & ApplicationInfo.FLAG_SYSTEM) !== 0;
     },
+    /**
+     * @return {{
+     *     $memory_info: android.app.ActivityManager.MemoryInfo,
+     *     is_low: boolean,
+     *     total: number,
+     *     avail: number, avail_usage: number, avail_pct: string,
+     *     used: number, used_usage: number, used_pct: string,
+     * }}
+     */
+    getMemoryInfo() {
+        let _activity_man = context.getSystemService(Context.ACTIVITY_SERVICE);
+        let _mem_info = new ActivityManager.MemoryInfo();
+        _activity_man.getMemoryInfo(_mem_info);
+
+        let {totalMem: _total, availMem: _avail, lowMemory: _is_low} = _mem_info;
+        let _used = _total - _avail;
+        let _used_usage = _used / _total;
+        let _avail_usage = _avail / _total;
+
+        return {
+            $memory_info: _mem_info, total: _total, is_low: _is_low,
+            avail: _avail, avail_usage: _avail_usage, avail_pct: _toPct(_avail_usage),
+            used: _used, used_usage: _used_usage, used_pct: _toPct(_used_usage),
+        };
+    },
+    /**
+     * @param {number} [pid=android.os.Process.myPid()]
+     * @return {{
+     *     $process_memory_info,
+     *     uss: number, pss: number,
+     *     heap: string, heap_usage: number, heap_pct: string,
+     * }}
+     */
+    getProcessMemoryInfo(pid) {
+        let _rt_max = Runtime.getRuntime().maxMemory();
+
+        let _pid = typeof pid === 'number' ? pid : Process.myPid();
+        let _pmi = context.getSystemService(Context.ACTIVITY_SERVICE)
+            .getProcessMemoryInfo([_pid])[0];
+
+        let _uss = _pmi.getTotalPrivateDirty() << 10;
+        let _pss = _pmi.getTotalPss() << 10;
+
+        // allocated java heap size
+        let _heap = _pmi.getMemoryStat('summary.java-heap') << 10;
+        let _heap_usage = _heap / _rt_max;
+
+        return {
+            $process_memory_info: _pmi, uss: _uss, pss: _pss,
+            heap: _heap, heap_usage: _heap_usage, heap_pct: _toPct(_heap_usage),
+        };
+    },
+    /**
+     * @return {{
+     *     total: number,
+     *     max: number,
+     *     heap: number, heap_usage: number, heap_pct: string,
+     * }}
+     */
+    getRuntimeMemoryInfo() {
+        let _rt = Runtime.getRuntime();
+
+        let _max = _rt.maxMemory();
+        let _total = _rt.totalMemory();
+        let _free = _rt.freeMemory();
+
+        let _heap = _total - _free;
+        let _heap_usage = _heap / _max;
+
+        return {
+            total: _total, max: _max,
+            heap: _heap, heap_usage: _heap_usage, heap_pct: _toPct(_heap_usage),
+        };
+    },
 };
 
 module.exports = ext;
 module.exports.load = () => global.appx = ext;
+
+// tool function(s) //
+
+function _toPct(num, frac, is_keep_trailing_zero) {
+    let _frac = typeof frac === 'number' ? frac : isNaN(frac) ? 2 : Number(frac);
+    let _fixed = (num * 100).toFixed(_frac);
+    return (is_keep_trailing_zero ? _fixed : Number(_fixed)) + '%';
+}

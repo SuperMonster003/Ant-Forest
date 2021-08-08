@@ -10,7 +10,7 @@ let $$init = {
                 console.error('ext-app模块不存在');
                 console.error('请检查项目目录结构');
             }
-            throw Error(e);
+            throw Error(e + '\n' + e.stack);
         }
     },
     check() {
@@ -259,7 +259,7 @@ let $$init = {
                             $$0(_positive) || $$nul(_positive) ? 0 : 'M',
                             1,
                         ], Object.assign({
-                            inputHint: (() => {
+                            inputHint: (function $iiFe() {
                                 let _u = _dist ? '(*' + _dist + ')' : '';
                                 return '{x|' + _mini_p + _u + '<=' +
                                     'x<=' + _maxi_p + _u + ',x∈' + _set + '}';
@@ -1328,7 +1328,7 @@ let $$init = {
                                     '查看恢复列表', '', 0, 0, 'B', 1,
                                 ], {
                                     content: '共计 ' + _blist_bak.length + ' 项',
-                                    items: (() => {
+                                    items: (function $iiFe() {
                                         let _split_ln = '';
                                         for (let i = 0; i < 18; i += 1) {
                                             _split_ln += '- ';
@@ -1583,7 +1583,7 @@ let $$init = {
                             diag.on('neutral', () => {
                                 let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
                                     content: '共计 ' + blacklist_backup.length + ' 项',
-                                    items: (function () {
+                                    items: (function $iiFe() {
                                         let items = [];
                                         blacklist_backup.forEach(o => items.push(o.app_combined_name));
                                         return items.length ? items : ['列表为空'];
@@ -2211,14 +2211,14 @@ let $$init = {
                                     return new Date().getFullYear();
                                 }
                             },
-                            MM: () => padZero((() => {
+                            MM: () => padZero((function $iiFe() {
                                 try {
                                     return picker_widget.getMonth();
                                 } catch (e) {
                                     return new Date().getMonth();
                                 }
                             })() + 1),
-                            dd: () => padZero((() => {
+                            dd: () => padZero((function $iiFe() {
                                 try {
                                     return picker_widget.getDayOfMonth();
                                 } catch (e) {
@@ -2525,7 +2525,7 @@ let $$init = {
                         diag.on('neutral', () => {
                             let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
                                 content: '共计 ' + list_data_backup.length + ' 项',
-                                items: (function () {
+                                items: (function $iiFe() {
                                     let split_line = '';
                                     for (let i = 0; i < 18; i += 1) split_line += '- ';
                                     let items = [split_line];
@@ -2837,7 +2837,7 @@ let $$init = {
                 let _1_day_ts = _1_day_sec * 1e3;
                 let _today_max_sec = _today_sec + _1_day_sec - 1;
                 let _items = [
-                    (() => {
+                    (function $iiFe() {
                         let _du = _today_ts + _1_day_ts - $$ses.list_data_min_ts;
                         let _days = Math.ceil(_du / _1_day_ts);
                         _days = !isFinite(_days) ? 0 : _days;
@@ -2850,7 +2850,7 @@ let $$init = {
                     }, {
                         item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
                         range: [_today_sec, _today_max_sec],
-                    }, (() => {
+                    }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
@@ -2861,7 +2861,7 @@ let $$init = {
                     })(), {
                         item: '本周 (共' + _day + '天)',
                         range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
-                    }, (() => {
+                    }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts * 6);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
@@ -2872,7 +2872,7 @@ let $$init = {
                     })(), {
                         item: '本月 (共' + _dd + '天)',
                         range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
-                    }, (() => {
+                    }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts * 29);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
@@ -2903,7 +2903,7 @@ let $$init = {
              */
             checkDependency(view, dependencies) {
                 let _deps = dependencies || [];
-                (() => {
+                (function $iiFe() {
                     if ($$func(_deps)) {
                         return _deps.call(null);
                     }
@@ -3487,7 +3487,7 @@ let $$init = {
                 $$ses.title = _title_o;
             }
 
-            Object.defineProperties(this, (() => {
+            Object.defineProperties(this, (function $iiFe() {
                 let _props = {
                     newWindow: {get: () => _par.newWindow.bind(this)},
                     infoWindow: {get: () => _par.infoWindow.bind(this)},
@@ -4023,7 +4023,7 @@ $$view.setHomePage($$def.homepage_title)
                 let _qr_wechat_dnt = $$def.image_base64_data.qr_wechat_dnt;
                 let _avt_det = $$def.image_base64_data.avt_detective;
 
-                let _local_avt_path = (() => {
+                let _local_avt_path = (function $iiFe() {
                     let _path = files.getSdcardPath() + '/.local/pics/';
                     files.createWithDirs(_path);
                     return _path + 'super_monster_003_avatar.png';
@@ -4812,7 +4812,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('采集样本池', {color: 'highlight'}))
         .add('button', new Layout('样本池总容量', 'hint', {
-            config_conj: 'forest_balls_pool_limit',
+            config_conj: 'forest_image_pool_limit',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 8);
             },
@@ -4821,9 +4821,9 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             },
         }))
         .add('button', new Layout('样本采集间隔', 'hint', {
-            config_conj: 'forest_balls_pool_itv',
+            config_conj: 'forest_image_pool_itv',
             newWindow() {
-                $$view.diag.numSetter.call(this, 50, 500);
+                $$view.diag.numSetter.call(this, 10, 500);
             },
             updateOpr(view) {
                 view.setHintText($$cfg.ses[this.config_conj].toString());
@@ -5446,9 +5446,9 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             config_conj: 'prompt_before_running_postponed_minutes',
             map: Object.assign({
                 0: '每次都询问',
-            }, (() => {
+            }, (function $iiFe() {
                 let _o = {};
-                let _k = 'prompt_before_running_postponed_minutes_map';
+                let _k = 'prompt_before_running_postponed_minutes_choices';
                 $$sto.def.af[_k].forEach(n => _o[n] = n + ' min');
                 return _o;
             })()),
@@ -6198,19 +6198,13 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
             list_head: 'timed_tasks',
             data_source_key_name: 'timed_tasks',
             custom_data_source() {
-                let all_tasks = timersx.queryTimedTasks({
+                return timersx.queryTimedTasks({
                     path: files.cwd() + '/ant-forest-launcher.js',
-                });
-
-                let data_source = [];
-
-                all_tasks.forEach(task => data_source.push({
+                }).map((task) => ({
                     task: task,
                     type: _getType(timedTaskTimeFlagConverter(task.getTimeFlag()), task.id),
                     next_run_time: task.getNextTime(),
                 }));
-
-                return data_source;
 
                 // tool function(s) //
 
@@ -6248,10 +6242,8 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                         let type_code = $$tool.restoreFromTimedTaskTypeStr(type);
                         let task_id = task.id;
 
-                        let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
-                        let reInitDataSource = () => {
-                            $$view.updateDataSource(_ds_k, 're_init', _custom_ds.call(this));
-                        };
+                        let _ds_k = this.data_source_key_name;
+                        let _custom_ds = this.custom_data_source.bind(this);
 
                         let type_info = {
                             min_countdown: '最小倒计时',
@@ -6306,11 +6298,10 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                         // tool function(s) //
 
                                         function deleteNow() {
-                                            threadsx.start(function () {
-                                                d.dismiss();
-                                                ds.dismiss();
-                                                timersx.removeTimedTask(task_id, 'wait');
-                                                reInitDataSource();
+                                            dialogsx.dismiss(ds, d);
+                                            timersx.removeTimedTask(task_id, {
+                                                callback: () => $$view.updateDataSource(_ds_k,
+                                                    're_init', _custom_ds()),
                                             });
                                         }
                                     })
@@ -6357,8 +6348,8 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                 },
                 ui: {
                     resume() {
-                        let {data_source_key_name: _ds_k, custom_data_source: _custom_ds} = this;
-                        $$view.updateDataSource(_ds_k, 're_init', _custom_ds.call(this));
+                        $$view.updateDataSource(this.data_source_key_name,
+                            're_init', this.custom_data_source());
                     },
                 },
             },
@@ -6500,8 +6491,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                             } else {
                                 return;
                             }
-                            timersx.updateTimedTask(current_task);
-                            return current_task;
+                            return timersx.updateTimedTask(current_task);
                         }
                     }
 
@@ -6511,18 +6501,18 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                             timersx.addDisposableTask({
                                 path: path,
                                 date: ret,
-                            }, 'wait');
+                            });
                         } else if (type_str === 'daily') {
                             timersx.addDailyTask({
                                 path: path,
                                 time: trimTimestamp(ret, true),
-                            }, 'wait');
+                            });
                         } else if (type_str === 'weekly') {
                             timersx.addWeeklyTask({
                                 path: path,
                                 time: trimTimestamp(ret.timestamp, true),
                                 daysOfWeek: ret.days_of_week,
-                            }, 'wait');
+                            });
                         }
                     }
                 },
@@ -7378,7 +7368,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                                 let _res = $$a11y.test();
                                 dialogsx.builds([
                                     '权限测试结果', '测试' + (_res ? '' : '未') + '通过\n\n' +
-                                    '此设备' + (_res ? '拥有' : '没有') + '以下权限:\n' +
+                                    '当前应用' + (_res ? '已' : '未') + '获得以下权限:\n' +
                                     'WRITE_SECURE_SETTINGS', 0, 0, 'C', 1,
                                 ]).on('positive', d => d.dismiss()).show();
                             })
@@ -7666,7 +7656,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                 $$view.updateViewByTag('restore_projects_from_local_page');
                             },
                             onBackupFailure(e) {
-                                throw Error(e);
+                                throw Error(e + '\n' + e.stack);
                             },
                         }, {
                             get remark() {

@@ -103,12 +103,12 @@ let ext = {
      * <br>
      *     -- *DEFAULT* - old engine task <br>
      *     -- new file - like 'hello.js', '../hello.js' or 'hello'
-     * @param {boolean|string} [options.debug_info_flag]
+     * @param {boolean|string} [options.is_debug_info=undefined]
      * @param {number} [options.max_restart_e_times=1] - max restart times for avoiding infinite recursion
      * @param {boolean} [options.instant_run_flag] - whether to perform an instant run or not
      * @example
      * enginesx.restart({
-     *    debug_info_flag: true,
+     *    is_debug_info: true,
      *    max_restart_e_times: 3,
      *    instant_run_flag: false,
      * });
@@ -116,6 +116,7 @@ let ext = {
      */
     restart(options) {
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
         let _e_argv = this.my_engine_exec_argv;
 
@@ -130,18 +131,18 @@ let ext = {
         }
 
         let _r_times_bak = Number(_e_argv.max_restart_e_times_bak) || _r_times;
-        debugInfo('重启当前引擎任务');
-        debugInfo('>当前次数: ' + (_r_times_bak - _r_times + 1));
-        debugInfo('>最大次数: ' + _r_times_bak);
+        debugInfo$('重启当前引擎任务');
+        debugInfo$('>当前次数: ' + (_r_times_bak - _r_times + 1));
+        debugInfo$('>最大次数: ' + _r_times_bak);
 
         if (this.isRemote()) {
-            return messageAction('远程任务不支持重启引擎', 8, 1, 0, 1);
+            return messageAction('远程任务不支持重启引擎', 8, 4, 0, 1);
         }
 
         let _file_name = _opt.new_file || this.my_engine_src_name;
         let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? '' : '.js'));
 
-        debugInfo('运行新引擎任务:\n' + _file_path);
+        debugInfo$('运行新引擎任务:\n' + _file_path);
         this.execScriptFile(_file_path, {
             arguments: Object.assign({}, _opt, {
                 max_restart_e_times: _r_times - 1,
@@ -150,7 +151,7 @@ let ext = {
             }),
         });
 
-        debugInfo('强制停止旧引擎任务');
+        debugInfo$('强制停止旧引擎任务');
         let _my_e_id = this.my_engine_id;
         this.all_engines.filter(e => e.getId() === _my_e_id).forEach(e => e.forceStop());
 

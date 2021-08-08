@@ -6,7 +6,7 @@ threads.start(function () {
     toast('请在目标页面按"音量减"键');
     events.observeKey();
     events.onKeyDown('volume_down', function () {
-        (function showCurrentScreenLayoutInfo() {
+        (function showCurrentScreenLayoutInfo$iiFe() {
             showSplitLine();
             _showInfo(['text', 'desc', 'id']) || showSplitLine();
 

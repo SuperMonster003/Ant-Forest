@@ -16,13 +16,52 @@ let days_ident = [
     1, 2, 3, 4, 5, 6, 7,
 ].map(x => typeof x === 'string' ? x : x.toString());
 
+/**
+ * @typedef {{
+ *     is_async?: boolean,
+ *     callback?: function(org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask):*,
+ * }} TimedTaskOptExt
+ * @typedef {TimedTaskOptExt | {condition?: function():boolean}} TimedTaskOptExtWithCondition
+ * @typedef {{
+ *     path: string, delay?: number, interval?: number, loopTimes?: number,
+ * } | TimedTaskOptExt} TimedTaskOptBasic
+ * @typedef {{time: string|Date|number} | TimedTaskOptBasic} TimedTaskOptDaily
+ * @typedef {{daysOfWeek: (string|number)[]} | TimedTaskOptDaily} TimedTaskOptWeekly
+ * @typedef {{date: string|Date|number} | TimedTaskOptBasic} TimedTaskOptDisposable
+ */
 let ext = {
     /**
-     * @param {{
-     *     path: string, time: string|Date|number,
-     *     delay?: number, interval?: number, loopTimes?: number,
-     * }} options
-     * @param {boolean|'wait'} [wait_fg=false]
+     * @param {org.autojs.autojs.timing.TimedTask|org.autojs.autojs.timing.IntentTask} task
+     * @param {TimedTaskOptExtWithCondition} [options]
+     * @return {org.autojs.autojs.timing.TimedTask|null|*}
+     */
+    _taskFulfilled(task, options) {
+        if (!task) {
+            return null;
+        }
+        let _opt = options || {};
+        let _cond = typeof _opt.condition === 'function' ? _opt.condition : () => task.id > 0;
+        let _cbk = typeof _opt.callback === 'function' ? _opt.callback : null;
+        let _timeout = 3e3;
+        let _itv = 120;
+        let _run = () => waitForAction(_cond, _timeout, _itv) ? _cbk ? _cbk(task) : task : null;
+        if (!_opt.is_async) {
+            return _run();
+        }
+        try {
+            threads.start(new java.lang.Runnable({run: _run}));
+        } catch (e) {
+            let Ex = com.stardust.autojs.runtime.exception.ScriptInterruptedException;
+            let Throwable = java.lang.Throwable;
+            if (!Ex.causedByInterrupted(new Throwable(e))) {
+                if (!e.message.match(/script exiting/)) {
+                    throw Error(e + '\n' + e.stack);
+                }
+            }
+        }
+    },
+    /**
+     * @param {TimedTaskOptDaily} options
      * @example
      * timersx.addDailyTask({
      *     time: Date.now() + 3.6e6,
@@ -30,21 +69,16 @@ let ext = {
      * });
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    addDailyTask(options, wait_fg) {
+    addDailyTask(options) {
         let _opt = options || {};
         let _date_time = parseDateTime('LocalTime', _opt.time);
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
         let _task = addTask(TimedTask.dailyTask(_date_time, _path, _cfg));
-        return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, _opt);
     },
     /**
-     * @param {{
-     *     path: string, time: string|Date|number,
-     *     daysOfWeek: (string|number)[],
-     *     delay?: number, interval?: number, loopTimes?: number,
-     * }} options
-     * @param {boolean|'wait'} [wait_fg=false]
+     * @param {TimedTaskOptWeekly} options
      * @example
      * timersx.addWeeklyTask({
      *     time: Date.now() + 3.6e6,
@@ -53,7 +87,7 @@ let ext = {
      * });
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    addWeeklyTask(options, wait_fg) {
+    addWeeklyTask(options) {
         let _opt = options || {};
         let _time_flag = 0;
         for (let i = 0; i < _opt.daysOfWeek.length; i++) {
@@ -69,14 +103,10 @@ let ext = {
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
         let _task = addTask(TimedTask.weeklyTask(_date_time, _flag_num, _path, _cfg));
-        return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, _opt);
     },
     /**
-     * @param {{
-     *     path: string, date: string|Date|number,
-     *     delay?: number, interval?: number, loopTimes?: number,
-     * }} options
-     * @param {boolean|'wait'} [wait_fg=false]
+     * @param {TimedTaskOptDisposable} options
      * @example
      * timersx.addDisposableTask({
      *     path: engines.myEngine().source,
@@ -84,17 +114,16 @@ let ext = {
      * });
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    addDisposableTask(options, wait_fg) {
+    addDisposableTask(options) {
         let _opt = options || {};
         let _date_time = parseDateTime('LocalDateTime', _opt.date);
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
         let _task = addTask(TimedTask.disposableTask(_date_time, _path, _cfg)) || null;
-        return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, _opt);
     },
     /**
      * @param {{path:string,action?:string}} options
-     * @param {boolean|'wait'} [wait_fg=false]
      * @example
      * timersx.addIntentTask({
      *     path: files.path('./test.js'),
@@ -102,15 +131,15 @@ let ext = {
      * });
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    addIntentTask(options, wait_fg) {
+    addIntentTask(options) {
         let _opt = options || {};
-        let _task = addTask((() => {
+        let _task = addTask((function $iiFe() {
             let _i_task = new timing.IntentTask();
             _i_task.setScriptPath(files.path(_opt.path));
             _opt.action && _i_task.setAction(_opt.action);
             return _i_task;
         })()) || null;
-        return _task && (!wait_fg || waitForAction(() => _task.id !== 0, 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, _opt);
     },
     /**
      * @param {number} id
@@ -128,21 +157,27 @@ let ext = {
     },
     /**
      * @param {number} id
-     * @param {boolean|'wait'} [wait_fg=false]
+     * @param {TimedTaskOptExt} [options]
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    removeIntentTask(id, wait_fg) {
+    removeIntentTask(id, options) {
+        let _opt = options || {};
         let _task = removeTask(this.getIntentTask(id));
-        return _task && (!wait_fg || waitForAction(() => !this.getIntentTask(id), 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, Object.assign(_opt, {
+            condition: () => !this.getIntentTask(id),
+        }));
     },
     /**
      * @param {number} id
-     * @param {boolean|'wait'} [wait_fg=false]
+     * @param {TimedTaskOptExt} [options]
      * @returns {org.autojs.autojs.timing.TimedTask|null}
      */
-    removeTimedTask(id, wait_fg) {
+    removeTimedTask(id, options) {
+        let _opt = options || {};
         let _task = removeTask(this.getTimedTask(id));
-        return _task && (!wait_fg || waitForAction(() => !this.getTimedTask(id), 3e3, 120)) ? _task : null;
+        return this._taskFulfilled(_task, Object.assign(_opt, {
+            condition: () => !this.getTimedTask(id),
+        }));
     },
     /**
      * @template {org.autojs.autojs.timing.TimedTask} TIMED_TASK
@@ -249,11 +284,14 @@ function parseDateTime(clazz, date_time) {
  * @returns {TASK|null}
  */
 function addTask(task) {
-    if (!task) {
-        return null;
+    if (task) {
+        if (is_pro) {
+            TimedTaskMgr['addTaskSync'](task);
+        } else {
+            TimedTaskMgr.addTask(task);
+        }
     }
-    TimedTaskMgr[is_pro ? 'addTaskSync' : 'addTask'](task);
-    return task;
+    return task || null;
 }
 
 /**

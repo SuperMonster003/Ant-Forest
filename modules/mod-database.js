@@ -19,7 +19,7 @@
 let SQLiteDatabase = android.database.sqlite.SQLiteDatabase;
 let ContentValues = android.content.ContentValues;
 
-let isNullish = o => o === undefined || o === null;
+let isNullish = o => o === null || o === undefined;
 
 module.exports = {
     /**

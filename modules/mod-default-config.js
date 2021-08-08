@@ -45,9 +45,9 @@ module.exports = {
         // 1 <= x <= 5; to avoid infinite loop targets detection
         max_continuous_not_targeted_stroll_cycle: 3,
         // 1 <= x <= 8; size limitation for forest balls samples pool
-        forest_balls_pool_limit: 2,
-        // 50 <= x <= 500; interval between two samples when saving into forest balls samples pool
-        forest_balls_pool_itv: 240,
+        forest_image_pool_limit: 3,
+        // 10 <= x <= 500; interval between two samples when saving into forest balls samples pool
+        forest_image_pool_itv: 60,
         // rectangle region for energy balls recognition in forest page
         eballs_recognition_region: [0.1 /* cX */, 0.15 /* cYx */, 0.9 /* cX */, 0.45 /* cYx */],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
@@ -165,7 +165,7 @@ module.exports = {
         // confirmation won't prompt with truthy value before quit current running task
         prompt_before_running_quit_confirm: true,
         // default choices for a postponed minute
-        prompt_before_running_postponed_minutes_map: [1, 2, 3, 5, 10, 15, 20, 30],
+        prompt_before_running_postponed_minutes_choices: [1, 2, 3, 5, 10, 15, 20, 30, 60],
         // 0 for ask every time, other number like 1, 2, 5 for specific postponed minute
         prompt_before_running_postponed_minutes: 0,
         // record user selected value of postponed settings dialog in countdown dialog
@@ -215,7 +215,7 @@ module.exports = {
     },
     settings: {
         item_area_width: 0.78,
-        local_backup_path: (() => {
+        local_backup_path: (function $iiFe() {
             let _sep = java.io.File.separator;
             let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
             files.exists(_path) || files.createWithDirs(_path + _sep);

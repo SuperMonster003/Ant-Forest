@@ -5,6 +5,7 @@ require('./ext-colors').load();
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
+let Looper = android.os.Looper;
 let ActivityInfo = android.content.pm.ActivityInfo;
 let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
 let Dimensions = com.stardust.autojs.core.ui.inflater.util.Dimensions;
@@ -51,8 +52,30 @@ let ext = {
         let _req_o = _opt.requested_orientation;
         _req_o && this.setRequestedOrientation(_req_o);
     },
+    /**
+     * Script running in ui mode contains code like "'ui';".
+     * Different from {@code this.isUiThread}.
+     * @returns {boolean}
+     */
     isUiMode() {
         return typeof activity !== 'undefined';
+    },
+    /**
+     * Returns if current scope running in ui thread.
+     * Different from {@code this.isUiMode}.
+     * @example
+     * let _check = () => console.log(uix.isUiThread());
+     * _check(); // false
+     * dialogs.build({title: 'Test', positive: 'Exit'})
+     *     .on('positive', (d) => {
+     *         _check(); // false
+     *         ui.post(_check); // false
+     *         d.dismiss();
+     *     }).show();
+     * @returns {boolean}
+     */
+    isUiThread() {
+        return Looper.myLooper() === Looper.getMainLooper();
     },
     ensureUiMode() {
         if (!this.isUiMode()) {
@@ -87,11 +110,17 @@ let ext = {
 
         ExtLayout.prototype.render = renderGetter;
 
-        this.ensureWidgetExclusive(name);
+        if (!this._no_register_widget_exclusive_check) {
+            this.ensureWidgetExclusive(name);
+        }
         ui.registerWidget(name, ExtLayout);
 
         // constructor(s) //
 
+        /**
+         * @constructor
+         * @augments ui.Widget
+         */
         function ExtLayout() {
             ui.Widget.apply(this, arguments);
 
@@ -297,6 +326,8 @@ let ext = {
      * Register extended widget nodes whose name starts with 'x-'
      */
     $node() {
+        this._no_register_widget_exclusive_check = true;
+
         this.registerWidget('x-img', '/', {
             attr_name: 'tint_color',
             setter: (view, name, value) => ext.setImageTint(view, value),
@@ -336,7 +367,24 @@ let ext = {
                 return _setLineSpacing(_val);
             },
         }]);
+        this.registerWidget('x-button', '/', [{
+            attr_name: 'on_click',
+            setter(view, name, value) {
+                view.setOnClickListener(new Function('let _ =' + value + 'return _()'));
+            },
+        }, {
+            attr_name: 'text_color',
+            setter(view, name, value) {
+                view.setTextColor(colorsx.toInt(value));
+            },
+        }, {
+            attr_name: 'background_tint',
+            setter(view, name, value) {
+                view.setBackgroundTintList(colorsx.toColorStateList(value));
+            },
+        }]);
 
+        delete this._no_register_widget_exclusive_check;
         delete this.$node;
         return this;
     },

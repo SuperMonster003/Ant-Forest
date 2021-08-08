@@ -28,7 +28,7 @@ let ext = {
     /**
      * Copied from Auto.js 4.1.1 alpha2 source code by SuperMonster003 at Jan 10, 2021
      */
-    _MatchingResult: (function () {
+    _MatchingResult: (function $iiFe() {
         let _comparators = {
             'left': (l, r) => l.point.x - r.point.x,
             'top': (l, r) => l.point.y - r.point.y,
@@ -48,68 +48,68 @@ let ext = {
                 }
                 return this.__points__;
             });
-
-            this.first = function () {
-                return this.matches.length ? this.matches[0] : null;
-            };
-            this.last = function () {
-                return this.matches.length ? this.matches[this.matches.length - 1] : null;
-            };
-            this.findMax = function (cmp) {
-                if (!this.matches.length) {
-                    return null;
-                }
-                let target = this.matches[0];
-                this.matches.forEach(m => target = cmp(target, m) > 0 ? m : target);
-                return target;
-            };
-            this.leftmost = function () {
-                return this.findMax(_comparators.left);
-            };
-            this.topmost = function () {
-                return this.findMax(_comparators.top);
-            };
-            this.rightmost = function () {
-                return this.findMax(_comparators.right);
-            };
-            this.bottommost = function () {
-                return this.findMax(_comparators.bottom);
-            };
-            this.worst = function () {
-                return this.findMax((l, r) => l.similarity - r.similarity);
-            };
-            this.best = function () {
-                return this.findMax((l, r) => r.similarity - l.similarity);
-            };
-            this.sortBy = function (cmp) {
-                let comparatorFn = null;
-                if (typeof cmp == 'string') {
-                    cmp.split('-').forEach(direction => {
-                        let buildInFn = _comparators[direction];
-                        if (!buildInFn) {
-                            throw new Error('unknown direction \'' + direction + '\' in \'' + cmp + '\'');
-                        }
-                        (function (fn) {
-                            if (comparatorFn == null) {
-                                comparatorFn = fn;
-                            } else {
-                                comparatorFn = (function (comparatorFn, fn) {
-                                    return function (l, r) {
-                                        let cmpValue = comparatorFn(l, r);
-                                        return cmpValue === 0 ? fn(l, r) : cmpValue;
-                                    };
-                                })(comparatorFn, fn);
-                            }
-                        })(buildInFn);
-                    });
-                } else {
-                    comparatorFn = cmp;
-                }
-                let clone = this.matches.slice();
-                clone.sort(comparatorFn);
-                return new _Result(clone);
-            };
         }
+
+        _Result.prototype.first = function () {
+            return this.matches.length ? this.matches[0] : null;
+        };
+        _Result.prototype.last = function () {
+            return this.matches.length ? this.matches[this.matches.length - 1] : null;
+        };
+        _Result.prototype.findMax = function (cmp) {
+            if (!this.matches.length) {
+                return null;
+            }
+            let target = this.matches[0];
+            this.matches.forEach(m => target = cmp(target, m) > 0 ? m : target);
+            return target;
+        };
+        _Result.prototype.leftmost = function () {
+            return this.findMax(_comparators.left);
+        };
+        _Result.prototype.topmost = function () {
+            return this.findMax(_comparators.top);
+        };
+        _Result.prototype.rightmost = function () {
+            return this.findMax(_comparators.right);
+        };
+        _Result.prototype.bottommost = function () {
+            return this.findMax(_comparators.bottom);
+        };
+        _Result.prototype.worst = function () {
+            return this.findMax((l, r) => l.similarity - r.similarity);
+        };
+        _Result.prototype.best = function () {
+            return this.findMax((l, r) => r.similarity - l.similarity);
+        };
+        _Result.prototype.sortBy = function (cmp) {
+            let comparatorFn = null;
+            if (typeof cmp == 'string') {
+                cmp.split('-').forEach(direction => {
+                    let buildInFn = _comparators[direction];
+                    if (!buildInFn) {
+                        throw new Error('unknown direction \'' + direction + '\' in \'' + cmp + '\'');
+                    }
+                    (function (fn) {
+                        if (comparatorFn == null) {
+                            comparatorFn = fn;
+                        } else {
+                            comparatorFn = (function (comparatorFn, fn) {
+                                return function (l, r) {
+                                    let cmpValue = comparatorFn(l, r);
+                                    return cmpValue === 0 ? fn(l, r) : cmpValue;
+                                };
+                            })(comparatorFn, fn);
+                        }
+                    })(buildInFn);
+                });
+            } else {
+                comparatorFn = cmp;
+            }
+            let clone = this.matches.slice();
+            clone.sort(comparatorFn);
+            return new _Result(clone);
+        };
 
         return _Result;
     })(),
@@ -147,10 +147,96 @@ let ext = {
         }
         return r;
     },
+    ForestImagePool: (function $iiFe() {
+        /**
+         * @param {Object} [config]
+         * @param {number} [config.interval=120]
+         * @param {number} [config.limit=3]
+         */
+        function ImagePool(config) {
+            let _cfg = config || {};
+            let _imagesx = ext;
+            Object.defineProperty(this, '_data', {
+                value: [],
+            });
+            Object.defineProperty(this, 'data', {
+                get() {
+                    for (let i = 0; i < this._data.length; i += 1) {
+                        let _img = this._data[i];
+                        if (!_imagesx.isImageWrapper(_img) || _imagesx.isRecycled(_img)) {
+                            this._data.splice(i--, 1);
+                        }
+                    }
+                    return this._data;
+                },
+                enumerable: true,
+            });
+            this.interval = _cfg.interval || 120;
+            this.limit = _cfg.limit || 3;
+        }
+
+        ImagePool.prototype = {
+            get len() {
+                return this.data.length;
+            },
+            get filled_up() {
+                return this.len >= this.limit;
+            },
+            get overflow() {
+                return this.len > this.limit;
+            },
+            add(capt) {
+                let _imagesx = ext;
+                let _capt = capt || _imagesx.capt({clone: true});
+                debugInfo('添加森林采样: ' + _imagesx.getName(_capt));
+                this.data.unshift(_capt);
+                if (this.overflow) {
+                    debugInfo('采样样本数量超过阈值: ' + this.limit);
+                    while (this.overflow) {
+                        let _c = this.data.pop();
+                        debugInfo('>移除并回收最旧样本: ' + _imagesx.getName(_c));
+                        _imagesx.reclaim(_c);
+                    }
+                }
+            },
+            reclaimAll() {
+                let _imagesx = ext;
+                if (this.len) {
+                    debugInfo('回收全部森林采样');
+                    this.data.forEach((c) => {
+                        debugInfo('>已回收: ' + _imagesx.getName(c));
+                        _imagesx.reclaim(c);
+                    });
+                    this.clear();
+                    debugInfo('森林样本已清空');
+                }
+            },
+            clear() {
+                this.data.splice(0);
+            },
+        };
+
+        return ImagePool;
+    })(),
+    /**
+     * @param {ImageWrapper$} img
+     * @return {string}
+     */
     getName(img) {
-        let img_str = img.toString().split('@')[1];
-        return img_str ? '@' + img_str.match(/\w+/)[0] : '(已提前回收)';
+        try {
+            return '@' + img.toString().split('@')[1].match(/\w+/)[0];
+        } catch (e /* Null pointer */) {
+            try {
+                return img.getMat().toString().replace(/^.+nativeObj=0x\w+?(\w{7})\W.*$/, '$1');
+            } catch (e /* No implementation found for long org.opencv.core.Mat.n_Mat()... */) {
+                return '@unknown';
+            }
+        }
     },
+    /**
+     * @param {ImageWrapper$} img
+     * @return {{arr: number[], std: number, data: {R: number, B: number, G: number}, string: string}}
+     */
     getMean(img) {
         /** @type {number[]} */
         let _v = Core.mean(img.getMat()).val;
@@ -165,18 +251,18 @@ let ext = {
         };
     },
     isRecycled(img, is_strict) {
-        if (!img) {
+        if (!(img instanceof ImageWrapper)) {
             if (is_strict) {
                 throw Error('img is required for imagesx.isRecycled()');
             }
             return true;
         }
         try {
-            img.getHeight();
-            return false;
+            img.ensureNotRecycled();
         } catch (e) {
             return true;
         }
+        return false;
     },
     recycleGlobal() {
         let $_af = global.$$af = global.$$af || {};
@@ -198,27 +284,33 @@ let ext = {
         [].slice.call(arguments).forEach(i => this.isImageWrapper(i) && i.recycle());
     },
     /**
-     * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
+     * @typedef {Object} Imagesx$Capt$Options
+     * @property {number} [compress=0] - android.graphics.BitmapFactory.Options.inSampleSize
+     * @property {boolean} [clone=false] - if capture cloning needed or not
+     */
+    /**
+     * @param {Imagesx$Capt$Options} [options]
      * @returns {ImageWrapper$}
      */
-    capt(compress_level /* inSampleSize */) {
+    capt(options) {
+        let _opt = options || {};
+        let _compress = Number(_opt.compress || 0);
+        let _clone = Boolean(_opt.clone);
+
         let _err = null;
         let _max = 10;
         while (_max--) {
             try {
                 this.permit();
                 let _capt = images.captureScreen();
-
-                // prevent '_capt" from being recycled automatically
-                let _copy = _capt.clone();
-
-                this.reclaim(_capt);
-
-                if (typeof compress_level === 'number' && compress_level > 1) {
-                    return this.compress(_copy, compress_level, true);
+                if (_clone) {
+                    _capt = _capt.clone();
                 }
-                if (_copy instanceof ImageWrapper) {
-                    return _copy;
+                if (_compress > 1) {
+                    _capt = this.compress(_capt, _compress, true);
+                }
+                if (_capt instanceof ImageWrapper) {
+                    return _capt;
                 }
             } catch (e) {
                 _err = e;
@@ -232,18 +324,11 @@ let ext = {
         exit();
     },
     /**
-     * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
+     * @param {Imagesx$Capt$Options} [options]
      * @returns {ImageWrapper$}
      */
-    capture(compress_level) {
-        return this.capt(compress_level);
-    },
-    /**
-     * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
-     * @returns {ImageWrapper$}
-     */
-    captureScreen(compress_level) {
-        return this.capt(compress_level);
+    captureScreen(options) {
+        return this.capt(options);
     },
     /**
      * @typedef {
@@ -378,7 +463,7 @@ let ext = {
                     return require('./ext-engines').restart(_opt.restart_e_params);
                 }
             }
-            messageAction('截图权限申请失败', 8, 1, 0, 1);
+            messageAction('截图权限申请失败', 8, 4, 0, 1);
         });
 
         let _sco = _opt.screen_capturer_orientation;
@@ -425,7 +510,7 @@ let ext = {
         }
         let _opt = options || {};
         let _tpl = _byLocal() || _byBase64() || _byTemplate();
-        return _tpl && (() => {
+        return _tpl && (function $iiFe() {
             require('./ext-device').load();
             let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
             let _options = {
@@ -443,7 +528,7 @@ let ext = {
             ext.reclaim(_i, _t);
             devicex.screen_metrics.loadState();
             return _matched;
-        })() || (_opt.not_null ? {points: []} : null);
+        }).call(this) || (_opt.not_null ? {points: []} : null);
 
         // tool function(s) //
 
@@ -453,7 +538,7 @@ let ext = {
                 files.createWithDirs(_dir);
 
                 let _name = template + '_' + W + 'p';
-                let _ext = (() => {
+                let _ext = (function $iiFe() {
                     let _mch = _name.match(/\.(jpe?g|png|webp)$/);
                     return _mch ? _mch[1] : 'jpg';
                 })();
@@ -567,18 +652,27 @@ let ext = {
      * @param {{
      *     no_debug_info?: boolean,
      *     pool?: object,
-     *     keep_pool_data?: boolean,
      *     duration?: boolean,
      *     region?: number[],
+     *     config?: {
+     *         forest_image_pool_limit?: number,
+     *         forest_image_pool_itv?: number,
+     *     },
      * }} [options]
      * @returns {AfHoughBallsResult}
      */
     findAFBallsByHough(options) {
+        require('./ext-device').getDisplay(true, {is_debug_info: false});
+
         timeRecorder('hough_beginning');
         /** @type {{fill_up_pool: number, img_samples_processing: number}} */
         let _du = {};
         let _opt = options || {};
-        let _cfg = Object.assign(_def(), global.$$cfg || {});
+        let _opt_cfg = _opt.config || {};
+        let _cfg = Object.assign(_def(), global.$$cfg, {
+            forest_image_pool_limit: _opt_cfg.forest_image_pool_limit,
+            forest_image_pool_itv: _opt_cfg.forest_image_pool_itv,
+        });
         let _no_dbg = _opt.no_debug_info;
         let _dbg_bak;
         let _this = this;
@@ -602,58 +696,11 @@ let ext = {
          * }} EnergyBallsInfoClassified
          */
         /** @type {EnergyBallsInfoClassified} */
-        let _balls_data_o = {};
-        let _pool = _opt.pool || {
-            data: [],
-            interval: _cfg.forest_balls_pool_itv,
-            limit: _cfg.forest_balls_pool_limit,
-            get len() {
-                return this.data.length;
-            },
-            get filled_up() {
-                return this.len >= this.limit;
-            },
-            get overflow() {
-                return this.len > this.limit;
-            },
-            add(capt) {
-                let _capt = capt || _this.capt();
-                debugInfo('添加森林采样: ' + _this.getName(_capt));
-                this.data.unshift(_capt);
-                if (this.overflow) {
-                    debugInfo('采样样本数量超过阈值: ' + this.limit);
-                    while (this.overflow) {
-                        let _c = this.data.pop();
-                        debugInfo('>移除并回收最旧样本: ' + _this.getName(_c));
-                        _c.recycle();
-                        _c = null;
-                    }
-                }
-            },
-            reclaimAll() {
-                if (this.len) {
-                    debugInfo('回收全部森林采样');
-                    this.data.forEach((c) => {
-                        let _c_name = _this.getName(c);
-                        c.recycle();
-                        debugInfo('>已回收: ' + _c_name);
-                        c = null;
-                    });
-                    this.clear();
-                    debugInfo('森林样本已清空');
-                }
-            },
-            clear() {
-                this.data.splice(0);
-            },
-        };
-        let _capt = null;
-        let _capture = (t) => {
-            _capt = _this.capt();
-            sleep(t || 0);
-            return _capt;
-        };
-
+        let _balls_data_o = {ripe: [], naught: [], water: []};
+        let _pool = _opt.pool || new _this.ForestImagePool({
+            limit: _cfg.forest_image_pool_limit,
+            interval: _cfg.forest_image_pool_itv,
+        });
         _setWballExtFunction();
         _fillUpForestImgPool();
         _analyseEnergyBalls();
@@ -685,7 +732,7 @@ let ext = {
                 showDebugInfo() {
                     debugInfo('__split_line__dash__');
                     debugInfo('图像填池: ' + this.fill_up_pool + 'ms  ' + [
-                        _cfg.forest_balls_pool_itv, _cfg.forest_balls_pool_limit,
+                        _pool.interval, _pool.limit,
                     ].join(', ').surround('[ '));
                     this._map.filter(a => this[a[0]]).forEach((a) => {
                         debugInfo(a[1] + ': ' + this[a[0]] + 'ms');
@@ -747,14 +794,10 @@ let ext = {
             }
             if (!ext.isWaterBall) {
                 ext.isWaterBall = (o, capt, container) => {
-                    let _ctx = o.x;
-                    let _cty = o.y;
-                    let _cty_max = cYx(386);
-
-                    if (_cty > _cty_max) {
+                    let {x: _ctx, y: _cty} = o;
+                    if (_cty > cYx(386)) {
                         return false;
                     }
-
                     let _capt = capt || _this.capt();
                     let _hue_max = _cfg.homepage_wball_max_hue_no_blue;
                     let _offset_x = o.r * Math.sin(30 * Math.PI / 180);
@@ -764,20 +807,13 @@ let ext = {
                     let _x_max = _ctx + _offset_x;
                     let _y_max = _cty + _offset_y;
                     let _step = 2;
-                    let _result = _progress(_x_min, _step, _y_min, _step);
-
-                    if (!capt) {
-                        _this.reclaim(_capt);
-                        _capt = null;
-                    }
-
-                    return _result;
+                    return _progress(_x_min, _step, _y_min, _step);
 
                     // tool function(s) //
 
                     function _progress(x_min, x_step, y_min, y_step) {
                         while (x_min <= _x_max && y_min <= _y_max) {
-                            if (_hit(_capt, x_min, y_min)) {
+                            if (_hit(x_min, y_min)) {
                                 if (Array.isArray(container)) {
                                     container.push(o);
                                 }
@@ -788,8 +824,8 @@ let ext = {
                         }
                     }
 
-                    function _hit(capt, x, y) {
-                        let _col = images.pixel(capt, x, y);
+                    function _hit(x, y) {
+                        let _col = images.pixel(_capt, x, y);
                         let _red = colors.red(_col);
                         let _green = colors.green(_col);
                         // hue value in HSB mode without blue component
@@ -814,11 +850,6 @@ let ext = {
                         threshold: _cfg.ripe_ball_detect_threshold,
                     });
 
-                    if (!capt) {
-                        _this.reclaim(_capt);
-                        _capt = null;
-                    }
-
                     if (_result) {
                         if (Array.isArray(container)) {
                             container.push(o);
@@ -833,11 +864,14 @@ let ext = {
             timeRecorder('fill_up_pool');
             let _max = _pool.limit + 1;
             while (_max--) {
-                _pool.add(_capture());
+                timeRecorder('forest_pool_add');
+                _pool.add();
                 if (!_pool.len || _pool.filled_up) {
                     break;
                 }
-                sleep(_pool.interval);
+                let _et = timeRecorder('forest_pool_add', 'L');
+                let _itv = Math.max(0, _pool.interval - _et);
+                _itv && sleep(_itv);
             }
             _du.fill_up_pool = timeRecorder('fill_up_pool', 'L');
         }
@@ -847,17 +881,14 @@ let ext = {
             _pool.data.forEach(_parse);
             debugInfo('森林页面样本能量球分析完毕');
             debugInfo('解析的能量球数量: ' + _balls_data.length);
-            _balls_data.forEach((o) => {
-                _balls_data_o[o.type] = _balls_data_o[o.type] || [];
-                _balls_data_o[o.type].push(o);
-            });
-            _opt.pool && _opt.keep_pool_data || _pool.reclaimAll();
+            _balls_data.forEach(o => _balls_data_o[o.type].push(o));
+            _opt.pool || _pool.reclaimAll();
 
             // tool function(s) //
 
             function _parse(capt) {
                 if (!capt || _this.isRecycled(capt)) {
-                    capt = _this.capt();
+                    return;
                 }
                 let [_l, _t, _r, _b] = _region;
                 let [_w, _h] = [_r - _l, _b - _t];
@@ -886,15 +917,13 @@ let ext = {
 
                 /** @type {EnergyBallsBasicProp[]} */
                 let _balls = []
-                    .concat(_getBalls(_src_img_stg.gray && _gray))
-                    .concat(_getBalls(_adapt_thrd))
-                    .concat(_getBalls(_med_blur))
-                    .concat(_getBalls(_blur))
-                    .concat(_getBalls(_blt_fltr))
+                    .concat(_getBalls(_src_img_stg.gray && _gray, true))
+                    .concat(_getBalls(_adapt_thrd, true))
+                    .concat(_getBalls(_med_blur, true))
+                    .concat(_getBalls(_blur, true))
+                    .concat(_getBalls(_blt_fltr, true))
                     .filter(_filterWball)
                     .sort(_sortX);
-
-                _reclaimImages();
 
                 if (_wballs.length + _balls.length) {
                     _antiOverlap();
@@ -915,11 +944,6 @@ let ext = {
                         _du[name] ? _du[name] = _et : _du[name] += _et;
                         return _img;
                     }
-                }
-
-                function _reclaimImages() {
-                    _this.reclaim(_gray, _adapt_thrd, _med_blur, _blur, _blt_fltr);
-                    _gray = _adapt_thrd = _med_blur = _blur = _blt_fltr = null;
                 }
 
                 function _antiOverlap() {
@@ -1060,8 +1084,10 @@ let ext = {
                         return ext.isRipeBall(o, capt);
                     }
 
-                    /** @typedef {EnergyBallsBasicProp | EnergyBallsExtProp} EnergyBallsMixedProp */
-                    /** @typedef {EnergyBallsMixedProp | {type: EnergyBallsType}} EnergyBallsInfo */
+                    /**
+                     * @typedef {EnergyBallsBasicProp | EnergyBallsExtProp} EnergyBallsMixedProp
+                     * @typedef {EnergyBallsMixedProp | {type: EnergyBallsType}} EnergyBallsInfo
+                     */
                     /**
                      * @param {EnergyBallsMixedProp} o
                      * @param {EnergyBallsType} type
@@ -1139,15 +1165,18 @@ let ext = {
                 /**
                  * @returns {EnergyBallsBasicProp[]|[]}
                  */
-                function _getBalls(img, par1, par2) {
-                    return !img ? [] : images
+                function _getBalls(img, is_recycle_img) {
+                    if (!img) {
+                        return [];
+                    }
+                    let _img = images
                         .findCircles(img, {
                             dp: 1,
                             minDist: _min_dist,
                             minRadius: cX(0.054),
                             maxRadius: cX(0.078),
-                            param1: par1 || 15,
-                            param2: par2 || 15,
+                            param1: 15,
+                            param2: 15,
                             region: [_l, _t, _w, _h],
                         })
                         .map((o) => {
@@ -1163,15 +1192,19 @@ let ext = {
                             _clip = null;
                             return {x: _x, y: _y, r: _r, mean: _mean};
                         })
-                        .filter(o => (
-                            o.x - o.r >= _l &&
-                            o.x + o.r <= _r &&
-                            o.y - o.r >= _t &&
-                            o.y + o.r <= _b &&
-                            // excluding homepage cloud(s)
-                            o.mean.std > 20
-                        ))
+                        .filter((o) => {
+                            return o.x - o.r >= _l
+                                && o.x + o.r <= _r
+                                && o.y - o.r >= _t
+                                && o.y + o.r <= _b
+                                // excluding homepage cloud(s)
+                                && o.mean.std > 20;
+                        })
                         .sort(_sortX);
+                    if (is_recycle_img) {
+                        _this.reclaim(img);
+                    }
+                    return _img;
                 }
 
                 function _sortX(a, b) {
@@ -1203,8 +1236,8 @@ let ext = {
                     anti_ovl: true, symmetrical: true, linear_itp: true,
                 },
                 min_balls_distance: 0.09,
-                forest_balls_pool_limit: 2,
-                forest_balls_pool_itv: 240,
+                forest_image_pool_limit: 3,
+                forest_image_pool_itv: 60,
                 homepage_wball_max_hue_no_blue: 47,
             };
         }
@@ -1457,7 +1490,7 @@ let ext = {
     findImage(img, template, options) {
         let _opt = options || {};
         let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
-        let _result = (() => {
+        let _result = (function $iiFe() {
             if (_lv <= 1) {
                 return images.findImage(img, template, options);
             }
@@ -1470,7 +1503,7 @@ let ext = {
             ext.reclaim(_img, _tpl);
             devicex.screen_metrics.loadState();
             return _res && new Point(_res.x * _lv, _res.y * _lv);
-        })();
+        }).call(this);
         if (_opt.is_recycle_all) {
             ext.reclaim(img, template);
         } else {
@@ -1487,7 +1520,7 @@ let ext = {
      * @param {boolean} [options.no_toast_msg_flag=false]
      * @param {number} [options.fetch_times=1]
      * @param {number} [options.fetch_interval=100]
-     * @param {boolean} [options.debug_info_flag=false]
+     * @param {boolean} [options.is_debug_info=undefined]
      * @param {number} [options.timeout=60e3] -- no less than 5e3
      * @example
      * require('ext-a11y').load();
@@ -1503,6 +1536,8 @@ let ext = {
             return [];
         }
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
         let _tt = _opt.timeout || 60e3;
         if (!+_tt || _tt < 5e3) {
             _tt = 5e3;
@@ -1513,7 +1548,7 @@ let ext = {
         let _capt = _opt.capt_img || this.capt();
 
         let _msg = '使用baiduOcr获取数据';
-        debugInfo(_msg);
+        debugInfo$(_msg);
         _opt.no_toast_msg_flag || toast(_msg);
 
         let _token = '';
@@ -1528,7 +1563,7 @@ let ext = {
                         '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
                         '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj')
                         .body.json()['access_token'];
-                    debugInfo('access_token准备完毕');
+                    debugInfo$('access_token准备完毕');
                     break;
                 } catch (e) {
                     sleep(200);
@@ -1570,7 +1605,7 @@ let ext = {
                 }
                 let _cur = _max_b - _max;
                 let _suffix = _max_b > 1 ? ' [' + _cur + '] ' : '';
-                debugInfo('stitched image' + _suffix + '准备完毕');
+                debugInfo$('stitched image' + _suffix + '准备完毕');
 
                 try {
                     let _words = JSON.parse(http.post('https://aip.baidubce.com/' +
@@ -1580,7 +1615,7 @@ let ext = {
                         image_type: 'BASE64',
                     }).body.string())['words_result'];
                     if (_words) {
-                        debugInfo('数据' + _suffix + '获取成功');
+                        debugInfo$('数据' + _suffix + '获取成功');
                         _res.push(_words.map(val => val['words']));
                     }
                 } catch (e) {

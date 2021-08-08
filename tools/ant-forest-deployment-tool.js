@@ -24,6 +24,8 @@ let URL = java.net.URL;
 let Request = Packages.okhttp3.Request;
 let HttpURLConnection = java.net.HttpURLConnection;
 
+let isNullish = o => o === null || o === undefined;
+
 !function () {
     'use strict';
 
@@ -303,7 +305,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             let _onSuccess = _cbk.onDeploySuccess || _cbk.onSuccess || (r => r);
             let _onFailure = _cbk.onDeployFailure || _cbk.onFailure || console.error;
 
-            if (version === undefined || version === null) {
+            if (isNullish(version)) {
                 throw Error('A version for appx.deployProject() must be defined');
             }
             if (typeof version === 'string') {
@@ -330,7 +332,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             // like: 'v2.0.4.zip'
             let _file_full_name = _file_name + '.' + _file_ext;
             // like: '/sdcard/.local/bak/ant-forest'
-            let _bak_path = (() => {
+            let _bak_path = (function $iiFe() {
                 let _sep = File.separator;
                 let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
                 files.exists(_path) || files.createWithDirs(_path + _sep);
@@ -464,7 +466,11 @@ let HttpURLConnection = java.net.HttpURLConnection;
         /**
          * @example
          * console.log(appx.getProjectLocal().version_name); // like: 'v2.0.2 Alpha2'
-         * @returns {{version_name: string, version_code: number, main: string, path: string}}
+         * @returns {{
+         *     version_name: string,
+         *     version_code: number,
+         *     main: {name: string, path: string},
+         *     path: string,
          */
         getProjectLocal() {
             let _ver_name = '';
@@ -481,7 +487,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             let _res = {
                 version_name: _ver_name,
                 version_code: _ver_code,
-                main: _main_path,
+                main: {name: _main_name, path: _main_path},
                 path: _path,
             };
             if (files.exists(_json_path)) {
@@ -490,7 +496,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
                     return Object.assign(_res, {
                         version_name: 'v' + _o.versionName,
                         version_code: Number(_o.versionCode),
-                        main: _o.main,
+                        main: {name: _o.main, path: _path + _sep + _o.main},
                     });
                 } catch (e) {
                     console.warn(e.message);
@@ -786,7 +792,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             function _showEarlier() {
                 dialogsx
                     .builds(['选择一个历史版本记录', '', 0, 0, 'B', 1], {
-                        items: (() => {
+                        items: (function $iiFe() {
                             let _items = [];
                             for (let i = 1; i < _ver_num; i += 1) {
                                 _items.push('v' + i + '.x');
@@ -889,7 +895,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             let _local_ver_name = _appx.getProjectLocalVerName();
             let _local_ver_hex = _appx.getVerHex(_local_ver_name);
 
-            let _def_bak_path = (() => {
+            let _def_bak_path = (function $iiFe() {
                 let _sep = File.separator;
                 let _path = files.getSdcardPath() + '/.local/bak/ant-forest';
                 files.exists(_path) || files.createWithDirs(_path + _sep);
@@ -988,9 +994,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
                 let _project_structure_names = _appx._project_structure.map(o => o.name.replace(/^\//, ''));
                 filesx.copy(_proj_path, _tmp_path, {
                     is_unbundled: true,
-                    filter: function (name) {
-                        return !!~_project_structure_names.indexOf(name);
-                    },
+                    filter: name => _project_structure_names.indexOf(name) > -1,
                 });
 
                 return _tmp_path;
@@ -1195,7 +1199,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
                 if (typeof _cbk.onDownloadFailure === 'function') {
                     _cbk.onDownloadFailure(e);
                 } else {
-                    throw Error(e);
+                    throw Error(e + '\n' + e.stack);
                 }
             };
             if (!url) {
@@ -1972,7 +1976,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
                 _c = typeof color === 'string' ? colors.parseColor(color) : color;
             } catch (e) {
                 console.error('Passed color: ' + color);
-                throw Error(e);
+                throw Error(e + '\n' + e.stack);
             }
             if (typeof _c !== 'number') {
                 throw TypeError('Unknown type of color for colorsx.toInt()');
@@ -1994,7 +1998,7 @@ let HttpURLConnection = java.net.HttpURLConnection;
             } catch (e) {
                 let _regexp = /(Script)?InterruptedEx|script exiting/;
                 if (!e.message.match(_regexp) && !no_err_msg) {
-                    throw Error(e);
+                    throw Error(e + '\n' + e.stack);
                 }
             }
         },
@@ -2075,19 +2079,19 @@ let HttpURLConnection = java.net.HttpURLConnection;
         },
         _text: {
             /**
-             * @description F: finish
-             * @description B: back
-             * @description Q: quit
-             * @description X: exit
-             * @description I: interrupt
-             * @description K: ok
-             * @description S: sure
-             * @description C: close
-             * @description D: delete
-             * @description N: continue
-             * @description M: sure to modify
-             * @description R: reset to default
-             * @description T: show details
+             * @description F: finish (zh-CN: 完成)
+             * @description B: back (zh-CN: 返回)
+             * @description Q: quit (zh-CN: 放弃)
+             * @description X: exit (zh-CN: 退出)
+             * @description I: interrupt (zh-CN: 终止)
+             * @description K: ok (zh-CN: 确定)
+             * @description S: sure (zh-CN: 确认)
+             * @description C: close (zh-CN: 关闭)
+             * @description D: delete (zh-CN: 删除)
+             * @description N: continue (zh-CN: 继续)
+             * @description M: sure to modify (zh-CN: 确认修改)
+             * @description R: reset to default (zh-CN: 使用默认值)
+             * @description T: show details (zh-CN: 了解更多)
              * @typedef {'F'|'B'|'Q'|'X'|'I'|'K'|'S'|'C'|'D'|'N'|'M'|'R'|'T'} DialogsxButtonText
              */
             _btn: {
@@ -2227,15 +2231,14 @@ let HttpURLConnection = java.net.HttpURLConnection;
                 return _dialogsx._text._btn[text] || text;
             }
         },
-        /** @typedef {string|[string, DialogsxColorTitle]} Builds$title */
-        /** @typedef {string|[string, DialogsxColorContent]} Builds$content */
+        /** @typedef {string|*|[string, DialogsxColorTitle]} Builds$title */
+        /** @typedef {string|*|[string, DialogsxColorContent]} Builds$content */
         /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$neutral */
         /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$negative */
         /** @typedef {DialogsxButtonText|[DialogsxButtonText, DialogsxColorButton]|number} Builds$positive */
         /** @typedef {number|boolean} Builds$keep */
         /** @typedef {number|boolean|string} Builds$checkbox */
-        /**
-         * @param {
+        /** @typedef {
          *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep, Builds$checkbox]|
          *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive, Builds$keep]|
          *     [Builds$title, Builds$content, Builds$neutral, Builds$negative, Builds$positive]|
@@ -2243,11 +2246,20 @@ let HttpURLConnection = java.net.HttpURLConnection;
          *     [Builds$title, Builds$content, Builds$neutral]|
          *     [Builds$title, Builds$content]|
          *     [Builds$title]|string
-         * } props
-         * @param {DialogsBuildProperties | {
+         * } Builds$Properties
+         */
+        /**
+         * @typedef {DialogsBuildProperties | {
          *     disable_back?: boolean|function,
          *     linkify?: Dialogsx$Linkify$Mask,
-         * }} [ext]
+         *     background?: 'background_dark'|'background_light'|'black'|'darker_gray'|'holo_blue_bright'|'holo_blue_dark'|'holo_blue_light'|'holo_green_dark'|'holo_green_light'|'holo_orange_dark'|'holo_orange_light'|'holo_purple'|'holo_red_dark'|'holo_red_light'|'primary_text_dark'|'primary_text_dark_nodisable'|'primary_text_light'|'primary_text_light_nodisable'|'secondary_text_dark'|'secondary_text_dark_nodisable'|'secondary_text_light'|'secondary_text_light_nodisable'|'tab_indicator_text'|'tertiary_text_dark'|'tertiary_text_light'|'transparent'|'white'|'widget_edittext_dark'|'#RRGGBB'|'#AARRGGBB'|string|number,
+         *     animation?: 'default'|'activity'|'dialog'|'input_method'|'toast'|'translucent'|string,
+         *     dim_amount?: number,
+         * }} Builds$Extensions
+         */
+        /**
+         * @param {Builds$Properties|Builds$Extensions} props
+         * @param {Builds$Extensions} [ext]
          * @returns {JsDialog$}
          */
         builds(props, ext) {

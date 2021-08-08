@@ -5,13 +5,20 @@ global.$$a11y = typeof global.$$a11y === 'object' ? global.$$a11y : {};
 
 let Rect = android.graphics.Rect;
 let Point = org.opencv.core.Point;
-let Secure = android.provider.Settings.Secure;
+let Intent = android.content.Intent;
 let UiObject = com.stardust.automator.UiObject;
+
+let Settings = android.provider.Settings;
+let Secure = Settings.Secure;
+
 let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
+let AccessibilityService = com.stardust.autojs.core.accessibility.AccessibilityService;
 
 let ctx_reso = context.getContentResolver();
-let autojs_a11y_svc = context.getPackageName() + '/com.stardust.autojs' +
-    '.core.accessibility.AccessibilityService';
+let autojs_a11y_svc_name = context.getPackageName() + '/' +
+    new AccessibilityService().getClass().getName();
+
+let isNullish = o => o === null || o === undefined;
 
 let ext = {
     /**
@@ -19,7 +26,7 @@ let ext = {
      * @returns {{svc: [string], forcible: boolean}}
      */
     _parseArgs(args) {
-        let _svc = [autojs_a11y_svc];
+        let _svc = [autojs_a11y_svc_name];
         let _forcible = false;
         let _type0 = typeof args[0];
         if (_type0 !== 'undefined') {
@@ -224,7 +231,7 @@ let ext = {
         if (Array.isArray(services)) {
             _services = services.slice();
         } else if (typeof services === 'undefined') {
-            _services = [autojs_a11y_svc];
+            _services = [autojs_a11y_svc_name];
         } else if (typeof services === 'string') {
             _services = [services];
         } else {
@@ -270,7 +277,9 @@ let ext = {
              *     -- 'txt': available text()/desc() value or empty string
              *     -- 'clickable': boolean value of widget.clickable()
              *     -- 'wc': widget collection which is traversable
-             * @param {*} [default_value]
+             * @param {Object} [options]
+             * @param {*} [options.default]
+             * @param {boolean} [options.refresh=false]
              * @example
              * // text/desc/id('abc').findOnce();
              * pickup('abc'); // UiObject
@@ -317,7 +326,11 @@ let ext = {
              * pickup([{className: 'Button'}, 'p5c1>0>0>0>1s-1']);
              * @returns {SelectorPickupResult}
              */
-            pickup(selector, result_type, default_value) {
+            pickup(selector, result_type, options) {
+                let _opt = options || {};
+
+                _opt.refresh && ext.service.refreshServiceInfo();
+
                 let _sel_data = _getSelectorData(selector);
                 /** @type {BaseSelector} */
                 let _base = _sel_data.base;
@@ -329,12 +342,9 @@ let ext = {
                 let _res_type = _getResultType(result_type);
                 let _selector = _getAssembledSelector(_base, _addi);
                 let {w: _w, wc: _wc, sel: _sel} = _getWidgetInfo(_selector);
-                let _result = _getResult();
+                let _res = _getResult();
 
-                if (_result !== null && _result !== undefined) {
-                    return _result;
-                }
-                return default_value === undefined ? null : default_value;
+                return !isNullish(_res) ? _res : 'default' in _opt ? _opt.default : null;
 
                 // tool function(s)//
 
@@ -404,7 +414,7 @@ let ext = {
                         cn$: 'className',
                     };
 
-                    if (base === null || base === undefined) {
+                    if (isNullish(base)) {
                         return null;
                     }
 
@@ -788,6 +798,27 @@ let ext = {
             },
         };
         return Object.assign($_sel, $_sel_ext);
+    },
+    enableByRoot() {
+        try {
+            let _cmd = ['enabled=$(settings get secure enabled_accessibility_services)',
+                'pkg=' + autojs_a11y_svc_name, 'if [[ $enabled == *$pkg* ]]',
+                'then', 'echo already_enabled', 'else', 'enabled=$pkg:$enabled',
+                'settings put secure enabled_accessibility_services $enabled',
+                'fi', 'settings put secure accessibility_enabled 1'].join('\n');
+            return shell(_cmd, true).code === 0;
+        } catch (e) {
+            return false;
+        }
+    },
+    enableByRootAndWaitFor(timeout) {
+        let _tt = timeout || 1e3;
+        return this.enableByRoot() && AccessibilityService.Companion.waitForEnabled(_tt);
+    },
+    goToAccessibilitySetting() {
+        let _intent = new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(_intent);
     },
 };
 
