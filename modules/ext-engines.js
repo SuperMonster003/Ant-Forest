@@ -103,7 +103,7 @@ let ext = {
      * <br>
      *     -- *DEFAULT* - old engine task <br>
      *     -- new file - like 'hello.js', '../hello.js' or 'hello'
-     * @param {boolean|string} [options.is_debug_info=undefined]
+     * @param {boolean} [options.is_debug_info=undefined]
      * @param {number} [options.max_restart_e_times=1] - max restart times for avoiding infinite recursion
      * @param {boolean} [options.instant_run_flag] - whether to perform an instant run or not
      * @example

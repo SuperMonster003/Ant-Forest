@@ -251,7 +251,7 @@ let ext = {
             return this.isAcPlugged() || this.isUsbPlugged() || this.isWirelessPlugged();
         },
         isPluggedAndStayingOn() {
-            let _state = ext.stay_on_while_plugged_in.get(true); // 0-7
+            let _state = ext.stay_on_while_plugged_in.get(); // 0-7
             let _isOn = x => (x & _state) === x;
             return this.isAcPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_AC)
                 || this.isUsbPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_USB)
@@ -1373,13 +1373,13 @@ function StateManager(provider, key, data_type, state_set) {
     this.state_set = state_set;
 
     let _ctx_reso = context.getContentResolver();
-    this.get = function (no_debug_info) {
+    this.get = function (is_debug_info) {
         let _val = _parseGetFnAndCall(_ctx_reso, Provider[key]);
-        no_debug_info || debugInfo(key + ' -> ' + _val);
+        debugInfo(key + ' -> ' + _val, 0, is_debug_info);
         return _val;
     };
-    this.put = function (value, no_debug_info) {
-        no_debug_info || debugInfo(key + ' <- ' + value);
+    this.put = function (value, is_debug_info) {
+        debugInfo(key + ' <- ' + value, 0, is_debug_info);
         return _parsePutFnAndCall(_ctx_reso, Provider[key], value);
     };
     this.verify = function (value) {

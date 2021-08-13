@@ -294,7 +294,6 @@ function messageAction(msg, msg_level, is_toast, arrow, split_line) {
  * showSplitLine();
  * showSplitLine('\n');
  * showSplitLine('', 'dash');
- * @returns {boolean} - always true
  */
 function showSplitLine(extra, style) {
     console.log((

@@ -5,6 +5,8 @@ require('./ext-app').load();
 require('./ext-ui').load();
 require('./ext-colors').load();
 
+let KeyEvent = android.view.KeyEvent;
+
 uix.registerWidget('mem-info-text', <x-text
     gravity="center" padding="5 0 5 24" size="18"
     fontFamily="sans-serif-condensed" line_spacing="5cx"
@@ -68,12 +70,8 @@ let _getViewConfig = function () {
                     dim_amount: 85,
                 }).on('neutral', (d) => {
                     setTimeout(() => d.dismiss(), 100);
-                    dialogsx.builds([['关于进程重启', '#64B5F6'],
-                        ['脚本调用如下代码片段\n\n' +
-                        'Process.killProcess(Process.myPid());\n\n' +
-                        '杀死当前应用活动的进程\n此操作将清理进程内所有资源\n' +
-                        '由于ActivityManager时刻监听进程\n' +
-                        '一旦发现进程非正常结束\n它将试图重启此进程', '#80D6FF'],
+                    dialogsx.builds([['关于进程重启', '#64b5f6'],
+                        ['about_process_restart', '#80d6ff'],
                         0, 0, ['B', '#a5d6a7'], 1,
                     ], {
                         background: colorsx.hrgba('#00005144'),
@@ -97,14 +95,14 @@ let _getViewConfig = function () {
             text_color: colorsx.hrgba('#ffebeedd'),
         },
         btn_close: {
-            on_click: _exitNow,
+            on_click: $exit,
             background_tint: colorsx.hrgba('#1b5e20dd'),
             text_color: colorsx.hrgba('#e8f5e9dd'),
         },
         btn_help: {
             on_click() {
-                dialogsx.builds([['开发未完成', '#63c2ef'],
-                    ['将于后续版本完善此处内容...', '#80D6FF'],
+                dialogsx.builds([['关于内存信息', '#64b5f6'],
+                    ['about_memory_info', '#80d6ff'],
                     0, 0, ['B', '#a5d6a7'], 1,
                 ], {
                     background: colorsx.hrgba('#00005144'),
@@ -161,7 +159,7 @@ let _export = {
 
 typeof module === 'object' ? (module.exports = _export) : _export.show();
 
-// main function //
+// key function(s) //
 
 /**
  * @typedef {{
@@ -186,8 +184,24 @@ function $main(options) {
     ui.run(() => {
         _setView();
         global._$_itv_set_view = setInterval(_setView, 1e3);
-        global._$_tt_timeout = setTimeout(() => _exitNow('悬浮窗超时自动关闭'), 3.6e6);
+        global._$_tt_timeout = setTimeout(() => $exit('悬浮窗超时自动关闭'), 3.6e6);
     });
+}
+
+function $exit(msg) {
+    if (typeof msg === 'string') {
+        toast(msg);
+    }
+    if (typeof global._$_diag_mem_info !== 'undefined') {
+        global._$_diag_mem_info.dismiss();
+    }
+    if (typeof global._$_itv_set_view === 'number') {
+        clearInterval(global._$_itv_set_view);
+    }
+    if (typeof global._$_tt_timeout === 'number') {
+        clearTimeout(global._$_tt_timeout);
+    }
+    ui.post(() => exit());
 }
 
 // tool function(s) //
@@ -258,11 +272,9 @@ function _applyOptions(o) {
 function _setListeners() {
     _diag.setOnKeyListener({
         onKey(diag, key_code) {
-            if (key_code === android.view.KeyEvent.KEYCODE_BACK) {
-                _exitNow();
-                return true;
-            }
-            return false;
+            let _is_back = key_code === KeyEvent.KEYCODE_BACK;
+            _is_back && $exit();
+            return _is_back;
         },
     });
 }
@@ -278,20 +290,4 @@ function _setView() {
 
 function _digest(title, used, total, pct) {
     return title + '\n' + [$$cvt.bytes(used), $$cvt.bytes(total), pct].join(' | ');
-}
-
-function _exitNow(msg) {
-    if (typeof msg === 'string') {
-        toast(msg);
-    }
-    if (typeof global._$_diag_mem_info !== 'undefined') {
-        global._$_diag_mem_info.dismiss();
-    }
-    if (typeof global._$_itv_set_view === 'number') {
-        clearInterval(global._$_itv_set_view);
-    }
-    if (typeof global._$_tt_timeout === 'number') {
-        clearTimeout(global._$_tt_timeout);
-    }
-    ui.post(() => exit());
 }

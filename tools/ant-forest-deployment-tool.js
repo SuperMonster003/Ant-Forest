@@ -471,6 +471,7 @@ let isNullish = o => o === null || o === undefined;
          *     version_code: number,
          *     main: {name: string, path: string},
          *     path: string,
+         * }}
          */
         getProjectLocal() {
             let _ver_name = '';

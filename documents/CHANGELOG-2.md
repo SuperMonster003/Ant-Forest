@@ -2,6 +2,13 @@
 ### 版本历史 - 2.x
 ******
 
+# v2.1.8
+###### 2021/08/13
+* `修复` 配置工具对话框监听器this指针绑定失效的问题 _[`issue #513`](https://github.com/SuperMonster003/Ant-Forest/issues/513)_ _[`#511`](https://github.com/SuperMonster003/Ant-Forest/issues/511#issuecomment-896448713)_
+* `修复` 森林主页监控成熟能量球时可能引起设备关屏的问题 (试修) _[`issue #508`](https://github.com/SuperMonster003/Ant-Forest/issues/508)_
+* `优化` 完善内存信息工具内的提示信息
+* `优化` 去除控制台消息在简略模式下的部分无关内容
+
 # v2.1.7
 ###### 2021/08/08
 * `新增` 内存信息工具 (简易) (/tools/auto.js-memory-info-tool.js)

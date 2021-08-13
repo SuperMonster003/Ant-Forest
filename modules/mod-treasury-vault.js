@@ -965,6 +965,46 @@ module.exports = {
             '采用"控件滑动"策略时\n' +
             '无法指定滑动时长\n' +
             '由"无障碍行为"决定控件的滚动时长',
+        about_memory_info: // 关于内存信息
+            'System Memory: 系统内存\n' +
+            '剩余内存 | 总内存 | 使用率\n' +
+            '\n' +
+            'Runtime Heap: JVM堆内存\n' +
+            'JVM总内存-JVM空闲内存 | JVM可用最大内存 | 使用率\n' +
+            '\n' +
+            'Process Heap: 进程堆内存\n' +
+            '\'summary.java-heap\' | JVM可用最大内存 | 使用率\n' +
+            '\n' +
+            'PSS (Proportional Set Size): 实际使用的物理内存 (比例分配共享库占用的内存)\n' +
+            'USS (Unique Set Size): 进程独自占用的物理内存 (不包含共享库占用的内存)\n' +
+            '\n' +
+            '* JVM堆内存会定期回收\n' +
+            '* 进程堆内存更新频率较慢\n' +
+            '* 当任意内存使用率超过90%时建议重启进程\n' +
+            '\n' +
+            '* 相关内存信息对应的伪代码\n' +
+            '\n' +
+            'ActivityManager.MemoryInfo > totalMem - 系统总内存\n' +
+            'ActivityManager.MemoryInfo > availMem - 系统剩余内存\n' +
+            '\n' +
+            'Runtime > totalMemory() - JVM总内存\n' +
+            'Runtime > freeMemory() - JVM空闲内存\n' +
+            'Runtime > maxMemory() - JVM可用最大内存\n' +
+            '\n' +
+            'Debug.MemoryInfo > getTotalSharedDirty()\n' +
+            '- RSS (Resident Set Size) - 实际使用物理内存 (包含共享库占用的内存)\n' +
+            'Debug.MemoryInfo > getTotalPss()\n' +
+            '- PSS (Proportional Set Size) - 实际使用的物理内存 (比例分配共享库占用的内存)\n' +
+            'Debug.MemoryInfo > getTotalPrivateDirty()\n' +
+            '- USS (Unique Set Size) - 进程独自占用的物理内存 (不包含共享库占用的内存)',
+        about_process_restart: // 关于进程重启
+            '脚本调用如下代码片段杀死当前应用活动进程:\n' +
+            'Process.killProcess(Process.myPid());\n\n' +
+            '此操作将清理进程内所有资源\n' +
+            '由于ActivityManager时刻监听进程\n' +
+            '一旦发现进程非正常结束\n' +
+            '它将试图重启此进程\n' +
+            '进而实现进程的自动重启',
     },
     image_base64_data: {
         ic_outlook: _icOutlook(),

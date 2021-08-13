@@ -5,8 +5,8 @@
     "build"
   ],
   "packageName": "com.sm003.ant.forest",
-  "versionName": "2.1.7",
-  "versionCode": 425,
+  "versionName": "2.1.8",
+  "versionCode": 428,
   "launchConfig": {
     "displaySplash": false,
     "hideLogs": false,

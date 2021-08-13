@@ -115,6 +115,13 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.1.8
+###### 2021/08/13
+* `修复` 配置工具对话框监听器this指针绑定失效的问题 _[`issue #513`](https://github.com/SuperMonster003/Ant-Forest/issues/513)_ _[`#511`](https://github.com/SuperMonster003/Ant-Forest/issues/511#issuecomment-896448713)_
+* `修复` 森林主页监控成熟能量球时可能引起设备关屏的问题 (试修) _[`issue #508`](https://github.com/SuperMonster003/Ant-Forest/issues/508)_
+* `优化` 完善内存信息工具内的提示信息
+* `优化` 去除控制台消息在简略模式下的部分无关内容
+
 # v2.1.7
 ###### 2021/08/08
 * `新增` 内存信息工具 (简易) (/tools/auto.js-memory-info-tool.js)
@@ -140,21 +147,6 @@
 * `优化` 替换设备通话状态值获取方法的代码方案 (试优化)
 * `优化` 逛一逛方案获取倒计时排行榜页面滚动速度
 * `优化` 排行榜页面底部监测线程的内部检测逻辑
-
-# v2.1.5
-###### 2021/07/01
-* `修复` 部分机型SettingNotFoundException异常并尝试自动修复 (试修) _[`issue #487`](https://github.com/SuperMonster003/Ant-Forest/issues/487)_ _[`#483`](https://github.com/SuperMonster003/Ant-Forest/issues/483)_
-* `修复` imagesx.capt()可能返回falsy值的问题 (试修) _[`issue #488`](https://github.com/SuperMonster003/Ant-Forest/issues/488)_
-* `修复` 前置应用横屏状态启动项目时屏幕数据异常的问题 _[`issue #489`](https://github.com/SuperMonster003/Ant-Forest/issues/489)_
-* `修复` 部分Pro版本无法在锁屏页面获取布局信息的问题 _[`issue #486`](https://github.com/SuperMonster003/Ant-Forest/issues/486)_
-* `修复` 部分Pro版本无法支持Floaty布局中fontFamily属性的问题
-* `修复` 部分Pro版本进入排行榜后准备条件判断随机失效的问题
-* `修复` $$sel.pickup()获取控件集合数量可能不准确的问题
-* `修复` storagesx扩展模块remove方法功能失效的问题
-* `优化` 解锁模块增加拨号盘阵列PIN解锁方案 (试验性)
-* `优化` 重构$$sel.pickup()并摒除低概率功能及参数变量
-* `优化` 静默脚本强制中止时"方法链"方法产生的错误日志
-* `优化` 静默部分Pro版本对控制台日志文件模式参数产生的报警日志
 
 ##### 更多版本历史可参阅
 

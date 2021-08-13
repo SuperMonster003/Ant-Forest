@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Aug 8, 2021
- * @version 2.1.7
+ * @since Aug 13, 2021
+ * @version 2.1.8
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -63,6 +63,9 @@ let $$init = {
             require('./modules/mod-monster-func').load();
             Object.defineProperty(global, 'messageAction$', {
                 get: () => $$flag.msg_details ? messageAction : (m, lv) => ![3, 4].includes(lv),
+            });
+            Object.defineProperty(global, 'showSplitLine$', {
+                get: () => $$flag.msg_details ? showSplitLine : () => void 0,
             });
         }
 
@@ -3502,9 +3505,9 @@ let $$init = {
 
                                     let _ms = ['触发' + _desc + '事件', _getCtdMsg()];
 
-                                    showSplitLine('', 'dash');
+                                    showSplitLine$('', 'dash');
                                     _ms.forEach(s => messageAction(s, 1));
-                                    showSplitLine('', 'dash');
+                                    showSplitLine$('', 'dash');
 
                                     $$toast(_ms.join('\n'), 'L', 'F');
 
@@ -4010,7 +4013,7 @@ let $$init = {
                                 _key: 'prompt_before_running_postponed_minutes',
                                 /** @returns {number[]} */
                                 get sto_min_map() {
-                                    return $$cfg[this._key + '_map'];
+                                    return $$cfg[this._key + '_choices'];
                                 },
                                 /** @returns {number} */
                                 get sto_min() {
@@ -4418,11 +4421,23 @@ let $$af = {
                 },
                 /** @type {AfHoughBallsResult|Object} */
                 home_balls_info: {},
+                /**
+                 * @typedef {{
+                 *     is_cache?: boolean,
+                 *     is_fixed?: boolean,
+                 *     is_debug_info?: boolean,
+                 * }} EnergyBallsInfoOptions
+                 */
+                /**
+                 * @param {EnergyBallsType|'all'} [type]
+                 * @param {EnergyBallsInfoOptions} [options]
+                 * @returns {EnergyBallsInfo[]}
+                 */
                 eballs(type, options) {
                     let _opt = options || {};
-                    if (!_opt.cache || Object.size(this.home_balls_info) > 0) {
+                    if (!_opt.is_cache || Object.size(this.home_balls_info) > 0) {
                         this.home_balls_info = imagesx.findAFBallsByHough({
-                            no_debug_info: _opt.no_debug_info,
+                            is_debug_info: _opt.is_debug_info,
                         });
                     }
                     return !type || type === 'all'
@@ -4608,7 +4623,7 @@ let $$af = {
                     }
 
                     function _ripeBalls() {
-                        _checkRipeBalls({cache: true});
+                        _collectRipeBalls({is_cache: true});
                     }
 
                     function _countdown() {
@@ -4621,8 +4636,6 @@ let $$af = {
                         // tool function(s) //
 
                         function _isSwitchOn() {
-                            // i know it's perfect... [:lying_face:]
-
                             let _cA = $$cfg.homepage_background_monitor_switch;
                             let _cB1 = $$cfg.timers_switch;
                             let _cB2a = $$cfg.homepage_monitor_switch;
@@ -4639,7 +4652,7 @@ let $$af = {
                             debugInfo('开始检测自己能量球最小倒计时');
 
                             $$af.min_ctd.own.reset();
-                            let _nor_balls = $$af.eballs('naught', {cache: true});
+                            let _nor_balls = $$af.eballs('naught', {is_cache: true});
                             let _len = _nor_balls.length;
                             if (!_len) {
                                 return debugInfo('未发现未成熟的能量球');
@@ -4834,19 +4847,34 @@ let $$af = {
                             while (timeRecorder('monitor_own', 'L') < _tt) {
                                 _debugPageState();
                                 if ($$flag.af_home_in_page) {
-                                    let _o_arg = {fixed: true, no_debug_info: true};
                                     // ripe balls recognition will be performed
                                     // in some fixed area(s) without new captures
-                                    if (_checkRipeBalls(_o_arg)) {
+                                    let _options = {
+                                        is_fixed: true, is_debug_info: false,
+                                    };
+                                    if (_getAndCollectRipeBalls(_options)) {
+                                        $$flag.monitor_home_ripe_captured = true;
                                         break;
                                     }
                                 }
                                 sleep(180);
                             }
+                            if (!$$flag.monitor_home_ripe_captured) {
+                                if (!$$flag.af_home_in_page) {
+                                    messageAction$('主页能量球未点击且页面不满足', 3, 3, 0, '2_dash');
+                                } else {
+                                    messageAction$('等待主页能量球成熟超时', 3, 0, 0, 'up_dash');
+                                    messageAction$('尝试点击全部主页能量球', 3, 3, 0, 'dash');
+                                    let _nor_balls = $$af.eballs('naught', {is_cache: true});
+                                    _collectRipeBalls(_nor_balls, {is_debug_info: false});
+                                }
+                            }
+
                             devicex.cancelOn();
                             $$app.monitor.af_home_in_page.interrupt();
 
                             delete $$flag.af_home_in_page;
+                            delete $$flag.monitor_home_ripe_captured;
                             $$af.cleaner.eballs(); // clear cache
 
                             let _msg_fin = '自己能量监测完毕';
@@ -4878,7 +4906,7 @@ let $$af = {
                             return debugInfo('浇水回赠球检测未开启');
                         }
                         debugInfo('开始检测浇水回赠能量球');
-                        let _wb_cache = $$af.eballs('water', {cache: true});
+                        let _wb_cache = $$af.eballs('water', {is_cache: true});
                         let _ctr = 0;
                         let _lmt = {
                             trigger() {
@@ -4965,68 +4993,88 @@ let $$af = {
                         $$app.monitor.tree_rainbow.interrupt();
                     }
 
-                    function _checkRipeBalls(options) {
-                        let _balls = _getRipeBallsData(options);
+                    /**
+                     * @param {EnergyBallsInfo[]|EnergyBallsInfoOptions} [balls]
+                     * @param {EnergyBallsInfoOptions} [options]
+                     */
+                    function _collectRipeBalls(balls, options) {
+                        if ($$obj(balls)) {
+                            return _collectRipeBalls(null, balls);
+                        }
+                        let _balls = balls || _getRipeBallsData(options);
                         if (!_balls.length) {
                             return;
                         }
+                        let _opt = options || {};
+                        let _noRipeBalls = () => {
+                            return !_getRipeBallsData({is_debug_info: false}).length;
+                        };
+
+                        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
                         let _itv = $$cfg.forest_balls_click_interval;
                         let _du = $$cfg.forest_balls_click_duration;
                         let _max = 4;
                         do {
-                            debugInfo('点击自己成熟能量球: ' + _balls.length + '个');
-                            _balls.forEach((o) => {
-                                clickAction(o, 'p', {press_time: _du});
-                                sleep(_itv);
-                            });
+                            debugInfo$('点击自己成熟能量球: ' + _balls.length + '个');
+                            _balls.forEach(o => clickAction(o, 'p', {pt$: _du, bt$: _itv}));
                             if (!_stableEmount()) {
-                                debugInfo('自己能量的增量数据无效');
+                                debugInfo$('自己能量的增量数据无效');
                                 break; // timed out or mismatched
                             }
                             if (waitForAction(_noRipeBalls, 1.2e3)) {
-                                debugInfo('未发现新的成熟能量球');
+                                debugInfo$('未发现新的成熟能量球');
                                 break; // all ripe balls picked
                             }
-                            debugInfo('发现新的成熟能量球');
+                            debugInfo$('发现新的成熟能量球');
                         } while (--_max);
-
                         _max || debugInfo('本次成熟球收取出现异常', 3);
+                    }
 
-                        // returns if there were ripe balls
-                        // no matter if balls picked successfully
-                        return true;
+                    /**
+                     * @param {EnergyBallsInfoOptions} [options]
+                     * @returns {EnergyBallsInfo[]}
+                     */
+                    function _getRipeBallsData(options) {
+                        let _o = options || {};
+                        /**
+                         * @param {EnergyBallsInfoOptions} [o]
+                         * @returns {EnergyBallsInfoOptions}
+                         */
+                        let _wrapOpt = o => Object.assign({
+                            is_debug_info: _o.is_debug_info,
+                        }, o);
+                        let _ = {
+                            cache: () => $$af.eballs('ripe', _wrapOpt({is_cache: true})),
+                            refresh: () => $$af.eballs('ripe', _wrapOpt({is_cache: false})),
+                            fixed() {
+                                let _cache = $$af.eballs('all', _wrapOpt({is_cache: true}));
+                                if (!_cache.length) {
+                                    this.refresh();
+                                    _cache = this.cache();
+                                }
+                                let _res = [];
+                                if (_cache.length) {
+                                    let _capt = imagesx.capt();
+                                    _cache.forEach(o => imagesx.isRipeBall(o, _capt, _res));
+                                }
+                                return _res;
+                            },
+                        };
+                        return _o.is_cache ? _.cache() : _o.is_fixed ? _.fixed() : _.refresh();
+                    }
 
-                        // tool function(s) //
-
-                        function _getRipeBallsData(options) {
-                            let _opt = options || {};
-                            let _par = o => Object.assign({
-                                cache: false, no_debug_info: _opt.no_debug_info,
-                            }, o || {});
-                            let _ = {
-                                cache: () => $$af.eballs('ripe', _par({cache: true})),
-                                refresh: () => $$af.eballs('ripe', _par()),
-                                fixed() {
-                                    let _cache = $$af.eballs('all', _par({cache: true}));
-                                    if (!_cache.length) {
-                                        this.refresh();
-                                        _cache = this.cache();
-                                    }
-                                    let _res = [];
-                                    if (_cache.length) {
-                                        let _capt = imagesx.capt();
-                                        _cache.forEach(o => imagesx.isRipeBall(o, _capt, _res));
-                                    }
-                                    return _res;
-                                },
-                            };
-                            return _opt.cache ? _.cache() : _opt.fixed ? _.fixed() : _.refresh();
+                    /**
+                     * @param {EnergyBallsInfoOptions} [options]
+                     * @returns {boolean}
+                     */
+                    function _getAndCollectRipeBalls(options) {
+                        let _balls = _getRipeBallsData(options);
+                        if (_balls.length) {
+                            _collectRipeBalls(_balls, options);
+                            return true;
                         }
-
-                        function _noRipeBalls() {
-                            return !_getRipeBallsData({no_debug_info: true}).length;
-                        }
+                        return false;
                     }
 
                     function _stableEmount() {
@@ -5941,7 +5989,7 @@ let $$af = {
                                 $$af.stroll.ignored.add($$af.nick);
                             }
                         }
-                        showSplitLine();
+                        showSplitLine$();
 
                         delete $$af.nick;
                         delete $$flag.dblclick_checked;
@@ -6760,7 +6808,7 @@ let $$af = {
             },
             /**
              * @param {Object} [options]
-             * @param {boolean} [options.no_debug_info=false]
+             * @param {boolean} [options.is_debug_info=undefined]
              * @param {number} [options.itv=this.itv] - interval
              * @param {number|boolean} [options.buffer_time=0]
              * @param {number|boolean} [options.bt$=0] - alias for buffer_time
@@ -6768,18 +6816,15 @@ let $$af = {
              */
             scroll(options) {
                 let _opt = options || {};
-                let _itv = _opt.itv === undefined ? this.itv : _opt.itv;
+                let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
+                let _itv = _opt.itv === undefined ? this.itv : _opt.itv;
                 let _1st = 1;
 
                 do {
                     _1st ? _1st &= 0 : sleep(_itv);
                     let _ls = scrollable(true).findOnce();
-                    if (_ls) {
-                        _ls.scrollDown();
-                    } else {
-                        _opt.no_debug_info || debugInfo('scrollable(): null', 3);
-                    }
+                    _ls ? _ls.scrollDown() : debugInfo$('scrollable(): null', 3);
                 } while (_opt.loop && _opt.loop());
 
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
@@ -6819,7 +6864,7 @@ let $$af = {
             /**
              * @param {Object} [options]
              * @param {boolean} [options.no_click_outside=false]
-             * @param {boolean} [options.no_debug_info=false]
+             * @param {boolean} [options.is_debug_info=undefined]
              * @param {number} [options.x1=halfW]
              * @param {number} [options.y1=this.bottom]
              * @param {number} [options.x2=halfW]
@@ -6832,6 +6877,7 @@ let $$af = {
              */
             swipe(options) {
                 let _opt = options || {};
+                let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
                 let _ = (v, d) => v === undefined ? d : v;
                 let _x1 = _(_opt.x1, halfW);
@@ -6846,7 +6892,7 @@ let $$af = {
                 do {
                     _1st ? _1st &= 0 : sleep(_itv);
                     if (!swipe(_x1, _y1, _x2, _y2, _du)) {
-                        _opt.no_debug_info || debugInfo('swipe(): false', 3);
+                        debugInfo$('swipe(): false', 3);
                     } else if (!_opt.no_click_outside) {
                         // just to prevent screen from turning off
                         // maybe this is not a good idea
@@ -6864,15 +6910,15 @@ let $$af = {
                 let _data = {rank_list_swipe_distance: _dist0};
                 let _combined = Object.assign({}, _af_cfg, _data);
 
-                messageAction('滑动区域超限', 3);
+                messageAction$('滑动区域超限', 3);
 
-                messageAction('自动修正滑动距离参数:', 3);
-                messageAction('swipe_top: ' + _top0, 3);
+                messageAction$('自动修正滑动距离参数:', 3);
+                messageAction$('swipe_top: ' + _top0, 3);
 
                 $$sto.af_cfg.put('config', _combined);
                 $$cfg.rank_list_swipe_distance = _dist0;
-                messageAction('自动修正配置文件数据:', 3);
-                messageAction('rank_list_swipe_distance: ' + _dist0, 3);
+                messageAction$('自动修正配置文件数据:', 3);
+                messageAction$('rank_list_swipe_distance: ' + _dist0, 3);
 
                 return _top0;
             },

@@ -20,10 +20,7 @@ let _diag = dialogsx.builds({
     background: colorsx.hrgba('#ac1900dd'),
     animation: 'input_method',
     dim_amount: 75,
-    disable_back(d) {
-        d.dismiss();
-        clearInterval(_itv_id);
-    },
+    disable_back: () => exit(),
 }).show();
 
 let _export = {
@@ -45,6 +42,9 @@ typeof module === 'object' ? (module.exports = _export) : _export.show();
 // tool function(s) //
 
 function $main() {
+    // noinspection CommaExpressionJS
+    events.on('exit', () => (_diag.dismiss(), clearInterval(_itv_id)));
+
     let _getTimeout = () => Math.ceil(devicex.getNextAlarmClockTriggerGap() / 1e3);
     let _getTimeoutText = t => '闹钟即将在 ' + t + ' 秒内触发';
     let _setTimeoutText = (t) => {
@@ -58,8 +58,7 @@ function $main() {
         _itv_id = setInterval(() => {
             let _new_t = _getTimeout();
             if (_t === 0 || _t < _new_t || !isFinite(_t)) {
-                clearInterval(_itv_id);
-                _diag.dismiss();
+                exit();
             }
             if (_t !== _new_t) {
                 _t = _new_t;
@@ -68,17 +67,11 @@ function $main() {
         }, 100);
     } else {
         let _setCountdown = t => _view['ctd'].attr('text', '[ ' + t + ' ]');
-        let _timeout = 3;
+        let _tt = 3;
 
         _view['text'].attr('text', '未设置闹钟');
         _view['ctd'].attr('visibility', 'visible');
-        _setCountdown(_timeout--);
-        _itv_id = setInterval(() => {
-            if (_timeout <= 0) {
-                clearInterval(_itv_id);
-                _diag.dismiss();
-            }
-            _setCountdown(_timeout--);
-        }, 1e3);
+        _setCountdown(_tt--);
+        _itv_id = setInterval(() => _tt > 0 ? _setCountdown(_tt--) : exit(), 1e3);
     }
 }

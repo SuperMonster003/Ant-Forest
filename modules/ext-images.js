@@ -376,7 +376,7 @@ let ext = {
      * @param {ScreenCapturerOrientation} [options.screen_capturer_orientation='PORTRAIT']
      * @param {Object} [options.restart_e_params={}]
      * @param {number} [options.restart_e_params.max_restart_e_times=3]
-     * @param {boolean} [options.no_debug_info=false]
+     * @param {boolean} [options.is_debug_info=undefined]
      * @returns {boolean}
      */
     permit(options) {
@@ -384,12 +384,9 @@ let ext = {
             return true;
         }
         let _opt = options || {};
-        let _no_dbg = _opt.no_debug_info;
-        let _debugInfo = function () {
-            _no_dbg || debugInfo.apply(null, arguments);
-        };
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
-        _debugInfo('开始申请截图权限');
+        debugInfo$('开始申请截图权限');
 
         if (typeof _opt.restart_e_flag === 'undefined') {
             _opt.restart_e_flag = true;
@@ -404,7 +401,7 @@ let ext = {
             _opt.restart_e_params.max_restart_e_times = 3;
         }
 
-        _debugInfo('已开启弹窗监测线程');
+        debugInfo$('已开启弹窗监测线程');
 
         let _thread_prompt = threads.start(function () {
             require('./ext-a11y').load();
@@ -415,18 +412,18 @@ let ext = {
 
             if (waitForAction(_sel_sure, 4.8e3)) {
                 if (waitForAction(_sel_rem, 600)) {
-                    _debugInfo('勾选"不再提示"复选框');
+                    debugInfo$('勾选"不再提示"复选框');
                     clickAction(_sel_rem(), 'w');
                 }
                 if (waitForAction(_sel_sure, 2.4e3)) {
                     let _w = _sel_sure();
                     let _act_msg = '点击' + _sel_sure('txt').surround('"') + '按钮';
 
-                    _debugInfo(_act_msg);
+                    debugInfo$(_act_msg);
                     clickAction(_w, 'w');
 
                     if (!waitForAction(() => !_sel_sure(), 1e3)) {
-                        _debugInfo('尝试click()方法再次' + _act_msg);
+                        debugInfo$('尝试click()方法再次' + _act_msg);
                         clickAction(_w, 'click');
                     }
                 }
@@ -436,25 +433,26 @@ let ext = {
         let _thread_monitor = threads.start(function () {
             if (waitForAction(() => !!_req_result, 4.8e3, 80)) {
                 _thread_prompt.interrupt();
-                return _debugInfo('截图权限申请结果: 成功');
+                return debugInfo$('截图权限申请结果: 成功');
             }
-            if (typeof $$flag !== 'undefined') {
-                if (!$$flag.debug_info_avail) {
-                    $$flag.debug_info_avail = true;
-                    _no_dbg = false;
-                    _debugInfo('开发者测试模式已自动开启', 3);
-                }
+            _opt.is_debug_info = true;
+            if (typeof $$flag !== 'object') {
+                global.$$flag = {};
+            }
+            if (!$$flag.debug_info_avail) {
+                $$flag.debug_info_avail = true;
+                debugInfo$('开发者测试模式已自动开启', 3);
             }
             if (_opt.restart_e_flag) {
-                _debugInfo('截图权限申请结果: 失败', 3);
+                debugInfo$('截图权限申请结果: 失败', 3);
                 try {
                     let _m = Build.MANUFACTURER.toLowerCase();
                     if (_m.match(/xiaomi/)) {
-                        _debugInfo('__split_line__dash__');
-                        _debugInfo('检测到当前设备制造商为小米', 3);
-                        _debugInfo('可能需要给Auto.js以下权限:', 3);
-                        _debugInfo('"后台弹出界面"', 3);
-                        _debugInfo('__split_line__dash__');
+                        debugInfo$('__split_line__dash__');
+                        debugInfo$('检测到当前设备制造商为小米', 3);
+                        debugInfo$('可能需要给Auto.js以下权限:', 3);
+                        debugInfo$('"后台弹出界面"', 3);
+                        debugInfo$('__split_line__dash__');
                     }
                 } catch (e) {
                     // nothing to do here
@@ -650,7 +648,7 @@ let ext = {
     },
     /**
      * @param {{
-     *     no_debug_info?: boolean,
+     *     is_debug_info?: boolean,
      *     pool?: object,
      *     duration?: boolean,
      *     region?: number[],
@@ -663,22 +661,16 @@ let ext = {
      */
     findAFBallsByHough(options) {
         require('./ext-device').getDisplay(true, {is_debug_info: false});
-
         timeRecorder('hough_beginning');
-        /** @type {{fill_up_pool: number, img_samples_processing: number}} */
-        let _du = {};
+
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
         let _opt_cfg = _opt.config || {};
         let _cfg = Object.assign(_def(), global.$$cfg, {
             forest_image_pool_limit: _opt_cfg.forest_image_pool_limit,
             forest_image_pool_itv: _opt_cfg.forest_image_pool_itv,
         });
-        let _no_dbg = _opt.no_debug_info;
-        let _dbg_bak;
-        let _this = this;
-        let $_flag = global.$$flag = global.$$flag || {};
-
-        _dbgBackup();
 
         let _src_img_stg = _cfg.hough_src_img_strategy;
         let _results_stg = _cfg.hough_results_strategy;
@@ -686,6 +678,8 @@ let ext = {
         let _region = _opt.region || _cfg.eballs_recognition_region
             .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
 
+        /** @type {{fill_up_pool: number, img_samples_processing: number}} */
+        let _du = {};
         /** @type {EnergyBallsInfo[]} */
         let _balls_data = [];
         /**
@@ -697,15 +691,13 @@ let ext = {
          */
         /** @type {EnergyBallsInfoClassified} */
         let _balls_data_o = {ripe: [], naught: [], water: []};
-        let _pool = _opt.pool || new _this.ForestImagePool({
+        let _pool = _opt.pool || new this.ForestImagePool({
             limit: _cfg.forest_image_pool_limit,
             interval: _cfg.forest_image_pool_itv,
         });
         _setWballExtFunction();
         _fillUpForestImgPool();
         _analyseEnergyBalls();
-
-        _dbgRestore();
 
         /** @typedef {{
          *     duration?: {
@@ -730,14 +722,14 @@ let ext = {
                 ],
                 total: Number(timeRecorder('hough_beginning', 'L')),
                 showDebugInfo() {
-                    debugInfo('__split_line__dash__');
-                    debugInfo('图像填池: ' + this.fill_up_pool + 'ms  ' + [
+                    debugInfo$('__split_line__dash__');
+                    debugInfo$('图像填池: ' + this.fill_up_pool + 'ms  ' + [
                         _pool.interval, _pool.limit,
                     ].join(', ').surround('[ '));
                     this._map.filter(a => this[a[0]]).forEach((a) => {
-                        debugInfo(a[1] + ': ' + this[a[0]] + 'ms');
+                        debugInfo$(a[1] + ': ' + this[a[0]] + 'ms');
                     });
-                    debugInfo('__split_line__dash__');
+                    debugInfo$('__split_line__dash__');
                 },
             }, _du),
         } : {};
@@ -764,19 +756,6 @@ let ext = {
 
         // tool function(s) //
 
-        function _dbgBackup() {
-            if (_no_dbg) {
-                _dbg_bak = $_flag.debug_info_avail;
-                $_flag.debug_info_avail = false;
-            }
-        }
-
-        function _dbgRestore() {
-            if (_no_dbg) {
-                $_flag.debug_info_avail = _dbg_bak;
-            }
-        }
-
         function _setWballExtFunction() {
             if (!ext.inTreeArea) {
                 ext.inTreeArea = (o) => {
@@ -798,7 +777,7 @@ let ext = {
                     if (_cty > cYx(386)) {
                         return false;
                     }
-                    let _capt = capt || _this.capt();
+                    let _capt = capt || ext.capt();
                     let _hue_max = _cfg.homepage_wball_max_hue_no_blue;
                     let _offset_x = o.r * Math.sin(30 * Math.PI / 180);
                     let _offset_y = o.r * Math.cos(30 * Math.PI / 180);
@@ -841,7 +820,7 @@ let ext = {
                     if (ext.inTreeArea(o)) {
                         return;
                     }
-                    let _capt = capt || _this.capt();
+                    let _capt = capt || ext.capt();
                     let _offset = o.r * Math.SQRT1_2;
                     let _d = _offset * 2;
                     let _color = _cfg.ripe_ball_detect_color_val;
@@ -877,17 +856,17 @@ let ext = {
         }
 
         function _analyseEnergyBalls() {
-            debugInfo('分析森林页面样本中的能量球');
+            debugInfo$('分析森林页面样本中的能量球');
             _pool.data.forEach(_parse);
-            debugInfo('森林页面样本能量球分析完毕');
-            debugInfo('解析的能量球数量: ' + _balls_data.length);
+            debugInfo$('森林页面样本能量球分析完毕');
+            debugInfo$('解析的能量球数量: ' + _balls_data.length);
             _balls_data.forEach(o => _balls_data_o[o.type].push(o));
             _opt.pool || _pool.reclaimAll();
 
             // tool function(s) //
 
             function _parse(capt) {
-                if (!capt || _this.isRecycled(capt)) {
+                if (!capt || ext.isRecycled(capt)) {
                     return;
                 }
                 let [_l, _t, _r, _b] = _region;
@@ -906,7 +885,7 @@ let ext = {
                     return images.blur(_gray, 9, [-1, -1], 'REPLICATE');
                 });
                 let _blt_fltr = _getImg('blt_fltr', _src_img_stg.blt_fltr, () => {
-                    return _this.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE');
+                    return ext.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE');
                 });
 
                 let _proc_key = 'img_samples_processing';
@@ -1187,7 +1166,7 @@ let ext = {
                             let _r = Number(o.radius.toFixed(2));
                             let _d = _r * 2;
                             let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
-                            let _mean = _this.getMean(_clip);
+                            let _mean = ext.getMean(_clip);
                             _clip.recycle();
                             _clip = null;
                             return {x: _x, y: _y, r: _r, mean: _mean};
@@ -1202,7 +1181,7 @@ let ext = {
                         })
                         .sort(_sortX);
                     if (is_recycle_img) {
-                        _this.reclaim(img);
+                        ext.reclaim(img);
                     }
                     return _img;
                 }

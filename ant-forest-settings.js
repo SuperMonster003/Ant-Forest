@@ -3497,7 +3497,7 @@ let $$init = {
                 };
                 Object.keys(_props).forEach(k => _par[k] || delete _props[k]);
                 return _props;
-            })());
+            }).call(this));
         };
 
         return this;
