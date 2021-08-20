@@ -280,8 +280,8 @@ let $$init = {
                                 };
                                 let _range = [_mini, _maxi];
                                 let _range_p = [_mini_p, _maxi_p];
-                                let _n = $$view.diag.checkInputRange(d, _range, _range_p);
-                                if (!$$F(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
+                                let _n = $$view.diag.getInputNumStrByCheckRange(d, _range, _range_p);
+                                if ($$str(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
                                     return _f();
                                 }
                             })
@@ -449,22 +449,25 @@ let $$init = {
                             : () => null)
                         .show();
                 },
-                checkInputRange(d) {
+                /**
+                 * @param {JsDialog$|MaterialDialog$} d
+                 * @param {...number|number[]} ranges
+                 * @returns {string|void}
+                 */
+                getInputNumStrByCheckRange(d, ranges) {
                     let _input = dialogsx.getInputText(d);
                     if (!_input) {
-                        d.dismiss();
-                        return false;
+                        return d.dismiss();
                     }
                     let _max = 3;
                     while (_input.match('%') && _max--) {
                         _input = _input.replace(/(\d+(\.\d+)?\s*)%/g, ($0, $1) => {
-                            return $1 / 100 + '';
+                            return String($1 / 100);
                         });
                     }
                     let _num = +_input;
                     if (isNaN(_num)) {
-                        dialogsx.alertTitle(d, '输入值类型不合法');
-                        return false;
+                        return dialogsx.alertTitle(d, '输入值类型不合法');
                     }
 
                     let _len = arguments.length;
@@ -483,9 +486,7 @@ let $$init = {
                             return _num.toString();
                         }
                     }
-
-                    dialogsx.alertTitle(d, '输入值范围不合法');
-                    return false;
+                    return dialogsx.alertTitle(d, '输入值范围不合法');
                 },
             },
             hint: {
@@ -720,6 +721,7 @@ let $$init = {
 
                     let hint = opt.hint;
                     if (hint) {
+                        /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
                         let _hint_view = ui.inflate(
                             <horizontal id="_hints">
                                 <horizontal>
@@ -756,11 +758,14 @@ let $$init = {
                         if ($$str(hint)) {
                             _hint_view['_hint'].setText(hint);
                         }
-                        _v['_content'].addView(_hint_view);
+                        /** @type {JsLinearLayout$} */
+                        let _v_content = _v['_content'];
+                        _v_content.addView(_hint_view);
                     }
 
                     if (type === 'radio') {
                         _v['_item_area'].removeAllViews();
+                        /** @type {android.widget.RadioGroup} */
                         let radiogroup_view = ui.inflate(
                             <radiogroup
                                 id="_radiogroup" orientation="horizontal" padding="-6 0 0 0"
@@ -769,12 +774,15 @@ let $$init = {
                         let title = opt.title;
 
                         title.forEach((val) => {
+                            /** @type {android.widget.RadioButton} */
                             let radio_view = ui.inflate(<radio padding="0 0 12 0"/>);
                             radio_view.setText(val);
                             Object.keys(opt.listeners).forEach((listener) => {
                                 radio_view.on(listener, opt.listeners[listener].bind(opt));
                             });
-                            radiogroup_view['_radiogroup'].addView(radio_view);
+                            /** @type {android.widget.RadioGroup} */
+                            let _v_radiogroup = radiogroup_view['_radiogroup'];
+                            _v_radiogroup.addView(radio_view);
                         });
                         _v.addView(radiogroup_view);
                     }
@@ -837,6 +845,7 @@ let $$init = {
                         };
 
                         // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
                         let _page_enter_view = ui.inflate(
                             <vertical id="_chevron_icon">
                                 <img id="img" h="31" paddingLeft="10"
@@ -860,6 +869,7 @@ let $$init = {
                         }, 100);
                     } else if (type === 'button') {
                         // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
+                        /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
                         let help_view = ui.inflate(
                             <vertical id="_info_icon" visibility="gone">
                                 <img id="img" src="@drawable/ic_info_outline_black_48dp"
@@ -1911,7 +1921,7 @@ let $$init = {
                             let _abs_size_span = new style.AbsoluteSizeSpan(text_size, true);
                             let _see = Spanned.SPAN_EXCLUSIVE_EXCLUSIVE;
                             _span_str.setSpan(_abs_size_span, 0, _span_str.length(), _see);
-                            edit_text_view.setHint(new SpannedString(_span_str));
+                            edit_text_view.setHint(new SpannedString(_span_str.toString()));
                         }
                     });
                     _info_input_view['info_input_view_main'].addView(ui.inflate(
@@ -2425,7 +2435,11 @@ let $$init = {
                 });
 
                 let _thd_calc_n_set_input = null;
-                let _watcher = new android.text.TextWatcher({afterTextChanged: _afterTextChanged});
+                let _watcher = new android.text.TextWatcher({
+                    afterTextChanged: _afterTextChanged,
+                    beforeTextChanged: () => void 0,
+                    onTextChanged: () => void 0,
+                });
                 _search_view['input'].addTextChangedListener(_watcher);
 
                 if ($$func(refresh_btn)) {
@@ -2654,8 +2668,8 @@ let $$init = {
                                         d.dismiss();
                                     })
                                     .on('positive', (d) => {
-                                        let _n = $$view.diag.checkInputRange(d, 1, 600);
-                                        if (_n) {
+                                        let _n = $$view.diag.getInputNumStrByCheckRange(d, 1, 600);
+                                        if ($$str(_n)) {
                                             refreshItems(_pref, Math.trunc(+_n));
                                             d.dismiss();
                                         }
@@ -2919,7 +2933,7 @@ let $$init = {
                 function setViewDisabled(view, dependencies) {
                     let hint_text = '';
                     if (Array.isArray(dependencies)) {
-                        dependencies.forEach(conj_text => {
+                        dependencies.forEach((conj_text) => {
                             hint_text += $$ses.title[conj_text] + ' ';
                         });
                         if (dependencies.length > 1) {
@@ -2947,7 +2961,7 @@ let $$init = {
                 }
             },
             collapseSoftKeyboard(view) {
-                context.getSystemService(context.INPUT_METHOD_SERVICE)
+                context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE)
                     .hideSoftInputFromWindow(view.getWindowToken(), 0);
             },
             commonItemBindCheckboxClickListener(checkbox_view, item_holder) {
@@ -3196,7 +3210,7 @@ let $$init = {
 
                 if ($$und($$ses.list_data_min_ts)) {
                     let _data = $$ses.db.rawQueryData$('select timestamp as ts from ant_forest');
-                    $$ses.list_data_min_ts = Math.mini(_data.map(o => o.ts)) * 1e3;
+                    $$ses.list_data_min_ts = Math.mini(_data.map(o => Number(o.ts))) * 1e3;
                 }
 
                 _show_other && _db_data.unshift({
@@ -4528,7 +4542,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             newWindow() {
                 if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
                     let _icon_h = cYx(46);
-                    let _safe = (uH - staH - actH - _icon_h);
+                    let _safe = uH - $$disp.status_bar_height - $$disp.action_bar_default_height - _icon_h;
                     $$view.diag.numSetter.call(this, 0.4, 0.9, {
                         title: '设置排行榜页面滑动距离',
                         hint_set: 'R',
@@ -4537,7 +4551,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                             '参数示例:\n' +
                             '1260: 每次滑动 1260 像素\n' +
                             '0.6: 每次滑动 60% 屏幕距离',
-                            true,
+                            '%show_valid_and_default_values%',
                             '安全值: ' + _safe + ' [ ' +
                             (_safe / H).toFixedNum(2) + ' ]',
                         ],
@@ -4560,12 +4574,18 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                                     dialogsx.builds(['滑动距离安全值', '', 0, 0, 'B'], {
                                         content: '安全值指排行榜滑动时' +
                                             '可避免采集目标遗漏的理论最大值\n\n' +
-                                            '计算方法:\n屏幕高度 [ ' + H + ' ]\n' +
-                                            '减去 导航栏高度 [ ' + navH + ' ]\n' +
-                                            '减去 状态栏高度 [ ' + staH + ' ]\n' +
-                                            '减去 ActionBar默认高度 [ ' + actH + ' ]\n' +
-                                            '减去 排行榜图标缩放高度 [ ' + _icon_h + ' ]\n' +
-                                            '得到 安全值 [ ' + _safe + ' ]\n\n' +
+                                            '计算方法:\n屏幕高度' +
+                                            ' [ ' + H + ' ]\n' +
+                                            '减去 导航栏高度' +
+                                            ' [ ' + $$disp.navigation_bar_height + ' ]\n' +
+                                            '减去 状态栏高度' +
+                                            ' [ ' + $$disp.status_bar_height + ' ]\n' +
+                                            '减去 ActionBar默认高度' +
+                                            ' [ ' + $$disp.action_bar_default_height + ' ]\n' +
+                                            '减去 排行榜图标缩放高度' +
+                                            ' [ ' + _icon_h + ' ]\n' +
+                                            '得到 安全值' +
+                                            ' [ ' + _safe + ' ]\n\n' +
                                             '* 括号中的数据均源自当前设备\n' +
                                             '* 安全值为理论值\n-- 不代表真实可操作的最佳值',
                                     }).show();
@@ -6597,8 +6617,8 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                                         content: null,
                                         neutral: null,
                                         positive(d, min, max) {
-                                            let _n = $$view.diag.checkInputRange(d, min, max);
-                                            if (_n) {
+                                            let _n = $$view.diag.getInputNumStrByCheckRange(d, min, max);
+                                            if ($$str(_n)) {
                                                 refreshItems(_pref, Math.trunc(+_n));
                                                 d.dismiss();
                                             }

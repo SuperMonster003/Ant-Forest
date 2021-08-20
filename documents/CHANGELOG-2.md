@@ -2,6 +2,13 @@
 ### 版本历史 - 2.x
 ******
 
+# v2.1.9
+###### 2021/08/20
+* `修复` 配置工具无法设置排行榜滑动距离等相关配置项的问题
+* `修复` 获取能量球数据缓存时逻辑错误导致效率提升无效的问题
+* `修复` OCR方案获取倒计时耗时过久未能按预期及时停止的问题
+* `优化` 霍夫变换覆盖检测方法优化以提高成熟能量球识别率 _[`issue #508`](https://github.com/SuperMonster003/Ant-Forest/issues/508#issuecomment-900102913)_
+
 # v2.1.8
 ###### 2021/08/13
 * `修复` 配置工具对话框监听器this指针绑定失效的问题 _[`issue #513`](https://github.com/SuperMonster003/Ant-Forest/issues/513)_ _[`#511`](https://github.com/SuperMonster003/Ant-Forest/issues/511#issuecomment-896448713)_

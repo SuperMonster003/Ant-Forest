@@ -2411,7 +2411,7 @@ let isNullish = o => o === null || o === undefined;
          *     steps: [{
          *         desc: '下载项目数据包',
          *         action: () => {
-         *             return new Promise(resolve => {
+         *             return new Promise((resolve) => {
          *                 resolve({num: 1});
          *             });
          *         },

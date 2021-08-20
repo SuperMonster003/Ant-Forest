@@ -87,7 +87,7 @@ let ext = {
             this.setWindowFilter(() => true);
         },
         resetWindowFilter() {
-            this.setWindowFilter(wi => {
+            this.setWindowFilter((wi) => {
                 return devicex.isLocked() || this._isLatestPackage(wi);
             });
         },

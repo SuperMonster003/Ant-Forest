@@ -11,12 +11,15 @@ let Settings = android.provider.Settings;
 let System = Settings.System;
 let Global = Settings.Global;
 let Secure = Settings.Secure;
+let File = java.io.File;
 let Uri = android.net.Uri;
 let Surface = android.view.Surface;
 let KeyEvent = android.view.KeyEvent;
 let Intent = android.content.Intent;
 let Context = android.content.Context;
+let Resources = android.content.res.Resources;
 let IntentFilter = android.content.IntentFilter;
+let Environment = android.os.Environment;
 let PowerManager = android.os.PowerManager;
 let BatteryManager = android.os.BatteryManager;
 let ServiceManager = android.os.ServiceManager;
@@ -357,6 +360,13 @@ let ext = {
      */
     development_settings_enabled: new StateManager('Global', 'DEVELOPMENT_SETTINGS_ENABLED', 'Int', [0, 1]),
     /**
+     * The user directory created by android.server.pm.UserManagerService
+     * @type {java.io.File}
+     * @example
+     * console.log(devicex.user_dir); // like '/data/user'
+     */
+    user_dir: new File(Environment.getDataDirectory(), 'user'),
+    /**
      * Substitution of device.wakeUp()
      * @param {number} [timeout=15e3]
      */
@@ -416,6 +426,7 @@ let ext = {
     isScreenOn() {
         /** @type {android.os.PowerManager} */
         let _pow_mgr = context.getSystemService(Context.POWER_SERVICE);
+        // noinspection JSDeprecatedSymbols
         return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
     },
     /**
@@ -1182,8 +1193,6 @@ let ext = {
                 /** Usable screen height */
                 uH: Number(_disp.USABLE_HEIGHT),
                 /** @type {DisplayRotation} */
-                ROT: _disp.display_rotation,
-                /** @type {DisplayRotation} */
                 ROTATION: _disp.display_rotation,
                 cX: cX, cY: cY, cYx: cYx,
                 $$disp: _disp,
@@ -1280,32 +1289,12 @@ let ext = {
         this.accelerometer_rotation.loadStateIFN();
     },
     /**
-     * @param {'date'|'toString'|'toDateString'|'toTimeString'|'toLocaleString'|'toLocaleDateString'|'toLocaleTimeString'|'valueOf'|'getTime'|'getFullYear'|'getUTCFullYear'|'getMonth'|'getUTCMonth'|'getDate'|'getUTCDate'|'getDay'|'getUTCDay'|'getHours'|'getUTCHours'|'getMinutes'|'getUTCMinutes'|'getSeconds'|'getUTCSeconds'|'getMilliseconds'|'getUTCMilliseconds'|'getTimezoneOffset'|'setTime'|'setMilliseconds'|'setUTCMilliseconds'|'setSeconds'|'setUTCSeconds'|'setMinutes'|'setUTCMinutes'|'setHours'|'setUTCHours'|'setDate'|'setUTCDate'|'setMonth'|'setUTCMonth'|'setFullYear'|'setUTCFullYear'|'toUTCString'|'toISOString'|'toJSON'|string} [date_function]
-     * @param {...*} args
-     * @returns {Date|string|number|null|*}
+     * @returns {number}
      */
-    getNextAlarmClockTriggerTime(date_function, args) {
+    getNextAlarmClockTriggerTime() {
         let _alarm_mgr = context.getSystemService(Context.ALARM_SERVICE);
         let _next_alarm = _alarm_mgr.getNextAlarmClock();
-        if (_next_alarm === null) {
-            return null;
-        }
-        let _ts = _next_alarm.getTriggerTime();
-        if (!date_function) {
-            return _ts;
-        }
-        let _date = new Date(_ts);
-        if (date_function.toLowerCase() === 'date') {
-            return _date;
-        }
-        if (date_function in _date) {
-            let _o = _date[date_function];
-            if (typeof _o !== 'function') {
-                return _o;
-            }
-            return _date[date_function].apply(_date, [].slice.call(arguments, 1));
-        }
-        return null;
+        return _next_alarm !== null ? _next_alarm.getTriggerTime() : Number.NaN;
     },
     /**
      * @returns {number}
@@ -1313,16 +1302,46 @@ let ext = {
     getNextAlarmClockTriggerGap() {
         let _ts = this.getNextAlarmClockTriggerTime();
         let _gap = _ts - Date.now();
-        return _ts === null || isNaN(_gap) ? Infinity : _gap < 0 ? 0 : _gap;
+        return isNaN(_gap) ? Infinity : Math.max(0, _gap);
     },
     /**
      * @param {number} [milli=0]
      * @returns {boolean}
      */
-    checkNextAlarmClockTriggerTime(milli) {
+    isNextAlarmClockTriggered(milli) {
         let _milli = Number(milli);
-        _milli = isNaN(_milli) || _milli < 0 ? 0 :  _milli;
-        return this.getNextAlarmClockTriggerGap() > _milli;
+        _milli = isNaN(_milli) || _milli < 0 ? 0 : _milli;
+        return this.getNextAlarmClockTriggerGap() < _milli;
+    },
+    /**
+     * @param {number} user_id
+     * @returns {boolean}
+     */
+    checkUserExists(user_id) {
+        return new File(this.user_dir, user_id.toString()).exists();
+    },
+    /**
+     * @returns {number[]}
+     */
+    getUserIds() {
+        // Get the number of maximum users on this device.
+        let _id = Resources.getSystem()
+            .getIdentifier('config_multiuserMaximumUsers', 'integer', 'android');
+        let _max_users = Math.max(_id ? Resources.getSystem().getInteger(_id) : 0, 100);
+
+        let _avail_ids = [];
+        for (let i = 0, max = _max_users * 10; i <= max; i += 1) {
+            // If a user is created, a directory will be created under /data/user
+            // in increments of 10. The first user will always be 0.
+            this.checkUserExists(i) && _avail_ids.push(i);
+        }
+        return _avail_ids;
+    },
+    /**
+     * @returns {number}
+     */
+    getUserCount() {
+        return this.getUserIds().length;
     },
     $bind() {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
@@ -2653,7 +2672,7 @@ function unlockGenerator() {
         unlock_pattern_swipe_time_segmental: 120,
         unlock_pattern_swipe_time_solid: 200,
         unlock_dismiss_layer_strategy: 'preferred',
-        unlock_dismiss_layer_bottom: 0.8,
+        unlock_dismiss_layer_bottom: 0.7,
         unlock_dismiss_layer_top: 0.2,
         unlock_dismiss_layer_swipe_time: 110,
     }, _sto.get('config'));

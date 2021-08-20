@@ -91,12 +91,12 @@ let ext = {
     /**
      * @typedef {{
      *     attr_name: string,
-     *     getter?: function(view:AutojsUiWidgetViews, name:string, default_getter:function):*,
-     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:function),
+     *     getter?: function(view:AutojsWidgetViews, name:string, default_getter:function):*,
+     *     setter?: function(view:AutojsWidgetViews, name:string, value:*, default_setter:function),
      * }|{
      *     attr_name: string,
      *     attr_alias?: string,
-     *     setter?: function(view:AutojsUiWidgetViews, name:string, value:*, default_setter:function),
+     *     setter?: function(view:AutojsWidgetViews, name:string, value:*, default_setter:function),
      * }} UiRegisterWidgetAttrDefiner
      */
     /**
@@ -239,7 +239,7 @@ let ext = {
      * @param {Object} options
      * @param {number} [options.duration=180] - scroll duration
      * @param {Array} options.pages_pool - pool for storing pages (parent views)
-     * @param {AutojsUiWidgetViews} [options.base_view=ui.main] - specified view for attaching parent views
+     * @param {AutojsWidgetViews} [options.base_view=ui.main] - specified view for attaching parent views
      */
     smoothScrollPage(direction, callback, options) {
         let _cbk = callback || {};

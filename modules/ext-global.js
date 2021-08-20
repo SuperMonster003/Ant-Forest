@@ -440,14 +440,7 @@ let ext = {
             return sleep(Math.max(millis_min, 0));
         };
 
-        global.$$cvt = _cvtBuilder();
-
-        global.okhttp3 = Packages.okhttp3;
-        global.androidx = Packages.androidx;
-
-        // tool function(s) //
-
-        function _cvtBuilder() {
+        global.$$cvt = function cvtBuilder$iiFe() {
             /** @typedef {number|string} $$cvt$src */
             /** @typedef {string} $$cvt$init_unit */
             /**
@@ -1293,7 +1286,10 @@ let ext = {
                 let _js_str = String(_java_str);
                 return format === 'json' ? JSON.parse(_js_str) : _js_str;
             }
-        }
+        }();
+
+        global.okhttp3 = Packages.okhttp3;
+        global.androidx = Packages.androidx;
     },
     string() {
         if (!String.prototype.toTitleCase) {
@@ -1923,12 +1919,11 @@ let ext = {
              * @summary Sum (zh-CN: 求和)
              * @description Returns a sum of numbers with (or without) fraction digits
              * @function Math.sum
-             * @param {number|Array<T>} [num_arr] -
+             * @param {number|number[]} [num_arr] -
              * numbers needed to be summed up
              * @param {?number} [fraction] -
              * number of digits after the decimal point and
              * must be in the range [0, 20]
-             * @template T
              * @example
              * Math.sum(); // 0
              * Math.sum(1); // 1
@@ -1960,12 +1955,11 @@ let ext = {
              * @summary Arithmetic Mean (zh-CN: 算术平均数)
              * @description Returns the average of numbers with (or without) fraction digits
              * @function Math.avg
-             * @param {number|Array<T>} [num_arr] -
+             * @param {number|number[]} [num_arr] -
              * numbers needed to be averaged
              * @param {?number} [fraction] -
              * number of digits after the decimal point and
              * must be in the range [0, 20]
-             * @template T
              * @example
              * Math.avg(); // NaN
              * Math.avg(1); // 1
@@ -1991,6 +1985,40 @@ let ext = {
                 let _avg = _sum / _filtered.length;
                 let _frac_num = parseInt(_frac);
                 return isNaN(_frac_num) ? _avg : +_avg.toFixed(_frac_num);
+            },
+            /**
+             * @summary Median (zh-CN: 中位数)
+             * @description Returns the middle number in a sorted list of numbers with (or without) fraction digits
+             * @function Math.median
+             * @param {number|number[]} [num_arr]
+             * @param {?number} [fraction] -
+             * number of digits after the decimal point and
+             * must be in the range [0, 20]
+             * @example
+             * Math.median(); // NaN
+             * Math.median(1); // 1
+             * Math.median(1, 2); // 1.5
+             * Math.median(1, 2, 3); // 2
+             * Math.median(5, 3, 1, 4); // 3.5
+             * @returns {number}
+             */
+            median(num_arr, fraction) {
+                let [_arr, _frac] = this._parseArgs.apply(this, arguments);
+                let _filtered = _arr.filter(x => !isNaN(+x));
+                if (!_filtered.length) {
+                    return NaN;
+                }
+                _filtered.sort((a, b) => {
+                    let _a = Number(a);
+                    let _b = Number(b);
+                    return _a === _b ? 0 : _a > b ? 1 : -1;
+                });
+                let _len = _filtered.length;
+                let _med = _len % 2
+                    ? _filtered[Math.floor(_len / 2)]
+                    : (_filtered[_len / 2 - 1] + _filtered[_len / 2]) / 2;
+                let _frac_num = parseInt(_frac);
+                return isNaN(_frac_num) ? _med : +_med.toFixed(_frac_num);
             },
             /**
              * @summary Variance (zh-CN: 方差)
@@ -2078,12 +2106,11 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.max(...number[])
              * @function Math.maxi
-             * @param {number|Array<T>} [num_arr] -
+             * @param {number|number[]} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
              * number of digits after the decimal point and
              * must be in the range [0, 20]
-             * @template T
              * @example
              * // examples whose results are same as Math.max()
              *
@@ -2155,12 +2182,11 @@ let ext = {
              * for JavaScript engines like Rhino (maybe old versions only)
              * which doesn't support spread syntax like Math.min(...number[])
              * @function Math.mini
-             * @param {number|Array<T>} [num_arr] -
+             * @param {number|number[]} [num_arr] -
              * numbers needed to be calculated
              * @param {?number} [fraction] -
              * number of digits after the decimal point and
              * must be in the range [0, 20]
-             * @template T
              * @example
              * // examples whose results are same as Math.min()
              *

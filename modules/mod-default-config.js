@@ -207,7 +207,7 @@ module.exports = {
         // also, 'delay' or 'disable' dismiss layer check is optional
         unlock_dismiss_layer_strategy: 'preferred',
         // 0.5 <= x <= 0.95; great value (like 0.95) may cause unexpected object activation
-        unlock_dismiss_layer_bottom: 0.8,
+        unlock_dismiss_layer_bottom: 0.7,
         // 0.05 <= x <= 0.3; this value may be not that important
         unlock_dismiss_layer_top: 0.2,
         // time for swiping up to dismiss the lock screen layer; will be auto modified initially

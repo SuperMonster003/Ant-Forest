@@ -66,7 +66,7 @@ function $main() {
             }
         }, 100);
     } else {
-        let _setCountdown = t => _view['ctd'].attr('text', '[ ' + t + ' ]');
+        let _setCountdown = t => _view['ctd'].attr('text', '[ ' + $$cvt t + ' ]');
         let _tt = 3;
 
         _view['text'].attr('text', '未设置闹钟');

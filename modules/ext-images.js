@@ -1,6 +1,7 @@
 global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
 
 require('./mod-monster-func').load();
+require('./ext-device').load();
 require('./ext-global').load();
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
@@ -85,7 +86,7 @@ let ext = {
         _Result.prototype.sortBy = function (cmp) {
             let comparatorFn = null;
             if (typeof cmp == 'string') {
-                cmp.split('-').forEach(direction => {
+                cmp.split('-').forEach((direction) => {
                     let buildInFn = _comparators[direction];
                     if (!buildInFn) {
                         throw new Error('unknown direction \'' + direction + '\' in \'' + cmp + '\'');
@@ -152,10 +153,12 @@ let ext = {
          * @param {Object} [config]
          * @param {number} [config.interval=120]
          * @param {number} [config.limit=3]
+         * @param {boolean} [config.is_debug_info=undefined]
          */
         function ImagePool(config) {
             let _cfg = config || {};
             let _imagesx = ext;
+
             Object.defineProperty(this, '_data', {
                 value: [],
             });
@@ -171,8 +174,10 @@ let ext = {
                 },
                 enumerable: true,
             });
+
             this.interval = _cfg.interval || 120;
             this.limit = _cfg.limit || 3;
+            this.is_debug_info = _cfg.is_debug_info;
         }
 
         ImagePool.prototype = {
@@ -188,27 +193,31 @@ let ext = {
             add(capt) {
                 let _imagesx = ext;
                 let _capt = capt || _imagesx.capt({clone: true});
-                debugInfo('添加森林采样: ' + _imagesx.getName(_capt));
+                let debugInfo$ = (m, lv) => debugInfo(m, lv, this.is_debug_info);
+
+                debugInfo$('添加森林采样: ' + _imagesx.getName(_capt));
                 this.data.unshift(_capt);
                 if (this.overflow) {
-                    debugInfo('采样样本数量超过阈值: ' + this.limit);
+                    debugInfo$('采样样本数量超过阈值: ' + this.limit);
                     while (this.overflow) {
                         let _c = this.data.pop();
-                        debugInfo('>移除并回收最旧样本: ' + _imagesx.getName(_c));
+                        debugInfo$('>移除并回收最旧样本: ' + _imagesx.getName(_c));
                         _imagesx.reclaim(_c);
                     }
                 }
             },
             reclaimAll() {
                 let _imagesx = ext;
+                let debugInfo$ = (m, lv) => debugInfo(m, lv, this.is_debug_info);
+
                 if (this.len) {
-                    debugInfo('回收全部森林采样');
+                    debugInfo$('回收全部森林采样');
                     this.data.forEach((c) => {
-                        debugInfo('>已回收: ' + _imagesx.getName(c));
+                        debugInfo$('>已回收: ' + _imagesx.getName(c));
                         _imagesx.reclaim(c);
                     });
                     this.clear();
-                    debugInfo('森林样本已清空');
+                    debugInfo$('森林样本已清空');
                 }
             },
             clear() {
@@ -485,6 +494,7 @@ let ext = {
      * @param {boolean} [options.not_null] - null result will be replaced by {points: []}
      * @param {boolean} [options.local_cache_access] - truthy for cache image file saving and loading
      * @param {number} [options.compress_level] - see {@link imagesx.compress}
+     * @param {boolean} [options.is_debug_info=undefined]
      * @example
      * let _clip = imagesx.capt();
      * let _ic_img = images.read('./Test/test.jpg');
@@ -507,6 +517,8 @@ let ext = {
             throw Error('Template is required for imagesx.matchTemplate()');
         }
         let _opt = options || {};
+        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+
         let _tpl = _byLocal() || _byBase64() || _byTemplate();
         return _tpl && (function $iiFe() {
             require('./ext-device').load();
@@ -584,7 +596,7 @@ let ext = {
                         continue;
                     }
                     if (_opt.local_cache_access) {
-                        debugInfo('已存储缓存模板: ' + _byLocal.info.name);
+                        debugInfo$('已存储缓存模板: ' + _byLocal.info.name);
                         images.save(_resized, _byLocal.info.path, _byLocal.info.ext, 100);
                     }
                     return _resized;
@@ -694,6 +706,7 @@ let ext = {
         let _pool = _opt.pool || new this.ForestImagePool({
             limit: _cfg.forest_image_pool_limit,
             interval: _cfg.forest_image_pool_itv,
+            is_debug_info: _opt.is_debug_info,
         });
         _setWballExtFunction();
         _fillUpForestImgPool();
@@ -740,16 +753,27 @@ let ext = {
          * } AfHoughBallsResult
          */
         return Object.assign(_balls_data_o, _du_o, {
+            /** @returns {EnergyBallsInfo[]} */
             expand() {
-                /** @type {EnergyBallsInfo[]} */
-                let _data = [];
-                for (let i in this) {
-                    if (this.hasOwnProperty(i)) {
-                        if (Array.isArray(this[i])) {
-                            this[i].forEach(o => _data.push(o));
+                return Object.values(this)
+                    .filter(val => Array.isArray(val))
+                    .reduce((a1, a2) => a1.concat(a2), Array())
+                    .sort(_sortX);
+            },
+            digest() {
+                let _data = {};
+                Object.values(this)
+                    .filter(val => Array.isArray(val))
+                    .forEach(a => a.forEach((o) => {
+                        let _digest = [o.x, o.y];
+                        o.computed && _digest.push('computed');
+                        if (o.type in _data) {
+                            _data[o.type].push(_digest);
+                        } else {
+                            _data[o.type] = [_digest];
                         }
-                    }
-                }
+                    }));
+                Object.values(_data).forEach(a => a.sort(_sortX));
                 return _data;
             },
         });
@@ -896,12 +920,12 @@ let ext = {
 
                 /** @type {EnergyBallsBasicProp[]} */
                 let _balls = []
-                    .concat(_getBalls(_src_img_stg.gray && _gray, true))
-                    .concat(_getBalls(_adapt_thrd, true))
-                    .concat(_getBalls(_med_blur, true))
-                    .concat(_getBalls(_blur, true))
-                    .concat(_getBalls(_blt_fltr, true))
-                    .filter(_filterWball)
+                    .concat(_getBalls(_src_img_stg.gray && _gray))
+                    .concat(_getBalls(_adapt_thrd))
+                    .concat(_getBalls(_med_blur))
+                    .concat(_getBalls(_blur))
+                    .concat(_getBalls(_blt_fltr))
+                    .filter(_filterNonWball)
                     .sort(_sortX);
 
                 if (_wballs.length + _balls.length) {
@@ -934,12 +958,30 @@ let ext = {
 
                     // tool function(s) //
 
-                    function _antiX(o) {
-                        for (let i = 1; i < o.length; i += 1) {
-                            if (o[i].x - o[i - 1].x < _min_dist) {
-                                o.splice(i--, 1);
+                    function _antiX(a) {
+                        if (a.length < 2) {
+                            return;
+                        }
+                        let _tmp = [[a[0]]];
+                        for (let i = 1, l = a.length; i < l; i += 1) {
+                            let _last_a = _tmp[_tmp.length - 1];
+                            let _last_item = _last_a[_last_a.length - 1];
+                            if (a[i].x - _last_item.x < _min_dist) {
+                                _last_a.push(a[i]);
+                            } else {
+                                _tmp.push([a[i]]);
                             }
                         }
+                        [].splice.apply(a, [0, a.length].concat(_tmp.map((a) => {
+                            a.sort(_sortX);
+                            let _med = a[Math.floor(a.length / 2)];
+                            let _rebuilt = {
+                                x: _getReasonable(a.map(o => o.x)),
+                                y: _getReasonable(a.map(o => o.y)),
+                                r: _getReasonable(a.map(o => o.r)),
+                            };
+                            return Object.assign(_med, _rebuilt);
+                        })));
                     }
 
                     function _antiXY(sample, ref) {
@@ -961,6 +1003,47 @@ let ext = {
                         for (let i = 1; i < sample.length; i += 1) {
                             _chkSample(sample[i - 1], sample[i], i);
                         }
+                    }
+
+                    function _getReasonable(a, min_same) {
+                        let _min_same = typeof min_same === 'number' ? min_same : cX(9);
+                        let _a = [[]];
+                        a.slice().sort((a, b) => {
+                            let _a = Number(a);
+                            let _b = Number(b);
+                            return _a === _b ? 0 : _a > _b ? 1 : -1;
+                        }).forEach((x) => {
+                            let _last_a = _a[_a.length - 1];
+                            if (!_last_a.length) {
+                                _last_a.push(x);
+                            } else {
+                                let _last_item = _last_a[_last_a.length - 1];
+                                if (x - _last_item < _min_same) {
+                                    _last_a.push(x);
+                                } else {
+                                    _a.push([x]);
+                                }
+                            }
+                        });
+                        _a.sort((a1, a2) => {
+                            let _a = a1.length;
+                            let _b = a2.length;
+                            return _a === _b ? 0 : _a < _b ? 1 : -1;
+                        });
+                        for (let i = 1, l = _a.length; i < l; i += 1) {
+                            if (_a[i].length < _a[i - 1].length) {
+                                _a.splice(i);
+                                break;
+                            }
+                        }
+                        if (_a.length > 1) {
+                            _a.sort((o1, o2) => {
+                                let _a = Math.std(o1);
+                                let _b = Math.std(o2);
+                                return _a === _b ? 0 : _a > _b ? 1 : -1;
+                            });
+                        }
+                        return Math.median(_a[0]);
                     }
                 }
 
@@ -1046,10 +1129,10 @@ let ext = {
                  * @typedef {'ripe'|'naught'|'water'} EnergyBallsType
                  */
                 function _addBalls() {
-                    _wballs.map(_extProps).filter(_filterActBtn).forEach((o) => {
+                    _wballs.map(_wrapProps).filter(_filterNonActivityBtn).forEach((o) => {
                         _addBall(o, 'water');
                     });
-                    _balls.map(_extProps).filter(_filterActBtn).forEach((o) => {
+                    _balls.map(_wrapProps).filter(_filterNonActivityBtn).forEach((o) => {
                         if (_isRipeBall(o)) {
                             _addBall(o, 'ripe');
                         } else if (!ext.inTreeArea(o)) {
@@ -1103,13 +1186,17 @@ let ext = {
                      * }} EnergyBallsExtProp
                      */
                     /** @returns {EnergyBallsMixedProp} */
-                    function _extProps(o) {
+                    function _wrapProps(o) {
+                        let _toFixedNum = (x, frac) => {
+                            return Number(Number(x).toFixed(typeof frac === 'number' ? frac : 1));
+                        };
+                        ['x', 'y', 'r'].forEach(k => o[k] = _toFixedNum(o[k]));
                         let {x: _x, y: _y, r: _r} = o;
                         return Object.assign(o, {
-                            left: _x - _r,
-                            top: _y - _r,
-                            right: _x + _r,
-                            bottom: _y + _r,
+                            left: _toFixedNum(_x - _r),
+                            top: _toFixedNum(_y - _r),
+                            right: _toFixedNum(_x + _r),
+                            bottom: _toFixedNum(_y + _r),
                             // width and height were made functional
                             // just for better compatible with Auto.js
                             width: () => _r * 2,
@@ -1117,13 +1204,13 @@ let ext = {
                         });
                     }
 
-                    function _filterActBtn(o) {
+                    function _filterNonActivityBtn(o) {
                         let _x = cX(118), _y = cYx(346);
 
-                        let _inArea = o => o.left < _x && o.top < _y;
-                        let _inSymArea = o => o.right > W - _x && o.top < _y;
+                        let _inArea = o => o.left > _x || o.top > _y;
+                        let _inSymArea = o => o.right < W - _x || o.top > _y;
 
-                        return !_inArea(o) && !_inSymArea(o);
+                        return _inArea(o) && _inSymArea(o);
                     }
                 }
 
@@ -1144,11 +1231,11 @@ let ext = {
                 /**
                  * @returns {EnergyBallsBasicProp[]|[]}
                  */
-                function _getBalls(img, is_recycle_img) {
+                function _getBalls(img) {
                     if (!img) {
                         return [];
                     }
-                    let _img = images
+                    let _results = images
                         .findCircles(img, {
                             dp: 1,
                             minDist: _min_dist,
@@ -1180,17 +1267,11 @@ let ext = {
                                 && o.mean.std > 20;
                         })
                         .sort(_sortX);
-                    if (is_recycle_img) {
-                        ext.reclaim(img);
-                    }
-                    return _img;
+                    ext.reclaim(img);
+                    return _results;
                 }
 
-                function _sortX(a, b) {
-                    return a.x === b.x ? 0 : a.x > b.x ? 1 : -1;
-                }
-
-                function _filterWball(o) {
+                function _filterNonWball(o) {
                     if (o) {
                         if (ext.isRipeBall(o, capt)) {
                             return true;
@@ -1199,6 +1280,10 @@ let ext = {
                     }
                 }
             }
+        }
+
+        function _sortX(a, b) {
+            return a.x === b.x ? 0 : a.x > b.x ? 1 : -1;
         }
 
         // updated: Oct 20, 2020

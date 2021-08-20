@@ -163,7 +163,7 @@ typeof module === 'object' ? (module.exports = _export) : _export.show();
 
 /**
  * @typedef {{
- *     parent_view?: AutojsUiWidgetViews,
+ *     parent_view?: AutojsWidgetViews,
  *     view_config?: {
  *         img?: AutojsViewAttributes,
  *         title?: AutojsViewAttributes,

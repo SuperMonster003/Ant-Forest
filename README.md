@@ -115,6 +115,13 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.1.9
+###### 2021/08/20
+* `修复` 配置工具无法设置排行榜滑动距离等相关配置项的问题
+* `修复` 获取能量球数据缓存时逻辑错误导致效率提升无效的问题
+* `修复` OCR方案获取倒计时耗时过久未能按预期及时停止的问题
+* `优化` 霍夫变换覆盖检测方法优化以提高成熟能量球识别率 _[`issue #508`](https://github.com/SuperMonster003/Ant-Forest/issues/508#issuecomment-900102913)_
+
 # v2.1.8
 ###### 2021/08/13
 * `修复` 配置工具对话框监听器this指针绑定失效的问题 _[`issue #513`](https://github.com/SuperMonster003/Ant-Forest/issues/513)_ _[`#511`](https://github.com/SuperMonster003/Ant-Forest/issues/511#issuecomment-896448713)_
@@ -133,20 +140,6 @@
 * `优化` 模块化与排行榜数据样本池相关的实例
 * `优化` 及时回收图片资源避免可能的内存泄漏 _[`issue #497`](https://github.com/SuperMonster003/Ant-Forest/issues/497)_
 * `优化` 能量雨收集工具条件判断完善及网络异常适配
-
-# v2.1.6
-###### 2021/07/19
-* `新增` Root权限功能配置
-* `修复` 模块交叉引用导致部分模块独立引用失败的问题
-* `修复` 版本忽略管理匹配输入时结果可能出现错误的问题
-* `修复` 配置工具设备通话状态值无法直接填入空闲值的问题
-* `修复` 排行榜自定义标题无效导致初始状态准备失败的问题 _[`issue #498`](https://github.com/SuperMonster003/Ant-Forest/issues/498)_
-* `修复` 排行榜页面更新导致的好友信息获取异常的问题 _[`issue #499`](https://github.com/SuperMonster003/Ant-Forest/issues/499)_
-* `修复` 逛一逛方案获取排行榜倒计时可能出现空指针引用的问题
-* `优化` 默认关闭Root权限结束应用防止Floaty结果显示异常
-* `优化` 替换设备通话状态值获取方法的代码方案 (试优化)
-* `优化` 逛一逛方案获取倒计时排行榜页面滚动速度
-* `优化` 排行榜页面底部监测线程的内部检测逻辑
 
 ##### 更多版本历史可参阅
 

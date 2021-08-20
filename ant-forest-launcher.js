@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Aug 13, 2021
- * @version 2.1.8
+ * @since Aug 20, 2021
+ * @version 2.1.9
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -3305,7 +3305,7 @@ let $$init = {
                 /** @type {Object.<string,GlobEventMonitorOptions>|Object} */
                 _glob_e_preset_options: {
                     phone: {
-                        _getCurState() {
+                        _getStoState() {
                             let _self = {
                                 state_key: 'phone_call_state_idle_value',
                                 get cur_state() {
@@ -3375,7 +3375,7 @@ let $$init = {
                         },
                         switching: 'phone_call_state_monitor_switch',
                         trigger() {
-                            return devicex.getCallState() !== this._getCurState();
+                            return devicex.getCallState() !== this._getStoState();
                         },
                         onRelease() {
                             debugInfo('前置"支付宝"应用');
@@ -3441,7 +3441,7 @@ let $$init = {
                             $$toast('闹钟界面置于后台时\n脚本将自动继续', 'L', 'F');
                         },
                         trigger() {
-                            return !devicex.checkNextAlarmClockTriggerTime(this._thrd);
+                            return devicex.isNextAlarmClockTriggered(this._thrd);
                         },
                         onTrigger() {
                             this._saveInnerPkgIFN();
@@ -3955,7 +3955,7 @@ let $$init = {
     unlock() {
         let _is_scr_on = devicex.is_init_screen_on;
         let _is_unlked = devicex.isUnlocked();
-        let _err = m => {
+        let _err = (m) => {
             messageAction('脚本无法继续', 4, 0, 0, -1);
             messageAction(m, 8, 4, 1, 1);
         };
@@ -4435,7 +4435,7 @@ let $$af = {
                  */
                 eballs(type, options) {
                     let _opt = options || {};
-                    if (!_opt.is_cache || Object.size(this.home_balls_info) > 0) {
+                    if (!(_opt.is_cache && Object.size(this.home_balls_info) > 0)) {
                         this.home_balls_info = imagesx.findAFBallsByHough({
                             is_debug_info: _opt.is_debug_info,
                         });
@@ -4689,13 +4689,9 @@ let $$af = {
                             function _getOwnRipeTs() {
                                 timeRecorder('ctd_data');
 
-                                let _tt = 12e3;
                                 let _alive = thd => thd && thd.isAlive();
-                                let _kill = (thd) => {
-                                    thd && thd.interrupt();
-                                    thd = null;
-                                };
-                                let _remainT = () => _tt - timeRecorder('ctd_data', 'L');
+                                let _kill = thd => thd && thd.interrupt();
+
                                 let _ctd_data = [];
                                 let _thd_ocr = threadsx.start(_thdOcr);
                                 let _thd_toast = threadsx.start(_thdToast);
@@ -4708,12 +4704,12 @@ let $$af = {
                                     debugInfo('强制停止Toast监控线程');
                                 }
 
-                                _thd_ocr.join(Math.max(_remainT(), 0));
+                                let _tt = 9e3;
+                                _thd_ocr.join(Math.max(_tt - timeRecorder('ctd_data', 'L'), 0));
 
-                                if (_remainT() < 0) {
-                                    _kill(_thd_toast);
+                                if (_alive(_thd_ocr)) {
                                     _kill(_thd_ocr);
-                                    messageAction('获取自己能量倒计时超时', 3);
+                                    messageAction('获取自己能量倒计时超时', 3, 1);
                                     _ctd_data.length
                                         ? messageAction('最小倒计时数据可能不准确', 3, 0, 0, 1)
                                         : messageAction('最小倒计时数据获取失败', 3, 0, 0, 1);
