@@ -10,6 +10,7 @@ let Linkify = android.text.util.Linkify;
 let KeyEvent = android.view.KeyEvent;
 let ColorStateList = android.content.res.ColorStateList;
 let ColorDrawable = android.graphics.drawable.ColorDrawable;
+let JsDialog = com.stardust.autojs.core.ui.dialog.JsDialog;
 let DialogAction = com.afollestad.materialdialogs.DialogAction;
 let MaterialDialog = com.afollestad.materialdialogs.MaterialDialog;
 
@@ -721,13 +722,13 @@ let ext = {
      */
     getDialogAction(action) {
         try {
-            switch (action) {
+            switch (action.toLowerCase()) {
                 case 'positive':
-                    return DialogAction.POSITIVE;
+                    return DialogAction.valueOf('POSITIVE');
                 case 'negative':
-                    return DialogAction.NEGATIVE;
+                    return DialogAction.valueOf('NEGATIVE');
                 case 'neutral':
-                    return DialogAction.NEUTRAL;
+                    return DialogAction.valueOf('NEUTRAL');
             }
         } catch (e) {
             // Java class "com.afollestad.materialdialogs.DialogAction"
@@ -743,9 +744,17 @@ let ext = {
      * @returns {string}
      */
     getActionButton(d, action) {
-        return d instanceof MaterialDialog
-            ? d.getActionButton(this.getDialogAction(action)).getText().toString()
-            : d.getActionButton(action);
+        let _act = action.toLowerCase();
+        if (d instanceof MaterialDialog) {
+            let _d_act = this.getDialogAction(_act);
+            if (_d_act !== null) {
+                return d.getActionButton(_d_act).getText().toString();
+            }
+            if (typeof d[_act + 'Button'] === 'object') {
+                return d[_act + 'Button']['getText']();
+            }
+        }
+        return d instanceof JsDialog ? d.getActionButton(_act) : '';
     },
     /**
      * Compatible for MaterialDialog.setActionButton()
@@ -756,30 +765,47 @@ let ext = {
      */
     setActionButton(d, action, title, color) {
         let _set = function (action) {
+            let _act = action.toLowerCase();
             d instanceof MaterialDialog
                 ? ui.run(() => {
-                    d.setActionButton(this.getDialogAction(action), title);
-                    color && this.setActionButtonColor(d, action, color);
+                    let _d_act = this.getDialogAction(_act);
+                    if (_d_act !== null) {
+                        d.setActionButton(_d_act, title);
+                    } else if (typeof d[_act + 'Button'] === 'object') {
+                        d[_act + 'Button']['setText'](title);
+                    }
                 })
-                : ui.run(() => {
-                    d.setActionButton(action, title);
-                    color && this.setActionButtonColor(d, action, color);
-                });
+                : ui.run(() => d.setActionButton(_act, title));
+            color && this.setActionButtonColor(d, _act, color);
         }.bind(this);
 
         Array.isArray(action) ? action.forEach(_set) : _set(action);
     },
     /**
      * @param {JsDialog$|MaterialDialog$} d
-     * @param {'positive'|'negative'|'neutral'} action
+     * @param {'positive'|'negative'|'neutral'|('positive'|'negative'|'neutral')[]} action
      * @param {ColorParam|DialogsxColorButton} color
      */
     setActionButtonColor(d, action, color) {
-        let _action = this.getDialogAction(action.toLowerCase());
-        if (_action !== null) {
+        let _set = function (action) {
+            let _act = action.toLowerCase();
             let _c_int = colorsx.toInt(this._colors.wrap(color, 'button'));
-            d.getActionButton(_action).setTextColor(_c_int);
-        }
+            let _d_act = this.getDialogAction(_act);
+            if (_d_act !== null) {
+                d.getActionButton(_d_act).setTextColor(_c_int);
+            }
+            d instanceof MaterialDialog
+                ? ui.run(() => {
+                    if (typeof d[_act + 'Button'] === 'object') {
+                        d[_act + 'Button']['setTextColor'](_c_int);
+                    }
+                })
+                : ui.run(() => {
+                    // not a clue so far...
+                });
+        }.bind(this);
+
+        Array.isArray(action) ? action.forEach(_set) : _set(action);
     },
     /**
      * @param {Builds$Properties} props

@@ -29,21 +29,23 @@ let isNullish = o => o === null || o === undefined;
 !function () {
     'use strict';
 
-    let $$cvt = function () {
+    let $$cvt = function cvtBuilder$iiFe() {
         /** @typedef {number|string} $$cvt$src */
         /** @typedef {string} $$cvt$init_unit */
         /**
-         * @typedef {{
-         *     step?: number, potential_step?: number,
-         *     space?: string|boolean, fixed?: number,
-         *     units?: (number|number[]|string)[], init_unit?: 'string',
-         * }} $$cvt$options
+         * @typedef {Object} $$cvt$options
+         * @property {number} [step]
+         * @property {number} [potential_step]
+         * @property {string|boolean} [space]
+         * @property {number} [fixed]
+         * @property {(number|number[]|string)[]} [units]
+         * @property {string} [init_unit]
          */
         /**
          * @param {$$cvt$src} src
          * @param {$$cvt$options} [options]
          * @example
-         * console.log($_cvt(24, {
+         * console.log($$cvt(24, {
          *     units: ['entries', 12, 'dozens'], space: true,
          * })); // '2 dozens'
          * @returns {string}
@@ -70,8 +72,8 @@ let isNullish = o => o === null || o === undefined;
                 }
             });
 
-            let unit_map = {};
-            unit_map[_units[0]] = [1, 1];
+            let _unit_map = {};
+            _unit_map[_units[0]] = [1, 1];
 
             let _accu_step = 1;
             let _tmp_pot_val;
@@ -93,27 +95,27 @@ let isNullish = o => o === null || o === undefined;
                     _tmp_pot_val = _accu_step * (_pot_step || _step);
                     _accu_step *= _step;
                 }
-                _unit.split('|').forEach(u => unit_map[u] = _tmp_pot_val
-                    ? [_accu_step, _tmp_pot_val] : [_accu_step, _accu_step]);
+                _unit_map[_unit] = [_accu_step, _tmp_pot_val || _accu_step];
             }
 
             let _init_u = _init_unit || _units[0];
             if (~_units.indexOf(_init_u)) {
-                _src *= unit_map[_init_u][0];
+                _src *= _unit_map[_init_u][0];
             }
 
             let _result = '';
-            Object.keys(unit_map).reverse().some((u) => {
-                let [_unit_val, _pot_val] = unit_map[u];
-                if (_src >= _pot_val) {
-                    let res = Number((_src / _unit_val).toFixed(12));
+            let _space_str = _space ? _space === true ? ' ' : _space : '';
+
+            _units.filter(u => u in _unit_map).reverse().some((u, idx, arr) => {
+                let [_unit_val, _pot_val] = _unit_map[u];
+                if (_src >= _pot_val || idx === arr.length - 1) {
+                    let _res = Number((_src / _unit_val).toFixed(12));
                     if (typeof _fixed === 'number') {
-                        res = ~_fixed ? res.toFixed(_fixed) : res;
-                    } else if (res * 1e3 >> 0 !== res * 1e3) {
-                        res = res.toFixed(2);
+                        _res = _fixed !== -1 ? _res.toFixed(_fixed) : _res;
+                    } else if (_res * 1e3 >> 0 !== _res * 1e3) {
+                        _res = _res.toFixed(2);
                     }
-                    let _space_str = _space ? _space === true ? ' ' : _space : '';
-                    return _result = Number(res) + _space_str + u;
+                    return _result = Number(_res) + _space_str + u;
                 }
             });
             return _result;

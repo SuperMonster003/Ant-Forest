@@ -61,7 +61,7 @@ let ext = {
      * @returns {boolean}
      */
     isAutoJsPro() {
-        return (this.isAutoJsPro = () => !!this.getAutoJsPkgName().match(/pro/))();
+        return (this.isAutoJsPro = () => /pro/.test(this.getAutoJsPkgName()))();
     },
     /**
      * @example

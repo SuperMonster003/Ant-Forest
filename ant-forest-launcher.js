@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Aug 20, 2021
- * @version 2.1.9
+ * @since Aug 22, 2021
+ * @version 2.1.10
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -139,19 +139,17 @@ let $$init = {
                 get ts_sec() {
                     return Date.now() / 1e3 >> 0;
                 },
-                exit: (quiet) => {
-                    if (quiet !== true) {
-                        $$app.layout.closeAll();
-                        floaty.closeAll(); // just in case
-                        debugInfo('关闭所有floaty悬浮窗');
-                        if ($$app.queue.excl_tasks_all_len > 1) {
-                            debugInfo('移除当前脚本广播监听器');
-                            events.broadcast.removeAllListeners();
-                            debugInfo('发送初始屏幕开关状态广播');
-                            events.broadcast.emit('init_scr_on_state_change', $$app.init_scr_on);
-                        }
-                        messageAction($$app.task_name + '任务结束', 1, 0, 0, '2_n');
+                exit() {
+                    this.layout.closeAll();
+                    floaty.closeAll(); // just in case
+                    debugInfo('关闭所有floaty悬浮窗');
+                    if (this.queue.excl_tasks_all_len > 1) {
+                        debugInfo('移除当前脚本广播监听器');
+                        events.broadcast.removeAllListeners();
+                        debugInfo('发送初始屏幕开关状态广播');
+                        events.broadcast.emit('init_scr_on_state_change', this.init_scr_on);
                     }
+                    messageAction(this.task_name + '任务结束', 1, 0, 0, '2_n');
                     // exit() might cause ScriptInterruptedException
                     // as $$app.exit might invoked within Promise
                     ui.post(exit);
@@ -3158,9 +3156,7 @@ let $$init = {
                         }, 10e3);
                     },
                     start(this_arg) {
-                        this._thd = threadsx.start(new java.lang.Runnable({
-                            run: () => this._fx(this_arg),
-                        }));
+                        this._thd = threadsx.start(() => this._fx(this_arg));
                     },
                     interrupt() {
                         if (this._thd) {
@@ -3288,6 +3284,7 @@ let $$init = {
                             messageAction('触发按键: 音量减/VOL-', 3, 0, 1);
                             messageAction(_keyMsg(e), 3, 0, 1, 1);
                             $$app.monitor.insurance.reset();
+                            threads.shutDownAll();
                             engines.myEngine().forceStop();
                         });
                         events.setKeyInterceptionEnabled('volume_up', true);
@@ -3296,6 +3293,7 @@ let $$init = {
                             messageAction('触发按键: 音量加/VOL+', 4, 0, 1);
                             messageAction(_keyMsg(e), 4, 0, 1, 1);
                             $$app.monitor.insurance.reset();
+                            threads.shutDownAll();
                             engines.stopAllAndToast();
                         });
                     });
@@ -3407,11 +3405,11 @@ let $$init = {
                         _outer_pkg: /clock|alarm/i,
                         _isInnerPkg() {
                             $$a11y.service.refreshServiceInfo();
-                            return !!currentPackage().match(this._inner_pkg);
+                            return this._inner_pkg.test(currentPackage());
                         },
                         _isOuterPkg() {
                             $$a11y.service.refreshServiceInfo();
-                            return !!currentPackage().match(this._outer_pkg);
+                            return this._outer_pkg.test(currentPackage());
                         },
                         _saveInnerPkg() {
                             this._inner_pkg = currentPackage();
@@ -3428,7 +3426,7 @@ let $$init = {
                         _msgAboutToTrigger() {
                             if (files.exists('./modules/mod-alarm-countdown.js')) {
                                 return require('./modules/mod-alarm-countdown').show({
-                                    is_async: true,
+                                    is_async: true, title: '闹钟即将触发',
                                 });
                             }
                             let _delay = 2;
@@ -3438,7 +3436,7 @@ let $$init = {
                             }, _delay * 1e3);
                         },
                         _msgTriggered() {
-                            $$toast('闹钟界面置于后台时\n脚本将自动继续', 'L', 'F');
+                            $$toast('支付宝界面前置时\n脚本将自动继续', 'L', 'F');
                         },
                         trigger() {
                             return devicex.isNextAlarmClockTriggered(this._thrd);
@@ -3929,9 +3927,7 @@ let $$init = {
                     }
                     debugInfo('开启' + name + '监测线程');
                     let _args = [].slice.call(arguments);
-                    return _thd = threadsx.start(new java.lang.Runnable({
-                        run: () => thr_f.apply(global, _args),
-                    }));
+                    return _thd = threadsx.start(() => thr_f.apply(global, _args));
                 };
                 this.interrupt = function () {
                     if (_thd && !this.disabled) {
@@ -4291,7 +4287,7 @@ let $$init = {
                 let _aim = Array.from(arguments, s => s.toLowerCase());
                 _aim = _aim.length ? _aim : ['alipay', 'app'];
                 _aim.includes('alipay') && $$app.page.alipay.close();
-                _aim.includes('app') && $$app.exit(true);
+                _aim.includes('app') && ui.post(exit);
             }
         }
     },
@@ -5427,9 +5423,13 @@ let $$af = {
                     // tool function(s) //
 
                     function _title() {
-                        let _tt;
-                        waitForAction(() => _tt = $$sel.get('fri_tt', 'txt'), 18e3, 80);
-                        $$af.nick = _tt ? _tt.replace(/的蚂蚁森林$/, '') : '';
+                        let _title = '';
+                        let _ctr = 0;
+                        waitForAction(() => {
+                            _ctr++ % 25 || $$a11y.service.refreshServiceInfo();
+                            return _title = $$sel.get('fri_tt', 'txt') || '';
+                        }, 18e3, 80);
+                        $$af.nick = _title.replace(/的蚂蚁森林$/, '');
                     }
 
                     function _intro() {
@@ -5607,13 +5607,15 @@ let $$af = {
                                         let _txt_cvr = $$sel.pickup(_w_cvr, 'txt');
                                         let _date_str = '';
                                         void _w_lst.children().some((child) => {
-                                            if (child.childCount()) {
-                                                return (
-                                                    $$sel.pickup([child, 'c1>1'], 'txt') ||
-                                                    $$sel.pickup([child, 'c0>1'], 'txt')
-                                                ) === _txt_cvr;
+                                            if (child !== null /* mystical */) {
+                                                if (child.childCount()) {
+                                                    return (
+                                                        $$sel.pickup([child, 'c1>1'], 'txt') ||
+                                                        $$sel.pickup([child, 'c0>1'], 'txt')
+                                                    ) === _txt_cvr;
+                                                }
+                                                _date_str = $$sel.pickup(child, 'txt');
                                             }
-                                            _date_str = $$sel.pickup(child, 'txt');
                                         });
                                         return _date_str;
                                     }
@@ -5920,7 +5922,7 @@ let $$af = {
                                             this.ready() && this.stable() && this.stat();
                                         },
                                     };
-                                    return new java.lang.Runnable({run: _maker.fx.bind(_maker)});
+                                    return _maker.fx.bind(_maker);
                                 }
                             }
                         }
@@ -6818,6 +6820,7 @@ let $$af = {
                 let _1st = 1;
 
                 do {
+                    $$impeded('排行榜控件滚动流程');
                     _1st ? _1st &= 0 : sleep(_itv);
                     let _ls = scrollable(true).findOnce();
                     _ls ? _ls.scrollDown() : debugInfo$('scrollable(): null', 3);

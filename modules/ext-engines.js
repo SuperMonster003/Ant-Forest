@@ -66,7 +66,7 @@ let ext = {
         return !this.isRemote();
     },
     isRemote() {
-        return !!this.my_engine_src_name.match(/^\[remote]/);
+        return /^\[remote]/.test(this.my_engine_src_name);
     },
     ensureLocal() {
         if (!this.isLocal()) {

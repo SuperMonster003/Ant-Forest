@@ -334,7 +334,10 @@ let ext = {
         });
         this.registerWidget('x-text', '/', [{
             attr_name: 'text',
-            setter: (view, name, value) => view.setText(value),
+            setter: (view, name, value) => view.setText(String(value)),
+        }, {
+            attr_name: 'size',
+            setter: (view, name, value) => view.setTextSize(Number(value)),
         }, {
             attr_name: 'color',
             setter: (view, name, value) => view.setTextColor(colorsx.toInt(value)),

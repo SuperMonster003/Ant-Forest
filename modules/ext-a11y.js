@@ -13,6 +13,7 @@ let Secure = Settings.Secure;
 
 let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
 let AccessibilityService = com.stardust.autojs.core.accessibility.AccessibilityService;
+let AccessibilityWindowInfo = android.view.accessibility.AccessibilityWindowInfo;
 
 let ctx_reso = context.getContentResolver();
 let autojs_a11y_svc_name = context.getPackageName() + '/' +
@@ -52,44 +53,55 @@ let ext = {
     },
     bridge: {
         /**
-         * @param {android.view.accessibility.AccessibilityWindowInfo} wi
-         * @returns {boolean}
-         */
-        _isLatestPackage(wi) {
-            return wi.getRoot().getPackageName() === runtime.info.getLatestPackage();
-        },
-        /**
-         * @param {
-         *     function(info:android.view.accessibility.AccessibilityWindowInfo):boolean
-         * } filter
+         * @param {function(info:android.view.accessibility.AccessibilityWindowInfo):boolean} filter
          */
         setWindowFilter(filter) {
             auto.setWindowFilter(function (wi) {
                 try {
                     return filter(wi);
                 } catch (e) {
-                    // eg: TypeError: Cannot call method "getPackageName" of null
                     return false;
                 }
             });
         },
-        /** @param {string[]} blacklist */
-        setWindowBlacklist(blacklist) {
-            this.setWindowFilter(wi => this._isLatestPackage(wi)
-                && !~blacklist.indexOf(wi.getRoot().getPackageName()));
+        /** @param {string[]} pkg_blist */
+        setWindowBlacklist(pkg_blist) {
+            this.setWindowFilter(wi => pkg_blist.indexOf(wi.getRoot().getPackageName()) < 0);
         },
-        /** @param {string[]} whitelist */
-        setWindowWhitelist(whitelist) {
-            this.setWindowFilter(wi => this._isLatestPackage(wi)
-                && !!~whitelist.indexOf(wi.getRoot().getPackageName()));
+        /** @param {string[]} pkg_wlist */
+        setWindowWhitelist(pkg_wlist) {
+            this.setWindowFilter(wi => pkg_wlist.indexOf(wi.getRoot().getPackageName()) > -1);
         },
         setWindowAllowAll() {
             this.setWindowFilter(() => true);
         },
         resetWindowFilter() {
             this.setWindowFilter((wi) => {
-                return devicex.isLocked() || this._isLatestPackage(wi);
+                return this.isWindowType(wi, 'APPLICATION')
+                    || this.isWindowType(wi, 'SYSTEM') && wi.isActive();
             });
+        },
+        /**
+         * @param {android.view.accessibility.AccessibilityWindowInfo} wi
+         * @param {'APPLICATION'|'INPUT_METHOD'|'SYSTEM'|'ACCESSIBILITY_OVERLAY'|'SPLIT_SCREEN_DIVIDER'|number} type
+         * @returns {boolean}
+         */
+        isWindowType(wi, type) {
+            if (typeof type === 'number') {
+                return type === wi.getType();
+            }
+            let _types = {
+                APPLICATION: 0x1,
+                INPUT_METHOD: 0x2,
+                SYSTEM: 0x3,
+                ACCESSIBILITY_OVERLAY: 0x4,
+                SPLIT_SCREEN_DIVIDER: 0x5,
+            };
+            let _type = String(type).toUpperCase();
+            if (!(_type in _types)) {
+                throw TypeError('Unknown type of "type" for isWindowType()');
+            }
+            return AccessibilityWindowInfo['TYPE_' + _type] === wi.getType();
         },
     },
     service: {
@@ -398,7 +410,7 @@ let ext = {
                  * @returns {boolean}
                  */
                 function _isArrResType(type) {
-                    return !!type.match(/^(widgets|points)$/);
+                    return /^(widgets|points)$/.test(type);
                 }
 
                 /**
@@ -518,9 +530,9 @@ let ext = {
                          * @returns {number}
                          */
                         function _getTxtLen(w) {
-                            let _text = w && w.findOnce();
+                            let _text = w instanceof UiSelector ? w.findOnce() : null;
                             _text = _text === null ? '' : _text.text() || '';
-                            let _desc = w && w.findOnce();
+                            let _desc = w instanceof UiSelector ? w.findOnce() : null;
                             _desc = _desc === null ? '' : _desc.desc() || '';
                             return Math.max(_desc.length, _text.length);
                         }

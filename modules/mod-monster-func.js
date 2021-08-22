@@ -1070,6 +1070,7 @@ function keycode(code, options) {
             let isScreenOn = () => {
                 /** @type {android.os.PowerManager} */
                 let _pow_mgr = context.getSystemService(Context.POWER_SERVICE);
+                // noinspection JSDeprecatedSymbols
                 return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
             };
             let isScreenOff = () => !isScreenOn();
@@ -1454,7 +1455,7 @@ function timeRecorder(keyword, operation, divisor, fixed, suffix, override_times
             result /= base_unit.sec;
             suffix = getSuffix('sec');
         } else {
-            result /= base_unit.ms; // yes, i have OCD [:wink:]
+            result /= base_unit.ms;
             suffix = getSuffix('ms');
         }
     }

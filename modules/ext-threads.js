@@ -3,6 +3,7 @@ global.threadsx = typeof global.threadsx === 'object' ? global.threadsx : {};
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
+let Runnable = java.lang.Runnable;
 let Throwable = java.lang.Throwable;
 let AtomicLong = java.util.concurrent.atomic.AtomicLong;
 let TimerThread = com.stardust.autojs.core.looper.TimerThread;
@@ -18,7 +19,12 @@ let ext = {
      */
     start(f, no_err_msg) {
         try {
-            return threads.start(f);
+            if (f instanceof Runnable) {
+                return threads.start(f);
+            }
+            if (typeof f === 'function') {
+                return threads.start(new Runnable({run: () => f()}));
+            }
         } catch (e) {
             if (!ScriptInterruptedException.causedByInterrupted(new Throwable(e))) {
                 if (!e.message.match(/script exiting/) && !no_err_msg) {
@@ -27,6 +33,7 @@ let ext = {
                 }
             }
         }
+        throw TypeError('Unknown type of f for threadsx.start()');
     },
     /**
      * Degradation (zh-CN: 平稳退化) for threads.atomic()

@@ -231,7 +231,7 @@ let $$init = {
                         if (!$$arr(_content)) {
                             _content = [_content];
                         }
-                        if ($$und(_content[1]) || !!_content[1]) {
+                        if ($$und(_content[1]) || _content[1]) {
                             _content[1] =
                                 '有效值: ' + _mini + ' [ ' + _mini_p + ' ] ' +
                                 ' -  ' + _maxi + ' [ ' + _maxi_p + ' ]\n' +
@@ -2715,7 +2715,7 @@ let $$init = {
                         let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.stat_list_show_zero : _show_zero;
                         dialogsx
                             .builds([
-                                '收取值筛选', '', ['R', 'hint'], 'B', 'K', 1,
+                                '收取值筛选', '', ['设为默认值', 'hint'], 'B', 'K', 1,
                             ], {
                                 items: _getItems($$sto.af_cfg.get('config', {}).stat_list_show_zero),
                                 itemsSelectMode: 'single',
@@ -2748,7 +2748,7 @@ let $$init = {
                         let _sess_sel_idx = $$und(_range) ? $$cfg.ses.stat_list_date_range : _range;
                         let _posFunc = d => _posDefault(d);
                         let _diag = dialogsx.builds([
-                            '日期统计范围', '', ['R', 'hint'], 'B', 'K', 1,
+                            '日期统计范围', '', ['设为默认值', 'hint'], 'B', 'K', 1,
                         ], {
                             items: $$view.getStatPageItems({
                                 def: $$sto.af_cfg.get('config', {}).stat_list_date_range,
