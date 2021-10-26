@@ -1,1 +1,1 @@
-require('../modules/mod-memory-info').show();
+require('../modules/plugin-memory-info').run();

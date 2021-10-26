@@ -1,6 +1,6 @@
-global.enginesx = typeof global.enginesx === 'object' ? global.enginesx : {};
+let {} = require('./ext-global');
 
-require('./mod-monster-func').load('messageAction', 'debugInfo');
+let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -8,7 +8,7 @@ require('./mod-monster-func').load('messageAction', 'debugInfo');
 let ScriptConfig = com.stardust.autojs.project.ScriptConfig;
 let ExecutionConfig = com.stardust.autojs.execution.ExecutionConfig;
 
-let ext = {
+let exp = {
     get my_engine() {
         return engines.myEngine();
     },
@@ -39,7 +39,7 @@ let ext = {
         return this.my_engine.source.toString().replace(/(.+?)(.(js|auto))?$/, '$1');
     },
     /**
-     * @returns {com.stardust.autojs.engine.ScriptEngine[]}
+     * @return {com.stardust.autojs.engine.ScriptEngine[]}
      */
     get all_engines() {
         return engines.all();
@@ -56,11 +56,13 @@ let ext = {
      * @example
      * // eg: '/storage/emulated/0/Scripts/Ant-Forest-003/test.js'
      * console.log(enginesx.cwp);
+     * @return {string}
      */
     get cwp() {
         if (this.isLocal()) {
             return this.my_engine.source.toString();
         }
+        return '';
     },
     isLocal() {
         return !this.isRemote();
@@ -103,20 +105,20 @@ let ext = {
      * <br>
      *     -- *DEFAULT* - old engine task <br>
      *     -- new file - like 'hello.js', '../hello.js' or 'hello'
-     * @param {boolean} [options.is_debug_info=undefined]
+     * @param {boolean} [options.is_debug=undefined]
      * @param {number} [options.max_restart_e_times=1] - max restart times for avoiding infinite recursion
-     * @param {boolean} [options.instant_run_flag] - whether to perform an instant run or not
+     * @param {boolean} [options.is_instant_running] - whether to perform an instant run or not
      * @example
      * enginesx.restart({
-     *    is_debug_info: true,
+     *    is_debug: true,
      *    max_restart_e_times: 3,
-     *    instant_run_flag: false,
+     *    is_instant_running: false,
      * });
-     * @returns {boolean}
+     * @return {boolean}
      */
     restart(options) {
         let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+        let _debug = consolex.debug.fuel(_opt);
 
         let _e_argv = this.my_engine_exec_argv;
 
@@ -125,33 +127,31 @@ let ext = {
             : typeof _opt.max_restart_e_times !== 'undefined'
                 ? Number(_opt.max_restart_e_times) : 1;
         if (!_r_times) {
-            messageAction('引擎重启已拒绝', 3);
-            messageAction('引擎重启次数已超限', 3, 0, 1);
-            return false;
+            return consolex.$('引擎重启次数已超限', 3);
         }
 
         let _r_times_bak = Number(_e_argv.max_restart_e_times_bak) || _r_times;
-        debugInfo$('重启当前引擎任务');
-        debugInfo$('>当前次数: ' + (_r_times_bak - _r_times + 1));
-        debugInfo$('>最大次数: ' + _r_times_bak);
+        _debug('重启当前引擎任务');
+        _debug('当前次数: ' + (_r_times_bak - _r_times + 1), 0, 1);
+        _debug('最大次数: ' + _r_times_bak, 0, 1);
 
         if (this.isRemote()) {
-            return messageAction('远程任务不支持重启引擎', 8, 4, 0, 1);
+            return consolex.$('远程任务不支持重启引擎', 8, 4, 0, 1);
         }
 
         let _file_name = _opt.new_file || this.my_engine_src_name;
         let _file_path = files.path(_file_name + (_file_name.match(/\.js$/) ? '' : '.js'));
 
-        debugInfo$('运行新引擎任务:\n' + _file_path);
+        _debug('运行新引擎任务:\n' + _file_path);
         this.execScriptFile(_file_path, {
             arguments: Object.assign({}, _opt, {
                 max_restart_e_times: _r_times - 1,
                 max_restart_e_times_bak: _r_times_bak,
-                instant_run_flag: _opt.instant_run_flag,
+                is_instant_running: _opt.is_instant_running,
             }),
         });
 
-        debugInfo$('强制停止旧引擎任务');
+        _debug('强制停止旧引擎任务');
         let _my_e_id = this.my_engine_id;
         this.all_engines.filter(e => e.getId() === _my_e_id).forEach(e => e.forceStop());
 
@@ -159,11 +159,14 @@ let ext = {
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.enginesx = ext;
+module.exports = {enginesx: exp};
 
 // tool function(s) //
 
+/**
+ * @param {Enginesx.ExecutionConfig} c
+ * @return {com.stardust.autojs.execution.ExecutionConfig}
+ */
 function _fillConfig(c) {
     let _cfg = new ExecutionConfig();
     let _c = c || {};

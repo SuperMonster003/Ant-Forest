@@ -1,19 +1,22 @@
+let {} = require('../modules/ext-global');
+let {} = require('../modules/ext-ui');
+
 let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
 
 // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
 let _view = ui.inflate(
     <vertical gravity="center">
-        <img id="img" src="@drawable/ic_alarm_on_black_48dp"
+        <x-img id="img" src="@drawable/ic_alarm_on_black_48dp"
              height="70" margin="0 26 0 18" gravity="center"
              bg="?selectableItemBackgroundBorderless"/>
         <vertical>
-            <text text="Next auto task" gravity="center" color="#ddf3e5f5" padding="5 0 5 20" size="19"/>
-            <text id="aim" gravity="center" color="#ddf3e5f5" padding="5 0 5 20" size="18"/>
-            <text id="ctd" gravity="center" color="#ddf3e5f5" padding="5 0 5 24" size="18"/>
+            <x-text text="Next auto task" gravity="center" color="#DDF3E5F5" padding="5 0 5 20" size="19"/>
+            <x-text id="aim" gravity="center" color="#DDF3E5F5" padding="5 0 5 20" size="18"/>
+            <x-text id="ctd" gravity="center" color="#DDF3E5F5" padding="5 0 5 24" size="18"/>
         </vertical>
         <horizontal w="auto">
-            <button id="btn" type="button" text="CLOSE" layout_weight="1" backgroundTint="#dd1b5e20"
-                    textColor="#dde8f5e9" marginBottom="9"/>
+            <x-button id="btn" type="button" text="CLOSE" layout_weight="1" backgroundTint="#DD1B5E20"
+                    textColor="#DDE8F5E9" marginBottom="9"/>
         </horizontal>
     </vertical>);
 let _diag = dialogs.build({
@@ -34,7 +37,7 @@ ui.run(() => {
     });
 
     _view['btn'].on('click', _exitNow);
-    _setTint(_view['img'], '#ba68c8');
+    _setTint(_view['img'], '#BA68C8');
 
     let _win = _diag.getWindow();
     _win.setBackgroundDrawableResource(android.R.color.transparent);
@@ -64,14 +67,14 @@ function _getTsFromAutoTask() {
 
 function _getTsFromDiag() {
     while (1) {
-        _ts = Number(dialogs.prompt('未检测到"蚂蚁森林"定时任务\n请输入用于测试的延迟分钟'));
+        _ts = Number(dialogs.prompt('未检测到"蚂蚁森林"定时任务\n输入用于测试的延迟分钟'));
         if (!isNaN(_ts) && _ts > 0) {
             return _ts * 60e3 + Date.now();
         } else if (!_ts) {
             toast('已退出');
             exit();
         }
-        alert('请输入合法的数字');
+        alert('需输入合法的数字');
     }
 }
 
@@ -94,31 +97,6 @@ function _setCtdText(t) {
 
     let _aim_str = '';
     let _ctd_str = '';
-
-    let _getPadStr = function (target_len, pad_str) {
-        let _tar_len = Number(target_len);
-        let _this_len = this.length;
-        if (_tar_len <= _this_len) {
-            return '';
-        }
-        let _pad_str = pad_str === undefined ? ' ' : String(pad_str);
-        let _gap = _tar_len - _this_len;
-        let _times = Math.ceil(_gap / _pad_str.length);
-        return _pad_str.repeat(_times).slice(0, _gap);
-    };
-
-    if (!String.prototype.padStart) {
-        String.prototype.padStart = function (target_len, pad_str) {
-            return _getPadStr.apply(this, arguments) + this.valueOf();
-        };
-    }
-
-    if (!Number.prototype.padStart) {
-        Number.prototype.padStart = function (target_len, pad_str) {
-            let _this = this.toString();
-            return _this.padStart.call(_this, target_len, pad_str || 0);
-        };
-    }
 
     let _tsToTime = (ts, is_gap) => {
         if (is_gap) {
@@ -160,14 +138,14 @@ function _setCtdText(t) {
         let _now = new Date();
         let _today_0h_ts = new Date(_now.toLocaleDateString()).getTime();
         let _aim_sign = _aim_ts >= _today_0h_ts + _day_ms ? '+' : '=';
-        return _aim_sign + ' ' + _aim_str + ' ' + _aim_sign;
+        return _aim_sign + '\x20' + _aim_str + '\x20' + _aim_sign;
     };
 
     let _getCtdStr = () => {
         let _ctd_sign = '-';
         let _gap_ts = _aim_ts - Date.now();
         _ctd_str = _tsToTime(Math.max(_gap_ts, 0), 'GAP');
-        return _ctd_sign + ' ' + _ctd_str + ' ' + _ctd_sign;
+        return _ctd_sign + '\x20' + _ctd_str + '\x20' + _ctd_sign;
     };
 
     try {

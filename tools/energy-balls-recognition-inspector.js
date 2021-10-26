@@ -1,23 +1,23 @@
-require('../modules/ext-images').load();
-require('../modules/ext-global').load();
-require('../modules/ext-device').load();
-require('../modules/ext-dialogs').load();
-require('../modules/ext-storages').load();
+let {} = require('../modules/ext-global');
+
+let {imagesx} = require('../modules/ext-images');
+let {dialogsx} = require('../modules/ext-dialogs');
+let {storagesx} = require('../modules/ext-storages');
 
 dialogsx.builds([
     '能量球识别测试工具',
     '此测试工具用于识别能量球\n' +
     '手动进入森林页面可查看识别情况\n\n' +
-    '请勿长时间连续使用\n' +
+    '切勿长时间连续使用\n' +
     '否则可能导致设备发热严重\n\n' +
     '过程中按"音量减"按钮可结束测试\n\n' +
     '结束时Auto.js可能会崩溃\n' +
     '崩溃后会丢失当前的控制台日志\n' +
     '且可能需要重新开启无障碍服务\n' +
-    '因此请勿频繁使用此测试工具',
+    '因此切勿频繁使用此测试工具',
     0, 'Q', '开始', 1,
 ]).on('negative', d => d.dismiss()).on('positive', (d) => {
-    toast('请手动进入任意一个森林页面');
+    toast('手动进入任意一个森林页面');
     threads.start(_);
     d.dismiss();
 }).show();
@@ -28,7 +28,7 @@ function _() {
     let _wins = [];
     Object.assign($_sto, {
         cfg: storagesx.create('af_cfg'),
-        def: require('../modules/mod-default-config'),
+        def: storagesx['@default'],
     });
 
     Object.assign($_cfg, $_sto.def.af, $_sto.cfg.get('config', {}));
@@ -94,18 +94,17 @@ function _() {
             }
         }, 50);
 
-
         function _paint() {
             let c_map = {
-                naught: '#fafafa',
-                ripe: '#43a047',
-                water: '#d09211',
+                naught: '#FAFAFA',
+                ripe: '#43A047',
+                water: '#D09211',
             };
 
             let paint = new Paint();
             paint.setStyle(Paint.Style.STROKE);
 
-            win.canvas.on('draw', function (canvas) {
+            win['canvas'].on('draw', function (canvas) {
                 canvas.drawColor(android.graphics.Color.TRANSPARENT, android.graphics.PorterDuff.Mode.CLEAR);
                 if (i < _balls_data.length) {
                     let color = c_map[_balls_data[i].type];

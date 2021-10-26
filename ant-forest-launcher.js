@@ -1,33 +1,38 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Aug 22, 2021
- * @version 2.1.10
+ * @since Oct 26, 2021
+ * @version 2.2.0
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
 
-'use strict';
+let {
+    requirex, $$toast, $$und, $$obj, $$arr, $$cvt, $$bool,
+    $$func, $$num, $$sleep, $$impeded, $$str, $$link, isNullish,
+} = require('./modules/ext-global');
+
+let {uix} = require('./modules/ext-ui');
+let {dbx} = require('./modules/ext-database');
+let {appx} = require('./modules/ext-app');
+let {filesx} = require('./modules/ext-files');
+let {autojsx} = require('./modules/ext-autojs');
+let {imagesx} = require('./modules/ext-images');
+let {timersx} = require('./modules/ext-timers');
+let {alipayx} = require('./modules/ext-alipay');
+let {cryptox} = require('./modules/ext-crypto');
+let {colorsx} = require('./modules/ext-colors');
+let {eventsx} = require('./modules/ext-events');
+let {dialogsx} = require('./modules/ext-dialogs');
+let {threadsx} = require('./modules/ext-threads');
+let {enginesx} = require('./modules/ext-engines');
+let {consolex} = require('./modules/ext-console');
+let {projectx} = require('./modules/ext-project');
+let {storagesx} = require('./modules/ext-storages');
+let {a11yx, $$sel} = require('./modules/ext-a11y');
+let {devicex, $$disp} = require('./modules/ext-device');
 
 let $$init = {
-    appx() {
-        try {
-            return require('./modules/ext-app');
-        } catch (e) {
-            if (!files.exists('./modules/ext-app.js')) {
-                console.error('ext-app模块不存在');
-                console.error('请检查项目目录结构');
-            }
-            throw Error(e + '\n' + e.stack);
-        }
-    },
     check() {
-        this.appx().load();
-        appx.checkModules([
-            'mod-treasury-vault', 'mod-database', 'mod-pwmap',
-            'mod-default-config', 'mod-monster-func', 'ext-storages',
-            'ext-engines', 'ext-images', 'ext-timers', 'ext-dialogs', 'ext-ui',
-            'ext-threads', 'ext-global', 'ext-device', 'ext-console', 'ext-app',
-        ], {is_load: true});
         appx.checkAlipayPackage();
         appx.checkSdkAndAJVer();
         appx.checkScreenOffTimeout();
@@ -36,38 +41,28 @@ let $$init = {
         return $$init;
     },
     global() {
-        setGlobalFunctions();
         setGlobalObjects();
         setGlobalFlags();
         setGlobalLog();
 
-        debugInfo('开发者测试日志已启用', 'Up_both_dash');
-        debugInfo('设备型号: ' + device.brand + ' ' + device.product);
+        consolex.__();
+        consolex._('开发者测试日志已启用', 0, 0, -2);
+        consolex._('设备型号: ' + device.brand + '\x20' + device.product);
 
-        setDisplay();
+        $$disp.debug();
 
         appSetter().setTask().setBlist().setPages().setLayout().setIntent();
         accSetter().setParams().setMain();
 
-        debugInfo('Auto.js版本: ' + $$app.autojs_ver_name);
-        debugInfo('项目版本: ' + $$app.project_ver_name);
-        debugInfo('安卓SDK版本: ' + device.sdkInt);
-        debugInfo('安卓系统版本: ' + device.release);
-        debugInfo('Root权限: ' + ($$app.has_root ? '已获取' : '未获取'));
+        consolex._('Auto.js版本: ' + $$app.autojs_ver_name);
+        consolex._('项目版本: ' + $$app.project_ver_name);
+        consolex._('安卓SDK版本: ' + device.sdkInt);
+        consolex._('安卓系统版本: ' + device.release);
+        consolex._('Root权限: ' + ($$app.has_root ? '已获取' : '未获取'));
 
         return $$init;
 
         // tool function(s) //
-
-        function setGlobalFunctions() {
-            require('./modules/mod-monster-func').load();
-            Object.defineProperty(global, 'messageAction$', {
-                get: () => $$flag.msg_details ? messageAction : (m, lv) => ![3, 4].includes(lv),
-            });
-            Object.defineProperty(global, 'showSplitLine$', {
-                get: () => $$flag.msg_details ? showSplitLine : () => void 0,
-            });
-        }
 
         function setGlobalObjects() {
             global.$$flag = {
@@ -75,42 +70,25 @@ let $$init = {
                 autojs_has_secure: appx.hasSecure(),
             };
 
-            global.$$sto = {
-                af: storagesx.create('af'),
-                af_next: storagesx.create('af_auto'),
-                af_ins: storagesx.create('af_ins'),
-                af_cfg: storagesx.create('af_cfg'),
-                af_blist: storagesx.create('af_blist'),
-                af_flist: storagesx.create('af_flist'),
-            };
-
             global.$$cfg = Object.assign({},
-                require('./modules/mod-default-config').af,
-                $$sto.af_cfg.get('config'));
+                storagesx['@default'].af,
+                storagesx.af_cfg.get('config'));
 
-            global.$$db = require('./modules/mod-database').create([
-                {name: 'name', not_null: true},
-                {name: 'timestamp', type: 'integer', primary_key: true},
-                {name: 'pick', type: 'integer'},
-                // TODO...
-                // {name: 'e_dblclick', type: 'integer'},
-            ], {alter: 'union'});
+            global.$$db = dbx.create('af', {alter_type: 'union'});
 
             global.$$app = {
-                developer: _unTap('434535154232343343441542000003'),
-                rl_title: _unEsc('2615FE0F0020597D53CB6392884C699C'),
-                task_name: _unEsc('8682868168EE6797').surround('"'),
-                autojs_name: appx.getAutoJsName(),
-                autojs_pkg: appx.getAutoJsPkgName(),
-                alipay_pkg: global._$_alipay_pkg,
-                autojs_ver_name: appx.getAutoJsVerName(),
-                project_ver_name: appx.getProjectLocalVerName(),
+                developer: String.unTap('434535154232343343441542000003'),
+                rl_title: String.unEsc('2615FE0F0020597D53CB6392884C699C'),
+                task_name: String.unEsc('8682868168EE6797').surround('"'),
+                autojs_name: autojsx.getAppName(),
+                autojs_pkg: autojsx.getPkgName(),
+                autojs_ver_name: autojsx.getVerName(),
+                project_ver_name: projectx.getLocalVerName(),
                 init_scr_on: devicex.is_init_screen_on,
                 init_fg_pkg: currentPackage(),
                 engines_exec_argv: enginesx.my_engine_exec_argv,
                 cwd: enginesx.cwd,
                 cwp: enginesx.cwp,
-                local_pics_path: _getLocalPicsPath(),
                 has_root: $$flag.autojs_has_root,
                 root_fxs: $$cfg.root_access_functions,
                 fri_drop_by: {
@@ -119,8 +97,8 @@ let $$init = {
                     ic(name) {
                         let _ctr = this._pool[name] || 0;
                         if (_ctr === this._max) {
-                            debugInfo('发送排行榜复查停止信号');
-                            debugInfo('>已达连续好友访问最大阈值');
+                            consolex._('发送排行榜复查停止信号');
+                            consolex._('已达连续好友访问最大阈值');
                             $$flag.rl_review_stop = true;
                         }
                         this._pool[name] = ++_ctr;
@@ -140,23 +118,43 @@ let $$init = {
                     return Date.now() / 1e3 >> 0;
                 },
                 exit() {
-                    this.layout.closeAll();
-                    floaty.closeAll(); // just in case
-                    debugInfo('关闭所有floaty悬浮窗');
-                    if (this.queue.excl_tasks_all_len > 1) {
-                        debugInfo('移除当前脚本广播监听器');
-                        events.broadcast.removeAllListeners();
-                        debugInfo('发送初始屏幕开关状态广播');
-                        events.broadcast.emit('init_scr_on_state_change', this.init_scr_on);
+                    try {
+                        this.layout.closeAll();
+                        floaty.closeAll(); // just in case
+
+                        if (this.queue.excl_tasks_all_len > 1) {
+                            consolex._('移除当前脚本广播监听器');
+                            events.broadcast.removeAllListeners();
+                            consolex._('发送初始屏幕开关状态广播');
+                            events.broadcast.emit('init_scr_on_state_change', this.init_scr_on);
+                        }
+                    } catch (e) {
+                        console.error(e + '\n' + e.stack);
+                    } finally {
+                        consolex.$((this.task_name || '"Unknown"') + '任务结束', 1, 0, 0, '2n');
+
+                        // exit() might cause ScriptInterruptedException
+                        // as $$app.exit might invoked within Promise
+                        ui.post(exit);
                     }
-                    messageAction(this.task_name + '任务结束', 1, 0, 0, '2_n');
-                    // exit() might cause ScriptInterruptedException
-                    // as $$app.exit might invoked within Promise
-                    ui.post(exit);
+                },
+                /**
+                 * @param {*} [status] - a truthy value indicates abnormal termination
+                 */
+                tidy(status) {
+                    let _status = status ? 1 : 0;
+
+                    this.monitor.insurance.finish(_status);
+
+                    dialogsx.clearPool();
+                    imagesx.clearPool();
+                    $$db.close();
+
+                    $$flag.glob_e_scr_privilege = true;
                 },
             };
 
-            global.$$sel.add('af', '蚂蚁森林')
+            $$sel.add('af', '蚂蚁森林')
                 .add('alipay_home', [/首页|Homepage/, {bi$: [0, cY(0.7), W, H]}])
                 .add('af_title', [/蚂蚁森林|Ant Forest/, {bi$: [0, 0, cX(0.4), cY(0.2)]}])
                 .add('af_home', /合种|背包|通知|攻略|任务|.*大树养成.*/)
@@ -166,7 +164,7 @@ let $$init = {
                 .add('rl_end_idt', /.*没有更多.*/)
                 .add('list', className('ListView'))
                 .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)]}])
-                .add('cover_used', /.*使用了保护罩.*/)
+                .add('cover_used', /.*使用了.*保护罩.*/)
                 .add('wait_awhile', /.*稍等片刻.*/)
                 .add('reload_frst_page', '重新加载')
                 .add('close_btn', /关闭|Close/)
@@ -179,6 +177,17 @@ let $$init = {
                 .add('login_next_step', /下一步|Next|.*nextButton/)
                 .add('input_lbl_acc', /账号|Account/)
                 .add('input_lbl_code', /密码|Password/)
+                .add('input_username', {
+                    className: 'EditText',
+                    filter: w => /(会员|用户)名|手机|邮箱/.test($$sel.pickup(w, 'txt')),
+                })
+                .add('input_password', () => {
+                    if ($$sel.pickup(/.*(忘记密码|输入.*密码).*/)) {
+                        let wc = $$sel.pickup({className: 'EditText'}, 'wc');
+                        return wc.length ? wc[wc.length - 1] : null;
+                    }
+                    return null;
+                })
                 .add('switch_to_other_acc', idMatches(/.+_item_account/))
                 .add('login_err_ensure', idMatches(/.*ensure/))
                 .add('login_err_msg', (type) => {
@@ -189,80 +198,41 @@ let $$init = {
                 .add('acc_logged_out', new RegExp('.*('
                     + /在其他设备登录|logged +in +on +another/.source + '|'
                     + /.*账号于.*通过.*登录.*|account +logged +on +to/.source + ').*'));
-
-            // tool function(s) //
-
-            function _unEsc(s) {
-                return typeof String.fromCharCode === 'function'
-                    ? s.replace(/.{4}/g, $ => String.fromCharCode(parseInt($, 16)))
-                    : unescape(s.replace(/.{4}/g, '%u$&'));
-            }
-
-            function _unTap(s) {
-                // Person of Interest Season 2 Episode 2 at 00:39:03
-                // Tap code in this episode was '4442112433434433'
-                let _map = [
-                    ['A', 'B', 'C', 'D', 'E'],
-                    ['F', 'G', 'H', 'I', 'J'],
-                    ['L', 'M', 'N', 'O', 'P'],
-                    ['Q', 'R', 'S', 'T', 'U'],
-                    ['V', 'W', 'X', 'Y', 'Z'],
-                ];
-                return s.match(/../g).reduce((a, b) => {
-                    let [_row, _col] = b;
-                    return a + (+_row ? _map[--_row][--_col] : _col);
-                }, String());
-            }
-
-            function _getLocalPicsPath() {
-                let _path = files.getSdcardPath() + '/.local/pics/';
-                files.createWithDirs(_path);
-                return _path;
-            }
         }
 
         function setGlobalFlags() {
-            let _cnsl_detail = $$cfg.console_log_details;
             let _dbg_info_sw = $$cfg.debug_info_switch;
             let _msg_sw = $$cfg.message_showing_switch;
             let _console_msg_sw = _msg_sw && $$cfg.console_log_switch;
-            $$flag.msg_details = _cnsl_detail || _dbg_info_sw;
-            $$flag.no_msg_action = !_console_msg_sw;
-            $$flag.debug_info_avail = _dbg_info_sw && _console_msg_sw;
+
+            $$flag.show_debug_info = _dbg_info_sw && _console_msg_sw;
             $$flag.show_energy_result = _msg_sw && $$cfg.result_showing_switch;
             $$flag.show_floaty_result = $$cfg.floaty_result_switch;
 
+            _console_msg_sw ? consolex.print.enable() : consolex.print.disable();
+
             let _e_argv = $$app.engines_exec_argv;
             if (Object.size(_e_argv, {exclude: 'intent'}) > 0) {
-                if (!$$und(_e_argv.is_debug_info)) {
-                    $$flag.debug_info_avail = !!_e_argv.is_debug_info;
+                if (!$$und(_e_argv.is_debug)) {
+                    $$flag.show_debug_info = Boolean(_e_argv.is_debug);
                 }
-                if ($$und(_e_argv.instant_run_flag)) {
-                    _e_argv.instant_run_flag = true;
+                if ($$und(_e_argv.is_instant_running)) {
+                    _e_argv.is_instant_running = true;
                 }
-                if ($$und(_e_argv.no_insurance_flag)) {
-                    _e_argv.no_insurance_flag = true;
+                if ($$und(_e_argv.no_insurance)) {
+                    _e_argv.no_insurance = true;
                 }
             }
         }
 
         function setGlobalLog() {
-            $$cfg.global_log_switch && consolex.setGlobalLogConfig({
-                file: $$cfg.global_log_cfg_path + 'auto.js-log.log',
-                filePattern: $$cfg.global_log_cfg_file_pattern,
-                maxBackupSize: $$cfg.global_log_cfg_max_backup_size,
-                maxFileSize: $$cfg.global_log_cfg_max_file_size << 10,
+            $$cfg.aj_global_log_switch && consolex.setGlobalLogConfig({
+                file: $$cfg.aj_global_log_cfg_path + 'auto.js-log.log',
+                filePattern: $$cfg.aj_global_log_cfg_file_pattern,
+                maxBackupSize: $$cfg.aj_global_log_cfg_max_backup_size,
+                maxFileSize: $$cfg.aj_global_log_cfg_max_file_size << 10,
             });
-        }
-
-        function setDisplay() {
-            if (devicex.getDisplay(true).is_display_rotation_landscape) {
-                if ($$flag.show_energy_result) {
-                    messageAction$('当前设备屏幕为水平显示方向', 3, 0, 0, 'up_dash');
-                    messageAction$('悬浮窗结果展示方式已被禁用', 3, 0, 0, 'dash');
-                    $$flag.show_floaty_result = false;
-                }
-            }
+            consolex.debug.switchSet($$flag.show_debug_info);
         }
 
         function appSetter() {
@@ -285,12 +255,11 @@ let $$init = {
                         let _task_s = this.task_name + '任务';
                         let _du_str = du_minute + '分钟';
                         _is_toast && toast(_task_s + '推迟 ' + _du_str);
-                        messageAction('推迟' + _task_s, 1, 0, 0, -1);
-                        messageAction('推迟时长: ' + _du_str, 1, 0, 0, 1);
+                        consolex.$(['推迟' + _task_s, '推迟时长: ' + _du_str], 1, 0, 0, 2);
 
                         let _this = this;
                         let _ts = this.ts + du_minute * 60e3;
-                        let _suff = $$sto.af.get('fg_blist_ctr') ? '_auto' : '';
+                        let _suff = storagesx.af.get('fg_blist_ctr') ? '_auto' : '';
 
                         timersx.addDisposableTask({
                             path: _this.cwp,
@@ -300,7 +269,7 @@ let $$init = {
                                 task: task,
                                 next_ts: _ts,
                                 next_type: 'postponed' + _suff,
-                            }, () => _this.exit(true)),
+                            }, () => _this.exit()),
                         });
                     };
                     /**
@@ -309,7 +278,7 @@ let $$init = {
                      * @param {number} auto_task.next_ts
                      * @param {NextAutoTaskType} auto_task.next_type
                      * @param {function(task:org.autojs.autojs.timing.TimedTask)} [callback]
-                     * @returns {org.autojs.autojs.timing.TimedTask}
+                     * @return {org.autojs.autojs.timing.TimedTask}
                      */
                     $$app.setStoAutoTask = function (auto_task, callback) {
                         /**
@@ -328,7 +297,7 @@ let $$init = {
                             type: auto_task.next_type,
                         };
                         this.removeStoAutoTaskIFN(_info);
-                        $$sto.af_next.put('next_auto_task', _info);
+                        storagesx.af_auto.put('next_auto_task', _info);
 
                         if (typeof callback === 'function') {
                             callback(auto_task.task);
@@ -338,19 +307,19 @@ let $$init = {
                     };
                     /**
                      * @param {NextAutoTaskInfo} [def]
-                     * @returns {NextAutoTaskInfo}
+                     * @return {NextAutoTaskInfo}
                      */
                     $$app.getStoAutoTask = function (def) {
-                        return $$sto.af_next.get('next_auto_task', def || {});
+                        return storagesx.af_auto.get('next_auto_task', def || {});
                     };
                     /**
                      * @param {NextAutoTaskInfo} task
-                     * @returns {boolean}
+                     * @return {boolean}
                      */
                     $$app.removeStoAutoTaskIFN = function (task) {
                         let _sto_id = this.getStoAutoTask().task_id;
                         if (_sto_id > 0 && _sto_id !== task.task_id) {
-                            debugInfo(['移除旧的自动定时任务', '任务ID: ' + _sto_id]);
+                            consolex._(['移除旧的自动定时任务', '任务ID: ' + _sto_id]);
                             timersx.removeTimedTask(_sto_id, {is_async: true});
                         }
                     };
@@ -378,155 +347,116 @@ let $$init = {
                                 let _s = _du_date.getSeconds();
                                 let _s_str = (_h || _m ? _s.padStart(2, 0) : _s) + '秒';
 
-                                messageAction$(_d_str + _h_str + _m_str + _s_str + '后解除', 1, 0, 1);
+                                consolex.$(_d_str + _h_str + _m_str + _s_str + '后解除', 1, 0, 1);
                             },
                         },
-                        _showMsg: {
-                            msg(m) {
-                                messageAction$(m, 1, 0, 1);
+                        _msg: {
+                            /**
+                             * @param {...string[]} messages
+                             */
+                            _msg(messages) {
+                                [].slice.call(arguments).forEach((m) => {
+                                    consolex.$(m, 1, 0, 1);
+                                });
+                            },
+                            get parent() {
+                                return $$app.blist;
                             },
                             add(o) {
-                                this.msg('已加入黑名单');
+                                this._msg('已加入黑名单');
                                 this.reason(o);
                                 this.expired(o);
                             },
                             exists(o) {
-                                this.msg('黑名单好友');
-                                this.msg('已跳过收取');
+                                this._msg('黑名单好友', '已跳过收取');
                                 this.reason(o);
                                 this.expired(o);
                             },
                             reason(o) {
-                                let _map = {};
-                                let {cover: _c, user: _u} = $$app.blist.reason;
-                                _map[_c] = '好友使用能量保护罩';
-                                _map[_u] = '用户自行设置';
-                                this.msg(_map[o.reason]);
+                                this._msg({
+                                    protect_cover: '好友使用能量保护罩',
+                                    by_user: '用户自行设置',
+                                }[o.reason]);
                             },
                             expired(o) {
                                 if (Number.isFinite(o.timestamp)) {
-                                    $$app.blist._expired.showMsg(o);
+                                    this.parent._expired.showMsg(o);
                                 }
                             },
                         },
-                        _blistInitializer() {
-                            let _blist = this;
-                            if (_blist._blist_setter) {
-                                return _blist._blist_setter;
-                            }
-                            return _blist._blist_setter = {
-                                _deleted: [],
-                                get() {
-                                    if (!this._blist_data || _blist._is_modified) {
-                                        this._blist_data = $$sto.af_blist.get('blacklist', []);
-                                    }
-                                    _legacyCompatibility.call(this);
-                                    return this;
-
-                                    // tool function(s) //
-
-                                    function _legacyCompatibility() {
-                                        if (!$$flag.blist_legacy_compatibility_handled) {
-                                            let _old = $$sto.af.get('blacklist');
-                                            if (!$$und(_old)) {
-                                                // legacy: {name: {timestamp::, reason::}}
-                                                // modern: [{name::, reason::, timestamp::}]
-                                                if ($$obj(_old)) {
-                                                    debugInfo('转换传统黑名单数据格式');
-                                                    _old = Object.keys(_old).map((n) => (
-                                                        Object.assign({name: n}, _old[n])
-                                                    ));
-                                                }
-                                                if ($$arr(_old)) {
-                                                    debugInfo('转移传统黑名单存储数据');
-                                                    this._blist_data = _old;
-                                                }
-                                                $$sto.af.remove('blacklist');
-                                            }
-                                            $$flag.blist_legacy_compatibility_handled = true;
-                                        }
-                                    }
-                                },
-                                clean() {
-                                    this._deleted = [];
-                                    this._blist_data = this._blist_data || [];
-                                    for (let i = 0; i < this._blist_data.length; i += 1) {
-                                        let _o = this._blist_data[i];
-                                        if (!$$obj(_o)) {
-                                            this._blist_data.splice(i--, 1);
-                                            _blist._is_modified = true;
-                                            continue;
-                                        }
-                                        if (!_o.timestamp || _blist._expired.trigger(_o)) {
-                                            this._deleted.push(_o.name);
-                                            this._blist_data.splice(i--, 1);
-                                            _blist._is_modified = true;
-                                        }
-                                    }
-                                    return this;
-                                },
-                                message() {
-                                    let _len = this._deleted.length;
-                                    if (_len) {
-                                        messageAction$('移除黑名单记录: ' + _len + '项', 1, 0, 0, 2);
-                                        this._deleted.forEach(n => messageAction$(n, 1, 0, 1));
-                                        debugInfo('__split_line__');
-                                    }
-                                    return this;
-                                },
-                                assign() {
-                                    _blist.data = this._blist_data || [];
-                                    return this;
-                                },
-                            };
+                        _save() {
+                            storagesx.af_blist.put('blacklist', this._data, {is_forcible: true});
                         },
-                        data: [],
                         reason: {
                             cover: 'protect_cover',
                             user: 'by_user',
                         },
-                        get(name, ref) {
-                            return !name ? ref : this.data.some((o) => {
+                        contains(name) {
+                            return this._data.some((o) => {
                                 if (name.trim() === o.name.trim()) {
-                                    this._showMsg.exists(o);
+                                    this._msg.exists(o);
                                     return true;
                                 }
                             });
                         },
-                        save() {
-                            if (this._is_modified) {
-                                $$sto.af_blist.put('blacklist', this.data, 'forcible');
-                                delete this._is_modified;
-                            }
-                            return this;
-                        },
-                        add(n, t, r) {
-                            let _add_o = n;
-                            if (arguments.length === 3) {
-                                _add_o = {name: n, timestamp: t, reason: r};
-                            }
-
-                            let _data = this.data;
-                            for (let i = 0; i < _data.length; i += 1) {
-                                let {name: _n, reason: _r} = _data[i];
-                                if (_n === _add_o.name && _r === $$app.blist.reason.cover) {
-                                    _data.splice(i--, 1);
+                        add(name, ts, reason) {
+                            let _member = arguments.length === 3
+                                ? {name: name, timestamp: ts, reason: reason}
+                                : name;
+                            for (let i = 0; i < this._data.length; i += 1) {
+                                if (this._data[i].name === _member.name) {
+                                    if (this._data[i].reason === this.reason.cover) {
+                                        this._data.splice(i--, 1);
+                                    }
                                 }
                             }
-                            _data.push(_add_o);
-
-                            this._is_modified = true;
-                            this._showMsg.add(_add_o);
-
-                            return this;
+                            this._data.push(_member);
+                            this._msg.add(_member);
+                            this._save();
                         },
-                        init() {
-                            this._blistInitializer().get().clean().message().assign();
-                            return this;
+                        $legacyCompatible(data) {
+                            let _old = storagesx.af.get('blacklist');
+                            if (!$$und(_old)) {
+                                // legacy: {name: {timestamp::, reason::}}
+                                // modern: [{name::, reason::, timestamp::}]
+                                if ($$obj(_old)) {
+                                    consolex._('转换传统黑名单数据格式');
+                                    _old = Object.keys(_old).map((n) => (
+                                        Object.assign({name: n}, _old[n])
+                                    ));
+                                }
+                                if ($$arr(_old)) {
+                                    consolex._('转移并合并传统黑名单存储数据');
+                                    _old.forEach(o => data.push(o));
+                                }
+                                storagesx.af.remove('blacklist');
+                            }
+                        },
+                        $removeExpired(data) {
+                            for (let i = 0; i < data.length; i += 1) {
+                                let _o = data[i];
+                                if (!$$obj(_o) || !_o.name) {
+                                    data.splice(i--, 1);
+                                } else if (!_o.timestamp || this._expired.trigger(_o)) {
+                                    consolex._('移除黑名单');
+                                    consolex._(_o.name);
+                                    consolex._($$cvt.date(_o.timestamp));
+                                    data.splice(i--, 1);
+                                }
+                            }
+                        },
+                        $init() {
+                            this._data = storagesx.af_blist.get('blacklist', []);
+                            this.$legacyCompatible(this._data);
+                            this.$removeExpired(this._data);
+                            this._save();
+
+                            delete this.$legacyCompatible;
+                            delete this.$removeExpired;
+                            delete this.$init;
                         },
                     };
-
-                    $$app.blist.init().save();
+                    $$app.blist.$init();
 
                     return this;
                 },
@@ -558,11 +488,11 @@ let $$init = {
                             launch: {
                                 af: {
                                     _launcher(trigger, shared_opt) {
-                                        $$app.monitor.launch_confirm.start(0);
+                                        $$app.monitor.launch_confirm.start();
                                         $$app.monitor.permission_allow.start(0);
                                         let _res = appx.launch(trigger, Object.assign({
                                             task_name: $$app.task_name,
-                                            package_name: $$app.alipay_pkg,
+                                            package_name: 'alipay',
                                             screen_orientation: 0,
                                             condition_launch() {
                                                 return $$app.page.af.isInPage();
@@ -584,10 +514,10 @@ let $$init = {
                                                         return true;
                                                     }
                                                     if (!$$bool($$flag.launch_necessary)) {
-                                                        debugInfo('等待启动必要条件');
+                                                        consolex._('等待启动必要条件');
                                                     }
                                                     if ($$sel.get(_nec_sel_key)) {
-                                                        debugInfo(['已满足启动必要条件:', _nec_sel_key]);
+                                                        consolex._(['已满足启动必要条件:', _nec_sel_key]);
                                                         return $$flag.launch_necessary = true;
                                                     }
                                                     return $$flag.launch_necessary = false;
@@ -595,19 +525,26 @@ let $$init = {
 
                                                 function _orientation() {
                                                     if ($$disp.is_display_rotation_landscape) {
-                                                        debugInfo('重新获取当前设备屏幕显示信息');
-                                                        devicex.getDisplay(true);
+                                                        if ($$flag.show_energy_result) {
+                                                            consolex.$([
+                                                                '当前设备屏幕为水平显示方向',
+                                                                '悬浮窗结果展示方式已被禁用',
+                                                            ], 3, 0, 0, -2);
+                                                            $$flag.show_floaty_result = false;
+                                                        }
+                                                        consolex._('重新获取当前设备屏幕显示信息');
+                                                        $$disp.refresh();
                                                     }
                                                     return $$disp.is_display_rotation_portrait;
                                                 }
 
                                                 function _optional() {
                                                     if (!$$bool($$flag.launch_optional)) {
-                                                        debugInfo('等待启动可选条件');
+                                                        consolex._('等待启动可选条件');
                                                     }
                                                     return _opt_sel_keys.some((key) => {
                                                         if ($$sel.get(key)) {
-                                                            debugInfo(['已满足启动可选条件:', key]);
+                                                            consolex._(['已满足启动可选条件:', key]);
                                                             return true;
                                                         }
                                                     }) || ($$flag.launch_optional = false);
@@ -624,10 +561,10 @@ let $$init = {
                                             : this._showActHint();
                                     },
                                     click_btn(shared_opt) {
-                                        let _w = null;
                                         return $$app.page.alipay.home()
-                                            && waitForAction(() => _w = $$sel.get('af'), 1.5e3, 80)
-                                            && this._launcher(() => clickAction(_w, 'w'), shared_opt);
+                                            && a11yx.wait(() => $$sel.get('af'), 1.5e3, 80, {
+                                                then: w => this._launcher(() => a11yx.click(w, 'w'), shared_opt),
+                                            });
                                     },
                                     search_kw(shared_opt) {
                                         let _this = this;
@@ -637,62 +574,55 @@ let $$init = {
                                         // tool function(s) //
 
                                         function _alipayHome() {
-                                            if ($$app.page.alipay.home()) {
-                                                let _selector = idMatches(/.*home.+search.but.*/);
-                                                let _options = {click_strategy: 'w'};
-                                                return waitForAndClickAction(_selector, 1.5e3, 80, _options);
-                                            }
+                                            return $$app.page.alipay.home()
+                                                && a11yx.waitAndClick(() => {
+                                                    return $$sel.pickup([idMatches(/.*InputBoxContainer/), 'c0']);
+                                                }, 1.5e3, 80, {cs$: 'w'});
                                         }
 
                                         function _search() {
-                                            if (waitForAction(idMatches(/.*search.input.box/), 5e3, 80)) {
+                                            if (a11yx.wait(idMatches(/.*search.input.box/), 5e3, 80)) {
                                                 let _text = '蚂蚁森林小程序';
                                                 setText(_text);
-                                                waitForAction(() => $$sel.pickup(_text), 3e3, 80);
-                                                return clickAction(idMatches(/.*search.confirm/), 'w', {
-                                                    condition_success: () => _w_item = $$sel.get('af'),
-                                                    max_check_times: 10,
-                                                    check_time_once: 300,
+                                                a11yx.wait(_text, 2e3, 80);
+                                                return a11yx.click(idMatches(/.*search.confirm/), 'w', {
+                                                    condition: () => _w_item = $$sel.get('af'),
+                                                    max_check_times: 8,
+                                                    check_time_once: 2.4e3,
                                                 });
                                             }
                                         }
 
                                         function _launch() {
-                                            let _bnd = _w_item.bounds();
-
-                                            let _max = 8;
-                                            while (_max-- && !_w_item.clickable()) {
-                                                _w_item = _w_item.parent();
-                                            }
-
-                                            let _o = _max < 0 ? _bnd : _w_item;
-                                            let _stg = _max < 0 ? 'click' : 'widget';
-
-                                            return _this._launcher(() => {
-                                                return clickAction(_o, _stg);
-                                            }, shared_opt);
+                                            return _this._launcher(() => a11yx.click($$sel.pickup(['蚂蚁森林', {
+                                                filter: (w) => {
+                                                    return !!$$sel.traverse([w, 'p3'], (o) => {
+                                                        return /官方/.test($$sel.pickup(o, 'txt'));
+                                                    });
+                                                },
+                                            }]), 'w'), shared_opt);
                                         }
                                     },
                                 },
                                 rl: {
                                     _launcher(trigger, shared_opt) {
-                                        return appx.launch(trigger, Object.assign({}, {
+                                        return appx.launch(trigger, Object.assign({
                                             task_name: '好友排行榜',
-                                            package_name: $$app.alipay_pkg,
-                                            screen_orientation: 0,
+                                            package_name: alipayx.package_name,
+                                            screen_orientation: android.view.Surface.ROTATION_0,
                                             condition_launch: () => true,
                                             condition_ready() {
                                                 let _loading = () => $$sel.pickup(/加载中.*/);
                                                 let _cA = () => !_loading();
-                                                let _cB = () => !waitForAction(_loading, 360, 120);
+                                                let _cB = () => !a11yx.wait(_loading, 360, 120);
                                                 let _listLoaded = () => _cA() && _cB();
 
                                                 return $$app.page.rl.isInPage() && _listLoaded();
                                             },
                                             disturbance() {
-                                                clickAction($$sel.pickup(/再试一次|打开/), 'w');
+                                                a11yx.click($$sel.pickup(/再试一次|打开/), 'w');
                                             },
-                                        }, shared_opt || {}));
+                                        }, shared_opt));
                                     },
                                     intent(shared_opt) {
                                         return appx.checkActivity($$app.intent.rl)
@@ -710,52 +640,43 @@ let $$init = {
                                         function _locateBtn() {
                                             let _max = 8;
                                             while (_max--) {
-                                                if (waitForAction(_sel_rl_ent, 1.5e3)) {
+                                                if (a11yx.wait(_sel_rl_ent, 1.5e3)) {
                                                     return true;
                                                 }
                                                 if ($$sel.get('alipay_home')) {
-                                                    debugInfo(['检测到支付宝主页页面', '尝试进入蚂蚁森林主页']);
+                                                    consolex._(['检测到支付宝主页页面', '尝试进入蚂蚁森林主页']);
                                                     $$app.page.af.launch();
                                                 } else if ($$sel.get('rl_title')) {
-                                                    debugInfo(['检测到好友排行榜页面', '尝试关闭当前页面']);
+                                                    consolex._(['检测到好友排行榜页面', '尝试关闭当前页面']);
                                                     $$app.page.back();
                                                 } else {
-                                                    debugInfo(['未知页面', '尝试关闭当前页面']);
-                                                    keycode(4, {double: true});
+                                                    consolex._(['未知页面', '尝试关闭当前页面']);
+                                                    devicex.keycode(4, {rush: true});
                                                 }
                                             }
                                             if (_max >= 0) {
-                                                debugInfo('定位到"查看更多好友"按钮');
+                                                consolex._('定位到"查看更多好友"按钮');
                                                 return true;
                                             }
-                                            messageAction('定位"查看更多好友"超时', 3, 1, 0, 1);
+                                            consolex.$('定位"查看更多好友"超时', 3, 1, 0, 1);
                                         }
 
                                         function _launch() {
-                                            return this._launcher(() => _widget() || _swipe(), shared_opt);
-
-                                            // tool function(s) //
-
-                                            function _widget() {
-                                                return clickAction(_w_rl_ent, 'w')
-                                                    && waitForAction(() => !_sel_rl_ent(), 800);
-                                            }
-
-                                            function _swipe() {
-                                                debugInfo('备份方案点击"查看更多好友"');
-                                                return swipeAndShowAndClickAction(_sel_rl_ent);
-                                            }
+                                            return this._launcher(function () {
+                                                return a11yx.click(_w_rl_ent, 'w')
+                                                    && a11yx.wait(() => !_sel_rl_ent(), 800);
+                                            }, shared_opt);
                                         }
                                     },
                                 },
                                 _showActHint() {
-                                    messageAction('Activity在设备系统中不存在', 3, 0, 0, 2);
+                                    consolex.$('Activity在设备系统中不存在', 3, 0, 0, 2);
                                 },
                             },
                         },
                         _getClickable(coord) {
                             let _sel = selector();
-                            let _par = coord.map((x, i) => ~x ? x : i % 2 ? W : H);
+                            let _par = coord.map((x, i) => x !== -1 ? x : i % 2 ? W : H);
                             return _sel.boundsInside.apply(_sel, _par).clickable().findOnce();
                         },
                         _carry(fxs, no_bak) {
@@ -769,7 +690,7 @@ let $$init = {
                                 }
                                 let _w = _checker();
                                 if (_w) {
-                                    return clickAction(_w, 'w');
+                                    return a11yx.click(_w, 'w');
                                 }
                             }
                         },
@@ -778,9 +699,9 @@ let $$init = {
                             return plans_arr.some((stg) => {
                                 let _f = _fxo[stg];
                                 if (!$$func(_f)) {
-                                    messageAction('启动器计划方案无效', 4, 1, 0, -1);
-                                    messageAction('计划: ' + aim, 4, 0, 1);
-                                    messageAction('方案: ' + stg, 8, 0, 1, 1);
+                                    consolex.$('启动器计划方案无效', 4, 1, 0, -1);
+                                    consolex.$('计划: ' + aim, 4, 0, 1);
+                                    consolex.$('方案: ' + stg, 8, 0, 1, 1);
                                 }
                                 if (_f.call(_fxo, shared_opt)) {
                                     return true;
@@ -813,36 +734,38 @@ let $$init = {
                                     if (!this.on()) {
                                         return false;
                                     }
-                                    debugInfo('开始部署启动跳板');
+                                    consolex._('开始部署启动跳板');
 
                                     let _aj_name = $$app.autojs_name;
                                     let _res = appx.launch($$app.autojs_pkg, {
                                         app_name: _aj_name,
-                                        is_debug_info: false,
+                                        is_debug: false,
                                         condition_ready() {
                                             return $$app.page.autojs.is_fg;
                                         },
                                     });
 
                                     if (_res) {
-                                        debugInfo('跳板启动成功');
+                                        consolex._('跳板启动成功');
                                         return true;
                                     }
-                                    debugInfo('跳板启动失败', 3);
-                                    debugInfo('>打开' + _aj_name + '应用超时', 3);
+                                    consolex._('跳板启动失败', 3);
+                                    consolex._('打开' + _aj_name + '应用超时', 3);
                                 },
                                 remove() {
                                     if (!this.on()) {
                                         return;
                                     }
                                     if (!$$flag.alipay_closed) {
-                                        return debugInfo(['跳过启动跳板移除操作', '>支付宝未关闭']);
+                                        consolex._('跳过启动跳板移除操作');
+                                        consolex._('支付宝未关闭');
+                                        return;
                                     }
-                                    if (waitForAction(_isFg, 9e3, 300)) {
+                                    if (a11yx.wait(_isFg, 9e3, 300)) {
                                         return _checkInitState();
                                     }
                                     // language=JS
-                                    debugInfo('`等待返回${$$app.autojs_name}应用页面超时`'.ts);
+                                    consolex._('`等待返回${$$app.autojs_name}应用页面超时`'.ts);
 
                                     // tool function(s) //
 
@@ -855,7 +778,8 @@ let $$init = {
                                             return _remove(_isFg, _back2);
                                         }
                                         if ($$app.init_autojs_state.init_home) {
-                                            return debugInfo('无需移除启动跳板');
+                                            consolex._('无需移除启动跳板');
+                                            return false;
                                         }
                                         if ($$app.init_autojs_state.init_log) {
                                             return _restore('console');
@@ -868,27 +792,27 @@ let $$init = {
                                         // tool function(s) //
 
                                         function _back2() {
-                                            keycode(4, {double: true});
+                                            devicex.keycode(4, {rush: true});
                                             sleep(400);
                                         }
 
                                         function _remove(condF, removeF) {
-                                            debugInfo('移除启动跳板');
+                                            consolex._('移除启动跳板');
                                             let _max = 5;
                                             while (condF() && _max--) {
                                                 removeF();
                                             }
                                             if (_max > 0) {
-                                                debugInfo('跳板移除成功');
+                                                consolex._('跳板移除成功');
                                                 return true;
                                             }
-                                            debugInfo('跳板移除可能未成功', 3);
+                                            consolex._('跳板移除可能未成功', 3);
                                         }
 
                                         function _restore(cmd) {
                                             let _m = '恢复跳板 ' + cmd.toTitleCase() + ' 页面';
                                             toast(_m);
-                                            debugInfo(_m);
+                                            consolex._(_m);
                                             return appx.startActivity(cmd);
                                         }
 
@@ -901,9 +825,9 @@ let $$init = {
                         },
                         alipay: {
                             home(par) {
-                                $$app.monitor.launch_confirm.start(0);
+                                $$app.monitor.launch_confirm.start();
                                 $$app.monitor.permission_allow.start(0);
-                                let _res = appx.launch($$app.alipay_pkg, Object.assign({
+                                let _res = appx.launch(alipayx.package_name, Object.assign({
                                     app_name: '支付宝',
                                     screen_orientation: 0,
                                     condition_ready() {
@@ -916,14 +840,15 @@ let $$init = {
                                 return _res;
                             },
                             close() {
-                                debugInfo('关闭支付宝');
-                                if (appx.kill($$app.alipay_pkg, {
+                                consolex._('关闭支付宝');
+                                if (appx.kill(alipayx.package_name, {
                                     shell_acceptable: $$app.has_root && $$app.root_fxs.force_stop,
                                 })) {
-                                    debugInfo('支付宝关闭完毕');
+                                    consolex._('支付宝关闭完毕');
                                     return $$flag.alipay_closed = true;
                                 }
-                                return debugInfo('支付宝关闭超时', 3);
+                                consolex._('支付宝关闭超时', 3);
+                                return false;
                             },
                             isInPage() {
                                 return $$sel.get('alipay_home');
@@ -939,39 +864,39 @@ let $$init = {
 
                                 $$app.monitor.mask_layer.start();
 
-                                if (waitForAction(() => $$flag.mask_layer_monitoring, 800, 50)) {
-                                    debugInfo('检测到遮罩层监测器等待信号');
-                                    if (waitForAction(() => !$$flag.mask_layer_monitoring, 3e3, 50)) {
-                                        debugInfo('放弃等待监测器结束信号', 3);
+                                if (a11yx.wait(() => $$flag.mask_layer_monitoring, 800, 50)) {
+                                    consolex._('检测到遮罩层监测器等待信号');
+                                    if (a11yx.wait(() => !$$flag.mask_layer_monitoring, 3e3, 50)) {
+                                        consolex._('放弃等待监测器结束信号', 3);
                                     } else {
-                                        debugInfo('监测器信号返回正常');
+                                        consolex._('监测器信号返回正常');
                                     }
                                 }
 
                                 return _res;
                             },
                             close() {
-                                let _tOut = () => timeRecorder('close_af_win', 'L') >= 10e3;
+                                let _tOut = () => timersx.rec.gt('close_af_win', 10e3);
                                 let _cond = () => {
                                     return $$sel.get('af_title')
                                         || $$sel.get('rl_title')
                                         || $$sel.pickup([/浇水|发消息/, {cn$: 'Button'}])
                                         || $$sel.get('login_new_acc');
                                 };
-                                debugInfo('关闭全部蚂蚁森林相关页面');
-                                timeRecorder('close_af_win');
+                                consolex._('关闭全部蚂蚁森林相关页面');
+                                timersx.rec.save('close_af_win');
                                 while (_cond() && !_tOut()) {
-                                    keycode(4);
+                                    devicex.keycode(4);
                                     sleep(700);
                                 }
                                 let _succ = ['相关页面关闭完毕', '保留当前支付宝页面'];
-                                debugInfo(_tOut() ? '页面关闭可能未成功' : _succ);
+                                consolex._(_tOut() ? '页面关闭可能未成功' : _succ);
                             },
                             isInPage() {
-                                return !!($$app.alipay_pkg === currentPackage()
+                                return alipayx.package_name === currentPackage()
                                     || $$sel.get('rl_ent')
                                     || $$sel.get('af_home')
-                                    || $$sel.get('wait_awhile'));
+                                    || $$sel.get('wait_awhile');
                             },
                         },
                         rl: {
@@ -1008,14 +933,14 @@ let $$init = {
                                     let _pool = this.data;
                                     let _idx = _pool.length;
                                     while (_idx-- > kept) {
-                                        _pool[_idx].recycle();
+                                        imagesx.reclaim(_pool[_idx]);
                                         _pool.splice(_idx, 1);
                                     }
                                     return this;
                                 },
                                 clean() {
                                     if (this.data.length) {
-                                        debugInfo('清理排行榜截图样本池');
+                                        consolex._('清理排行榜截图样本池');
                                         this.trim(0);
                                     }
                                     return this;
@@ -1045,26 +970,26 @@ let $$init = {
                                 let _max = 3;
                                 while (_max--) {
                                     sleep(240);
-                                    keycode(4);
-                                    debugInfo('模拟返回键返回排行榜页面');
-                                    if (waitForAction(_isIn, 2.4e3, 80)) {
+                                    devicex.keycode(4);
+                                    consolex._('模拟返回键返回排行榜页面');
+                                    if (a11yx.wait(_isIn, 2.4e3, 80)) {
                                         sleep(240);
-                                        if (waitForAction(_isIn, 480, 80)) {
-                                            debugInfo('返回排行榜成功');
+                                        if (a11yx.wait(_isIn, 480, 80)) {
+                                            consolex._('返回排行榜成功');
                                             return true;
                                         }
                                         if ($$app.page.fri.isInPage()) {
-                                            debugInfo('当前页面为好友森林页面');
+                                            consolex._('当前页面为好友森林页面');
                                             continue;
                                         }
                                     }
                                     if ($$app.page.alipay.isInPage()) {
-                                        debugInfo(['当前页面为支付宝首页', '重新跳转至排行榜页面']);
+                                        consolex._(['当前页面为支付宝首页', '重新跳转至排行榜页面']);
                                         return this.launch();
                                     }
-                                    debugInfo('返回排行榜单次超时');
+                                    consolex._('返回排行榜单次超时');
                                 }
-                                debugInfo(['返回排行榜失败', '尝试重启支付宝到排行榜页面'], 3);
+                                consolex._(['返回排行榜失败', '尝试重启支付宝到排行榜页面'], 3);
                                 $$app.page.af.launch();
                                 $$app.page.rl.launch();
                                 $$app.monitor.rl_in_page.start();
@@ -1086,7 +1011,7 @@ let $$init = {
                             ].map(rex => rex.source).join('|')),
                             isInPage() {
                                 let _this = this;
-                                $$a11y.service.refreshServiceInfo();
+                                a11yx.service.refreshServiceInfo();
                                 return _chkTitle() && _chkPageRex();
 
                                 // tool function(s) //
@@ -1127,11 +1052,11 @@ let $$init = {
 
                                 let _sec = (_max_bak - _max) / 1e3;
                                 if (_sec >= 6) {
-                                    debugInfo('进入好友森林时间较长: ' + _sec.toFixedNum(2) + '秒');
+                                    consolex._('进入好友森林时间较长: ' + _sec.toFixedNum(2) + '秒');
                                 }
 
                                 $$app.monitor.reload_btn.interrupt();
-                                return _max > 0 || messageAction('进入好友森林超时', 3, 1);
+                                return _max > 0 || consolex.$('进入好友森林超时', 3, 1);
                             },
                             pool: new imagesx.ForestImagePool({
                                 interval: $$cfg.forest_image_pool_itv,
@@ -1139,7 +1064,7 @@ let $$init = {
                             }),
                             cover: {
                                 ready() {
-                                    debugInfo('开始能量保护罩检测准备');
+                                    consolex._('开始能量保护罩检测准备');
 
                                     let _pool = $$app.page.fri.pool;
                                     let _fri = $$af._collector.fri;
@@ -1152,26 +1077,26 @@ let $$init = {
                                     }
 
                                     if (_pool.len) {
-                                        debugInfo('使用好友森林信息采集线程数据');
-                                        debugInfo('可供分析的能量罩样本数量: ' + _pool.len);
+                                        consolex._('使用好友森林信息采集线程数据');
+                                        consolex._('可供分析的能量罩样本数量: ' + _pool.len);
                                     }
 
                                     if (!_pool.filled_up) {
-                                        debugInfo('能量罩样本数量不足');
+                                        consolex._('能量罩样本数量不足');
                                         let _max_fill = 12;
                                         while (1) {
                                             if (!_fri.thd_info_collect.isAlive()) {
-                                                debugInfo('好友森林信息采集线程已停止');
-                                                debugInfo('现场采集能量罩样本数据');
+                                                consolex._('好友森林信息采集线程已停止');
+                                                consolex._('现场采集能量罩样本数据');
                                                 return _pool.add();
                                             }
                                             if (!_max_fill--) {
-                                                debugInfo('等待样本采集超时');
-                                                debugInfo('现场采集能量罩样本数据');
+                                                consolex._('等待样本采集超时');
+                                                consolex._('现场采集能量罩样本数据');
                                                 return _pool.add();
                                             }
                                             if (_pool.filled_up) {
-                                                debugInfo('能量罩样本数据充足');
+                                                consolex._('能量罩样本数据充足');
                                                 return;
                                             }
                                             sleep(50);
@@ -1184,14 +1109,16 @@ let $$init = {
                                     let _par = {threshold: $$cfg.protect_cover_detect_threshold};
                                     let _clip = (img) => images.clip(img,
                                         cX(288), cYx(210), cX(142), cYx(44));
-                                    return _pool.data.some((img) => {
+                                    let _res = _pool.data.some((img) => {
                                         let _c = !imagesx.isRecycled(img) && _clip(img);
                                         if (_c) {
                                             let _pts = images.findColor(_c, _color, _par);
-                                            _c.recycle();
+                                            imagesx.reclaim(_c);
                                             return _pts;
                                         }
-                                    }) || debugInfo('颜色识别无保护罩');
+                                    });
+                                    _res || consolex._('颜色识别无保护罩');
+                                    return _res;
                                 },
                             },
                         },
@@ -1204,7 +1131,7 @@ let $$init = {
                         closeIntelligently() {
                             let _cA = () => $$cfg.kill_when_done_switch;
                             let _cB1 = () => $$cfg.kill_when_done_intelligent;
-                            let _cB2 = () => $$app.init_fg_pkg !== $$app.alipay_pkg;
+                            let _cB2 = () => $$app.init_fg_pkg !== alipayx.package_name;
                             let _cB = () => _cB1() && _cB2();
 
                             if (_cA() || _cB()) {
@@ -1225,12 +1152,12 @@ let $$init = {
                                 let _max = 20;
                                 let _ctr = 0;
                                 do {
-                                    keycode(4, {double: true});
+                                    devicex.keycode(4, {rush: true});
                                     _ctr += 1;
                                     sleep(500);
                                 } while (_max-- && _trig());
 
-                                debugInfo('关闭相关H5页面: ' + _ctr + '页');
+                                consolex._('关闭相关H5页面: ' + _ctr + '页');
                             }
                         },
                     };
@@ -1251,7 +1178,7 @@ let $$init = {
                     $$app.layout = {
                         fullscreen_cover: {
                             is_cover: true,
-                            xml: <frame id="cover" bg="#dd000000"/>,
+                            xml: <frame id="cover" bg="#DD000000"/>,
                             deploy() {
                                 let _win = this.window = floaty.rawWindow(this.xml);
                                 // prevent touch event being transferred to the view beneath
@@ -1285,8 +1212,8 @@ let $$init = {
                                 layout_width: cX(0.44),
                                 position_y: cY(0.26),
                                 colors: {
-                                    img: '#ccff90',
-                                    text: '#dcedc8',
+                                    img: '#CCFF90',
+                                    text: '#DCEDC8',
                                 },
                             },
                             xml: <vertical id="view">
@@ -1364,14 +1291,14 @@ let $$init = {
                                     let _now = new Date();
                                     let _today_0h_ts = new Date(_now.toLocaleDateString()).getTime();
                                     let _aim_sign = _aim_ts >= _today_0h_ts + _day_ms ? '+' : '=';
-                                    return _aim_sign + ' ' + _aim_str + ' ' + _aim_sign;
+                                    return _aim_sign + '\x20' + _aim_str + '\x20' + _aim_sign;
                                 };
 
                                 let _getCtdStr = () => {
                                     let _ctd_sign = '-';
-                                    let _gap_ts = _aim_ts - Date.now();
+                                    let _gap_ts = _aim_ts - $$app.ts;
                                     _ctd_str = _tsToTime(Math.max(_gap_ts, 0), 'GAP');
-                                    return _ctd_sign + ' ' + _ctd_str + ' ' + _ctd_sign;
+                                    return _ctd_sign + '\x20' + _ctd_str + '\x20' + _ctd_sign;
                                 };
 
                                 let _setText = () => {
@@ -1388,9 +1315,12 @@ let $$init = {
                                 this.itv_id = setInterval(_setText, 1e3);
                             },
                             _onClick() {
-                                debugInfo(['终止结果展示', '>检测到定时任务布局点击']);
-                                debugInfo('发送Floaty结束等待信号');
+                                consolex._('终止结果展示');
+                                consolex._('检测到定时任务布局点击');
+
+                                consolex._('发送Floaty结束等待信号');
                                 $$flag.floaty_result_fin = true;
+
                                 $$flag.cover_user_touched = true;
                                 $$app.layout.closeAll();
 
@@ -1406,11 +1336,11 @@ let $$init = {
                                 layout_width: cX(0.59),
                                 position_y: cY(0.57),
                                 colors: {
-                                    own: '#aed581',
-                                    fri: '#4caf50',
-                                    failed: '#ec407a',
-                                    vain: '#a1887f',
-                                    text: '#ffffff',
+                                    own: '#AED581',
+                                    fri: '#4CAF50',
+                                    failed: '#EC407A',
+                                    vain: '#A1887F',
+                                    text: '#FFFFFF',
                                 },
                             },
                             uni: {
@@ -1513,10 +1443,7 @@ let $$init = {
                              * @param {{countdown:number,own:number,fri:number}} data
                              */
                             deploy(data) {
-                                let _this = this;
-                                threadsx.start(function () {
-                                    _this._deploy(data);
-                                });
+                                threadsx.start(() => this._deploy(data));
                             },
                             close() {
                                 _closeWindow.call(this);
@@ -1536,7 +1463,7 @@ let $$init = {
                                     // Never say die (永不言弃)
                                     'NEVER.contains(SAY_DIE)',
                                     // Life isn't all roses (生活并非事事如意)
-                                    'LIFE != ALL ROSES',
+                                    'LIFE !== ALL ROSES',
                                     // Nothing is impossible (一切皆有可能)
                                     'IMPOSSIBLE === undefined',
                                     // Believe that god is fair (相信上帝公平)
@@ -1551,15 +1478,13 @@ let $$init = {
                                     'LLIST.next === LUCKY',
                                     // A blessing in disguise (塞翁失马 焉知非福)
                                     'for (BLESSING in DISGUISE)',
-                                    // Maintain good eyesight (保护视力)
-                                    '!~HEALTH.indexOf(EYESIGHT)',
                                     // Stay hydrated (多喝水)
                                     'WATER.drink().drink()',
                                     // Enjoy your life (享受生活)
-                                    '!~LIFE.search(ENJOYABLE)',
+                                    'LIFE.includes(ENJOYABLE)',
                                 ];
 
-                                debugInfo('随机挑选提示语');
+                                consolex._('随机挑选提示语');
                                 return _notes[Math.rand(_notes.length, -0)];
                             },
                             _countdown(n) {
@@ -1568,20 +1493,20 @@ let $$init = {
                                 let _err_ctr = 0;
                                 let _fin = (fx) => {
                                     fx && fx.call(null);
-                                    debugInfo('发送Floaty结束等待信号');
+                                    consolex._('发送Floaty结束等待信号');
                                     $$flag.floaty_result_fin = true;
                                     clearInterval(_itv_id);
                                 };
                                 let _setText = function () {
                                     _err_ctr < 3 || _fin(() => {
-                                        messageAction('此设备无法正常使用Floaty功能', 3, 1);
-                                        messageAction('建议改用Toast方式显示收取结果', 3);
+                                        consolex.$('此设备无法正常使用Floaty功能', 3, 1);
+                                        consolex.$('建议改用Toast方式显示收取结果', 3);
                                     });
                                     try {
                                         _w.setText('- ' + _n + ' -');
                                         _n-- || _fin(() => {
-                                            debugInfo('Floaty倒计时结束');
-                                            debugInfo('统计结果展示完毕');
+                                            consolex._('Floaty倒计时结束');
+                                            consolex._('统计结果展示完毕');
                                         });
                                     } catch (e) {
                                         _err_ctr += 1;
@@ -1596,8 +1521,8 @@ let $$init = {
                                 layout_width: W,
                                 position_y: cY(0.78),
                                 colors: {
-                                    img: '#69f0ae',
-                                    text: '#e8f5e9',
+                                    img: '#69F0AE',
+                                    text: '#E8F5E9',
                                 },
                             },
                             xml: <vertical id="view">
@@ -1616,8 +1541,8 @@ let $$init = {
                                 let _ver = '';
                                 let _getVer = () => _ver = $$app.newest_release_ver_name;
                                 threadsx.start(function () {
-                                    if (waitForAction(_getVer, 0, 120)) {
-                                        if (appx.isNewerVersion(_ver, $$app.project_ver_name)) {
+                                    if (a11yx.wait(_getVer, 0, 120)) {
+                                        if (projectx.version.isNewer(_ver, $$app.project_ver_name)) {
                                             _this._deploy();
                                         }
                                     }
@@ -1629,7 +1554,7 @@ let $$init = {
                             _deploy() {
                                 let _ver_local = $$app.project_ver_name;
                                 let _ver_newest = $$app.newest_release_ver_name;
-                                if (appx.isNewerVersion(_ver_newest, _ver_local)) {
+                                if (projectx.version.isNewer(_ver_newest, _ver_local)) {
                                     _initCfgColors.call(this);
                                     let _w = this.cfg.layout_width;
                                     let _y = this.cfg.position_y;
@@ -1646,9 +1571,12 @@ let $$init = {
                                 }
                             },
                             _onClick() {
-                                debugInfo(['终止结果展示', '>检测到更新提示布局点击']);
-                                debugInfo('发送Floaty结束等待信号');
+                                consolex._('终止结果展示');
+                                consolex._('检测到更新提示布局点击');
+
+                                consolex._('发送Floaty结束等待信号');
                                 $$flag.floaty_result_fin = true;
+
                                 $$flag.cover_user_touched = true;
                                 $$flag.update_dialog_uphold = true;
                                 $$app.layout.closeAll();
@@ -1662,26 +1590,26 @@ let $$init = {
                                     ['忽略此版本', 'warn'], 'X',
                                     ['查看更新', 'attraction'], 1,
                                 ], {
-                                    disable_back: true,
+                                    keycode_back: 'disabled',
                                 }).on('neutral', (d) => {
                                     d.dismiss();
-                                    timeRecorder('update_dialog_uphold');
+                                    timersx.rec.save('update_dialog_uphold');
                                     dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
                                         0, 'Q', ['确定忽略', 'caution'], 1,
                                     ], {
-                                        disable_back: true,
+                                        keycode_back: 'disabled',
                                     }).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
-                                        timeRecorder('update_dialog_uphold');
+                                        timersx.rec.save('update_dialog_uphold');
                                     }).on('positive', (ds) => {
                                         ds.dismiss();
                                         let _k = 'update_ignore_list';
                                         let _new = {};
                                         _new[_k] = $$cfg[_k].concat([_newest_ver]);
-                                        $$sto.af_cfg.put('config', _new);
-                                        $$toast('已忽略当前版本', 'Long');
+                                        storagesx.af_cfg.put('config', _new);
+                                        $$toast('已忽略当前版本', 'long');
                                         delete $$flag.update_dialog_uphold;
                                     }).show();
                                 }).on('negative', (d) => {
@@ -1689,27 +1617,27 @@ let $$init = {
                                     delete $$flag.update_dialog_uphold;
                                 }).on('positive', (d) => {
                                     d.dismiss();
-                                    timeRecorder('update_dialog_uphold');
+                                    timersx.rec.save('update_dialog_uphold');
                                     dialogsx.builds([
                                         '版本详情', _newest.brief_info_str,
                                         ['浏览器查看', 'hint'], 'B',
                                         ['立即更新', 'attraction'], 1,
                                     ], {
-                                        disable_back: true,
+                                        keycode_back: 'disabled',
                                     }).on('neutral', (ds) => {
                                         ds.dismiss();
                                         app.openUrl(_newest.html_url);
-                                        timeRecorder('update_dialog_uphold');
+                                        timersx.rec.save('update_dialog_uphold');
                                     }).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
-                                        timeRecorder('update_dialog_uphold');
+                                        timersx.rec.save('update_dialog_uphold');
                                     }).on('positive', (ds) => {
                                         let _clearFlags = () => {
                                             delete $$flag.update_dialog_deploying;
                                             delete $$flag.update_dialog_uphold;
                                         };
-                                        appx.deployProject(_newest, {
+                                        projectx.deploy(_newest, {
                                             onDeployStart() {
                                                 ds.dismiss();
                                                 $$flag.update_dialog_deploying = true;
@@ -1737,15 +1665,12 @@ let $$init = {
                                 layout_width: W,
                                 position_y: cY(0.25),
                                 colors: {
-                                    img: '#e1bee7',
-                                    text: '#f3e5f5',
+                                    img: '#E1BEE7',
+                                    text: '#F3E5F5',
                                 },
                             },
                             deploy() {
-                                let _this = this;
-                                threadsx.start(function () {
-                                    _this._deploy();
-                                });
+                                threadsx.start(() => this._deploy());
                             },
                             close() {
                                 _closeWindow.call(this);
@@ -1810,12 +1735,16 @@ let $$init = {
 
                     Object.defineProperty($$app.layout, 'closeAll', {
                         value(without_cover) {
-                            Object.keys($$app.layout).forEach((k) => {
-                                let _o = $$app.layout[k];
-                                if (!(without_cover && _o.is_cover)) {
-                                    _o.close.call(_o);
+                            let _layouts = Object.values($$app.layout).filter((o) => {
+                                if (without_cover && o.is_cover) {
+                                    return false;
                                 }
+                                return o.itv_id || o.window;
                             });
+                            if (_layouts.length) {
+                                consolex._('关闭所有自定义悬浮窗');
+                                _layouts.forEach(o => o.close.call(o));
+                            }
                         },
                         enumerable: false, // default
                     });
@@ -1830,7 +1759,7 @@ let $$init = {
                     }
 
                     function _initCfgColors() {
-                        let _alpha = this.cfg['color_alpha'] || 0xff;
+                        let _alpha = this.cfg['color_alpha'] || 0xFF;
                         Object.keys(this.cfg.colors).forEach((k) => {
                             let _c = this.cfg.colors[k];
                             this.cfg.colors[k] = colors.argb(_alpha,
@@ -1841,20 +1770,12 @@ let $$init = {
                     }
                 },
                 setIntent() {
-                    /**
-                     * @type {{
-                     *     home: Appx$StartActivity$Param,
-                     *     rl: Appx$StartActivity$Param,
-                     *     acc_man: Appx$StartActivity$Param,
-                     *     acc_login: Appx$StartActivity$Param,
-                     * }}
-                     */
                     $$app.intent = {
                         home: {
                             url: {
                                 src: 'alipays://platformapi/startapp',
                                 query: {
-                                    saId: 20000067,
+                                    appId: '20000067',
                                     url: 'https://60000002.h5app.alipay.com/www/home.html',
                                     __webview_options__: {
                                         transparentTitle: 'auto',
@@ -1865,13 +1786,13 @@ let $$init = {
                                     },
                                 },
                             },
-                            packageName: $$app.alipay_pkg,
+                            packageName: 'alipay',
                         },
                         rl: {
                             url: {
                                 src: 'alipays://platformapi/startapp',
                                 query: {
-                                    saId: 20000067,
+                                    appId: 20000067,
                                     url: {
                                         src: 'https://60000002.h5app.alipay.com/www/listRank.html',
                                         query: {conf: '["totalRank"]'},
@@ -1892,15 +1813,7 @@ let $$init = {
                                 },
                                 exclude: 'defaultTitle',
                             },
-                            packageName: $$app.alipay_pkg,
-                        },
-                        acc_man: {
-                            data: 'alipays://platformapi/startapp?appId=20000027',
-                            packageName: $$app.alipay_pkg,
-                        },
-                        acc_login: {
-                            data: 'alipays://platformapi/startapp?appId=20000008',
-                            packageName: $$app.alipay_pkg,
+                            packageName: 'alipay',
                         },
                     };
 
@@ -1912,45 +1825,45 @@ let $$init = {
         function accSetter() {
             return {
                 setParams() {
+                    //// -=-= PENDING =-=- ////
                     global.$$acc = {
                         switch: $$cfg.account_switch,
                         user_list: {
                             _plans: {
                                 intent() {
-                                    appx.startActivity($$app.intent.acc_man);
+                                    alipayx.startApp('account_manager');
                                 },
                                 pipeline() {
-                                    $$app.page.alipay.home({is_debug_info: false});
+                                    $$app.page.alipay.home({is_debug: false});
 
-                                    return clickActionsPipeline([
-                                        [['我的', 'p1']],
-                                        [['设置', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}]],
-                                        [['换账号登录', null]],
-                                    ], {name: '账号切换页面', default_strategy: 'widget'});
+                                    return a11yx.pipeline('账号切换页面', [
+                                        ['我的', 'p1'],
+                                        ['设置', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}],
+                                        '换账号登录',
+                                    ]);
                                 },
                             },
                             launch(plans_arr) {
-                                debugInfo('打开"账号切换"页面');
+                                consolex._('打开"账号切换"页面');
 
                                 // TODO if (!plans_arr) loadFromConfig
                                 return (plans_arr || ['intent', 'pipeline']).some((plan) => {
                                     let _task_nm = '计划' + plan.surround('"');
                                     this._plans[plan]();
-                                    if (waitForAction(this.isInPage, 2e3)) {
-                                        debugInfo(_task_nm + '成功');
+                                    if (a11yx.wait(this.isInPage.bind(this), 2e3)) {
+                                        consolex._(_task_nm + '成功');
                                         return true;
                                     }
-                                    debugInfo(_task_nm + '失败');
-                                }) || messageAction('进入"账号切换"页面失败', 4, 1, 0, '2_dash');
+                                    consolex._(_task_nm + '失败');
+                                }) || consolex.$('进入"账号切换"页面失败', 4, 1, 0, -2);
                             },
                             parse(name_str) {
                                 if (!this.isInPage()) {
-                                    messageAction('解析用户名信息失败', 4, 1, 0, -1);
-                                    messageAction('当前非账户切换页面', 8, 0, 1, 1);
+                                    consolex.$(['解析用户名信息失败', '当前非账户切换页面'], 8, 1, 0, -2);
                                 }
 
                                 let _sltr = idMatches(/.+_item_current/);
-                                waitForAction(_sltr, 2e3, 80); // just in case
+                                a11yx.wait(_sltr, 2e3, 80); // just in case
                                 sleep(240);
 
                                 // current logged in user abbr (with a list arrow)
@@ -1987,12 +1900,11 @@ let $$init = {
                                 return this.isInList(name_str) ? this.abbr_name_in_list : '';
                             },
                         },
-                        _codec(str, opr) {
-                            let _str = str || '';
+                        _codec(str, operation) {
                             let _res = '';
-                            let _factor = {e: 1, d: -1}[opr[0]];
-                            for (let i in _str) {
-                                let _char_code = _str.charCodeAt(+i);
+                            let _factor = {e: 1, d: -1}[operation[0]];
+                            for (let i in str) {
+                                let _char_code = str.charCodeAt(+i);
                                 let _shifting = ((996).ICU + +i) * _factor;
                                 _res += String.fromCharCode(_char_code + _shifting);
                             }
@@ -2002,13 +1914,13 @@ let $$init = {
                             if (str) {
                                 return this._codec(str, 'enc');
                             }
-                            messageAction('编码参数为空', 8, 4, 0, 2);
+                            consolex.$('编码参数为空', 8, 4, 0, 2);
                         },
                         decode(str) {
                             if (str) {
                                 return this._codec(str, 'dec');
                             }
-                            messageAction('解码参数为空', 8, 4, 0, 2);
+                            consolex.$('解码参数为空', 8, 4, 0, 2);
                         },
                         isLoggedIn(name_str) {
                             let _this = this;
@@ -2023,14 +1935,14 @@ let $$init = {
                             }
 
                             function _check() {
-                                debugInfo('检查账号列表登录状态');
+                                consolex._('检查账号列表登录状态');
 
                                 let _parsed = _this.user_list.parse(name_str);
 
                                 if (!_parsed.abbr) {
-                                    debugInfo('当前登录账户缩略名无效', 3);
+                                    consolex._('当前登录账户缩略名无效', 3);
                                 } else if (!$$acc.init_logged_in_usr) {
-                                    debugInfo('记录初始登录账户缩略名');
+                                    consolex._('记录初始登录账户缩略名');
                                     $$acc.init_logged_in_usr = _parsed.abbr;
                                     if ($$acc.main.isMain(name_str) && _parsed.is_logged_in) {
                                         $$flag.init_logged_in_main = true;
@@ -2038,61 +1950,33 @@ let $$init = {
                                 }
 
                                 if (_parsed.is_logged_in) {
-                                    debugInfo('目标账户已在登录状态');
+                                    consolex._('目标账户已在登录状态');
                                     return true;
                                 }
 
                                 if (_parsed.is_in_list) {
-                                    debugInfo('目标账户在账号列表中但未登录');
+                                    consolex._('目标账户在账号列表中但未登录');
                                 } else {
-                                    debugInfo('目标账户不在账号列表中');
+                                    consolex._('目标账户不在账号列表中');
                                 }
                             }
                         },
                         isInLoginPg() {
                             return $$sel.get('login_other_acc')
-                                || $$sel.get('input_lbl_acc')
+                                || $$sel.get('input_username')
+                                || $$sel.get('input_password')
+                                || $$sel.get('login_other_mthd')
                                 || $$sel.get('login_other_mthd_init_pg');
                         },
                         isInSwAccPg() {
                             return $$sel.get('login_new_acc')
                                 || $$sel.get('switch_to_other_acc');
                         },
-                        isMatchAbbr(name_str, abbr) {
-                            name_str = name_str.toString();
-                            abbr = abbr.toString();
-
-                            if (!name_str || !abbr) {
-                                return false;
-                            }
-
-                            let [i, j, k] = [0, name_str.length - 1, abbr.length - 1];
-                            let _same = (p, q) => name_str[p] === abbr[q];
-                            let _isAbbrStar = q => abbr[q] === '*';
-
-                            for (; i <= j; i += 1) {
-                                if (!_same(i, i)) {
-                                    if (_isAbbrStar(i)) {
-                                        break;
-                                    }
-                                    return false;
-                                }
-                            }
-
-                            if (i > j) {
-                                return true;
-                            }
-
-                            for (; j > i, k > i; j -= 1, k -= 1) {
-                                if (!_same(j, k)) {
-                                    if (_isAbbrStar(k)) {
-                                        break;
-                                    }
-                                    return false;
-                                }
-                            }
-
-                            return abbr.slice(i, k + 1).match(/^\*+$/);
+                        isMatchAbbr(name, abbr) {
+                            return String(abbr).split(/\*+/).every((s, i) => {
+                                return i === 0 && name.startsWith(s)
+                                    || i === 1 && name.endsWith(s);
+                            });
                         },
                         /**
                          * @param {Object} user
@@ -2103,36 +1987,33 @@ let $$init = {
                          * @param {boolean} [user.direct] - login without acc list check
                          */
                         login(user) {
-                            return _ready() && _parse() && _login();
+                            let _usr = {
+                                init() {
+                                    this.code_raw = user.code_raw;
+                                    this.name = user.name || user.name_raw && $$acc.decode(user.name_raw);
+                                    this.abbr = user.direct || user.abbr
+                                        ? user.abbr : $$acc.user_list.parse(this.name).abbr;
+                                },
+                            };
+                            return _ready() && _login();
 
                             // tool function(s) //
 
                             function _ready() {
                                 if (!$$obj(user)) {
-                                    messageAction('登录参数类型无效: ' + user, 8, 4, 0, 2);
+                                    consolex.$('登录参数类型无效: ' + user, 8, 4, 0, 2);
                                 }
                                 if (!user.name && !user.abbr && !user.name_raw) {
-                                    messageAction('usr_info参数缺少必要属性', 8, 4, 0, 2);
+                                    consolex.$('usr_info参数缺少必要属性', 8, 4, 0, 2);
                                 }
-                                return user.direct || $$acc.user_list.makeInPage();
-                            }
-
-                            function _parse() {
-                                this.abbr = user.abbr;
-                                this.name = user.name;
-                                this.code_raw = user.code_raw;
-                                if (!user.name && user.name_raw) {
-                                    this.name = $$acc.decode(user.name_raw);
+                                if (user.direct || $$acc.user_list.makeInPage()) {
+                                    _usr.init();
+                                    return true;
                                 }
-                                if (!user.direct && !user.abbr) {
-                                    this.abbr = $$acc.user_list.parse(this.name).abbr;
-                                }
-                                return true;
                             }
 
                             function _login() {
-                                let _this = this;
-                                let _name_str = _this.abbr || _this.name;
+                                let _name_str = _usr.abbr || _usr.name;
                                 let _isLoggedIn = () => $$acc.isLoggedIn(_name_str);
 
                                 return (_byUsrList() || _byInputText()) && _clearFlag();
@@ -2146,13 +2027,13 @@ let $$init = {
 
                                     function _ready() {
                                         if (!_name_str) {
-                                            debugInfo('无法使用列表快捷切换账户', 3);
-                                            debugInfo('>缺少必要的账户名称信息', 3);
+                                            consolex._('无法使用列表快捷切换账户', 3);
+                                            consolex._('缺少必要的账户名称信息', 3);
                                             return false;
                                         }
                                         if (user.direct) {
-                                            debugInfo('放弃使用列表快捷切换账户', 3);
-                                            debugInfo('>检测到直接登录参数', 3);
+                                            consolex._('放弃使用列表快捷切换账户', 3);
+                                            consolex._('检测到直接登录参数', 3);
                                             return false;
                                         }
                                         return true;
@@ -2162,7 +2043,7 @@ let $$init = {
                                         if (_isLoggedIn()) {
                                             return true;
                                         }
-                                        if (!_this.abbr) {
+                                        if (!_usr.abbr) {
                                             return false;
                                         }
 
@@ -2191,10 +2072,10 @@ let $$init = {
                                         };
 
                                         for (let i = 0; i < 3; i += 1) {
-                                            debugInfo((i ? '再次尝试' : '') + '点击列表中的账户');
-                                            clickAction($$sel.pickup([_this.abbr, 'p5']), 'w');
+                                            consolex._((i ? '再次尝试' : '') + '点击列表中的账户');
+                                            a11yx.click([_usr.abbr, 'p5'], 'w');
 
-                                            debugInfo('开始监测账户切换结果');
+                                            consolex._('开始监测账户切换结果');
                                             if (!_condChecker(_conds)) {
                                                 return false;
                                             }
@@ -2220,14 +2101,14 @@ let $$init = {
                                                 return $$sel.get('acc_logged_out');
                                             },
                                             exec() {
-                                                return clickAction($$sel.pickup(/好的|OK/), 'w');
+                                                return a11yx.click($$sel.pickup(/好的|OK/), 'w');
                                             },
                                         }, {
                                             trigger() {
                                                 return this.w = $$sel.pickup(/.+img_dialog_close/);
                                             },
                                             exec() {
-                                                return clickAction(this.w, 'w');
+                                                return a11yx.click(this.w, 'w');
                                             },
                                         }, {
                                             trigger() {
@@ -2238,29 +2119,29 @@ let $$init = {
                                             },
                                         }];
                                         let _thd_monitor = threadsx.start(function () {
-                                            timeRecorder('acc_login_by_input_text');
-                                            while (timeRecorder('acc_login_by_input_text', 'L') < 30e3) {
+                                            timersx.rec.save('acc_login_by_input_text');
+                                            while (timersx.rec.lt('acc_login_by_input_text', 30e3)) {
                                                 _monitors.some(o => o.trigger() && o.exec()) && sleep(500);
                                                 sleep(240);
                                             }
                                         });
 
                                         let _in = () => $$acc.isInLoginPg() || $$acc.isInSwAccPg();
-                                        let _cond = () => _in() && !waitForAction(() => !_in(), 3, 240);
-                                        let _cond_state = waitForAction(_cond, 15e3, 240);
+                                        let _cond = () => _in() && !a11yx.wait(() => !_in(), 3, 240);
+                                        let _cond_state = a11yx.wait(_cond, 15e3, 240);
 
                                         _thd_monitor.interrupt();
 
                                         if (!_cond_state) {
-                                            return messageAction('无法判断当前登录页面状态', 4, 1, 0, 2);
+                                            return consolex.$('无法判断当前登录页面状态', 4, 1, 0, 2);
                                         }
                                         if (!$$acc.isInLoginPg()) {
                                             let _w = $$sel.get('login_new_acc');
-                                            if (!clickAction($$sel.pickup([_w, 'p4']), 'w')) {
-                                                appx.startActivity($$app.intent.acc_login);
+                                            if (!a11yx.click([_w, 'k4'], 'w')) {
+                                                alipayx.startApp('account_login');
                                             }
                                         }
-                                        return $$sel.get('input_lbl_code') || _clickOtherBtnIFN();
+                                        return _clickOtherBtnIFN();
 
                                         // tool function(s) //
 
@@ -2269,76 +2150,83 @@ let $$init = {
                                             let _a = () => _acc = $$sel.get('login_other_acc');
                                             let _m1 = () => _mthd1 = $$sel.get('login_other_mthd_init_pg');
                                             let _m2 = () => _mthd2 = $$sel.get('login_other_mthd');
-                                            let _lb = () => _lbl = $$sel.get('input_lbl_acc');
+                                            let _ipt = () => _lbl = $$sel.get('input_username');
 
-                                            waitForAction(() => _a() || _m1() || _m2() || _lb(), 3e3);
+                                            a11yx.wait(() => _a() || _m1() || _m2() || _ipt(), 3e3);
 
-                                            if (_acc) {
-                                                debugInfo('点击"换个账号登录"按钮');
-                                                clickAction(_acc, 'w');
+                                            // since Oct 25, 2021 (around)
+                                            if ($$sel.pickup('更多')) {
+                                                consolex._('点击"更多"按钮');
+                                                a11yx.click('更多', 'w');
+                                                if (a11yx.wait('换个账号')) {
+                                                    sleep(420);
+                                                    consolex._('点击"换个账号"按钮');
+                                                    a11yx.click('换个账号', 'w');
+                                                }
+                                            } else if (_acc) {
+                                                consolex._('点击"换个账号登录"按钮');
+                                                a11yx.click(_acc, 'w');
                                             } else if (_mthd1) {
-                                                debugInfo('点击"其他登录方式"按钮');
-                                                clickAction(_mthd1, 'w');
+                                                consolex._('点击"其他登录方式"按钮');
+                                                a11yx.click(_mthd1, 'w');
                                             } else if (_mthd2) {
-                                                debugInfo('点击"换个方式登录"按钮');
-                                                clickAction(_mthd2, 'w');
+                                                consolex._('点击"换个方式登录"按钮');
+                                                a11yx.click(_mthd2, 'w');
                                                 sleep(240);
-                                                if (clickAction($$sel.pickup('密码登录'), 'w')) {
-                                                    debugInfo('点击"密码登录"选项');
+                                                if (a11yx.click('密码登录', 'w')) {
+                                                    consolex._('点击"密码登录"选项');
                                                 }
                                             }
-
-                                            return waitForAction(_lb, 3e3); // just in case
+                                            return true;
                                         }
                                     }
 
                                     function _login() {
-                                        let _lbl_code = () => $$sel.get('input_lbl_code');
+                                        let _ipt_pw = () => $$sel.get('input_password');
 
-                                        return _inputName(_this.name) && _inputCode(_this.code_raw);
+                                        return _inputName(_usr.name) && _inputCode(_usr.code_raw);
 
                                         // tool function(s) //
 
                                         function _inputName(name) {
-                                            debugInfo('尝试完成账户名输入');
+                                            consolex._('尝试完成账户名输入');
 
                                             return _input() && _next();
 
                                             // tool function(s) //
 
                                             function _input() {
+                                                /** @type {UiObject$} */
                                                 let _w_acc = null;
-                                                let _sel_acc = () => _w_acc = $$sel.get('input_lbl_acc');
+                                                let _sel_acc = () => _w_acc = $$sel.get('input_username');
 
                                                 let _inputted = () => $$sel.pickup(name);
                                                 let _noInputted = () => !_inputted();
-                                                let _cA = () => waitForAction(_inputted, 1e3);
-                                                let _cB = () => !waitForAction(_noInputted, 500);
+                                                let _cA = () => a11yx.wait(_inputted, 1e3);
+                                                let _cB = () => !a11yx.wait(_noInputted, 500);
 
                                                 let _max = 3;
                                                 while (_max--) {
-                                                    if (waitForAction(_sel_acc, 1.5e3)) {
-                                                        debugInfo('找到"账号"输入项控件');
-                                                        let _w = $$sel.pickup([_w_acc, 'p2c1']);
+                                                    if (a11yx.wait(_sel_acc, 1.5e3)) {
+                                                        consolex._('找到"账号"输入项控件');
                                                         let _res = false;
-                                                        if (_w) {
-                                                            debugInfo('布局树查找可编辑"账号"控件成功');
-                                                            _w.setText(''); // just in case
-                                                            _res = _w.setText(name);
+                                                        if (_w_acc.isEditable()) {
+                                                            _w_acc.setText(''); // just in case
+                                                            _res = _w_acc.setText(name);
                                                         } else {
-                                                            debugInfo('布局树查找可编辑"账号"控件失败', 3);
-                                                            debugInfo('尝试使用通用可编辑控件', 3);
+                                                            consolex._('布局树查找可编辑"账号"控件失败', 3);
+                                                            consolex._('尝试使用通用可编辑控件', 3);
                                                             let _edit = className('EditText').findOnce();
                                                             _res = _edit && _edit.setText(name);
                                                         }
                                                         if (_res) {
-                                                            debugInfo('控件输入账户名成功');
+                                                            consolex._('控件输入账户名成功');
                                                         } else {
-                                                            debugInfo('控件输入账户名失败', 3);
+                                                            consolex._('控件输入账户名失败', 3);
                                                         }
                                                     } else {
-                                                        messageAction('布局查找"账号"输入项控件失败', 3);
-                                                        messageAction('尝试盲输', 3);
+                                                        consolex.$('布局查找"账号"输入项控件失败', 3);
+                                                        consolex.$('尝试盲输', 3);
                                                         setText(0, name);
                                                     }
 
@@ -2348,10 +2236,10 @@ let $$init = {
                                                 }
 
                                                 if (_max >= 0) {
-                                                    debugInfo('成功输入账户名');
+                                                    consolex._('成功输入账户名');
                                                     return true;
                                                 }
-                                                messageAction('输入账户名后检查输入未通过', 4, 1, 0, '2_dash');
+                                                consolex.$('输入账户名后检查输入未通过', 4, 1, 0, -2);
                                             }
 
                                             function _next() {
@@ -2362,22 +2250,26 @@ let $$init = {
 
                                                 function _require() {
                                                     let _s = '无需点击"下一步"按钮';
-                                                    if (_lbl_code()) {
-                                                        return debugInfo([_s, '>存在"密码"输入项控件']);
+                                                    if (_ipt_pw()) {
+                                                        consolex._(_s);
+                                                        consolex._('存在"密码"输入项控件');
+                                                        return false;
                                                     }
                                                     if ($$sel.get('login_btn')) {
-                                                        return debugInfo([_s, '>存在"登录"按钮控件']);
+                                                        consolex._(_s);
+                                                        consolex._('存在"登录"按钮控件');
+                                                        return false;
                                                     }
                                                     return true;
                                                 }
 
                                                 function _click() {
-                                                    debugInfo('点击"下一步"按钮');
+                                                    consolex._('点击"下一步"按钮');
                                                     let _sel = () => $$sel.get('login_next_step');
-                                                    clickAction($$sel.pickup([_sel(), 'p1']), 'w', {
-                                                        max_check_times: 3,
-                                                        check_time_once: 500,
-                                                        condition_success: () => !_sel(),
+                                                    a11yx.click([_sel(), 'k1'], 'w', {
+                                                        max_check_times: 2,
+                                                        check_time_once: 5e3,
+                                                        condition: () => !_sel(),
                                                     });
                                                 }
 
@@ -2386,32 +2278,29 @@ let $$init = {
                                                     let _other = () => $$sel.get('login_other_mthd');
                                                     let _by_code = () => $$sel.get('login_by_code');
                                                     let _cond = () => (
-                                                        _lbl_code() || _err_ens() || _other() || _again()
+                                                        _ipt_pw() || _err_ens() || _other() || _again()
                                                     );
-                                                    if (!waitForAction(_cond, 8e3)) {
+                                                    if (!a11yx.wait(_cond, 8e3)) {
                                                         let _s = '查找"密码"输入项控件超时';
-                                                        return messageAction(_s, 4, 1, 0, '2_dash');
+                                                        return consolex.$(_s, 4, 1, 0, -2);
                                                     }
                                                     let _max = 3;
                                                     while (_max--) {
-                                                        if (waitForAction(_lbl_code, 1.5e3)) {
-                                                            debugInfo('找到"密码"输入项控件');
+                                                        if (a11yx.wait(_ipt_pw, 1.5e3)) {
+                                                            consolex._('找到"密码"输入项控件');
                                                             return true;
                                                         }
                                                         if (_err_ens() || _again()) {
-                                                            let _err = '失败提示信息:' + _err_msg();
-                                                            messageAction('登录失败', 4, 1, 0, -1);
-                                                            messageAction(_err, 8, 0, 1, 1);
+                                                            consolex.$(['登录失败', _err_msg()], 8, 1, 0, -2);
                                                         }
                                                         if (_other()) {
-                                                            debugInfo('点击"换个方式登录"按钮');
-                                                            clickAction(_other(), 'w');
-                                                            if (!waitForAction(_by_code, 2e3)) {
-                                                                let _m = '未找到"密码登录"按钮';
-                                                                return messageAction(_m, 4, 1, 0, '2_dash');
+                                                            consolex._('点击"换个方式登录"按钮');
+                                                            a11yx.click(_other(), 'w');
+                                                            if (!a11yx.wait(_by_code, 2e3)) {
+                                                                return consolex.$('未找到"密码登录"按钮', 4, 1, 0, -2);
                                                             }
-                                                            debugInfo('点击"密码登录"按钮');
-                                                            clickAction(_by_code().parent(), 'w');
+                                                            consolex._('点击"密码登录"按钮');
+                                                            a11yx.click(_by_code().parent(), 'w');
                                                         }
                                                     }
                                                 }
@@ -2419,37 +2308,37 @@ let $$init = {
                                         }
 
                                         function _inputCode(code_raw) {
-                                            debugInfo('尝试完成密码输入');
+                                            consolex._('尝试完成密码输入');
 
                                             return code_raw ? _autoIpt() : _manIpt();
 
                                             // tool function(s) //
 
                                             function _autoIpt() {
-                                                debugInfo('尝试自动输入密码');
+                                                consolex._('尝试自动输入密码');
 
-                                                let _dec = require('./modules/mod-pwmap').decrypt;
+                                                let _code = cryptox.dec(code_raw, 'af');
                                                 let _pref = '布局树查找可编辑"密码"控件';
-                                                let _sel = $$sel.pickup([_lbl_code(), 'p2c1']);
-                                                if (_sel && _sel.setText(_dec(code_raw))) {
-                                                    debugInfo(_pref + '成功');
+                                                let _sel = $$sel.pickup([_ipt_pw(), 'p2c1']);
+                                                if (_sel && _sel.setText(_code)) {
+                                                    consolex._(_pref + '成功');
                                                 } else {
-                                                    debugInfo([_pref + '失败', '尝试使用通用可编辑控件'], 3);
+                                                    consolex._([_pref + '失败', '尝试使用通用可编辑控件'], 3);
                                                     let _w = className('EditText').findOnce();
-                                                    let _input = _w && _w.setText(_dec(code_raw));
+                                                    let _input = _w && _w.setText(_code);
                                                     let _suff = _input ? '成功' : '失败';
-                                                    debugInfo('通用可编辑控件输入' + _suff, _input ? 0 : 3);
+                                                    consolex._('通用可编辑控件输入' + _suff, _input ? 0 : 3);
                                                 }
 
-                                                debugInfo('点击"登录"按钮');
-                                                if (clickAction($$sel.get('login_btn'), 'w')) {
+                                                consolex._('点击"登录"按钮');
+                                                if (a11yx.waitAndClick(/登录|Log in|.*loginButton/, 3e3, {cs$: 'w'})) {
                                                     return true;
                                                 }
-                                                messageAction('输入密码后点击"登录"失败', 4, 1, 0, '2_dash');
+                                                consolex.$('输入密码后点击"登录"失败', 4, 1, 0, -2);
                                             }
 
                                             function _manIpt() {
-                                                debugInfo('需要手动输入密码');
+                                                consolex._('需要手动输入密码');
                                                 devicex.vibrate([100, 200, 100, 200, 200]);
 
                                                 let _user_tt = 2; // min
@@ -2484,36 +2373,32 @@ let $$init = {
                                                     // tool function(s) //
 
                                                     function _waitForCode() {
-                                                        debugInfo('等待用户响应"需要密码"对话框');
-                                                        debugInfo('>最大超时时间: ' + _user_tt + '分钟');
+                                                        consolex._('等待用户响应"需要密码"对话框');
+                                                        consolex._('最大超时时间: ' + _user_tt + '分钟');
 
                                                         let _cond = () => _d.isCancelled()
-                                                            && !waitForAction(() => !_d.isCancelled(), 2e3);
-                                                        if (waitForAction(_cond, _user_tt * 60e3)) {
+                                                            && !a11yx.wait(() => !_d.isCancelled(), 2e3);
+                                                        if (a11yx.wait(_cond, _user_tt * 60e3)) {
                                                             return true;
                                                         }
                                                         devicex.cancelOn();
                                                         _d.dismiss();
-                                                        messageAction('脚本无法继续', 4, 0, 0, -1);
-                                                        messageAction('登录失败', 4, 0, 1);
-                                                        messageAction('需要密码时等待用户响应超时', 8, 4, 1, 1);
+                                                        consolex.$(['登录失败', '需要密码时等待用户响应超时'], 8, 4, 0, 2);
                                                     }
 
                                                     function _waitForBtn() {
-                                                        debugInfo('等待用户点击"登录"按钮');
-                                                        debugInfo('>最大超时时间: ' + _btn_tt + '分钟');
+                                                        consolex._('等待用户点击"登录"按钮');
+                                                        consolex._('最大超时时间: ' + _btn_tt + '分钟');
 
                                                         let _rex = '.*(confirmSet.*|mainTip|登录中.*|message)';
                                                         let _cond = () => !$$sel.get('login_btn')
-                                                            && !waitForAction(() => (
+                                                            && !a11yx.wait(() => (
                                                                 $$sel.pickup(_rex) || _err_ens()
                                                             ), 500);
-                                                        if (!waitForAction(_cond, _btn_tt * 60e3)) {
+                                                        if (!a11yx.wait(_cond, _btn_tt * 60e3)) {
                                                             devicex.cancelOn();
                                                             _d.dismiss(); // just in case
-                                                            messageAction('脚本无法继续', 4, 0, 0, -1);
-                                                            messageAction('登录失败', 4, 0, 1);
-                                                            messageAction('等待"登录"按钮消失超时', 8, 4, 1, 1);
+                                                            consolex.$(['登录失败', '等待"登录"按钮消失超时'], 8, 4, 0, 2);
                                                         }
                                                         return true;
                                                     }
@@ -2545,9 +2430,7 @@ let $$init = {
                                                 cond: () => _err_ens(),
                                                 feedback() {
                                                     devicex.cancelOn();
-                                                    messageAction('脚本无法继续', 4, 0, 0, -1);
-                                                    messageAction('登录失败', 4, 1, 1);
-                                                    messageAction('失败提示信息:' + _err_msg(), 8, 0, 1, 1);
+                                                    consolex.$(['登录失败', _err_msg()], 8, 4, 0, 2);
                                                 },
                                             }, {
                                                 remark: '失败提示',
@@ -2557,19 +2440,16 @@ let $$init = {
                                                     let _fail_main = $$sel.pickup(/.*mainTip/, 'txt');
                                                     let _fail_msg = _fail_pref + _fail_main;
                                                     devicex.cancelOn();
-                                                    messageAction('脚本无法继续', 4, 0, 0, -1);
-                                                    messageAction('登录失败', 4, 1, 1);
-                                                    messageAction(_fail_msg, 8, 0, 1, 1);
+                                                    consolex.$(['登录失败', _fail_msg], 8, 4, 0, 2);
                                                 },
                                             }],
                                             timeout_review: [{
                                                 remark: '强制账号列表检查',
                                                 cond() {
-                                                    if ($$acc.isLoggedIn(_this.name)) {
+                                                    if ($$acc.isLoggedIn(_usr.name)) {
                                                         return true;
                                                     }
-                                                    messageAction('脚本无法继续', 4, 0, 0, -1);
-                                                    messageAction('切换主账户超时', 8, 4, 1, 1);
+                                                    consolex.$('切换主账户超时', 8, 4, 0, 2);
                                                 },
                                             }],
                                         };
@@ -2580,12 +2460,12 @@ let $$init = {
 
                                 function _condChecker(cond) {
                                     if (!$$obj(cond)) {
-                                        debugInfo(['条件检查器参数无效', '>' + cond]);
+                                        consolex._(['条件检查器参数无效', cond]);
                                         return false;
                                     }
 
                                     let _name = cond.name || '条件检查';
-                                    debugInfo('开始' + (cond.name || '') + '条件检查');
+                                    consolex._('开始' + (cond.name || '') + '条件检查');
 
                                     let _t = cond.time || 1;
                                     _t *= _t < 100 ? 60e3 : 1;
@@ -2603,11 +2483,12 @@ let $$init = {
                                     function _checker() {
                                         while (_t > 0) {
                                             if (_meetCond(cond.success, 'success')) {
-                                                debugInfo(_name + '成功');
+                                                consolex._(_name + '成功');
                                                 return true;
                                             }
                                             if (_meetCond(cond.fail, 'fail')) {
-                                                return debugInfo(_name + '失败', 3);
+                                                consolex._(_name + '失败', 3);
+                                                return false;
                                             }
                                             if (!_meetCond(cond.wait, 'wait')) {
                                                 _t -= 500;
@@ -2615,17 +2496,18 @@ let $$init = {
                                             sleep(500);
                                         }
 
-                                        debugInfo('确定性条件检查已超时');
+                                        consolex._('确定性条件检查已超时');
                                         if (!cond.timeout_review) {
-                                            return debugInfo(_name + '失败', 3);
+                                            consolex._(_name + '失败', 3);
+                                            return false;
                                         }
 
-                                        debugInfo('开始检查超时复检条件');
+                                        consolex._('开始检查超时复检条件');
                                         if (_meetCond(cond.timeout_review, 'timeout_review')) {
-                                            debugInfo(_name + '成功');
+                                            consolex._(_name + '成功');
                                             return true;
                                         }
-                                        debugInfo(['超时复检失败', _name + '失败'], 3);
+                                        consolex._(['超时复检失败', _name + '失败'], 3);
 
                                         // tool function(s) //
 
@@ -2639,15 +2521,15 @@ let $$init = {
                                                         'wait': '持续等待',
                                                         'timeout_review': '超时复检成功',
                                                     };
-                                                    debugInfo('满足' + _types[type] + '条件');
-                                                    _o.remark && debugInfo('>' + _o.remark);
+                                                    consolex._('满足' + _types[type] + '条件');
+                                                    _o.remark && consolex._(_o.remark);
                                                     if (type === 'wait') {
                                                         while (_o.cond()) {
                                                             sleep(300);
                                                         }
                                                     }
                                                     if ($$func(_o.feedback)) {
-                                                        debugInfo('检测到反馈方法');
+                                                        consolex._('检测到反馈方法');
                                                         _o.feedback.call(_o);
                                                     }
                                                     return true;
@@ -2658,7 +2540,7 @@ let $$init = {
                                 }
 
                                 function _clearFlag() {
-                                    debugInfo('清除账户登出标记');
+                                    consolex._('清除账户登出标记');
                                     delete $$flag.acc_logged_out;
                                     return true;
                                 }
@@ -2667,52 +2549,56 @@ let $$init = {
                         logBack() {
                             let _sto_key = 'log_back_in_user';
                             if ($$flag.init_logged_in_main) {
-                                debugInfo(['无需回切账户', '>初始登录账户已是主账户']);
+                                consolex._('无需回切账户');
+                                consolex._('初始登录账户已是主账户');
                                 return _clearSto();
                             }
 
                             if (!$$cfg.account_log_back_in_switch) {
-                                debugInfo(['无需回切账户', '>旧账户回切功能未开启']);
+                                consolex._('无需回切账户');
+                                consolex._('旧账户回切功能未开启');
                                 return _clearSto();
                             }
 
                             let _init_usr = this.init_logged_in_usr;
                             if (!_init_usr) {
-                                debugInfo(['无法回切账户', '>未获取初始登录账户信息']);
+                                consolex._('无法回切账户');
+                                consolex._('未获取初始登录账户信息');
                                 return _clearSto();
                             }
 
                             let _init_data = {name: _init_usr, times: 0};
-                            let _sto_data = $$sto.af.get(_sto_key, _init_data);
+                            let _sto_data = storagesx.af.get(_sto_key, _init_data);
                             if (_sto_data.name !== _init_usr) {
                                 _sto_data = _init_data;
                             }
 
                             let _k = 'account_log_back_in_max_continuous_times';
                             if (_sto_data.times >= $$cfg[_k]) {
-                                debugInfo(['禁止回切账户', '>此旧账户回切次数已达上限']);
-                                debugInfo('>上限值: ' + $$cfg[_k]);
+                                consolex._('禁止回切账户');
+                                consolex._('此旧账户回切次数已达上限');
+                                consolex._('上限值: ' + $$cfg[_k]);
                                 return _clearSto();
                             }
 
-                            debugInfo('开始旧账户回切操作');
-                            debugInfo('>当前连续回切次数: ' + ++_sto_data.times);
+                            consolex._('开始旧账户回切操作');
+                            consolex._('当前连续回切次数: ' + ++_sto_data.times);
 
                             if (!$$acc.login(_init_usr)) {
-                                debugInfo('旧账户回切失败', 3);
+                                consolex._('旧账户回切失败', 3);
                                 return _clearSto();
                             }
-                            debugInfo('旧账户回切成功');
+                            consolex._('旧账户回切成功');
 
-                            $$sto.af.put(_sto_key, _sto_data);
-                            debugInfo('已更新回切账户存储信息');
+                            storagesx.af.put(_sto_key, _sto_data);
+                            consolex._('已更新回切账户存储信息');
 
                             // tool function(s) //
 
                             function _clearSto() {
-                                if ($$sto.af.contains(_sto_key)) {
-                                    $$sto.af.remove(_sto_key);
-                                    debugInfo('已清理回切账户存储信息');
+                                if (storagesx.af.contains(_sto_key)) {
+                                    storagesx.af.remove(_sto_key);
+                                    consolex._('已清理回切账户存储信息');
                                 }
                             }
                         },
@@ -2723,46 +2609,39 @@ let $$init = {
                 setMain() {
                     $$acc.main = {
                         _avatar: {
-                            _path: $$app.local_pics_path + 'main_user_mini_avatar_clip.png',
+                            _path: filesx['.local']('images', 'avt-main-user-clip.png'),
                             _isTotalGreen(img) {
                                 let _img = imagesx.compress(img, 2);
-                                let _pts = imagesx.findAllPointsForColor(_img, '#30bf6c', {
+                                let _pts = imagesx.findAllPointsForColor(_img, '#30BF6C', {
                                     threshold: 50,
                                 });
                                 let _res = _pts.length > _img.height * _img.width * 0.98;
-                                _img.recycle();
+                                imagesx.reclaim(_img);
                                 _img = null;
                                 return _res;
                             },
                             isValid(path) {
                                 if ($$flag.acc_logged_out) {
-                                    return debugInfo(['跳过主账户头像检查', '>检测到账户登出状态']);
+                                    consolex._('跳过主账户头像检查');
+                                    consolex._('检测到账户登出状态');
+                                    return false;
                                 }
-
-                                // cleaner for legacy bug (caused by v1.9.23)
-                                !function () {
-                                    let _lpp = $$app.local_pics_path;
-                                    let _idx = this._path.indexOf(_lpp) + _lpp.length;
-                                    files.remove(files.path('./false' + this._path.slice(_idx)));
-                                }.call(this);
-
-                                timeRecorder('avt_chk');
-
+                                timersx.rec.save('avt_chk');
                                 let _img = images.read(path || this._path);
                                 let _res;
                                 if (_img) {
                                     _res = _check.call(this, _img);
-                                    _img.recycle();
+                                    imagesx.reclaim(_img);
                                     _img = null;
                                 }
-
-                                $$app.avatar_checked_time = timeRecorder('avt_chk', 'L', 'auto');
-
+                                $$app.avatar_checked_time = $$cvt.time(timersx.rec('avt_chk'), '$zh');
                                 if (_res) {
-                                    debugInfo(['当前账户符合主账户身份', '>本地主账户头像匹配成功']);
+                                    consolex._('当前账户符合主账户身份');
+                                    consolex._('本地主账户头像匹配成功');
                                     return $$flag.init_logged_in_main = true;
                                 }
-                                debugInfo(['主账户身份检查未通过', '>本地主账户头像不匹配']);
+                                consolex._('主账户身份检查未通过');
+                                consolex._('本地主账户头像不匹配');
 
                                 // tool function(s) //
 
@@ -2790,27 +2669,27 @@ let $$init = {
                                     return false;
                                 }
                             },
-                            /** @returns {boolean|ImageWrapper$} */
+                            /** @return {boolean|ImageWrapper$} */
                             getAvtClip() {
                                 let _b = null;
-                                waitForAction(() => _b = _getAvtPos(), 8e3, 100);
+                                a11yx.wait(() => _b = _getAvtPos(), 8e3, 100);
 
                                 if (!_b || !Object.size(_b)) {
-                                    messageAction('无法获取当前头像样本', 3);
-                                    messageAction('森林主页头像控件定位失败', 3, 1);
+                                    consolex.$('无法获取当前头像样本', 3);
+                                    consolex.$('森林主页头像控件定位失败', 3, 1);
                                     return false;
                                 }
 
                                 let [l, t, w, h] = [_b.left, _b.top, _b.width(), _b.height()];
                                 if (w < 3 || h < 3) {
-                                    messageAction('无法继续匹配当前头像样本', 3, 0, 0, 'dash_up');
-                                    messageAction('森林主页头像控件数据无效', 3, 0, 1, 'dash');
+                                    consolex.$('无法继续匹配当前头像样本', 3, 0, 0, -0.5);
+                                    consolex.$('森林主页头像控件数据无效', 3, 0, 1, 0.5);
                                     return false;
                                 }
 
                                 let _avt_clip;
                                 let _chk = this.checkGreen.bind(this);
-                                waitForAction(() => _chk(_avt_clip = _getAvtClip()), 2e3);
+                                a11yx.wait(() => _chk(_avt_clip = _getAvtClip()), 2e3);
 
                                 return _avt_clip;
 
@@ -2825,7 +2704,7 @@ let $$init = {
                                         [idMatches(/.*home.*panel/), 'c0>0>0'],
                                     ].some((kw) => {
                                         if ((_bnd = $$sel.pickup(kw, 'bounds'))) {
-                                            debugInfo('森林主页头像控件定位成功');
+                                            consolex._('森林主页头像控件定位成功');
                                             return true;
                                         }
                                     });
@@ -2852,10 +2731,10 @@ let $$init = {
                                 let _avt_clip = this._avt_clip_cached || this.getAvtClip();
                                 if (_avt_clip) {
                                     images.save(_avt_clip, path || this._path);
-                                    _avt_clip.recycle();
+                                    imagesx.reclaim(_avt_clip);
                                     _avt_clip = null;
                                     if (this._avt_clip_cached) {
-                                        this._avt_clip_cached.recycle();
+                                        imagesx.reclaim(this._avt_clip_cached);
                                         this._avt_clip_cached = null;
                                     }
                                     return true;
@@ -2865,22 +2744,28 @@ let $$init = {
                                 return !this._isTotalGreen(clip);
                             },
                         },
-                        _avail() {
-                            if (!$$acc.switch) {
-                                return debugInfo('账户功能未开启');
-                            }
-                            if (!this.name_raw) {
-                                return debugInfo('主账户用户名未设置');
-                            }
-                            return true;
-                        },
                         name_raw: $$cfg.main_account_info.account_name,
                         code_raw: $$cfg.main_account_info.account_code,
+                        isAvail() {
+                            if (!$$acc.switch) {
+                                return {code: 1, msg: '账户功能未开启'};
+                            }
+                            if (!this.name_raw) {
+                                return {code: 1, msg: '主账户用户名未设置'};
+                            }
+                            return {code: 0};
+                        },
+                        ensureAvail() {
+                            let {code, msg} = this.isAvail();
+                            if (code !== 0) {
+                                consolex.$(['主账户登录失败', msg], 8, 4, 0, 2);
+                            }
+                        },
                         isMain(name_str) {
                             return $$acc.isMatchAbbr(name_str, $$acc.decode(this.name_raw));
                         },
                         login(par) {
-                            if (this._avail()) {
+                            if (this.isAvail().code === 0) {
                                 if (this._avatar.isValid()) {
                                     return true;
                                 }
@@ -2889,8 +2774,7 @@ let $$init = {
                                     this._avatar.save();
                                     return true;
                                 }
-                                messageAction('强制停止脚本', 4, 0, 0, -1);
-                                messageAction('主账户登录失败', 8, 4, 1, 1);
+                                consolex.$('主账户登录失败', 8, 4, 0, -2);
                             }
 
                             // tool function(s) //
@@ -2947,9 +2831,9 @@ let $$init = {
                     }
                 },
                 explode() {
-                    messageAction('脚本因安全限制被强制终止', 3, 0, 0, -1);
-                    messageAction('连续运行间隔时长过小', 3, 0, 1);
-                    messageAction('触发脚本炸弹预防阈值', 3, 0, 1, 1);
+                    consolex.$('脚本因安全限制被强制终止', 3, 0, 0, -1);
+                    consolex.$('连续运行间隔时长过小', 3, 0, 1);
+                    consolex.$('触发脚本炸弹预防阈值', 3, 0, 1, 1);
                     exit();
                 },
             };
@@ -2991,55 +2875,56 @@ let $$init = {
                     return this.excl_tasks_ahead_len;
                 },
                 monitor() {
-                    debugInfo('设置广播监听器');
+                    consolex._('设置广播监听器');
 
                     events.broadcast.on('init_scr_on_state_change', (v) => {
-                        debugInfo('接收到初始屏幕开关状态广播');
+                        consolex._('接收到初始屏幕开关状态广播');
                         if (!$$app.queue.excl_tasks_ahead_len) {
-                            debugInfo('根据广播消息修改状态参数');
+                            consolex._('根据广播消息修改状态参数');
                             $$app.init_scr_on_from_broadcast = v;
                         } else {
-                            debugInfo(['放弃广播消息', '>当前任务正在排队中']);
+                            consolex._('放弃广播消息');
+                            consolex._('当前任务正在排队中');
                         }
                     });
 
                     return this;
                 },
                 queue() {
-                    timeRecorder('sc_q'); // script queue
-                    timeRecorder('sc_q_total');
+                    timersx.rec.save('sc_q'); // script queue
+                    timersx.rec.save('sc_q_total');
 
                     let _init_que_len = this.excl_tasks_ahead_len;
                     let _que_len = _init_que_len;
                     let _sto_max_que_t = $$cfg.max_queue_time_global;
-                    debugInfo('排他性任务排队中: ' + _que_len + '项');
+                    consolex._('排他性任务排队中: ' + _que_len + '项');
 
                     let _init_max_que_t = _sto_max_que_t * _que_len;
                     let _max_que_t = _init_max_que_t;
-                    debugInfo('已设置最大排队时间: ' + _max_que_t + '分钟');
+                    consolex._('已设置最大排队时间: ' + _max_que_t + '分钟');
 
                     while ((_que_len = this.excl_tasks_ahead_len)) {
                         if (_que_len !== _init_que_len) {
-                            debugInfo('排他性任务队列发生变更', 'up');
+                            consolex._('排他性任务队列发生变更', 0, 0, -1);
                             let _amt = _init_que_len + '->' + _que_len;
-                            debugInfo('任务数量: ' + _amt + '项');
+                            consolex._('任务数量: ' + _amt + '项');
                             _init_que_len = _que_len;
                             _max_que_t = _sto_max_que_t * _que_len;
                             let _t = _init_max_que_t + '->' + _max_que_t;
-                            debugInfo('最大排队: ' + _t + '分钟');
+                            consolex._('最大排队: ' + _t + '分钟');
                             _init_max_que_t = _max_que_t;
-                            timeRecorder('sc_q'); // refresh
+                            timersx.rec.save('sc_q'); // refresh
                         }
-                        if (timeRecorder('sc_q', 'L', 60e3) >= _max_que_t) {
+                        if (timersx.rec.gt('sc_q', _max_que_t * 60e3)) {
                             this.excl_tasks_ahead.forEach(e => e.forceStop());
-                            debugInfo('强制停止队前所有排他性任务');
-                            debugInfo('>已达最大排队等待时间');
+                            consolex._('强制停止队前所有排他性任务');
+                            consolex._('已达最大排队等待时间');
                         }
                         $$sleep(1e3, '±500');
                     }
 
-                    let _et = timeRecorder('sc_q_total', 'L', 'auto');
-                    debugInfo('任务排队用时: ' + _et, 'Up');
+                    consolex.debug.__('solid', 1);
+                    consolex._('任务排队用时: ' + $$cvt.time(timersx.rec('sc_q_total'), '$zh'));
                 },
             };
         }
@@ -3063,37 +2948,40 @@ let $$init = {
                         if (devicex.is_init_screen_on) {
                             return true;
                         }
-                        debugInfo(['跳过前置应用黑名单检测', '>屏幕未亮起']);
+                        consolex._('跳过前置应用黑名单检测');
+                        consolex._('屏幕未亮起');
                     }
 
                     function _inBlist() {
                         let _i_pkg = $$app.init_fg_pkg;
                         let _passed = '前置应用黑名单检测通过';
-                        return ($$cfg.foreground_app_blacklist || []).some((o) => {
+                        let _res = $$cfg.foreground_app_blacklist.some((o) => {
                             let [_name, _pkg] = o.app_combined_name.split('\n');
                             if (_i_pkg === _pkg) {
                                 return $$app.fg_black_app = _name;
                             }
-                        }) || debugInfo(_i_pkg ? [_passed + ':', _i_pkg] : _passed);
+                        });
+                        _res || consolex._(_i_pkg ? [_passed + ':', _i_pkg] : _passed);
+                        return _res;
                     }
                 },
                 autoDelay() {
-                    messageAction('前置应用位于黑名单中:', 1, 0, 0, -1);
-                    messageAction($$app.fg_black_app);
+                    consolex.$('前置应用位于黑名单中:', 1, 0, 0, -1);
+                    consolex.$($$app.fg_black_app);
 
                     let _delay = delayInfoSetter();
                     let _ctr = _delay.continuous_times;
                     let _time = _delay.delay_time;
                     let _sum = _delay.delay_time_sum;
-                    if ($$1(_ctr)) {
-                        messageAction('本次任务自动推迟运行');
+                    if (_ctr === 1) {
+                        consolex.$('本次任务自动推迟运行');
                     } else {
-                        messageAction('本次任务自动推迟: ' + _time + '分钟');
-                        messageAction('当前连续推迟次数: ' + _ctr);
-                        messageAction('当前连续推迟总计: ' + _sum + '分钟');
+                        consolex.$('本次任务自动推迟: ' + _time + '分钟');
+                        consolex.$('当前连续推迟次数: ' + _ctr);
+                        consolex.$('当前连续推迟总计: ' + _sum + '分钟');
                     }
 
-                    $$sto.af.put('fg_blist_ctr', _ctr);
+                    storagesx.af.put('fg_blist_ctr', _ctr);
                     $$app.setPostponedTask(_time, {is_async: true, is_toast: false}); // `exit()` included
                     sleep(9e3); // in case task isn't set successfully before `exit()`
                     exit(); // thoroughly prevent script from going on (main thread)
@@ -3102,7 +2990,7 @@ let $$init = {
 
                     function delayInfoSetter(minutes) {
                         let _mm = minutes || [1, 1, 2, 3, 5, 8, 10];
-                        let _ctr = $$sto.af.get('fg_blist_ctr', 0);
+                        let _ctr = storagesx.af.get('fg_blist_ctr', 0);
                         let _max_mm = _mm[_mm.length - 1];
                         let _time = _mm[_ctr] || _max_mm;
                         let _sum = 0;
@@ -3116,7 +3004,7 @@ let $$init = {
                         };
                     }
                 },
-                clear: () => $$sto.af.remove('fg_blist_ctr'),
+                clear: () => storagesx.af.remove('fg_blist_ctr'),
             };
         }
     },
@@ -3146,37 +3034,19 @@ let $$init = {
             };
 
             return {
-                _thread: {
-                    _fx(this_arg) {
-                        typeof this_arg === 'object' && setInterval(() => {
-                            if (this_arg.task) {
-                                this_arg.task.setMillis(this_arg._next_task_time);
-                                timersx.updateTimedTask(this_arg.task);
-                            }
-                        }, 10e3);
-                    },
-                    start(this_arg) {
-                        this._thd = threadsx.start(() => this._fx(this_arg));
-                    },
-                    interrupt() {
-                        if (this._thd) {
-                            this._thd.interrupt();
-                        }
-                    },
-                },
                 get id() {
                     if (this.task) {
                         return this.task.id || -1;
                     }
                 },
                 get _sto_accu() {
-                    return Number($$sto.af_ins.get(_keys.ins_accu, 0));
+                    return Number(storagesx.af_ins.get(_keys.ins_accu, 0));
                 },
                 set _sto_accu(v) {
-                    $$sto.af_ins.put(_keys.ins_accu, Number(v));
+                    storagesx.af_ins.put(_keys.ins_accu, Number(v));
                 },
                 get _sto_ids() {
-                    return $$sto.af_ins.get(_keys.ins_tasks, [])
+                    return storagesx.af_ins.get(_keys.ins_tasks, [])
                         .filter(id => timersx.getTimedTask(id));
                 },
                 get _next_task_time() {
@@ -3184,72 +3054,102 @@ let $$init = {
                 },
                 trigger() {
                     if (!$$cfg.timers_switch) {
-                        return debugInfo('定时循环功能未开启');
+                        consolex._('定时循环功能未开启');
+                        return false;
                     }
                     if (!$$cfg.timers_self_manage_switch) {
-                        return debugInfo('定时任务自动管理未开启');
+                        consolex._('定时任务自动管理未开启');
+                        return false;
                     }
                     if (!$$cfg.timers_insurance_switch) {
-                        return debugInfo('意外保险未开启');
+                        consolex._('意外保险未开启');
+                        return false;
                     }
-                    if ($$app.engines_exec_argv.no_insurance_flag) {
-                        return debugInfo('检测到"无需保险"引擎参数');
+                    if ($$app.engines_exec_argv.no_insurance) {
+                        consolex._('检测到"无需保险"引擎参数');
+                        return false;
+                    }
+                    if (!enginesx.isLocal()) {
+                        consolex._('当前任务非本地任务');
+                        return false;
                     }
                     let _max = $$cfg[_keys.ins_accu_max];
                     if (this._sto_accu < _max) {
                         return true;
                     }
-                    debugInfo('本次会话不再设置保险定时任务');
-                    debugInfo('>任务已达最大连续次数限制: ' + _max);
+                    consolex._('本次会话不再设置保险定时任务');
+                    consolex._('任务已达最大连续次数限制: ' + _max);
                     this.clean().reset();
                 },
-                /** @param {TimedTaskOptExt} [task_options] */
+                /** @param {Timersx.TimedTask.Extension} [task_options] */
                 clean(task_options) {
+                    this.interrupt();
+
                     let _ids = this._sto_ids;
                     if (_ids.length) {
                         _ids.forEach(id => timersx.removeTimedTask(id, task_options));
-                        debugInfo(['已移除意外保险定时任务:', '任务ID: ' + (
-                            _ids.length > 1 ? '[ ' + _ids.join(', ') + ' ]' : _ids[0]
+                        consolex._(['已移除意外保险定时任务:', '任务ID: ' + (
+                            _ids.length > 1 ? '[\x20' + _ids.join(', ') + ']\x20' : _ids[0]
                         )]);
                     }
-                    $$sto.af_ins.remove(_keys.ins_tasks);
+
+                    storagesx.af_ins.remove(_keys.ins_tasks);
                     return this;
                 },
                 reset() {
+                    this.interrupt();
                     this._sto_accu = 0;
                     return this;
                 },
                 deploy() {
-                    let _this = this;
+                    let _cbk = (task) => {
+                        this.task = task;
+                        this.monitor();
+                        let _ids = this._sto_ids.concat([task.id]);
+                        storagesx.af_ins.put(_keys.ins_tasks, _ids);
+                        consolex._('已设置意外保险定时任务');
+                        consolex._('任务ID: ' + task.id);
+                        this.increase();
+                    };
+                    let _nxt_time = this._next_task_time;
                     timersx.addDisposableTask({
                         path: $$app.cwp,
-                        date: _this._next_task_time,
+                        date: _nxt_time,
                         is_async: true,
-                        callback(task) {
-                            _this.task = task;
-                            _this.monitor();
-                            let _ids = _this._sto_ids.concat([task.id]);
-                            $$sto.af_ins.put(_keys.ins_tasks, _ids);
-                            debugInfo('已设置意外保险定时任务');
-                            debugInfo('任务ID: ' + task.id);
-                        },
+                        callback: _cbk.bind(this),
                     });
                     return this;
                 },
                 monitor() {
-                    this._thread.start(this);
+                    this._thd = threadsx.start(() => setInterval(() => {
+                        if (this.task) {
+                            this.task.setMillis(this._next_task_time);
+                            timersx.updateTimedTask(this.task);
+                        }
+                    }, 10e3));
                     return this;
                 },
                 interrupt() {
-                    this._thread.interrupt();
+                    if (this._thd && this._thd.isAlive()) {
+                        this._thd.interrupt();
+                    }
                     return this;
                 },
                 remove() {
+                    this.interrupt();
                     this.id > 0 && timersx.removeTimedTask(this.id, {is_async: true});
                     return this;
                 },
                 increase() {
-                    this._sto_accu += 1;
+                    this._sto_accu = this._sto_accu + 1;
+                },
+                /**
+                 * @param {number|*} [status] - a non-zero value indicates abnormal termination
+                 */
+                finish(status) {
+                    status === undefined || status === 0
+                        ? this.clean({is_async: true}).reset()
+                        : this.reset();
                 },
             };
         }
@@ -3261,39 +3161,40 @@ let $$init = {
 
                     _max > 0 && threadsx.start(function () {
                         setTimeout(() => {
-                            devicex.cancelOn({is_debug_info: false});
-                            ui.post(() => messageAction('超时强制退出', 8, 4, 0, '2_n'));
+                            devicex.cancelOn();
+                            ui.post(() => consolex.$('超时强制退出', 8, 4, 0, '2n'));
                         }, _max * 60e3 + 3e3);
                     });
 
                     return this;
                 },
                 volKeys() {
-                    debugInfo('设置音量键监听器');
+                    consolex._('设置音量键监听器');
 
                     threadsx.start(function () {
+
+                        /* Do not add `threads.shutDownAll()` in this thread. */
+
                         let _keyMsg = (e) => {
                             let _code = e.getKeyCode();
                             return android.view.KeyEvent.keyCodeToString(_code) +
-                                ' ' + _code.toString().surround('()');
+                                '\x20' + _code.toString().surround('()');
                         };
                         events.observeKey();
                         events.setKeyInterceptionEnabled('volume_down', true);
                         events.onceKeyUp('volume_down', function (e) {
-                            messageAction('强制停止当前脚本', 3, 1, 0, -1);
-                            messageAction('触发按键: 音量减/VOL-', 3, 0, 1);
-                            messageAction(_keyMsg(e), 3, 0, 1, 1);
-                            $$app.monitor.insurance.reset();
-                            threads.shutDownAll();
+                            consolex.$('强制停止' + $$app.task_name + '任务', 3, 1, 0, -1);
+                            consolex.$('触发按键: 音量减/VOL-', 3, 0, 1);
+                            consolex.$(_keyMsg(e), 3, 0, 1, 1);
+                            $$app.tidy(1);
                             engines.myEngine().forceStop();
                         });
                         events.setKeyInterceptionEnabled('volume_up', true);
                         events.onceKeyUp('volume_up', function (e) {
-                            messageAction('强制停止所有脚本', 4, 0, 0, -1);
-                            messageAction('触发按键: 音量加/VOL+', 4, 0, 1);
-                            messageAction(_keyMsg(e), 4, 0, 1, 1);
-                            $$app.monitor.insurance.reset();
-                            threads.shutDownAll();
+                            consolex.$('强制停止所有脚本', 4, 0, 0, -1);
+                            consolex.$('触发按键: 音量加/VOL+', 4, 0, 1);
+                            consolex.$(_keyMsg(e), 4, 0, 1, 1);
+                            $$app.tidy(1);
                             engines.stopAllAndToast();
                         });
                     });
@@ -3313,7 +3214,7 @@ let $$init = {
                                     let _dat = {};
                                     let _key = this.state_key;
                                     $$cfg[_key] = _dat[_key] = val;
-                                    $$sto.af_cfg.put('config', _dat);
+                                    storagesx.af_cfg.put('config', _dat);
                                 },
                             };
                             if (!$$und(_self.cur_state)) {
@@ -3325,10 +3226,10 @@ let $$init = {
                             let _sto = {
                                 _key: 'phone_call_states',
                                 get states() {
-                                    return $$sto.af.get(this._key, []);
+                                    return storagesx.af.get(this._key, []);
                                 },
                                 set states(arr) {
-                                    $$sto.af.put(this._key, this.states.concat(arr));
+                                    storagesx.af.put(this._key, this.states.concat(arr));
                                 },
                                 get filled_up() {
                                     let _states = this.states;
@@ -3355,15 +3256,15 @@ let $$init = {
                                         _cur_state = devicex.getCallState();
                                     }
                                     this.states = _cur_state;
-                                    debugInfo('已存储通话状态数据');
-                                    debugInfo('当前共计数据: ' + this.states.length + '组');
+                                    consolex._('已存储通话状态数据');
+                                    consolex._('当前共计数据: ' + this.states.length + '组');
                                     return _cur_state;
                                 },
                                 reap() {
-                                    debugInfo('通话状态数据可信');
-                                    debugInfo('将当前数据应用于配置文件');
-                                    debugInfo('数据值: ' + _cur_state);
-                                    $$sto.af.remove(this._key);
+                                    consolex._('通话状态数据可信');
+                                    consolex._('将当前数据应用于配置文件');
+                                    consolex._('数据值: ' + _cur_state);
+                                    storagesx.af.remove(this._key);
                                     // write into storage and $$cfg
                                     return _self.cur_state = _cur_state;
                                 },
@@ -3376,8 +3277,8 @@ let $$init = {
                             return devicex.getCallState() !== this._getStoState();
                         },
                         onRelease() {
-                            debugInfo('前置"支付宝"应用');
-                            app.launchPackage($$app.alipay_pkg);
+                            consolex._('前置"支付宝"应用');
+                            app.launchPackage(alipayx.package_name);
                         },
                     },
                     screen: {
@@ -3388,15 +3289,15 @@ let $$init = {
                         },
                         onTrigger() {
                             if ($$flag.glob_e_scr_privilege) {
-                                messageAction('允许脚本提前退出', 3, 1, 0, -1);
-                                messageAction('标识激活且屏幕关闭', 3, 0, 1, 1);
+                                consolex.$('允许脚本提前退出', 3, 1, 0, -1);
+                                consolex.$('标识激活且屏幕关闭', 3, 0, 1, 1);
                                 exit();
                             }
                         },
                         onRelease() {
-                            $$flag.glob_e_trig_counter++;
+                            $$impeded.increase();
                             devicex.isLocked() && devicex.unlock();
-                            $$flag.glob_e_trig_counter--;
+                            $$impeded.decrease();
                         },
                     },
                     alarm: {
@@ -3404,11 +3305,11 @@ let $$init = {
                         _inner_pkg: /alipay|autojs/i,
                         _outer_pkg: /clock|alarm/i,
                         _isInnerPkg() {
-                            $$a11y.service.refreshServiceInfo();
+                            a11yx.service.refreshServiceInfo();
                             return this._inner_pkg.test(currentPackage());
                         },
                         _isOuterPkg() {
-                            $$a11y.service.refreshServiceInfo();
+                            a11yx.service.refreshServiceInfo();
                             return this._outer_pkg.test(currentPackage());
                         },
                         _saveInnerPkg() {
@@ -3418,22 +3319,23 @@ let $$init = {
                             this._isInnerPkg() || this._saveInnerPkg();
                         },
                         _waitForOuterPkg(tt) {
-                            return waitForAction$(this._isOuterPkg.bind(this), tt, 320);
+                            return a11yx.wait$(this._isOuterPkg.bind(this), tt, 320);
                         },
                         _waitForInnerPkg(tt) {
-                            return waitForAction$(this._isInnerPkg.bind(this), tt, 320);
+                            return a11yx.wait$(this._isInnerPkg.bind(this), tt, 320);
                         },
                         _msgAboutToTrigger() {
-                            if (files.exists('./modules/mod-alarm-countdown.js')) {
-                                return require('./modules/mod-alarm-countdown').show({
+                            try {
+                                requirex('plugin-alarm-countdown').run({
                                     is_async: true, title: '闹钟即将触发',
                                 });
+                            } catch (e) {
+                                let _delay = 2;
+                                setTimeout(() => {
+                                    let _t = Math.ceil(devicex.getNextAlarmClockTriggerGap() / 1e3);
+                                    $$toast('闹钟即将在 ' + (_t - _delay) + ' 秒内触发', 'L', 'F');
+                                }, _delay * 1e3);
                             }
-                            let _delay = 2;
-                            setTimeout(() => {
-                                let _t = Math.ceil(devicex.getNextAlarmClockTriggerGap() / 1e3);
-                                $$toast('闹钟即将在 ' + (_t - _delay) + ' 秒内触发', 'L', 'F');
-                            }, _delay * 1e3);
                         },
                         _msgTriggered() {
                             $$toast('支付宝界面前置时\n脚本将自动继续', 'L', 'F');
@@ -3445,11 +3347,11 @@ let $$init = {
                             this._saveInnerPkgIFN();
                             this._msgAboutToTrigger();
                             if (!this._waitForOuterPkg(this._thrd + 20e3)) {
-                                messageAction('等待闹钟应用前置超时', 8, 4, 0, 2);
+                                consolex.$('等待闹钟应用前置超时', 8, 4, 0, 2);
                             }
                             this._msgTriggered();
                             if (!this._waitForInnerPkg(this._limit)) {
-                                messageAction('等待闹钟闹钟事件解除超时', 8, 4, 0, 2);
+                                consolex.$('等待闹钟闹钟事件解除超时', 8, 4, 0, 2);
                             }
                         },
                         onRelease() {
@@ -3458,7 +3360,7 @@ let $$init = {
                     },
                 },
                 globEvt() {
-                    $$flag.glob_e_trig_counter = 0;
+                    $$impeded.reset();
                     let _preset_opt = this._glob_e_preset_options;
 
                     new Monitor('通话状态', '2 hr', _preset_opt.phone).start();
@@ -3489,25 +3391,19 @@ let $$init = {
                         let _desc = desc.surround('"');
                         let _sw = _handleSwitch(options.switching);
 
-                        /** @returns {boolean} */
+                        /** @return {boolean} */
                         this.valid = function () {
                             let _e_name = _desc + '事件监测';
-                            debugInfo(_sw ? _e_name + '已开启' : _e_name + '未开启');
+                            consolex._(_sw ? _e_name + '已开启' : _e_name + '未开启');
                             return _sw;
                         };
-                        /** @returns {com.stardust.autojs.core.looper.TimerThread} */
+                        /** @return {com.stardust.autojs.core.looper.TimerThread} */
                         this.monitor = function () {
                             let _o = {
                                 _onTriggerMsg() {
-                                    timeRecorder('glob_e' + _desc);
+                                    timersx.rec.save('glob_e' + _desc);
 
-                                    let _ms = ['触发' + _desc + '事件', _getCtdMsg()];
-
-                                    showSplitLine$('', 'dash');
-                                    _ms.forEach(s => messageAction(s, 1));
-                                    showSplitLine$('', 'dash');
-
-                                    $$toast(_ms.join('\n'), 'L', 'F');
+                                    consolex.$(['触发' + _desc + '事件', _getCtdMsg()], 1, 4, 0, 2);
 
                                     // tool function(s) //
 
@@ -3538,27 +3434,30 @@ let $$init = {
                                     }
                                 },
                                 _onReleaseMsg() {
-                                    messageAction('解除' + _desc + '事件', 1, 0, 0, 'up_dash');
-                                    let _et = timeRecorder('glob_e' + _desc, 'L', 'auto');
-                                    messageAction('解除用时: ' + _et, 1, 0, 1, 'dash');
+                                    consolex.$([
+                                        '解除' + _desc + '事件',
+                                        '解除用时: ' + $$cvt.time(timersx.rec('glob_e' + _desc), '$zh'),
+                                    ], 1, 0, 0, -2);
                                 },
                                 onTrigger() {
-                                    $$flag.glob_e_trig_counter++;
+                                    $$impeded.increase();
                                     this._onTriggerMsg();
                                     $$func(options.onTrigger) && options.onTrigger();
                                 },
                                 keepWaiting() {
                                     while (options.trigger()) {
-                                        if (timeRecorder('glob_e' + _desc, 'L') >= _limit) {
-                                            messageAction('强制停止脚本', 4, 1, 0, -1);
-                                            messageAction(_desc + '事件解除超时', 8, 4, 1, 1);
+                                        if (timersx.rec.gt('glob_e' + _desc, _limit)) {
+                                            let _msg = '强制停止' + $$app.task_name + '任务';
+                                            let _rsn = _desc + '事件解除超时';
+                                            $$toast(_msg + '\n' + _rsn, 'L', 'F');
+                                            consolex.$([_msg, _rsn], 8, 4, 0, 2);
                                         }
                                         sleep(240);
                                     }
                                 },
                                 onRelease() {
                                     $$func(options.onRelease) && options.onRelease();
-                                    $$flag.glob_e_trig_counter--;
+                                    $$impeded.decrease();
                                     this._onReleaseMsg();
                                 },
                             };
@@ -3574,7 +3473,7 @@ let $$init = {
                                 }
                             });
                         };
-                        /** @returns {boolean|com.stardust.autojs.core.looper.TimerThread} */
+                        /** @return {boolean|com.stardust.autojs.core.looper.TimerThread} */
                         this.start = function () {
                             return this.valid() && this.monitor();
                         };
@@ -3585,7 +3484,7 @@ let $$init = {
                             if (!$$str(lmt)) {
                                 lmt = +lmt;
                                 if (lmt < 1e3) {
-                                    lmt *= 1e3; // take as seconds
+                                    lmt *= 1e3; // taken as seconds
                                 }
                                 if (!lmt || lmt <= 0) {
                                     lmt = Infinity; // endless monitoring
@@ -3614,7 +3513,7 @@ let $$init = {
                 },
                 logOut() {
                     threadsx.start(function () {
-                        debugInfo('已开启账户登出监测线程');
+                        consolex._('已开启账户登出监测线程');
 
                         delete $$flag.acc_logged_out;
                         while (1) {
@@ -3628,24 +3527,25 @@ let $$init = {
                         }
                         $$flag.acc_logged_out = true;
 
-                        messageAction('检测到账户登出状态', 1, 0, 0, -1);
+                        consolex.$('检测到账户登出状态', 1, 0, 0, -1);
                         if ($$sel.cache.load('acc_logged_out')) {
-                            messageAction('账户在其他地方登录');
+                            consolex.$('账户在其他地方登录');
                         } else {
-                            messageAction('需要登录账户');
+                            consolex.$('需要登录账户');
                         }
-                        messageAction('尝试自动登录主账户', 1, 0, 0, 1);
 
+                        $$acc.main.ensureAvail();
+
+                        consolex.$('尝试自动登录主账户', 1, 0, 0, 1);
                         if (!$$acc.main.login({direct: true})) {
-                            messageAction('脚本无法继续', 4, 0, 0, -1);
-                            messageAction('无法登录主账户', 8, 4, 1, 1);
+                            consolex.$('主账户登录未成功', 8, 4, 0, 2);
                         }
                     });
 
                     return this;
                 },
                 newestVer() {
-                    appx.getProjectNewestReleaseCared({
+                    projectx.getNewestReleaseCared({
                         min_version_name: 'v2.0.1',
                     }, (release) => {
                         if (release) {
@@ -3674,7 +3574,7 @@ let $$init = {
                     function maskLayerSetter() {
                         /**
                          * @type {{
-                         *     trig: BaseSelectorParam|function():SelectorPickupResult,
+                         *     trig: A11yx.Pickup.Locators|function():A11yx.Pickup.Results,
                          *     desc: string,
                          * }[]}
                          */
@@ -3698,6 +3598,7 @@ let $$init = {
                             return o;
                         });
                         return {
+                            _smp: undefined,
                             _cond() {
                                 return _samples.some((o) => {
                                     let _w = o.trig();
@@ -3709,34 +3610,34 @@ let $$init = {
                             },
                             trigger() {
                                 delete this._smp;
-                                return waitForAction(this._cond.bind(this), 8e3);
+                                return a11yx.wait(this._cond.bind(this), 8e3);
                             },
                             enforce() {
                                 let _smp = this._smp;
 
-                                debugInfo('检测到' + _smp.desc);
-                                timeRecorder('_mask_layer');
+                                consolex._('检测到' + _smp.desc);
+                                timersx.rec.save('_mask_layer');
                                 $$flag.mask_layer_monitoring = true;
 
                                 let _cA1 = () => {
                                     if ($$sel.pickup(_smp.widget, 'clickable')) {
-                                        return clickAction(_smp.widget, 'w');
+                                        return a11yx.click(_smp.widget, 'w');
                                     }
                                 };
-                                let _cA2 = () => clickAction(_smp.widget, 'press', {pt$: 80});
+                                let _cA2 = () => a11yx.click(_smp.widget, 'press', {pt$: 80});
                                 let _cA = () => _cA1() || _cA2();
-                                let _cB1 = () => waitForAction(() => !_smp.trig(), 1.2e3, 80);
-                                let _cB2 = () => !waitForAction(_smp.trig, 320, 80);
+                                let _cB1 = () => a11yx.wait(() => !_smp.trig(), 1.2e3, 80);
+                                let _cB2 = () => !a11yx.wait(_smp.trig, 320, 80);
                                 let _cB = () => _cB1() && _cB2();
                                 if (_cA() && _cB()) {
-                                    let _et = timeRecorder('_mask_layer', 'L', 'auto');
-                                    debugInfo(['关闭' + _smp.desc + '成功', '遮罩关闭用时: ' + _et]);
+                                    let _et = $$cvt.time(timersx.rec('_mask_layer'), '$zh');
+                                    consolex._(['关闭' + _smp.desc + '成功', '遮罩关闭用时: ' + _et]);
                                 } else {
-                                    debugInfo('关闭' + _smp.desc + '单次失败', 3);
+                                    consolex._('关闭' + _smp.desc + '单次失败', 3);
                                 }
                             },
                             dismiss: () => {
-                                debugInfo('遮罩层监测线程结束');
+                                consolex._('遮罩层监测线程结束');
                                 delete $$flag.mask_layer_monitoring;
                             },
                         };
@@ -3744,10 +3645,10 @@ let $$init = {
                 }),
                 reload_btn: new Monitor('"重新加载"按钮', function () {
                     let _sel = () => $$sel.get('reload_frst_page');
-                    let _click = () => clickAction(_sel(), 'w');
+                    let _click = () => a11yx.click(_sel(), 'w');
 
                     while (1) {
-                        sleep(3e3);
+                        sleep(2e3);
                         _click() && sleep(5e3);
                     }
                 }),
@@ -3760,7 +3661,7 @@ let $$init = {
                 rl_in_page: new Monitor('排行榜页面', function () {
                     while (1) {
                         $$sel.cache.refresh('rl_title'); // including `save()
-                        $$flag.rl_in_page = $$sel.cache.load('rl_title', 'bounds');
+                        $$flag.rl_in_page = $$sel.cache.load('rl_title');
                         sleep(120);
                     }
                 }),
@@ -3783,7 +3684,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _locate() {
-                        debugInfo('开始定位排行榜可滚动控件');
+                        consolex._('开始定位排行榜可滚动控件');
 
                         let _sel = () => _list_w = $$sel.pickup({
                             scrollable: true,
@@ -3795,7 +3696,7 @@ let $$init = {
 
                         while (1) {
                             if (_sel()) {
-                                debugInfo('已定位排行榜可滚动控件');
+                                consolex._('已定位排行榜可滚动控件');
                                 return true;
                             }
                             sleep(120);
@@ -3804,7 +3705,7 @@ let $$init = {
 
                     function _text() {
                         _rl_end_w = null;
-                        debugInfo('开始监测列表底部控件描述文本');
+                        consolex._('开始监测列表底部控件描述文本');
 
                         while (1) {
                             sleep(120);
@@ -3820,7 +3721,7 @@ let $$init = {
                             }
                             _rl_end_w = _child_w;
                             if ($$sel.pickup(_rl_end_w, 'txt').match(/没有更多/)) {
-                                debugInfo('列表底部控件描述文本匹配');
+                                consolex._('列表底部控件描述文本匹配');
                                 break;
                             }
                             _list_w.refresh();
@@ -3828,13 +3729,13 @@ let $$init = {
                     }
 
                     function _height() {
-                        debugInfo('开始监测列表底部控件屏幕高度');
+                        consolex._('开始监测列表底部控件屏幕高度');
 
                         while (1) {
                             sleep(120);
                             if (_rl_end_w.bounds().height() >= cX(0.04)) {
-                                _rl_end_w.recycle();
-                                debugInfo('列表底部控件高度满足条件');
+                                imagesx.reclaim(_rl_end_w);
+                                consolex._('列表底部控件高度满足条件');
                                 break;
                             }
                             _rl_end_w.refresh();
@@ -3842,7 +3743,7 @@ let $$init = {
                     }
 
                     function _signal() {
-                        debugInfo('发送排行榜停检信号');
+                        consolex._('发送排行榜停检信号');
                         $$flag.rl_bottom_rch = true;
                     }
                 }),
@@ -3851,7 +3752,7 @@ let $$init = {
                     while (1) {
                         let _w = _sltr.findOnce();
                         if (_w && _w.click()) {
-                            debugInfo('关闭主页彩虹对话框');
+                            consolex._('关闭主页彩虹对话框');
                         }
                         sleep(240);
                     }
@@ -3859,8 +3760,7 @@ let $$init = {
                 unregistered: new Monitor('未注册检测', function () {
                     while (1) {
                         if ($$sel.pickup(/.*\u300a.*用户须知.*\u300b,*/)) {
-                            messageAction('脚本无法继续', 4, 0, 0, -1);
-                            messageAction('用户未注册蚂蚁森林', 8, 4, 1, 1);
+                            consolex.$(['脚本无法继续', '用户未注册蚂蚁森林'], 8, 4, 0, 2);
                         }
                         sleep(240);
                     }
@@ -3868,23 +3768,18 @@ let $$init = {
                 pattern_lock: new Monitor('支付宝手势锁', function () {
                     while (1) {
                         if ($$sel.pickup(/.+\/(AlipayPattern|patternCheck)/)) {
-                            messageAction('脚本无法继续', 4, 0, 0, -1);
-                            messageAction('检测到支付宝手势锁', 8, 4, 1, 1);
+                            consolex.$(['脚本无法继续', '检测到支付宝手势锁'], 8, 4, 0, 2);
                         }
                         sleep(240);
                     }
                 }),
                 launch_confirm: new Monitor('允许打开', function (tt) {
-                    let _tt = tt === undefined ? 4.2e3 : tt || Infinity;
-                    let _w = null;
-                    if (waitForAction(() => _w = $$sel.pickup('打开'), _tt, 300)) {
-                        clickAction(_w, 'w');
-                    }
+                    threadsx.monitor('ensure_open', tt);
                 }),
                 collect_confirm: new Monitor('立即收取', function () {
                     while (1) {
                         let _w = $$sel.pickup('立即收取');
-                        _w && clickAction(_w, 'w');
+                        _w && a11yx.click(_w, 'w');
                         sleep(300);
                     }
                 }),
@@ -3893,22 +3788,23 @@ let $$init = {
                     // a permission dialog (like location permission request)
                     // will stop current script from carrying out
 
-                    let _tt = tt === undefined ? 2.4e3 : tt || Infinity;
-                    let _w = null;
-                    let _sel_btn_cfm = () => _w = $$sel.pickup(idMatches(/.*btn_confirm/));
-                    let _sel_allow = () => _w = $$sel.pickup(/[Aa][Ll]{2}[Oo][Ww]|允许/);
-                    let _sel = () => _sel_btn_cfm() || _sel_allow();
-                    if (waitForAction(_sel, _tt, 300)) {
-                        clickAction(_w, 'w');
-                    }
+                    a11yx.waitAndClick(() => {
+                        return $$sel.pickup(idMatches(/.*btn_confirm/))
+                            || $$sel.pickup(/[Aa][Ll]{2}[Oo][Ww]|允许/);
+                    }, tt === undefined ? 2.4e3 : tt || Infinity, 300, {cs$: 'w'});
                 }),
                 expand_feed: new Monitor('展开动态列表', function (tt) {
                     let _tt = tt === undefined ? 9e3 : tt || Infinity;
+                    let _itv = 240;
                     let _w = null;
-                    let _sel = () => _w = $$sel.pickup(/.*点击.*展开.*(动态|列表)/);
-                    if (waitForAction(_sel, _tt, 240)) {
-                        do clickAction(_w, 'w');
-                        while (!waitForAction(() => !_sel(), 1e3, 200));
+                    let _rex = /.*展开(好友)?(动态|列表){1,2}/;
+                    let _sel = () => _w = $$sel.pickup([_rex, {isCenterX: true}]);
+                    if (a11yx.wait(_sel, _tt, _itv)) {
+                        do {
+                            consolex._('点击' + $$sel.pickup(_w, 'txt').surround('"') + '按钮');
+                            a11yx.click(_w, 'w', {bt$: _itv});
+                        }
+                        while (!a11yx.wait(() => !_sel(), 600, _itv));
                     }
                 }),
             };
@@ -3919,31 +3815,31 @@ let $$init = {
                 /** @type {com.stardust.autojs.core.looper.TimerThread} */
                 let _thd = $$app['_threads_' + name];
                 this.start = function () {
-                    if (this.disabled) {
-                        return;
+                    if (!this.is_disabled) {
+                        this.interruptIFN();
+                        consolex._('开启' + name + '监测线程');
+                        let _args = [].slice.call(arguments);
+                        return _thd = threadsx.start(() => thr_f.apply(global, _args));
                     }
-                    if (_thd && _thd.isAlive()) {
-                        return _thd;
-                    }
-                    debugInfo('开启' + name + '监测线程');
-                    let _args = [].slice.call(arguments);
-                    return _thd = threadsx.start(() => thr_f.apply(global, _args));
+                    consolex._(name + '监测线程未能开启');
+                    consolex._('监测线程已被禁用');
                 };
                 this.interrupt = function () {
-                    if (_thd && !this.disabled) {
-                        debugInfo('结束' + name + '监测线程');
+                    if (_thd) {
+                        consolex._('结束' + name + '监测线程');
                         return _thd.interrupt();
                     }
                 };
-                this.restart = function () {
-                    this.interrupt();
-                    this.start();
+                this.interruptIFN = function () {
+                    // no debug info shown
+                    this.isAlive() && _thd.interrupt();
                 };
                 this.isAlive = () => _thd && _thd.isAlive();
                 this.join = t => _thd && _thd.join(t);
                 this.disable = function () {
-                    this.interrupt();
-                    this.disabled = true;
+                    this.interruptIFN();
+                    this.is_disabled = true;
+                    consolex._(name + '监测线程已禁用');
                 };
             }
         }
@@ -3951,17 +3847,14 @@ let $$init = {
     unlock() {
         let _is_scr_on = devicex.is_init_screen_on;
         let _is_unlked = devicex.isUnlocked();
-        let _err = (m) => {
-            messageAction('脚本无法继续', 4, 0, 0, -1);
-            messageAction(m, 8, 4, 1, 1);
-        };
+        let _err = m => consolex.$(['脚本无法继续', m], 8, 4, 0, 2);
 
         if (!$$cfg.auto_unlock_switch) {
             _is_scr_on || _err('屏幕关闭且自动解锁功能未开启');
             _is_unlked || _err('设备上锁且自动解锁功能未开启');
         }
 
-        _is_unlked && _is_scr_on ? debugInfo('无需解锁') : devicex.unlock();
+        _is_unlked && _is_scr_on ? consolex._('无需解锁') : devicex.unlock();
         $$flag.dev_unlocked = true;
 
         return $$init;
@@ -3978,20 +3871,28 @@ let $$init = {
             return {
                 trigger() {
                     if (!$$cfg.prompt_before_running_switch) {
-                        return debugInfo('"运行前提示"未开启');
+                        consolex._('"运行前提示"未开启');
+                        return false;
                     }
                     if (!$$cfg.message_showing_switch) {
-                        return debugInfo('"消息提示"未开启');
+                        consolex._('"消息提示"未开启');
+                        return false;
                     }
-                    if ($$app.engines_exec_argv.instant_run_flag) {
-                        return debugInfo(['跳过"运行前提示"', '>检测到"立即运行"引擎参数']);
+                    if ($$app.engines_exec_argv.is_instant_running) {
+                        consolex._('跳过"运行前提示"');
+                        consolex._('检测到"立即运行"引擎参数');
+                        return false;
                     }
                     if ($$cfg.prompt_before_running_auto_skip) {
                         if (!devicex.is_init_screen_on) {
-                            return debugInfo(['跳过"运行前提示"', '>屏幕未亮起']);
+                            consolex._('跳过"运行前提示"');
+                            consolex._('屏幕未亮起');
+                            return false;
                         }
                         if (!devicex.is_init_unlocked) {
-                            return debugInfo(['跳过"运行前提示"', '>设备未锁定']);
+                            consolex._('跳过"运行前提示"');
+                            consolex._('设备未锁定');
+                            return false;
                         }
                     }
                     return true;
@@ -4007,11 +3908,11 @@ let $$init = {
                         onNeutral(d) {
                             let _cfg = {
                                 _key: 'prompt_before_running_postponed_minutes',
-                                /** @returns {number[]} */
+                                /** @return {number[]} */
                                 get sto_min_map() {
                                     return $$cfg[this._key + '_choices'];
                                 },
-                                /** @returns {number} */
+                                /** @return {number} */
                                 get sto_min() {
                                     return $$cfg[this._key];
                                 },
@@ -4019,10 +3920,10 @@ let $$init = {
                                 set sto_min(v) {
                                     let _new = {};
                                     _new[this._key] = v;
-                                    $$sto.af_cfg.put('config', _new);
+                                    storagesx.af_cfg.put('config', _new);
                                     Object.assign($$cfg, _new);
                                 },
-                                /** @returns {number} */
+                                /** @return {number} */
                                 get user_min() {
                                     return $$cfg[this._key + '_user'];
                                 },
@@ -4030,19 +3931,19 @@ let $$init = {
                                 set user_min(v) {
                                     let _new = {};
                                     _new[this._key + '_user'] = v;
-                                    $$sto.af_cfg.put('config', _new);
+                                    storagesx.af_cfg.put('config', _new);
                                     Object.assign($$cfg, _new);
                                 },
                             };
                             if (_cfg.sto_min > 0) {
                                 d.dismiss();
-                                return $$app.monitor.insurance.interrupt().clean({
+                                return $$app.monitor.insurance.clean({
                                     is_async: true,
                                     callback: () => $$app.setPostponedTask(_cfg.sto_min),
-                                });
+                                }).reset();
                             }
                             let _minutes = _cfg.sto_min_map; // [1, 2, 5, 10, ...]
-                            let _suffix = ' min';
+                            let _suffix = '\x20min';
                             dialogsx
                                 .builds(['设置任务推迟时间', '',
                                     0, 'B', ['K', 'warn'],
@@ -4060,19 +3961,19 @@ let $$init = {
                                     if (ds.isPromptCheckBoxChecked()) {
                                         _cfg.sto_min = _cfg.user_min;
                                     }
-                                    $$app.monitor.insurance.interrupt().clean({
-                                        is_async: true,
-                                        callback: () => $$app.setPostponedTask(_cfg.user_min),
-                                    });
+                                    if ($$app.monitor.insurance.trigger()) {
+                                        $$app.monitor.insurance.clean({is_async: true}).reset();
+                                    }
+                                    $$app.setPostponedTask(_cfg.user_min);
                                 })
                                 .show();
                         },
                         onNegative(d) {
                             let _quitNow = () => {
                                 d.dismiss();
-                                $$app.monitor.insurance.interrupt().remove();
+                                $$app.tidy(0);
                                 // language=JS
-                                messageAction('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+                                consolex.$('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
                                 exit();
                             };
 
@@ -4092,7 +3993,7 @@ let $$init = {
                                 dialogsx.dismiss(ds);
                             }).on('positive', (ds) => {
                                 dialogsx.dismiss(ds);
-                                $$sto.af_cfg.put('config', {
+                                storagesx.af_cfg.put('config', {
                                     prompt_before_running_quit_confirm: !ds.isPromptCheckBoxChecked(),
                                 });
                                 _quitNow();
@@ -4100,21 +4001,22 @@ let $$init = {
                         },
                         onPositive(d) {
                             d.dismiss();
-                            $$app.monitor.insurance.increase();
                         },
                         onPause: {
-                            content: [/.*(".+".*任务).*/, '请选择$1运行选项'],
+                            content: [/.*(".+".*任务).*/, '选择$1运行选项'],
                         },
                         onTimeout() {
-                            debugInfo(['运行提示计时器超时', '任务自动继续']);
+                            consolex._(['运行提示计时器超时', '任务自动继续']);
                             return 'positive';
                         },
                     }).act().block({
                         timeout: 2, // minutes
-                        onTimeout(d) {
-                            d.dismiss();
-                            messageAction('强制结束脚本', 4, 0, 0, -1);
-                            messageAction('等待运行提示对话框操作超时', 8, 4, 0, 1);
+                        onTimeout() {
+                            $$app.tidy(1);
+                            consolex.$([
+                                '强制结束' + $$app.task_name + '任务',
+                                '等待运行提示对话框操作超时',
+                            ], 8, 4, 0, 2);
                         },
                     });
                 },
@@ -4148,25 +4050,25 @@ let $$init = {
                     // tool function(s) //
 
                     function _launch() {
-                        timeRecorder('get_rl_data');
+                        timersx.rec.save('get_rl_data');
                         return $$app.page.rl.launch({is_show_greeting: false});
                     }
 
                     function _collect() {
                         $$app.task_name = '好友列表数据采集'.surround('"');
-                        messageAction('正在采集好友列表数据', 1, 1, 0, 2);
+                        consolex.$('正在采集好友列表数据', 1, 1, 0, 2);
 
                         $$af.rl.scroll.toBottom({itv: 0});
 
                         let _ls_data = _getListData();
-                        $$sto.af.remove('friends_list_data'); // discarded data
-                        $$sto.af_flist.put('friends_list_data', _ls_data);
+                        storagesx.af.remove('friends_list_data'); // discarded data
+                        storagesx.af_flist.put('friends_list_data', _ls_data);
 
-                        let _et = timeRecorder('get_rl_data', 'L', 'auto');
+                        let _et = $$cvt.time(timersx.rec('get_rl_data'), '$zh');
                         let _sum = _ls_data.list_length + ' 项';
-                        messageAction('采集完毕', 1, 1, 0, -1);
-                        messageAction('用时 ' + _et, 1, 0, 1);
-                        messageAction('总计 ' + _sum, 1, 0, 1, 1);
+                        consolex.$('采集完毕', 1, 1, 0, -1);
+                        consolex.$('用时 ' + _et, 1, 0, 1);
+                        consolex.$('总计 ' + _sum, 1, 0, 1, 1);
 
                         // tool function(s) //
 
@@ -4192,17 +4094,17 @@ let $$init = {
                     }
                 },
                 get_current_acc_name() {
-                    timeRecorder('cur_acc_nm');
+                    timersx.rec.save('cur_acc_nm');
 
                     let _name = _byPipeline() || '';
-                    messageAction('采集完毕');
+                    consolex.$('采集完毕');
 
                     let _sto_key = 'collected_current_account_name';
-                    $$sto.af.remove(_sto_key);
-                    $$sto.af.put(_sto_key, _name);
+                    storagesx.af.remove(_sto_key);
+                    storagesx.af.put(_sto_key, _name);
 
-                    let _et = timeRecorder('cur_acc_nm', 'L', 'auto');
-                    messageAction('用时 ' + _et, 1, 0, 1);
+                    let _et = $$cvt.time(timersx.rec('cur_acc_nm'), '$zh');
+                    consolex.$('用时 ' + _et, 1, 0, 1);
 
                     _quit();
 
@@ -4213,7 +4115,7 @@ let $$init = {
                         let _thd_get_name = threadsx.start(_thdGetName);
                         let _thd_mon_logout = threadsx.start(_thdMonLogout);
 
-                        waitForAction(() => _name || $$flag.acc_logged_out, 12e3);
+                        a11yx.wait(() => _name || $$flag.acc_logged_out, 12e3);
 
                         _thd_get_name.interrupt();
                         _thd_mon_logout.interrupt();
@@ -4223,7 +4125,7 @@ let $$init = {
                         }
 
                         if ($$flag.acc_logged_out) {
-                            messageAction('账户已登出', 3, 1, 0, '2_dash');
+                            consolex.$('账户已登出', 3, 1, 0, -2);
                             delete $$flag.acc_logged_out;
                         }
 
@@ -4233,20 +4135,18 @@ let $$init = {
                             $$app.task_name = '采集当前账户名'.surround('"');
                             $$app.page.alipay.home();
 
-                            messageAction('正在采集当前账户名', 1, 0, 0, -1);
+                            consolex.$('正在采集当前账户名', 1, 0, 0, -1);
 
-                            clickActionsPipeline([
-                                [['我的', 'p1']],
-                                [idMatches(/.*userinfo_view/)],
-                                [['个人主页', 'p4']],
-                                ['支付宝账户', null]], {
-                                name: '支付宝个人主页',
-                                default_strategy: 'widget',
-                            });
+                            a11yx.pipeline('支付宝个人主页', [
+                                ['我的', 'k1'],
+                                idMatches(/.*userinfo_view/),
+                                ['个人主页', 'k4'],
+                                '支付宝账户',
+                            ]);
 
                             let _txt = '';
                             let _sel = () => $$sel.pickup(['支付宝账户', 's>1'], 'txt');
-                            waitForAction(() => _txt = _sel(), 2e3);
+                            a11yx.wait(() => _txt = _sel(), 2e3);
 
                             return _name = _txt ? $$acc.encode(_txt) : '';
                         }
@@ -4268,13 +4168,13 @@ let $$init = {
                         if (_cmd in _commands) {
                             return true;
                         }
-                        messageAction('脚本无法继续', 4, 0, 0, -1);
-                        messageAction('未知的传递指令参数:', 4, 1, 1);
-                        messageAction(_cmd, 8, 0, 1, 1);
+                        consolex.$('脚本无法继续', 4, 0, 0, -1);
+                        consolex.$('未知的传递指令参数:', 4, 1, 1);
+                        consolex.$(_cmd, 8, 0, 1, 1);
                     }
                 },
                 exec() {
-                    debugInfo(['执行传递指令:', _cmd]);
+                    consolex._(['执行传递指令:', _cmd]);
                     _commands[_cmd]();
                     sleep(4e3);
                 },
@@ -4297,7 +4197,7 @@ let $$af = {
     _launcher: {
         greet() {
             // language=JS
-            messageAction('`开始${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+            consolex.$('`开始${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
 
             return this;
         },
@@ -4306,14 +4206,6 @@ let $$af = {
                 emount_t_own: 0, // t: total
                 emount_c_own: 0, // c: collected
                 emount_c_fri: 0,
-                cleaner: {
-                    imgWrapper() {
-                        imagesx.recycleGlobal();
-                    },
-                    eballs() {
-                        $$af.home_balls_info = {};
-                    },
-                },
                 stroll: {
                     max_cnt_cycle: $$cfg.max_continuous_not_targeted_stroll_cycle,
                     ignored: {
@@ -4389,7 +4281,7 @@ let $$af = {
                     },
                     click() {
                         if (this.pt || this.locate()) {
-                            return clickAction(this.pt, 'p', {pt$: 64, bt$: 500});
+                            return a11yx.click(this.pt, 'p', {pt$: 64, bt$: 500});
                         }
                     },
                     isSlake() {
@@ -4415,25 +4307,18 @@ let $$af = {
                         this.ignored.reset();
                     },
                 },
-                /** @type {AfHoughBallsResult|Object} */
+                /** @type {Imagesx.EnergyBall.AFResult} */
                 home_balls_info: {},
                 /**
-                 * @typedef {{
-                 *     is_cache?: boolean,
-                 *     is_fixed?: boolean,
-                 *     is_debug_info?: boolean,
-                 * }} EnergyBallsInfoOptions
-                 */
-                /**
-                 * @param {EnergyBallsType|'all'} [type]
-                 * @param {EnergyBallsInfoOptions} [options]
-                 * @returns {EnergyBallsInfo[]}
+                 * @param {Imagesx.EnergyBall.Type|'all'} [type]
+                 * @param {Imagesx.EnergyBall.Info.Options} [options]
+                 * @return {Imagesx.EnergyBall.Infos}
                  */
                 eballs(type, options) {
                     let _opt = options || {};
                     if (!(_opt.is_cache && Object.size(this.home_balls_info) > 0)) {
                         this.home_balls_info = imagesx.findAFBallsByHough({
-                            is_debug_info: _opt.is_debug_info,
+                            is_debug: _opt.is_debug,
                         });
                     }
                     return !type || type === 'all'
@@ -4464,11 +4349,11 @@ let $$af = {
 
             function _capt() {
                 // CAUTION:
-                // imagesx.capt() contains imagesx.permit()
-                // however, which is not recommended to be used
-                // within Java Thread at the first time,
-                // as capture permission will be forcibly interrupted
-                // with this thread killed in a short time (about 300ms)
+                //  ! imagesx.capt() contains imagesx.permit()
+                //  ! however, which is not recommended to be used
+                //  ! within Java Thread at the first time,
+                //  ! as capture permission will be forcibly interrupted
+                //  ! with this thread killed in a short time (about 300ms)
                 imagesx.permit();
             }
 
@@ -4478,22 +4363,22 @@ let $$af = {
 
                 const _chs = '简体中文';
 
-                if (waitForAction(_sel, 10e3, 100)) {
+                if (a11yx.wait(_sel, 10e3, 100)) {
                     if (_tt.match(/蚂蚁森林/)) {
-                        debugInfo('当前支付宝语言: ' + _chs);
+                        consolex._('当前支付宝语言: ' + _chs);
                     } else {
-                        debugInfo('当前支付宝语言: 英语');
+                        consolex._('当前支付宝语言: 英语');
                         _changeLangToChs();
                         if ($$app.page.af.launch()) {
-                            messageAction('切换支付宝语言: ' + _chs, 1, 0, 0, 1);
+                            consolex.$('切换支付宝语言: ' + _chs, 1, 0, 0, 1);
                         } else {
-                            messageAction('语言切换失败', 8, 4, 0, 1);
+                            consolex.$('语言切换失败', 8, 4, 0, 1);
                         }
                     }
-                    debugInfo('语言检查完毕');
+                    consolex._('语言检查完毕');
                 } else {
-                    messageAction('语言检测已跳过', 3);
-                    messageAction('语言检测超时', 3, 0, 1, 1);
+                    consolex.$('语言检测已跳过', 3);
+                    consolex.$('语言检测超时', 3, 0, 1, 1);
                 }
 
                 // tool function(s) //
@@ -4504,16 +4389,25 @@ let $$af = {
 
                         $$app.monitor.permission_allow.start();
 
-                        return clickActionsPipeline([
-                            [['Me', 'p1']],
-                            [['Settings', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}]],
-                            [['General', 'p4']],
-                            [['Language', 'p4']],
-                            [[_chs, 'p4'], () => (
-                                $$sel.pickup([_chs, 'p3'], 'children').length > 1
-                            )],
-                            ['Save'],
-                        ], {name: _chs + '语言切换', default_strategy: 'widget'});
+                        // appx.startActivity($$app.intent.general);
+
+                        let _chs = '简体中文';
+                        return a11yx.pipeline(_chs + '语言切换', [[
+                            'Me', 'k2',
+                        ], {
+                            locator: ['Settings', {boundsInside: [cX(0.8), 0, W, cYx(0.2)]}, 'k2'],
+                            strategy: 'click',
+                        }, [
+                            'General', 'k4',
+                        ], [
+                            'Language', 'k4',
+                        ], {
+                            locator: [_chs, 'k4'],
+                            condition: () => $$sel.pickup([_chs, 'p3'], 'children').length > 1,
+                        }, {
+                            locator: 'Save',
+                            condition: 'disappear',
+                        }]);
                     }
 
                     // tool function(s) //
@@ -4525,15 +4419,15 @@ let $$af = {
                         }
 
                         let _sltr = className('TextView').idContains('tab_description');
-                        if (!waitForAction(_sltr, 3e3)) {
+                        if (!a11yx.wait(_sltr, 3e3)) {
                             let _max = 5;
 
-                            do appx.restart($$app.alipay_pkg);
-                            while (_max-- || !waitForAction(_sltr, 15e3));
+                            do appx.restart(alipayx.package_name);
+                            while (_max-- || !a11yx.wait(_sltr, 15e3));
 
                             if (_max < 0) {
-                                messageAction('Language switched failed', 4, 1);
-                                messageAction('Homepage failed to get ready', 4, 0, 1);
+                                consolex.$('Language switched failed', 4, 1);
+                                consolex.$('Homepage failed to get ready', 4, 0, 1);
                                 return false;
                             }
                         }
@@ -4568,16 +4462,17 @@ let $$af = {
                     $$af.own = this;
                     return true;
                 }
-                debugInfo(['跳过自己能量检查', '>自收功能未开启']);
+                consolex._('跳过自己能量检查');
+                consolex._('自收功能未开启');
             },
             init() {
-                debugInfo('开始检查自己能量');
+                consolex._('开始检查自己能量');
 
                 $$af.emount_t_own = this._getEmount('buf');
-                debugInfo('初始能量: ' + $$af.emount_t_own + 'g');
+                consolex._('初始能量: ' + $$af.emount_t_own + 'g');
 
                 if ($$app.avatar_checked_time) {
-                    debugInfo('主账户检测耗时: ' + $$app.avatar_checked_time);
+                    consolex._('主账户检测耗时: ' + $$app.avatar_checked_time);
                     delete $$app.avatar_checked_time;
                 }
 
@@ -4603,10 +4498,10 @@ let $$af = {
                     if (_len) {
                         let _comp = _eballs.filter(o => o.computed).length;
                         let _suff = _comp ? ' (含' + _comp + '个计算球)' : '';
-                        debugInfo('找到主页能量球: ' + _len + '个' + _suff);
+                        consolex._('找到主页能量球: ' + _len + '个' + _suff);
                         return true;
                     }
-                    debugInfo('未发现主页能量球');
+                    consolex._('未发现主页能量球');
                 }
 
                 function _check() {
@@ -4645,45 +4540,48 @@ let $$af = {
                         }
 
                         function _ctdTrigger() {
-                            debugInfo('开始检测自己能量球最小倒计时');
+                            consolex._('开始检测自己能量球最小倒计时');
 
                             $$af.min_ctd.own.reset();
                             let _nor_balls = $$af.eballs('naught', {is_cache: true});
                             let _len = _nor_balls.length;
                             if (!_len) {
-                                return debugInfo('未发现未成熟的能量球');
+                                consolex._('未发现未成熟的能量球');
+                                return false;
                             }
-                            debugInfo('找到自己未成熟能量球: ' + _len + '个');
+                            consolex._('找到自己未成熟能量球: ' + _len + '个');
 
-                            let _t_spot = timeRecorder('ctd_own');
+                            let _t_spot = timersx.rec.save('ctd_own');
                             // timestamp until next ripe
                             let _min_own = Math.mini(_getOwnRipeTs());
 
                             if (!$$num(_min_own) || _min_own <= 0) {
-                                return debugInfo('自己能量最小倒计时数据无效', 3);
+                                consolex._('自己能量最小倒计时数据无效', 3);
+                                return false;
                             }
                             if (!isFinite(_min_own)) {
-                                return debugInfo('自己能量倒计时数据为空');
+                                consolex._('自己能量倒计时数据为空');
+                                return false;
                             }
 
                             $$af.min_ctd.own.value = _min_own;
 
-                            let _t = timeRecorder('ctd_own', 'L', 60e3, [2], '', _min_own);
-                            debugInfo('自己能量最小倒计时: ' + _t + '分钟');
-                            debugInfo('时间: ' + $$cvt.date(_min_own));
+                            let _t = timersx.rec('ctd_own', _min_own) / 60e3;
+                            consolex._('自己能量最小倒计时: ' + _t.toFixedNum(2) + '分钟');
+                            consolex._('时间: ' + $$cvt.date(_min_own));
 
                             let _cA = $$cfg.homepage_monitor_switch;
                             let _cB = _t <= $$af.thrd_mon_own;
                             if (_cA && _cB) {
-                                debugInfo('触发成熟能量球监测条件');
+                                consolex._('触发成熟能量球监测条件');
                                 return true;
                             }
-                            debugInfo('自己能量球最小倒计时检测完毕');
+                            consolex._('自己能量球最小倒计时检测完毕');
 
                             // tool function(s) //
 
                             function _getOwnRipeTs() {
-                                timeRecorder('ctd_data');
+                                timersx.rec.save('ctd_data');
 
                                 let _alive = thd => thd && thd.isAlive();
                                 let _kill = thd => thd && thd.interrupt();
@@ -4696,26 +4594,26 @@ let $$af = {
 
                                 if (_alive(_thd_toast)) {
                                     _kill(_thd_toast);
-                                    debugInfo('Toast监控线程获取数据超时');
-                                    debugInfo('强制停止Toast监控线程');
+                                    consolex._('Toast监控线程获取数据超时');
+                                    consolex._('强制停止Toast监控线程');
                                 }
 
                                 let _tt = 9e3;
-                                _thd_ocr.join(Math.max(_tt - timeRecorder('ctd_data', 'L'), 0));
+                                _thd_ocr.join(_tt - timersx.rec('ctd_data'));
 
                                 if (_alive(_thd_ocr)) {
                                     _kill(_thd_ocr);
-                                    messageAction('获取自己能量倒计时超时', 3, 1);
+                                    consolex.$('获取自己能量倒计时超时', 3, 1);
                                     _ctd_data.length
-                                        ? messageAction('最小倒计时数据可能不准确', 3, 0, 0, 1)
-                                        : messageAction('最小倒计时数据获取失败', 3, 0, 0, 1);
+                                        ? consolex.$('最小倒计时数据可能不准确', 3, 0, 0, 1)
+                                        : consolex.$('最小倒计时数据获取失败', 3, 0, 0, 1);
                                 }
 
                                 return _ctd_data.map((str) => {
                                     let _mch = (str || '').toString().match(/\d+:\d+/);
                                     if (!_mch) {
-                                        messageAction('无效字串:', 3);
-                                        messageAction(str, 3);
+                                        consolex.$('无效字串:', 3);
+                                        consolex.$(str, 3);
                                         return Infinity;
                                     }
 
@@ -4723,7 +4621,7 @@ let $$af = {
                                     let [_hh, _mm] = _t_str.split(':').map(x => +x);
                                     let _m = _hh * 60 + _mm;
 
-                                    debugInfo('[ ' + _t_str + ' ] -> ' + _m + ' min');
+                                    consolex._('[ ' + _t_str + ' ] -> ' + _m + '\x20min');
 
                                     return _t_spot + _m * 60e3;
                                 }).filter(isFinite);
@@ -4731,7 +4629,7 @@ let $$af = {
                                 // thread function(s) //
 
                                 function _thdOcr() {
-                                    debugInfo('已开启倒计时数据OCR识别线程');
+                                    consolex._('已开启倒计时数据OCR识别线程');
 
                                     let _capt = imagesx.capt();
 
@@ -4758,10 +4656,10 @@ let $$af = {
 
                                     imagesx.reclaim(_clip, _stitched);
 
-                                    debugInfo('OCR识别线程已获取数据');
-                                    debugInfo('原始数据:');
+                                    consolex._('OCR识别线程已获取数据');
+                                    consolex._('原始数据:');
                                     // nested data should be applied (not called)
-                                    debugInfo(util.format.apply(util, _raw_data));
+                                    consolex._(_raw_data);
 
                                     let _rex_t = /(\d{2})\D(\d{2})/;
                                     let _proc_data = _raw_data
@@ -4785,66 +4683,70 @@ let $$af = {
                                             return data.map(_map).sort(_sort)[0];
                                         });
 
-                                    debugInfo('加工数据:');
+                                    consolex._('加工数据:');
                                     // flat data should be called (not applied)
-                                    debugInfo(util.format.call(util, _proc_data));
+                                    consolex._(_proc_data);
 
                                     if (!_proc_data.length) {
-                                        return debugInfo('OCR识别线程未能获取有效数据');
+                                        consolex._('OCR识别线程未能获取有效数据');
+                                        return false;
                                     }
-                                    debugInfo('OCR识别线程已获取有效数据');
+                                    consolex._('OCR识别线程已获取有效数据');
 
                                     if (_ctd_data.length) {
-                                        return debugInfo(['数据未被采纳', '>倒计时数据非空']);
+                                        consolex._('数据未被采纳');
+                                        consolex._('倒计时数据非空');
+                                        return false;
                                     }
-                                    debugInfo('OCR识别线程数据已采纳');
+                                    consolex._('OCR识别线程数据已采纳');
 
                                     return _ctd_data = _proc_data;
                                 }
 
                                 function _thdToast() {
-                                    debugInfo('已开启倒计时数据Toast监控线程');
+                                    consolex._('已开启倒计时数据Toast监控线程');
 
                                     let _ctd = _nor_balls.map((o) => {
-                                        clickAction(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
-                                        return observeToastMessage($$app.alipay_pkg, /才能收取/, 240);
+                                        a11yx.click(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
+                                        return eventsx.getToasts(/才能收取/, alipayx.package_name);
                                     }).flat(Infinity);
 
                                     if (_ctd.length) {
-                                        debugInfo('Toast监控线程已获取有效数据');
+                                        consolex._('Toast监控线程已获取有效数据');
                                         if (_alive(_thd_ocr)) {
                                             _kill(_thd_ocr);
-                                            debugInfo('强制停止OCR识别线程');
+                                            consolex._('强制停止OCR识别线程');
                                         }
                                         return _ctd_data = _ctd;
                                     }
-                                    debugInfo('Toast监控线程未能获取有效数据');
+                                    consolex._('Toast监控线程未能获取有效数据');
                                 }
                             }
                         }
 
                         function _nonStopCheck() {
                             let _debug_page_state_flip = 1;
-                            let _thrd = $$af.thrd_mon_own;
-                            let _tt = _thrd * 60e3 + 3e3;
                             let _old_em = $$af.emount_c_own;
 
                             let _msg_start = '开始监测自己能量';
-                            $$toast(_msg_start, 'Long');
-                            debugInfo(_msg_start);
-                            timeRecorder('monitor_own');
+                            let _max_ts = $$af.min_ctd.own.value + 3e3;
+                            let _max_mm = (_max_ts - $$app.ts) / 60e3;
+                            $$toast(_msg_start, 'long');
+                            consolex._(_msg_start);
+                            consolex._('最大超时时间: ' + _max_mm.toFixedNum(2) + '分钟');
+                            timersx.rec.save('monitor_own');
 
+                            let _max_on = $$af.thrd_mon_own * 60e3 + 6e3;
                             $$app.monitor.af_home_in_page.start();
-                            devicex.keepOn(_tt);
-                            while (timeRecorder('monitor_own', 'L') < _tt) {
+                            devicex.keepOn(_max_on);
+
+                            while ($$app.ts < _max_ts) {
                                 _debugPageState();
                                 if ($$flag.af_home_in_page) {
                                     // ripe balls recognition will be performed
                                     // in some fixed area(s) without new captures
-                                    let _options = {
-                                        is_fixed: true, is_debug_info: false,
-                                    };
-                                    if (_getAndCollectRipeBalls(_options)) {
+                                    let _opt = {is_fixed: true, is_debug: false};
+                                    if (_getAndCollectRipeBalls(_opt)) {
                                         $$flag.monitor_home_ripe_captured = true;
                                         break;
                                     }
@@ -4853,12 +4755,11 @@ let $$af = {
                             }
                             if (!$$flag.monitor_home_ripe_captured) {
                                 if (!$$flag.af_home_in_page) {
-                                    messageAction$('主页能量球未点击且页面不满足', 3, 3, 0, '2_dash');
+                                    consolex.$('主页能量球未点击且页面不满足', 3, 3, 0, -2);
                                 } else {
-                                    messageAction$('等待主页能量球成熟超时', 3, 0, 0, 'up_dash');
-                                    messageAction$('尝试点击全部主页能量球', 3, 3, 0, 'dash');
+                                    consolex.$(['等待主页能量球成熟超时', '尝试点击全部能量球'], 3, 0, 0, -2);
                                     let _nor_balls = $$af.eballs('naught', {is_cache: true});
-                                    _collectRipeBalls(_nor_balls, {is_debug_info: false});
+                                    _collectRipeBalls(_nor_balls, {is_debug: false});
                                 }
                             }
 
@@ -4867,16 +4768,16 @@ let $$af = {
 
                             delete $$flag.af_home_in_page;
                             delete $$flag.monitor_home_ripe_captured;
-                            $$af.cleaner.eballs(); // clear cache
+                            $$af.home_balls_info = {};
 
                             let _msg_fin = '自己能量监测完毕';
-                            $$toast(_msg_fin, 'Long');
-                            debugInfo(_msg_fin);
-                            debugInfo('本次监测收取结果: ' + ($$af.emount_c_own - _old_em) + 'g');
-                            debugInfo('监测用时: ' + timeRecorder('monitor_own', 'L', 'auto'));
+                            $$toast(_msg_fin, 'long');
+                            consolex._(_msg_fin);
+                            consolex._('本次监测收取结果: ' + ($$af.emount_c_own - _old_em) + 'g');
+                            consolex._('监测用时: ' + $$cvt.time(timersx.rec('monitor_own'), '$zh'));
 
                             // speculated helpful for _thdToast() within which
-                            // toast message didn't show up after clickAction()
+                            // toast message didn't show up after a11yx.click()
                             sleep(1.8e3);
 
                             // tool function(s) //
@@ -4885,7 +4786,7 @@ let $$af = {
                                 let _fg = +$$flag.af_home_in_page;
                                 if (_debug_page_state_flip !== _fg) {
                                     _debug_page_state_flip = _fg;
-                                    timeRecorder('monitor_own', 'L') > 1e3 && debugInfo(_fg
+                                    timersx.rec.gt('monitor_own', 1e3) && consolex._(_fg
                                         ? ['当前页面满足森林主页条件', '继续监测自己能量']
                                         : ['当前页面不满足森林主页条件', '暂停监测自己能量']);
                                 }
@@ -4895,9 +4796,10 @@ let $$af = {
 
                     function _waterBalls() {
                         if (!$$cfg.homepage_wball_switch) {
-                            return debugInfo('浇水回赠球检测未开启');
+                            consolex._('浇水回赠球检测未开启');
+                            return false;
                         }
-                        debugInfo('开始检测浇水回赠能量球');
+                        consolex._('开始检测浇水回赠能量球');
                         let _wb_cache = $$af.eballs('water', {is_cache: true});
                         let _ctr = 0;
                         let _lmt = {
@@ -4913,18 +4815,18 @@ let $$af = {
                             },
                         };
                         if (_wb_cache.length) {
-                            debugInfo('发现浇水回赠能量球');
+                            consolex._('发现浇水回赠能量球');
                             $$app.monitor.collect_confirm.start();
                             _wb_cache.forEach(_fetch);
                             _sustain();
                             $$app.monitor.collect_confirm.interrupt();
                         }
                         if (_ctr > 0) {
-                            debugInfo('收取浇水回赠能量球: ' + _ctr + '个');
+                            consolex._('收取浇水回赠能量球: ' + _ctr + '个');
                         } else {
-                            debugInfo('未发现浇水回赠能量球');
+                            consolex._('未发现浇水回赠能量球');
                         }
-                        debugInfo('浇水回赠能量球检测完毕');
+                        consolex._('浇水回赠能量球检测完毕');
 
                         // tool function(s) //
 
@@ -4935,18 +4837,14 @@ let $$af = {
                                 let _capt = imagesx.capt();
                                 return _wb_cache.filter(o => imagesx.isWaterBall(o, _capt));
                             };
-                            let _sleep = (itv) => {
-                                let _et = timeRecorder('get_and_fetch_wballs', 'L');
-                                sleep(Math.max(itv - _et, 0));
-                            };
 
                             do {
                                 if (_lmt.trigger()) {
-                                    messageAction('中断主页浇水回赠能量球检测', 3, 0, 0, -1);
-                                    messageAction('已达最大检查次数限制', 3, 0, 1, 1);
+                                    consolex.$('中断主页浇水回赠能量球检测', 3, 0, 0, -1);
+                                    consolex.$('已达最大检查次数限制', 3, 0, 1, 1);
                                     break;
                                 }
-                                timeRecorder('get_and_fetch_wballs');
+                                let _t_spot = Date.now();
 
                                 let _max = 2;
                                 while (_max--) {
@@ -4955,7 +4853,7 @@ let $$af = {
                                         _is_continue = true;
                                         _is_detected |= true;
                                         _wballs.forEach(_fetch);
-                                        _sleep(300);
+                                        $$sleep(_t_spot + 300 - Date.now());
                                         break;
                                     }
                                     _is_continue = false;
@@ -4968,16 +4866,15 @@ let $$af = {
                         }
 
                         function _fetch(o) {
-                            timeRecorder('fetch_wballs');
-                            clickAction(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
+                            timersx.rec.save('fetch_wballs');
+                            a11yx.click(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
                             if (_stableEmount()) {
                                 _ctr += 1;
                             } else {
                                 _lmt.shrink();
-                                debugInfo(['浇水回赠能量球点击超时', '可能是能量球误匹配']);
+                                consolex._(['浇水回赠能量球点击超时', '可能是能量球误匹配']);
                             }
-                            let _et = timeRecorder('fetch_wballs', 'L');
-                            sleep(Math.max(300 - _et, 0));
+                            $$sleep(300 - timersx.rec('fetch_wballs'));
                         }
                     }
 
@@ -4986,8 +4883,8 @@ let $$af = {
                     }
 
                     /**
-                     * @param {EnergyBallsInfo[]|EnergyBallsInfoOptions} [balls]
-                     * @param {EnergyBallsInfoOptions} [options]
+                     * @param {Imagesx.EnergyBall.Infos|Imagesx.EnergyBall.Info.Options} [balls]
+                     * @param {Imagesx.EnergyBall.Info.Options} [options]
                      */
                     function _collectRipeBalls(balls, options) {
                         if ($$obj(balls)) {
@@ -4999,42 +4896,42 @@ let $$af = {
                         }
                         let _opt = options || {};
                         let _noRipeBalls = () => {
-                            return !_getRipeBallsData({is_debug_info: false}).length;
+                            return !_getRipeBallsData({is_debug: false}).length;
                         };
 
-                        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+                        let _debug = (m, lv) => _opt.is_debug === false || consolex._(m, lv);
 
                         let _itv = $$cfg.forest_balls_click_interval;
                         let _du = $$cfg.forest_balls_click_duration;
                         let _max = 4;
                         do {
-                            debugInfo$('点击自己成熟能量球: ' + _balls.length + '个');
-                            _balls.forEach(o => clickAction(o, 'p', {pt$: _du, bt$: _itv}));
+                            _debug('点击自己成熟能量球: ' + _balls.length + '个');
+                            _balls.forEach(o => a11yx.click(o, 'p', {pt$: _du, bt$: _itv}));
                             if (!_stableEmount()) {
-                                debugInfo$('自己能量的增量数据无效');
+                                _debug('自己能量的增量数据无效');
                                 break; // timed out or mismatched
                             }
-                            if (waitForAction(_noRipeBalls, 1.2e3)) {
-                                debugInfo$('未发现新的成熟能量球');
+                            if (a11yx.wait(_noRipeBalls, 1.2e3)) {
+                                _debug('未发现新的成熟能量球');
                                 break; // all ripe balls picked
                             }
-                            debugInfo$('发现新的成熟能量球');
+                            _debug('发现新的成熟能量球');
                         } while (--_max);
-                        _max || debugInfo('本次成熟球收取出现异常', 3);
+                        _max || consolex._('本次成熟球收取出现异常', 3);
                     }
 
                     /**
-                     * @param {EnergyBallsInfoOptions} [options]
-                     * @returns {EnergyBallsInfo[]}
+                     * @param {Imagesx.EnergyBall.Info.Options} [options]
+                     * @return {Imagesx.EnergyBall.Infos}
                      */
                     function _getRipeBallsData(options) {
                         let _o = options || {};
                         /**
-                         * @param {EnergyBallsInfoOptions} [o]
-                         * @returns {EnergyBallsInfoOptions}
+                         * @param {Imagesx.EnergyBall.Info.Options} [o]
+                         * @return {Imagesx.EnergyBall.Info.Options}
                          */
                         let _wrapOpt = o => Object.assign({
-                            is_debug_info: _o.is_debug_info,
+                            is_debug: _o.is_debug,
                         }, o);
                         let _ = {
                             cache: () => $$af.eballs('ripe', _wrapOpt({is_cache: true})),
@@ -5057,8 +4954,8 @@ let $$af = {
                     }
 
                     /**
-                     * @param {EnergyBallsInfoOptions} [options]
-                     * @returns {boolean}
+                     * @param {Imagesx.EnergyBall.Info.Options} [options]
+                     * @return {boolean}
                      */
                     function _getAndCollectRipeBalls(options) {
                         let _balls = _getRipeBallsData(options);
@@ -5072,29 +4969,28 @@ let $$af = {
                     function _stableEmount() {
                         let _t = $$af.emount_t_own;
                         let _getEm = buf => _own._getEmount(buf);
-                        let _i = stabilizer(_getEm, _t) - _t;
-                        if (_i <= 0 || isNaN(_i)) {
-                            $$af.emount_t_own = _getEm('buffer');
-                            $$af.emount_c_own += $$af.emount_t_own - _t;
-                        } else {
+                        let _i = a11yx.waitAndStable(_getEm, 3e3, {reference: _t}) - _t;
+                        if (_i > 0 && !isNaN(_i)) {
                             $$af.emount_t_own += _i;
                             $$af.emount_c_own += _i;
+                            return true;
                         }
-                        return !isNaN(_i) && _i > 0;
+                        $$af.emount_t_own = _getEm('buffer');
+                        $$af.emount_c_own += $$af.emount_t_own - _t;
                     }
                 }
 
                 function _result() {
                     let _em = $$af.emount_c_own;
                     if (_em < 0 || !isFinite(_em)) {
-                        debugInfo('收取值异常: ' + _em, 3);
+                        consolex._('收取值异常: ' + _em, 3);
                     } else if (!_em) {
-                        debugInfo('无能量球可收取');
+                        consolex._('无能量球可收取');
                     } else {
-                        debugInfo('共计收取: ' + _em + 'g');
-                        $$db.insert$(['%SELF%', $$app.ts_sec, _em]);
+                        consolex._('共计收取: ' + _em + 'g');
+                        $$db.insert(['%SELF%', $$app.ts_sec, _em]);
                     }
-                    debugInfo('自己能量检查完毕');
+                    consolex._('自己能量检查完毕');
                 }
             },
             awake() {
@@ -5102,7 +4998,7 @@ let $$af = {
                 let _cA = _ctd_ts && isFinite(_ctd_ts);
                 let _cB = _ctd_ts - $$app.ts <= $$af.thrd_bg_mon_own * 60e3 + 9e3;
                 if (_cA && _cB) {
-                    messageAction$('开始主页能量球返检监控', 1, 1, 0, 1);
+                    consolex.$('开始主页能量球返检监控', 1, 1, 0, 1);
                     $$app.page.af.launch();
                     this.init().collect();
                     return true;
@@ -5147,7 +5043,7 @@ let $$af = {
                 }
 
                 let _wc = $$sel.pickup(new RegExp('\\d+\u2019'), 'wc');
-                debugInfo('捕获好友能量倒计时数据: ' + _wc.length + '项');
+                consolex._('捕获好友能量倒计时数据: ' + _wc.length + '项');
 
                 return _parseWidgets.call(this);
 
@@ -5168,7 +5064,7 @@ let $$af = {
                     });
 
                     let _z = Object.size(_smp);
-                    _z > 0 && debugInfo('解析好友有效倒计时数据: ' + _z + '项');
+                    _z > 0 && consolex._('解析好友有效倒计时数据: ' + _z + '项');
 
                     return this.rl_samples = _smp;
                 }
@@ -5189,45 +5085,38 @@ let $$af = {
 
                     if (_min_mm > 0) {
                         $$af.min_ctd.fri.value = _min_ctd;
-                        debugInfo('好友能量最小倒计时: ' + _min_mm + '分钟');
-                        debugInfo('时间数据: ' + $$cvt.date(_min_ctd));
-                        debugInfo('好友能量最小倒计时检测完毕');
+                        consolex._('好友能量最小倒计时: ' + _min_mm + '分钟');
+                        consolex._('时间数据: ' + $$cvt.date(_min_ctd));
+                        consolex._('好友能量最小倒计时检测完毕');
                         return _min_mm <= $$cfg.rank_list_review_threshold;
                     }
-                    debugInfo('好友倒计时数据无效: ' + _min_mm, 3);
+                    consolex._('好友倒计时数据无效: ' + _min_mm, 3);
                 }
-            },
-            _strollReady() {
-                return $$af.stroll.trigger() && $$af.stroll.locate();
             },
             _rankListReady() {
+                if ($$af.stroll.trigger()) {
+                    return $$af.stroll.locate();
+                }
                 $$app.page.closeAllRelated();
                 $$app.page.rl.reclaimAll();
-                if ($$app.page.rl.launch()) {
-                    $$app.monitor.rl_in_page.start();
-                    $$app.monitor.rl_bottom.start();
-                    return true;
-                }
+                $$app.page.rl.launch();
+                $$app.monitor.rl_in_page.start();
+                $$app.monitor.rl_bottom.start();
             },
             thd_info_collect: {
                 start() {
                     let _fri = $$af._collector.fri;
                     this.isAlive() && this.interrupt();
                     this._thd = threadsx.start(function () {
-                        debugInfo('已开启好友森林信息采集线程');
+                        consolex._('已开启好友森林信息采集线程');
 
                         $$app.page.fri.pool.clear();
                         _fri.eballs.reset();
 
-                        let _eballs_o = imagesx.findAFBallsByHough({
+                        Object.assign(_fri.eballs, imagesx.findAFBallsByHough({
                             pool: $$app.page.fri.pool,
-                        });
-
-                        Object.keys(_eballs_o)
-                            .filter(k => k !== 'duration')
-                            .forEach(k => _fri.eballs[k] = _eballs_o[k]);
-
-                        _eballs_o.duration.showDebugInfo();
+                        })).duration.debug();
+                        delete _fri.eballs.duration;
                     });
                 },
                 interrupt() {
@@ -5243,11 +5132,11 @@ let $$af = {
             /** @type {FriTar[]} */
             targets: [],
             eballs: {
-                /** @type {EnergyBallsInfo[]} */
+                /** @type {Imagesx.EnergyBall.Infos} */
                 ripe: [],
-                /** @type {EnergyBallsInfo[]} */
+                /** @type {Imagesx.EnergyBall.Infos} */
                 naught: [],
-                /** @type {EnergyBallsInfo[]} */
+                /** @type {Imagesx.EnergyBall.Infos} */
                 water: [],
                 get length() {
                     return this.ripe.length + this.naught.length;
@@ -5262,15 +5151,14 @@ let $$af = {
                 return $$cfg.friend_collect_switch;
             },
             init() {
-                debugInfo($$flag.rl_review ? '开始复查好友能量' : '开始检查好友能量');
+                consolex._($$flag.rl_review ? '开始复查好友能量' : '开始检查好友能量');
 
                 delete $$flag.rl_bottom_rch;
                 delete $$flag.rl_review;
 
                 $$af.min_ctd.fri.reset();
-                $$app.blist.init();
 
-                this._strollReady() || this._rankListReady();
+                this._rankListReady();
 
                 return this;
             },
@@ -5323,10 +5211,9 @@ let $$af = {
                                 $$af.stroll.disable();
                                 Object.assign(_lmt, {
                                     trigger: () => true,
-                                    message: () => {
-                                        messageAction('定位逛一逛按钮失败', 3, 1, 0, 'up_dash');
-                                        messageAction('逛一逛方案已被禁用', 3, 0, 0, 'dash');
-                                    },
+                                    message: () => consolex.$([
+                                        '定位逛一逛按钮失败', '逛一逛方案已被禁用',
+                                    ], 3, 1, 0, -2),
                                 });
                             }
                             return true;
@@ -5360,13 +5247,14 @@ let $$af = {
                                     return _mult;
                                 })(),
                                 /** @typedef {{icon_y: number, item_y: number, act_desc: string}[]} FriTar */
-                                /** @returns {FriTar} */
+                                /** @return {FriTar} */
                                 getTar() {
                                     if (_fri.trigger()) {
                                         return _chkByImgTpl.call(this);
                                     }
                                     if (!$$flag.dys_pick) {
-                                        debugInfo(['不再采集收取目标样本', '>收取功能未开启']);
+                                        consolex._('不再采集收取目标样本');
+                                        consolex._('收取功能未开启');
                                         $$flag.dys_pick = true;
                                     }
                                     return [];
@@ -5374,15 +5262,13 @@ let $$af = {
                             },
                         };
 
-                        timeRecorder('rl_scan');
-
                         _fri.targets = [_getTar('pick')];
 
                         return Math.sum(_fri.targets.map(x => x.length));
 
                         // tool function(s) //
 
-                        /** @returns {FriTar} */
+                        /** @return {FriTar} */
                         function _chkByImgTpl() {
                             let _capt = $$app.page.rl.capt_img;
                             let _x = cX(0.896);
@@ -5390,13 +5276,17 @@ let $$af = {
                             let _w = _capt.getWidth() - _x;
                             let _h = Math.min(_capt.getHeight(), uH) - _y;
                             let _clip = images.clip(_capt, _x, _y, _w, _h);
-                            let _res = imagesx.matchTemplate(_clip, 'ic_fetch', {
+                            let _icon = imagesx.readAsset('ic-fetch');
+                            let _res = imagesx.matchTemplate(_clip, _icon, {
                                 max_results: 15,
                                 compress_level: 2,
+                                threshold: 0.91,
                                 not_null: true,
-                                local_cache_access: true,
                             });
-                            imagesx.reclaim(_capt, _clip);
+                            // CAUTION
+                            //  ! do not reclaim neither _capt nor _icon
+                            //  ! which will be reclaimed somewhere else
+                            imagesx.reclaim(_clip);
 
                             return _res.points.reverse().map((pt) => ({
                                 icon_y: pt.y + _y,
@@ -5407,7 +5297,7 @@ let $$af = {
 
                         /**
                          * @param {'pick'} ident
-                         * @returns {FriTar}
+                         * @return {FriTar}
                          */
                         function _getTar(ident) {
                             return _prop[ident].getTar().sort((a, b) => (
@@ -5418,6 +5308,7 @@ let $$af = {
                 }
 
                 function _gather() {
+                    //// -=-= PENDING =-=- ////
                     $$af.stroll.trigger() ? _byStroll() : _byRankList();
 
                     // tool function(s) //
@@ -5425,22 +5316,22 @@ let $$af = {
                     function _title() {
                         let _title = '';
                         let _ctr = 0;
-                        waitForAction(() => {
-                            _ctr++ % 25 || $$a11y.service.refreshServiceInfo();
+                        a11yx.wait(() => {
+                            _ctr++ % 25 || a11yx.service.refreshServiceInfo();
                             return _title = $$sel.get('fri_tt', 'txt') || '';
                         }, 18e3, 80);
                         $$af.nick = _title.replace(/的蚂蚁森林$/, '');
                     }
 
                     function _intro() {
-                        debugInfo('__split_line__');
+                        consolex.debug.__();
                         if ($$af.nick) {
                             $$app.fri_drop_by.ic($$af.nick);
-                            messageAction$($$af.nick, 't');
+                            consolex.$($$af.nick.surround('[ '));
                         } else {
-                            messageAction('标题采集好友昵称超时', 3, 1);
+                            consolex.$('标题采集好友昵称超时', 3, 1);
                         }
-                        debugInfo('__split_line__');
+                        consolex.debug.__();
                     }
 
                     function _collect() {
@@ -5454,7 +5345,7 @@ let $$af = {
                         // main function(s) //
 
                         function _inBlist() {
-                            if ($$app.blist.get($$af.nick)) {
+                            if ($$app.blist.contains($$af.nick)) {
                                 $$app.fri_drop_by.dc($$af.nick);
                                 return true;
                             }
@@ -5481,15 +5372,14 @@ let $$af = {
                             // tool function(s) //
 
                             function _handle() {
-                                debugInfo('颜色识别检测到保护罩');
+                                consolex._('颜色识别检测到保护罩');
                                 _is_covered = true;
 
-                                debugInfo('终止好友森林信息采集线程');
+                                consolex._('终止好友森林信息采集线程');
                                 _fri.thd_info_collect.interrupt();
 
-                                let _w_lst = null;
-                                if (!waitForAction(() => _w_lst = $$sel.get('list'), 3e3, 80)) {
-                                    return messageAction('未能通过列表获取能量罩信息', 3, 1, 1);
+                                if (!a11yx.wait(() => $$sel.get('list'), 3e3, 80)) {
+                                    return consolex.$('未能通过列表获取能量罩信息', 3, 1, 1);
                                 }
 
                                 let _w_cvr = null;
@@ -5502,59 +5392,65 @@ let $$af = {
                                 // tool function(s) //
 
                                 function _autoExpand() {
-                                    debugInfo('已开启动态列表自动展开线程');
+                                    consolex._('已开启动态列表自动展开线程');
 
                                     let _ctr = 0;
                                     let _w = null;
-                                    if (!waitForAction(() => _w = $$sel.pickup(/.*加载更多\s*/), 3e3)) {
-                                        return debugInfo('定位"加载更多"按钮超时', 3);
+                                    if (!a11yx.wait(() => _w = $$sel.pickup(/.*加载更多\s*/), 3e3)) {
+                                        consolex._('定位"加载更多"按钮超时', 3);
+                                        return false;
                                     }
-                                    debugInfo('成功定位' + $$sel.pickup(_w, 'txt').surround('"') + '按钮');
+                                    consolex._('成功定位' + $$sel.pickup(_w, 'txt').surround('"') + '按钮');
 
                                     while (_ctr++ < 50) {
-                                        waitForAndClickAction(_w, 3e3, 120, {click_strategy: 'w'});
-                                        sleep(_ctr < 12 ? 200 : 900);
+                                        a11yx.waitAndClick(_w, 3e3, 120, {
+                                            cs$: 'w', bt$: _ctr < 12 ? 120 : 840,
+                                        });
                                     }
                                 }
 
                                 function _getTs() {
-                                    debugInfo('开始采集能量罩使用时间');
+                                    consolex._('开始采集能量罩使用时间');
 
-                                    let _getFeedLegends = () => (
-                                        $$sel.pickup({className: 'ListView'}, 'children', {default: []})
-                                    ).filter((w) => {
-                                        return !isNullish(w)
-                                            && w.childCount() === 0
-                                            && w.indexInParent() < w.parent().childCount() - 1;
-                                    }).slice(0, 3);
+                                    let _getFeedLegends = () => {
+                                        return $$sel.pickup({cn$: 'ListView'}, 'children', {default: []})
+                                            .filter((w) => {
+                                                return !isNullish(w)
+                                                    && w.childCount() === 0
+                                                    && w.indexInParent() < w.parent().childCount() - 1;
+                                            })
+                                            .slice(0, 3);
+                                    };
 
-                                    let _max = 8;
-                                    let _selCover = () => $$sel.get('cover_used');
-                                    while (_max--) {
+                                    let _max = 12;
+                                    let _selCover = () => _w_cvr = $$sel.get('cover_used');
+                                    // more than 2 days; like: '03-22'
+                                    let _gt2 = w => /\d{2}.\d{2}/.test($$sel.pickup(w, 'txt'));
+                                    while (!_w_cvr && _max--) {
                                         for (let w of _getFeedLegends()) {
-                                            let _txt = $$sel.pickup(w, 'txt');
-                                            // more than 2 days; like: '03-22'
-                                            let _gt2 = _txt.match(/\d{2}.\d{2}/);
-                                            if (waitForAction(_selCover, 1e3, 80) || _gt2) {
-                                                debugInfo('能量罩信息已定位');
-                                                return _w_cvr = _selCover();
+                                            if (_selCover() || _gt2()) {
+                                                consolex._('能量罩信息已定位');
+                                                break;
                                             }
                                         }
+                                        sleep(240);
                                     }
-                                    debugInfo('能量罩使用时间采集失败', 3);
+
+                                    !_w_cvr && consolex._('能量罩使用时间采集失败', 3);
+
+                                    _thd_auto_expand.interrupt();
+                                    consolex._('中断态列表自动展开线程');
+                                    return _w_cvr;
                                 }
 
                                 function _addBlist() {
-                                    _thd_auto_expand.interrupt();
-                                    debugInfo('中断态列表自动展开线程');
-
                                     /* /今天|昨天/ or like: '05-23' */
                                     let _date_str = _getDateStr();
-                                    debugInfo('捕获动态列表日期字串: ' + _date_str);
+                                    consolex._('捕获动态列表日期字串: ' + _date_str);
 
                                     /* like: '03:19' */
                                     let _time_str = $$sel.pickup([_w_cvr, 'p2c-1'], 'txt');
-                                    debugInfo('捕获动态列表时间字串: ' + _time_str);
+                                    consolex._('捕获动态列表时间字串: ' + _time_str);
 
                                     $$app.blist.add($$af.nick, _ts(), $$app.blist.reason.cover);
 
@@ -5567,7 +5463,7 @@ let $$af = {
                                         let _new_d = new Date().setHours(_real_h);
                                         _date_str = new Date(_new_d).toDateString();
 
-                                        return new Date(_date_str + ' ' + _time_str).getTime();
+                                        return new Date(_date_str + '\x20' + _time_str).getTime();
 
                                         // tool function(s) //
 
@@ -5580,9 +5476,9 @@ let $$af = {
                                             }
                                             let _d_str_mch = _date_str.match(/\d{2}.\d{2}/);
                                             if (!_d_str_mch) {
-                                                debugInfo('动态列表日期字串解析失败', 3);
-                                                debugInfo('日期字串: ' + _date_str, 3);
-                                                debugInfo('使用默认延时时常: 24小时', 3);
+                                                consolex._('动态列表日期字串解析失败', 3);
+                                                consolex._('日期字串: ' + _date_str, 3);
+                                                consolex._('使用默认延时时常: 24小时', 3);
                                                 return +24;
                                             }
                                             let _d_str = _d_str_mch[0];
@@ -5606,18 +5502,38 @@ let $$af = {
                                     function _getDateStr() {
                                         let _txt_cvr = $$sel.pickup(_w_cvr, 'txt');
                                         let _date_str = '';
-                                        void _w_lst.children().some((child) => {
-                                            if (child !== null /* mystical */) {
-                                                if (child.childCount()) {
-                                                    return (
-                                                        $$sel.pickup([child, 'c1>1'], 'txt') ||
-                                                        $$sel.pickup([child, 'c0>1'], 'txt')
-                                                    ) === _txt_cvr;
+                                        let _max = 5;
+                                        while (_max--) {
+                                            let _ws = $$sel.get('list').children().filter(w => w !== null);
+                                            for (let w of _ws) {
+                                                if (!w.childCount()) {
+                                                    _date_str = $$sel.pickup(w, 'txt');
+                                                    continue;
                                                 }
-                                                _date_str = $$sel.pickup(child, 'txt');
+                                                if (_childrenTextMatch(w, _txt_cvr)) {
+                                                    break;
+                                                }
                                             }
-                                        });
+                                            if (_date_str) {
+                                                break;
+                                            }
+                                            sleep(240);
+                                        }
                                         return _date_str;
+                                    }
+
+                                    function _childrenTextMatch(w, s) {
+                                        if (w !== null) {
+                                            for (let c of w.children()) {
+                                                if (c !== null && c.childCount()) {
+                                                    return _childrenTextMatch(c, s);
+                                                }
+                                                if ($$sel.pickup(c, 'txt') === s) {
+                                                    return true;
+                                                }
+                                            }
+                                        }
+                                        return false;
                                     }
                                 }
                             }
@@ -5635,7 +5551,7 @@ let $$af = {
                                     if (_eballs.length) {
                                         _clickAndCount('pick', _eballs);
                                     } else {
-                                        debugInfo('没有可收取的能量球');
+                                        consolex._('没有可收取的能量球');
                                     }
                                 }
                             }
@@ -5645,13 +5561,13 @@ let $$af = {
                                 if (_pick) {
                                     let _name = $$af.nick || '%NULL%';
                                     let _ts = $$app.ts_sec;
-                                    $$db.insert$([_name, _ts, _pick]);
+                                    $$db.insert([_name, _ts, _pick]);
                                 }
                             }
 
                             /**
                              * @param {'pick'} act
-                             * @param {EnergyBallsInfo[]} data
+                             * @param {Imagesx.EnergyBall.Infos} data
                              */
                             function _clickAndCount(act, data) {
                                 let _prop = {
@@ -5680,7 +5596,7 @@ let $$af = {
                                             while (_max--) {
                                                 let _s = $$sel.pickup([_cfg.pk_kw, 's>1'], 'txt');
                                                 if (_s.match(/\d+\s?(kg|t)/)) {
-                                                    debugInfo('放弃低精度参照值');
+                                                    consolex._('放弃低精度参照值');
                                                     return NaN;
                                                 }
                                                 let _mch = _s.match(/\d+/);
@@ -5701,7 +5617,7 @@ let $$af = {
                                         getListWidget() {
                                             let _w_list = null;
                                             let _sel_lst = () => _w_list = $$sel.get('list');
-                                            if (!waitForAction(_sel_lst, 1.2e3, 100)) {
+                                            if (!a11yx.wait(_sel_lst, 1.2e3, 100)) {
                                                 return this.w_list = null;
                                             }
                                             return this.w_list = _w_list;
@@ -5737,7 +5653,7 @@ let $$af = {
                                                 return s.slice(s.lastIndexOf('收取')).match(/\d+(?=g)/);
                                             }
                                         },
-                                        /** @returns {number} - amount of items added to the feed */
+                                        /** @return {number} - amount of items added to the feed */
                                         getEmount() {
                                             let _w_list = this.getListWidget();
                                             if (_w_list) {
@@ -5794,7 +5710,7 @@ let $$af = {
                                     killAll() {
                                         this.pool.forEach((o) => {
                                             if (o.f.isAlive()) {
-                                                debugInfo('中断' + o.name + '数据统计线程');
+                                                consolex._('中断' + o.name + '数据统计线程');
                                                 o.f.interrupt();
                                             }
                                         });
@@ -5805,12 +5721,13 @@ let $$af = {
                                     ready(agent) {
                                         let _name = agent.src_name;
                                         let _init = agent.getEmount();
-                                        debugInfo('初始' + _name + '数据: ' + _init);
+                                        consolex._('初始' + _name + '数据: ' + _init);
 
                                         _ctr.incrementAndGet();
 
                                         if (isNaN(_init)) {
-                                            return debugInfo('初始' + _name + '数据无效');
+                                            consolex._('初始' + _name + '数据无效');
+                                            return false;
                                         }
                                         agent.init_emount = _init;
 
@@ -5820,15 +5737,15 @@ let $$af = {
                                         let _name = agent.src_name;
                                         let _init = agent.init_emount;
 
-                                        debugInfo('等待' + _name + '数据稳定');
-                                        let _stab = stabilizer(agent.getEmount.bind(agent), _init);
+                                        consolex._('等待' + _name + '数据稳定');
+                                        let _stab = a11yx.waitAndStable(agent.getEmount.bind(agent), {reference: _init});
 
                                         if (!isNaN(_stab)) {
                                             agent.stable_emount = _stab;
-                                            debugInfo(_name + '数据已稳定: ' + _stab);
+                                            consolex._(_name + '数据已稳定: ' + _stab);
                                             return true;
                                         }
-                                        debugInfo(_name + '稳定数据无效');
+                                        consolex._(_name + '稳定数据无效');
                                     },
                                 };
 
@@ -5845,7 +5762,7 @@ let $$af = {
                                             return true;
                                         }
                                         if (!_max-- || _thds.isAllDead()) {
-                                            return messageAction('数据统计初始化失败', 3);
+                                            return consolex.$('数据统计初始化失败', 3);
                                         }
                                         sleep(50);
                                     }
@@ -5855,10 +5772,10 @@ let $$af = {
                                     let _desc = _cfg.ball_desc;
                                     let _du = $$cfg.forest_balls_click_duration;
 
-                                    debugInfo('点击' + _desc + ': ' + data.length + '个');
+                                    consolex._('点击' + _desc + ':\x20' + data.length + '个');
 
                                     data.forEach((o) => {
-                                        clickAction(o, 'p', {pt$: _du});
+                                        a11yx.click(o, 'p', {pt$: _du});
                                         sleep($$cfg.forest_balls_click_interval);
                                     });
 
@@ -5868,7 +5785,7 @@ let $$af = {
                                 }
 
                                 function _stat() {
-                                    waitForAction(() => ~_res.get(), 2.4e3, 80);
+                                    a11yx.wait(() => _res.get() !== -1, 2.4e3, 80);
 
                                     let _sum = _res.get();
                                     let _act = _cfg.act_desc;
@@ -5876,13 +5793,13 @@ let $$af = {
 
                                     _thds.killAll();
 
-                                    if (~_sum) {
+                                    if (_sum !== -1) {
                                         $$af[_accu] += _accu ? _sum : 0;
                                         _harvest['cnt_' + act] = _sum;
                                         let _dbl = $$flag.dblclick_checked ? ' (双击卡)' : '';
-                                        messageAction$(_act + ': ' + _sum + 'g' + _dbl, +!!_sum, 0, 1);
+                                        consolex.$(_act + ':\x20' + _sum + 'g' + _dbl, +!!_sum, 0, 1);
                                     } else {
-                                        messageAction$(_act + ': 统计数据无效', 0, 0, 1);
+                                        consolex.$(_act + ': 统计数据无效', 0, 0, 1);
                                     }
                                 }
 
@@ -5898,13 +5815,13 @@ let $$af = {
                                         },
                                         ready() {
                                             let _agt = this.agent;
-                                            if (waitForAction(fxo.condition, 3e3, 50)) {
+                                            if (a11yx.wait(fxo.condition, 3e3, 50)) {
                                                 if (_thds.ready(_agt)) {
                                                     this.init = _agt.init_emount;
                                                     return true;
                                                 }
                                             } else {
-                                                debugInfo(_agt.src_name + '控件准备超时', 3);
+                                                consolex._(_agt.src_name + '控件准备超时', 3);
                                             }
                                         },
                                         stable() {
@@ -5916,7 +5833,7 @@ let $$af = {
                                         stat() {
                                             let _n = fxo.getSum(this);
                                             _res.compareAndSet(-1, _n);
-                                            debugInfo(this.agent.src_name + '统计结果: ' + _n);
+                                            consolex._(this.agent.src_name + '统计结果: ' + _n);
                                         },
                                         fx() {
                                             this.ready() && this.stable() && this.stat();
@@ -5928,10 +5845,9 @@ let $$af = {
                         }
 
                         function _reentry() {
-                            let _ln = '__split_line__';
                             if ($$flag.avail_clicked_pick && _dblclickCardExists()) {
                                 if (!$$flag.dblclick_checked) {
-                                    debugInfo([_ln, '开始双击卡复查', _ln]);
+                                    consolex._('开始双击卡复查', 0, 0, 2);
                                     return $$flag.dblclick_checked = true;
                                 }
                             }
@@ -5940,7 +5856,8 @@ let $$af = {
 
                             function _dblclickCardExists() {
                                 if ($$app.dblclick_card_expired_ts - $$app.ts > 0) {
-                                    return _showInfo() || true;
+                                    _showInfo();
+                                    return true;
                                 }
                                 let _t_rex = /\D*[0-5]\d:\d{2}\s*/;
                                 let _wc = $$sel.pickup(_t_rex, 'wc').filter((w) => {
@@ -5951,15 +5868,16 @@ let $$af = {
                                 });
                                 if (_wc.length > 0) {
                                     $$app.dblclick_card_expired_ts = _getExpiredTs(_wc);
-                                    return _showInfo() || true;
+                                    _showInfo();
+                                    return true;
                                 }
 
                                 // tool function(s) //
 
                                 function _getExpiredTs(wc) {
                                     wc.length > 1
-                                        ? debugInfo('匹配到多个双击卡控件', 3)
-                                        : debugInfo('匹配到双击卡控件');
+                                        ? consolex._('匹配到多个双击卡控件', 3)
+                                        : consolex._('匹配到双击卡控件');
                                     let [_mm, _ss] = $$sel.pickup(wc[0], 'txt').match(_t_rex)[0]
                                         .split(':').map(s => Number(s.match(/\d+/)[0]));
                                     return $$app.ts + _mm * 60e3 + _ss * 1e3;
@@ -5968,7 +5886,7 @@ let $$af = {
                                 function _showInfo() {
                                     let _gap = $$app.dblclick_card_expired_ts - $$app.ts;
                                     let _ctd_str = $$cvt.date(_gap, 'mm:ss');
-                                    debugInfo('双击卡生效中 (剩余' + _ctd_str + ')');
+                                    consolex._('双击卡生效中 (剩余' + _ctd_str + ')');
                                 }
                             }
                         }
@@ -5976,47 +5894,46 @@ let $$af = {
 
                     function _coda() {
                         if (!$$flag.avail_clicked) {
-                            messageAction$('无能量球可操作', 0, 0, 1);
+                            consolex.$('无能量球可操作', 0, 0, 1);
                         }
                         if ($$af.stroll.trigger()) {
                             if ($$flag.avail_clicked) {
-                                debugInfo('逛一逛忽略样本集已重置');
+                                consolex._('逛一逛忽略样本集已重置');
                                 _lmt.reset();
                             } else {
-                                debugInfo('逛一逛忽略样本集已增员');
+                                consolex._('逛一逛忽略样本集已增员');
                                 $$af.stroll.ignored.add($$af.nick);
                             }
                         }
-                        showSplitLine$();
+                        consolex.__();
 
                         delete $$af.nick;
                         delete $$flag.dblclick_checked;
                         delete $$flag.avail_clicked;
                         delete $$flag.avail_clicked_pick;
-                        $$app.monitor.expand_feed.interrupt(); // just in case
                         $$app.page.fri.pool.reclaimAll();
                     }
 
                     function _byStroll() {
                         let _enter = () => {
-                            debugInfo('点击逛一逛按钮');
+                            consolex._('点击逛一逛按钮');
                             $$af.stroll.click();
                         };
                         let _ready = () => {
                             let _thd_title = threadsx.start(_title);
                             let _is_slake = false;
                             let _thd_slake = threadsx.start(function () {
-                                return waitForAction(() => {
+                                return a11yx.wait(() => {
                                     return _is_slake = $$af.stroll.isInSlakePage();
                                 }, 18e3, 80);
                             });
-                            waitForAction(() => {
+                            a11yx.wait(() => {
                                 return !_thd_title.isAlive() || !_thd_slake.isAlive();
                             });
                             if (_is_slake) {
-                                debugInfo('终止逛一逛采集流程');
-                                debugInfo('>检测到逛一逛结束页面');
-                                return '__break__';
+                                consolex._('终止逛一逛采集流程');
+                                consolex._('检测到逛一逛结束页面');
+                                return '__BREAK__';
                             }
                         };
                         $$link(_enter).$(_ready).$(_intro).$(_collect).$(_coda);
@@ -6029,6 +5946,13 @@ let $$af = {
 
                         // tool function(s) //
 
+                        function _ready() {
+                            _title();
+                            if (!$$af.nick) {
+                                return '__BREAK__';
+                            }
+                        }
+
                         function _act(items) {
                             let _item = null;
                             let _next = () => _item = items.pop();
@@ -6036,12 +5960,12 @@ let $$af = {
                                 $$app.page.rl.backTo();
                             };
                             let _enter = () => {
-                                debugInfo('点击' + _item.act_desc + '目标');
-                                clickAction([halfW, _item.item_y], 'p', {pt$: 64, bt$: 500});
+                                consolex._('点击' + _item.act_desc + '目标');
+                                a11yx.click([halfW, _item.item_y], 'p', {pt$: 64, bt$: 500});
                             };
 
                             while (_next()) {
-                                $$link(_enter).$(_title).$(_intro).$(_collect).$(_back).$(_coda);
+                                $$link(_enter).$(_ready).$(_intro).$(_collect).$(_back).$(_coda);
                             }
                         }
                     }
@@ -6049,7 +5973,7 @@ let $$af = {
 
                 function _quit() {
                     if ($$flag.rl_bottom_rch) {
-                        debugInfo('检测到排行榜停检信号');
+                        consolex._('检测到排行榜停检信号');
                         $$app.page.rl.reclaimAll();
                         return true;
                     }
@@ -6068,15 +5992,16 @@ let $$af = {
                         $$af.min_ctd.fri.reset();
                     } else if (!isFinite($$af.min_ctd.fri.value)) {
                         if ($$af.stroll.trigger()) {
-                            $$toast('正在准备获取排行榜倒计时数据...', 'Long');
+                            $$toast('正在准备获取排行榜倒计时数据...', 'long');
                             $$app.page.rl.launch({is_show_greeting: false});
                             $$af.rl.scroll.toBottom({itv: 0});
                             $$toast.dismiss();
                         }
                         _fri._chkMinCtd('cache');
                     }
+                    imagesx.clearAssetCache();
 
-                    _awake() ? _reboot() : debugInfo('好友能量检查完毕');
+                    _awake() ? _reboot() : consolex._('好友能量检查完毕');
                 }
 
                 function _roll() {
@@ -6097,9 +6022,7 @@ let $$af = {
                     }
 
                     function _chkCaptDiff() {
-                        if (_diffTrig() || _forcChk()) {
-                            _chkRlUnexp();
-                        }
+                        _diffTrig() && _chkRlUnexp();
 
                         // tool function(s) //
 
@@ -6120,22 +6043,15 @@ let $$af = {
                                     return;
                                 }
                                 let _max = $$cfg.rank_list_capt_pool_diff_check_threshold;
-                                debugInfo('排行榜截图样本池差异检测:');
-                                debugInfo('检测未通过: (' + ++_ctr + '/' + _max + ')');
+                                consolex._('排行榜截图样本池差异检测:');
+                                consolex._('检测未通过: (' + ++_ctr + '/' + _max + ')');
                                 if (_ctr >= _max) {
-                                    debugInfo('发送排行榜停检信号');
-                                    debugInfo('>已达截图样本池差异检测阈值');
+                                    consolex._('发送排行榜停检信号');
+                                    consolex._('已达截图样本池差异检测阈值');
                                     delete $$flag.rl_capt_pool_ctr;
                                     return $$flag.rl_bottom_rch = true;
                                 }
                                 $$flag.rl_capt_pool_ctr = _ctr;
-                            }
-                        }
-
-                        function _forcChk() {
-                            if ($$flag.rl_forc_chk) {
-                                delete $$flag.rl_forc_chk;
-                                return true;
                             }
                         }
 
@@ -6149,56 +6065,50 @@ let $$af = {
 
                                 if (_sel()) {
                                     let _max = 2;
-                                    debugInfo('检测到"正在加载"按钮');
-                                    debugInfo('等待按钮消失 (最多' + _max + '分钟)');
+                                    let _btn_name = '"正在加载"按钮';
+                                    consolex._('检测到' + _btn_name);
+                                    consolex._('等待按钮消失 (最多' + _max + '分钟)');
 
-                                    if (waitForAction(() => !_sel(), _max * 60e3)) {
+                                    if (a11yx.wait(() => !_sel(), _max * 60e3)) {
                                         delete $$flag.rl_bottom_rch;
-                                        debugInfo('排行榜停检信号撤销');
-                                        debugInfo('>"正在加载"按钮已消失');
+                                        consolex._('排行榜停检信号撤销');
+                                        consolex._(_btn_name + '已消失');
                                     } else {
-                                        debugInfo('等待"正在加载"按钮消失超时', 3);
+                                        consolex._('等待' + _btn_name + '消失超时', 3);
                                     }
                                 }
                             }
 
                             function _chkBottom() {
-                                let _widget = $$sel.get('rl_end_idt');
-                                if (_widget) {
-                                    let _h = _widget.bounds().height();
-                                    if (_h > 3) {
-                                        if (_rl.btm_h === _h) {
-                                            debugInfo('发送排行榜停检信号');
-                                            debugInfo('>已匹配列表底部控件');
-                                            $$flag.rl_bottom_rch = true;
-                                        } else {
-                                            _rl.btm_h = _h;
-                                            $$flag.rl_forc_chk = true;
-                                        }
-                                    }
+                                let _bnd = $$sel.get('rl_end_idt', 'bounds');
+                                if (_bnd && _bnd.height() > 3) {
+                                    consolex._('发送排行榜停检信号');
+                                    consolex._('已匹配列表底部控件');
+                                    $$flag.rl_bottom_rch = true;
                                 }
                             }
 
                             function _chkDozing() {
-                                if (waitForAction(/.*打瞌睡.*/, 2, 360)) {
-                                    let _w = $$sel.pickup('再试一次');
-                                    waitForAndClickAction(_w, 12e3, 600, {click_strategy: 'w'});
+                                if (a11yx.wait(/.*打瞌睡.*/, 2, 360)) {
+                                    a11yx.waitAndClick('再试一次', 12e3, 600, {cs$: 'w'});
                                     delete $$flag.rl_bottom_rch;
-                                    debugInfo(['排行榜停检信号撤销', '>检测到"服务器打瞌睡"页面']);
+                                    consolex._('排行榜停检信号撤销');
+                                    consolex._('检测到"服务器打瞌睡"页面');
                                 }
                             }
                         }
                     }
 
                     function _chkInvtBtn() {
-                        let _color = '#30bf6c';
+                        let _color = '#30BF6C';
                         let _paths = _rl.invt_colors || _invtColors();
                         let _mch = images.findMultiColors(_rl.capt_img, _color, _paths, {
                             region: [cX(0.71), cY(0.62), cX(0.28), cY(0.37)],
                             threshold: 10,
                         });
                         if (_mch) {
-                            debugInfo(['列表底部条件满足', '>区域内匹配邀请按钮颜色成功']);
+                            consolex._('列表底部条件满足');
+                            consolex._('区域内匹配邀请按钮颜色成功');
                             $$flag.rl_bottom_rch = true;
                         }
 
@@ -6213,7 +6123,7 @@ let $$af = {
                             // y3:    G5                          G6
                             // y4:                  W1            W2
 
-                            let _c_green = _color, _c_white = '#ffffff';
+                            let _c_green = _color, _c_white = '#FFFFFF';
                             let _dx = cX(45), _dy = cYx(9);
                             let _x0 = 0, _y0 = 0;
                             let _x1 = _dx, _x2 = _dx * 2;
@@ -6244,7 +6154,7 @@ let $$af = {
                         },
                         message() {
                             if ($$af.stroll.isMaxCntCycleReached()) {
-                                debugInfo('逛一逛无操作循环次数已达上限', 3);
+                                consolex._('逛一逛无操作循环次数已达上限', 3);
                             }
                         },
                     } : {
@@ -6256,7 +6166,7 @@ let $$af = {
                             return --this.counter < 0;
                         },
                         message() {
-                            debugInfo('无目标滑动次数已达上限', 3);
+                            consolex._('无目标滑动次数已达上限', 3);
                         },
                     };
                 }
@@ -6268,17 +6178,20 @@ let $$af = {
                     return;
                 }
                 if (!$$cfg.timers_switch) {
-                    return debugInfo([_m_quit, '定时循环功能未开启']);
+                    consolex._([_m_quit, '定时循环功能未开启']);
+                    return false;
                 }
                 if (!$$cfg.rank_list_review_switch) {
-                    return debugInfo([_m_quit, '排行榜样本复查功能未开启']);
+                    consolex._([_m_quit, '排行榜样本复查功能未开启']);
+                    return false;
                 }
                 if ($$flag.rl_review_stop) {
-                    return debugInfo([_m_quit, '检测到复查停止信号']);
+                    consolex._([_m_quit, '检测到复查停止信号']);
+                    return false;
                 }
 
                 let _trig = (s) => {
-                    debugInfo(['触发排行榜样本复查条件:', s], 'both');
+                    consolex._(['触发排行榜样本复查条件:', s], 0, 0, 2);
                     return $$flag.rl_review = true;
                 };
 
@@ -6286,7 +6199,7 @@ let $$af = {
                     let _smp = this.rl_samples;
                     let _old_keys = _smp && Object.keys(_smp);
                     let _new_keys = Object.keys(this._getSamples());
-                    if (!equalObjects(_old_keys, _new_keys)) {
+                    if (!Object.isDeepEqual(_old_keys, _new_keys)) {
                         return _trig('列表状态差异');
                     }
                 }
@@ -6315,10 +6228,12 @@ let $$af = {
     _timers_setter: {
         trigger() {
             if (!$$cfg.timers_switch) {
-                return debugInfo('定时循环功能未开启');
+                consolex._('定时循环功能未开启');
+                return false;
             }
             if (!$$cfg.timers_self_manage_switch) {
-                return debugInfo('定时任务自动管理未开启');
+                consolex._('定时任务自动管理未开启');
+                return false;
             }
             return true;
         },
@@ -6339,7 +6254,7 @@ let $$af = {
                 _chkAutoTaskSect();
                 _setStoAutoTask();
             } else {
-                debugInfo('无定时任务可设置');
+                consolex._('无定时任务可设置');
             }
 
             // tool function(s) //
@@ -6351,12 +6266,14 @@ let $$af = {
 
                 function _trigger() {
                     if (!$$cfg.timers_uninterrupted_check_switch) {
-                        return debugInfo('延时接力机制未开启');
+                        consolex._('延时接力机制未开启');
+                        return false;
                     }
                     // eg: [{section: ['06:30', '00:00'], interval: 60}]
                     let _sto_sxn = $$cfg.timers_uninterrupted_check_sections;
                     if (!_sto_sxn || !_sto_sxn.length) {
-                        return debugInfo('无延时接力区间数据');
+                        consolex._('无延时接力区间数据');
+                        return false;
                     }
                     return _nxtUnintrp.sto_sxn = _sto_sxn;
                 }
@@ -6365,9 +6282,9 @@ let $$af = {
                     let _now = $$app.now;
                     let _rec_ts = _now.getTime();
                     let _d_ms = 24 * 3.6e6;
-                    let _d_str = _now.toDateString() + ' ';
+                    let _d_str = _now.toDateString() + '\x20';
 
-                    debugInfo('开始计算最小延时接力时间数据');
+                    consolex._('开始计算最小延时接力时间数据');
 
                     let _res = _nxtUnintrp.sto_sxn.map((sxn) => {
                         let _sxn = sxn.section;
@@ -6393,7 +6310,7 @@ let $$af = {
                         }
                     }).filter(x => !!x).sort()[0];
 
-                    debugInfo('时间数据: ' + $$cvt.date(_res));
+                    consolex._('时间数据: ' + $$cvt.date(_res));
 
                     return _res;
                 }
@@ -6409,7 +6326,7 @@ let $$af = {
                     if (_sxn && _sxn.length) {
                         return _chkAutoTaskSect.sto_sxn = _sxn;
                     }
-                    debugInfo('未设置自动定时任务有效时段');
+                    consolex._('未设置自动定时任务有效时段');
                 }
 
                 function _modifyNxt() {
@@ -6421,7 +6338,7 @@ let $$af = {
                     let _today_max = _today_min + _d_ms;
                     let _sto_sxn = _chkAutoTaskSect.sto_sxn;
 
-                    debugInfo('开始分析自动定时任务有效时段');
+                    consolex._('开始分析自动定时任务有效时段');
 
                     for (let i = 0, l = _sto_sxn.length; i < l; i += 1) {
                         let _tss = []; // [[ts1, ts2], [ts3, ts4]]
@@ -6436,7 +6353,7 @@ let $$af = {
                                 _tss.push([_sxn_l, _sxn_r]);
                             }
                             if (_tss.some(a => $$num(a[0], '<=', _next_ts, '<=', a[1]))) {
-                                debugInfo(['匹配到有效时段:', _getSxnStr(_sxn)]);
+                                consolex._(['匹配到有效时段:', _getSxnStr(_sxn)]);
                                 return;
                             }
                             _sxn_l = _sxn_l > _next_ts ? _sxn_l : _sxn_l + _d_ms;
@@ -6444,7 +6361,7 @@ let $$af = {
                         }
                     }
 
-                    debugInfo('时间数据不在有效时段范围内');
+                    consolex._('时间数据不在有效时段范围内');
 
                     let {sxn: _sxn, left_ts: _ts} = _inf.sort((a, b) => {
                         let _a = a.left_ts, _b = b.left_ts;
@@ -6459,13 +6376,13 @@ let $$af = {
                     function _getSxnStr(sxn) {
                         let [_l, _r] = sxn;
                         _r += _r <= _l ? ' (+1)' : '';
-                        return '[ ' + _l + ' - ' + _r + ' ]';
+                        return '[\x20' + _l + '\x20-\x20' + _r + ' ]';
                     }
                 }
             }
 
             function _setStoAutoTask() {
-                timeRecorder('set_auto_task');
+                timersx.rec.save('set_auto_task');
 
                 let _sxn_str = $$app.next_avail_sxn_str;
                 if (_sxn_str) {
@@ -6477,14 +6394,14 @@ let $$af = {
                     let _task = _update() || _add();
                     let _nxt_str = $$cvt.date(_next_ts);
 
-                    messageAction$('任务ID: ' + _task.id, 1, 0, 1);
-                    messageAction$('下次运行: ' + _nxt_str, 1, 0, 1);
-                    _sxn_str && messageAction$('受制区间: ' + _sxn_str, 1, 0, 1);
-                    messageAction$('任务类型: ' + _type.desc, 1, 0, 1, 1);
+                    consolex.$('任务ID: ' + _task.id, 1, 0, 1);
+                    consolex.$('下次运行: ' + _nxt_str, 1, 0, 1);
+                    _sxn_str && consolex.$('受制区间: ' + _sxn_str, 1, 0, 1);
+                    consolex.$('任务类型: ' + _type.desc, 1, 0, 1, 1);
 
                     if ($$flag.show_energy_result && $$cfg.auto_task_show_on_e_result) {
                         threadsx.start(function () {
-                            if (waitForAction(() => $$flag.floaty_result_all_set, 12e3, 120)) {
+                            if (a11yx.wait(() => $$flag.floaty_result_all_set, 12e3, 120)) {
                                 $$app.layout.next_auto_task.deploy();
                             }
                         });
@@ -6506,17 +6423,17 @@ let $$af = {
                     // tool function(s) //
 
                     function _updateTask(task) {
-                        debugInfo('开始更新自动定时任务');
+                        consolex._('开始更新自动定时任务');
                         task.setMillis(_next_ts);
                         return $$app.setStoAutoTask({
                             task: timersx.updateTimedTask(task),
                             next_ts: _next_ts,
                             next_type: _type.name,
                         }, () => {
-                            debugInfo('__split_line__');
+                            consolex.debug.__();
                             _sxn_str
-                                ? messageAction$('已更新并顺延自动定时任务')
-                                : messageAction$('已更新自动定时任务');
+                                ? consolex.$('已更新并顺延自动定时任务')
+                                : consolex.$('已更新自动定时任务');
                         });
                     }
                 }
@@ -6529,10 +6446,10 @@ let $$af = {
                         next_ts: _next_ts,
                         next_type: _type.name,
                     }, () => {
-                        debugInfo('__split_line__');
+                        consolex.debug.__();
                         _sxn_str
-                            ? messageAction$('已添加并顺延自动定时任务')
-                            : messageAction$('已添加自动定时任务');
+                            ? consolex.$('已添加并顺延自动定时任务')
+                            : consolex.$('已添加自动定时任务');
                     });
                 }
             }
@@ -6545,10 +6462,10 @@ let $$af = {
                 let _e_own = $$af.emount_c_own;
                 let _e_fri = $$af.emount_c_fri;
                 if ($$flag.show_energy_result) {
-                    debugInfo('开始展示统计结果');
-                    debugInfo('自己能量收取值: ' + _e_own);
-                    debugInfo('好友能量收取值: ' + _e_fri);
-                    debugInfo('__split_line__');
+                    consolex._('开始展示统计结果');
+                    consolex._('自己能量收取值: ' + _e_own);
+                    consolex._('好友能量收取值: ' + _e_fri);
+                    consolex.debug.__();
                     _e_own >= 0 && _e_fri >= 0
                         ? _showMsg(_eStr(_e_fri, _e_own))
                         : _showMsg('数据统计失败');
@@ -6568,7 +6485,7 @@ let $$af = {
                     let _m_arr = msg.split('\n');
                     let _isLast = i => i === _m_arr.length - 1;
                     _m_arr.forEach((m, i) => {
-                        messageAction(m, 1, 0, 0, +_isLast(i));
+                        consolex.$(m, 1, 0, 0, +_isLast(i));
                     });
                     if (msg.match(/失败/)) {
                         _e_own = -1;
@@ -6578,19 +6495,20 @@ let $$af = {
                     // tool function(s) //
 
                     function _floatyResult() {
-                        debugInfo('开始绘制Floaty');
+                        consolex._('开始绘制Floaty');
 
                         $$app.layout.fullscreen_cover.setOnClickListener(function () {
                             if ($$flag.cover_user_touched) {
-                                _msg('终止结果展示', '>检测到屏幕触碰');
+                                _msg('终止结果展示', '检测到屏幕触碰');
 
-                                debugInfo('发送Floaty结束等待信号');
+                                consolex._('发送Floaty结束等待信号');
                                 $$flag.floaty_result_fin = true;
 
                                 $$app.layout.closeAll();
                             } else {
-                                debugInfo(['模拟一次"深度返回"操作', '>检测到非用户点击行为']);
-                                keycode(4, {double: true});
+                                consolex._('模拟一次"深度返回"操作');
+                                consolex._('检测到非用户点击行为');
+                                devicex.keycode(4, {rush: true});
                             }
                         });
                         $$app.layout.fullscreen_cover.setOnTouchListener(function (view, e) {
@@ -6629,9 +6547,7 @@ let $$af = {
                             let _args = [].slice.call(arguments);
                             let _toast_msg = _args.map(s => s.replace(/^>*/, '')).join('\n');
                             $$toast(_toast_msg, 'L', 'F');
-                            debugInfo('__split_line__');
-                            debugInfo(_args);
-                            debugInfo('__split_line__');
+                            consolex._(_args, 0, 0, 2);
                         }
                     }
 
@@ -6646,49 +6562,49 @@ let $$af = {
                         }
                         if ($$cfg.update_auto_check_switch && $$cfg.update_show_on_e_result) {
                             let _ver = $$app.newest_release_ver_name;
-                            if (_ver && appx.isNewerVersion(_ver, $$app.project_ver_name)) {
+                            if (_ver && projectx.version.isNewer(_ver, $$app.project_ver_name)) {
                                 msg += '\n' + [_line, 'Update available:', _ver].join('\n');
                             }
                         }
-                        $$toast(msg, 'Long');
-                        debugInfo('统计结果展示完毕');
+                        $$toast(msg, 'long');
+                        consolex._('统计结果展示完毕');
                     }
                 }
             });
         },
         readyExit() {
             return Promise.resolve()
-                .then(_cleanerReady)
-                .then(_floatyReady)
-                .then(_autoTaskReady)
-                .catch(this.err);
+                .then(_cleanerReady).catch(this.err)
+                .then(_pagesReady).catch(this.err)
+                .then(_floatyReady).catch(this.err)
+                .then(_autoTaskReady).catch(this.err);
 
             // tool function(s) //
 
             function _cleanerReady() {
-                $$af.cleaner.imgWrapper();
-                $$app.blist.save();
-                $$app.monitor.insurance.interrupt().clean().reset();
+                $$app.tidy(0);
+            }
+
+            function _pagesReady() {
                 $$app.page.closeIntelligently();
                 $$app.page.autojs.spring_board.remove();
-                $$flag.glob_e_scr_privilege = true;
             }
 
             function _floatyReady() {
                 return $$flag.show_floaty_result && new Promise((reso) => {
-                    debugInfo('监测Floaty结束等待信号');
-                    timeRecorder('floaty_result_waiting');
-                    setIntervalBySetTimeout(function () {
+                    consolex._('监测Floaty结束等待信号');
+                    timersx.rec.save('floaty_result_waiting');
+                    timersx.setInterval(function () {
                         let _ctd = $$cfg.floaty_result_countdown_sec;
                         let _max = (_ctd + 5) * 1e3;
-                        if (timeRecorder('floaty_result_waiting', 'L') > _max) {
+                        if (timersx.rec.gt('floaty_result_waiting', _max)) {
                             $$flag.floaty_result_fin = true;
-                            debugInfo('放弃等待Floaty消息结束信号', 3);
-                            debugInfo('>等待结束信号超时', 3);
+                            consolex._('放弃等待Floaty消息结束信号', 3);
+                            consolex._('等待结束信号超时', 3);
                         }
                     }, 200, function () {
                         if ($$flag.floaty_result_fin) {
-                            debugInfo('检测到Floaty结束等待信号');
+                            consolex._('检测到Floaty结束等待信号');
                             $$app.layout.closeAll('without_cover');
                             reso(_updateDialogAsync());
                             return true;
@@ -6700,10 +6616,10 @@ let $$af = {
 
                 function _updateDialogAsync() {
                     return $$flag.update_dialog_uphold && new Promise((resolve) => {
-                        debugInfo('等待更新对话框结束信号');
-                        timeRecorder('update_dialog_uphold');
+                        consolex._('等待更新对话框结束信号');
+                        timersx.rec.save('update_dialog_uphold');
                         let _fin = (msg) => {
-                            debugInfo(msg);
+                            consolex._(msg);
                             clearInterval(_itv);
                             resolve(true);
                         };
@@ -6712,7 +6628,7 @@ let $$af = {
                             if (!$$flag.update_dialog_uphold) {
                                 _fin('检测到更新对话框结束信号');
                             }
-                            if (timeRecorder('update_dialog_uphold', 'L') > _tt()) {
+                            if (timersx.rec.gt('update_dialog_uphold', _tt())) {
                                 _fin('放弃等待更新对话框结束信号');
                             }
                         }, 200);
@@ -6729,12 +6645,12 @@ let $$af = {
                         }
                     };
                     if (!_cond()) {
-                        debugInfo('等待定时任务设置完成');
-                        setIntervalBySetTimeout(function () {
+                        consolex._('等待定时任务设置完成');
+                        timersx.setInterval(function () {
                             let _max = 10e3;
-                            if (timeRecorder('set_auto_task', 'L') > _max) {
-                                messageAction('放弃等待定时任务设置完成', 4);
-                                messageAction('等待超时', 4, 0, 1);
+                            if (timersx.rec.gt('set_auto_task', _max)) {
+                                consolex.$('放弃等待定时任务设置完成', 4);
+                                consolex.$('等待超时', 4, 0, 1);
                                 _thd.interrupt();
                                 reso();
                             }
@@ -6749,15 +6665,26 @@ let $$af = {
             }
 
             if ($$app.queue.excl_tasks_all_len > 1) {
-                return debugInfo(['跳过关闭屏幕', '>当前存在排他性排队任务']);
+                consolex._('跳过关闭屏幕');
+                consolex._('当前存在排他性排队任务');
+                return false;
             }
 
             if ($$app.init_scr_on) {
-                return debugInfo('无需关闭屏幕');
+                consolex._('无需关闭屏幕');
+                return false;
             }
 
             if ($$flag.cover_user_touched) {
-                return debugInfo(['跳过关闭屏幕', '>检测到屏幕触碰']);
+                consolex._('跳过关闭屏幕');
+                consolex._('检测到屏幕触碰');
+                return false;
+            }
+
+            if ($$flag.epilogue_err_occurred) {
+                consolex._('跳过关闭屏幕');
+                consolex._('检测到收场过程错误标记');
+                return false;
             }
 
             $$flag.glob_e_scr_paused = true;
@@ -6773,15 +6700,16 @@ let $$af = {
                         }
                     },
                     listener(brake) {
+                        events.observeKey();
                         events.on('key_down', function (kc) {
                             $$flag.floaty_result_all_set && $$app.layout.closeAll();
-                            brake('终止屏幕关闭', '>检测到按键行为', '>键值: ' + kc);
+                            brake('终止屏幕关闭', '检测到按键行为', '键值: ' + kc);
                         });
 
                         if ($$flag.floaty_result_all_set) {
                             $$app.layout.fullscreen_cover.setOnClickListener(function () {
                                 if ($$flag.cover_user_touched) {
-                                    brake('终止屏幕关闭', '>检测到屏幕触碰');
+                                    brake('终止屏幕关闭', '检测到屏幕触碰');
                                     $$app.layout.closeAll();
                                 }
                             });
@@ -6793,10 +6721,10 @@ let $$af = {
         exitNow: () => $$app.exit(),
         err(e) {
             if (!e.message.match(/InterruptedException/)) {
-                messageAction(e.message, 4, 1, 0, -1);
-                messageAction(e.stack, 4, 0, 0, 1);
+                consolex.$(e.message, 4, 1, 0, -1);
+                consolex.$(e.stack, 4, 0, 0, 1);
             }
-            this.exitNow();
+            $$flag.epilogue_err_occurred = true;
         },
     },
     rl: {
@@ -6806,7 +6734,6 @@ let $$af = {
             },
             /**
              * @param {Object} [options]
-             * @param {boolean} [options.is_debug_info=undefined]
              * @param {number} [options.itv=this.itv] - interval
              * @param {number|boolean} [options.buffer_time=0]
              * @param {number|boolean} [options.bt$=0] - alias for buffer_time
@@ -6814,8 +6741,6 @@ let $$af = {
              */
             scroll(options) {
                 let _opt = options || {};
-                let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
-
                 let _itv = _opt.itv === undefined ? this.itv : _opt.itv;
                 let _1st = 1;
 
@@ -6823,18 +6748,15 @@ let $$af = {
                     $$impeded('排行榜控件滚动流程');
                     _1st ? _1st &= 0 : sleep(_itv);
                     let _ls = scrollable(true).findOnce();
-                    _ls ? _ls.scrollDown() : debugInfo$('scrollable(): null', 3);
+                    _ls ? _ls.scrollDown() : consolex._('scrollable(): null');
                 } while (_opt.loop && _opt.loop());
 
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
                 $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
             },
             toBottom(options) {
-                let _this = this;
-                let _opt = options || {};
-                let _thd = threadsx.start(function () {
-                    _this.scroll(Object.assign({loop: () => !$$flag.rl_bottom_rch}, _opt));
-                });
+                let _opt = Object.assign({loop: () => !$$flag.rl_bottom_rch}, options || {});
+                let _thd = threadsx.start(() => this.scroll(_opt));
                 $$app.monitor.rl_bottom.start().join(_opt.timeout || 150e3);
                 _thd.interrupt();
             },
@@ -6862,8 +6784,6 @@ let $$af = {
             },
             /**
              * @param {Object} [options]
-             * @param {boolean} [options.no_click_outside=false]
-             * @param {boolean} [options.is_debug_info=undefined]
              * @param {number} [options.x1=halfW]
              * @param {number} [options.y1=this.bottom]
              * @param {number} [options.x2=halfW]
@@ -6876,9 +6796,8 @@ let $$af = {
              */
             swipe(options) {
                 let _opt = options || {};
-                let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
-                let _ = (v, d) => v === undefined ? d : v;
+                let _ = (v, def) => v !== undefined ? v : def;
                 let _x1 = _(_opt.x1, halfW);
                 let _y1 = _(_opt.y1, this.bottom);
                 let _x2 = _(_opt.x2, halfW);
@@ -6891,12 +6810,11 @@ let $$af = {
                 do {
                     _1st ? _1st &= 0 : sleep(_itv);
                     if (!swipe(_x1, _y1, _x2, _y2, _du)) {
-                        debugInfo$('swipe(): false', 3);
-                    } else if (!_opt.no_click_outside) {
-                        // just to prevent screen from turning off
-                        // maybe this is not a good idea
-                        click(1e5, 1e5);
+                        consolex._('swipe(): false');
                     }
+                    // just to prevent screen from turning off
+                    // maybe this is not a good idea
+                    click(1e5, 1e5);
                 } while (_opt.loop && _opt.loop());
 
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
@@ -6905,28 +6823,25 @@ let $$af = {
             autoAdjust() {
                 let _dist0 = Math.trunc(uH * 0.95);
                 let _top0 = Math.trunc((uH - _dist0) / 2);
-                let _af_cfg = $$sto.af_cfg.get('config', {});
+                let _af_cfg = storagesx.af_cfg.get('config', {});
                 let _data = {rank_list_swipe_distance: _dist0};
                 let _combined = Object.assign({}, _af_cfg, _data);
 
-                messageAction$('滑动区域超限', 3);
+                consolex.$('滑动区域超限', 3);
 
-                messageAction$('自动修正滑动距离参数:', 3);
-                messageAction$('swipe_top: ' + _top0, 3);
+                consolex.$('自动修正滑动距离参数:', 3);
+                consolex.$('swipe_top: ' + _top0, 3);
 
-                $$sto.af_cfg.put('config', _combined);
+                storagesx.af_cfg.put('config', _combined);
                 $$cfg.rank_list_swipe_distance = _dist0;
-                messageAction$('自动修正配置文件数据:', 3);
-                messageAction$('rank_list_swipe_distance: ' + _dist0, 3);
+                consolex.$('自动修正配置文件数据:', 3);
+                consolex.$('rank_list_swipe_distance: ' + _dist0, 3);
 
                 return _top0;
             },
             toBottom(options) {
-                let _this = this;
-                let _opt = options || {};
-                let _thd = threadsx.start(function () {
-                    _this.swipe(Object.assign({loop: () => !$$flag.rl_bottom_rch}, _opt));
-                });
+                let _opt = Object.assign({loop: () => !$$flag.rl_bottom_rch}, options || {});
+                let _thd = threadsx.start(() => this.swipe(_opt));
                 $$app.monitor.rl_bottom.start().join(_opt.timeout || 150e3);
                 _thd.interrupt();
             },
@@ -6957,9 +6872,8 @@ let $$af = {
         let _ = this._epilogue_setter;
         _.logBackIFN();
         Promise.all([_.showResult(), _.readyExit()])
-            .then(_.scrOffIFN)
-            .then(_.exitNow)
-            .catch(_.err);
+            .catch(_.err).then(_.scrOffIFN)
+            .catch(_.err).then(_.exitNow);
     },
     $bind() {
         let _c = this._collector;

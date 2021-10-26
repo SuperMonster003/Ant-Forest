@@ -55,6 +55,7 @@
   "cfm": "confirm",
   "chk": "check",
   "cmd": "command",
+  "cmps": "compass",
   "cnsl": "console",
   "cnt": "count",
   "col": "color",
@@ -158,14 +159,15 @@
   "frac": "fraction",
   "fri": "friend",
   "frst": "forest",
+  "ft": "fault tolerance",
   "fx": [
     "function",
     "special effects"
   ],
   "fxo": "function object (an object with some functions)",
   "fxs": "functions",
-  "glob": "global",
   "g": "green",
+  "glob": "global",
   "grn": "green",
   "gt": "greater than",
   "h": [
@@ -205,6 +207,7 @@
   "len": "length",
   "lmt": "limit",
   "ln": "line",
+  "loc": "locator",
   "ls": "list",
   "lsn": [
     "listener",
@@ -221,10 +224,7 @@
     "matched"
   ],
   "mod": "module",
-  "mon": [
-    "monitor",
-    "monster"
-  ],
+  "mon": "monitor",
   "msg": "message",
   "mthd": "method",
   "mv": "move",
@@ -318,8 +318,8 @@
     "selected"
   ],
   "sels": "selectors",
-  "set": "settings",
   "sep": "separator",
+  "set": "settings",
   "sgl": "single",
   "sgn": "signal",
   "simpl": "simplify",

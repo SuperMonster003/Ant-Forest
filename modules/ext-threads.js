@@ -1,4 +1,8 @@
-global.threadsx = typeof global.threadsx === 'object' ? global.threadsx : {};
+let {
+    isNormalFunction, isArrowFunction,
+} = require('./ext-global');
+
+let {a11yx} = require('./ext-a11y');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -9,36 +13,96 @@ let AtomicLong = java.util.concurrent.atomic.AtomicLong;
 let TimerThread = com.stardust.autojs.core.looper.TimerThread;
 let ScriptInterruptedException = com.stardust.autojs.runtime.exception.ScriptInterruptedException;
 
-let ext = {
+let exp = {
+    /**
+     * @type {Threadsx.PresetMonitor}
+     */
+    _monitor_preset: {
+        ensure_open: (tt) => {
+            let _tt = tt === undefined ? 4.2e3 : tt || Infinity;
+            return a11yx.waitAndClick(/打开/, _tt, 240, {cs$: 'w'});
+        },
+    },
+    _start(f) {
+        let _uber = threads.start(f);
+        return Object.create(_uber, {
+            join: {
+                value(time) {
+                    if (time === Infinity || time === undefined) {
+                        time = 0;
+                    } else if (time < 1) {
+                        time = 1; // 1 ms
+                    }
+                    _uber.join(time);
+                },
+            },
+        });
+    },
+    /**
+     * @param {Threadsx.Monitor} [monitor]
+     * @param {...any[]} [args]
+     * @return {com.stardust.autojs.core.looper.TimerThread}
+     */
+    monitor(monitor, args) {
+        let _mon = typeof monitor === 'string' ? this._monitor_preset[monitor] : monitor;
+        if (typeof _mon === 'function') {
+            return this.start(() => _mon.apply(null, [].slice.call(arguments).slice(1)));
+        }
+        if (_mon instanceof Runnable) {
+            return this.start(_mon);
+        }
+        throw TypeError('Invalid monitor: ' + monitor);
+    },
+    /**
+     * @param {Threadsx.Monitor} [monitor]
+     * @param {...any[]} [args]
+     * @return {com.stardust.autojs.core.looper.TimerThread|void}
+     */
+    monitorIFN(monitor, args) {
+        if (monitor !== undefined) {
+            return this.monitor.apply(this, arguments);
+        }
+    },
     /**
      * Prevent script exiting error from showing up (for both
      * console and toast window) if threads were interrupted
-     * @param {java.lang.Runnable|function} f
-     * @param {boolean} [no_err_msg=false]
-     * @returns {com.stardust.autojs.core.looper.TimerThread}
+     * @param {Threadsx.Start.Func} f
+     * @param {Threadsx.Start.Options} [options]
+     * @example
+     * threadsx.start(() => {
+     *     console.log('A');
+     *     sleep(2e3);
+     *     console.log('C');
+     * }).join(1e3);
+     * console.log('B');
+     * @return {Threadsx.TimerThread}
      */
-    start(f, no_err_msg) {
+    start(f, options) {
+        let _opt = options || {};
+        let _state = true;
         try {
-            if (f instanceof Runnable) {
-                return threads.start(f);
+            if (isNormalFunction(f) || f instanceof Runnable) {
+                return this._start(f);
             }
-            if (typeof f === 'function') {
-                return threads.start(new Runnable({run: () => f()}));
+            if (isArrowFunction(f)) {
+                return this._start(new Runnable({run: () => f()}));
             }
+            _state = false;
         } catch (e) {
             if (!ScriptInterruptedException.causedByInterrupted(new Throwable(e))) {
-                if (!e.message.match(/script exiting/) && !no_err_msg) {
-                    toast(e.message);
+                if (!e.message.match(/script exiting/) && _opt.is_show_error !== false) {
                     throw Error(e + '\n' + e.stack);
                 }
             }
         }
-        throw TypeError('Unknown type of f for threadsx.start()');
+        if (!_state) {
+            throw TypeError('Unsupported type "' + typeof f + '" for threadsx.start()');
+        }
     },
     /**
      * Degradation (zh-CN: 平稳退化) for threads.atomic()
      * @param {number} [x]
-     * @returns {{
+     * @return {{
      *     incrementAndGet: function(): number,
      *     compareAndSet: function(number, number): boolean,
      *     get: function(): number
@@ -61,7 +125,7 @@ let ext = {
             /**
              * @param {number} m
              * @param {number} n
-             * @returns {boolean}
+             * @return {boolean}
              */
             compareAndSet(m, n) {
                 if (_num === m) {
@@ -82,5 +146,4 @@ let ext = {
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.threadsx = ext;
+module.exports = {threadsx: exp};

@@ -1,1 +1,1 @@
-require('../modules/mod-alarm-countdown').show();
+require('../modules/plugin-alarm-countdown').run();

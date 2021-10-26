@@ -1,9 +1,10 @@
-require('./ext-global').load();
-require('./ext-dialogs').load();
-require('./ext-threads').load();
-require('./ext-app').load();
-require('./ext-ui').load();
-require('./ext-colors').load();
+let {$$cvt} = require('./ext-global');
+
+let {appx} = require('./ext-app');
+let {uix} = require('./ext-ui');
+let {colorsx} = require('./ext-colors');
+let {dialogsx} = require('./ext-dialogs');
+let {threadsx} = require('./ext-threads');
 
 let KeyEvent = android.view.KeyEvent;
 
@@ -13,7 +14,7 @@ uix.registerWidget('mem-info-text', <x-text
 />);
 
 uix.registerWidget('mem-info-button', <x-button
-    layout_weight="1" marginBottom="9" w="83"
+    width="0" margin="2 10" text_size="14"
 />);
 
 let _getViewConfig = function () {
@@ -58,60 +59,17 @@ let _getViewConfig = function () {
             color: _preset.uss_n_pss.tint.text,
         },
         btn_restart_process: {
-            on_click() {
-                dialogsx.builds([null, [
-                    '确定要重启 Auto.js 进程吗\n' +
-                    '重启完成后当前工具将自动启动\n' +
-                    '重启过程可能需要几秒到数十秒', colorsx.hrgba('#ffebeedd')],
-                    ['查看帮助', '#90caf9'], ['B', '#a5d6a7'], ['K', '#ef9a9a'], 1,
-                ], {
-                    background: colorsx.hrgba('#7f000044'),
-                    animation: 'input_method',
-                    dim_amount: 85,
-                }).on('neutral', (d) => {
-                    setTimeout(() => d.dismiss(), 100);
-                    dialogsx.builds([['关于进程重启', '#64b5f6'],
-                        ['about_process_restart', '#80d6ff'],
-                        0, 0, ['B', '#a5d6a7'], 1,
-                    ], {
-                        background: colorsx.hrgba('#00005144'),
-                        animation: 'input_method',
-                        dim_amount: 85,
-                    }).on('positive', (ds) => {
-                        d.show();
-                        setTimeout(() => ds.dismiss(), 100);
-                    }).show();
-                }).on('negative', (d) => {
-                    d.dismiss();
-                }).on('positive', (d) => {
-                    dialogsx.setContentText(d, '正在重启进程...');
-                    dialogsx.setActionButton(d, ['neutral', 'negative', 'positive'], null);
-                    threadsx.start(function () {
-                        appx.killProcess({pending_task: 'current+2s'});
-                    });
-                }).show();
-            },
-            background_tint: colorsx.hrgba('#8e0000dd'),
-            text_color: colorsx.hrgba('#ffebeedd'),
+            background_tint: colorsx.hrgba('#8E0000DD'),
+            text_color: colorsx.hrgba('#FFEBEEDD'),
         },
         btn_close: {
             on_click: $exit,
-            background_tint: colorsx.hrgba('#1b5e20dd'),
-            text_color: colorsx.hrgba('#e8f5e9dd'),
+            background_tint: colorsx.hrgba('#1B5E20DD'),
+            text_color: colorsx.hrgba('#E8F5E9DD'),
         },
         btn_help: {
-            on_click() {
-                dialogsx.builds([['关于内存信息', '#64b5f6'],
-                    ['about_memory_info', '#80d6ff'],
-                    0, 0, ['B', '#a5d6a7'], 1,
-                ], {
-                    background: colorsx.hrgba('#00005144'),
-                    animation: 'input_method',
-                    dim_amount: 85,
-                }).on('positive', d => d.dismiss()).show();
-            },
-            background_tint: colorsx.hrgba('#004c8cdd'),
-            text_color: colorsx.hrgba('#e3f2fddd'),
+            background_tint: colorsx.hrgba('#004C8CDD'),
+            text_color: colorsx.hrgba('#E3F2FDDD'),
         },
     };
 };
@@ -127,11 +85,56 @@ let _view = ui.inflate(<vertical gravity="center">
         <mem-info-text id="uss_n_pss"/>
     </vertical>
     <horizontal w="auto">
-        <mem-info-button id="btn_restart_process" text="重启进程"/>
-        <mem-info-button id="btn_close" text="关闭"/>
-        <mem-info-button id="btn_help" text="帮助"/>
+        <mem-info-button layout_weight="1" id="btn_restart_process" text="重启进程"/>
+        <mem-info-button layout_weight="1" id="btn_close" text="关闭"/>
+        <mem-info-button layout_weight="1" id="btn_help" text="帮助"/>
     </horizontal>
 </vertical>);
+
+_view['btn_restart_process'].on('click', function () {
+    dialogsx.builds([null,
+        ['确定要重启 Auto.js 进程吗\n' +
+        '重启完成后当前工具将自动启动\n' +
+        '重启过程可能需要几秒到数十秒', colorsx.hrgba('#FFEBEEDD')],
+        ['查看帮助', '#90CAF9'], ['B', '#A5D6A7'], ['K', '#EF9A9A'], 1,
+    ], {
+        background: colorsx.hrgba('#7F000044'),
+        animation: 'input_method',
+        dim_amount: 85,
+    }).on('neutral', (d) => {
+        setTimeout(() => d.dismiss(), 100);
+        dialogsx.builds([['关于进程重启', '#B3E5FC'],
+            ['about_process_restart', '#E1F5FE'],
+            0, 0, ['B', '#A5D6A7'], 1,
+        ], {
+            background: colorsx.hrgba('#00005139'),
+            animation: 'input_method',
+            dim_amount: 85,
+        }).on('positive', (ds) => {
+            d.show();
+            setTimeout(() => ds.dismiss(), 100);
+        }).show();
+    }).on('negative', (d) => {
+        d.dismiss();
+    }).on('positive', (d) => {
+        dialogsx.setContentText(d, '正在重启进程...');
+        dialogsx.setActionButton(d, ['neutral', 'negative', 'positive'], null);
+        threadsx.start(function () {
+            appx.killProcess({pending_task: 'current+2s'});
+        });
+    }).show();
+});
+
+_view['btn_help'].on('click', function () {
+    dialogsx.builds([['关于内存信息', '#B3E5FC'],
+        ['about_memory_info', '#E1F5FE'],
+        0, 0, ['B', '#A5D6A7'], 1,
+    ], {
+        background: colorsx.hrgba('#00005139'),
+        animation: 'input_method',
+        dim_amount: 85,
+    }).on('positive', d => d.dismiss()).show();
+});
 
 let _diag = global._$_diag_mem_info = dialogsx.builds({
     customView: _view,
@@ -144,40 +147,28 @@ let _diag = global._$_diag_mem_info = dialogsx.builds({
 
 _setListeners();
 
+/** @type {Plugin$Exportation} */
 let _export = {
     dialog: _diag,
     view: _view,
     /**
-     * @param {MemInfoMainOptions} [options]
-     * @returns {com.stardust.autojs.core.ui.dialog.JsDialog}
+     * @param {Plugin$MemoryInfo.Options} [options]
      */
-    show(options) {
+    run(options) {
         $main(options);
-        return _diag.show();
+        _diag.show();
+    },
+    config() {
+        dialogsx.alerts('CUI (Configuration User Interface) for current plugin hasn\'t been accomplished');
     },
 };
 
-typeof module === 'object' ? (module.exports = _export) : _export.show();
+typeof module === 'object' ? module.exports = _export : _export.run();
 
 // key function(s) //
 
 /**
- * @typedef {{
- *     parent_view?: AutojsWidgetViews,
- *     view_config?: {
- *         img?: AutojsViewAttributes,
- *         title?: AutojsViewAttributes,
- *         sys?: AutojsViewAttributes,
- *         rt?: AutojsViewAttributes,
- *         proc?: AutojsViewAttributes,
- *         uss_n_pss?: AutojsViewAttributes,
- *         btn_close?: AutojsViewAttributes,
- *         btn_restart_process?: AutojsViewAttributes,
- *     },
- * }} MemInfoMainOptions
- */
-/**
- * @param {MemInfoMainOptions} [options]
+ * @param {Plugin$MemoryInfo.Options} [options]
  */
 function $main(options) {
     typeof options === 'object' && _applyOptions(options);
@@ -208,39 +199,32 @@ function $exit(msg) {
 
 /**
  * @param {number} pct
- * @return {MemInfoConfigPreset}
+ * @return {Plugin$MemoryInfo.ConfigPreset}
  */
 function _getConfigFromPreset(pct) {
     /**
-     * @typedef {{
-     *     sentiment: string,
-     *     threshold: number,
-     *     tint: {icon: ColorParam, text: ColorParam},
-     * }} MemInfoConfigPreset
-     */
-    /**
-     * @type {MemInfoConfigPreset[]}
+     * @type {Plugin$MemoryInfo.ConfigPreset[]}
      */
     let preset = [{
         threshold: 0.9,
         sentiment: 'very_dissatisfied',
-        tint: {icon: '#8e24aa', text: colorsx.hrgba('#ea80fcdd')},
+        tint: {icon: '#8E24AA', text: colorsx.hrgba('#EA80FCDD')},
     }, {
         threshold: 0.8,
         sentiment: 'dissatisfied',
-        tint: {icon: '#bf360c', text: colorsx.hrgba('#e57373dd')},
+        tint: {icon: '#BF360C', text: colorsx.hrgba('#E57373DD')},
     }, {
         threshold: 0.6,
         sentiment: 'neutral',
-        tint: {icon: '#f9a825', text: colorsx.hrgba('#fff176dd')},
+        tint: {icon: '#F9A825', text: colorsx.hrgba('#FFF176DD')},
     }, {
         threshold: 0.3,
         sentiment: 'satisfied',
-        tint: {icon: '#558b2f', text: colorsx.hrgba('#b3e5fcdd')},
+        tint: {icon: '#558B2F', text: colorsx.hrgba('#B3E5FCDD')},
     }, {
         threshold: 0,
         sentiment: 'very_satisfied',
-        tint: {icon: '#039be5', text: colorsx.hrgba('#b3e5fcdd')},
+        tint: {icon: '#039BE5', text: colorsx.hrgba('#B3E5FCDD')},
     }];
 
     return (_getConfigFromPreset = function (pct) {
@@ -254,7 +238,7 @@ function _getConfigFromPreset(pct) {
 }
 
 /**
- * @param {MemInfoMainOptions} [o]
+ * @param {Plugin$MemoryInfo.Options} [o]
  */
 function _applyOptions(o) {
     if (typeof o === 'object' && typeof o.view_config === 'object') {
@@ -280,10 +264,20 @@ function _setListeners() {
 }
 
 function _setView() {
-    let _view_cfg = _getViewConfig();
-    Object.keys(_view_cfg).forEach((view_k) => {
-        Object.keys(_view_cfg[view_k]).forEach((attr_k) => {
-            _view[view_k].attr(attr_k, _view_cfg[view_k][attr_k]);
+    let _cfg = _getViewConfig();
+    Object.keys(_cfg).forEach((view_k) => {
+        let _vw = _view[view_k];
+        Object.keys(_cfg[view_k]).forEach((attr_k) => {
+            let _val = _cfg[view_k][attr_k];
+            if (typeof _val === 'function') {
+                let _act = 'set' + attr_k.replace(/_(.)/g, ($0, $1) => {
+                    return $1.toUpperCase();
+                }).toTitleCase() + 'Listener';
+                if (typeof _vw[_act] === 'function') {
+                    return _vw[_act](_val);
+                }
+            }
+            _vw.attr(attr_k, _val);
         });
     });
 }

@@ -1,19 +1,20 @@
-global.httpx = typeof global.httpx === 'object' ? global.httpx : {};
-
-require('./ext-threads').load();
+let {threadsx} = require('./ext-threads');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
 let URL = java.net.URL;
 let File = java.io.File;
-let BufferedInputStream = java.io.BufferedInputStream;
+let StringBuilder = java.lang.StringBuilder;
+let BufferedReader = java.io.BufferedReader;
 let FileOutputStream = java.io.FileOutputStream;
+let InputStreamReader = java.io.InputStreamReader;
+let BufferedInputStream = java.io.BufferedInputStream;
 let BufferedOutputStream = java.io.BufferedOutputStream;
-let Builder = okhttp3.Request.Builder;
 let JavaArray = java.lang.reflect.Array;
+let Builder = okhttp3.Request.Builder;
 
-let ext = {
+let exp = {
     /**
      * Substitution of java.net.URLConnection.getContentLengthLong() with concurrency
      * @async
@@ -52,7 +53,7 @@ let ext = {
                     _cxn.setConnectTimeout(_tt);
                     let _len = _cxn.getContentLengthLong();
                     _cxn.disconnect();
-                    if (~_len && _sum_bytes.compareAndSet(-1, _len)) {
+                    if (_len !== -1 && _sum_bytes.compareAndSet(-1, _len)) {
                         callback(_sum_bytes.get());
                     }
                 } catch (e) {
@@ -60,15 +61,19 @@ let ext = {
                 }
             });
             threadsx.start(function () {
-                while (1) {
-                    if (_sum_bytes.get() > 0) {
-                        return _thd.interrupt();
+                try {
+                    while (1) {
+                        if (_sum_bytes.get() > 0) {
+                            return _thd.interrupt();
+                        }
+                        if (Date.now() >= _ts_max) {
+                            resolve(-1);
+                            return _thd.interrupt();
+                        }
+                        sleep(120);
                     }
-                    if (Date.now() >= _ts_max) {
-                        resolve(-1);
-                        return _thd.interrupt();
-                    }
-                    sleep(120);
+                } catch (e) {
+                    // nothing to do here
                 }
             });
         };
@@ -80,7 +85,6 @@ let ext = {
     },
     /**
      * @param {string} url
-     * @param {string} path
      * @param {Object} [callback]
      * @param {function():*} [callback.onStart]
      * @param {function(response:okhttp3.Response):*} [callback.onResponse]
@@ -88,14 +92,15 @@ let ext = {
      * @param {function(value:{downloaded_path:string}):*} [callback.onDownloadSuccess]
      * @param {function(value:*=):*} [callback.onDownloadFailure]
      * @param {Object} [options]
+     * @param {string} [options.path]
      * @param {Object} [options.headers]
      * @param {boolean} [options.is_async=true]
+     * @return {any}
      */
-    okhttp3Request(url, path, callback, options) {
-        let _bs, _fos, _bis, _bos;
-        let _path = files.path(path);
+    okhttp3Request(url, callback, options) {
         let _cbk = callback || {};
         let _opt = options || {};
+        let _path = _opt.path;
         let _onStart = _cbk.onStart || (r => r);
         let _onResponse = _cbk.onResponse || (r => r);
         let _onProgress = _cbk.onDownloadProgress || (r => r);
@@ -110,12 +115,17 @@ let ext = {
         if (!url) {
             return _onFailure('url for httpx.okhttp3Request() is required');
         }
-        _opt.is_async === undefined || _opt.is_async ? threadsx.start(_request) : _request();
+        if (_opt.is_async !== undefined && !_opt.is_async) {
+            return _request();
+        }
+        threadsx.start(_request);
 
         // tool function(s) //
 
         function _request() {
             try {
+                let _result;
+
                 _onStart();
 
                 let _builder = new Builder();
@@ -128,39 +138,61 @@ let ext = {
 
                 let _buf_len = 4096;
                 let _buf_bytes = JavaArray.newInstance(java.lang.Byte.TYPE, _buf_len);
-                let _read_bytes;
                 let _processed = 0;
 
                 let _code = r.code();
                 if (_code !== 200) {
-                    _onFailure(_code + ' ' + r.message());
+                    _onFailure(_code + '\x20' + r.message());
                 }
-                _bs = r.body().byteStream();
-                _bis = new BufferedInputStream(_bs);
-                _fos = new FileOutputStream(new File(_path));
-                _bos = new BufferedOutputStream(_fos);
-
+                let _is = r.body().byteStream();
                 let _total = r.body().contentLength();
 
-                while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
-                    if (global._$_dialog_flow_interrupted) {
-                        _clearAndCloseStreams();
-                        _onFailure('用户终止');
-                    }
-                    _fos.write(_buf_bytes, 0, _read_bytes);
-                    _processed += _read_bytes;
-                    _onProgress({processed: _processed, total: _total});
-                }
+                if (typeof _path === 'string') {
+                    let _read_bytes = -1;
 
-                _clearAndCloseStreams();
-                _onSuccess({downloaded_path: _path});
+                    let _bis = new BufferedInputStream(_is);
+                    let _fos = new FileOutputStream(new File(files.path(_path)));
+                    let _bos = new BufferedOutputStream(_fos);
+
+                    while ((_read_bytes = _bis.read(_buf_bytes, 0, _buf_len)) !== -1) {
+                        if (global._$_dialog_flow_interrupted) {
+                            _clearAndCloseStreams([_bos, _fos, _bis, _is]);
+                            _onFailure('用户终止');
+                        }
+                        _fos.write(_buf_bytes, 0, _read_bytes);
+                        _processed += _read_bytes;
+                        _onProgress({processed: _processed, total: _total});
+                    }
+
+                    _clearAndCloseStreams([_bos, _fos, _bis, _is]);
+                    _onSuccess({downloaded_path: _result = _path});
+                } else {
+                    let _isr = new InputStreamReader(_is);
+                    let _br = new BufferedReader(_isr);
+                    let _sb = new StringBuilder();
+                    let _line = null;
+
+                    while ((_line = _br.readLine()) !== null) {
+                        if (global._$_dialog_flow_interrupted) {
+                            _clearAndCloseStreams([_br, _isr, _is]);
+                            _onFailure('用户终止');
+                        }
+                        _sb.append(_line).append('\r\n');
+                        _processed += _line.length;
+                        _onProgress({processed: _processed, total: _total});
+                    }
+
+                    _clearAndCloseStreams([_br, _isr, _is]);
+                    _onSuccess({downloaded_string: _result = _sb.toString()});
+                }
+                return _result;
             } catch (e) {
                 _onFailure('请求失败:\n' + e);
             }
         }
 
-        function _clearAndCloseStreams() {
-            [_bos, _fos, _bis, _bs].forEach((stream) => {
+        function _clearAndCloseStreams(streams) {
+            streams.forEach((stream) => {
                 try {
                     stream && stream.close();
                 } catch (e) {
@@ -172,5 +204,4 @@ let ext = {
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.httpx = ext;
+module.exports = {httpx: exp};

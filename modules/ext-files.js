@@ -1,4 +1,4 @@
-global.filesx = typeof global.filesx === 'object' ? global.filesx : {};
+let {threadsx} = require('./ext-threads');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -15,7 +15,7 @@ let ZipFile = java.util.zip.ZipFile;
 let CRC32 = java.util.zip.CRC32;
 let Pref = org.autojs.autojs.Pref;
 
-let ext = {
+let _ = {
     /**
      * Substitution of files.copy() with callback
      * @param {string} path_from
@@ -29,9 +29,9 @@ let ext = {
      * @param {function():*} [callback.onCopySuccess]
      * @param {function(value:*=):*} [callback.onFailure]
      * @param {function(value:*=):*} [callback.onCopyFailure]
-     * @returns {boolean}
+     * @return {boolean}
      */
-    _files$copy(path_from, path_to, callback) {
+    copy(path_from, path_to, callback) {
         let _path_from = files.path(path_from);
         let _path_to = files.path(path_to);
         let _cbk = callback || {};
@@ -52,7 +52,7 @@ let ext = {
         /**
          * @param {java.io.FileInputStream} is
          * @param {string} path
-         * @returns {boolean}
+         * @return {boolean}
          */
         function _copyStream(is, path) {
             _onStart();
@@ -101,47 +101,59 @@ let ext = {
             }
         }
     },
+};
+
+let exp = {
+    sep: File.separator,
+    /**
+     * @param {...string[]} [children]
+     * @example
+     * // like: '/storage/emulated/0/.local'
+     * console.log(filesx['.local']());
+     * // like: '/storage/emulated/0/.local/images'
+     * console.log(filesx['.local']('images'));
+     * @return {string}
+     */
+    '.local'(children) {
+        let _local = files.join(files.getSdcardPath(), '.local');
+        files.isFile(_local) && files.remove(_local); // just in case
+
+        let _res =  files.join.apply(files, [_local].concat([].slice.call(arguments)));
+        files.createWithDirs(_res.slice(0, _res.lastIndexOf(this.sep) + 1));
+
+        return _res;
+    },
     /**
      * Run a javascript file via activity by current running Auto.js
      * @param file_name {'launcher$'|'settings$'|string} - file name with or without path or file extension name
-     * @param {
-     *     Object.<string,any>&{cmd?:AntForestLauncherCommand}
-     * } [e_args] arguments params for engines - js file will run by startActivity without this param
+     * @param {Object & {
+     *     cmd?: AntForestLauncherCommand,
+     *     monitor?: Threadsx.Monitor,
+     * }} [e_args] - arguments params for engines (except 'monitor')
      * @example
      * filesx.run('file');
      * filesx.run('../folder/time.js');
      * filesx.run('ant-forest-launcher', {cmd: 'get_current_account_name'});
+     * filesx.run('ant-forest-launcher', {cmd: 'get_current_account_name', monitor: 'ensure_open'});
      */
     run(file_name, e_args) {
         if (file_name.match(/^(launcher|settings)\$$/)) {
             file_name = 'ant-forest-' + file_name.slice(0, -1) + '.js';
         }
         let _path = files.path(file_name.match(/\.js$/) ? file_name : (file_name + '.js'));
-        let _pkg = context.getPackageName();
-        if (e_args) {
+        if (typeof e_args === 'object') {
+            if (e_args.monitor) {
+                threadsx.monitor(e_args.monitor);
+                delete e_args.monitor;
+            }
             return engines.execScriptFile(_path, {arguments: e_args});
         }
-        try {
-            return _startActivity('org.autojs.autojs');
-        } catch (e) {
-            return _startActivity(_pkg);
-        }
-
-        // tool function(s) //
-
-        function _startActivity(override_class_name_prefix) {
-            let _class_name_prefix = override_class_name_prefix || _pkg;
-            return app.startActivity({
-                packageName: _pkg,
-                className: _class_name_prefix + '.external.open.RunIntentActivity',
-                data: 'file://' + _path,
-            });
-        }
+        return engines.execScriptFile(_path, null);
     },
     /**
      * Zip a file or a directory by java.io.FileOutputStream
      * @param {string} input_path
-     * @param {string|null} [output_path]
+     * @param {?string} [output_path]
      * @param {Object} [callback]
      * @param {function():*} [callback.onStart]
      * @param {function():*} [callback.onZipStart]
@@ -169,7 +181,7 @@ let ext = {
      *         console.error(e);
      *     },
      * });
-     * @returns {boolean}
+     * @return {boolean}
      */
     zip(input_path, output_path, callback, options) {
         let _fis, _bis, _fos, _cos, _zos;
@@ -183,7 +195,6 @@ let ext = {
                 }
             });
         };
-        let _filesx = this;
         let _cbk = callback || {};
         let _opt = options || {};
         let _err = (msg) => {
@@ -236,7 +247,7 @@ let ext = {
             }
 
             if (_opt.is_delete_source) {
-                _filesx.removeWithDirs(_i_path, {is_async: true});
+                this.removeWithDirs(_i_path, {is_async: true});
             }
 
             return true;
@@ -257,7 +268,7 @@ let ext = {
             // tool function(s) //
 
             function _compressFile(file, parent) {
-                let _parent = parent ? parent + File.separator : '';
+                let _parent = parent ? parent + exp.sep : '';
                 let _file_name = _parent + file.getName();
                 if (file.isFile()) {
                     let _read_bytes;
@@ -268,7 +279,7 @@ let ext = {
                     _fis = new FileInputStream(file);
                     _bis = new BufferedInputStream(_fis);
 
-                    while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
+                    while ((_read_bytes = _bis.read(_buf_bytes, 0, _buf_len)) > -1) {
                         if (global._$_dialog_flow_interrupted) {
                             _clearAndCloseStreams();
                             return _err('用户终止');
@@ -296,16 +307,16 @@ let ext = {
     /**
      * Unzip a zip file by java.io.FileOutputStream
      * @param {string} input_path
-     * @param {string|null} [output_path]
+     * @param {?string} [output_path]
      * @param {Object} [callback]
-     * @param {function():*} [callback.onStart]
-     * @param {function():*} [callback.onUnzipStart]
-     * @param {function(data:{processed:number,total:number}):*} [callback.onProgress]
-     * @param {function(data:{processed:number,total:number}):*} [callback.onUnzipProgress]
-     * @param {function(value:{unzipped_path:string}):*} [callback.onSuccess]
-     * @param {function(value:{unzipped_path:string}):*} [callback.onUnzipSuccess]
-     * @param {function(value:*=):*} [callback.onFailure]
-     * @param {function(value:*=):*} [callback.onUnzipFailure]
+     * @param {()=>any} [callback.onStart]
+     * @param {()=>any} [callback.onUnzipStart]
+     * @param {(data:{processed:number,total:number})=>any} [callback.onProgress]
+     * @param {(data:{processed:number,total:number})=>any} [callback.onUnzipProgress]
+     * @param {(value:{unzipped_path:string})=>any} [callback.onSuccess]
+     * @param {(value:{unzipped_path:string})=>any} [callback.onUnzipSuccess]
+     * @param {(value?:any)=>any} [callback.onFailure]
+     * @param {(value?:any)=>any} [callback.onUnzipFailure]
      * @param {Object} [options]
      * @param {boolean} [options.to_archive_name_folder=false]
      * @param {boolean} [options.is_delete_source=false]
@@ -326,7 +337,7 @@ let ext = {
      * }, {
      *     to_archive_name_folder: true,
      * });
-     * @returns {boolean}
+     * @return {boolean}
      */
     unzip(input_path, output_path, callback, options) {
         let _fos, _bos, _bis;
@@ -340,15 +351,10 @@ let ext = {
                 }
             });
         };
-        let _filesx = this;
         let _cbk = callback || {};
         let _err = (msg) => {
             let _failure = _cbk.onUnzipFailure || _cbk.onFailure;
-            if (typeof _failure === 'function') {
-                _failure(msg);
-            } else {
-                toastLog(msg);
-            }
+            typeof _failure === 'function' ? _failure(msg) : toastLog(msg);
             return false;
         };
 
@@ -357,7 +363,6 @@ let ext = {
             _start();
         }
 
-        let _sep = File.separator;
         let _opt = options || {};
 
         let _i_path = files.path(input_path);
@@ -375,12 +380,12 @@ let ext = {
 
         let _o_path = files.path(output_path);
         if (!_o_path || !files.exists(_o_path)) {
-            _o_path = _i_path.slice(0, _i_path.lastIndexOf(_sep));
+            _o_path = _i_path.slice(0, _i_path.lastIndexOf(this.sep));
         }
         if (_opt.to_archive_name_folder) {
-            _o_path += _sep + _i_file_name_no_ext;
+            _o_path = files.join(_o_path, _i_file_name_no_ext);
         }
-        files.createWithDirs(_o_path + _sep);
+        files.createWithDirs(_o_path + this.sep);
 
         try {
             let _processed_bytes = 0;
@@ -390,11 +395,12 @@ let ext = {
             let _z_entries = _z_i_file.entries();
 
             while (_z_entries.hasMoreElements()) {
+                /** @type { java.util.zip.ZipEntry} */
                 let _entry = _z_entries.nextElement();
                 let _entry_size = _entry.getCompressedSize();
                 let _entry_name = _entry.getName();
-                let _entry_path = files.path(_o_path + _sep + _entry_name);
-                files.createWithDirs(_entry_path);
+                let _entry_path = files.join(_o_path, _entry_name);
+                files.createWithDirs(_entry_path + (_entry.isDirectory() ? exp.sep : ''));
 
                 let _entry_file = new File(_entry_path);
                 if (_entry_file.isDirectory()) {
@@ -407,7 +413,7 @@ let ext = {
                 _bos = new BufferedOutputStream(_fos);
                 _bis = new BufferedInputStream(_z_i_file.getInputStream(_entry));
 
-                while (~(_read_bytes = _bis.read(_buf_bytes, 0, _buf_len))) {
+                while ((_read_bytes = _bis.read(_buf_bytes, 0, _buf_len)) > -1) {
                     if (global._$_dialog_flow_interrupted) {
                         _clearAndCloseStreams();
                         return _err('用户终止');
@@ -431,7 +437,7 @@ let ext = {
             }
 
             if (_opt.is_delete_source) {
-                _filesx.removeWithDirs(_i_path, {is_async: true});
+                this.removeWithDirs(_i_path, {is_async: true});
             }
 
             return true;
@@ -441,7 +447,7 @@ let ext = {
     },
     /**
      * @param {string} path
-     * @returns {boolean}
+     * @return {boolean}
      */
     isValidZip(path) {
         let _path = files.path(path);
@@ -524,7 +530,7 @@ let ext = {
      *         setTimeout(() => _diag.dismiss(), 2e3);
      *     },
      * }) && toastLog('OK');
-     * @returns {boolean}
+     * @return {boolean}
      */
     copy(src, target, options, callback) {
         let _cbk = callback || {};
@@ -540,41 +546,42 @@ let ext = {
             _onFailure('Target path must be a directory');
         }
 
-        let _filesx = this;
-        let _sep = File.separator;
-
         let _src = new File(files.path(src)).getAbsolutePath();
         let _tar = new File(files.path(target)).getAbsolutePath();
 
         let _opt = options || {};
         let _is_unbundle = _opt.is_unbundled;
-        let _filter = function (name) {
-            return typeof _opt.filter !== 'function' || _opt.filter(name);
-        };
 
-        if (!_opt.is_async) {
-            return _act();
-        }
-        threads.start(_act);
-
-        // tool function(s) //
-
-        function _act() {
-            if (typeof _onStart === 'function') {
-                _onStart();
-            }
-
+        let _act = () => {
             let _res = true;
             let _processed = 0;
             let _total = 1;
 
+            let _copy = (src, target) => {
+                let _tar = files.join(target, files.getName(src));
+                if (files.isFile(src)) {
+                    if (!_.copy(src, _tar)) {
+                        _res = false;
+                    }
+                    _onProgress({processed: _processed += 1, total: _total});
+                } else {
+                    files.listDir(src).forEach((name) => {
+                        _copy(files.join(src, name), _tar);
+                    });
+                }
+            };
+
+            typeof _onStart === 'function' && _onStart();
+
             if (files.isDir(_src)) {
                 if (!_is_unbundle) {
-                    _tar += _sep + files.getName(_src);
+                    _tar = files.join(_tar, files.getName(_src));
                 }
-                let _list = files.listDir(_src, _filter);
+                let _list = files.listDir(_src, function (name) {
+                    return typeof _opt.filter !== 'function' || _opt.filter(name);
+                });
                 _total = _list.length;
-                _list.forEach(name => _copy(_src + _sep + name, _tar));
+                _list.forEach(name => _copy(files.join(_src, name), _tar));
             } else {
                 _copy(_src, _tar);
             }
@@ -583,30 +590,19 @@ let ext = {
             _res || _onFailure('An error has occurred in files.copy()');
 
             return _res;
+        };
 
-            // tool function(s) //
-
-            function _copy(src, target) {
-                let _tar = target + _sep + files.getName(src);
-                if (files.isFile(src)) {
-                    if (!_filesx._files$copy(src, _tar)) {
-                        _res = false;
-                    }
-                    _onProgress({processed: _processed += 1, total: _total});
-                } else {
-                    files.listDir(src).forEach((name) => {
-                        _copy(src + _sep + name, _tar);
-                    });
-                }
-            }
+        if (!_opt.is_async) {
+            return _act();
         }
+        threadsx.start(_act);
     },
     /**
      * Returns current Auto.js script dir path
      * @example
      * // like: '/storage/emulated/0/脚本' or '/storage/emulated/0/Scripts'
      * console.log(filesx.getScriptDirPath());
-     * @returns {string}
+     * @return {string}
      */
     getScriptDirPath() {
         if (typeof Pref.getScriptDirPath === 'function') {
@@ -617,7 +613,7 @@ let ext = {
     },
     /**
      * @param {string} path
-     * @returns {boolean}
+     * @return {boolean}
      */
     isScriptDirPath(path) {
         return new File(files.path(path)).getAbsolutePath() === this.getScriptDirPath();
@@ -627,7 +623,7 @@ let ext = {
      * @param {string|java.io.File} path
      * @example
      * console.log(filesx.getDirSize('.')); // current working directory
-     * @returns {*}
+     * @return {*}
      */
     getDirSize(path) {
         let _path = files.path(path);
@@ -654,7 +650,7 @@ let ext = {
      * @param {function():*} [callback.onRemoveSuccess]
      * @param {function(value:*=):*} [callback.onFailure]
      * @param {function(value:*=):*} [callback.onRemoveFailure]
-     * @returns {boolean|void}
+     * @return {boolean|void}
      */
     removeWithDirs(path, options, callback) {
         let _opt = options || {};
@@ -667,15 +663,7 @@ let ext = {
         let _processed = 0;
         let _total = 1;
 
-        try {
-            return _opt.is_async ? threads.start(_parseLv1Depth) : _parseLv1Depth();
-        } catch (e) {
-            _onFailure(e);
-        }
-
-        // tool function(s) //
-
-        function _parseLv1Depth() {
+        let _parseLv1Depth = () => {
             let _res = true;
 
             _onStart();
@@ -684,10 +672,9 @@ let ext = {
                 _res = _remove(path);
             } else if (files.isDir(path)) {
                 let _list = files.listDir(path);
-                let _sep = File.separator;
                 _total = _list.length;
                 _list.forEach((file) => {
-                    _res = _remove(path + _sep + file) && _res;
+                    _res = _remove(files.join(path, file)) && _res;
                 });
                 files.remove(path);
             } else {
@@ -698,17 +685,25 @@ let ext = {
             _res || _onFailure('An error has occurred in files.removeWithDirs()');
 
             return _res;
-        }
+        };
 
-        function _remove(p) {
-            let _res = files.isDir(p) ? files.removeDir(p) : files.isFile(p) ? files.remove(p) : false;
+        let _remove = (p) => {
+            let _res = files.isDir(p)
+                ? files.removeDir(p)
+                : files.isFile(p) ? files.remove(p) : false;
             _onProgress({progress: _processed += 1, total: _total});
             return _res;
+        };
+
+        try {
+            return _opt.is_async ? threadsx.start(_parseLv1Depth) : _parseLv1Depth();
+        } catch (e) {
+            _onFailure(e);
         }
     },
     /**
      * @param {string|java.io.File} file
-     * @returns {java.io.File[]}
+     * @return {java.io.File[]}
      */
     listAllFiles(file) {
         let _res = [];
@@ -730,7 +725,7 @@ let ext = {
     },
     /**
      * @param {string|java.io.File} file
-     * @returns {boolean}
+     * @return {boolean}
      */
     deleteRecursively(file) {
         if (typeof file === 'string') {
@@ -759,7 +754,7 @@ let ext = {
      * @param {function():*} [callback.onDeleteSuccess]
      * @param {function(value:*=):*} [callback.onFailure]
      * @param {function(value:*=):*} [callback.onDeleteFailure]
-     * @returns {boolean}
+     * @return {boolean}
      */
     deleteByList(file, options, callback) {
         let _filesx = this;
@@ -774,7 +769,7 @@ let ext = {
         if (_opt.is_async) {
             return _act();
         }
-        threads.start(_act);
+        threadsx.start(_act);
 
         // tool function(s) //
 
@@ -799,24 +794,48 @@ let ext = {
     },
     /**
      * @param {string} path
-     * @returns {string}
+     * @param {any} [def]
+     * @return {?string}
      */
-    read(path) {
-        let _file = files.open(path, 'r');
-        let _text = _file.read();
-        _file.close();
-        return _text;
+    read(path, def) {
+        let _read = null;
+        if (files.exists(path)) {
+            _read = files.read(path);
+        }
+        return _read || (def === undefined ? _read : def);
+    },
+    /**
+     * @param {string} path
+     * @param {any} [def]
+     * @param {(key: string, value: any) => any} [reviver]
+     * @return {any}
+     */
+    readJson(path, def, reviver) {
+        let _def = def === undefined ? {} : def;
+        try {
+            return JSON.parse(this.read(path), reviver) || _def;
+        } catch (e) {
+            return _def;
+        }
     },
     /**
      * @param {string} path
      * @param {string} text
      */
     write(path, text) {
-        let _file = files.open(path, 'w');
-        _file.write(text);
-        _file.close();
+        if (path && !files.exists(path)) {
+            files.createWithDirs(path);
+        }
+        files.write(path, text);
+    },
+    /**
+     * @param {string} path
+     * @param {any} value
+     * @param {(key: string, value: any) => any} [replacer]
+     */
+    writeJson(path, value, replacer) {
+        this.write(path, JSON.stringify(value, replacer));
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.filesx = ext;
+module.exports = {filesx: exp};

@@ -1,11 +1,13 @@
-require('./ext-ui').load();
-require('./ext-device').load();
-require('./ext-global').load();
-require('./ext-dialogs').load();
-require('./ext-threads').load();
+let {} = require('./ext-global');
+
+let {uix} = require('./ext-ui');
+let {colorsx} = require('./ext-colors');
+let {devicex} = require('./ext-device');
+let {dialogsx} = require('./ext-dialogs');
+let {threadsx} = require('./ext-threads');
 
 uix.registerWidget('alarm-ctd-text', <x-text
-    gravity="center" color="#fff3e0" size="17"
+    gravity="center" color="#FFF3E0" size="17"
     fontFamily="sans-serif-condensed" padding="7"
 />);
 
@@ -21,9 +23,10 @@ let _diag = dialogsx.builds({
     background: colorsx.hrgba('#005B4F91'),
     animation: 'input_method',
     dim_amount: 75,
-    disable_back: () => $exit(),
-}).show();
+    keycode_back: () => $exit(),
+});
 
+/** @type {Plugin$Exportation} */
 let _export = {
     dialog: _diag,
     view: _view,
@@ -33,13 +36,26 @@ let _export = {
      *     title?: string,
      * }} [options]
      */
-    show(options) {
+    run(options) {
         let _opt = options || {};
         _opt.is_async ? threadsx.start($main.bind(null, _opt)) : $main(_opt);
     },
+    config() {
+        uix.execScript('test', function () {
+            ui.layout(<frame>
+                <x-text id="txt"/>
+            </frame>);
+            ui.statusBarColor('#880E4F');
+            ui['txt'].attr('gravity', 'center');
+            ui['txt'].attr('size', 24);
+            ui['txt'].attr('color', '#BC477B');
+            ui['txt'].attr('text', 'CUI\n(Configuration User Interface)\n' +
+                'for current plugin\nhasn\'t been accomplished');
+        });
+    },
 };
 
-typeof module === 'object' ? (module.exports = _export) : _export.show();
+typeof module === 'object' ? module.exports = _export : _export.run();
 
 // tool function(s) //
 
@@ -50,6 +66,8 @@ typeof module === 'object' ? (module.exports = _export) : _export.show();
  */
 function $main(options) {
     let _opt = options || {};
+
+    _diag.isShowing() || _diag.show();
 
     let _getTimeout = () => Math.ceil(devicex.getNextAlarmClockTriggerGap() / 1e3) * 1e3;
     let _getTimeoutText = ts => (_opt.title || '下次闹钟触发') + '\n' + _tsToTime(ts, 'GAP');

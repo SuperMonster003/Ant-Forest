@@ -38,10 +38,10 @@
             '因此用户无需手动改回',
     };
     let _colors = {
-        default_aj_4: '#01a9f3', // Auto.js 4.1.1 Alpha2
-        caution: '#ff3d00',
-        hint: '#0da798',
-        attraction: '#7b1fa2',
+        default_aj_4: '#01A9F3', // Auto.js 4.1.1 Alpha2
+        caution: '#FF3D00',
+        hint: '#0DA798',
+        attraction: '#7B1FA2',
     };
 
     dialogs.build({

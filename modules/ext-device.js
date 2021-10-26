@@ -1,8 +1,11 @@
-global.devicex = typeof global.devicex === 'object' ? global.devicex : {};
+let {
+    $$impeded, $$toast, $$cvt, $$link, isNullish, $$str,
+    $$und, $$nul, $$arr, $$num, $$rex, $$func,
+} = require('./ext-global');
 
-require('./mod-monster-func').load([
-    'debugInfo', 'waitForAction$', 'messageAction', 'keycode$', 'clickAction$',
-]);
+let {a11yx, $$sel} = require('./ext-a11y');
+let {timersx} = require('./ext-timers');
+let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -14,7 +17,6 @@ let Secure = Settings.Secure;
 let File = java.io.File;
 let Uri = android.net.Uri;
 let Surface = android.view.Surface;
-let KeyEvent = android.view.KeyEvent;
 let Intent = android.content.Intent;
 let Context = android.content.Context;
 let Resources = android.content.res.Resources;
@@ -22,19 +24,23 @@ let IntentFilter = android.content.IntentFilter;
 let Environment = android.os.Environment;
 let PowerManager = android.os.PowerManager;
 let BatteryManager = android.os.BatteryManager;
-let ServiceManager = android.os.ServiceManager;
 let DisplayMetrics = android.util.DisplayMetrics;
 let RootTool = org.autojs.autojs.tool.RootTool;
-let ITelecomService = com.android.internal.telecom.ITelecomService;
-
-let isNullish = o => o === null || o === undefined;
 
 // noinspection JSUnusedGlobalSymbols
-let ext = {
+let exp = {
+    FLAGS_ON: PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+    FLAGS_DIM: PowerManager.SCREEN_DIM_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP,
+    get keycode$() {
+        return this._keycode$ = this._keycode$ || $$impeded.detach(this.keycode, 1);
+    },
+    get power_service() {
+        return context.getSystemService(Context.POWER_SERVICE);
+    },
     screen_metrics: {
         /** @type {com.stardust.util.ScreenMetrics} */
         metrics: runtime.getScreenMetrics(),
-        /** @returns {{width: number, height: number}} */
+        /** @return {{width: number, height: number}} */
         getInfo() {
             return {
                 width: this.metrics.rescaleX(W),
@@ -54,7 +60,7 @@ let ext = {
             let _height = height <= 0 ? H : height < 1 ? H * height : height;
             runtime.setScreenMetrics(_width, _height);
         },
-        /** @returns {{width: number, height: number}} */
+        /** @return {{width: number, height: number}} */
         getRatio() {
             let _width = this.metrics.rescaleX(W) / W;
             let _height = this.metrics.rescaleY(H) / H;
@@ -88,9 +94,12 @@ let ext = {
          *     'HEALTH'|'ICON_SMALL'|'LEVEL'|'PLUGGED'|'PRESENT'|'BATTERY_LOW'|
          *     'SCALE'|'STATUS'|'TECHNOLOGY'|'TEMPERATURE'|'VOLTAGE'
          * } extra_key_short
-         * @param {'Boolean'|'Byte'|'Char'|'Double'|'Float'|'Int'|'Long'|'Short'|'String'|string} [type='Int']
+         * @param {
+         *     'Boolean'|'Byte'|'Char'|'Double'|'Float'|
+         *     'Int'|'Long'|'Short'|'String'|string
+         * } [type='Int']
          * @param {*} [default_value=-1]
-         * @returns {number|boolean|string|*}
+         * @return {number|boolean|string|*}
          */
         _getStatus(extra_key_short, type, default_value) {
             let _def = (o) => default_value === undefined ? o : default_value;
@@ -123,14 +132,14 @@ let ext = {
          * @param {number} [min_def=-Infinity]
          * @param {number} [max]
          * @param {number} [max_def=Infinity]
-         * @returns {boolean}
+         * @return {boolean}
          */
         _checkNumRange(src, min, min_def, max, max_def) {
             let _norm = (x, def) => x === undefined || isNaN(Number(x)) ? def : Number(x);
             return src >= _norm(min, min_def || -Infinity)
                 && src <= _norm(max, max_def || Infinity);
         },
-        /** @returns {number} */
+        /** @return {number} */
         getPercentage() {
             let _i_battery_status = this._getStatusIntent();
 
@@ -142,6 +151,9 @@ let ext = {
             return this._checkNumRange(this.getPercentage(), min, 15);
         },
         isBatteryLow() {
+            if (device.sdkInt < 28) {
+                return !this.checkPercentage(15);
+            }
             return this._getStatus('BATTERY_LOW', 'Boolean', false);
         },
         /**
@@ -149,7 +161,7 @@ let ext = {
          *     format?: 'Celsius'|'C'|'Fahrenheit'|'F'|string,
          *     unit?: boolean|string,
          * }} [options]
-         * @returns {number|string}
+         * @return {number|string}
          */
         getTemperature(options) {
             let _c = this._getStatus('TEMPERATURE') / 10;
@@ -169,7 +181,7 @@ let ext = {
 
             /**
              * @param {string} s
-             * @returns {string}
+             * @return {string}
              */
             function _parseFormat(s) {
                 return s.toUpperCase().slice(0, 1) === 'C' ? 'C' : 'F';
@@ -178,7 +190,7 @@ let ext = {
             /**
              * @param {boolean|string} u
              * @param {string} s
-             * @returns {string|null}
+             * @return {?string}
              */
             function _parseUnit(u, s) {
                 return u === true ? s : typeof u === 'string' ? u : null;
@@ -190,7 +202,7 @@ let ext = {
         /**
          * @param {number} [min=-15]
          * @param {number} [max=41]
-         * @returns {boolean}
+         * @return {boolean}
          */
         checkTemperature(min, max) {
             return this._checkNumRange(this.getTemperature(), min, -15, max, 41);
@@ -202,7 +214,7 @@ let ext = {
             return this.getHealth() === BatteryManager.BATTERY_HEALTH_COLD;
         },
         /**
-         * @example @returns
+         * @example
          * 1: android.os.BatteryManager.BATTERY_HEALTH_UNKNOWN;
          * 2: android.os.BatteryManager.BATTERY_HEALTH_GOOD;
          * 3: android.os.BatteryManager.BATTERY_HEALTH_OVERHEAT;
@@ -210,7 +222,7 @@ let ext = {
          * 5: android.os.BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE;
          * 6: android.os.BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE;
          * 7: android.os.BatteryManager.BATTERY_HEALTH_COLD
-         * @returns {number}
+         * @return {number}
          */
         getHealth() {
             return this._getStatus('HEALTH', BatteryManager.BATTERY_HEALTH_UNKNOWN);
@@ -220,7 +232,7 @@ let ext = {
          * @example
          * console.log('当前设备电池' + devicex.battery.getHealthDescription());
          * console.log('当前设备电池状态: ' + devicex.battery.getHealthDescription('simple'));
-         * @returns {string}
+         * @return {string}
          */
         getHealthDescription(is_simple) {
             return is_simple === 'detailed' || is_simple === undefined ? {
@@ -254,7 +266,7 @@ let ext = {
             return this.isAcPlugged() || this.isUsbPlugged() || this.isWirelessPlugged();
         },
         isPluggedAndStayingOn() {
-            let _state = ext.stay_on_while_plugged_in.get(); // 0-7
+            let _state = exp.stay_on_while_plugged_in.get(); // 0-7
             let _isOn = x => (x & _state) === x;
             return this.isAcPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_AC)
                 || this.isUsbPlugged() && _isOn(BatteryManager.BATTERY_PLUGGED_USB)
@@ -262,16 +274,15 @@ let ext = {
         },
         /**
          * @param {string} [pkg_name=context.getPackageName()]
-         * @returns {boolean}
+         * @return {boolean}
          */
         isIgnoringOptimizations(pkg_name) {
-            return context.getSystemService(Context.POWER_SERVICE)
-                .isIgnoringBatteryOptimizations(pkg_name || context.getPackageName());
+            return exp.power_service.isIgnoringBatteryOptimizations(pkg_name || context.getPackageName());
         },
         /**
          * @param {string} [pkg_name=context.getPackageName()]
          * @param {boolean} [forcible=false]
-         * @returns {boolean}
+         * @return {boolean}
          */
         requestIgnoreOptimizations(pkg_name, forcible) {
             try {
@@ -391,7 +402,7 @@ let ext = {
     },
     /**
      * @param {number} [max_buffer_time=9e3]
-     * @returns {boolean}
+     * @return {boolean}
      */
     wakeUpWithBuffer(max_buffer_time) {
         let _isScreenOn = this.isScreenOn.bind(this);
@@ -401,7 +412,7 @@ let ext = {
             let _max = (max_buffer_time || _def) / _itv;
             while (1) {
                 this.wakeUp();
-                if (waitForAction$(_isScreenOn, 1.5e3, 120)) {
+                if (a11yx.wait$(_isScreenOn, 1.5e3, 120)) {
                     break;
                 }
                 if (--_max <= 0) {
@@ -421,59 +432,56 @@ let ext = {
     },
     /**
      * Substitution of device.isScreenOn()
-     * @returns {boolean}
+     * @return {boolean}
      */
     isScreenOn() {
-        /** @type {android.os.PowerManager} */
-        let _pow_mgr = context.getSystemService(Context.POWER_SERVICE);
-        // noinspection JSDeprecatedSymbols
+        let _pow_mgr = this.power_service;
         return (_pow_mgr.isInteractive || _pow_mgr.isScreenOn).call(_pow_mgr);
     },
     /**
      * Substitution of device.keepScreenOn()
      * @param {number} [duration=5] - could be minute (less than 100) or second
-     * @param {Object} [options]
-     * @param {boolean} [options.is_debug_info=undefined]
      */
-    keepOn(duration, options) {
-        let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
-
+    keepOn(duration) {
         let _du = duration || 5;
         _du *= _du < 100 ? 60e3 : 1;
 
         device.keepScreenOn(_du);
-        debugInfo$('已设置屏幕常亮');
-        debugInfo$('>最大超时时间: ' + Number((_du / 60e3).toFixed(2)) + '分钟');
+
+        consolex._('已设置屏幕常亮显示');
+        consolex._('最大超时时间: ' + (_du / 60e3).toFixedNum(2) + '分钟');
     },
     /**
-     * Substitution of device.cancelKeepingAwake()
-     * @param {Object} [options]
-     * @param {boolean} [options.is_debug_info=undefined]
+     * Substitution of device.keepScreenDim()
+     * @param {number} [duration=5] - could be minute (less than 100) or second
      */
-    cancelOn(options) {
-        let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+    keepDim(duration) {
+        let _du = duration || 5;
+        _du *= _du < 100 ? 60e3 : 1;
+
+        device.keepScreenDim(_du);
+
+        consolex._('已设置屏幕常暗显示');
+        consolex._('最大超时时间: ' + (_du / 60e3).toFixedNum(2) + '分钟');
+    },
+    cancelOn() {
         device.cancelKeepingAwake();
-        debugInfo$('屏幕常亮已取消');
+        consolex._('屏幕常亮显示已取消');
     },
-    /**
-     * @typedef {{
-     *     is_disabled?: boolean,
-     *     hint?: 'toast'|boolean|function():*,
-     * }} Devicex$ScreenOff$Strategy$Options
-     */
+    cancelDim() {
+        device.cancelKeepingAwake();
+        consolex._('屏幕常暗显示已取消');
+    },
     /**
      * Turns off screen by KeyCode (root is needed) or by android settings provider
-     * @param {Object} [options]
-     * @param {Devicex$ScreenOff$Strategy$Options} [options.key_code]
-     * @param {Devicex$ScreenOff$Strategy$Options | {
-     *     listener?: function(function(...string|string[])),
-     * }} [options.provider]
-     * @returns {boolean}
+     * @param {Devicex.ScreenOff.Options|boolean} [options]
+     * @return {boolean}
      */
     screenOff(options) {
-        require('./ext-app').load();
+        // @Overload
+        if (typeof options === 'boolean') {
+            return this.screenOff({is_debug: options});
+        }
 
         let _opt = options || {};
         let _opt_key_code = _opt.key_code || {};
@@ -481,41 +489,34 @@ let ext = {
         let _flag = {};
         let _this = this;
 
+        consolex.debug.switchSet(_opt.is_debug);
+
         let _msg = {
             key_code: {
-                failed() {
-                    messageAction('策略执行失败', 3);
-                    messageAction('按键模拟失败', 3, 0, 1);
-                },
-                bugModel() {
-                    debugInfo('跳过当前策略');
-                    debugInfo('>设备型号不支持KeyCode方法');
-                    debugInfo('>设备型号: ' + device.brand);
-                },
+                failed: () => consolex.w(['关屏策略执行失败', '按键模拟失败'], 0, 0, -2),
+                bugModel: () => consolex._([
+                    '跳过当前策略', '设备不支持KeyCode方法', '设备型号: ' + device.brand,
+                ]),
             },
             successWithElapsedTime(et) {
-                debugInfo(['策略执行成功', '用时: ' + et]);
+                consolex._(['策略执行成功', '用时: ' + et]);
             },
             noWriteSettingsPermission() {
                 let _nm = 'auto.js-write-settings-permission-helper';
                 let _path = files.path('./tools/' + _nm + '.js');
                 let _msg = '需要"修改系统设置"权限';
 
-                messageAction('策略执行失败', 3, 0, 0, -1);
-                messageAction(_msg, 3, 0, 1);
-                messageAction('可使用以下工具获得帮助支持', 3, 0, 1);
-                messageAction(_path, 3, 0, 1, 1);
+                consolex.w(['关屏策略执行失败', _msg, '可使用以下工具获得帮助支持', _path], 0, 0, -2);
 
-                $$toast('关闭屏幕失败\n' + _msg, 'Long');
+                $$toast('关闭屏幕失败\n' + _msg, 'long');
             },
             noWriteSecureSettingsPermission() {
                 let _p = 'WRITE_SECURE_SETTINGS';
-                void ['无法完成屏幕关闭操作', '需要以下必要权限:', _p,
+                consolex.w(['无法完成屏幕关闭操作', '需要以下必要权限:', _p,
                     '权限的详细信息及获取方式', '可参阅项目配置工具',
                     '-> 运行与安全', '-> 自动开启无障碍服务',
-                ].forEach(s => messageAction(s, 3));
-
-                $$toast('关闭屏幕失败\n缺少以下必要权限:\n' + _p, 'Long');
+                ], 0, 0, -2);
+                $$toast('关闭屏幕失败\n缺少以下必要权限:\n' + _p, 'long');
             },
             toastWithDebugInfo(messages) {
                 let _messages = [];
@@ -528,15 +529,11 @@ let ext = {
                         _messages = _messages.concat([].slice.call(x));
                     }
                 });
-                let _toast_msg = _messages.map(s => s.replace(/^>*/, '')).join('\n');
-                $$toast(_toast_msg, 'L', 'F');
-                debugInfo('__split_line__');
-                debugInfo(_messages);
-                debugInfo('__split_line__');
+                consolex.v(_messages, 4, 0, -2);
             },
         };
 
-        debugInfo('尝试关闭屏幕');
+        consolex._('尝试关闭屏幕');
 
         return _showResult(_byKeyCode() || _byProvider());
 
@@ -549,14 +546,14 @@ let ext = {
         }
 
         function _byKeyCode() {
-            if (!_opt_key_code.is_disabled && appx.hasRoot()) {
-                debugInfo('尝试策略: 模拟电源按键');
+            if (!_opt_key_code.is_disabled && _hasRoot()) {
+                consolex._('尝试策略: 模拟电源按键');
                 if (!_bugModel()) {
                     _hint();
-                    timeRecorder('scr_off_tt');
-                    if (keycode(KeyEvent.KEYCODE_POWER, {no_err_msg: true})) {
-                        let _et = timeRecorder('scr_off_tt', 'L', 'auto');
-                        _msg.successWithElapsedTime(_et);
+                    timersx.rec.save('scr_off_tt');
+                    if (exp.keycode('KEYCODE_POWER', {no_failed_msg: true})) {
+                        let _et_str = $$cvt.time(timersx.rec('scr_off_tt'), '$zh');
+                        _msg.successWithElapsedTime(_et_str);
                         return true;
                     }
                     _msg.key_code.failed();
@@ -567,6 +564,14 @@ let ext = {
 
             // tool function(s) //
 
+            function _hasRoot() {
+                try {
+                    return shell('date', true).code === 0;
+                } catch (e) {
+                    return false;
+                }
+            }
+
             function _bugModel() {
                 return [/[Mm]eizu/].some(m => device.brand.match(m));
             }
@@ -576,7 +581,7 @@ let ext = {
                 if (typeof _flag === 'function') {
                     _flag.call(null);
                 } else if (_flag === true || _flag === 'toast') {
-                    $$toast('正在尝试关闭屏幕...\n此过程可能需要几秒钟...', 'Long');
+                    $$toast('正在尝试关闭屏幕...\n此过程可能需要几秒钟...', 'long');
                 }
             }
         }
@@ -585,11 +590,11 @@ let ext = {
             if (_opt_provider.is_disabled) {
                 return;
             }
-            debugInfo('尝试策略: 修改系统设置参数');
+            consolex._('尝试策略: 修改系统设置参数');
 
             let _res = false;
 
-            if (!appx.canWriteSystem()) {
+            if (!System.canWrite(context)) {
                 _msg.noWriteSettingsPermission();
                 return _res;
             }
@@ -610,13 +615,16 @@ let ext = {
                 if (!_this.battery.isPluggedAndStayingOn()) {
                     return true;
                 }
-                if (appx.hasSecure()) {
+                let _hasSecure = () => context.checkCallingOrSelfPermission(
+                        android.Manifest.permission.WRITE_SECURE_SETTINGS) ===
+                    android.content.pm.PackageManager.PERMISSION_GRANTED;
+                if (_hasSecure()) {
                     return _flag.staying_on_state_matters = true;
                 }
             }
 
             function _hint() {
-                timeRecorder('set_provider');
+                timersx.rec.save('set_provider');
 
                 let _flag = _opt_provider.hint;
                 if (typeof _flag === 'function') {
@@ -640,17 +648,15 @@ let ext = {
                     if (_flag.brake_is_triggered) {
                         break;
                     }
-                    let _et = timeRecorder('set_provider', 'L');
-                    let _et_str = timeRecorder('set_provider', 'L', 'auto');
+                    let _et = timersx.rec('set_provider');
+                    let _et_str = $$cvt.time(_et, '$zh');
                     let _et_limit = 55.23e3;
                     if (_et > _et_limit) {
-                        debugInfo(['策略执行失败', '>等待屏幕关闭时间已达阈值'], 3);
-                        debugInfo('>已耗时: ' + _et_str, 3);
+                        consolex.w(['关屏策略执行失败', '屏幕关闭超时', '耗时: ' + _et_str], 2, 0, -2);
                         break;
                     }
                     if (!_this.isScreenOn()) {
-                        let _et = timeRecorder('set_provider', 'L', 'auto');
-                        _msg.successWithElapsedTime(_et);
+                        _msg.successWithElapsedTime(_et_str);
                         _res = true;
                         break;
                     }
@@ -660,25 +666,25 @@ let ext = {
         }
 
         function _backup() {
-            debugInfo('备份并设置相关参数:');
+            consolex._('备份并设置相关参数:');
 
             _this.stay_on_while_plugged_in.clearStorage();
 
-            _this.screen_off_timeout.saveStorage();
+            _this.screen_off_timeout.saveIntoStorage();
             _this.screen_off_timeout.put(0);
 
             if (_flag.staying_on_state_matters) {
-                _this.stay_on_while_plugged_in.saveStorage();
+                _this.stay_on_while_plugged_in.saveIntoStorage();
                 _this.stay_on_while_plugged_in.put(0x0);
             }
         }
 
         function _restore() {
             if (!_flag.is_settings_restored) {
-                debugInfo('恢复修改前的设置参数:');
+                consolex._('恢复修改前的设置参数:');
 
-                _this.screen_off_timeout.loadStorageIFN();
-                _this.stay_on_while_plugged_in.loadStorageIFN();
+                _this.screen_off_timeout.loadFromStorageIFN();
+                _this.stay_on_while_plugged_in.loadFromStorageIFN();
 
                 _flag.is_settings_restored = true;
             }
@@ -687,13 +693,14 @@ let ext = {
         function _showResult(res) {
             try {
                 _flag.brake_is_triggered
-                    ? debugInfo('关闭屏幕操作已被中断')
-                    : res ? debugInfo('关闭屏幕成功') : debugInfo('关闭屏幕失败', 3);
+                    ? consolex._('关闭屏幕操作已被中断')
+                    : res ? consolex._('关闭屏幕成功') : consolex._('关闭屏幕失败', 3);
             } catch (e) {
                 if (!e.message.match(/InterruptedException/)) {
                     throw (e);
                 }
             }
+            consolex.debug.switchBack();
             return res;
         }
     },
@@ -707,18 +714,17 @@ let ext = {
         return !this.isLocked();
     },
     /**
-     * @param {boolean} [forcibly_debug]
-     * @returns {boolean}
+     * @param {Consolex.Print.IsDebug} [is_debug]
+     * @return {boolean}
      */
-    unlock(forcibly_debug) {
-        return unlockGenerator().unlock(forcibly_debug);
+    unlock(is_debug) {
+        return unlockGenerator().unlock(is_debug);
     },
     /**
      * Vibrate the device with a certain pattern
      * @param {number|number[]} pattern - a group of times to control the vibrator
      * @param {number} [repeat=1] - total repeat times
      * @param {boolean} [async=true] - vibrator working asynchronously or not
-     * @see global.device
      * @see com.stardust.autojs.runtime.api.Device
      * @example
      * // async and repeat once
@@ -758,7 +764,7 @@ let ext = {
     /**
      * Returns if current device has attained root access or not
      * @see appx.hasRoot
-     * @returns {boolean}
+     * @return {boolean}
      */
     hasRoot() {
         // Auto.js 4.x
@@ -771,6 +777,186 @@ let ext = {
         }
     },
     /**
+     * Simulates touch, keyboard or key press events by keyevent (adb) or a11y functions
+     * @param {Device.Keycode|Android.Keycode|Android.KeycodeAbbr|string|number} code
+     * @param {Devicex.Keycode.Options} [options]
+     * @example
+     * // home key
+     * devicex.keycode('home');
+     * devicex.keycode('HOME');
+     * devicex.keycode(3);
+     * // back key by adb
+     * devicex.keycode('back', {strategy: 'adb_only'});
+     * devicex.keycode('BACK', {strategy: 'adb_only'});
+     * devicex.keycode(4, {strategy: 'adb_only'});
+     * // power key
+     * devicex.keycode('POWER');
+     * devicex.keycode(26);
+     * // recent key
+     * devicex.keycode('recents');
+     * devicex.keycode('APP_SWITCH');
+     * devicex.keycode(187);
+     * // back key twice rapidly
+     * devicex.keycode('back', {rush: true});
+     * @see https://developer.android.com/reference/android/view/KeyEvent
+     * @return {boolean}
+     */
+    keycode(code, options) {
+        let $ = {
+            options: options || {},
+            relations: [
+                {str: 'home', num: 3},
+                {str: 'back', num: 4},
+                {str: 'recents', num: 187},
+                {str: 'quick_settings', num: -1},
+                {str: 'power_dialog', num: -1},
+                {str: 'notifications', num: -1},
+                {str: 'split_screen', num: -1},
+            ],
+            get autojs_keycode() {
+                return this._aj_kc = this._aj_kc || this.relations.map(o => o.str);
+            },
+            impededIFN() {
+                this.options.no_impeded || typeof $$impeded === 'function' && $$impeded('devicex.keycode');
+            },
+            parseKeycode() {
+                if (typeof code === 'number' || this.autojs_keycode.includes(code)) {
+                    return this.keycode = code;
+                }
+                if (typeof code === 'string') {
+                    let _key = code.match(/^KEYCODE_/i) ? code : 'KEYCODE_' + code;
+                    let _id = android.view.KeyEvent[_key.toUpperCase()];
+                    if (typeof _id === 'number') {
+                        return this.keycode = _id;
+                    }
+                }
+                throw Error('Invalid keycode: ' + code);
+            },
+            parseStrategy() {
+                if (this.options.strategy === 'adb_only') {
+                    this.is_adb_only = true;
+                } else if (this.options.strategy === 'adb_advanced') {
+                    this.is_adb_advanced = true;
+                } else if (this.options.strategy === 'a11y_only') {
+                    this.is_a11y_only = true;
+                } else {
+                    this.is_a11y_advanced = true;
+                }
+            },
+            parseArgs() {
+                this.parseStrategy();
+                this.parseKeycode();
+            },
+            hasRoot() {
+                return typeof this.options.root === 'boolean' ? this.options.root : function $iiFe() {
+                    try {
+                        return shell('date', true).code === 0;
+                    } catch (e) {
+                        return false;
+                    }
+                }();
+            },
+            /**
+             * @param {Device.Keycode|number} kc
+             * @return {Device.Keycode|number}
+             */
+            toNumIFP(kc) {
+                for (let o of this.relations) {
+                    if (kc === o.str) {
+                        if (o.num > -1) {
+                            return o.num;
+                        }
+                        break;
+                    }
+                }
+                return kc;
+            },
+            /**
+             * @param {Device.Keycode|number} kc
+             * @return {Device.Keycode|number}
+             */
+            toStrIFP(kc) {
+                for (let o of this.relations) {
+                    if (kc === o.num) {
+                        return o.str;
+                    }
+                }
+                return kc;
+            },
+            showFailedMsgIFN(kc) {
+                if (!this.options.no_failed_msg) {
+                    consolex.w(['按键模拟失败', '键值: ' + kc], 0, 0, -2);
+                }
+            },
+            /**
+             * @param {number|string} kc
+             * @return {boolean}
+             */
+            simulateByAdb(kc) {
+                try {
+                    return shell('input keyevent\x20' + kc, $.hasRoot()).code === 0;
+                } catch (e) {
+                    this.showFailedMsgIFN(kc);
+                    return false;
+                }
+            },
+            /**
+             * @param {number|string} kc
+             * @return {?boolean}
+             */
+            simulateByA11y(kc) {
+                switch (kc) {
+                    case 'home':
+                        return home();
+                    case 'back':
+                        return back();
+                    case 'recents':
+                        return recents();
+                    case 'power_dialog':
+                        return powerDialog();
+                    case 'notifications':
+                        return notifications();
+                    case 'quick_settings':
+                        return quickSettings();
+                    case 'split_screen':
+                        return splitScreen();
+                    default:
+                        return null;
+                }
+            },
+            simulate(kc) {
+                if (this.is_a11y_only) {
+                    return this.simulateByA11y(this.toStrIFP(kc));
+                }
+                if (this.is_adb_only) {
+                    return this.simulateByAdb(this.toNumIFP(kc));
+                }
+                if (this.is_a11y_advanced) {
+                    return this.simulateByA11y(this.toStrIFP(kc))
+                        || this.simulateByAdb(this.toNumIFP(kc));
+                }
+                if (this.is_adb_advanced) {
+                    return this.simulateByAdb(this.toNumIFP(kc))
+                        || this.simulateByA11y(this.toStrIFP(kc));
+                }
+            },
+            simulateOnce() {
+                return this.simulate(this.keycode);
+            },
+            simulateTwice() {
+                return this.simulateOnce() && this.simulateOnce();
+            },
+            getResult() {
+                this.impededIFN();
+                this.parseArgs();
+
+                return this.options.rush ? this.simulateTwice() : this.simulateOnce();
+            },
+        };
+
+        return $.getResult();
+    },
+    /**
      * Returns a state number indicating phone calling state.
      * @example
      * // expected: {0: IDLE, 1: RINGING, 2: OFF-HOOK}
@@ -780,43 +966,24 @@ let ext = {
      * @see android.telephony.TelephonyManager.CALL_STATE_IDLE
      * @see android.telephony.TelephonyManager.CALL_STATE_RINGING
      * @see android.telephony.TelephonyManager.CALL_STATE_OFFHOOK
-     * @returns {number}
+     * @return {number}
      */
     getCallState() {
-        // TODO remove backed up code at Oct 18, 2021 (around)
-        // let ITelephony = com.android.internal.telephony.ITelephony;
-        // let _svr_mgr = ITelephony.Stub.asInterface(ServiceManager.checkService('phone'));
-        // let _svc_ctx = context.getSystemService(Context.TELEPHONY_SERVICE);
-        //
-        // return _svr_mgr.getCallState() | _svc_ctx.getCallState();
-
-        return ITelecomService.Stub
-            .asInterface(ServiceManager.getService(Context.TELECOM_SERVICE))
-            .getCallState();
+        return context.getSystemService(Context.TELEPHONY_SERVICE).getCallState();
     },
     /**
      * Returns display screen width and height data and
      * converter functions with different aspect ratios.
      * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280).
-     * @param {boolean} [is_global_assign=false] -- set true for global assignment
-     * @param {Object} [options]
-     * @param {boolean} [options.is_global_assign=false]
-     * @param {boolean} [options.is_debug_info=undefined]
+     * @param {Object|boolean} [options]
+     * @param {boolean} [options.is_globalize=false] - set true for global assignment
      * @example
-     * require('./modules/ext-device').load();
-     * let {
-     *   WIDTH, HEIGHT, cX, cY, cYx,
-     *   USABLE_WIDTH, USABLE_HEIGHT,
-     *   display_rotation,
-     *   status_bar_height,
-     *   navigation_bar_height,
-     *   navigation_bar_height_computed,
-     *   action_bar_default_height,
-     * } = devicex.getDisplay();
+     * require('./modules/ext-device').getDisplay().globalize();
+     *
      * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
-     * devicex.getDisplay(true); // global assignment
      * console.log(W, H, cX(0.2), cY(0.45), cYx(0.45));
-     * console.log(cX(0.2, a)); // a will be ignored
+     * console.log(cX(0.2, 'a')); // 'a' will be ignored
+     *
      * console.log(cX(200, 720), cX(200, -1), cX(200)); // all the same
      * console.log(cX(200, 1080), cX(200, -2)); // all the same
      * console.log(cY(300, 1280), cX(300, -1), cY(300)); // all the same
@@ -825,64 +992,68 @@ let ext = {
      * console.log(cYx(400, 1080), cYx(400, -2)); // all the same
      * console.log(cYx(0.6, 16/9), cYx(0.6, -1), cYx(0.6)); // all the same
      * console.log(cYx(0.6, 21/9), cYx(0.6, -2), cYx(0.6, 9/21)); // all the same
-     * @returns {{
-           WIDTH?: number, USABLE_WIDTH?: number,
-           HEIGHT?: number, USABLE_HEIGHT?: number,
-           display_rotation?: DisplayRotation,
-           is_display_rotation_portrait?: boolean,
-           is_display_rotation_landscape?: boolean,
-           status_bar_height?: number,
-           navigation_bar_height?: number,
-           navigation_bar_height_computed?: number,
-           action_bar_default_height?: number,
-           cYx: (function((number|*), number?): number),
-           cX: (function((number|*), number?): number),
-           cY: (function((number|*), number?): number)
-     }}
+     * @return {Devicex.Display.Result}
      */
-    getDisplay(is_global_assign, options) {
-        let _opt, _glob_asg;
-        if (typeof is_global_assign === 'boolean') {
-            _opt = options || {};
-            _glob_asg = is_global_assign;
-        } else {
-            _opt = is_global_assign || {};
-            _glob_asg = _opt.is_global_assign;
-        }
-
-        let $_flag = global.$$flag = global.$$flag || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+    getDisplay(options) {
+        let _opt = typeof options === 'boolean' ? {is_globalize: options} : (options || {});
+        let _is_glob = _opt.is_globalize;
 
         /** @type {number} */
         let _W, _H;
-        /**
-         * @type {{
-         *     WIDTH: number,
-         *     HEIGHT: number,
-         *     USABLE_WIDTH: number,
-         *     USABLE_HEIGHT: number,
-         *     display_rotation: DisplayRotation,
-         *     is_display_rotation_portrait: boolean,
-         *     is_display_rotation_landscape: boolean,
-         *     navigation_bar_height: number,
-         *     navigation_bar_height_computed: number,
-         *     action_bar_default_height: number,
-         *     status_bar_height: number,
-         * }|{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
-         */
-        let _disp = null;
+
         let _metrics = new DisplayMetrics();
         let _win_svc_disp = this.getDefaultDisplay();
         _win_svc_disp.getRealMetrics(_metrics);
 
+        /** @type {Devicex.Display.Basic} */
+        let _disp = _getDisp();
+        /** @type {Devicex.Display.Scaler} */
         let _scale = {cX: cX, cY: cY, cYx: cYx};
-        if (waitForAction$(() => _disp = _getDisp(), 3e3, 500)) {
-            _showDisp();
-            _assignGlob();
-            return Object.assign(_disp, _scale);
+        /** @type {Devicex.Display.Extension} */
+        let _ext = {
+            refresh() {
+                let _is_updated = false;
+                Object.keys(_disp = exp.getDisplay()).forEach((k) => {
+                    let _v = _disp[k];
+                    if (typeof _v === 'number' || typeof _v === 'boolean') {
+                        if (global[k] !== undefined && global[k] !== _v) {
+                            global[k] = _v;
+                            _is_updated = true;
+                        }
+                    }
+                });
+                if (_is_updated) {
+                    consolex._('屏幕显示数据已更新');
+                    this.debug();
+                }
+                return this;
+            },
+            globalize() {
+                _globalize();
+                return this;
+            },
+            /**
+             * @param {Consolex.Print.IsDebug} [is_debug]
+             */
+            debug(is_debug) {
+                let _debug = consolex.debug.fuel(is_debug);
+                _debug('屏幕宽高: ' + _disp.W + '\x20×\x20' + _disp.H);
+                if (_disp.is_display_rotation_portrait) {
+                    _debug('可用高度: ' + _disp.USABLE_HEIGHT);
+                } else if (_disp.is_display_rotation_landscape) {
+                    _debug('可用宽度: ' + _disp.USABLE_WIDTH);
+                }
+                _debug('屏幕旋转: ' + (_disp.display_rotation * 90) + '°');
+
+                return this;
+            },
+        };
+        if (_disp || a11yx.wait$(() => _disp = _getDisp(), 3e3, 500)) {
+            _globalizeIFN();
+        } else {
+            console.error('devicex.getDisplay()返回结果异常');
         }
-        console.error('devicex.getDisplay()返回结果异常');
-        return _scale;
+        return Object.assign(_disp, _scale, _ext);
 
         // tool function(s) //
 
@@ -924,7 +1095,7 @@ let ext = {
          * console.log(x1, x2, x3, x4, x5, x6);
          * // on 1080px device: all 540 (1080 * 0.5) -- base options will be ignored
          * // on 720px device: all 360 (720 * 0.5) -- base options will be ignored
-         * @returns {number}
+         * @return {number}
          */
         function cX(num, base, options) {
             return typeof base === 'boolean'
@@ -968,7 +1139,7 @@ let ext = {
          * // on 1080*1920 device: all 960 (1920 * 0.5) -- base options will be ignored
          * // on 720*1280 device: all 640 (1280 * 0.5) -- base options will be ignored
          * console.log(y1, y2, y3, y4, y5, y6);
-         * @returns {number}
+         * @return {number}
          */
         function cY(num, base, options) {
             return typeof base === 'boolean'
@@ -1024,7 +1195,7 @@ let ext = {
          * // on 1440*1920 device: (height will be ignored)
          * // likewise (replace 1080 with 1440)
          * console.log(y1, y3, y4, y6);
-         * @returns {number}
+         * @return {number}
          */
         function cYx(num, base, options) {
             let _opt = options || {};
@@ -1038,7 +1209,7 @@ let ext = {
             let _is_ratio_num = Math.abs(_num) < 1 || _is_ratio;
             let _base = Number(base);
 
-            if (!_base || !~_base) {
+            if (!_base || _base === -1) {
                 _base = 720;
                 _num *= _is_ratio_num ? 1280 : 1;
             } else if (_base === -2) {
@@ -1072,21 +1243,21 @@ let ext = {
          *     is_ratio?: boolean,
          *     to_ratio?: boolean,
          * }} [options]
-         * @returns {number}
+         * @return {number}
          */
         function _cTrans(dxn, num, base, options) {
-            let _full = ~dxn ? _W : _H;
+            let _full = dxn !== -1 ? _W : _H;
             let _num = Number(num);
             if (isNaN(_num)) {
                 throw Error('Can not parse num param for cTrans(): ' + num);
             }
             let _base = Number(base);
-            if (!base || !~base) {
-                _base = ~dxn ? 720 : 1280; // e.g. Sony Xperia XZ1 Compact
+            if (!base || base === -1) {
+                _base = dxn !== -1 ? 720 : 1280; // e.g. Sony Xperia XZ1 Compact
             } else if (base === -2) {
-                _base = ~dxn ? 1080 : 1920; // e.g. Sony Xperia Z5
+                _base = dxn !== -1 ? 1080 : 1920; // e.g. Sony Xperia Z5
             } else if (base === -3) {
-                _base = ~dxn ? 1096 : 2560; // e.g. Sony Xperia 1 II
+                _base = dxn !== -1 ? 1096 : 2560; // e.g. Sony Xperia 1 II
             }
             let _opt = options || {};
             if (Math.abs(_num) < 1 || _opt.is_ratio) {
@@ -1097,14 +1268,7 @@ let ext = {
                 : Math.min(Math.round(_num * _full / _base), _full);
         }
 
-        function _showDisp() {
-            if ($_flag.debug_info_avail && !$_flag.display_params_got) {
-                debugInfo$('屏幕宽高: ' + _W + ' × ' + _H);
-                debugInfo$('可用屏幕高度: ' + _disp.USABLE_HEIGHT);
-                $_flag.display_params_got = true;
-            }
-        }
-
+        /** @return {?Devicex.Display.Basic} */
         function _getDisp() {
             try {
                 // noinspection JSDeprecatedSymbols
@@ -1116,29 +1280,29 @@ let ext = {
                     return _raw();
                 }
 
-                /**
-                 * If the device is rotated 90 degrees counter-clockwise,
-                 * to compensate rendering will be rotated by 90 degrees clockwise
-                 * and thus the returned value here will be Surface#ROTATION_90
-                 * 0: 0°, device is portrait
-                 * 1: 90°, device is rotated 90 degree counter-clockwise
-                 * 2: 180°, device is reverse portrait
-                 * 3: 270°, device is rotated 90 degree clockwise
-                 * @typedef {number} DisplayRotation
-                 */
-                /** @type {DisplayRotation} */
+                // noinspection JSValidateTypes
+                /** @type {Devicex.Display.Rotation} */
                 let _ROT = _win_svc_disp.getRotation();
-                let _is_scr_port = ~[0, 2].indexOf(_ROT);
+                let _is_scr_port = [0, 2].indexOf(_ROT) > -1;
 
                 // let _MAX = _win_svc_disp.maximumSizeDimension;
                 let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
 
                 let [_UH, _UW] = [_H, _W];
+                /**
+                 * Return a resource identifier for the given resource name.
+                 * @param {string} name
+                 * @return {number}
+                 */
                 let _dimen = (name) => {
-                    let resources = context.getResources();
-                    let resource_id = resources.getIdentifier(name, 'dimen', 'android');
-                    if (resource_id > 0) {
-                        return resources.getDimensionPixelSize(resource_id);
+                    try {
+                        let _res = context.getResources();
+                        let _res_id = _res.getIdentifier(name, 'dimen', 'android');
+                        if (_res_id > 0) {
+                            return _res.getDimensionPixelSize(_res_id);
+                        }
+                    } catch (e /* android.content.res.Resources.NotFoundException */) {
+                        // nothing to do here
                     }
                     return NaN;
                 };
@@ -1146,11 +1310,13 @@ let ext = {
                 _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
 
                 return {
-                    WIDTH: _W,
-                    USABLE_WIDTH: _UW,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: _UH,
-                    display_rotation: _ROT,
+                    W: _W, WIDTH: _W, width: _W,
+                    halfW: _W / 2, HALF_WIDTH: _W / 2, half_width: _W / 2,
+                    uW: _UW, USABLE_WIDTH: _UW, usable_width: _UW,
+                    H: _H, HEIGHT: _H, height: _H,
+                    halfH: _H / 2, HALF_HEIGHT: _H / 2, half_height: _H / 2,
+                    uH: _UH, USABLE_HEIGHT: _UH, usable_height: _UH,
+                    display_rotation: _ROT, ROTATION: _ROT,
                     is_display_rotation_portrait:
                         _ROT === Surface.ROTATION_0 || _ROT === Surface.ROTATION_180,
                     is_display_rotation_landscape:
@@ -1158,7 +1324,8 @@ let ext = {
                     status_bar_height: _dimen('status_bar_height'),
                     navigation_bar_height: _dimen('navigation_bar_height'),
                     navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                    action_bar_default_height: _dimen('action_bar_default_height'),
+                    action_bar_default_height: _dimen('action_bar_stacked_max_height')
+                        || _dimen('action_bar_default_height'),
                 };
             } catch (e) {
                 return _raw();
@@ -1167,7 +1334,7 @@ let ext = {
             // tool function(s) //
 
             /**
-             * @returns {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
+             * @return {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
              */
             function _raw() {
                 _W = device.width;
@@ -1180,33 +1347,38 @@ let ext = {
             }
         }
 
-        function _assignGlob() {
-            _glob_asg && Object.assign(global, {
+        function _globalize() {
+            Object.assign(global, {
                 /** Screen width */
                 W: _W, WIDTH: _W,
                 /** Screen height */
                 H: _H, HEIGHT: _H,
                 /** Half of screen width */
-                halfW: Math.round(_W / 2),
+                halfW: _W / 2,
+                /** Half of screen height */
+                halfH: _H / 2,
                 /** Usable screen width */
-                uW: Number(_disp.USABLE_WIDTH),
+                uW: _disp.USABLE_WIDTH,
                 /** Usable screen height */
-                uH: Number(_disp.USABLE_HEIGHT),
-                /** @type {DisplayRotation} */
+                uH: _disp.USABLE_HEIGHT,
+                /** @type {Devicex.Display.Rotation} */
                 ROTATION: _disp.display_rotation,
                 cX: cX, cY: cY, cYx: cYx,
-                $$disp: _disp,
             });
         }
+
+        function _globalizeIFN() {
+            _is_glob && _globalize();
+        }
     },
-    /** @returns {android.view.Display} */
+    /** @return {android.view.Display} */
     getDefaultDisplay() {
         let _win_svc = context.getSystemService(Context.WINDOW_SERVICE);
         return _win_svc.getDefaultDisplay();
     },
     /**
      * Returns the rotation of the screen from its "natural" orientation
-     * @returns {number}
+     * @return {number}
      * @see android.view.Surface.ROTATION_0
      * @see android.view.Surface.ROTATION_90
      * @see android.view.Surface.ROTATION_180
@@ -1242,7 +1414,7 @@ let ext = {
             this.user_rotation.saveState();
             this.user_rotation.put(_aim_user_rotation);
             if (!is_async) {
-                waitForAction(_cond, 2e3, 80);
+                a11yx.wait(_cond, 2e3, 80);
                 sleep(360);
             }
         }
@@ -1265,7 +1437,7 @@ let ext = {
             this.accelerometer_rotation.saveState();
             this.accelerometer_rotation.put(_aim_acc_rotation);
             if (!is_async) {
-                waitForAction(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
+                a11yx.wait(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
                 sleep(360);
             }
         }
@@ -1276,7 +1448,7 @@ let ext = {
             this.accelerometer_rotation.saveState();
             this.accelerometer_rotation.put(_aim_acc_rotation);
             if (!is_async) {
-                waitForAction(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
+                a11yx.wait(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
                 sleep(360);
             }
         }
@@ -1289,7 +1461,7 @@ let ext = {
         this.accelerometer_rotation.loadStateIFN();
     },
     /**
-     * @returns {number}
+     * @return {number}
      */
     getNextAlarmClockTriggerTime() {
         let _alarm_mgr = context.getSystemService(Context.ALARM_SERVICE);
@@ -1297,7 +1469,7 @@ let ext = {
         return _next_alarm !== null ? _next_alarm.getTriggerTime() : Number.NaN;
     },
     /**
-     * @returns {number}
+     * @return {number}
      */
     getNextAlarmClockTriggerGap() {
         let _ts = this.getNextAlarmClockTriggerTime();
@@ -1306,7 +1478,7 @@ let ext = {
     },
     /**
      * @param {number} [milli=0]
-     * @returns {boolean}
+     * @return {boolean}
      */
     isNextAlarmClockTriggered(milli) {
         let _milli = Number(milli);
@@ -1315,18 +1487,17 @@ let ext = {
     },
     /**
      * @param {number} user_id
-     * @returns {boolean}
+     * @return {boolean}
      */
     checkUserExists(user_id) {
         return new File(this.user_dir, user_id.toString()).exists();
     },
     /**
-     * @returns {number[]}
+     * @return {number[]}
      */
     getUserIds() {
         // Get the number of maximum users on this device.
-        let _id = Resources.getSystem()
-            .getIdentifier('config_multiuserMaximumUsers', 'integer', 'android');
+        let _id = Resources.getSystem().getIdentifier('config_multiuserMaximumUsers', 'integer', 'android');
         let _max_users = Math.max(_id ? Resources.getSystem().getInteger(_id) : 0, 100);
 
         let _avail_ids = [];
@@ -1338,7 +1509,7 @@ let ext = {
         return _avail_ids;
     },
     /**
-     * @returns {number}
+     * @return {number}
      */
     getUserCount() {
         return this.getUserIds().length;
@@ -1354,19 +1525,17 @@ let ext = {
         }
         this.is_init_unlocked = global._$_is_init_unlk;
 
-        if (global._$_display_params_inited !== true) {
-            this.getDisplay(global._$_display_params_inited = true);
-        }
-
         delete this.$bind;
         return this;
     },
 };
 
-ext.$bind();
+exp.$bind();
 
-module.exports = ext;
-module.exports.load = () => global.devicex = ext;
+module.exports = {
+    devicex: exp,
+    $$disp: exp.getDisplay({is_globalize: true}),
+};
 
 // constructor(s) //
 
@@ -1380,7 +1549,7 @@ function StateManager(provider, key, data_type, state_set) {
     if (typeof provider !== 'string') {
         throw TypeError('A "provider" must be defined correctly');
     }
-    this.provider = provider = _toTitleCase(provider);
+    this.provider = provider = provider.toTitleCase();
     let Provider = this.Provider = _parseProvider();
 
     if (typeof key !== 'string') {
@@ -1388,27 +1557,27 @@ function StateManager(provider, key, data_type, state_set) {
     }
     this.key = key = key.toUpperCase();
 
-    this.data_type = data_type = _toTitleCase(data_type || 'Int');
+    this.data_type = data_type = (data_type || 'Int').toTitleCase();
     this.state_set = state_set;
 
     let _ctx_reso = context.getContentResolver();
-    this.get = function (is_debug_info) {
+    this.get = function () {
         let _val = _parseGetFnAndCall(_ctx_reso, Provider[key]);
-        debugInfo(key + ' -> ' + _val, 0, is_debug_info);
+        consolex._(key + ' -> ' + _val);
         return _val;
     };
-    this.put = function (value, is_debug_info) {
-        debugInfo(key + ' <- ' + value, 0, is_debug_info);
+    this.put = function (value) {
+        consolex._(key + ' <- ' + value);
         return _parsePutFnAndCall(_ctx_reso, Provider[key], value);
     };
     this.verify = function (value) {
-        return this.get(true) === value;
+        return this.get() === value;
     };
 
     /**
      * @param {'clockwise'|'anticlockwise'|'+'|'-'} [direction] - other supported values: +0, -0
      * @param {function(value:*,index:number=,array:*[]=):*} [filter]
-     * @returns {number|string}
+     * @return {number|string}
      */
     this.toggle = function (direction, filter) {
         if (!Array.isArray(this.state_set)) {
@@ -1444,21 +1613,21 @@ function StateManager(provider, key, data_type, state_set) {
     };
 
     this.storage = storages.create('devicex_state_manager');
-    this.saveStorage = function () {
+    this.saveIntoStorage = function () {
         this.storage.put(this.key, this.get());
     };
     /** @param {'keep'|*} [is_keeping_storage] */
-    this.loadStorage = function (is_keeping_storage) {
+    this.loadFromStorage = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
         if (isNullish(_val)) {
             throw Error('Storage must be saved before loading');
         }
-        debugInfo(this.key + ' -> ' + _val);
+        consolex._(this.key + ' -> ' + _val);
         this.put(_val);
         is_keeping_storage || this.clearStorage();
     };
     /** @param {'keep'|*} [is_keeping_storage] */
-    this.loadStorageIFN = function (is_keeping_storage) {
+    this.loadFromStorageIFN = function (is_keeping_storage) {
         let _val = this.storage.get(this.key);
         isNullish(_val) || this.put(_val);
         is_keeping_storage || this.clearStorage();
@@ -1473,7 +1642,7 @@ function StateManager(provider, key, data_type, state_set) {
      * @this StateManager
      * @param {*[]} states
      * @param {boolean} is_clockwise
-     * @returns {number|string}
+     * @return {number|string}
      */
     function _getNextState(states, is_clockwise) {
         let _idx = (states.indexOf(this.get()) + (is_clockwise ? 1 : -1)) % states.length;
@@ -1482,7 +1651,7 @@ function StateManager(provider, key, data_type, state_set) {
 
     /**
      * @param {'clockwise'|'anticlockwise'|'+'|'-'} [direction] - other supported values: +0, -0
-     * @returns {boolean}
+     * @return {boolean}
      */
     function _isClockwise(direction) {
         return direction === undefined || direction === '+'
@@ -1490,7 +1659,7 @@ function StateManager(provider, key, data_type, state_set) {
     }
 
     /**
-     * @returns {function}
+     * @return {function}
      */
     function _parseProvider() {
         switch (provider) {
@@ -1517,7 +1686,7 @@ function StateManager(provider, key, data_type, state_set) {
                 case 'String':
                     return Provider.getString.apply(Provider, arguments);
                 default:
-                    debugInfo('Unknown data_type: ' + data_type, 3);
+                    consolex._('Unknown data_type: ' + data_type, 3);
                     // noinspection ExceptionCaughtLocallyJS
                     throw Error('Local Exception');
             }
@@ -1539,7 +1708,7 @@ function StateManager(provider, key, data_type, state_set) {
                     // will consume lots of time (2.3 seconds around)
                     return Provider.putString.apply(Provider, arguments);
                 default:
-                    debugInfo('Unknown data_type: ' + data_type, 3);
+                    consolex._('Unknown data_type: ' + data_type, 3);
                     // noinspection ExceptionCaughtLocallyJS
                     throw Error('Local Exception');
             }
@@ -1557,41 +1726,27 @@ function StateManager(provider, key, data_type, state_set) {
             if (type !== data_type) {
                 try {
                     let _val = Provider[act.toLowerCase() + type].apply(Provider, args);
-                    debugInfo('修正"data_type"为' + (data_type = type));
+                    consolex._('修正"data_type"为' + (data_type = type));
                     return _val;
                 } catch (e) {
                     // nothing to do here
                 }
             }
         }
-        messageAction('"data_type"修复失败', 8, 4, 0, 2);
-    }
-
-    function _toTitleCase(str, is_first_caps_only) {
-        return str.replace(/([A-Za-z])([A-Za-z]*)/g, ($0, $1, $2) => {
-            return $1.toUpperCase() + (is_first_caps_only ? $2 : $2.toLowerCase());
-        });
+        consolex.$('"data_type"修复失败', 8, 4, 0, 2);
     }
 }
 
 // tool function(s) //
 
 function unlockGenerator() {
-    require('./ext-a11y').load();
-    require('./ext-storages').load();
-
-    let $_und = x => typeof x === 'undefined';
-    let $_nul = x => x === null;
-    let $_func = x => typeof x === 'function';
-    let $_num = x => typeof x === 'number';
-    let $_str = x => typeof x === 'string';
-    let $_rex = x => x instanceof RegExp;
-    let $_arr = x => Array.isArray(x);
-    let $_flag = global.$$flag = global.$$flag || {};
-
     let _as = 'com\\.android\\.systemui:id/';
     let _ak = 'com\\.android\\.keyguard:id/';
     let _sk = 'com\\.smartisanos\\.keyguard:id/';
+
+    let {storagesx} = require('./ext-storages');
+
+    let _flag = {};
 
     let $_unlk = {
         p_container: {
@@ -1621,10 +1776,10 @@ function unlockGenerator() {
                     if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
                         if (_sel.exists()) {
                             if (_desc) {
-                                debugInfo('匹配到' + _desc + '解锁提示层控件');
+                                consolex._('匹配到' + _desc + '解锁提示层控件');
                             } else {
-                                debugInfo('匹配到解锁提示层文字:');
-                                debugInfo($$sel.pickup(_sel, 'txt'));
+                                consolex._('匹配到解锁提示层文字:');
+                                consolex._($$sel.pickup(_sel, 'txt'));
                             }
                             return (this.trigger = _sel.exists.bind(_sel))();
                         }
@@ -1641,10 +1796,10 @@ function unlockGenerator() {
                                 || $$sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
                         },
                         handle() {
-                            clickAction$($$sel.pickup('关闭'), 'w');
-                            waitForAction$(this.trigger.bind(this), 3e3)
-                                ? debugInfo('关闭弹框控件成功')
-                                : debugInfo('关闭弹框控件超时', 3);
+                            a11yx.click$($$sel.pickup('关闭'), 'w');
+                            a11yx.wait$(this.trigger.bind(this), 3e3)
+                                ? consolex._('关闭弹框控件成功')
+                                : consolex._('关闭弹框控件超时', 3);
                         },
                     }, {
                         desc: '闹钟应用前置',
@@ -1657,13 +1812,13 @@ function unlockGenerator() {
                             ].some(rex => new RegExp(rex).test(_cp));
                         },
                         handle() {
-                            waitForAction$(() => !this.trigger(), 2 * 60e3)
-                                ? debugInfo('闹钟应用解除前置成功')
-                                : debugInfo('闹钟应用解除前置超时', 3);
+                            a11yx.wait$(() => !this.trigger(), 2 * 60e3)
+                                ? consolex._('闹钟应用解除前置成功')
+                                : consolex._('闹钟应用解除前置超时', 3);
                         },
                     }].forEach((o) => {
                         if (o.trigger()) {
-                            debugInfo(['检测到提示层页面干扰:', o.desc]);
+                            consolex._(['检测到提示层页面干扰:', o.desc]);
                             o.handle();
                         }
                     });
@@ -1675,16 +1830,16 @@ function unlockGenerator() {
                         return true;
                     }
                     if (_stg === 'disabled') {
-                        if (!$_flag.unlock_dismiss_layer_disabled_hinted) {
-                            debugInfo('解锁页面提示层检测已禁用');
-                            $_flag.unlock_dismiss_layer_disabled_hinted = true;
+                        if (!_flag.unlock_dismiss_layer_disabled_hinted) {
+                            consolex._('解锁页面提示层检测已禁用');
+                            _flag.unlock_dismiss_layer_disabled_hinted = true;
                         }
                         return false;
                     }
                     if (_stg === 'deferred') {
-                        if (!$_flag.unlock_dismiss_layer_deferred) {
-                            debugInfo('解锁页面提示层检测延迟一次');
-                            $_flag.unlock_dismiss_layer_deferred = true;
+                        if (!_flag.unlock_dismiss_layer_deferred) {
+                            consolex._('解锁页面提示层检测延迟一次');
+                            _flag.unlock_dismiss_layer_deferred = true;
                             return false;
                         }
                         return true;
@@ -1714,13 +1869,13 @@ function unlockGenerator() {
                 // tool function(s) //
 
                 function _init() {
-                    if (~_reliable.indexOf(_time)) {
+                    if (_reliable.includes(_time)) {
                         _chances = Infinity;
-                        debugInfo('当前滑动时长参数可信');
+                        consolex._('当前滑动时长参数可信');
                     }
 
                     if (!(_time in _t_pool)) {
-                        debugInfo('连续成功滑动累积器清零');
+                        consolex._('连续成功滑动累积器清零');
                         _t_pool = {};
                         _t_pool[_time] = 0;
                     }
@@ -1731,11 +1886,11 @@ function unlockGenerator() {
                     let _gesture_par = [_time].concat(_pts.map(y => [halfW, cY(y)]));
 
                     let _max = 30, _ctr = 0;
-                    ext.keepOn(3);
+                    exp.keepOn(3);
                     while (!_lmt()) {
                         _debugAct('消除解锁页面提示层', _ctr, _max);
-                        debugInfo('滑动时长: ' + _time + '毫秒');
-                        debugInfo('参数来源: ' + (_from_sto ? '本地存储' : '自动计算'));
+                        consolex._('滑动时长: ' + _time + '毫秒');
+                        consolex._('参数来源: ' + (_from_sto ? '本地存储' : '自动计算'));
 
                         gesture.apply(null, _gesture_par);
 
@@ -1743,28 +1898,28 @@ function unlockGenerator() {
                             break;
                         }
 
-                        debugInfo('单次消除解锁页面提示层超时');
+                        consolex._('单次消除解锁页面提示层超时');
                         _ctr += 1;
 
                         if (_from_sto) {
                             if (--_chances < 0) {
                                 _from_sto = false;
                                 _time = _cfg.unlock_dismiss_layer_swipe_time;
-                                debugInfo('放弃本地存储数据');
-                                debugInfo('从默认值模块获取默认值: ' + _time);
+                                consolex._('放弃本地存储数据');
+                                consolex._('从默认值模块获取默认值: ' + _time);
                             } else {
-                                debugInfo('继续使用本地存储数据');
+                                consolex._('继续使用本地存储数据');
                             }
                         } else {
                             // h110, 115, 120, 170, 220, 270, 320...
                             let _increment = _time < 120 ? 5 : 50;
                             _time += _increment;
-                            debugInfo('参数增量: ' + _increment);
+                            consolex._('参数增量: ' + _increment);
                         }
                     }
-                    ext.cancelOn();
+                    exp.cancelOn();
 
-                    debugInfo('解锁页面提示层消除成功');
+                    consolex._('解锁页面提示层消除成功');
                     _this.succ_fg = true;
 
                     // tool function(s) //
@@ -1783,7 +1938,7 @@ function unlockGenerator() {
                 function _storage() {
                     if (_time !== _time_sto) {
                         _sto.put('config', {unlock_dismiss_layer_swipe_time: _time});
-                        debugInfo('存储滑动时长参数: ' + _time);
+                        consolex._('存储滑动时长参数: ' + _time);
                     }
 
                     if (!(_time in _t_pool)) {
@@ -1791,11 +1946,11 @@ function unlockGenerator() {
                     }
                     let _new_ctr = ++_t_pool[_time];
                     _sto.put('config', {continuous_swipe: _t_pool});
-                    debugInfo('存储连续成功滑动次数: ' + _new_ctr);
+                    consolex._('存储连续成功滑动次数: ' + _new_ctr);
 
-                    if (_new_ctr >= 6 && !~_reliable.indexOf(_time)) {
-                        debugInfo('当前滑动时长可信度已达标');
-                        debugInfo('存储可信滑动时长数据: ' + _time);
+                    if (_new_ctr >= 6 && !_reliable.includes(_time)) {
+                        consolex._('当前滑动时长可信度已达标');
+                        consolex._('存储可信滑动时长数据: ' + _time);
                         _sto.put('config', {swipe_time_reliable: _reliable.concat(_time)});
                     }
                 }
@@ -1804,7 +1959,7 @@ function unlockGenerator() {
                 return this.succ_fg || !this.trigger() || this.dismiss();
             },
             succ() {
-                return waitForAction$(function () {
+                return a11yx.wait$(function () {
                     return !this.trigger();
                 }.bind(this), 1.5e3) || $_unlk.unlock_view.trigger();
             },
@@ -1813,10 +1968,10 @@ function unlockGenerator() {
             trigger() {
                 let _this = this;
 
-                if (!ext.isScreenOn()) {
-                    return debugInfo(['跳过解锁控件检测', '>屏幕未亮起']);
+                if (exp.isScreenOn()) {
+                    return _pattern() || _password() || _pin() || _specials() || _unmatched();
                 }
-                return _pattern() || _password() || _pin() || _specials() || _unmatched();
+                consolex._(['跳过解锁控件检测', '屏幕未亮起']);
 
                 // tool function(s) //
 
@@ -1829,7 +1984,7 @@ function unlockGenerator() {
                         sel: idMatches(_ak + 'lockPattern(View)?'),
                     }].some((smp) => {
                         if (smp.sel.exists()) {
-                            debugInfo('匹配到' + smp.desc + '图案解锁控件');
+                            consolex._('匹配到' + smp.desc + '图案解锁控件');
                             return _trigger(smp.sel, _stg);
                         }
                     });
@@ -1851,8 +2006,8 @@ function unlockGenerator() {
                         let _max = Math.ceil(_max_try * 0.6);
                         while (!_lmt()) {
                             _debugAct('图案密码解锁', _ctr, _max);
-                            debugInfo('滑动时长: ' + _time + '毫秒');
-                            debugInfo('滑动策略: ' + _stg_map[_stg]);
+                            consolex._('滑动时长: ' + _time + '毫秒');
+                            consolex._('滑动策略: ' + _stg_map[_stg]);
 
                             let _pts = _getPts();
                             let _act = {
@@ -1878,15 +2033,14 @@ function unlockGenerator() {
                             try {
                                 _act[_stg]();
                             } catch (e) {
-                                messageAction(e.message, 4, 0, 0, -1);
-                                messageAction(e.stack, 4, 0, 0, 2);
+                                consolex.w(e, 0, 0, 2);
                             }
 
                             if (_this.succ()) {
                                 break;
                             }
 
-                            debugInfo('图案解锁未成功', 3);
+                            consolex._('图案解锁未成功', 3);
                             _ctr += 1;
                             sleep(200);
 
@@ -1899,12 +2053,12 @@ function unlockGenerator() {
                                 _time += 80;
                             }
                         }
-                        debugInfo('图案解锁成功');
+                        consolex._('图案解锁成功');
 
                         if (_time !== _cfg[_key]) {
                             _cfg[_key] = _time;
                             _sto.put('config', _cfg);
-                            debugInfo('存储滑动时长参数: ' + _time);
+                            consolex._('存储滑动时长参数: ' + _time);
                         }
 
                         return true;
@@ -1940,7 +2094,7 @@ function unlockGenerator() {
                                 }
                             }
 
-                            if ($_str(_code)) {
+                            if ($$str(_code)) {
                                 _code = _code.match(/[^1-9]+/)
                                     ? _code.split(/[^1-9]+/).join('|').split('|')
                                     : _code.split('');
@@ -1971,8 +2125,8 @@ function unlockGenerator() {
                                     let _bnd = null;
                                     let _l, _t, _r, _b;
                                     let _raw = () => {
-                                        return $_und(_l) || $_und(_t)
-                                            || $_und(_r) || $_und(_b);
+                                        return $$und(_l) || $$und(_t)
+                                            || $$und(_r) || $$und(_b);
                                     };
                                     let _parse = (bnd) => {
                                         let {left, top, right, bottom} = bnd;
@@ -2001,7 +2155,7 @@ function unlockGenerator() {
                                         _asg(_bnd);
                                     };
 
-                                    waitForAction$(_succ, 1.2e3, 120);
+                                    a11yx.wait$(_succ, 1.2e3, 120);
 
                                     return _bnd;
                                 }
@@ -2065,7 +2219,7 @@ function unlockGenerator() {
                                 function _removeDuplicates() {
                                     let _cache = {};
                                     _code = _code.filter((n) => {
-                                        if (!$_und(n) && !(n in _cache)) {
+                                        if (!$$und(n) && !(n in _cache)) {
                                             return _cache[n] = true;
                                         }
                                     });
@@ -2087,7 +2241,7 @@ function unlockGenerator() {
                         sel: idMatches(_sk + 'passwordEntry(_.+)?').className('EditText'),
                     }].some((smp) => {
                         if (smp.sel.exists()) {
-                            debugInfo('匹配到' + smp.desc + '密码解锁控件');
+                            consolex._('匹配到' + smp.desc + '密码解锁控件');
                             return _trigger(smp.sel, _stg);
                         }
                     });
@@ -2096,7 +2250,7 @@ function unlockGenerator() {
 
                     function _stg() {
                         let _pw_code = _code;
-                        if ($_arr(_pw_code)) {
+                        if ($$arr(_pw_code)) {
                             _pw_code = _pw_code.join('');
                         }
 
@@ -2115,11 +2269,11 @@ function unlockGenerator() {
 
                             let _w_cfm = _cfm_btn('widget');
                             if (_w_cfm) {
-                                debugInfo('点击"' + _cfm_btn('txt') + '"按钮');
+                                consolex._('点击"' + _cfm_btn('txt') + '"按钮');
                                 try {
-                                    clickAction$(_w_cfm, 'w');
+                                    a11yx.click$(_w_cfm, 'w');
                                 } catch (e) {
-                                    debugInfo('按钮点击可能未成功', 3);
+                                    consolex._('按钮点击可能未成功', 3);
                                 }
                             }
                             if (_this.succ(2)) {
@@ -2127,7 +2281,7 @@ function unlockGenerator() {
                             }
                             try {
                                 if (_detectRoot()) {
-                                    debugInfo('使用Root权限模拟回车键');
+                                    consolex._('使用Root权限模拟回车键');
                                     sleep(480);
                                     if (_this.succ()) {
                                         break;
@@ -2139,7 +2293,7 @@ function unlockGenerator() {
                             _ctr += 1;
                             sleep(200);
                         }
-                        debugInfo('密码解锁成功');
+                        consolex._('密码解锁成功');
 
                         return true;
 
@@ -2205,7 +2359,7 @@ function unlockGenerator() {
                                             g: [xs4, y2], h: [xs5, y2], j: [xs6, y2], k: [xs7, y2],
                                             l: [xs8, y2], z: [xs1, y3], x: [xs2, y3], c: [xs3, y3],
                                             v: [xs4, y3], b: [xs5, y3], n: [xs6, y3], m: [xs7, y3],
-                                            ',': [xs1, y4], ' ': [xs4, y4], '.': [xs7, y4], del: [x9, y3],
+                                            ',': [xs1, y4], '\x20': [xs4, y4], '.': [xs7, y4], del: [x9, y3],
                                         };
                                     })(),
                                     get suffix() {
@@ -2216,46 +2370,46 @@ function unlockGenerator() {
                             if (!(_intro in _smp_o)) {
                                 return;
                             }
-                            debugInfo('此设备机型需要按键辅助');
+                            consolex._('此设备机型需要按键辅助');
 
                             let _smp = _smp_o[_intro];
                             let _coords = _smp.keys;
                             let _k_map = _smp.keys_map;
                             let _pref = _smp.prefix;
                             let _suff = _smp.suffix;
-                            if (!$_und(_pref) && !$_nul(_pref)) {
+                            if (!$$und(_pref) && !$$nul(_pref)) {
                                 let _s = '';
-                                if ($_num(_pref)) {
+                                if ($$num(_pref)) {
                                     _s += _pw_last.repeat(_pref);
                                 } else {
                                     _s = _pref.toString();
                                 }
                                 _this.sel.setText(_pw_code + _s);
-                                debugInfo('辅助按键前置填充: ' + _s.length + '项');
+                                consolex._('辅助按键前置填充: ' + _s.length + '项');
                             }
 
                             _coords.forEach((c, i) => {
                                 i || sleep(300);
-                                clickAction$($_str(c) ? _k_map[c] : c);
+                                a11yx.click$($$str(c) ? _k_map[c] : c);
                                 sleep(300);
                             });
 
                             if (_suff) {
                                 if (_suff instanceof com.stardust.automator.UiObject) {
-                                    debugInfo('辅助按键后置填充类型: 控件');
-                                    return clickAction$(_suff);
+                                    consolex._('辅助按键后置填充类型: 控件');
+                                    return a11yx.click$(_suff);
                                 }
                                 if (_suff instanceof com.stardust.autojs.core.accessibility.UiSelector) {
-                                    debugInfo('辅助按键后置填充类型: 选择器');
-                                    return clickAction$(_suff);
+                                    consolex._('辅助按键后置填充类型: 选择器');
+                                    return a11yx.click$(_suff);
                                 }
-                                if ($_arr(_suff)) {
-                                    debugInfo('辅助按键后置填充类型: 坐标');
-                                    return clickAction$(_suff);
+                                if ($$arr(_suff)) {
+                                    consolex._('辅助按键后置填充类型: 坐标');
+                                    return a11yx.click$(_suff);
                                 }
-                                if ($_num(_suff) || $_str(_suff) || $_rex(_suff)) {
-                                    debugInfo('辅助按键后置填充类型: 文本');
-                                    return clickAction$($$sel.pickup('(key.?)?' + _suff));
+                                if ($$num(_suff) || $$str(_suff) || $$rex(_suff)) {
+                                    consolex._('辅助按键后置填充类型: 文本');
+                                    return a11yx.click$($$sel.pickup('(key.?)?' + _suff));
                                 }
                                 return _err(['密码解锁失败', '无法判断末位字符类型']);
                             }
@@ -2263,15 +2417,15 @@ function unlockGenerator() {
                     }
 
                     function _misjudge() {
-                        let _triStr = sel => $_str(sel) && id(sel).exists();
-                        let _triRex = sel => $_rex(sel) && idMatches(sel).exists();
+                        let _triStr = sel => $$str(sel) && id(sel).exists();
+                        let _triRex = sel => $$rex(sel) && idMatches(sel).exists();
 
                         return [
                             'com.android.systemui:id/lockPattern',
                         ].some((sel) => {
                             if (_triStr(sel) || _triRex(sel)) {
                                 _this.misjudge = sel;
-                                debugInfo(['匹配到误判干扰', '转移至PIN解锁方案']);
+                                consolex._(['匹配到误判干扰', '转移至PIN解锁方案']);
                                 return true;
                             }
                         });
@@ -2309,7 +2463,7 @@ function unlockGenerator() {
                             let _dial = {
                                 _side: 3,
                                 _nums: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
-                                _ft: cX(0.0125), // fault-tolerant
+                                _ft: cX(0.0125), // fault tolerance
                                 _checkPoints() {
                                     this._points = this._points || {};
                                     return this._nums.every((n) => {
@@ -2351,7 +2505,7 @@ function unlockGenerator() {
                             if (_desc.match(/\w$/)) {
                                 _desc += '/';
                             }
-                            debugInfo('匹配到' + _desc + 'PIN解锁控件');
+                            consolex._('匹配到' + _desc + 'PIN解锁控件');
                             return _trigger(smp.sel, _stg);
                         }
                     });
@@ -2364,7 +2518,7 @@ function unlockGenerator() {
                         while (!_lmt()) {
                             _debugAct('PIN解锁', _ctr, _max);
 
-                            $_func(_this.unlockPin) ? _this.unlockPin() : _unlockPin();
+                            $$func(_this.unlockPin) ? _this.unlockPin() : _unlockPin();
 
                             if (_this.succ() || _clickKeyEnter()) {
                                 break;
@@ -2372,7 +2526,7 @@ function unlockGenerator() {
                             _ctr += 1;
                             sleep(200);
                         }
-                        debugInfo('PIN解锁成功');
+                        consolex._('PIN解锁成功');
                         return true;
 
                         // tool function(s) //
@@ -2384,8 +2538,8 @@ function unlockGenerator() {
                         function _clickKeyEnter() {
                             let _sltr = idMatches(_as + 'key_enter');
                             if (_sltr.exists()) {
-                                debugInfo('点击"key_enter"控件');
-                                clickAction$(_sltr, 'w');
+                                consolex._('点击"key_enter"控件');
+                                a11yx.click$(_sltr, 'w');
                                 return _this.succ();
                             }
                         }
@@ -2402,7 +2556,7 @@ function unlockGenerator() {
                                 },
                                 click() {
                                     let _sel = this.sel;
-                                    return _trig(() => _pw.forEach(n => clickAction$(_sel(n), 'w')));
+                                    return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
                                 },
                             }, {
                                 desc: '通用PIN容器',
@@ -2417,7 +2571,7 @@ function unlockGenerator() {
                                     let _bnd = this.widget.bounds();
                                     let _bi = [_bnd.left, _bnd.top, _bnd.right, _bnd.bottom];
                                     let _sel = n => $$sel.pickup([n, {boundsInside: _bi}]);
-                                    return _trig(() => _pw.forEach(n => clickAction$(_sel(n), 'w')));
+                                    return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
                                 },
                             }, {
                                 desc: 'MIUI/PIN',
@@ -2430,7 +2584,7 @@ function unlockGenerator() {
                                 },
                                 click() {
                                     let _sel = this.sel;
-                                    return _trig(() => _pw.forEach(n => clickAction$(_sel(n), 'w')));
+                                    return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
                                 },
                             }, {
                                 desc: '内容描述PIN',
@@ -2459,15 +2613,15 @@ function unlockGenerator() {
                                         return [_pt('x'), _pt('y')];
                                     };
 
-                                    return _trig(() => _pw.forEach(n => clickAction$(_sel(n), 'w')));
+                                    return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
                                 },
                             }, {
                                 desc: '标记匹配PIN',
                                 test() {
                                     if (_this.misjudge) {
                                         _dbg.call(this);
-                                        debugInfo('>已匹配的字符串化标记:');
-                                        debugInfo('>' + _this.misjudge);
+                                        consolex._('已匹配的字符串化标记:');
+                                        consolex._(_this.misjudge);
                                         return true;
                                     }
                                 },
@@ -2489,7 +2643,7 @@ function unlockGenerator() {
                                 },
                                 click() {
                                     return _trig(() => _pw.forEach((n) => {
-                                        clickAction$((global._$_dial_points)[n], 'p', {pt$: 120});
+                                        a11yx.click$((global._$_dial_points)[n], 'p', {pt$: 120});
                                     }));
                                 },
                             }];
@@ -2506,7 +2660,7 @@ function unlockGenerator() {
                             // tool function(s) //
 
                             function _dbg() {
-                                debugInfo('采用' + this.desc + '解锁方案');
+                                consolex._('采用' + this.desc + '解锁方案');
                             }
 
                             function _trig(f) {
@@ -2534,7 +2688,7 @@ function unlockGenerator() {
                         pw_rect: [0.0875, 0.47, 0.9125, 0.788], // [cX, cY, cX, cY]
                     }].some((smp) => {
                         if (smp.sel.exists()) {
-                            debugInfo(['匹配到特殊设备解锁方案:', smp.desc]);
+                            consolex._(['匹配到特殊设备解锁方案:', smp.desc]);
                             return _trigger(smp.sel, _stg.bind(null, smp.pw_rect));
                         }
                     });
@@ -2544,8 +2698,8 @@ function unlockGenerator() {
                     function _stg(pw_rect) {
                         let _rect = pw_rect.map((n, i) => i % 2 ? cY(n) : cX(n));
                         let [_l, _t, _r, _b] = _rect;
-                        debugInfo('已构建密码区域边界:');
-                        debugInfo('Rect(' + _l + ', ' + _t + ' - ' + _r + ', ' + _b + ')');
+                        consolex._('已构建密码区域边界:');
+                        consolex._('Rect(' + _l + ',\x20' + _t + '\x20-\x20' + _r + ',\x20' + _b + ')');
 
                         _clickVirtualKeypad(_pw, _rect);
 
@@ -2557,7 +2711,7 @@ function unlockGenerator() {
                 }
 
                 function _unmatched() {
-                    ext.isUnlocked() || debugInfo('未匹配到可用的解锁控件');
+                    exp.isUnlocked() || consolex._('未匹配到可用的解锁控件');
                 }
 
                 function _trigger(sel, stg) {
@@ -2569,7 +2723,7 @@ function unlockGenerator() {
                 function _clickVirtualKeypad(pw, rect) {
                     let _r_l, _r_t, _r_w, _r_h;
 
-                    if ($_arr(rect)) {
+                    if ($$arr(rect)) {
                         let [_l, _t, _r, _b] = rect;
                         _r_l = _l;
                         _r_t = _t;
@@ -2596,20 +2750,20 @@ function unlockGenerator() {
                             };
                         }
                     }
-                    debugInfo('已构建拨号盘数字坐标');
-                    pw.forEach(v => clickAction$(_keypads[Number(v) || 11]));
+                    consolex._('已构建拨号盘数字坐标');
+                    pw.forEach(v => a11yx.click$(_keypads[Number(v) || 11]));
                 }
             },
             dismiss() {
                 if (!_code) {
                     return _err('密码为空');
                 }
-                if (!$_func(this.stg)) {
+                if (!$$func(this.stg)) {
                     return _err('没有可用的解锁方案');
                 }
-                ext.keepOn(5);
+                exp.keepOn(5);
                 this.stg();
-                ext.cancelOn();
+                exp.cancelOn();
             },
             handle() {
                 return this.trigger() && this.dismiss();
@@ -2621,22 +2775,22 @@ function unlockGenerator() {
                     if (_correct()) {
                         _chkTryAgain();
                         _chkOKBtn();
-                        return ext.isUnlocked();
+                        return exp.isUnlocked();
                     }
                     _err_shown_fg = true;
                 };
 
-                return waitForAction$(_cond, _t, 240);
+                return a11yx.wait$(_cond, _t, 240);
 
                 // tool function(s) //
 
                 function _correct() {
                     let _w_bad = $$sel.pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
                     if (_w_bad) {
-                        return _err_shown_fg || debugInfo($$sel.pickup(_w_bad, 'txt'), 3);
+                        return _err_shown_fg || consolex._($$sel.pickup(_w_bad, 'txt'), 3);
                     }
                     if (idMatches(new RegExp(_ak + 'phone_locked_textview')).exists()) {
-                        return _err_shown_fg || debugInfo('密码错误', 3);
+                        return _err_shown_fg || consolex._('密码错误', 3);
                     }
                     return true;
                 }
@@ -2644,16 +2798,16 @@ function unlockGenerator() {
                 function _chkTryAgain() {
                     let _chk = () => $$sel.pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
                     if (_chk()) {
-                        debugInfo('正在等待重试超时');
-                        waitForAction$(() => !_chk(), 65e3, 500);
+                        consolex._('正在等待重试超时');
+                        a11yx.wait$(() => !_chk(), 65e3, 500);
                     }
                 }
 
                 function _chkOKBtn() {
                     let _w_ok = $$sel.pickup(/OK|确([认定])|好的?/);
                     if (_w_ok) {
-                        debugInfo('点击"' + $$sel.pickup(_w_ok, 'txt') + '"按钮');
-                        clickAction$(_w_ok, 'w');
+                        consolex._('点击"' + $$sel.pickup(_w_ok, 'txt') + '"按钮');
+                        a11yx.click$(_w_ok, 'w');
                         sleep(1e3);
                     }
                 }
@@ -2677,146 +2831,69 @@ function unlockGenerator() {
         unlock_dismiss_layer_swipe_time: 110,
     }, _sto.get('config'));
 
-    let _code = require('./mod-pwmap').decrypt(_cfg.unlock_code) || '';
+    let _code = String(_sto.get('config', {
+        prop: 'unlock_code', is_crypto: true, default: '',
+    }));
     let _pw = _code.split(/\D+/).join('').split('');
     let _max_try = _cfg.unlock_max_try_times;
     let _pat_sz = _cfg.unlock_pattern_size;
 
-    let _intro = device.brand + ' ' + device.product + ' ' + device.release;
+    let _intro = device.brand + '\x20' + device.product + '\x20' + device.release;
+
+    let _debugAct = (act_str, ctr, max) => !ctr
+        ? consolex._('尝试' + act_str)
+        : consolex._('尝试' + act_str + '(\x20' + ctr + '/' + max + ')');
 
     return $_unlk;
 
     // tool function(s) //
 
-    function _unlock(forcibly_debug) {
-        let _dash = '__split_line_dash__';
-        let _debug_notice = forcibly_debug || forcibly_debug === false;
+    /**
+     * @param {Consolex.Print.IsDebug} [is_debug]
+     * @return {boolean}
+     */
+    function _unlock(is_debug) {
+        consolex.debug.switchSet(is_debug);
+        consolex._('尝试自动解锁', 0, 0, -2);
 
         _sto.put('config', _cfg);
-
-        _debugPrologue();
         _wakeUpWithBuffer();
 
-        let _counter = 0;
-        while (!ext.isUnlocked() && !_lmtRch()) {
+        for (let i = 0; ; i += 1) {
+            if (exp.isUnlocked()) {
+                break;
+            }
+            if (i >= _max_try) {
+                _err('解锁尝试次数已达上限');
+            }
+            _debugAct('解锁', i, _max_try);
+
             $_unlk.p_container.handle();
             $_unlk.unlock_view.handle();
-        }
 
-        _debugEpilogue();
-
-        return true;
-
-        // tool function(s) //
-
-        function _debugPrologue() {
-            if (_debug_notice) {
-                $_flag.debug_info_avail_bak = $_flag.debug_info_avail;
-                $_flag.debug_info_avail = !!forcibly_debug;
-            }
-            debugInfo([_dash, '尝试自动解锁', _dash]);
-        }
-
-        function _debugEpilogue() {
-            debugInfo([_dash, '自动解锁完毕', _dash]);
-            if (_debug_notice) {
-                $_flag.debug_info_avail = $_flag.debug_info_avail_bak;
-                delete $_flag.debug_info_avail_bak;
-            }
-        }
-
-        function _lmtRch() {
-            let _max = _max_try;
-            let _ctr = _counter++;
-            _ctr > _max ? _err('解锁尝试次数已达上限') : _debugAct('解锁', _ctr, _max);
             sleep(240);
         }
-    }
 
-    function _debugAct(act_str, ctr, max) {
-        debugInfo(ctr ? '重试' + act_str + ' (' + ctr + '/' + max + ')' : '尝试' + act_str);
+        consolex.debug.switchBack();
+        return consolex._('自动解锁完毕', 0, 0, -2);
     }
 
     function _err(s) {
-        ext.cancelOn();
-        messageAction('解锁失败', 4, 1, 0, -1);
-
-        ($_str(s) ? [s] : s).forEach(m => messageAction(m, 4, 0, 1));
-        messageAction(_intro, 4, 0, 1, 1);
-
-        captureErrScreen('unlock_failed', {log_level: 1});
-
-        if (ext.is_init_screen_on) {
-            messageAction('自动关闭屏幕' + (keycode$(26) ? '' : '失败'), 1, 0, 0, 1);
+        exp.cancelOn();
+        consolex.e(['解锁失败', s, _intro], 4, 0, 2);
+        if (exp.is_init_screen_on) {
+            consolex.d('自动关闭屏幕');
+            exp.screenOff() || consolex.w('自动关闭屏幕失败');
         }
-
+        consolex.__();
         exit();
         sleep(3.6e3);
-
-        // tool function(s) //
-
-        /**
-         * Save current screen capture as a file with a key name and a formatted timestamp
-         * @param {string} key_name - a key name as a clip of the file name
-         * @param {Object} [options]
-         * @param {number|string|null} [options.log_level]
-         * @param {number} [options.max_samples=10]
-         */
-        function captureErrScreen(key_name, options) {
-            if (typeof imagesx === 'object') {
-                imagesx.permit();
-            } else {
-                images.requestScreenCapture();
-            }
-
-            let _opt = options || {};
-            let _log_lv = _opt.log_level;
-            let _max_smp = _opt.max_samples || 10;
-
-            let _dir = files.getSdcardPath() + '/.local/pics/err/';
-            let _path = _dir + key_name + '_' + _getTimeStr() + '.png';
-
-            try {
-                files.createWithDirs(_path);
-                images.captureScreen(_path);
-                if (!isNullish(_log_lv)) {
-                    messageAction('已存储屏幕截图文件:', _log_lv);
-                    messageAction(_path, _log_lv);
-                }
-                _removeRedundant();
-            } catch (e) {
-                messageAction(e.message, 3);
-            }
-
-            // tool function(s) //
-
-            function _getTimeStr() {
-                let _now = new Date();
-                let _pad = n => (n < 10 ? '0' : '') + n;
-                return _now.getFullYear() +
-                    _pad(_now.getMonth() + 1) +
-                    _pad(_now.getDate()) +
-                    _pad(_now.getHours()) +
-                    _pad(_now.getMinutes()) +
-                    _pad(_now.getSeconds());
-            }
-
-            function _removeRedundant() {
-                files.listDir(_dir, function (name) {
-                    return !!~name.indexOf(key_name);
-                }).sort((a, b) => {
-                    return a === b ? 0 : a > b ? -1 : 1;
-                }).slice(_max_smp).forEach((name) => {
-                    files.remove(_dir + name);
-                });
-            }
-        }
     }
 
     function _wakeUpWithBuffer() {
-        if (!ext.isScreenOn()) {
-            if (ext.wakeUpWithBuffer()) {
-                debugInfo('设备唤起成功');
+        if (!exp.isScreenOn()) {
+            if (exp.wakeUpWithBuffer()) {
+                consolex._('设备唤起成功');
                 device.keepScreenOn(2 * 60e3);
             } else {
                 _err('设备唤起失败');

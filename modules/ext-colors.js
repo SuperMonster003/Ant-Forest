@@ -1,12 +1,10 @@
-global.colorsx = typeof global.colorsx === 'object' ? global.colorsx : {};
-
 let ColorStateList = android.content.res.ColorStateList;
 
-let ext = {
+let exp = {
     /**
-     * @param {ColorParam} color
+     * @param {Color$} color
      * @param {boolean|number|'auto'|'none'|'keep'} [alpha=8]
-     * @returns {string}
+     * @return {string}
      */
     toStr(color, alpha) {
         if (typeof color === 'string') {
@@ -35,8 +33,8 @@ let ext = {
         throw TypeError('Unknown type of alpha for colorsx.toStr()');
     },
     /**
-     * @param {ColorParam} color
-     * @returns {number}
+     * @param {Color$} color
+     * @return {number}
      */
     toInt(color) {
         if (typeof color === 'string') {
@@ -60,7 +58,7 @@ let ext = {
      * @param {string} rgba_hex
      * @example
      * colorsx.hrgba('#rrggbbaa') -> colorsx.toInt('#aarrggbb')
-     * @returns {number}
+     * @return {number}
      */
     hrgba(rgba_hex) {
         if (typeof rgba_hex !== 'string') {
@@ -81,13 +79,12 @@ let ext = {
         return this.toInt('#' + rgba_hex.slice(-2) + rgba_hex.slice(1, -2));
     },
     /**
-     * @param {ColorParam} color
-     * @returns {android.content.res.ColorStateList}
+     * @param {Color$} color
+     * @return {android.content.res.ColorStateList}
      */
     toColorStateList(color) {
         return ColorStateList.valueOf(this.toInt(color));
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.colorsx = ext;
+module.exports = {colorsx: exp};

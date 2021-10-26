@@ -1,34 +1,66 @@
-require('../modules/mod-monster-func').load([
-    'messageAction', 'waitForAction', 'keycode',
-]);
-require('../modules/ext-images').load().permit();
-require('../modules/ext-dialogs').load();
-require('../modules/ext-device').load();
-require('../modules/ext-storages').load();
+let {} = require('../modules/ext-global');
 
-let storage_unlock = storagesx.create('unlock');
-let config_storage = storage_unlock.get('config', {});
-let config_default = require('../modules/mod-default-config').unlock;
+let {a11yx} = require('../modules/ext-a11y');
+let {filesx} = require('../modules/ext-files');
+let {devicex} = require('../modules/ext-device');
+let {imagesx} = require('../modules/ext-images');
+let {dialogsx} = require('../modules/ext-dialogs');
+let {consolex} = require('../modules/ext-console');
+let {storagesx} = require('../modules/ext-storages');
 
-let path_base = files.getSdcardPath() + '/!lock-screen-layout/';
-files.removeDir(path_base);
-let path_container_page = path_base + 'container-page.png';
-let path_unlock_page = path_base + 'unlock-page.png';
-let path_unlock_bounds = path_base + 'unlock-bounds.png';
-let path_device_info = path_base + 'device-info.txt';
-files.createWithDirs(path_device_info);
+imagesx.permit();
 
-let info = device.brand + ' ' + device.product + ' ' + device.release + '\n' +
-    'Display resolution: ' + device.width + ' × ' + device.height + '\n\n';
-let device_brand = device.brand;
+let _cfg_sto = storagesx.create('unlock').get('config', {});
+let _cfg_def = storagesx['@default'].unlock;
 
-let keycode_power_bug = [/[Mm]eizu/].some(bug => device_brand.match(bug));
+let _path = {
+    _getPath(name, ext_name) {
+        let _key = '_' + name;
+        if (this[_key]) {
+            return this[_key];
+        }
+        let _path = files.join(this.base, name + '.' + ext_name);
+        if (!files.exists(_path)) {
+            files.createWithDirs(_path);
+        }
+        return this[_key] = _path;
+    },
+    get base() {
+        if (this._base) {
+            return this._base;
+        }
+        let _path = files.join(files.getSdcardPath(), '!lock-screen-layout');
+        files.isDir(_path) && files.removeDir(_path);
+        files.createWithDirs(_path + filesx.sep);
+        return this._base = _path;
+    },
+    get container_page() {
+        return this._getPath('container-page', 'png');
+    },
+    get unlock_page() {
+        return this._getPath('unlock-page', 'png');
+    },
+    get unlock_bounds() {
+        return this._getPath('unlock-bounds', 'png');
+    },
+    get device_info() {
+        return this._getPath('device-info', 'txt');
+    },
+    clear() {
+        files.exists(this.base) && files.removeDir(this.base);
+    },
+};
+
+let info = device.brand + '\x20' + device.product + '\x20' + device.release + '\n' +
+    'Display resolution: ' + device.width + '\x20×\x20' + device.height + '\n\n';
+
+let keycode_power_bug = [/[Mm]eizu/].some(bug => device.brand.match(bug));
 
 let operation_title = '解锁布局抓取';
-let operation_hint = '请按照以下步骤抓取解锁布局\n\n' +
+let operation_hint = '按照以下步骤抓取解锁布局\n\n' +
     '1. 屏幕 [自动关闭] 后 [自动亮起]\n' +
     '2. [自动滑动屏幕] 进入图案解锁页面\n' +
-    '注: 若手机 [震动两下] 或 [自动滑动失败] 请 [手动滑动]\n' +
+    '注: 若手机 [震动两下] 或 [自动滑动失败] 需 [手动滑动]\n' +
     '3. 等待手机 [长震] 后再 [手动解锁]\n' +
     '4. 出现布局后 [按提示操作]';
 let operation_hint_manual = operation_hint
@@ -46,10 +78,10 @@ dialogsx
         d.dismiss();
         threads.start(function () {
             if (!keycode_power_bug) {
-                if (!keycode(26) || !waitForAction(devicex.isScreenOff.bind(devicex), 2.4e3)) {
+                if (!devicex.keycode('POWER') || !a11yx.wait(devicex.isScreenOff.bind(devicex), 2.4e3)) {
                     dialogsx
                         .builds([
-                            '自动关闭屏幕失败', '请点击 [继续] 按钮后 [手动关屏]\n' +
+                            '自动关闭屏幕失败', '点击 [继续] 按钮后 [手动关屏]\n' +
                             '然后等待屏幕 [自动亮起]\n继续按照 [前述提示] 操作',
                             ['查看前述提示', 'hint'], 'Q', 'N', 1,
                         ])
@@ -68,25 +100,25 @@ dialogsx
                 }
             }
 
-            if (!waitForAction(devicex.isScreenOff.bind(devicex), 30e3)) {
-                messageAction('等待屏幕关闭超时', 8, 4);
+            if (!a11yx.wait(devicex.isScreenOff.bind(devicex), 30e3)) {
+                consolex.$('等待屏幕关闭超时', 8, 4);
             }
 
             sleep(500);
             device.wakeUp();
             let max = 5;
-            while (!waitForAction(devicex.isScreenOn.bind(devicex), 2e3) && max--) {
+            while (!a11yx.wait(devicex.isScreenOn.bind(devicex), 2e3) && max--) {
                 device.wakeUp();
             }
             if (max < 0) {
-                messageAction('唤起设备失败', 8, 4);
+                consolex.$('唤起设备失败', 8, 4);
             }
             sleep(1e3);
 
             devicex.keepOn(3);
 
             info += captSelectorInfo('Container View');
-            captureScreen(path_container_page);
+            captureScreen(_path.container_page);
             sleep(500);
 
             dismissLayer();
@@ -94,28 +126,28 @@ dialogsx
 
             info += captSelectorInfo('Unlock View');
             app.sendBroadcast('inspect_layout_bounds');
-            captureScreen(path_unlock_page);
+            captureScreen(_path.unlock_page);
             device.vibrate(500);
 
-            let _file = files.open(path_device_info, 'w');
+            let _file = files.open(_path.device_info, 'w');
             _file.write(info);
             _file.close();
 
-            if (!waitForAction(() => devicex.isUnlocked(), 25e3)) {
+            if (!a11yx.wait(() => devicex.isUnlocked(), 25e3)) {
                 alert('等待手动解锁超时');
                 exit();
             }
             sleep(1e3);
-            captureScreen(path_unlock_bounds);
+            captureScreen(_path.unlock_bounds);
 
             device.cancelKeepingAwake();
-            setClip(path_base);
+            setClip(_path.base);
 
             dialogsx.builds([
-                '布局抓取完毕', '请将"' + path_base + '"目录下的' +
+                '布局抓取完毕', '将"' + _path.base + '"目录下的' +
                 '文件 (通常为3个png和1个txt文件) [全部发送给开发者]\n\n' +
-                '发送之前请仔细检查截图或文本中 [是否包含隐私信息]\n' +
-                '如有请 [不要提交] 或 [修改后提交]\n\n' +
+                '发送之前需仔细检查截图或文本中 [是否包含隐私信息]\n' +
+                '如有则 [不要提交] 或 [修改后提交]\n\n' +
                 '文件路径已复制到剪贴板中\n' +
                 '[返回键] 可退出布局分析页面',
                 0, 0, 'X', 1,
@@ -139,13 +171,19 @@ function captSelectorInfo(title) {
         info += text + (no_cr_flag ? '' : '\n');
         split_lines_count-- > 0 && addSplitLine();
     };
-    let addSelector = (w, content_name) => ~addText(w[content_name]()) && addText('-> ' + w.bounds());
+    let addSelector = (w, content_name) => {
+        addText(w[content_name]());
+        addText('-> ' + w.bounds());
+    };
 
     addText('[ ' + title + ']', 0, 1);
 
-    ~addText('_text_', 0, 2) && textMatches(/.+/).find().forEach(w => addSelector(w, 'text'));
-    ~addText('_desc_', 0, 2) && descMatches(/.+/).find().forEach(w => addSelector(w, 'desc'));
-    ~addText('_id_', 0, 2) && idMatches(/.+/).find().forEach(w => addSelector(w, 'id'));
+    addText('_text_', 0, 2);
+    textMatches(/.+/).find().forEach(w => addSelector(w, 'text'));
+    addText('_desc_', 0, 2);
+    descMatches(/.+/).find().forEach(w => addSelector(w, 'desc'));
+    addText('_id_', 0, 2);
+    idMatches(/.+/).find().forEach(w => addSelector(w, 'id'));
 
     return info;
 }
@@ -164,7 +202,7 @@ function dismissLayer() {
             null;
     };
 
-    if (!waitForAction(() => kw_preview_container = cond_preview_container(), 2.5e3)) {
+    if (!a11yx.wait(() => kw_preview_container = cond_preview_container(), 2.5e3)) {
         device.vibrate(200);
         sleep(500);
         device.vibrate(200);
@@ -176,12 +214,12 @@ function dismissLayer() {
     let max_try_times_dismiss_layer = 20;
     let data_from_storage_flag = false;
     let chances_for_storage_data = 3;
-    let gesture_time = config_storage.unlock_dismiss_layer_swipe_time;
+    let gesture_time = _cfg_sto.unlock_dismiss_layer_swipe_time;
 
     if (gesture_time) {
         data_from_storage_flag = true;
     } else {
-        gesture_time = config_default.unlock_dismiss_layer_swipe_time;
+        gesture_time = _cfg_def.unlock_dismiss_layer_swipe_time;
     }
 
     let half_width = cX(0.5);
@@ -191,14 +229,14 @@ function dismissLayer() {
     while (max_try_times_dismiss_layer--) {
         gesture.apply(null, [gesture_time].concat(gesture_params));
 
-        if (waitForAction(() => !kw_preview_container.exists(), 1.5e3)) {
+        if (a11yx.wait(() => !kw_preview_container.exists(), 1.5e3)) {
             break;
         }
         if (cond_all_unlock_ways()) break;
         if (data_from_storage_flag) {
             if (--chances_for_storage_data < 0) {
                 data_from_storage_flag = false;
-                gesture_time = config_default.unlock_dismiss_layer_swipe_time;
+                gesture_time = _cfg_def.unlock_dismiss_layer_swipe_time;
             } else {
                 max_try_times_dismiss_layer += 1;
             }
@@ -207,7 +245,7 @@ function dismissLayer() {
         }
     }
 
-    if (max_try_times_dismiss_layer < 0 && !waitForAction(() => !kw_preview_container.exists(), 25e3)) {
+    if (max_try_times_dismiss_layer < 0 && !a11yx.wait(() => !kw_preview_container.exists(), 25e3)) {
         alert('消除解锁页面提示层失败');
         exit();
     }

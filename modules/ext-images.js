@@ -1,18 +1,28 @@
-global.imagesx = typeof global.imagesx === 'object' ? global.imagesx : {};
+let {
+    isNullish, isPlainObject, $$sleep,
+} = require('./ext-global');
 
-require('./mod-monster-func').load();
-require('./ext-device').load();
-require('./ext-global').load();
+let {a11yx, $$sel} = require('./ext-a11y');
+let {filesx} = require('./ext-files');
+let {devicex} = require('./ext-device');
+let {timersx} = require('./ext-timers');
+let {threadsx} = require('./ext-threads');
+let {cryptox} = require('./ext-crypto');
+let {consolex} = require('./ext-console');
+let {projectx} = require('./ext-project');
+
+global._$_has_scr_capt_perm = global._$_has_scr_capt_perm || threadsx.atomic(0);
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
+let URL = java.net.URL;
 let Build = android.os.Build;
 let Scalar = org.opencv.core.Scalar;
 let Point = org.opencv.core.Point;
 let Core = org.opencv.core.Core;
 let Imgproc = org.opencv.imgproc.Imgproc;
-let OpencvRect = org.opencv.core.Rect;
+let OpenCVRect = org.opencv.core.Rect;
 let Rect = android.graphics.Rect;
 let Bitmap = android.graphics.Bitmap;
 let BitmapFactory = android.graphics.BitmapFactory;
@@ -24,8 +34,8 @@ let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
 let UiObject = com.stardust.automator.UiObject;
 let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
-let ext = {
-    _has_scr_capt_permission: threads.atomic(0),
+let exp = {
+    _asset_prefix: '_$_asset_',
     /**
      * Copied from Auto.js 4.1.1 alpha2 source code by SuperMonster003 at Jan 10, 2021
      */
@@ -119,7 +129,7 @@ let ext = {
     },
     /**
      * @param {org.opencv.core.Point[]} points
-     * @returns {org.opencv.core.Point[]}
+     * @return {org.opencv.core.Point[]}
      */
     _toPointArray(points) {
         let _arr = [], _len = points.length;
@@ -139,7 +149,7 @@ let ext = {
         let y = region[1] === undefined ? 0 : region[1];
         let width = region[2] === undefined ? img.getWidth() - x : region[2];
         let height = region[3] === undefined ? (img.getHeight() - y) : region[3];
-        let r = new OpencvRect(x, y, width, height);
+        let r = new OpenCVRect(x, y, width, height);
         if (x < 0 || y < 0 || x + width > img.width || y + height > img.height) {
             throw new Error('Out of region:\n' +
                 'region: ' + [x, y, width, height].join(', ').surround('[ ') + '\n' +
@@ -148,16 +158,176 @@ let ext = {
         }
         return r;
     },
+    /**
+     * @param {string} asset_name
+     * @return {ImageWrapper$}
+     */
+    _readAsset(asset_name) {
+        let _path = {
+            get asset_path() {
+                if (typeof this._a_path !== 'undefined') {
+                    return this._a_path;
+                }
+                let _a_path = projectx.getAssetPath('images');
+                if (!files.exists(_a_path)) {
+                    throw Error('Images asset dir of project does not exist');
+                }
+                return this._a_path = _a_path;
+            },
+            get local_path() {
+                if (typeof this._l_path !== 'undefined') {
+                    return this._l_path;
+                }
+                let _l_path = filesx['.local']('images');
+                if (!files.isDir(_l_path)) {
+                    files.createWithDirs(_l_path + filesx.sep);
+                }
+                return this._l_path = _l_path;
+            },
+            get image() {
+                if (typeof this._image !== 'undefined') {
+                    return this._image;
+                }
+                let _p_image = files.join(this.asset_path, asset_name + '.png');
+                if (!files.exists(_p_image)) {
+                    throw Error('Image asset\x20' + asset_name + '\x20does not exist');
+                }
+                return this._image = _p_image;
+            },
+            get json() {
+                if (typeof this._json !== 'undefined') {
+                    return this._json;
+                }
+                let _p_json = files.join(this.asset_path, asset_name + '.json');
+                if (!files.exists(_p_json)) {
+                    files.createWithDirs(_p_json);
+                }
+                return this._json = _p_json;
+            },
+            get local_image() {
+                if (typeof this._l_img !== 'undefined') {
+                    return this._l_img;
+                }
+                return this._l_img = files.join(this.local_path, asset_name + '_' + W + '.png');
+            },
+            get local_json() {
+                if (typeof this._l_json !== 'undefined') {
+                    return this._l_json;
+                }
+                let _l_json = files.join(this.local_path, asset_name + '.json');
+                if (!files.exists(_l_json)) {
+                    files.createWithDirs(_l_json);
+                }
+                return this._l_json = _l_json;
+            },
+        };
+
+        /** @type {Imagesx.Asset} */
+        let _asset_cfg = JSON.parse(filesx.read(_path.json, '{}'));
+        let _digest = cryptox.digestFile(_path.image, 'SHA-1');
+        if (_asset_cfg['sha-1'] !== _digest) {
+            if (typeof _asset_cfg['sha-1'] !== 'undefined') {
+                throw Error('Corrupted asset: ' + asset_name);
+            }
+            if (typeof _digest === 'string') {
+                _asset_cfg['sha-1'] = _digest;
+                files.write(_path.json, JSON.stringify(_asset_cfg));
+            }
+        }
+
+        let _asset_img = this.read(_path.image);
+        let _resize = () => {
+            let _ratio = W / _asset_cfg.src_width;
+            if (_ratio === 1) {
+                return _asset_img;
+            }
+            let _resized = images.resize(_asset_img, [
+                _asset_img.getWidth() * _ratio,
+                _asset_img.getHeight() * _ratio,
+            ], 'AREA');
+            this.reclaim(_asset_img);
+            return this.pool.add(_resized);
+        };
+
+        if (!_asset_cfg.flexible) {
+            return _asset_cfg.src_width ? _resize() : _asset_img;
+        }
+
+        let _local_cfg = JSON.parse(filesx.read(_path.local_json, '{}'));
+        if (_local_cfg['sha-1'] !== _digest) {
+            files.listDir(_path.local_path, function (n) {
+                return new RegExp('^' + asset_name + '_\\d+p?\\.png$').test(n);
+            }).forEach(n => files.remove(files.join(_path.local_path, n)));
+            _local_cfg['sha-1'] = _digest;
+            files.write(_path.local_json, JSON.stringify(_local_cfg));
+        }
+
+        if (files.exists(_path.local_image)) {
+            this.reclaim(_asset_img);
+            return this.read(_path.local_image);
+        }
+        let _resized = _resize();
+        images.save(_resized, _path.local_image);
+        return _resized;
+    },
+    pool: {
+        _data: {},
+        /**
+         * @template {ImageWrapper$} T
+         * @param {T} img
+         * @param {string} [name]
+         * @return {T}
+         */
+        add(img, name) {
+            if (isNullish(img)) {
+                return img;
+            }
+            return this._data[name || exp.getName(img)] = img;
+        },
+        /**
+         * @param {string} name
+         * @return {!ImageWrapper$|void}
+         */
+        get(name) {
+            return this._data[name];
+        },
+        clear() {
+            let _target = Object.keys(this._data)
+                .filter((k) => {
+                    let _img = this._data[k];
+                    if (exp.isImageWrapper(_img) && !exp.isRecycled(_img)) {
+                        return true;
+                    }
+                    delete this._data[k];
+                })
+                .map((k) => {
+                    let _img = this._data[k];
+                    _img.recycle();
+                    return k.match(/@[a-f0-9]{4,}$/) ? k : k + exp.getName(_img);
+                });
+            if (_target.length) {
+                consolex._(['清理扩展图像样本池:'].concat(_target), 0, 0, -2);
+            }
+        },
+        /** @param {ImageWrapper$} i */
+        reclaim(i) {
+            let _name = exp.getName(i);
+            if (exp.isImageWrapper(this._data[_name])) {
+                this._data[_name].recycle();
+            }
+            delete this._data[_name];
+        },
+    },
     ForestImagePool: (function $iiFe() {
         /**
          * @param {Object} [config]
          * @param {number} [config.interval=120]
          * @param {number} [config.limit=3]
-         * @param {boolean} [config.is_debug_info=undefined]
+         * @param {boolean} [config.is_debug=undefined]
          */
         function ImagePool(config) {
             let _cfg = config || {};
-            let _imagesx = ext;
+            let _imagesx = exp;
 
             Object.defineProperty(this, '_data', {
                 value: [],
@@ -177,7 +347,7 @@ let ext = {
 
             this.interval = _cfg.interval || 120;
             this.limit = _cfg.limit || 3;
-            this.is_debug_info = _cfg.is_debug_info;
+            this.is_debug = _cfg.is_debug;
         }
 
         ImagePool.prototype = {
@@ -190,34 +360,46 @@ let ext = {
             get overflow() {
                 return this.len > this.limit;
             },
-            add(capt) {
-                let _imagesx = ext;
-                let _capt = capt || _imagesx.capt({clone: true});
-                let debugInfo$ = (m, lv) => debugInfo(m, lv, this.is_debug_info);
+            add(capt, options) {
+                // @Overload
+                if (!exp.isImageWrapper(capt) && isPlainObject(capt)) {
+                    return this.add(null, capt);
+                }
+                let _imagesx = exp;
+                let _opt = options || {};
+                if (typeof _opt.is_debug !== 'boolean') {
+                    _opt.is_debug = this.is_debug;
+                }
+                let _capt = capt || _imagesx.capt(Object.assign(_opt, {clone: true}));
+                let _debug = consolex.debug.fuel(_opt);
 
-                debugInfo$('添加森林采样: ' + _imagesx.getName(_capt));
+                _debug('添加森林采样: ' + _imagesx.getName(_capt));
                 this.data.unshift(_capt);
                 if (this.overflow) {
-                    debugInfo$('采样样本数量超过阈值: ' + this.limit);
+                    _debug('采样样本数量超过阈值: ' + this.limit);
                     while (this.overflow) {
                         let _c = this.data.pop();
-                        debugInfo$('>移除并回收最旧样本: ' + _imagesx.getName(_c));
+                        _debug('移除并回收最旧样本: ' + _imagesx.getName(_c));
                         _imagesx.reclaim(_c);
                     }
                 }
             },
-            reclaimAll() {
-                let _imagesx = ext;
-                let debugInfo$ = (m, lv) => debugInfo(m, lv, this.is_debug_info);
+            reclaimAll(options) {
+                let _imagesx = exp;
+                let _opt = options || {};
+                if (typeof _opt.is_debug !== 'boolean') {
+                    _opt.is_debug = this.is_debug;
+                }
+                let _debug = consolex.debug.fuel(_opt);
 
                 if (this.len) {
-                    debugInfo$('回收全部森林采样');
+                    _debug('回收全部森林采样');
                     this.data.forEach((c) => {
-                        debugInfo$('>已回收: ' + _imagesx.getName(c));
+                        _debug('已回收: ' + _imagesx.getName(c));
                         _imagesx.reclaim(c);
                     });
                     this.clear();
-                    debugInfo$('森林样本已清空');
+                    _debug('森林样本已清空');
                 }
             },
             clear() {
@@ -232,15 +414,7 @@ let ext = {
      * @return {string}
      */
     getName(img) {
-        try {
-            return '@' + img.toString().split('@')[1].match(/\w+/)[0];
-        } catch (e /* Null pointer */) {
-            try {
-                return img.getMat().toString().replace(/^.+nativeObj=0x\w+?(\w{7})\W.*$/, '$1');
-            } catch (e /* No implementation found for long org.opencv.core.Mat.n_Mat()... */) {
-                return '@unknown';
-            }
-        }
+        return '@' + java.lang.Integer.toHexString(img.hashCode());
     },
     /**
      * @param {ImageWrapper$} img
@@ -260,7 +434,7 @@ let ext = {
         };
     },
     isRecycled(img, is_strict) {
-        if (!(img instanceof ImageWrapper)) {
+        if (!this.isImageWrapper(img)) {
             if (is_strict) {
                 throw Error('img is required for imagesx.isRecycled()');
             }
@@ -273,33 +447,23 @@ let ext = {
         }
         return false;
     },
-    recycleGlobal() {
-        let $_af = global.$$af = global.$$af || {};
-        Object.keys($_af).forEach((k) => {
-            if (this.isImageWrapper($_af[k])) {
-                $_af[k].recycle();
-                $_af[k] = null;
-            }
-        });
-        // Recycle all images generated by './modules/mod-treasury-vault'
-        Object.keys(global).forEach((k) => {
-            k.match(/^_\$_base64_img_/) && global[k].recycle();
-        });
-    },
     isImageWrapper(img) {
         return img instanceof ImageWrapper;
     },
     reclaim() {
-        [].slice.call(arguments).forEach(i => this.isImageWrapper(i) && i.recycle());
+        [].slice.call(arguments).forEach((i) => {
+            if (this.isImageWrapper(i)) {
+                this.pool.reclaim(i);
+                i.recycle();
+            }
+        });
+    },
+    clearPool() {
+        this.pool.clear();
     },
     /**
-     * @typedef {Object} Imagesx$Capt$Options
-     * @property {number} [compress=0] - android.graphics.BitmapFactory.Options.inSampleSize
-     * @property {boolean} [clone=false] - if capture cloning needed or not
-     */
-    /**
-     * @param {Imagesx$Capt$Options} [options]
-     * @returns {ImageWrapper$}
+     * @param {Imagesx.Capt.Options} [options]
+     * @return {ImageWrapper$}
      */
     capt(options) {
         let _opt = options || {};
@@ -310,7 +474,7 @@ let ext = {
         let _max = 10;
         while (_max--) {
             try {
-                this.permit();
+                this.permit(options);
                 let _capt = images.captureScreen();
                 if (_clone) {
                     _capt = _capt.clone();
@@ -319,7 +483,7 @@ let ext = {
                     _capt = this.compress(_capt, _compress, true);
                 }
                 if (_capt instanceof ImageWrapper) {
-                    return _capt;
+                    return this.pool.add(_capt);
                 }
             } catch (e) {
                 _err = e;
@@ -329,31 +493,26 @@ let ext = {
         let _msg = '截取当前屏幕失败';
         console.error(_msg);
         toast(_msg);
-        _err !== null && console.warn(_err.message);
+        _err !== null && consolex.w(_err);
         exit();
     },
     /**
-     * @param {Imagesx$Capt$Options} [options]
-     * @returns {ImageWrapper$}
+     * @param {Imagesx.Capt.Options} [options]
+     * @return {ImageWrapper$}
      */
     captureScreen(options) {
         return this.capt(options);
     },
     /**
-     * @typedef {
-     *     boolean|'AUTO'|'LANDSCAPE'|'PORTRAIT'|*
-     * } ScreenCapturerOrientation - true for 'LANDSCAPE'; false for 'PORTRAIT'; default for 'AUTO'
-     */
-    /**
      * Substitution of images.requestScreenCapture() for avoiding unresponsive running when invoked more than once
-     * @param {ScreenCapturerOrientation} [landscape='AUTO']
-     * @returns {boolean}
+     * @param {Imagesx.ScreenCapturerOrientation} [landscape='AUTO']
+     * @return {boolean}
      */
     requestScreenCapture(landscape) {
-        if (this._has_scr_capt_permission.get() > 0) {
+        if (global._$_has_scr_capt_perm.get() > 0) {
             return true;
         }
-        this._has_scr_capt_permission.incrementAndGet();
+        global._$_has_scr_capt_perm.incrementAndGet();
 
         let javaImages = runtime.getImages();
         let ResultAdapter = require.call(global, 'result_adapter');
@@ -371,31 +530,29 @@ let ext = {
             ? javaImages.requestScreenCapture(_orientation)
             : javaImages.requestScreenCapture.apply(javaImages, [
                 _orientation, /* width: */ -1, /* height: */ -1, /* isAsync: */ false,
-            ].slice(0, _is_pro && app.autojs.versionName.match(/^Pro 7/) ? 3 : 4));
+            ].slice(0, app.autojs.versionName.match(/^Pro 7/) ? 3 : 4));
 
         if (ResultAdapter.wait(_adapter)) {
             return true;
         }
-        this._has_scr_capt_permission.decrementAndGet();
+        global._$_has_scr_capt_perm.decrementAndGet();
     },
     /**
      * Request for screen capture permission (with throttling and dialog auto dismissing)
      * @param {Object} [options={}]
      * @param {boolean} [options.restart_e_flag=true] - try restarting the engine when failed
-     * @param {ScreenCapturerOrientation} [options.screen_capturer_orientation='PORTRAIT']
-     * @param {Object} [options.restart_e_params={}]
-     * @param {number} [options.restart_e_params.max_restart_e_times=3]
-     * @param {boolean} [options.is_debug_info=undefined]
-     * @returns {boolean}
+     * @param {Imagesx.ScreenCapturerOrientation} [options.screen_capturer_orientation='PORTRAIT']
+     * @param {boolean} [options.is_debug=undefined]
+     * @return {boolean}
      */
     permit(options) {
-        if (this._has_scr_capt_permission.get() > 0) {
+        if (global._$_has_scr_capt_perm.get() > 0) {
             return true;
         }
+        let _debug = consolex.debug.fuel(options);
         let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
-        debugInfo$('开始申请截图权限');
+        _debug('开始申请截图权限');
 
         if (typeof _opt.restart_e_flag === 'undefined') {
             _opt.restart_e_flag = true;
@@ -403,111 +560,85 @@ let ext = {
             let _self = _opt.restart_e_flag;
             _opt.restart_e_flag = !!_self;
         }
-        if (!_opt.restart_e_params) {
-            _opt.restart_e_params = {};
-        }
-        if (!_opt.restart_e_params.max_restart_e_times) {
-            _opt.restart_e_params.max_restart_e_times = 3;
-        }
 
-        debugInfo$('已开启弹窗监测线程');
+        _debug('已开启弹窗监测线程');
 
-        let _thread_prompt = threads.start(function () {
-            require('./ext-a11y').load();
-            /** @returns {SelectorPickupResult} */
+        let _thread_prompt = threadsx.start(function () {
+            /** @return {A11yx.Pickup.Results} */
             let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
-            /** @returns {SelectorPickupResult} */
+            /** @return {A11yx.Pickup.Results} */
             let _sel_sure = t => $$sel.pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/, t);
 
-            if (waitForAction(_sel_sure, 4.8e3)) {
-                if (waitForAction(_sel_rem, 600)) {
-                    debugInfo$('勾选"不再提示"复选框');
-                    clickAction(_sel_rem(), 'w');
-                }
-                if (waitForAction(_sel_sure, 2.4e3)) {
-                    let _w = _sel_sure();
-                    let _act_msg = '点击' + _sel_sure('txt').surround('"') + '按钮';
-
-                    debugInfo$(_act_msg);
-                    clickAction(_w, 'w');
-
-                    if (!waitForAction(() => !_sel_sure(), 1e3)) {
-                        debugInfo$('尝试click()方法再次' + _act_msg);
-                        clickAction(_w, 'click');
-                    }
-                }
+            if (a11yx.wait(_sel_sure, 4.8e3, 120)) {
+                a11yx.wait(_sel_rem, 600, 120, {
+                    then(w) {
+                        _debug('勾选"不再提示"复选框');
+                        a11yx.click(w, 'w');
+                    },
+                });
+                a11yx.wait(_sel_sure, 2.4e3, 120, {
+                    then(w) {
+                        _debug('点击"' + $$sel.pickup(w, 'txt') + '"按钮');
+                        a11yx.click(w, 'w');
+                        a11yx.wait(() => !_sel_sure(), 1e3, {
+                            else() {
+                                _debug('尝试click()方法再次点击');
+                                a11yx.click(w, 'c');
+                            },
+                        });
+                    },
+                });
             }
-        });
-
-        let _thread_monitor = threads.start(function () {
-            if (waitForAction(() => !!_req_result, 4.8e3, 80)) {
-                _thread_prompt.interrupt();
-                return debugInfo$('截图权限申请结果: 成功');
-            }
-            _opt.is_debug_info = true;
-            if (typeof $$flag !== 'object') {
-                global.$$flag = {};
-            }
-            if (!$$flag.debug_info_avail) {
-                $$flag.debug_info_avail = true;
-                debugInfo$('开发者测试模式已自动开启', 3);
-            }
-            if (_opt.restart_e_flag) {
-                debugInfo$('截图权限申请结果: 失败', 3);
-                try {
-                    let _m = Build.MANUFACTURER.toLowerCase();
-                    if (_m.match(/xiaomi/)) {
-                        debugInfo$('__split_line__dash__');
-                        debugInfo$('检测到当前设备制造商为小米', 3);
-                        debugInfo$('可能需要给Auto.js以下权限:', 3);
-                        debugInfo$('"后台弹出界面"', 3);
-                        debugInfo$('__split_line__dash__');
-                    }
-                } catch (e) {
-                    // nothing to do here
-                }
-                if (files.exists('./ext-engines')) {
-                    return require('./ext-engines').restart(_opt.restart_e_params);
-                }
-            }
-            messageAction('截图权限申请失败', 8, 4, 0, 1);
         });
 
         let _sco = _opt.screen_capturer_orientation;
         _sco = _sco === undefined ? 'PORTRAIT' : _sco;
-        let _req_result = this.requestScreenCapture(_sco);
+        let _req_result = exp.requestScreenCapture(_sco);
 
-        _thread_monitor.join();
-
-        return _req_result;
+        return a11yx.wait(() => !!_req_result, 4.8e3, 80, {
+            then() {
+                _thread_prompt.interrupt();
+                _debug('截图权限申请结果: 成功');
+            },
+            else() {
+                if (typeof $$flag !== 'object') {
+                    global.$$flag = {};
+                }
+                if (!consolex.debug.switchGet()) {
+                    consolex.debug.switchSet(_opt.is_debug = true);
+                    _debug('开发者测试模式已自动开启', 3);
+                }
+                if (_opt.restart_e_flag) {
+                    _debug('截图权限申请结果: 失败', 3);
+                    try {
+                        Build.MANUFACTURER.toLowerCase().match(/xiaomi/) && _debug([
+                            '当前设备制造商: 小米', '可能需赋予Auto.js以下权限:', '后台弹出界面',
+                        ], 3, 0, -2);
+                    } catch (e) {
+                        // nothing to do here
+                    }
+                }
+                consolex.$('截图权限申请失败', 8, 4, 0, 1);
+            },
+        });
     },
     /**
      * @param {ImageWrapper$} img - should be recycled manually if needed
      * @param {ImageWrapper$|string} template - should be recycled manually if needed
      * @param {Object} [options]
-     * @param {string} [options.local_cache_name] - when cache name is given (like 'abc'), the file named 'abc.jpg' in the path files.getSdcardPath() + '/.local/pics/' will be: a, directly as template image -- 'abc.jpg' exists already; b, generated when matched -- 'abc.jpg' not exists; when not given, new matching will be made each time, regardless of the existence of storage file with the same name
-     * @param {number} [options.template_device_width=W] - screen display width of the template; see {@link getDisplay} -> {@link cX}
      * @param {number} [options.max_results=5] - max matched results; see {@link images.matchTemplate}
-     * @param {number} [options.threshold_find=0.9] - see {@link images.findImage}
-     * @param {number[]} [options.region_find=[0, 0, W, H]] - see {@link images.findImage}
-     * @param {number} [options.threshold_match=0.9] - see {@link images.matchTemplate}
+     * @param {number} [options.threshold=0.9] - see {@link images.matchTemplate}
      * @param {boolean} [options.not_null] - null result will be replaced by {points: []}
-     * @param {boolean} [options.local_cache_access] - truthy for cache image file saving and loading
      * @param {number} [options.compress_level] - see {@link imagesx.compress}
-     * @param {boolean} [options.is_debug_info=undefined]
      * @example
-     * let _clip = imagesx.capt();
-     * let _ic_img = images.read('./Test/test.jpg');
-     * console.log(imagesx.matchTemplate(_clip, _ic_img, {
-     *     template_device_width: 1080,
-     * }));
-     * console.log(imagesx.matchTemplate(_clip, 'ic_fetch', {
+     * let clip = imagesx.capt();
+     * let icon = imagesx.readAsset('ic-fetch');
+     * console.log(imagesx.matchTemplate(capt, icon, {
      *     max_results: 15,
-     *     threshold_find: 0.95,
-     *     threshold_match: 0.95,
+     *     threshold: 0.95,
      *     not_null: true,
      * }).points);
-     * @returns {Autojs.MatchingResult|{points: []}|null}
+     * @return {?Images.MatchingResult}
      */
     matchTemplate(img, template, options) {
         if (!img) {
@@ -517,100 +648,33 @@ let ext = {
             throw Error('Template is required for imagesx.matchTemplate()');
         }
         let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
 
-        let _tpl = _byLocal() || _byBase64() || _byTemplate();
-        return _tpl && (function $iiFe() {
-            require('./ext-device').load();
+        return (function $iiFe() {
             let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
             let _options = {
                 max: _opt.max_results,
-                threshold: _opt.threshold_match,
+                threshold: _opt.threshold,
             };
             if (_lv <= 1) {
-                return images.matchTemplate(img, _tpl, _options);
+                return images.matchTemplate(img, template, _options);
             }
             let _i = this.compress(img, _lv);
-            let _t = this.compress(_tpl, _lv);
+            let _t = this.compress(template, _lv);
             devicex.screen_metrics.saveState();
             devicex.screen_metrics.setRatio(1 / _lv);
             let _matched = images.matchTemplate(_i, _t, _options);
-            ext.reclaim(_i, _t);
+            exp.reclaim(_i, _t);
             devicex.screen_metrics.loadState();
             return _matched;
-        }).call(this) || (_opt.not_null ? {points: []} : null);
-
-        // tool function(s) //
-
-        function _byLocal() {
-            if (typeof template === 'string' && _opt.local_cache_access) {
-                let _dir = files.getSdcardPath() + '/.local/pics/';
-                files.createWithDirs(_dir);
-
-                let _name = template + '_' + W + 'p';
-                let _ext = (function $iiFe() {
-                    let _mch = _name.match(/\.(jpe?g|png|webp)$/);
-                    return _mch ? _mch[1] : 'jpg';
-                })();
-                let _path = _dir + _name + '.' + _ext;
-                _byLocal.info = {name: _name, path: _path, ext: _ext};
-
-                let _key = '_$_img_cache_' + _name;
-                return global[_key] = global[_key] || images.read(_path);
-            }
-        }
-
-        function _byBase64() {
-            if (typeof template === 'string') {
-                try {
-                    /** @type {_Base64Image} */
-                    let _img = require('./mod-treasury-vault').image_base64_data[template];
-                    return _microResize(_img.getImage(), _img.src_dev_width);
-                } catch (e) {
-                    // nothing to do here
-                }
-            }
-        }
-
-        function _byTemplate() {
-            if (template instanceof ImageWrapper) {
-                return _microResize(template, _opt.template_device_width);
-            }
-        }
-
-        function _microResize(tpl, src_w) {
-            let [_w, _h] = [tpl.getWidth(), tpl.getHeight()];
-            let _w_mid = cX(_w, src_w || W);
-            let [_w_min, _w_max] = [_w_mid - 1, _w_mid + 1];
-            for (let i = _w_min; i <= _w_max; i += 1) {
-                for (let j = 0; j <= 1; j += 1) {
-                    let _resized = images.resize(tpl, [i, i * _h / _w + j], 'LANCZOS4');
-                    let _matched = ext.findImage(img, _resized, {
-                        threshold: _opt.threshold_find,
-                        region: _opt.region_find,
-                        compress_level: _opt.compress_level,
-                    });
-                    if (!_matched) {
-                        _resized.recycle();
-                        _resized = null;
-                        continue;
-                    }
-                    if (_opt.local_cache_access) {
-                        debugInfo$('已存储缓存模板: ' + _byLocal.info.name);
-                        images.save(_resized, _byLocal.info.path, _byLocal.info.ext, 100);
-                    }
-                    return _resized;
-                }
-            }
-        }
+        }).call(this) || (_opt.not_null ? {matches: [], points: []} : null);
     },
     /**
      * Find color(s) by bounds of Rect, UiSelector or UiObject
      * @param {ImageWrapper$} img
      * @param {android.graphics.Rect|UiSelector$|UiObject$} bounds_src
-     * @param {ColorParam|ColorParam[]} color
+     * @param {Color$|Color$[]} color
      * @param {number} [threshold=4]
-     * @returns {android.graphics.Rect|null}
+     * @return {?android.graphics.Rect}
      */
     findColorInBounds(img, bounds_src, color, threshold) {
         let _bounds;
@@ -645,9 +709,9 @@ let ext = {
      * @param {number} [d=0] - Diameter of each pixel neighborhood that is used during filtering. If it is non-positive, it is computed from sigmaSpace
      * @param {number} [sigma_color=40] - Filter sigma in the color space. A larger value of the parameter means that farther colors within the pixel neighborhood (see sigmaSpace) will be mixed together, resulting in larger areas of semi-equal color
      * @param {number} [sigma_space=20] - Filter sigma in the coordinate space. A larger value of the parameter means that farther pixels will influence each other as long as their colors are close enough (see sigmaColor ). When d>0, it specifies the neighborhood size regardless of sigmaSpace. Otherwise, d is proportional to sigmaSpace
-     * @param {BorderTypes} [border_type='DEFAULT'] - border mode used to extrapolate pixels outside of the image
+     * @param {Images.BorderTypes} [border_type='DEFAULT'] - border mode used to extrapolate pixels outside of the image
      * @see https://docs.opencv.org/3.4.3/d4/d86/group__imgproc__filter.html#ga9d7064d478c95d60003cf839430737ed
-     * @returns {IW}
+     * @return {IW}
      */
     bilateralFilter(img, d, sigma_color, sigma_space, border_type) {
         this._initIfNeeded();
@@ -660,7 +724,7 @@ let ext = {
     },
     /**
      * @param {{
-     *     is_debug_info?: boolean,
+     *     is_debug?: boolean,
      *     pool?: object,
      *     duration?: boolean,
      *     region?: number[],
@@ -669,14 +733,13 @@ let ext = {
      *         forest_image_pool_itv?: number,
      *     },
      * }} [options]
-     * @returns {AfHoughBallsResult}
+     * @return {Imagesx.EnergyBall.AFResult}
      */
     findAFBallsByHough(options) {
-        require('./ext-device').getDisplay(true, {is_debug_info: false});
-        timeRecorder('hough_beginning');
+        timersx.rec.save('hough_beginning');
 
         let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+        let _debug = consolex.debug.fuel(_opt);
 
         let _opt_cfg = _opt.config || {};
         let _cfg = Object.assign(_def(), global.$$cfg, {
@@ -690,70 +753,62 @@ let ext = {
         let _region = _opt.region || _cfg.eballs_recognition_region
             .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
 
-        /** @type {{fill_up_pool: number, img_samples_processing: number}} */
+        let _stg_name_map = {
+            gray: '灰度化',
+            adapt_thrd: '自适应阈值',
+            med_blur: '中值滤波',
+            blur: '均值滤波',
+            blt_fltr: '双边滤波',
+        };
+
+        /** @type {typeof Imagesx.EnergyBall.Info.Duration.duration} */
         let _du = {};
-        /** @type {EnergyBallsInfo[]} */
+        /** @type {Imagesx.EnergyBall.Infos} */
         let _balls_data = [];
-        /**
-         * @typedef {{
-         *     ripe?: EnergyBallsInfo[],
-         *     naught?: EnergyBallsInfo[],
-         *     water?: EnergyBallsInfo[]
-         * }} EnergyBallsInfoClassified
-         */
-        /** @type {EnergyBallsInfoClassified} */
+        /** @type {Imagesx.EnergyBall.Info.Classified} */
         let _balls_data_o = {ripe: [], naught: [], water: []};
         let _pool = _opt.pool || new this.ForestImagePool({
             limit: _cfg.forest_image_pool_limit,
             interval: _cfg.forest_image_pool_itv,
-            is_debug_info: _opt.is_debug_info,
+            is_debug: _opt.is_debug,
         });
         _setWballExtFunction();
         _fillUpForestImgPool();
         _analyseEnergyBalls();
 
-        /** @typedef {{
-         *     duration?: {
-         *         _map: string[][],
-         *         total: number,
-         *         showDebugInfo: function(): void,
-         *         fill_up_pool: number,
-         *         img_samples_processing: number,
-         *     },
-         * }} EnergyBallsDuration */
-        /** @type {EnergyBallsDuration} */
-        let _du_o = _opt.duration !== false ? {
-            duration: Object.assign({
+        /** @type {Imagesx.EnergyBall.Info.Duration} */
+        let _du_o = _opt.duration === false ? {} : {
+            duration: {
                 _map: [
-                    ['gray', '灰度化'],
-                    ['adapt_thrd', '自适应阈值'],
-                    ['med_blur', '中值滤波'],
-                    ['blur', '均值滤波'],
-                    ['blt_fltr', '双边滤波'],
+                    ['gray', _stg_name_map.gray],
+                    ['adapt_thrd', _stg_name_map.adapt_thrd],
+                    ['med_blur', _stg_name_map.med_blur],
+                    ['blur', _stg_name_map.blur],
+                    ['blt_fltr', _stg_name_map.blt_fltr],
                     ['img_samples_processing', '数据处理'],
                     ['total', '全部用时'],
                 ],
-                total: Number(timeRecorder('hough_beginning', 'L')),
-                showDebugInfo() {
-                    debugInfo$('__split_line__dash__');
-                    debugInfo$('图像填池: ' + this.fill_up_pool + 'ms  ' + [
+                fill_up_pool: _du.fill_up_pool,
+                img_samples_processing: _du.img_samples_processing,
+                total: timersx.rec('hough_beginning'),
+                debug() {
+                    _debug.__();
+                    _debug('图像填池: ' + this.fill_up_pool + 'ms\x20\x20' + [
                         _pool.interval, _pool.limit,
                     ].join(', ').surround('[ '));
-                    this._map.filter(a => this[a[0]]).forEach((a) => {
-                        debugInfo$(a[1] + ': ' + this[a[0]] + 'ms');
+                    this._map.forEach((a) => {
+                        let [key, stg] = a;
+                        if (this[key]) {
+                            _debug(stg + ':\x20' + this[key] + 'ms');
+                        }
                     });
-                    debugInfo$('__split_line__dash__');
+                    _debug.__();
                 },
-            }, _du),
-        } : {};
+            },
+        };
 
-        /**
-         * @typedef {
-         *     EnergyBallsInfoClassified | EnergyBallsDuration | {expand: function(): EnergyBallsInfo[]}
-         * } AfHoughBallsResult
-         */
-        return Object.assign(_balls_data_o, _du_o, {
-            /** @returns {EnergyBallsInfo[]} */
+        /** @type {Imagesx.EnergyBall.Info.Extension} */
+        let _ext = {
             expand() {
                 return Object.values(this)
                     .filter(val => Array.isArray(val))
@@ -776,13 +831,15 @@ let ext = {
                 Object.values(_data).forEach(a => a.sort(_sortX));
                 return _data;
             },
-        });
+        };
+
+        return Object.assign(_balls_data_o, _du_o, _ext);
 
         // tool function(s) //
 
         function _setWballExtFunction() {
-            if (!ext.inTreeArea) {
-                ext.inTreeArea = (o) => {
+            if (!exp.inTreeArea) {
+                exp.inTreeArea = (o) => {
                     // TODO...
                     let _tree_area = {x: halfW, y: cYx(670), r: cX(182)};
                     if (typeof o !== 'object' || !o.r) {
@@ -795,13 +852,13 @@ let ext = {
                     return _ct_dist < _ct_dist_min;
                 };
             }
-            if (!ext.isWaterBall) {
-                ext.isWaterBall = (o, capt, container) => {
+            if (!exp.isWaterBall) {
+                exp.isWaterBall = (o, capt, container) => {
                     let {x: _ctx, y: _cty} = o;
                     if (_cty > cYx(386)) {
                         return false;
                     }
-                    let _capt = capt || ext.capt();
+                    let _capt = capt || exp.capt(options);
                     let _hue_max = _cfg.homepage_wball_max_hue_no_blue;
                     let _offset_x = o.r * Math.sin(30 * Math.PI / 180);
                     let _offset_y = o.r * Math.cos(30 * Math.PI / 180);
@@ -839,12 +896,12 @@ let ext = {
                     }
                 };
             }
-            if (!ext.isRipeBall) {
-                ext.isRipeBall = (o, capt, container) => {
-                    if (ext.inTreeArea(o)) {
+            if (!exp.isRipeBall) {
+                exp.isRipeBall = (o, capt, container) => {
+                    if (exp.inTreeArea(o)) {
                         return;
                     }
-                    let _capt = capt || ext.capt();
+                    let _capt = capt || exp.capt(options);
                     let _offset = o.r * Math.SQRT1_2;
                     let _d = _offset * 2;
                     let _color = _cfg.ripe_ball_detect_color_val;
@@ -864,35 +921,37 @@ let ext = {
         }
 
         function _fillUpForestImgPool() {
-            timeRecorder('fill_up_pool');
+            timersx.rec.save('fill_up_pool');
             let _max = _pool.limit + 1;
             while (_max--) {
-                timeRecorder('forest_pool_add');
-                _pool.add();
+                timersx.rec.save('forest_pool_add');
+                _pool.add(options);
                 if (!_pool.len || _pool.filled_up) {
                     break;
                 }
-                let _et = timeRecorder('forest_pool_add', 'L');
-                let _itv = Math.max(0, _pool.interval - _et);
-                _itv && sleep(_itv);
+                $$sleep(_pool.interval - timersx.rec('forest_pool_add'));
             }
-            _du.fill_up_pool = timeRecorder('fill_up_pool', 'L');
+            _du.fill_up_pool = timersx.rec('fill_up_pool');
         }
 
         function _analyseEnergyBalls() {
-            debugInfo$('分析森林页面样本中的能量球');
-            _pool.data.forEach(_parse);
-            debugInfo$('森林页面样本能量球分析完毕');
-            debugInfo$('解析的能量球数量: ' + _balls_data.length);
+            _debug('分析森林页面样本中的能量球');
+            _pool.data.filter(i => !exp.isRecycled(i)).forEach(_parse);
+
+            _debug('森林页面样本能量球分析完毕');
+            _debug('解析的能量球数量: ' + _balls_data.length);
             _balls_data.forEach(o => _balls_data_o[o.type].push(o));
+            _debugBallsAmt(_balls_data_o, {
+                ripe: '成熟', naught: '未成熟', water: '浇水',
+            });
+
             _opt.pool || _pool.reclaimAll();
 
             // tool function(s) //
 
-            function _parse(capt) {
-                if (!capt || ext.isRecycled(capt)) {
-                    return;
-                }
+            function _parse(capt, idx) {
+                idx || _debug.__();
+
                 let [_l, _t, _r, _b] = _region;
                 let [_w, _h] = [_r - _l, _b - _t];
 
@@ -909,24 +968,37 @@ let ext = {
                     return images.blur(_gray, 9, [-1, -1], 'REPLICATE');
                 });
                 let _blt_fltr = _getImg('blt_fltr', _src_img_stg.blt_fltr, () => {
-                    return ext.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE');
+                    return exp.bilateralFilter(_gray, 9, 20, 20, 'REPLICATE');
                 });
 
-                let _proc_key = 'img_samples_processing';
-                timeRecorder(_proc_key);
+                if (!_src_img_stg.gray) {
+                    exp.reclaim(_gray);
+                    _gray = null;
+                }
 
-                /** @type {EnergyBallsBasicProp[]} */
+                let _proc_key = 'img_samples_processing';
+                timersx.rec.save(_proc_key);
+
+                /** @type {Imagesx.EnergyBall.BasicProp[]} */
                 let _wballs = [];
 
-                /** @type {EnergyBallsBasicProp[]} */
+                /** @type {Imagesx.EnergyBall.BasicProp[]} */
                 let _balls = []
-                    .concat(_getBalls(_src_img_stg.gray && _gray))
-                    .concat(_getBalls(_adapt_thrd))
-                    .concat(_getBalls(_med_blur))
-                    .concat(_getBalls(_blur))
-                    .concat(_getBalls(_blt_fltr))
-                    .filter(_filterNonWball)
-                    .sort(_sortX);
+                    .concat(_getBalls('gray', _gray))
+                    .concat(_getBalls('adapt_thrd', _adapt_thrd))
+                    .concat(_getBalls('med_blur', _med_blur))
+                    .concat(_getBalls('blur', _blur))
+                    .concat(_getBalls('blt_fltr', _blt_fltr));
+
+                let _filtered = {invalid: 0, ripe: 0, water: 0, naught: 0};
+                let _len_before_filter = _balls.length;
+                _balls = _balls.filter(_filterNonWball);
+                _debugBallsLen('筛选能量球', _len_before_filter, _balls.length);
+                _debugBallsAmt(_filtered, {
+                    invalid: '无效', ripe: '成熟', water: '浇水', naught: '未成熟',
+                });
+
+                _balls.sort(_sortX);
 
                 if (_wballs.length + _balls.length) {
                     _antiOverlap();
@@ -935,25 +1007,37 @@ let ext = {
                     _addBalls();
                 }
 
-                _du[_proc_key] = timeRecorder(_proc_key, 'L');
+                _du[_proc_key] = timersx.rec(_proc_key);
+
+                _debug.__();
 
                 // tool function(s) //
 
-                function _getImg(name, condition, imgFunc) {
+                function _getImg(name, condition, imgGenerator) {
                     if (condition) {
-                        timeRecorder(name);
-                        let _img = imgFunc();
-                        let _et = timeRecorder(name, 'L');
+                        timersx.rec.save(name);
+                        let _img = imgGenerator();
+                        let _et = timersx.rec(name);
                         _du[name] ? _du[name] = _et : _du[name] += _et;
+                        _debug(_stg_name_map[name] + ':\x20' + _et + 'ms');
                         return _img;
                     }
+                    _debug(_stg_name_map[name] + ': discarded');
                 }
 
                 function _antiOverlap() {
                     if (_results_stg.anti_ovl) {
+                        _debug('覆盖检测处理...');
+
+                        let _len_w = _wballs.length;
+                        let _len_s = _balls.length;
+
                         _antiX(_balls);
                         _antiX(_wballs);
                         _antiXY(_balls, _wballs);
+
+                        _debugBallsLen('w', _len_w, _wballs.length);
+                        _debugBallsLen('s', _len_s, _balls.length);
                     }
 
                     // tool function(s) //
@@ -1057,6 +1141,10 @@ let ext = {
                             return;
                         }
                     }
+
+                    _debug('对称检测处理...');
+                    let _len = _balls.length;
+
                     let _right_ball = _balls[_balls.length - 1];
                     let _left_ball = _balls[0];
                     let _max = _right_ball.x;
@@ -1077,12 +1165,18 @@ let ext = {
                             computed: true,
                         });
                     }
+
+                    _debugBallsLen('s', _len, _balls.length);
                 }
 
                 function _linearInterpolate() {
                     if (!_results_stg.linear_itp) {
                         return;
                     }
+
+                    _debug('线性插值处理...');
+                    let _len = _balls.length;
+
                     let _step = _getMinStep();
                     for (let i = 1; i < _balls.length; i += 1) {
                         let _dist = _calcDist(_balls[i], _balls[i - 1]);
@@ -1105,6 +1199,8 @@ let ext = {
                         i += _data.length;
                     }
 
+                    _debugBallsLen('s', _len, _balls.length);
+
                     // tool function(s) //
 
                     function _getMinStep() {
@@ -1125,17 +1221,19 @@ let ext = {
                     }
                 }
 
-                /**
-                 * @typedef {'ripe'|'naught'|'water'} EnergyBallsType
-                 */
                 function _addBalls() {
-                    _wballs.map(_wrapProps).filter(_filterNonActivityBtn).forEach((o) => {
-                        _addBall(o, 'water');
-                    });
-                    _balls.map(_wrapProps).filter(_filterNonActivityBtn).forEach((o) => {
+                    _debug('收集预处理数据...');
+
+                    let _wballs_total = _wballs.map(_wrapProps).filter(_filterNonActivityBtn);
+                    _debugBallsLen('w', _wballs.length, _wballs_total.length);
+                    _wballs_total.forEach(o => _addBall(o, 'water'));
+
+                    let _balls_total = _balls.map(_wrapProps).filter(_filterNonActivityBtn);
+                    _debugBallsLen('s', _balls.length, _balls_total.length);
+                    _balls_total.forEach((o) => {
                         if (_isRipeBall(o)) {
                             _addBall(o, 'ripe');
-                        } else if (!ext.inTreeArea(o)) {
+                        } else if (!exp.inTreeArea(o)) {
                             _addBall(o, 'naught');
                         }
                     });
@@ -1143,21 +1241,17 @@ let ext = {
                     // tool function(s) //
 
                     function _isRipeBall(o) {
-                        return ext.isRipeBall(o, capt);
+                        return exp.isRipeBall(o, capt);
                     }
 
                     /**
-                     * @typedef {EnergyBallsBasicProp | EnergyBallsExtProp} EnergyBallsMixedProp
-                     * @typedef {EnergyBallsMixedProp | {type: EnergyBallsType}} EnergyBallsInfo
-                     */
-                    /**
-                     * @param {EnergyBallsMixedProp} o
-                     * @param {EnergyBallsType} type
+                     * @param {Imagesx.EnergyBall.Property} o
+                     * @param {Imagesx.EnergyBall.Type} type
                      */
                     function _addBall(o, type) {
                         let _pri = {ripe: 6, naught: 3};
                         let _data_idx = _getDataIdx(o);
-                        if (!~_data_idx) {
+                        if (_data_idx === -1) {
                             _balls_data.push(Object.assign({type: type}, o));
                         } else if (_pri[type] > _pri[_balls_data[_data_idx].type]) {
                             // low-priority data will be replaced with the one with higher priority
@@ -1169,7 +1263,7 @@ let ext = {
                         function _getDataIdx(o) {
                             let _l = _balls_data.length;
                             for (let i = 0; i < _l; i += 1) {
-                                // take as identical balls
+                                // taken as identical balls
                                 if (Math.abs(o.x - _balls_data[i].x) < _min_dist / 2) {
                                     return i;
                                 }
@@ -1178,14 +1272,7 @@ let ext = {
                         }
                     }
 
-                    /**
-                     * @typedef {{
-                     *     x: number, y: number, r: number,
-                     *     left: number, top: number, right: number, bottom: number,
-                     *     width: function(): number, height: function(): number
-                     * }} EnergyBallsExtProp
-                     */
-                    /** @returns {EnergyBallsMixedProp} */
+                    /** @return {Imagesx.EnergyBall.Property} */
                     function _wrapProps(o) {
                         let _toFixedNum = (x, frac) => {
                             return Number(Number(x).toFixed(typeof frac === 'number' ? frac : 1));
@@ -1215,26 +1302,14 @@ let ext = {
                 }
 
                 /**
-                 * @typedef {{
-                 *     x: number,
-                 *     y: number,
-                 *     r: number,
-                 *     mean?: {
-                 *         arr: [number, number, number],
-                 *         std: number,
-                 *         data: {R: number, B: number, G: number},
-                 *         string: string
-                 *     },
-                 *     computed?: boolean
-                 * }} EnergyBallsBasicProp
+                 * @return {Imagesx.EnergyBall.BasicProp[]}
                  */
-                /**
-                 * @returns {EnergyBallsBasicProp[]|[]}
-                 */
-                function _getBalls(img) {
+                function _getBalls(name, img) {
                     if (!img) {
+                        _debug(_stg_name_map[name] + ': discarded');
                         return [];
                     }
+                    timersx.rec.save(name + '_cir');
                     let _results = images
                         .findCircles(img, {
                             dp: 1,
@@ -1250,10 +1325,10 @@ let ext = {
                             // yet x and y are absolute
                             let _x = Number(o.x + _l);
                             let _y = Number(o.y + _t);
-                            let _r = Number(o.radius.toFixed(2));
+                            let _r = o.radius.toFixedNum(2);
                             let _d = _r * 2;
                             let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
-                            let _mean = ext.getMean(_clip);
+                            let _mean = exp.getMean(_clip);
                             _clip.recycle();
                             _clip = null;
                             return {x: _x, y: _y, r: _r, mean: _mean};
@@ -1267,17 +1342,29 @@ let ext = {
                                 && o.mean.std > 20;
                         })
                         .sort(_sortX);
-                    ext.reclaim(img);
+                    exp.reclaim(img);
+
+                    let _et = timersx.rec(name + '_cir');
+                    _debug(_stg_name_map[name] + ':\x20' + _results.length + 'cir in\x20' + _et + 'ms');
+
                     return _results;
                 }
 
                 function _filterNonWball(o) {
-                    if (o) {
-                        if (ext.isRipeBall(o, capt)) {
-                            return true;
-                        }
-                        return !ext.isWaterBall(o, capt, _wballs);
+                    if (typeof o !== 'object' || isNullish(o)) {
+                        _filtered.invalid += 1;
+                        return false;
                     }
+                    if (exp.isRipeBall(o, capt)) {
+                        _filtered.ripe += 1;
+                        return true;
+                    }
+                    if (exp.isWaterBall(o, capt, _wballs)) {
+                        _filtered.water += 1;
+                        return false;
+                    }
+                    _filtered.naught += 1;
+                    return true;
                 }
             }
         }
@@ -1289,7 +1376,7 @@ let ext = {
         // updated: Oct 20, 2020
         function _def() {
             return {
-                ripe_ball_detect_color_val: '#deff00',
+                ripe_ball_detect_color_val: '#DEFF00',
                 ripe_ball_detect_threshold: 13,
                 eballs_recognition_region: [0.1, 0.15, 0.9, 0.45],
                 hough_src_img_strategy: {
@@ -1305,18 +1392,44 @@ let ext = {
                 homepage_wball_max_hue_no_blue: 47,
             };
         }
+
+        /**
+         * @param {'s'|'w'|string} name
+         * @param {number} old_len
+         * @param {number} [new_len]
+         */
+        function _debugBallsLen(name, old_len, new_len) {
+            let _n = name === 's' ? '标准能量球' : name === 'w' ? '浇水回赠球' : name;
+            new_len === undefined || old_len === new_len
+                ? _debug(_n + ':\x20' + old_len)
+                : _debug(_n + ':\x20' + old_len + ' -> ' + new_len);
+        }
+
+        /**
+         * @param {Object} data
+         * @param {Object} [mapper]
+         */
+        function _debugBallsAmt(data, mapper) {
+            let _keys = Object.keys(data);
+            let _map = mapper || {};
+            let _len = x => Array.isArray(x) ? x.length : x;
+            _keys = _keys.filter(k => _len(data[k]) > 0);
+            _keys.length && _debug(_keys
+                .map(k => (_map[k] || k) + '×\x20' + _len(data[k]))
+                .join(' + '));
+        }
     },
     /**
      * Substitution of images.findAllPointsForColor() (compatible with Auto.js Pro versions)
      * @param {ImageWrapper$} img
-     * @param {ColorParam} color
+     * @param {Color$} color
      * @param {{
      *     similarity?: number,
      *     threshold?: number,
      *     region?: [X]|[X, Y]|[X, Y, Width]|[X, Y, Width, Height],
      *     is_recycle_img?: boolean,
      * }} [options]
-     * @returns {org.opencv.core.Point[]}
+     * @return {org.opencv.core.Point[]}
      */
     findAllPointsForColor(img, color, options) {
         this._initIfNeeded();
@@ -1397,8 +1510,42 @@ let ext = {
         Object.assign(_finder, _finder_ext);
 
         let _pts = this._toPointArray(_finder.findAllPointsForColor(img, _color, _thrd, _region));
-        _opt.is_recycle_img && img.recycle();
+        _opt.is_recycle_img && this.reclaim(img);
         return _pts;
+    },
+    /**
+     * Substitution of images.load(src:string):ImageWrapper$
+     * @param {string} src
+     * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
+     * @example
+     * log(imagesx.src('http://example.com/test.png').getHeight());
+     * log(imagesx.src('http://example.com/test.png', 4).getHeight()); // 1/16 size of above
+     * @return {ImageWrapper$}
+     */
+    src(src, compress_level /* inSampleSize */) {
+        try {
+            let _url = new URL(src);
+            let _cxn = _url.openConnection();
+            _cxn.setDoInput(true);
+            _cxn.connect();
+            let _input = _cxn.getInputStream();
+            let _bo = new BitmapFactory.Options();
+            _bo.inSampleSize = Math.max(Number(compress_level) || 1, 1);
+            let _bitmap = BitmapFactory.decodeStream(_input, null, _bo);
+            return this.pool.add(ImageWrapper.ofBitmap(_bitmap));
+        } catch (e) {
+            return null;
+        }
+    },
+    /**
+     * Substitution of images.load(src:string):ImageWrapper$
+     * @param {string} src
+     * @param {number} [compress_level=1] - android.graphics.BitmapFactory.Options.inSampleSize
+     * @return {ImageWrapper$}
+     * @see imagesx.src
+     */
+    loadSrc(src, compress_level /* inSampleSize */) {
+        return this.src(src, compress_level);
     },
     /**
      * Substitution of images.read(path:string):ImageWrapper$
@@ -1408,18 +1555,18 @@ let ext = {
      * log(images.read('./test.png').getHeight());
      * log(imagesx.read('./test.png').getHeight()); // same as above
      * log(imagesx.read('./test.png', 4).getHeight()); // 1/16 size of above
-     * @returns {ImageWrapper$}
+     * @return {ImageWrapper$}
      */
     read(path, compress_level /* inSampleSize */) {
         let _bo = new BitmapFactory.Options();
         _bo.inSampleSize = Math.max(Number(compress_level) || 1, 1);
         let _bitmap = BitmapFactory.decodeFile(files.path(path), _bo);
-        return ImageWrapper.ofBitmap(_bitmap);
+        return this.pool.add(ImageWrapper.ofBitmap(_bitmap));
     },
     /**
      * Read out the outWidth and outHeight of a local image file (without allocating the memory for its pixels)
      * @param {string} path
-     * @returns {{width: number, height: number}}
+     * @return {{width: number, height: number}}
      */
     readBounds(path) {
         let _bo = new BitmapFactory.Options();
@@ -1429,6 +1576,26 @@ let ext = {
             width: _bo.outWidth,
             height: _bo.outHeight,
         };
+    },
+    /**
+     * @param {string} asset_name
+     * @return {ImageWrapper$}
+     */
+    readAsset(asset_name) {
+        let _k = this._asset_prefix + asset_name;
+        if (this.isImageWrapper(this[_k]) && !this.isRecycled(this[_k])) {
+            return this[_k];
+        }
+        return this[_k] = this._readAsset(asset_name);
+    },
+    /**
+     * @param {...string[]} [asset_names]
+     */
+    clearAssetCache(asset_names) {
+        let _keys = asset_names
+            ? [].slice.call(arguments).map(k => this._asset_prefix + k)
+            : Object.keys(this).filter(k => k.startsWith(this._asset_prefix));
+        _keys.forEach(k => this.reclaim(this[k]));
     },
     /**
      * Compress ImageWrapper by passing a compress_level (inSampleSize) parameter
@@ -1449,7 +1616,7 @@ let ext = {
      * images.save(compress(capt, 4), files.path('./capt4.png'));
      * images.save(compress(capt, 8), files.path('./capt8.png'));
      * @see https://developer.android.com/reference/android/graphics/BitmapFactory.Options#inSampleSize
-     * @returns {IW}
+     * @return {IW}
      */
     compress(img, compress_level /* inSampleSize */, is_recycle_img) {
         let _lv = Math.floorPow(2, Math.max(Number(compress_level) || 1, 1));
@@ -1463,7 +1630,7 @@ let ext = {
             let _new_bitmap = BitmapFactory.decodeByteArray(_bytes, 0, _bytes.length, _bo);
             _new_wrapper = ImageWrapper.ofBitmap(_new_bitmap);
         }
-        is_recycle_img && img.recycle();
+        is_recycle_img && this.reclaim(img);
         return _new_wrapper;
     },
     /**
@@ -1475,11 +1642,11 @@ let ext = {
      * @param {number} w
      * @param {number} h
      * @param {boolean} [is_recycle_img=false] - whether to recycle param img or not
-     * @returns {IW}
+     * @return {IW}
      */
     clip(img, x, y, w, h, is_recycle_img) {
         let _clip = images.clip(img, x, y, w, h);
-        is_recycle_img && img.recycle();
+        is_recycle_img && this.reclaim(img);
         return _clip;
     },
     /**
@@ -1489,17 +1656,17 @@ let ext = {
      * @param {IW} img2
      * @param {'LEFT'|'RIGHT'|'TOP'|'BOTTOM'} [direction='RIGHT']
      * @param {boolean|number|'ALL'} [is_recycle_img=false] - whether to recycle param img or not
-     * @returns {IW}
+     * @return {IW}
      */
     concat(img1, img2, direction, is_recycle_img) {
         let _concat = images.concat(img1, img2, direction);
         if (is_recycle_img === true || is_recycle_img === 'ALL' || is_recycle_img === 0) {
-            img1.recycle();
-            img2.recycle();
+            this.reclaim(img1);
+            this.reclaim(img2);
         } else if (is_recycle_img === 1) {
-            img1.recycle();
+            this.reclaim(img1);
         } else if (is_recycle_img === 2) {
-            img2.recycle();
+            this.reclaim(img2);
         }
         return _concat;
     },
@@ -1507,12 +1674,12 @@ let ext = {
      * Substitution of images.resize() for better dsize compatibility
      * @template {ImageWrapper$} IW
      * @param {IW} img - input image.
-     * @param {ImageSize} dsize - output image size (Side|[Width,Height]).
-     * @param {InterpolationFlags} [interpolation='LINEAR'] - interpolation method (without 'INTER_' prefix).
+     * @param {Images.Size} dsize - output image size (Side|[Width,Height]).
+     * @param {Images.InterpolationFlags} [interpolation='LINEAR'] - interpolation method (without 'INTER_' prefix).
      * @example
      * images.requestScreenCapture(false);
      * let dst = images.resize(images.captureScreen(), [720, 1280]);
-     * @returns {IW}
+     * @return {IW}
      */
     resize(img, dsize, interpolation) {
         let _size = Array.isArray(dsize) ? dsize : [dsize, dsize];
@@ -1548,7 +1715,7 @@ let ext = {
      * let templ = images.read('/sdcard/template.png');
      * let point = images.findImage(img, templ, {compress_level: 4});
      * if (point) {
-     *     console.log(point.x + ', ' + point.y);
+     *     console.log(point.x +',\x20'+ point.y);
      * }
      */
     findImage(img, template, options) {
@@ -1558,21 +1725,20 @@ let ext = {
             if (_lv <= 1) {
                 return images.findImage(img, template, options);
             }
-            require('./ext-device').load();
             let _img = this.compress(img, _lv);
             let _tpl = this.compress(template, _lv);
             devicex.screen_metrics.saveState();
             devicex.screen_metrics.setRatio(1 / _lv);
             let _res = images.findImage(_img, _tpl, options);
-            ext.reclaim(_img, _tpl);
+            exp.reclaim(_img, _tpl);
             devicex.screen_metrics.loadState();
             return _res && new Point(_res.x * _lv, _res.y * _lv);
         }).call(this);
         if (_opt.is_recycle_all) {
-            ext.reclaim(img, template);
+            exp.reclaim(img, template);
         } else {
-            _opt.is_recycle_img && img.recycle();
-            _opt.is_recycle_template && template.recycle();
+            _opt.is_recycle_img && this.reclaim(img);
+            _opt.is_recycle_template && this.reclaim(template);
         }
         return _result;
     },
@@ -1584,23 +1750,22 @@ let ext = {
      * @param {boolean} [options.no_toast_msg_flag=false]
      * @param {number} [options.fetch_times=1]
      * @param {number} [options.fetch_interval=100]
-     * @param {boolean} [options.is_debug_info=undefined]
+     * @param {boolean} [options.is_debug=undefined]
      * @param {number} [options.timeout=60e3] -- no less than 5e3
      * @example
-     * require('ext-a11y').load();
      * // [[], [], []] -- 3 groups of data
      * console.log(imagesx.baiduOcr($$sel.pickup(/\xa0/, 'widgets'), {
      *     fetch_times: 3,
      *     timeout: 12e3
      * }));
-     * @returns {Array|Array[]} -- [] or [[], [], []...]
+     * @return {Array|Array[]} -- [] or [[], [], []...]
      */
     baiduOcr(src, options) {
         if (!src) {
             return [];
         }
         let _opt = options || {};
-        let debugInfo$ = (m, lv) => debugInfo(m, lv, _opt.is_debug_info);
+        let _debug = consolex.debug.fuel(_opt);
 
         let _tt = _opt.timeout || 60e3;
         if (!+_tt || _tt < 5e3) {
@@ -1609,15 +1774,15 @@ let ext = {
         let _tt_ts = Date.now() + _tt;
 
         let _imagesx = this;
-        let _capt = _opt.capt_img || this.capt();
+        let _capt = _opt.capt_img || this.capt(options);
 
         let _msg = '使用baiduOcr获取数据';
-        debugInfo$(_msg);
+        _debug(_msg);
         _opt.no_toast_msg_flag || toast(_msg);
 
         let _token = '';
         let _max_token = 10;
-        let _thd_token = threads.start(function () {
+        let _thd_token = threadsx.start(function () {
             while (_max_token--) {
                 try {
                     // noinspection SpellCheckingInspection
@@ -1627,7 +1792,7 @@ let ext = {
                         '&client_id=YIKKfQbdpYRRYtqqTPnZ5bCE' +
                         '&client_secret=hBxFiPhOCn6G9GH0sHoL0kTwfrCtndDj')
                         .body.json()['access_token'];
-                    debugInfo$('access_token准备完毕');
+                    _debug('access_token准备完毕');
                     break;
                 } catch (e) {
                     sleep(200);
@@ -1636,8 +1801,7 @@ let ext = {
         });
         _thd_token.join(_tt);
 
-        let _lv = Number(!_opt.no_toast_msg_flag);
-        let _err = s => messageAction(s, 3, _lv, 0, 'both_dash');
+        let _err = s => consolex.w(s, Number(!_opt.no_toast_msg_flag), 0, -2);
         if (_max_token < 0) {
             _err('baiduOcr获取access_token失败');
             return [];
@@ -1655,7 +1819,7 @@ let ext = {
         let _allDead = () => _thds.every(thd => !thd.isAlive());
 
         while (_max--) {
-            _thds.push(threads.start(function () {
+            _thds.push(threadsx.start(function () {
                 let _max_img = 10;
                 let _img = _stitchImgs(src);
                 while (_max_img--) {
@@ -1668,8 +1832,8 @@ let ext = {
                     _img = _stitchImgs(src);
                 }
                 let _cur = _max_b - _max;
-                let _suffix = _max_b > 1 ? ' [' + _cur + '] ' : '';
-                debugInfo$('stitched image' + _suffix + '准备完毕');
+                let _suffix = _max_b > 1 ? '[\x20' + _cur + ']\x20' : '';
+                _debug('stitched image' + _suffix + '准备完毕');
 
                 try {
                     let _words = JSON.parse(http.post('https://aip.baidubce.com/' +
@@ -1679,7 +1843,7 @@ let ext = {
                         image_type: 'BASE64',
                     }).body.string())['words_result'];
                     if (_words) {
-                        debugInfo$('数据' + _suffix + '获取成功');
+                        _debug('数据' + _suffix + '获取成功');
                         _res.push(_words.map(val => val['words']));
                     }
                 } catch (e) {
@@ -1687,28 +1851,23 @@ let ext = {
                         throw (e);
                     }
                 } finally {
-                    _img.recycle();
-                    _img = null;
+                    _imagesx.reclaim(_img);
                 }
             }));
             sleep(_itv);
         }
 
-        threads.start(function () {
+        threadsx.start(function () {
             while (!_allDead()) {
+                sleep(420);
                 if (Date.now() >= _tt_ts) {
                     _thds.forEach(thd => thd.interrupt());
 
-                    let _msg = 'baiduOcr获取数据超时';
-                    let _toast = Number(!_opt.no_toast_msg_flag);
-                    messageAction(_msg, 3, _toast, 0, 'up_dash');
-
-                    if (_res.length) {
-                        messageAction('已获取的数据可能不完整', 3);
-                    }
-                    return showSplitLine('', 'dash');
+                    let _msg = ['baiduOcr获取数据超时'];
+                    _res.length && _msg.push('已获取的数据可能不完整');
+                    consolex.w(_msg, Number(!_opt.no_toast_msg_flag), 0, -2);
+                    break;
                 }
-                sleep(500);
             }
         });
 
@@ -1792,5 +1951,4 @@ let ext = {
     },
 };
 
-module.exports = ext;
-module.exports.load = () => global.imagesx = ext;
+module.exports = {imagesx: exp};
