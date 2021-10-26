@@ -81,7 +81,7 @@
 
 - 运行 `ant-forest-launcher.js` 启动项目
 - 运行 `ant-forest-settings.js` 配置项目
-- 项目 `tools` 文件夹包含小工具 (详见[项目文档](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/assets/docs/MANNUAL.md#%E5%85%B6%E4%BB%96%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7))
+- 项目 `tools` 文件夹包含小工具 (详见[项目文档](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/MANNUAL.md#%E5%85%B6%E4%BB%96%E8%BE%85%E5%8A%A9%E5%B7%A5%E5%85%B7))
 
 ******
 
