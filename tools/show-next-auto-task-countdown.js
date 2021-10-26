@@ -1,5 +1,6 @@
 let {} = require('../modules/ext-global');
 let {} = require('../modules/ext-ui');
+let {timersx} = require('../modules/ext-timers');
 
 let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
 
@@ -7,8 +8,8 @@ let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
 let _view = ui.inflate(
     <vertical gravity="center">
         <x-img id="img" src="@drawable/ic_alarm_on_black_48dp"
-             height="70" margin="0 26 0 18" gravity="center"
-             bg="?selectableItemBackgroundBorderless"/>
+               height="70" margin="0 26 0 18" gravity="center"
+               bg="?selectableItemBackgroundBorderless"/>
         <vertical>
             <x-text text="Next auto task" gravity="center" color="#DDF3E5F5" padding="5 0 5 20" size="19"/>
             <x-text id="aim" gravity="center" color="#DDF3E5F5" padding="5 0 5 20" size="18"/>
@@ -16,7 +17,7 @@ let _view = ui.inflate(
         </vertical>
         <horizontal w="auto">
             <x-button id="btn" type="button" text="CLOSE" layout_weight="1" backgroundTint="#DD1B5E20"
-                    textColor="#DDE8F5E9" marginBottom="9"/>
+                      textColor="#DDE8F5E9" marginBottom="9"/>
         </horizontal>
     </vertical>);
 let _diag = dialogs.build({
@@ -55,14 +56,9 @@ function _getTsFromArgv() {
 }
 
 function _getTsFromAutoTask() {
-    let _root_path = files.path('../');
-    // let _root_path = files.path('./Ant-Forest-003/');
-    let _path = _root_path + 'modules/ext-timers.js';
-    if (files.exists(_path)) {
-        return require(_path).queryTimedTasks({
-            path: _root_path + 'ant-forest-launcher.js',
-        }).map(task => task.getNextTime()).sort()[0];
-    }
+    return timersx.queryTimedTasks({
+        path: files.path('../ant-forest-launcher.js'),
+    }).map(task => task.getNextTime()).sort()[0];
 }
 
 function _getTsFromDiag() {
