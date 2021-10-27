@@ -14,9 +14,6 @@ let exp = {
         af_homepage: ['https://60000002.h5app.alipay.com/www/home.html', {
             transparentTitle: 'auto',
             backgroundColor: -1,
-            startMultApp: 'YES',
-            enableCubeView: 'NO',
-            enableScrollBar: 'NO',
         }],
         af_rank_list: [['https://60000002.h5app.alipay.com/www/listRank.html', {
             conf: '["totalRank"]',
@@ -25,11 +22,7 @@ let exp = {
             backgroundColor: -1,
             canPullDown: 'NO',
             backBehavior: 'back',
-            enableCubeView: 'NO',
-            startMultApp: 'YES',
             showOptionMenu: 'YES',
-            enableScrollBar: 'NO',
-            closeCurrentWindow: 'YES',
             readTitle: 'NO',
             defaultTitle: String.unEsc('2615FE0F0020597D53CB6392884C699C'),
         }],
@@ -70,9 +63,16 @@ let exp = {
                     } else if (Array.isArray(url)) {
                         _o.url = {src: url[0], query: url[1]};
                     }
-                    if (isPlainObject(webview_options)) {
-                        _o.__webview_options__ = webview_options;
-                    }
+                    /**
+                     * @type {Alipayx.JSBridge.WebviewOptions}
+                     */
+                    _o.__webview_options__ = Object.assign({
+                        appClearTop: 'YES',
+                        startMultApp: 'YES',
+                        enableCubeView: 'NO',
+                        enableScrollBar: 'NO',
+                        closeCurrentWindow: 'YES',
+                    }, webview_options);
                     return _o;
                 }(),
                 exclude: 'defaultTitle',

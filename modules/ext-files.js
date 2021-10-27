@@ -105,6 +105,33 @@ let _ = {
 
 let exp = {
     sep: File.separator,
+    json: {
+        /**
+         * @param {string} k
+         * @param {number|*} v
+         * @return {string|*}
+         */
+        replacer(k, v) {
+            /** Zero Width No-Break Space */
+            let _pad = '\ufeff';
+            if (typeof v === 'number' && (isNaN(v) || !isFinite(v))) {
+                return _pad + v.toString() + _pad;
+            }
+            return v;
+        },
+        /**
+         * @param {string} k
+         * @param {string|*} v
+         * @return {number|*}
+         */
+        reviver(k, v) {
+            let _pad = /^\ufeff(.+)\ufeff$/;
+            if (typeof v === 'string' && v.match(_pad)) {
+                return Number(v.replace(_pad, '$1'));
+            }
+            return v;
+        },
+    },
     /**
      * @param {...string[]} [children]
      * @example
@@ -813,7 +840,7 @@ let exp = {
     readJson(path, def, reviver) {
         let _def = def === undefined ? {} : def;
         try {
-            return JSON.parse(this.read(path), reviver) || _def;
+            return JSON.parse(this.read(path), reviver || this.json.reviver) || _def;
         } catch (e) {
             return _def;
         }
@@ -834,7 +861,7 @@ let exp = {
      * @param {(key: string, value: any) => any} [replacer]
      */
     writeJson(path, value, replacer) {
-        this.write(path, JSON.stringify(value, replacer));
+        this.write(path, JSON.stringify(value, replacer || this.json.replacer));
     },
 };
 

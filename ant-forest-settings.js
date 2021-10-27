@@ -6514,7 +6514,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                             } else {
                                 return;
                             }
-                            return timersx.updateTimedTask(current_task);
+                            return timersx.updateTask(current_task);
                         }
                     }
 

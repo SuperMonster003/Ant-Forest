@@ -78,14 +78,24 @@ let _ = {
             region: [cX(0.15), cYx(0.16), cX(0.85), cYx(0.36)],
         });
     },
+    isSamePoint(a, b) {
+        return typeof a === 'object' && typeof b === 'object'
+            && a !== null && b !== null
+            && Math.abs(a.x - b.x) < 5
+            && Math.abs(a.y - b.y) < 5;
+    },
     clickPoint() {
         let _len = this.pts.length;
         if (_len > 0) {
-            a11yx.click(this.pts[_len - 1], 'p', {
+            let _pt = this.pts[_len - 1];
+            a11yx.click(_pt, 'p', {
                 pt$: this.cfg.press_time,
                 bt$: this.cfg.press_itv,
             });
-            this.flag.e_rain_clicked = true;
+            if (this.last_point) {
+                this.flag.e_rain_clicked = !this.isSamePoint(this.last_point, _pt);
+            }
+            this.last_point = _pt;
         }
     },
     /**
@@ -151,43 +161,66 @@ let $ = {
         return consolex.w('可能没有"能量雨"收集机会', 4, 0, 2);
     },
     monitor() {
-        threadsx.start(function monitorContinuousClick() {
-            consolex._('开启"连续点击"监测线程');
-            while (!_.flag.e_rain_clicked) {
-                sleep(120);
-            }
-            consolex._('检测到能量雨滴首次点击');
-            while (!_.flag.e_rain_finished) {
-                if (!a11yx.wait(() => _.flag.e_rain_clicked, 2e3, 80)) {
-                    consolex._(['发送全局结束信号', '指定时间内未检测到点击事件']);
-                    return _.flag.e_rain_finished = true;
-                }
-                delete _.flag.e_rain_clicked;
-            }
-            consolex._(['结束"连续点击"监测线程', '检测到结束信号']);
-        });
+        let $ = {
+            click: {
+                firstTime() {
+                    let _max = 9e3;
+                    let _itv = 180;
+                    while (!_.flag.e_rain_clicked) {
+                        sleep(_itv);
+                        if ((_max -= _itv) < 0) {
+                            consolex._(['发送全局结束信号', '等待能量雨滴首次点击超时']);
+                            _.flag.e_rain_finished = true;
+                            return false;
+                        }
+                    }
+                    consolex._('检测到能量雨滴首次点击');
+                    return true;
+                },
+                continuous() {
+                    consolex._('开启"连续点击"监测线程');
+                    while (!_.flag.e_rain_finished) {
+                        if (!a11yx.wait(() => _.flag.e_rain_clicked, 2e3, 80)) {
+                            consolex._(['发送全局结束信号', '指定时间内未检测到点击事件']);
+                            return _.flag.e_rain_finished = true;
+                        }
+                        delete _.flag.e_rain_clicked;
+                    }
+                    consolex._(['结束"连续点击"监测线程', '检测到结束信号']);
+                },
+            },
+            finish() {
+                consolex._('开启"结束条件"监测线程');
+                while (!_.flag.e_rain_finished) {
+                    if (_.cond.finish() || _.cond.bonus()) {
+                        consolex._(['发送全局结束信号', '检测到预置的结束条件']);
+                        return _.flag.e_rain_finished = true;
+                    }
+                    let _w_retry = $$sel.pickup(_.sel.retry);
+                    if (_w_retry) {
+                        a11yx.click(_w_retry, 'w');
+                        devicex.keycode('back', {rush: true});
 
-        threadsx.start(function monitorFinishCondition() {
-            consolex._('开启"结束条件"监测线程');
-            while (!_.flag.e_rain_finished) {
-                if (_.cond.finish() || _.cond.bonus()) {
-                    consolex._(['发送全局结束信号', '检测到预置的结束条件']);
-                    return _.flag.e_rain_finished = true;
+                        let _ctd = 3, _retry = 5;
+                        $$toast('即将在 ' + _ctd + ' 秒内重启能量雨工具', 'L', 'F');
+                        sleep(_ctd * 1e3);
+                        enginesx.restart({max_restart_e_times: _retry});
+                    }
+                    sleep(120);
                 }
-                let _w_retry = $$sel.pickup(_.sel.retry);
-                if (_w_retry) {
-                    a11yx.click(_w_retry, 'w');
-                    devicex.keycode('back', {rush: true});
+                consolex._(['结束"结束条件"监测线程', '检测到结束信号']);
+            },
+            start() {
+                threadsx.start(() => {
+                    if (this.click.firstTime()) {
+                        threadsx.start(() => this.click.continuous());
+                        threadsx.start(() => this.finish());
+                    }
+                });
+            },
+        };
 
-                    let _ctd = 3, _retry = 5;
-                    $$toast('即将在 ' + _ctd + ' 秒内重启能量雨工具', 'L', 'F');
-                    sleep(_ctd * 1e3);
-                    enginesx.restart({max_restart_e_times: _retry});
-                }
-                sleep(120);
-            }
-            consolex._(['结束"结束条件"监测线程', '检测到结束信号']);
-        });
+        $.start();
     },
     collect() {
         while (1) {
@@ -234,12 +267,11 @@ let $ = {
         let _bonus_not_triggerred = '未' + _bonus_triggerred;
         if (_.cond.bonus()) {
             let _w = _.w.cache.bonus;
-            consolex._(_bonus_triggerred);
+            consolex._(_bonus_triggerred + ':');
             consolex._($$sel.pickup(_w, 'txt'));
             return _.clickBtn({
                 widget: _w,
                 name: _name_extra_bonus,
-                cond: () => !_.cond.bonus(),
             });
         }
         if (_.cond.manual()) {

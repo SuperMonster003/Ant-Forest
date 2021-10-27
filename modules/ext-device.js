@@ -944,7 +944,13 @@ let exp = {
                 return this.simulate(this.keycode);
             },
             simulateTwice() {
-                return this.simulateOnce() && this.simulateOnce();
+                let _max = 2;
+                while (_max--) {
+                    if (!this.simulateOnce()) {
+                        return false;
+                    }
+                }
+                return true;
             },
             getResult() {
                 this.impededIFN();
@@ -2842,7 +2848,7 @@ function unlockGenerator() {
 
     let _debugAct = (act_str, ctr, max) => !ctr
         ? consolex._('尝试' + act_str)
-        : consolex._('尝试' + act_str + '(\x20' + ctr + '/' + max + ')');
+        : consolex._('重试' + act_str + '(\x20' + ctr + '/' + max + ')');
 
     return $_unlk;
 
@@ -2874,14 +2880,15 @@ function unlockGenerator() {
             sleep(240);
         }
 
+        consolex._('自动解锁完毕', 0, 0, -2);
         consolex.debug.switchBack();
-        return consolex._('自动解锁完毕', 0, 0, -2);
+        return true;
     }
 
     function _err(s) {
         exp.cancelOn();
-        consolex.e(['解锁失败', s, _intro], 4, 0, 2);
-        if (exp.is_init_screen_on) {
+        consolex.e(['解锁失败', s, _intro].flat(), 4, 0, 2);
+        if (!exp.is_init_screen_on) {
             consolex.d('自动关闭屏幕');
             exp.screenOff() || consolex.w('自动关闭屏幕失败');
         }

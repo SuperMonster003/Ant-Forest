@@ -7,35 +7,10 @@ let {cryptox} = require('./ext-crypto');
 
 let Storage = function StorageConstructor$iiFe() {
     let _ = {
-        /**
-         * @param {string} k
-         * @param {number|*} v
-         * @return {string|*}
-         */
-        replacer(k, v) {
-            /** Zero Width No-Break Space */
-            let _pad = '\ufeff';
-            if (typeof v === 'number' && (isNaN(v) || !isFinite(v))) {
-                return _pad + v.toString() + _pad;
-            }
-            return v;
-        },
-        /**
-         * @param {string} k
-         * @param {string|*} v
-         * @return {number|*}
-         */
-        reviver(k, v) {
-            let _pad = /^\ufeff(.+)\ufeff$/;
-            if (typeof v === 'string' && v.match(_pad)) {
-                return Number(v.replace(_pad, '$1'));
-            }
-            return v;
-        },
         parseFile(path) {
             let _str = filesx.read(path, '');
             try {
-                return _str ? JSON.parse(_str, this.reviver.bind(this)) : {};
+                return _str ? JSON.parse(_str, filesx.json.reviver) : {};
             } catch (e) {
                 console.warn('JSON.parse()解析配置文件异常');
             }
@@ -103,7 +78,7 @@ let Storage = function StorageConstructor$iiFe() {
          * @return {any}
          */
         writeBackFileAndParse(path, str) {
-            let _res = JSON.parse(str, this.reviver.bind(this));
+            let _res = JSON.parse(str, filesx.json.reviver);
             console.info('修复成功');
 
             filesx.write(path, str);
@@ -152,7 +127,6 @@ let Storage = function StorageConstructor$iiFe() {
             return cryptox.dec(data.toString(), this.getKeyInput());
         },
         reEncryptFromLegacyFile(path) {
-            let _replacer = this.replacer.bind(this);
             let _parsed = this.parseFile(path);
             let _reEncObject = (o) => {
                 Object.keys(o).forEach(k => o[k] = _reEnc(o[k]));
@@ -163,7 +137,7 @@ let Storage = function StorageConstructor$iiFe() {
                     return _reEncObject(o);
                 }
                 if (typeof o === 'string') {
-                    if (o.slice(0, 1) === '[' && o.slice(-1) === ']') {
+                    if (o.startsWith('[') && o.endsWith(']')) {
                         let _decrypted = cryptox._pwmap.decrypt(o);
                         if (!isNullish(_decrypted)) {
                             return this.encrypt(_decrypted);
@@ -172,7 +146,7 @@ let Storage = function StorageConstructor$iiFe() {
                 }
                 return o;
             };
-            filesx.writeJson(path, _reEnc(_parsed), _replacer);
+            filesx.writeJson(path, _reEnc(_parsed));
         },
     };
 
@@ -222,7 +196,7 @@ let Storage = function StorageConstructor$iiFe() {
             let _val = {};
             let _tmp = {};
             let _opt = options || {};
-            let _enc = v => _.encrypt(JSON.stringify(v, _.replacer.bind(_)));
+            let _enc = v => _.encrypt(JSON.stringify(v, filesx.json.replacer));
             let _encodeIFN = (o) => {
                 if (!_opt.is_crypto) {
                     return o;
@@ -253,7 +227,7 @@ let Storage = function StorageConstructor$iiFe() {
 
             Object.assign(_val, _tmp);
 
-            filesx.writeJson(this.path, _val, _.replacer.bind(_));
+            filesx.writeJson(this.path, _val);
         },
         /**
          * @param {string} key
@@ -285,10 +259,9 @@ let Storage = function StorageConstructor$iiFe() {
                     return _res;
                 }
                 if (_opt.is_crypto) {
-                    let _reviver = _.reviver.bind(_);
                     let _decrypted = _.decrypt(_res);
                     try {
-                        return JSON.parse(_decrypted, _reviver);
+                        return JSON.parse(_decrypted, filesx.json.reviver);
                     } catch (e /*  SyntaxError: Unexpected token... */) {
                         return _decrypted;
                     }

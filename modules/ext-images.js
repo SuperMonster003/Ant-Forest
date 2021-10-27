@@ -1668,7 +1668,7 @@ let exp = {
         } else if (is_recycle_img === 2) {
             this.reclaim(img2);
         }
-        return _concat;
+        return this.pool.add(_concat);
     },
     /**
      * Substitution of images.resize() for better dsize compatibility

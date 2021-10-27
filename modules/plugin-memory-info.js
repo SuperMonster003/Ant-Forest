@@ -119,9 +119,7 @@ _view['btn_restart_process'].on('click', function () {
     }).on('positive', (d) => {
         dialogsx.setContentText(d, '正在重启进程...');
         dialogsx.setActionButton(d, ['neutral', 'negative', 'positive'], null);
-        threadsx.start(function () {
-            appx.killProcess({pending_task: 'current+2s'});
-        });
+        appx.killProcess({pending_task: 'current+2s', is_async: true});
     }).show();
 });
 

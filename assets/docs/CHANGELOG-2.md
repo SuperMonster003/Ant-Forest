@@ -4,6 +4,16 @@
 
 ******
 
+# v2.2.1
+
+###### 2021/10/27
+
+* `修复` 能量雨工具运行时旧窗口实例没有按预期移除的问题
+* `修复` 能量雨工具增加近似区域点击检测避免错误的结束条件检测 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952476244)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
+* `修复` imagesx.concat()潜在的内存泄漏问题 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952084434)_
+* `修复` a11yx扩展模块无阻塞方法内部arguments的语法错误 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
+* `修复` Pro版本Auto.js内存管理工具重启进程后的任务残余 (试修) _[`issue #528`](https://github.com/SuperMonster003/Ant-Forest/issues/528)_
+
 # v2.2.0
 
 ###### 2021/10/26 - 代码重构 API变更 项目结构变更 谨慎升级

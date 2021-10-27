@@ -133,13 +133,13 @@ let exp = {
         },
     },
     click$() {
-        return (this._click$ = this._click$ || $$impeded.detach(this.click, 2)).apply(this.arguments);
+        return (this._click$ = this._click$ || $$impeded.detach(this.click, 2)).apply(this, arguments);
     },
     wait$() {
         return (this._wait$ = this._wait$ || $$impeded.detach(this.wait, 3)).apply(this, arguments);
     },
     swipe$() {
-        return (this._swipe$ = this._swipe$ || $$impeded.detach(this.swipe, 3)).apply(this.arguments);
+        return (this._swipe$ = this._swipe$ || $$impeded.detach(this.swipe, 3)).apply(this, arguments);
     },
     /**
      * @param {...boolean|string|string[]} [arguments]
@@ -319,7 +319,7 @@ let exp = {
                             return /^(widgets|points)$/.test($.res_type);
                         },
                         isCompass(o) {
-                            return typeof o === 'string' && /(p\d*|c\d*)*(k\d*)?/.test(o);
+                            return typeof o === 'string' && /([pck]\d*)+/.test(o);
                         },
                     },
                     refreshSvcInfoIFN() {
@@ -428,6 +428,15 @@ let exp = {
                                 return _ft_y !== false
                                     ? selector.filter(_v.toRegular())
                                     : selector.filter((w => !_v(w)).toRegular());
+                            },
+                            isAlipay(sw) {
+                                if (typeof sw === 'undefined') {
+                                    return sw;
+                                }
+                                let _rex = '.*(Alipay|alipay).*';
+                                return sw
+                                    ? selector.packageNameMatches(_rex)
+                                    : selector.filter((w => !w.packageName().match(_rex)).toRegular());
                             },
                         };
                         let _res;
@@ -1073,27 +1082,22 @@ let exp = {
                 if (!_pad) {
                     return this.padding = {x: 0, y: 0};
                 }
-                let _coords = [];
                 if (typeof _pad === 'number') {
-                    _coords = [0, _pad];
+                    _pad = [0, _pad];
                 } else if (!Array.isArray(_pad)) {
                     throw Error('Invalid paddings for a11yx.click()');
                 }
 
-                if (_pad.length === 1) {
-                    _coords = [0, _pad[0]];
-                } else if (_pad.length === 2) {
-                    let [_k, _v] = _pad;
-                    if (_k === 'x') {
-                        _coords = [_v, 0];
-                    } else if (_k === 'y') {
-                        _coords = [0, _v];
-                    } else {
-                        _coords = [_k, _v];
+                let _coords = function $iiFe() {
+                    if (_pad.length === 1) {
+                        return [0, _pad[0]];
                     }
-                } else {
+                    if (_pad.length === 2) {
+                        let [_k, _v] = _pad;
+                        return _k === 'x' ? [_v, 0] : _k === 'y' ? [0, _v] : [_k, _v];
+                    }
                     throw Error('Invalid paddings amount for a11yx.click()');
-                }
+                }();
 
                 let [_x, _y] = _coords.map(n => Number(n));
                 if (!(!isNaN(_x) && !isNaN(_y))) {

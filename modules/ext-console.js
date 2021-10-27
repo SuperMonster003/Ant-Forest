@@ -1,5 +1,5 @@
 let {
-    isPlainObject, $$bool, $$toast,
+    isPlainObject, $$toast,
 } = require('./ext-global');
 
 let exp = {

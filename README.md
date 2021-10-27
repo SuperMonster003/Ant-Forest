@@ -21,7 +21,7 @@
     <a href="https://github.com/SuperMonster003/Ant-Forest/find/master"><img alt="GitHub Code Lines" src="https://img.shields.io/tokei/lines/github/SuperMonster003/Ant-Forest?color=37474F"/></a>
     <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/LICENSE"><img alt="GitHub License" src="https://img.shields.io/github/license/SuperMonster003/Ant-Forest?color=534BAE"/></a>
     <a href="https://www.jetbrains.com/?from=Ant-Forest"><img alt="JetBrains supporter" src="https://img.shields.io/badge/supporter-JetBrains-ee4677"/></a>
-    <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md"><img alt="Todo list" src="https://img.shields.io/badge/todo-55-C63F17"/></a>
+    <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md"><img alt="Todo list" src="https://img.shields.io/badge/todo-53-C63F17"/></a>
   </p>
 </div>
 
@@ -33,15 +33,18 @@
 
 | Status | Task | Date | Cost | Progress |
 | :---: | --- | :---: | :---: | :---: |
-| ✒️ | 推迟任务加入下次关屏选项 <!-- run-af-on-screen-off.js --> | 2021-10-26 11:18:43 | 5 | 0.30 <!-- est --> |
+| ✔️ | 能量雨加入近似区域点击检测 | 2021-10-27 14:48:18 | 3 | 1 |
+| ✔️ | v2.2.0 发布后检查 documents 相关的链接 | 2021-10-26 23:07:16 | 1 | 1 |
+| ✒️ | 推迟任务加入下次关屏选项 <!-- run-af-on-screen-off.js --> | 2021-10-26 11:18:43 | 5 | 0.95 <!-- est --> |
 | ✒️ | 启动器模块化 | 2021-10-26 08:25:42 | 10 | 0.01 <!-- 1 -  6915 / 6998 --> |
 | ✒️ | 配置工具模块化 | 2021-10-26 08:24:34 | 10 | 0.00 <!-- 1 - 8141 / 8138 --> |
 | ✒️ | 扩展模块及插件重构 | 2021-10-26 14:37:07 | ! 8 | 0.33 <!-- 9 / 27 --> |
 | ✒️ | 将 tool functions 转换为 OOP | 2021-10-25 22:24:13 | 10 | 0.11 <!-- 1 - 227 / 256 --> |
 | ✒️ | 保护地巡护工具 | 2021-10-26 10:34:25 | 9 | 0.20 <!-- est --> |
 | ✒️ | 提取 JSDoc@typedef 到 TS 声明文件 | 2021-10-25 22:25:18 | 10 | 0.94 <!-- 1 - 5 / 86 --> |
+| ✒️ | 自动关闭屏幕配置 (#476) <!-- REM#4 --> | 2021-10-26 11:15:11 | ! 6 | 0.00 |
 
-> 全部待办事项可参阅 [TODO.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md) (共计 55 项)
+> 全部待办事项可参阅 [TODO.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md) (共计 53 项)
 
 ******
 
@@ -133,7 +136,7 @@
   · 本地或服务器还原项目  
   · 项目更新提示/版本忽略
 * 信息加密存储  
-  · 自动生成密文字典文件  
+  · 自动生成密 _[`#528`](https://github.com/SuperMonster003/Ant-Forest/issues/528)_文字典文件  
   · 使用密文存储账户信息/解锁密码等敏感信息
 * 账户功能  
   · 防止其他账户意外收取 (需录入主账户信息)  
@@ -153,6 +156,16 @@
 ******
 
 [comment]: <> (Version history only shows last 3 versions)
+
+# v2.2.1
+
+###### 2021/10/27
+
+* `修复` 能量雨工具运行时旧窗口实例没有按预期移除的问题
+* `修复` 能量雨工具增加近似区域点击检测避免错误的结束条件检测 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952476244)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
+* `修复` imagesx.concat()潜在的内存泄漏问题 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952084434)_
+* `修复` a11yx扩展模块无阻塞方法内部arguments的语法错误 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
+* `修复` Pro版本Auto.js内存管理工具重启进程后的任务残余 (试修) _[`issue #528`](https://github.com/SuperMonster003/Ant-Forest/issues/528)_
 
 # v2.2.0
 
@@ -202,15 +215,6 @@
 * `优化` threadsx.start()支持箭头函数及绑定函数
 * `优化` Pro版本增加对话框按钮自定义颜色设置的支持
 * `优化` Pro版本移除获取控件信息对currentPackage()的依赖
-
-# v2.1.9
-
-###### 2021/08/20
-
-* `修复` 配置工具无法设置排行榜滑动距离等相关配置项的问题
-* `修复` 获取能量球数据缓存时逻辑错误导致效率提升无效的问题
-* `修复` OCR方案获取倒计时耗时过久未能按预期及时停止的问题
-* `优化` 霍夫变换覆盖检测方法优化以提高成熟能量球识别率 _[`issue #508`](https://github.com/SuperMonster003/Ant-Forest/issues/508#issuecomment-900102913)_
 
 ##### 更多版本历史可参阅
 

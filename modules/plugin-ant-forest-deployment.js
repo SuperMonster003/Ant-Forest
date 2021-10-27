@@ -1,6 +1,5 @@
 let {} = require('./ext-global.js');
 
-let {filesx} = require('./ext-files');
 let {threadsx} = require('./ext-threads');
 let {dialogsx} = require('./ext-dialogs');
 let {projectx} = require('./ext-project');

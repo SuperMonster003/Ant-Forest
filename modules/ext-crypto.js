@@ -2,6 +2,7 @@
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
 let {isNullish} = require('./ext-global');
+let {filesx} = require('./ext-files');
 
 let File = java.io.File;
 let CRC32 = java.util.zip.CRC32;
@@ -114,7 +115,7 @@ let exp = {
         if (_opt.input === 'file') {
             let fis = new FileInputStream(input);
             let buffer = util.java.array('byte', 4096);
-            let r = -Infinity;
+            let r;
             while ((r = fis.read(buffer)) > 0) {
                 callback(buffer, 0, r);
             }
@@ -224,8 +225,8 @@ let exp = {
         } catch (e) {
             err = e;
         } finally {
-            cos !== null && cos.close();
-            os !== null && os.close(); // maybe unnecessary ?
+            cos && cos.close();
+            os && os.close(); // maybe unnecessary ?
         }
         if (!isFile && !err) {
             return this._output(os.toByteArray(), _opt, 'bytes');
@@ -403,15 +404,16 @@ let exp = {
         if (k.length % 16 === 0 && k.match(/^[a-f0-9]+$/i)) {
             return new this.Key(k);
         }
-        let _path = files.join(files.getSdcardPath(), '.local', 'key.nfex');
+        let _path = filesx['.local']('key.nfex');
         files.exists(_path) || files.createWithDirs(_path);
 
-        let _o = JSON.parse(files.read(_path) || '{}');
+        let _o = filesx.readJson(_path);
         if (_o[k]) {
             return new this.Key(_o[k]);
         }
         let _new_key = _o[k] = this.generateRandomKeyInput();
-        files.write(_path, JSON.stringify(_o));
+        filesx.writeJson(_path, _o);
+
         return new this.Key(_new_key);
     },
     /**

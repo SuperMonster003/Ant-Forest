@@ -16,47 +16,6 @@ let days_ident = [
     1, 2, 3, 4, 5, 6, 7,
 ].map(x => typeof x === 'string' ? x : x.toString());
 
-/**
- * @type Timersx.TimedTask.Process<TimedTask$|IntentTask$>
- */
-let addTask = function (task) {
-    if (task) {
-        if (is_pro) {
-            TimedTaskMgr['addTaskSync'](task);
-        } else {
-            TimedTaskMgr.addTask(task);
-        }
-    }
-    return task || null;
-};
-
-/**
- * @type Timersx.TimedTask.Process<TimedTask$|IntentTask$>
- */
-let removeTask = function (task) {
-    if (!task) {
-        return null;
-    }
-    if (is_pro) {
-        TimedTaskMgr['removeTaskSync'](task);
-    } else {
-        TimedTaskMgr.removeTask(task);
-    }
-    return task;
-};
-
-/**
- * @type Timersx.TimedTask.Process<TimedTask$>
- */
-let updateTask = function (task) {
-    if (!task) {
-        return null;
-    }
-    task.setScheduled(false);
-    TimedTaskMgr.updateTask(task);
-    return task;
-};
-
 let exp = {
     /**
      * @param {TimedTask$|IntentTask$} task
@@ -88,6 +47,20 @@ let exp = {
         threadsx.start(_run);
     },
     /**
+     * @param {TimedTask$|IntentTask$|null} task
+     * @return {TimedTask$|IntentTask$|null}
+     */
+    addTask(task) {
+        if (task) {
+            if (is_pro) {
+                TimedTaskMgr['addTaskSync'](task);
+            } else {
+                TimedTaskMgr.addTask(task);
+            }
+        }
+        return task || null;
+    },
+    /**
      * @param {Timersx.TimedTask.Daily} options
      * @example
      * timersx.addDailyTask({
@@ -101,7 +74,7 @@ let exp = {
         let _date_time = parseDateTime('LocalTime', _opt.time);
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
-        let _task = addTask(TimedTask.dailyTask(_date_time, _path, _cfg));
+        let _task = this.addTask(TimedTask.dailyTask(_date_time, _path, _cfg));
         return this._taskFulfilled(_task, _opt);
     },
     /**
@@ -129,7 +102,7 @@ let exp = {
         let _flag_num = Number(new java.lang.Long(_time_flag));
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
-        let _task = addTask(TimedTask.weeklyTask(_date_time, _flag_num, _path, _cfg));
+        let _task = this.addTask(TimedTask.weeklyTask(_date_time, _flag_num, _path, _cfg));
         return this._taskFulfilled(_task, _opt);
     },
     /**
@@ -146,7 +119,7 @@ let exp = {
         let _date_time = parseDateTime('LocalDateTime', _opt.date);
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
-        let _task = addTask(TimedTask.disposableTask(_date_time, _path, _cfg)) || null;
+        let _task = this.addTask(TimedTask.disposableTask(_date_time, _path, _cfg)) || null;
         return this._taskFulfilled(_task, _opt);
     },
     /**
@@ -156,11 +129,11 @@ let exp = {
      *     path: files.path('./test.js'),
      *     action: 'android.intent.action.BATTERY_CHANGED',
      * });
-     * @return {?TimedTask$}
+     * @return {?IntentTask$}
      */
     addIntentTask(options) {
         let _opt = options || {};
-        let _task = addTask((function $iiFe() {
+        let _task = this.addTask((function $iiFe() {
             let _i_task = new timing.IntentTask();
             _i_task.setScriptPath(files.path(_opt.path));
             _opt.action && _i_task.setAction(_opt.action);
@@ -183,13 +156,28 @@ let exp = {
         return TimedTaskMgr.getIntentTask(id);
     },
     /**
+     * @param {TimedTask$|IntentTask$|null} task
+     * @return {TimedTask$|IntentTask$}
+     */
+    removeTask(task) {
+        if (!task) {
+            return null;
+        }
+        if (is_pro) {
+            TimedTaskMgr['removeTaskSync'](task);
+        } else {
+            TimedTaskMgr.removeTask(task);
+        }
+        return task;
+    },
+    /**
      * @param {number} id
      * @param {Timersx.TimedTask.Extension} [options]
      * @return {?TimedTask$}
      */
     removeIntentTask(id, options) {
         let _opt = options || {};
-        let _task = removeTask(this.getIntentTask(id));
+        let _task = this.removeTask(this.getIntentTask(id));
         return this._taskFulfilled(_task, Object.assign(_opt, {
             condition: () => !this.getIntentTask(id),
         }));
@@ -201,18 +189,22 @@ let exp = {
      */
     removeTimedTask(id, options) {
         let _opt = options || {};
-        let _task = removeTask(this.getTimedTask(id));
+        let _task = this.removeTask(this.getTimedTask(id));
         return this._taskFulfilled(_task, Object.assign(_opt, {
             condition: () => !this.getTimedTask(id),
         }));
     },
     /**
-     * @template {TimedTask$} TIMED_TASK
-     * @param {TIMED_TASK} [task]
-     * @return {?TIMED_TASK}
+     * @param {TimedTask$|null} task
+     * @return {TimedTask$|null}
      */
-    updateTimedTask(task) {
-        return task ? updateTask(task) : null;
+    updateTask(task) {
+        if (!task) {
+            return null;
+        }
+        task.setScheduled(false);
+        TimedTaskMgr.updateTask(task);
+        return task;
     },
     /**
      * @param {{path?:string}} [options]

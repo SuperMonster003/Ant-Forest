@@ -1140,48 +1140,52 @@ let exp = {
      * Main process of Auto.js will be killed
      * @param {{
      *     pid?: number,
+     *     is_async?: boolean,
      *     pending_task?: Timersx.TimedTask.Disposable|'launcher'|'launcher+3s'|'current'|'current+3s'|string,
      * }} [options]
      */
     killProcess(options) {
-        let _opt = options || {};
-
-        pendTimedTaskIFN(_opt.pending_task);
-        killProgress(_opt.pid);
-
-        // tool function(s) //
-
-        function pendTimedTaskIFN(pending_task) {
-            if (pending_task) {
-                timersx.addDisposableTask(_parseTask(pending_task));
-            }
-
-            // tool function(s) //
-
-            function _parseTask(task) {
+        let $ = {
+            parseArgs() {
+                this.options = options || {};
+                this.pid = this.options.pid > 0 ? this.options.pid : Process.myPid();
+            },
+            parseTask() {
+                let task = this.pending_task;
                 if (typeof task === 'object') {
                     return task;
                 }
                 if (typeof task === 'string') {
                     if (task.match(/^(launcher|current)(.*\d+s)?$/i)) {
                         let _mch_min = task.match(/\d+/);
-                        let _path = task.match(/launcher/i)
-                            ? projectx.getLocal().main.path
-                            : engines.myEngine().getSource();
                         return {
-                            path: _path,
+                            path: task.match(/launcher/i)
+                                ? projectx.getLocal().main.path
+                                : engines.myEngine().getSource(),
                             date: Date.now() + (_mch_min ? _mch_min[0] : 5) * 1e3,
+                            is_async: $.options.is_async,
                         };
                     }
                 }
                 throw Error('Cannot parse pending_task for appx.killProcess()');
-            }
-        }
-
-        function killProgress(pid) {
-            let _pid = pid > 0 ? pid : Process.myPid();
-            Process.killProcess(_pid);
-        }
+            },
+            addTask() {
+                if ((this.pending_task = this.options.pending_task)) {
+                    timersx.addDisposableTask(Object.assign(this.parseTask(), {
+                        callback: $.killNow.bind($),
+                    }));
+                    return true;
+                }
+            },
+            killNow() {
+                Process.killProcess(this.pid);
+            },
+            kill() {
+                this.parseArgs();
+                this.addTask() || this.killNow();
+            },
+        };
+        $.kill();
     },
     /**
      * Kill or minimize an app and launch it with options

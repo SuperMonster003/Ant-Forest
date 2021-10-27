@@ -1,7 +1,7 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Oct 26, 2021
- * @version 2.2.0
+ * @since Oct 27, 2021
+ * @version 2.2.1
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
@@ -154,50 +154,54 @@ let $$init = {
                 },
             };
 
-            $$sel.add('af', '蚂蚁森林')
-                .add('alipay_home', [/首页|Homepage/, {bi$: [0, cY(0.7), W, H]}])
-                .add('af_title', [/蚂蚁森林|Ant Forest/, {bi$: [0, 0, cX(0.4), cY(0.2)]}])
-                .add('af_home', /合种|背包|通知|攻略|任务|.*大树养成.*/)
-                .add('energy_amt', /^\s*\d+(\.\d+)?(k?g|t)\s*$/)
-                .add('rl_title', $$app.rl_title)
-                .add('rl_ent', /查看更多好友|View more friends/)
-                .add('rl_end_idt', /.*没有更多.*/)
-                .add('list', className('ListView'))
-                .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)]}])
-                .add('cover_used', /.*使用了.*保护罩.*/)
-                .add('wait_awhile', /.*稍等片刻.*/)
-                .add('reload_frst_page', '重新加载')
-                .add('close_btn', /关闭|Close/)
-                .add('login_btn', /登录|Log in|.*loginButton/)
-                .add('login_new_acc', /换个新账号登录|[Aa]dd [Aa]ccount/)
-                .add('login_other_acc', /换个账号登录|.*switchAccount/)
-                .add('login_other_mthd_init_pg', /其他登录方式|Other accounts/)
-                .add('login_other_mthd', /换个方式登录|.*[Ss]w.+[Ll]og.+thod/)
-                .add('login_by_code', /密码登录|Log ?in with password/)
-                .add('login_next_step', /下一步|Next|.*nextButton/)
-                .add('input_lbl_acc', /账号|Account/)
-                .add('input_lbl_code', /密码|Password/)
+            $$sel.add('af', ['蚂蚁森林', {isAlipay: true}])
+                .add('alipay_home', [/首页|Homepage/, {bi$: [0, cY(0.7), W, H], isAlipay: true}])
+                .add('af_title', [/蚂蚁森林|Ant Forest/, {bi$: [0, 0, cX(0.4), cY(0.2)], isAlipay: true}])
+                .add('af_home', [/合种|背包|通知|攻略|任务|.*大树养成.*/, {isAlipay: true}])
+                .add('energy_amt', [/^\s*\d+(\.\d+)?(k?g|t)\s*$/, {isAlipay: true}])
+                .add('rl_title', [$$app.rl_title, {isAlipay: true}])
+                .add('rl_ent', [/查看更多好友|View more friends/, {isAlipay: true}])
+                .add('rl_end_idt', [/.*没有更多.*/, {isAlipay: true}])
+                .add('list', [className('ListView'), {isAlipay: true}])
+                .add('fri_tt', [/.+的蚂蚁森林/, {bi$: [0, 0, cX(0.95), cY(0.2)], isAlipay: true}])
+                .add('cover_used', [/.*使用了.*保护罩.*/, {isAlipay: true}])
+                .add('wait_awhile', [/.*稍等片刻.*/, {isAlipay: true}])
+                .add('reload_frst_page', ['重新加载', {isAlipay: true}])
+                .add('close_btn', [/关闭|Close/, {isAlipay: true}])
+                .add('login_btn', [/登录|Log in|.*loginButton/, {isAlipay: true}])
+                .add('login_new_acc', [/换个新账号登录|[Aa]dd [Aa]ccount/, {isAlipay: true}])
+                .add('login_other_acc', [/换个账号登录|.*switchAccount/, {isAlipay: true}])
+                .add('login_other_mthd_init_pg', [/其他登录方式|Other accounts/, {isAlipay: true}])
+                .add('login_other_mthd', [/换个方式登录|.*[Ss]w.+[Ll]og.+thod/, {isAlipay: true}])
+                .add('login_by_code', [/密码登录|Log ?in with password/, {isAlipay: true}])
+                .add('login_next_step', [/下一步|Next|.*nextButton/, {isAlipay: true}])
                 .add('input_username', {
                     className: 'EditText',
                     filter: w => /(会员|用户)名|手机|邮箱/.test($$sel.pickup(w, 'txt')),
+                    isAlipay: true,
                 })
                 .add('input_password', () => {
                     if ($$sel.pickup(/.*(忘记密码|输入.*密码).*/)) {
-                        let wc = $$sel.pickup({className: 'EditText'}, 'wc');
+                        let wc = $$sel.pickup({className: 'EditText', isAlipay: true}, 'wc');
                         return wc.length ? wc[wc.length - 1] : null;
                     }
                     return null;
                 })
-                .add('switch_to_other_acc', idMatches(/.+_item_account/))
+                .add('switch_to_other_acc', {
+                    idMatches: /.+_item_account/,
+                    isAlipay: true,
+                })
                 .add('login_err_ensure', idMatches(/.*ensure/))
                 .add('login_err_msg', (type) => {
                     let _t = type || 'txt';
-                    return $$sel.pickup(id('com.alipay.mobile.antui:id/message'), _t)
-                        || $$sel.pickup([$$sel.get('login_err_ensure'), 'p2c0>0>0'], _t);
+                    return $$sel.pickup([id('com.alipay.mobile.antui:id/message'), {isAlipay: true}], _t)
+                        || $$sel.pickup([$$sel.get('login_err_ensure'), {isAlipay: true}, 'p2c0>0>0'], _t);
                 })
-                .add('acc_logged_out', new RegExp('.*('
+                .add('acc_logged_out', [new RegExp('.*('
                     + /在其他设备登录|logged +in +on +another/.source + '|'
-                    + /.*账号于.*通过.*登录.*|account +logged +on +to/.source + ').*'));
+                    + /.*账号于.*通过.*登录.*|account +logged +on +to/.source + ').*'), {
+                    isAlipay: true,
+                }]);
         }
 
         function setGlobalFlags() {
@@ -3015,7 +3019,7 @@ let $$init = {
 
         // instant and private monitors
         let _ist = instantMonSetter();
-        _ist.maxRun().volKeys().globEvt().logOut().newestVer();
+        _ist.maxRun().volKeys().globEvt().newestVer();
 
         // monitors put on standby for $$app invoking
         $$app.monitor = standbyMonSetter();
@@ -3124,7 +3128,7 @@ let $$init = {
                     this._thd = threadsx.start(() => setInterval(() => {
                         if (this.task) {
                             this.task.setMillis(this._next_task_time);
-                            timersx.updateTimedTask(this.task);
+                            timersx.updateTask(this.task);
                         }
                     }, 10e3));
                     return this;
@@ -3511,39 +3515,6 @@ let $$init = {
                         }
                     }
                 },
-                logOut() {
-                    threadsx.start(function () {
-                        consolex._('已开启账户登出监测线程');
-
-                        delete $$flag.acc_logged_out;
-                        while (1) {
-                            if ($$sel.getAndCache('acc_logged_out')) {
-                                break;
-                            }
-                            if ($$acc.isInLoginPg()) {
-                                break;
-                            }
-                            sleep(500);
-                        }
-                        $$flag.acc_logged_out = true;
-
-                        consolex.$('检测到账户登出状态', 1, 0, 0, -1);
-                        if ($$sel.cache.load('acc_logged_out')) {
-                            consolex.$('账户在其他地方登录');
-                        } else {
-                            consolex.$('需要登录账户');
-                        }
-
-                        $$acc.main.ensureAvail();
-
-                        consolex.$('尝试自动登录主账户', 1, 0, 0, 1);
-                        if (!$$acc.main.login({direct: true})) {
-                            consolex.$('主账户登录未成功', 8, 4, 0, 2);
-                        }
-                    });
-
-                    return this;
-                },
                 newestVer() {
                     projectx.getNewestReleaseCared({
                         min_version_name: 'v2.0.1',
@@ -3805,6 +3776,33 @@ let $$init = {
                             a11yx.click(_w, 'w', {bt$: _itv});
                         }
                         while (!a11yx.wait(() => !_sel(), 600, _itv));
+                    }
+                }),
+                log_out: new Monitor('账户登出', function () {
+                    delete $$flag.acc_logged_out;
+                    while (1) {
+                        if ($$sel.getAndCache('acc_logged_out')) {
+                            break;
+                        }
+                        if ($$acc.isInLoginPg()) {
+                            break;
+                        }
+                        sleep(500);
+                    }
+                    $$flag.acc_logged_out = true;
+
+                    consolex.$('检测到账户登出状态', 1, 0, 0, -1);
+                    if ($$sel.cache.load('acc_logged_out')) {
+                        consolex.$('账户在其他地方登录');
+                    } else {
+                        consolex.$('需要登录账户');
+                    }
+
+                    $$acc.main.ensureAvail();
+
+                    consolex.$('尝试自动登录主账户', 1, 0, 0, 1);
+                    if (!$$acc.main.login({direct: true})) {
+                        consolex.$('主账户登录未成功', 8, 4, 0, 2);
                     }
                 }),
             };
@@ -4330,11 +4328,13 @@ let $$af = {
             return this;
         },
         home() {
+            $$app.monitor.log_out.start();
             $$app.monitor.unregistered.start();
             $$app.monitor.pattern_lock.start();
 
             $$app.page.af.launch();
 
+            $$app.monitor.log_out.disable();
             $$app.monitor.unregistered.disable();
             $$app.monitor.pattern_lock.disable();
 
@@ -4361,7 +4361,7 @@ let $$af = {
                 let _tt = '';
                 let _sel = () => _tt = $$sel.get('af_title', 'txt');
 
-                const _chs = '简体中文';
+                let _chs = '简体中文';
 
                 if (a11yx.wait(_sel, 10e3, 100)) {
                     if (_tt.match(/蚂蚁森林/)) {
@@ -4391,7 +4391,6 @@ let $$af = {
 
                         // appx.startActivity($$app.intent.general);
 
-                        let _chs = '简体中文';
                         return a11yx.pipeline(_chs + '语言切换', [[
                             'Me', 'k2',
                         ], {
@@ -5428,7 +5427,7 @@ let $$af = {
                                     let _gt2 = w => /\d{2}.\d{2}/.test($$sel.pickup(w, 'txt'));
                                     while (!_w_cvr && _max--) {
                                         for (let w of _getFeedLegends()) {
-                                            if (_selCover() || _gt2()) {
+                                            if (_selCover() || _gt2(w)) {
                                                 consolex._('能量罩信息已定位');
                                                 break;
                                             }
@@ -6426,7 +6425,7 @@ let $$af = {
                         consolex._('开始更新自动定时任务');
                         task.setMillis(_next_ts);
                         return $$app.setStoAutoTask({
-                            task: timersx.updateTimedTask(task),
+                            task: timersx.updateTask(task),
                             next_ts: _next_ts,
                             next_type: _type.name,
                         }, () => {
