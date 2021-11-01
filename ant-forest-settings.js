@@ -4,18 +4,18 @@
 let {
     $$toast, $$und, $$obj, $$arr, $$cvt, $$T, $$F, $$0, $$func,
     $$num, $$sleep, $$str, $$nul, isPlainObject, isNonEmptyObject,
-} = require('./modules/ext-global');
-
+} = require('./modules/mod-global');
+let {db} = require('./modules/mod-database');
+let {project} = require('./modules/mod-project');
 let {uix} = require('./modules/ext-ui');
-let {dbx} = require('./modules/ext-database');
 let {appx} = require('./modules/ext-app');
 let {a11yx} = require('./modules/ext-a11y');
 let {filesx} = require('./modules/ext-files');
+let {autojs} = require('./modules/mod-autojs');
 let {imagesx} = require('./modules/ext-images');
 let {timersx} = require('./modules/ext-timers');
 let {cryptox} = require('./modules/ext-crypto');
 let {colorsx} = require('./modules/ext-colors');
-let {projectx} = require('./modules/ext-project');
 let {dialogsx} = require('./modules/ext-dialogs');
 let {threadsx} = require('./modules/ext-threads');
 let {consolex} = require('./modules/ext-console');
@@ -24,7 +24,8 @@ let {devicex, $$disp} = require('./modules/ext-device');
 
 let $$init = {
     check() {
-        appx.checkSdkAndAJVer();
+        devicex.ensureSdkInt();
+        autojs.ensureVersion();
         appx.checkAccessibility();
 
         uix.init({requested_orientation: 'PORTRAIT'});
@@ -120,12 +121,14 @@ let $$init = {
         };
 
         global.$$sto = {
-            af: storagesx.create('af'),
-            af_cfg: storagesx.create('af_cfg'),
-            af_blist: storagesx.create('af_blist'),
-            af_flist: storagesx.create('af_flist'),
-            af_bak: storagesx.create('af_bak'),
-            unlock: storagesx.create('unlock'),
+            af: storagesx.af,
+            af_cfg: storagesx.af_cfg,
+            af_ins: storagesx.af_ins,
+            af_auto: storagesx.af_auto,
+            af_blist: storagesx.af_blist,
+            af_flist: storagesx.af_flist,
+            af_bak: storagesx.af_bak,
+            unlock: storagesx.unlock,
             def: storagesx['@default'],
         };
 
@@ -3278,7 +3281,7 @@ let $$init = {
         };
 
         global.$$ses = {
-            db: dbx.create('af', {alter_type: 'union'}),
+            db: db.create('af', {alter_type: 'union'}),
         };
 
         global.$$save = {
@@ -3359,7 +3362,7 @@ let $$init = {
                 let time_str = '';
                 let time_str_remove = '';
                 let time = new Date();
-                if (!timestamp) time_str = time_str_remove = '时间戳无效';
+                if (!timestamp) time_str = time_str_remove = time_param;
                 if (timestamp === Infinity) {
                     time_str_remove = '永不';
                 } else if (timestamp <= time.getTime()) time_str_remove = '下次运行';
@@ -3625,7 +3628,7 @@ let $$init = {
                         let [_ts, _ver] = files.getNameWithoutExtension(_fp).split('-');
                         _sto_data.push({
                             path: _fp,
-                            version_name: projectx.version.parseHex(_ver),
+                            version_name: appx.version.parseHex(_ver),
                             timestamp: new Date($$cvt.date(_ts)).getTime(),
                             remark: '扫描并自动添加的备份',
                         });
@@ -3725,11 +3728,11 @@ let $$init = {
         });
 
         if ($$cfg.ses.update_auto_check_switch && $$cfg.ses.update_show_on_af_settings) {
-            projectx.getNewestReleaseCared({
+            project.getNewestReleaseCared({
                 min_version_name: 'v2.0.1',
                 ignore_list: $$ses.ignore_list,
             }, function (newest) {
-                if (newest && projectx.version.isNewer(newest, projectx.getLocalVerName())) {
+                if (newest && appx.version.isNewer(newest, project.getLocalVerName())) {
                     $$ses.snackbar_update = com.google.android.material.snackbar.Snackbar
                         .make(uix.main, '检测到新版本: ' + newest.version_name, 0)
                         .setAction('查看更新', {
@@ -3759,7 +3762,7 @@ let $$init = {
                                 }).on('negative', (d) => {
                                     d.dismiss();
                                 }).on('positive', (d) => {
-                                    projectx.deploy(newest, {
+                                    project.deploy(newest, {
                                         onStart: () => d.dismiss(),
                                         onSuccess: () => $$view.updateViewByTag('about'),
                                     }, {
@@ -3977,7 +3980,7 @@ $$view.setHomePage($$def.homepage_title)
                         dialogsx.setActionButtonColor(_diag, 'positive', 'unavailable');
 
                         timersx.rec.save('check_update');
-                        _new_ver = projectx.getNewestReleaseCared({
+                        _new_ver = project.getNewestReleaseCared({
                             min_version_name: 'v2.0.1',
                             ignore_list: $$ses.ignore_list,
                         });
@@ -3988,7 +3991,7 @@ $$view.setHomePage($$def.homepage_title)
                             ? _new_ver.version_name : _new_ver;
                         let _res = _new_ver_name
                             && _new_ver_name.match(/^v/)
-                            && projectx.version.isNewer(_new_ver, _local_ver);
+                            && appx.version.isNewer(_new_ver, _local_ver);
 
                         _diag.setContent(_ori_cont + (_new_ver_name || '无'));
                         dialogsx.setActionButtonColor(_diag, 'positive', 'default');
@@ -4003,7 +4006,7 @@ $$view.setHomePage($$def.homepage_title)
                                         ['查看历史更新', 'hint'], 'B', ['立即更新', 'attraction'], 1,
                                     ])
                                     .on('neutral', () => {
-                                        projectx.getChangelog(_new_ver_name.match(/v(\d+)/)[1], {
+                                        project.getChangelog(_new_ver_name.match(/v(\d+)/)[1], {
                                             is_show_dialog: true,
                                         });
                                     })
@@ -4012,7 +4015,7 @@ $$view.setHomePage($$def.homepage_title)
                                         d.show();
                                     })
                                     .on('positive', (ds) => {
-                                        projectx.deploy(_new_ver, {
+                                        project.deploy(_new_ver, {
                                             onStart: () => ds.dismiss(),
                                             onSuccess: () => $$view.updateViewByTag('about'),
                                         }, {
@@ -4025,7 +4028,7 @@ $$view.setHomePage($$def.homepage_title)
                             dialogsx.setActionButton(_diag, 'neutral', '查看历史更新', 'hint');
                             _diag.on('neutral', () => {
                                 let _ver_num = (_new_ver_name || _local_ver).match(/v(\d+)/)[1];
-                                projectx.getChangelog(_ver_num, {is_show_dialog: true});
+                                project.getChangelog(_ver_num, {is_show_dialog: true});
                             });
                         }
 
@@ -4040,8 +4043,6 @@ $$view.setHomePage($$def.homepage_title)
                 let _ic_outlook = imagesx.readAsset('ic-outlook');
                 let _ic_qq = imagesx.readAsset('ic-qq');
                 let _ic_github = imagesx.readAsset('ic-github');
-                let _qr_alipay_dnt = imagesx.readAsset('qr-alipay-dnt');
-                let _qr_wechat_dnt = imagesx.readAsset('qr-wechat-dnt');
                 let _avt_det = imagesx.readAsset('avt-detective');
 
                 let _local_avt_path = (function $iiFe() {
@@ -4051,7 +4052,6 @@ $$view.setHomePage($$def.homepage_title)
                 })();
                 let _local_avt = imagesx.read(_local_avt_path);
                 let _local_avt_txt = '';
-                let _dnt_txt = 'Thank you for your donation';
 
                 // noinspection HtmlRequiredAltAttribute
                 let _add_view = ui.inflate(
@@ -4092,8 +4092,6 @@ $$view.setHomePage($$def.homepage_title)
 
                     let _recycle = [
                         {name: 'avatar', src: _local_avt || _avt_det, desc: _local_avt_txt},
-                        {name: 'alipay', src: _qr_alipay_dnt, desc: _dnt_txt},
-                        {name: 'wechat', src: _qr_wechat_dnt, desc: _dnt_txt},
                     ];
 
                     _setAnm('vanish');
@@ -4263,7 +4261,7 @@ $$view.setHomePage($$def.homepage_title)
             }
         },
         updateOpr(view) {
-            view.setHintText(projectx.getLocalVerName());
+            view.setHintText(project.getLocalVerName());
         },
     }))
     .ready();
@@ -5464,10 +5462,11 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
                 view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20s');
             },
         }))
-        .add('button', new Layout('推迟运行间隔时长', 'hint', {
+        .add('button', new Layout('推迟任务间隔时长', 'hint', {
             config_conj: 'prompt_before_running_postponed_minutes',
             map: Object.assign({
-                0: '每次都询问',
+                '0': '每次都询问',
+                '-1': '息屏时',
             }, (function $iiFe() {
                 let _o = {};
                 let _k = 'prompt_before_running_postponed_minutes_choices';
@@ -6227,7 +6226,11 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     task: task,
                     type: _getType(timersx.timeFlagConverter(task.getTimeFlag()), task.id),
                     next_run_time: task.getNextTime(),
-                }));
+                })).concat(timersx.queryIntentTasks().map((task) => ({
+                    task: task,
+                    type: _getType([], task.id),
+                    next_run_time: '广播事件触发',
+                })));
 
                 // tool function(s) //
 
@@ -6243,13 +6246,14 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                         insurance: '意外保险',
                         postponed: '用户推迟',
                         postponed_auto: '自动推迟',
+                        on_screen_off: '广播事件 (息屏时)',
                     };
 
-                    let sto_auto_task = $$sto.af.get('next_auto_task');
+                    let sto_auto_task = $$sto.af_auto.get('next_auto_task');
                     if (sto_auto_task && id === sto_auto_task.task_id) {
                         return type_info[sto_auto_task.type];
                     }
-                    let sto_ins_tasks = $$sto.af.get('insurance_tasks', []);
+                    let sto_ins_tasks = $$sto.af_ins.get('insurance_tasks', []);
                     if (sto_ins_tasks.length && sto_ins_tasks.includes(id)) {
                         return type_info.insurance;
                     }
@@ -6261,7 +6265,8 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                 _list_data: {
                     item_click(item) {
                         let {task, list_item_name_0} = item;
-                        let [type, next_run_time] = [list_item_name_0, task.getNextTime()];
+                        let type = list_item_name_0;
+                        let next_run_time = typeof task.getNextTime === 'function' ? task.getNextTime() : -1;
                         let type_code = $$tool.restoreFromTimedTaskTypeStr(type);
                         let task_id = task.id;
 
@@ -6274,6 +6279,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                             insurance: '意外保险',
                             postponed: '用户推迟',
                             postponed_auto: '自动推迟',
+                            on_screen_off: '广播事件 (息屏时)',
                         };
 
                         let keys = Object.keys(type_info);
@@ -6362,7 +6368,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                             return '任务ID: ' + task_id + '\n\n' +
                                 '任务类型: ' + (is_weekly ? '每周' : type) + pad + '任务' + '\n\n' +
                                 (is_weekly ? '任务周期: ' + type.match(/\d/g).join(', ') + '\n\n' : '') +
-                                '下次运行: ' + $$tool.getTimeStrFromTs(next_run_time, 'time_str_full');
+                                ('下次运行: ' + (next_run_time === -1 ? '广播事件触发' : $$tool.getTimeStrFromTs(next_run_time, 'time_str_full')));
                         }
                     },
                     item_bind(item_view) {
@@ -7668,7 +7674,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                     })
                     .on('positive', (d) => threadsx.start(function () {
                         let _ds_k = 'project_backup_info';
-                        projectx.backup({
+                        project.backup({
                             onBackupStart() {
                                 d.dismiss();
                             },
@@ -7813,7 +7819,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                         d.show();
                                                     })
                                                     .on('positive', (ds) => threadsx.start(function () {
-                                                        projectx.restore(_data.path, {
+                                                        project.restore(_data.path, {
                                                             onStart: () => ds.dismiss(),
                                                             onSuccess: () => $$view.updateViewByTag('about'),
                                                         });
@@ -7946,7 +7952,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                                         d.show();
                                                                     })
                                                                     .on('positive', (ds) => {
-                                                                        projectx.restore(_list_item.zipball_url, {
+                                                                        project.restore(_list_item.zipball_url, {
                                                                             onStart: () => ds.dismiss(),
                                                                             onSuccess: () => $$view.updateViewByTag('about'),
                                                                         });
@@ -8062,7 +8068,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
                             .on('positive', (ds) => {
                                 let _input = dialogsx.getInputText(ds);
                                 if (_input) {
-                                    let _ver = projectx.version.parseName(_input);
+                                    let _ver = appx.version.parseName(_input);
                                     if (!_ver) {
                                         dialogsx.alertTitle(ds, '输入版本不合法');
                                     } else if (_tmp_list.includes(_ver)) {
@@ -8076,7 +8082,12 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
                                 }
                             })
                             .on('input_change', (ds, v) => {
-                                let _suff = v ? projectx.version.parseName(v) || _invalid : _none;
+                                let _suff;
+                                try {
+                                    _suff = v ? appx.version.parseName(v) || _invalid : _none;
+                                } catch (e) {
+                                    _suff = _invalid;
+                                }
                                 dialogsx.setContentText(ds, _cont + _suff);
                             })
                             .show();
@@ -8114,7 +8125,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
 
                 function _refreshItems() {
                     _diag.setItems(_tmp_list = _tmp_list.sort((a, b) => {
-                        return a === b ? 0 : projectx.version.isNewer(b, a) ? 1 : -1;
+                        return a === b ? 0 : appx.version.isNewer(b, a) ? 1 : -1;
                     }));
                     _diag.setContent(_tmp_list.length
                         ? '点击单个条目可移除版本'

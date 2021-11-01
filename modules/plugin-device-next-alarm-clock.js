@@ -1,5 +1,4 @@
-let {} = require('./ext-global');
-
+require('./mod-global');
 let {uix} = require('./ext-ui');
 let {colorsx} = require('./ext-colors');
 let {devicex} = require('./ext-device');

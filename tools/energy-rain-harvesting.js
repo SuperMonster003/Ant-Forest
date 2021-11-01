@@ -1,1 +1,1 @@
-require('../modules/plugin-energy-rain').run();
+require('../modules/plugin-ant-forest-energy-rain').run();

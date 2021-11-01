@@ -1,5 +1,4 @@
-let {} = require('./ext-global');
-
+require('./mod-global');
 let {a11yx} = require('./ext-a11y');
 
 let exp = {

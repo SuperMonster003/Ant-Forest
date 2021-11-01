@@ -1,2 +1,0 @@
-//// -=-= PENDING =-=- ////
-module.exports = {};

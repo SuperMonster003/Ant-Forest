@@ -1,7 +1,7 @@
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let {isNullish} = require('./ext-global');
+let {isNullish} = require('./mod-global');
 let {filesx} = require('./ext-files');
 
 let File = java.io.File;
@@ -225,8 +225,11 @@ let exp = {
         } catch (e) {
             err = e;
         } finally {
-            cos && cos.close();
-            os && os.close(); // maybe unnecessary ?
+            try {
+                cos.close();
+            } catch (e) {
+                // nothing to do here
+            }
         }
         if (!isFile && !err) {
             return this._output(os.toByteArray(), _opt, 'bytes');
@@ -433,6 +436,9 @@ let exp = {
      * @return {string}
      */
     dec(data, key_input) {
+        if (isNullish(data) || data === String()) {
+            return data;
+        }
         let _err = null;
         let _res = function $iiFe() {
             try {

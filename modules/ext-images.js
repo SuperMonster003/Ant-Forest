@@ -1,15 +1,14 @@
 let {
     isNullish, isPlainObject, $$sleep,
-} = require('./ext-global');
-
+} = require('./mod-global');
+let {project} = require('./mod-project');
 let {a11yx, $$sel} = require('./ext-a11y');
 let {filesx} = require('./ext-files');
 let {devicex} = require('./ext-device');
 let {timersx} = require('./ext-timers');
-let {threadsx} = require('./ext-threads');
 let {cryptox} = require('./ext-crypto');
+let {threadsx} = require('./ext-threads');
 let {consolex} = require('./ext-console');
-let {projectx} = require('./ext-project');
 
 global._$_has_scr_capt_perm = global._$_has_scr_capt_perm || threadsx.atomic(0);
 
@@ -168,7 +167,7 @@ let exp = {
                 if (typeof this._a_path !== 'undefined') {
                     return this._a_path;
                 }
-                let _a_path = projectx.getAssetPath('images');
+                let _a_path = project.getAssetPath('images');
                 if (!files.exists(_a_path)) {
                     throw Error('Images asset dir of project does not exist');
                 }

@@ -1,31 +1,26 @@
 let {
     $$impeded, $$toast, isNullish,
-} = require('./ext-global');
-
+} = require('./mod-global');
 let {a11yx} = require('./ext-a11y');
 let {devicex} = require('./ext-device');
 let {timersx} = require('./ext-timers');
 let {consolex} = require('./ext-console');
 let {threadsx} = require('./ext-threads');
-let {projectx} = require('./ext-project');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let R = android.R;
 let Uri = android.net.Uri;
 let Runtime = java.lang.Runtime;
 let Manifest = android.Manifest;
 let Process = android.os.Process;
 let Intent = android.content.Intent;
 let Context = android.content.Context;
-let KeyEvent = android.view.KeyEvent;
 let System = android.provider.Settings.System;
 let ApplicationInfo = android.content.pm.ApplicationInfo;
 let PackageManager = android.content.pm.PackageManager;
 let ActivityManager = android.app.ActivityManager;
 let ScriptFile = org.autojs.autojs.model.script.ScriptFile;
-let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
 let ActivityNotFoundException = android.content.ActivityNotFoundException;
 let ShortcutCreateActivity = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity;
 
@@ -68,6 +63,120 @@ let _ = {
 };
 
 let exp = {
+    version: {
+        /**
+         * @param {string|number|{version_name:string}} ver
+         * @param {Object} [options]
+         * @param {'number'|'string'|'string_with_prefix'} [options.type='string']
+         * @example
+         * console.log(appx.version.getHex('v2.0.4 Alpha4')); // '02000404'
+         * console.log(appx.version.getHex('v13.120.14 Beta3')); // '0d780e83'
+         * console.log(appx.version.getHex('v10.2.0')); // '0a0200ff'
+         * console.log(appx.version.getHex('v10.2.0', {type: 'number'})); // 167903487
+         * @return {string|number}
+         */
+        getHex(ver, options) {
+            if (typeof ver === 'object') {
+                ver = ver.version_name;
+            }
+            if (!ver) {
+                throw Error('A "version" must be defined for appx.version.getHex()');
+            }
+            let _opt = options || {};
+            let _hexStr = s => ('00' + Number(s || 0).toString(16)).slice(-2);
+            let _max_a = 0x80;
+            let _max_b = 0xFF - _max_a;
+            let _rex = /^[a-z\s]*(\d+)(?:\.(\d+)(?:\.(\d+)(?:-\d+)?\s*(b(?:eta)?|a(?:lpha)?)?\s*(\d*))?)?$/i;
+            let _str = ver.toString().trim().replace(_rex, ($0, $1, $2, $3, $4, $5) => {
+                let _$a = [$1, $2, $3].map(s => _hexStr(s)).reduce((a, b) => a + b);
+                let _$5 = $5 ? Number($5) : 1;
+                let _$4 = 0xFF;
+                if ($4) {
+                    if ($4.match(/b(eta)?/i)) {
+                        if (_$5 >= _max_b) {
+                            throw Error('Beta version code must be smaller than\x20' + _max_b);
+                        }
+                        _$4 = _max_a;
+                    } else if ($4.match(/a(lpha)?/i)) {
+                        if (_$5 > _max_a) {
+                            throw Error('Alpha version code cannot be greater than\x20' + _max_a);
+                        }
+                        _$4 = 0;
+                    }
+                }
+                let _$b = _hexStr(Math.min(_$4 + _$5, 0xFF));
+                return _$a + _$b;
+            });
+            let _hex = '0x' + _str;
+            return _opt.type === 'number' ? Number(_hex) : _opt.type === 'string_with_prefix' ? _hex : _str;
+        },
+        /**
+         * @param {number|string} ver
+         * @param {?string} [prefix='v']
+         * @example
+         * console.log(appx.version.parseHex('02000404')); // 'v2.0.4 Alpha4'
+         * console.log(appx.version.parseHex('0d780e83')); // 'v13.120.14 Beta3'
+         * console.log(appx.version.parseHex('0a0200ff')); // 'v10.2.0'
+         * console.log(appx.version.parseHex(167903487)); // 'v10.2.0'
+         * @return {string}
+         */
+        parseHex(ver, prefix) {
+            if (typeof ver === 'number') {
+                ver = ('0'.repeat(7) + ver.toString(16)).slice(-8);
+            }
+            if (!ver) {
+                throw Error('A "version" must be defined for appx.version.parseHex()');
+            }
+            let _max_alpha = 0x80;
+            return ver.replace(/^0x/, '').replace(/(..)(..)(..)(..)/g, ($0, $1, $2, $3, $4) => {
+                let _$a = [$1, $2, $3].map(s => Number('0x' + s)).join('.');
+                let _$4 = Number('0x' + $4);
+                let _$b = '';
+                if (_$4 <= _max_alpha) {
+                    _$b = '\x20Alpha' + (_$4 === 1 ? '' : _$4);
+                } else if (_$4 < 0xFF) {
+                    _$4 -= _max_alpha;
+                    _$b = '\x20Beta' + (_$4 === 1 ? '' : _$4);
+                }
+                return (prefix === null ? '' : prefix || 'v') + _$a + _$b;
+            });
+        },
+        /**
+         * @param {string|number} ver
+         * @example
+         * console.log(appx.version.parseName(2)); // "v2.0.0"
+         * console.log(appx.version.parseName('2')); // "v2.0.0"
+         * console.log(appx.version.parseName(2.1)); // "v2.1.0"
+         * console.log(appx.version.parseName('2.1')); // "v2.1.0"
+         * console.log(appx.version.parseName('2.0.4')); // "v2.0.4"
+         * console.log(appx.version.parseName('v2.0.4')); // "v2.0.4"
+         * console.log(appx.version.parseName('v2.0.4a7')); // "v2.0.4 Alpha7"
+         * console.log(appx.version.parseName('v2.0.4 a7')); // "v2.0.4 Alpha7"
+         * console.log(appx.version.parseName('v2.0.4 alpha7')); // "v2.0.4 Alpha7"
+         * console.log(appx.version.parseName('2.0.4 alpha 7')); // "v2.0.4 Alpha7"
+         * @return {string}
+         */
+        parseName(ver) {
+            let _rex = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?\s*((a(lpha)?|b(eta)?)\s*\d*)?$/i;
+            let _v = String(ver);
+            return _v.match(_rex) ? this.parseHex(this.getHex(_v.replace(_rex, ($0, $1, $2, $3, $4) => {
+                return $1 + '.' + ($2 || 0) + '.' + ($3 || 0) + ($4 ? '\x20' + $4 : '');
+            }))) : String();
+        },
+        /**
+         * Returns if 1st version is newer than 2nd version
+         * @example
+         * console.log(appx.version.isNewer('v2.0.4', 'v2.0.1')); // true
+         * console.log(appx.version.isNewer('v2.0.4 Alpha7', 'v2.0.4')); // false
+         * console.log(appx.version.isNewer('v2.0.4 Beta2', 'v2.0.4 Alpha3')); // true
+         * @param {string|{version_name:string}|number} a
+         * @param {string|{version_name:string}|number} b
+         * @return {boolean}
+         */
+        isNewer(a, b) {
+            return this.getHex(a) > this.getHex(b);
+        },
+    },
     /**
      * @param {string} source
      * @example
@@ -80,15 +189,10 @@ let exp = {
      * @return {?string}
      */
     getAppName(source) {
-        if (source) {
-            if (source.match(/.+\..+\./)) {
-                return app.getAppName(source);
-            }
-            if (app.getPackageName(source)) {
-                return source;
-            }
+        if (!source) {
+            return null;
         }
-        return null;
+        return app.getAppName(source) || app.getPackageName(source) && source;
     },
     /**
      * @param {string} source
@@ -102,15 +206,10 @@ let exp = {
      * @return {?string}
      */
     getPkgName(source) {
-        if (source) {
-            if (!source.match(/.+\..+\./)) {
-                return app.getPackageName(source);
-            }
-            if (app.getAppName(source)) {
-                return source;
-            }
+        if (!source) {
+            return null;
         }
-        return null;
+        return !String(source).includes('.') && app.getPackageName(source) || app.getAppName(source) && source;
     },
     /**
      * Returns the version name of an app with app name or package name
@@ -118,388 +217,41 @@ let exp = {
      * @return {?string}
      */
     getVerName(source) {
-        let _res = null;
-        let _pkg_name = (() => {
-            if (typeof source === 'string') {
-                if (source.toLowerCase().match(/^auto\.?js$/)) {
-                    return _.autojs_pkg;
-                }
-                if (source.toLowerCase().match(/^current$/)) {
-                    return currentPackage();
-                }
-                return this.getPkgName(source);
-            }
-        })();
-        if (_pkg_name) {
-            try {
-                /** @type {android.content.pm.PackageInfo[]} */
-                let _i_pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
-                _i_pkgs.some((i_pkg) => {
-                    if (_pkg_name === i_pkg.packageName) {
-                        return _res = i_pkg.versionName;
+        let $ = {
+            parsePkgName() {
+                if (typeof source === 'string') {
+                    if (source.match(/^auto\.?js$/i)) {
+                        return _.autojs_pkg;
                     }
-                });
-            } catch (e) {
-                // nothing to do here
-            }
-        }
-        return _res;
-    },
-    /**
-     * @param {number} [minimum=24]
-     */
-    ensureSdkInt(minimum) {
-        let _sdk = {
-            1: {version: '1.0', release: 'September 23, 2008'},
-            2: {version: '1.1', release: 'February 9, 2009'},
-            3: {version: '1.5', release: 'April 27, 2009'},
-            4: {version: '1.6', release: 'September 15, 2009'},
-            5: {version: '2.0', release: 'October 27, 2009'},
-            6: {version: '2.0.1', release: 'December 3, 2009'},
-            7: {version: '2.1', release: 'January 11, 2010'},
-            8: {version: ['2.2', '2.2.3'], release: 'May 20, 2010'},
-            9: {version: ['2.3', '2.3.2'], release: 'December 6, 2010'},
-            10: {version: ['2.3.3', '2.3.7'], release: 'February 9, 2011'},
-            11: {version: '3.0', release: 'February 22, 2011'},
-            12: {version: '3.1', release: 'May 10, 2011'},
-            13: {version: ['3.2', '3.2.6'], release: 'July 15, 2011'},
-            14: {version: ['4.0', '4.0.2'], release: 'October 18, 2011'},
-            15: {version: ['4.0.3', '4.0.4'], release: 'December 16, 2011'},
-            16: {version: ['4.1', '4.1.2'], release: 'July 9, 2012'},
-            17: {version: ['4.2', '4.2.2'], release: 'November 13, 2012'},
-            18: {version: ['4.3', '4.3.1'], release: 'July 24, 2013'},
-            19: {version: ['4.4', '4.4.4'], release: 'October 31, 2013'},
-            20: {version: ['4.4W', '4.4W.2'], release: 'June 25, 2014'},
-            21: {version: ['5.0', '5.0.2'], release: 'November 4, 2014'},
-            22: {version: ['5.1', '5.1.1'], release: 'March 2, 2015'},
-            23: {version: ['6.0', '6.0.1'], release: 'October 2, 2015'},
-            24: {version: '7.0', release: 'August 22, 2016'},
-            25: {version: ['7.1', '7.1.2'], release: 'October 4, 2016'},
-            26: {version: '8.0', release: 'August 21, 2017'},
-            27: {version: '8.1', release: 'December 5, 2017'},
-            28: {version: '9', release: 'August 6, 2018'},
-            29: {version: '10', release: 'September 7, 2019'},
-            30: {version: '11', release: 'September 8, 2020'},
-            31: {version: '12', release: ''},
-            /**
-             * @return {{
-             *     version: {min: string, max: string},
-             *     release: ?Date,
-             * }}
-             */
-            $bind() {
-                let _o = {};
-                let _this = this;
-                let _month_map = {
-                    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-                    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
-                };
-                let _parseDate = (s) => {
-                    return !s ? null : new (Function.prototype.bind.apply(Date, [
-                        Date, s.replace(/([A-Z]..)\D+?\s(\d\d?), (\d{4})/, ($0, $1, $2, $3) => {
-                            return [$3, _month_map[$1], $2].join(',');
-                        }).split(','),
-                    ]));
-                };
-                Object.keys(this).forEach((k) => {
-                    if (Number(k).toString() === k) {
-                        let _ver = _this[k].version;
-                        if (!Array.isArray(_ver)) {
-                            _ver = [_ver, _ver];
-                        }
-                        _o[k] = {
-                            version: {min: _ver[0], max: _ver[1]},
-                            release: _parseDate(_this[k].release),
-                        };
+                    if (source.match(/^current$/i)) {
+                        return currentPackage();
                     }
-                });
-                return _o;
+                    return exp.getPkgName(source);
+                }
             },
-        }.$bind();
-        let _min = minimum || 24;
-        if (device.sdkInt < _min) {
-            consolex.$(['脚本无法继续', _min in _sdk
-                ? '安卓系统版本低于' + _sdk[_min].version.min
-                : '安卓系统SDK低于' + _min], 8, 4, 0, 2);
-        }
-    },
-    /**
-     * Check if device is running compatible (relatively) Auto.js version and android sdk version
-     */
-    checkSdkAndAJVer() {
-        this.ensureSdkInt();
-
-        let _aj_ver = _.autojs_ver;
-        let _bug_chk_res = _checkBugs(_aj_ver);
-        if (_bug_chk_res === 0) {
-            consolex._('Bug版本检查: 正常');
-            return;
-        }
-        if (_bug_chk_res === '') {
-            consolex._('Bug版本检查: 未知');
-            return;
-        }
-        let _bug_chk_content = _bug_chk_res.map((code) => {
-            return '\n' + _getBugDescription(code);
-        });
-
-        consolex._('Bug版本检查: 确诊');
-
-        let _alert_msg = '此项目无法正常运行\n' + '需更换 Auto.js 版本\n\n' +
-            '软件版本:' + '\n' + (_aj_ver || '/* 版本检测失败 */') + '\n\n' +
-            '异常详情:' + _bug_chk_content.join('') + '\n\n' +
-            '在项目简介中查看支持版本\n' + '或直接尝试 v4.1.1 Alpha2';
-
-        projectx.version.isNewer(_aj_ver, '7.0.0') ? _showDialog() : _alertAndExit();
-
-        // tool function(s) //
-
-        /**
-         * @param {string} ver
-         * @return {string[]|number|string} -- strings[]: bug codes; 0: normal; '': unrecorded
-         */
-        function _checkBugs(ver) {
-            // version ∈ 4.1.1
-            // version <= Pro 8.3.16-0
-            // version === Pro 7.0.0-(4|6) || version === Pro 7.0.2-4
-            // version === Pro 7.0.3-7 || version === Pro 7.0.4-1
-            if (ver.match(/^(4\.1\.1.+)$/) ||
-                ver.match(/^Pro 8\.([0-2]\.\d{1,2}-\d|3\.(\d|1[0-6])-0)$/) ||
-                ver.match(/^Pro 7\.0\.(0-[46]|2-4|3-7|4-1)$/)
-            ) {
-                return 0; // known normal
-            }
-
-            // version > Pro 8.3.16
-            if (ver.match(/^Pro ([89]|[1-9]\d)\./)) {
-                a11yx.bridge.resetWindowFilter();
-                return 0;
-            }
-
-            // 4.1.0 Alpha3 <= version <= 4.1.0 Alpha4
-            if (ver.match(/^4\.1\.0 Alpha[34]$/)) {
-                return ['ab_SimpActAuto', 'dialogs_not_responded'];
-            }
-
-            // version === 4.1.0 Alpha(2|5)?
-            if (ver.match(/^4\.1\.0 Alpha[25]$/)) {
-                return ['dialogs_not_responded'];
-            }
-
-            // 4.0.x versions
-            if (ver.match(/^4\.0\./)) {
-                return ['dialogs_not_responded', 'not_full_function'];
-            }
-
-            // version === Pro 7.0.0-(1|2)
-            if (ver.match(/^Pro 7\.0\.0-[12]$/)) {
-                return ['ab_relative_path'];
-            }
-
-            // version === Pro 7.0.0-7 || version === Pro 7.0.1-0 || version === Pro 7.0.2-(0|3)
-            if (ver.match(/^Pro 7\.0\.((0-7)|(1-0)|(2-[03]))$/)) {
-                return ['crash_autojs'];
-            }
-
-            // version >= 4.0.2 Alpha7 || version === 4.0.3 Alpha([1-5]|7)?
-            if (ver.match(/^((4\.0\.2 Alpha([7-9]|\d{2}))|(4\.0\.3 Alpha([1-5]|7)?))$/)) {
-                return ['dislocation_floaty', 'ab_inflate', 'not_full_function'];
-            }
-
-            // version >= 3.1.1 Alpha5 || version -> 4.0.0/4.0.1 || version <= 4.0.2 Alpha6
-            if (ver.match(/^((3\.1\.1 Alpha[5-9])|(4\.0\.[01].+)|(4\.0\.2 Alpha[1-6]?))$/)) {
-                return ['un_execArgv', 'ab_inflate', 'not_full_function'];
-            }
-
-            // 3.1.1 Alpha3 <= version <= 3.1.1 Alpha4:
-            if (ver.match(/^3\.1\.1 Alpha[34]$/)) {
-                return ['ab_inflate', 'un_engines', 'not_full_function'];
-            }
-
-            // version >= 3.1.0 Alpha6 || version <= 3.1.1 Alpha2
-            if (ver.match(/^((3\.1\.0 (Alpha[6-9]|Beta))|(3\.1\.1 Alpha[1-2]?))$/)) {
-                return ['un_inflate', 'un_engines', 'not_full_function'];
-            }
-
-            // version >= 3.0.0 Alpha42 || version ∈ 3.0.0 Beta[s] || version <= 3.1.0 Alpha5
-            if (ver.match(/^((3\.0\.0 ((Alpha(4[2-9]|[5-9]\d))|(Beta\d?)))|(3\.1\.0 Alpha[1-5]?))$/)) {
-                return ['un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-            }
-
-            // 3.0.0 Alpha37 <= version <= 3.0.0 Alpha41
-            if (ver.match(/^3\.0\.0 Alpha(3[7-9]|4[0-1])$/)) {
-                return ['ab_cwd', 'un_relative_path', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-            }
-
-            // 3.0.0 Alpha21 <= version <= 3.0.0 Alpha36
-            if (ver.match(/^3\.0\.0 Alpha(2[1-9]|3[0-6])$/)) {
-                return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'not_full_function'];
-            }
-
-            // version <= 3.0.0 Alpha20
-            if (ver.match(/^3\.0\.0 Alpha([1-9]|1\d|20)?$/)) {
-                return ['un_cwd', 'un_inflate', 'un_runtime', 'un_engines', 'crash_ui_settings', 'not_full_function'];
-            }
-
-            switch (ver) {
-                case '4.0.3 Alpha6':
-                    return ['ab_floaty', 'ab_inflate', 'not_full_function'];
-                case '4.0.4 Alpha':
-                    return ['dislocation_floaty', 'un_view_bind', 'not_full_function'];
-                case '4.0.4 Alpha3':
-                    return ['dislocation_floaty', 'ab_ui_layout', 'not_full_function'];
-                case '4.0.4 Alpha4':
-                    return ['ab_find_forEach', 'not_full_function'];
-                case '4.0.4 Alpha12':
-                    return ['un_execArgv', 'not_full_function'];
-                case '4.0.5 Alpha':
-                    return ['ab_uiSelector', 'not_full_function'];
-                case 'Pro 7.0.0-0':
-                    return ['na_login'];
-                case 'Pro 7.0.0-3':
-                    return ['crash_ui_call_ui'];
-                case 'Pro 7.0.0-5':
-                    return ['forcibly_update'];
-                case 'Pro 7.0.3-1':
-                    return ['dialogs_event'];
-                case 'Pro 7.0.3-4':
-                    return ['ab_setGlobalLogConfig'];
-                case 'Pro 7.0.3-5':
-                    return ['ab_floaty_rawWindow'];
-                case 'Pro 7.0.3-6':
-                    return ['ab_engines_setArguments', 'press_block'];
-                case 'Pro 7.0.4-0':
-                    return ['crash_ui_settings'];
-                default:
-                    return ''; // unrecorded version
-            }
-        }
-
-        function _getBugDescription(key) {
-            let _bugs_map = {
-                failed: '版本信息获取失败',
-                ab_cwd: 'cwd()方法功能异常',
-                ab_engines_setArguments: 'engines.setArguments()功能异常',
-                ab_find_forEach: 'UiSelector.find().forEach()方法功能异常',
-                ab_floaty: 'Floaty模块异常',
-                ab_floaty_rawWindow: 'floaty.rawWindow()功能异常',
-                ab_relative_path: '相对路径功能异常',
-                ab_setGlobalLogConfig: 'console.setGlobalLogConfig()功能异常',
-                ab_SimpActAuto: 'SimpleActionAutomator模块异常',
-                ab_inflate: 'ui.inflate()方法功能异常',
-                ab_uiSelector: 'UiSelector模块功能异常',
-                ab_ui_layout: 'UI页面布局异常',
-                crash_autojs: '脚本运行后导致Auto.js崩溃',
-                crash_ui_call_ui: 'ui脚本调用ui脚本会崩溃',
-                crash_ui_settings: '图形配置页面崩溃',
-                dislocation_floaty: 'Floaty模块绘制存在错位现象',
-                dialogs_event: 'Dialogs模块事件失效',
-                dialogs_not_responded: '无法响应对话框点击事件',
-                forcibly_update: '强制更新',
-                na_login: '无法登陆Auto.js账户',
-                press_block: 'press()方法时间过短时可能出现阻塞现象',
-                un_cwd: '不支持cwd()方法及相对路径',
-                un_engines: '不支持Engines模块',
-                un_execArgv: '不支持Engines模块的execArgv对象',
-                un_inflate: '不支持ui.inflate()方法',
-                un_relative_path: '不支持相对路径',
-                un_runtime: '不支持runtime参数',
-                un_view_bind: '不支持view对象绑定自定义方法',
-                not_full_function: '此版本未包含所需全部功能',
-                alipay_a11y_blocked: '支付宝无障碍功能被屏蔽',
-            };
-            return _bugs_map[key] || '无效的Bug描述';
-        }
-
-        function _showDialog() {
-            let _view = ui.inflate(
-                <vertical gravity="center">
-                    <x-img id="img" src="@drawable/ic_warning_black_48dp"
-                           height="70" margin="0 26 0 18" gravity="center"
-                           bg="?selectableItemBackgroundBorderless"/>
-                    <vertical>
-                        <x-text id="text" gravity="center" color="#DDF3E5F5"
-                                padding="5 0 5 20" size="19"/>
-                    </vertical>
-                    <horizontal w="auto">
-                        <x-button id="btn" type="button" layout_weight="1"
-                                  text="EXIT" backgroundTint="#DDAD1457"
-                                  textColor="#DDFFFFFF" marginBottom="9"/>
-                    </horizontal>
-                </vertical>);
-            let _diag = dialogs.build({
-                customView: _view,
-                autoDismiss: false,
-                canceledOnTouchOutside: false,
-            }).show();
-
-            let _is_continued = false;
-
-            ui.run(() => {
-                _diag.setOnKeyListener({
-                    onKey(diag, key_code) {
-                        if (key_code === KeyEvent.KEYCODE_BACK) {
-                            _exitNow();
-                            return true;
+            getResult() {
+                let _pkg = this.parsePkgName();
+                if (_pkg) {
+                    try {
+                        /**
+                         * Java Array is not iterable
+                         * @type {android.content.pm.PackageInfo[]}
+                         */
+                        let _i_pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+                        for (let i in _i_pkgs) {
+                            if (_pkg === _i_pkgs[i].packageName) {
+                                return _i_pkgs[i].versionName;
+                            }
                         }
-                        return false;
-                    },
-                });
-
-                _view['btn'].on('click', _exitNow);
-                _view['btn'].on('long_click', (e) => {
-                    e.consumed = _is_continued = true;
-                    if (typeof activity !== 'undefined') {
-                        return _exitNow();
+                    } catch (e) {
+                        // nothing to do here
                     }
-                    _diag.dismiss();
-                    let _msg = '仍然尝试运行项目';
-                    toast(_msg);
-                    console.error(_msg);
-                });
-                _view['text'].setText(_alert_msg);
-                _setTint(_view['img'], '#FF9100');
-
-                let _win = _diag.getWindow();
-                _win.setBackgroundDrawableResource(R.color.transparent);
-                _win.setWindowAnimations(R.style.Animation_InputMethod);
-                _win.setDimAmount(0.85);
-            });
-
-            if (typeof activity !== 'undefined') {
-                return setTimeout(() => exit(), 1e3);
-            }
-
-            let _start = Date.now();
-            while (!_is_continued) {
-                sleep(200);
-                if (Date.now() - _start > 120e3) {
-                    let _msg = '等待用户操作超时';
-                    console.error(_msg);
-                    return _exitNow(_msg);
                 }
-            }
+                return null;
+            },
+        };
 
-            // tool function(s) //
-
-            function _setTint(view, color) {
-                if (typeof color === 'number') {
-                    color = colors.toString(color);
-                }
-                view.setColorFilter(Colors.parse(view, color));
-            }
-
-            function _exitNow(msg) {
-                _diag.dismiss();
-                typeof msg === 'string' && toast(msg);
-                exit();
-            }
-        }
-
-        function _alertAndExit() {
-            alert('\n' + _alert_msg);
-            exit();
-        }
+        return $.getResult();
     },
     /**
      * Make sure a11y is on service and try turning it on when necessary
@@ -986,7 +738,7 @@ let exp = {
         }
     },
     /**
-     * @param {string} [pkg=autojsx.getPkgName()]
+     * @param {string} [pkg=autojs.getPkgName()]
      */
     launchAndClearTop(pkg) {
         this.startActivity(this.intent(this.getLaunchIntentForPackage(pkg), {
@@ -994,7 +746,7 @@ let exp = {
         }));
     },
     /**
-     * @param {string} [pkg=autojsx.getPkgName()]
+     * @param {string} [pkg=autojs.getPkgName()]
      * @return {Intent$}
      */
     getLaunchIntentForPackage(pkg) {
@@ -1156,12 +908,10 @@ let exp = {
                     return task;
                 }
                 if (typeof task === 'string') {
-                    if (task.match(/^(launcher|current)(.*\d+s)?$/i)) {
+                    if (task.match(/^current(.*\d+s)?$/i)) {
                         let _mch_min = task.match(/\d+/);
                         return {
-                            path: task.match(/launcher/i)
-                                ? projectx.getLocal().main.path
-                                : engines.myEngine().getSource(),
+                            path: engines.myEngine().getSource(),
                             date: Date.now() + (_mch_min ? _mch_min[0] : 5) * 1e3,
                             is_async: $.options.is_async,
                         };
@@ -1172,7 +922,9 @@ let exp = {
             addTask() {
                 if ((this.pending_task = this.options.pending_task)) {
                     timersx.addDisposableTask(Object.assign(this.parseTask(), {
-                        callback: $.killNow.bind($),
+                        callback() {
+                            $.killNow();
+                        },
                     }));
                     return true;
                 }
@@ -1451,6 +1203,6 @@ let exp = {
 };
 
 /**
- * @type {External.appx}
+ * @type {Mod.appx}
  */
 module.exports = {appx: exp};

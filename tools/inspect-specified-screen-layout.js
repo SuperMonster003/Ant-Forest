@@ -1,5 +1,4 @@
-let {$$toast} = require('../modules/ext-global');
-
+let {$$toast} = require('../modules/mod-global');
 let {threadsx} = require('../modules/ext-threads');
 let {consolex} = require('../modules/ext-console');
 

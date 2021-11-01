@@ -1,1 +1,1 @@
-require('../modules/plugin-memory-info').run();
+require('../modules/plugin-autojs-memory-info').run();

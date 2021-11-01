@@ -1,8 +1,7 @@
 let {
     $$impeded, $$str, $$num, $$rex, isPlainObject, isNullish,
     isNonEmptyObject, $$sleep, requirex, $$toast,
-} = require('./ext-global');
-
+} = require('./mod-global');
 let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
@@ -1844,6 +1843,6 @@ let exp = {
 };
 
 /**
- * @type {External.a11yx}
+ * @type {Mod.a11yx}
  */
 module.exports = {a11yx: exp, $$sel: exp.selector()};

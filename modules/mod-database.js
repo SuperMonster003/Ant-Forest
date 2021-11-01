@@ -1,7 +1,7 @@
 /**
  * Encapsulated database module based on SQLiteDatabase
  * @example
- * let db = require('./ext-database').create([
+ * let db = require('./mod-database').create([
  *     {name: 'name', not_null: true},
  *     {name: 'timestamp', type: 'integer', primary_key: true},
  *     {name: 'pick', type: 'integer'},
@@ -10,14 +10,14 @@
  * console.log(db.rawQueryData$('select * from ant_forest'));
  * db.clear();
  * db.close();
- * @since Oct 21, 2021
+ * @since Oct 31, 2021
  * @author SuperMonster003 {@link https://github.com/SuperMonster003}
  */
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let {isNullish} = require('./ext-global');
+let {isNullish} = require('./mod-global');
 
 let SQLiteDatabase = android.database.sqlite.SQLiteDatabase;
 let ContentValues = android.content.ContentValues;
@@ -68,7 +68,7 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
                     .concat(_tb_col_names.filter(n => !_db_col_names.includes(n)))
                     .concat(_db_col_names.filter(n => !_tb_col_names.includes(n))));
             } else {
-                throw Error('Unknown alter option for ext-database');
+                throw Error('Unknown alter option for mod-database');
             }
         },
         alterIFN() {
@@ -330,4 +330,4 @@ let exp = {
     },
 };
 
-module.exports = {dbx: exp};
+module.exports = {db: exp};

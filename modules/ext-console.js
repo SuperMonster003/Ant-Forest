@@ -1,6 +1,6 @@
 let {
     isPlainObject, $$toast,
-} = require('./ext-global');
+} = require('./mod-global');
 
 let exp = {
     /** @constructor */

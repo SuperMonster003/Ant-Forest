@@ -1,1 +1,1 @@
-require('../modules/plugin-alarm-countdown').run();
+require('../modules/plugin-device-next-alarm-clock').run();

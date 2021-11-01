@@ -1,14 +1,8 @@
-/**
- * Alipay ant forest energy rain harvesting script
- * @author SuperMonster003
- * @see https://github.com/SuperMonster003/Ant-Forest
- */
-
-let {$$toast} = require('./ext-global');
-
+let {$$toast} = require('./mod-global');
 let {uix} = require('./ext-ui');
 let {appx} = require('./ext-app');
-let {alipayx} = require('./ext-alipay');
+let {alipay} = require('./mod-alipay');
+let {autojs} = require('./mod-autojs');
 let {imagesx} = require('./ext-images');
 let {enginesx} = require('./ext-engines');
 let {threadsx} = require('./ext-threads');
@@ -117,7 +111,8 @@ let _ = {
 
 let $ = {
     check() {
-        appx.checkSdkAndAJVer();
+        devicex.ensureSdkInt();
+        autojs.ensureVersion();
         appx.checkAccessibility();
     },
     greet() {
@@ -125,7 +120,7 @@ let $ = {
         consolex.debug.switchSet(_.cfg.is_debug);
     },
     launch() {
-        alipayx.startApp('af_energy_rain');
+        alipay.startApp('af_energy_rain');
 
         if (a11yx.wait(_.cond.launch.bind(_.cond), 20e3, 80)) {
             consolex._('进入"能量雨"主页成功');
@@ -361,6 +356,9 @@ let exp = {
                 <x-text text="123" size="99"/>
             </frame>
         </vertical>);
+    },
+    isInPage() {
+        return _.cond.launch();
     },
 };
 

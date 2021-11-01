@@ -1,5 +1,4 @@
-let {isNullish} = require('./ext-global');
-
+let {isNullish} = require('./mod-global');
 let {threadsx} = require('./ext-threads');
 
 let is_pro = context.getPackageName().match(/Pro\b/i);
@@ -7,7 +6,7 @@ let timing = is_pro ? com.stardust.autojs.core['timing'] : org.autojs.autojs.tim
 let TimedTask = is_pro ? timing.TimedTask['Companion'] : timing.TimedTask;
 let TimedTaskManager = timing.TimedTaskManager;
 let TimedTaskMgr = is_pro ? TimedTaskManager['Companion'].getInstance() : TimedTaskManager.getInstance();
-let bridges = require.call(this, '__bridges__');
+let bridges = global.require('__bridges__');
 let days_ident = [
     'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
     'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun',
@@ -71,7 +70,7 @@ let exp = {
      */
     addDailyTask(options) {
         let _opt = options || {};
-        let _date_time = parseDateTime('LocalTime', _opt.time);
+        let _date_time = parseDateTime('LocalTime', _opt.time || Date.now());
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
         let _task = this.addTask(TimedTask.dailyTask(_date_time, _path, _cfg));
@@ -98,7 +97,7 @@ let exp = {
             }
             _time_flag |= TimedTask.getDayOfWeekTimeFlag(day_idx + 1);
         }
-        let _date_time = parseDateTime('LocalTime', _opt.time);
+        let _date_time = parseDateTime('LocalTime', _opt.time || Date.now());
         let _flag_num = Number(new java.lang.Long(_time_flag));
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
@@ -116,14 +115,14 @@ let exp = {
      */
     addDisposableTask(options) {
         let _opt = options || {};
-        let _date_time = parseDateTime('LocalDateTime', _opt.date);
+        let _date_time = parseDateTime('LocalDateTime', _opt.date || Date.now());
         let _path = files.path(_opt.path);
         let _cfg = parseConfig(_opt);
         let _task = this.addTask(TimedTask.disposableTask(_date_time, _path, _cfg)) || null;
         return this._taskFulfilled(_task, _opt);
     },
     /**
-     * @param {{path:string,action?:string}} options
+     * @param {{path:string,action?:string}&Timersx.TimedTask.Extension} options
      * @example
      * timersx.addIntentTask({
      *     path: files.path('./test.js'),

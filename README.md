@@ -21,7 +21,7 @@
     <a href="https://github.com/SuperMonster003/Ant-Forest/find/master"><img alt="GitHub Code Lines" src="https://img.shields.io/tokei/lines/github/SuperMonster003/Ant-Forest?color=37474F"/></a>
     <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/LICENSE"><img alt="GitHub License" src="https://img.shields.io/github/license/SuperMonster003/Ant-Forest?color=534BAE"/></a>
     <a href="https://www.jetbrains.com/?from=Ant-Forest"><img alt="JetBrains supporter" src="https://img.shields.io/badge/supporter-JetBrains-ee4677"/></a>
-    <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md"><img alt="Todo list" src="https://img.shields.io/badge/todo-53-C63F17"/></a>
+    <a href="https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md"><img alt="Todo list" src="https://img.shields.io/badge/todo-55-C63F17"/></a>
   </p>
 </div>
 
@@ -33,18 +33,21 @@
 
 | Status | Task | Date | Cost | Progress |
 | :---: | --- | :---: | :---: | :---: |
+| ✔️ | 推迟任务加入下次关屏选项 | 2021-11-01 18:16:56 | 5 | 1 |
 | ✔️ | 能量雨加入近似区域点击检测 | 2021-10-27 14:48:18 | 3 | 1 |
 | ✔️ | v2.2.0 发布后检查 documents 相关的链接 | 2021-10-26 23:07:16 | 1 | 1 |
-| ✒️ | 推迟任务加入下次关屏选项 <!-- run-af-on-screen-off.js --> | 2021-10-26 11:18:43 | 5 | 0.95 <!-- est --> |
-| ✒️ | 启动器模块化 | 2021-10-26 08:25:42 | 10 | 0.01 <!-- 1 -  6915 / 6998 --> |
-| ✒️ | 配置工具模块化 | 2021-10-26 08:24:34 | 10 | 0.00 <!-- 1 - 8141 / 8138 --> |
-| ✒️ | 扩展模块及插件重构 | 2021-10-26 14:37:07 | ! 8 | 0.33 <!-- 9 / 27 --> |
-| ✒️ | 将 tool functions 转换为 OOP | 2021-10-25 22:24:13 | 10 | 0.11 <!-- 1 - 227 / 256 --> |
-| ✒️ | 保护地巡护工具 | 2021-10-26 10:34:25 | 9 | 0.20 <!-- est --> |
-| ✒️ | 提取 JSDoc@typedef 到 TS 声明文件 | 2021-10-25 22:25:18 | 10 | 0.94 <!-- 1 - 5 / 86 --> |
+| ✒️ | 扩展模块及插件重构 | 2021-10-26 14:37:07 | ! 8 | 0.39 <!-- 13 / 33 --> |
+| ✒️ | 排行榜策略加入黑名单检测方案配置 (#529) | 2021-10-31 18:57:17 | ! 5 | 0.00 |
+| ✒️ | 事件监测配置 (#533) <!-- REM#1 --> | 2021-10-26 10:50:40 | ! 6 | 0.00 <!-- 0 / 3 --> |
 | ✒️ | 自动关闭屏幕配置 (#476) <!-- REM#4 --> | 2021-10-26 11:15:11 | ! 6 | 0.00 |
+| ✒️ | 提取 JSDoc@typedef 到 TS 声明文件 | 2021-10-25 22:25:18 | 10 | 0.94 <!-- 1 - 5 / 86 --> |
+| ✒️ | 保护地巡护工具 | 2021-10-26 10:34:25 | 9 | 0.20 <!-- est --> |
+| ✒️ | 将 tool functions 转换为 OOP | 2021-10-25 22:24:13 | 10 | 0.18 <!-- 1 - 208 / 256 --> |
+| ✒️ | 分离 appx 模块 (autojs / alipay ...) | 2021-10-25 22:24:13 | 6 | 0.17 <!-- 1 - 24 / 29 --> |
+| ✒️ | 启动器模块化 | 2021-10-26 08:25:42 | 10 | 0.00 <!-- 1 -  6947 / 6998 --> |
+| ✒️ | 配置工具模块化 | 2021-10-26 08:24:34 | 10 | 0.00 <!-- 1 - 8152 / 8138 --> |
 
-> 全部待办事项可参阅 [TODO.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md) (共计 53 项)
+> 全部待办事项可参阅 [TODO.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md) (共计 55 项)
 
 ******
 
@@ -136,7 +139,7 @@
   · 本地或服务器还原项目  
   · 项目更新提示/版本忽略
 * 信息加密存储  
-  · 自动生成密 _[`#528`](https://github.com/SuperMonster003/Ant-Forest/issues/528)_文字典文件  
+  · 自动生成密文字典文件  
   · 使用密文存储账户信息/解锁密码等敏感信息
 * 账户功能  
   · 防止其他账户意外收取 (需录入主账户信息)  
@@ -157,6 +160,19 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.2.2
+
+###### 2021/11/01
+
+* `新增` 运行前提示对话框的推迟任务列表增加"息屏时"选项
+* `修复` 解锁密码为空时无法解锁设备的问题
+* `修复` 逛一逛方案无法识别能量雨页面判断条件的问题
+* `修复` 配置工具输入忽略版本内容时可能导致脚本崩溃的问题
+* `修复` 设备屏幕水平方向启动项目后刷新屏显参数失败的问题 _[`issue #534`](https://github.com/SuperMonster003/Ant-Forest/issues/534)_
+* `修复` 配置工具定时任务控制面板定时任务及任务类型识别异常的问题
+* `管理` 项目图片资源文件夹移除打赏二维码并迁移至README.md中
+* `管理` 项目图片资源文件夹内增加.nomedia防止媒体库中出现无关资源
+ 
 # v2.2.1
 
 ###### 2021/10/27
@@ -205,20 +221,26 @@
 * `优化` 使用基于Pro版本的crypto模块替代pwmap模块提升可用性
 * `提示` crypto模块可读取pwmap模块的数据文件但不支持反向读取
 
-# v2.1.10
-
-###### 2021/08/22
-
-* `修复` 获取能量罩信息时可能出现空指针的问题
-* `修复` 闹钟间隔事件监测代码异常导致脚本终止的问题
-* `修复` $$cvt对0到1之间的输入数据返回值为空的问题
-* `优化` threadsx.start()支持箭头函数及绑定函数
-* `优化` Pro版本增加对话框按钮自定义颜色设置的支持
-* `优化` Pro版本移除获取控件信息对currentPackage()的依赖
-
 ##### 更多版本历史可参阅
 
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/CHANGELOG-2.md)  ( 2.x 版本 )
 * [CHANGELOG-1.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/CHANGELOG-1.md)  ( 1.x 版本 )
 
-[comment]: <> (If you prefer to make a donation, run ant-forest-settings.js with Auto.js, scroll down to bottom and click "关于脚本及开发者" button, which means "about script and developer", then click my GitHub user name. When a new page popped up, you could see the QR Code by long-clicking the pink "CLOSE" button. The blue for Alipay and the green for WeChat. I believe I could make it better with your support.)
+******
+
+### 打赏 (Tip)
+
+******
+ 
+<details><summary>查看详情 (Click to show details)</summary><br>
+<div align="center">
+To tip online, scan the QR code below <br>
+扫描对应二维码可打赏 <br><br>
+I believe I could make it better with your support :) <br>
+感谢每一份支持和鼓励 <br><br>
+
+<a href="https://raw.githubusercontent.com/SuperMonster002/Hello-Sockpuppet/master/qr-alipay-sponsor.png"><img alt="Alipay sponsor" src="https://raw.githubusercontent.com/SuperMonster002/Hello-Sockpuppet/master/qr-alipay-sponsor.png" height="224"/></a>
+<span>　</span>
+<a href="https://raw.githubusercontent.com/SuperMonster002/Hello-Sockpuppet/master/qr-wechat-sponsor.png"><img alt="WeChat sponsor" src="https://raw.githubusercontent.com/SuperMonster002/Hello-Sockpuppet/master/qr-wechat-sponsor.png" height="224"/></a>
+</div>
+</details>

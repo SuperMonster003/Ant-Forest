@@ -1,7 +1,6 @@
-let {} = require('../modules/ext-global');
-let {} = require('../modules/ext-ui');
-let {} = require('../modules/ext-device');
-
+require('../modules/mod-global');
+require('../modules/ext-ui');
+require('../modules/ext-device');
 let {dialogsx} = require('../modules/ext-dialogs');
 let {storagesx} = require('../modules/ext-storages');
 

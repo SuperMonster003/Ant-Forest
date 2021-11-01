@@ -1,12 +1,8 @@
-let {$$cvt} = require('./ext-global');
-
+let {$$cvt} = require('./mod-global');
 let {appx} = require('./ext-app');
 let {uix} = require('./ext-ui');
 let {colorsx} = require('./ext-colors');
 let {dialogsx} = require('./ext-dialogs');
-let {threadsx} = require('./ext-threads');
-
-let KeyEvent = android.view.KeyEvent;
 
 uix.registerWidget('mem-info-text', <x-text
     gravity="center" padding="5 0 5 24" size="18"

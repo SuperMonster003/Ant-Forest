@@ -1,5 +1,4 @@
-let {} = require('./ext-global');
-
+require('./mod-global');
 let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */

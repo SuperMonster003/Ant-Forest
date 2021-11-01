@@ -1,8 +1,7 @@
 let {
     $$und, $$func, $$F,
     isPlainObject, isNullish, isXMLType,
-} = require('./ext-global');
-
+} = require('./mod-global');
 let {colorsx} = require('./ext-colors');
 let {consolex} = require('./ext-console');
 
@@ -13,7 +12,6 @@ let WindowManager = android.view.WindowManager;
 let LayoutParams = WindowManager.LayoutParams;
 let Looper = android.os.Looper;
 let Linkify = android.text.util.Linkify;
-let KeyEvent = android.view.KeyEvent;
 let ColorStateList = android.content.res.ColorStateList;
 let ColorDrawable = android.graphics.drawable.ColorDrawable;
 let JsDialog = com.stardust.autojs.core.ui.dialog.JsDialog;
@@ -1487,6 +1485,6 @@ let exp = {
 };
 
 /**
- * @type {External.dialogsx}
+ * @type {Mod.dialogsx}
  */
 module.exports = {dialogsx: exp};

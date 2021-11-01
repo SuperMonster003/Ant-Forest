@@ -1,5 +1,4 @@
-let {} = require('../modules/ext-global');
-
+require('../modules/mod-global');
 let {a11yx} = require('../modules/ext-a11y');
 let {filesx} = require('../modules/ext-files');
 let {devicex} = require('../modules/ext-device');

@@ -929,7 +929,7 @@ let ext = {
 };
 
 /**
- * @type {Globalx}
+ * @type {Mod.Global}
  */
 module.exports = {
     $$0: x => x === 0,

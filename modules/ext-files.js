@@ -1,4 +1,5 @@
 let {threadsx} = require('./ext-threads');
+let {enginesx} = require('./ext-engines');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -173,9 +174,9 @@ let exp = {
                 threadsx.monitor(e_args.monitor);
                 delete e_args.monitor;
             }
-            return engines.execScriptFile(_path, {arguments: e_args});
+            return enginesx.execScriptFile(_path, {arguments: e_args});
         }
-        return engines.execScriptFile(_path, null);
+        return enginesx.execScriptFile(_path, null);
     },
     /**
      * Zip a file or a directory by java.io.FileOutputStream

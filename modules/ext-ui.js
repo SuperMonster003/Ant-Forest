@@ -1,7 +1,6 @@
-let {isXMLType} = require('./ext-global');
-
+let {isXMLType} = require('./mod-global');
+let {project} = require('./mod-project');
 let {colorsx} = require('./ext-colors');
-let {projectx} = require('./ext-project');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -399,7 +398,7 @@ let exp = {
             + '!' + fn.toString() + '(this);';
 
         engines.execScript(name, _script, Object.assign({
-            path: files.join(projectx.getLocalPath(), 'modules'),
+            path: files.join(project.getLocalPath(), 'modules'),
         }, options));
     },
     /**

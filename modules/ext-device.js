@@ -1,11 +1,10 @@
 let {
     $$impeded, $$toast, $$cvt, $$link, isNullish, $$str,
     $$und, $$nul, $$arr, $$num, $$rex, $$func,
-} = require('./ext-global');
-
-let {a11yx, $$sel} = require('./ext-a11y');
+} = require('./mod-global');
 let {timersx} = require('./ext-timers');
 let {consolex} = require('./ext-console');
+let {a11yx, $$sel} = require('./ext-a11y');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -981,10 +980,8 @@ let exp = {
      * Returns display screen width and height data and
      * converter functions with different aspect ratios.
      * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280).
-     * @param {Object|boolean} [options]
-     * @param {boolean} [options.is_globalize=false] - set true for global assignment
      * @example
-     * require('./modules/ext-device').getDisplay().globalize();
+     * require('./modules/ext-device').getDisplay();
      *
      * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
      * console.log(W, H, cX(0.2), cY(0.45), cYx(0.45));
@@ -1000,10 +997,7 @@ let exp = {
      * console.log(cYx(0.6, 21/9), cYx(0.6, -2), cYx(0.6, 9/21)); // all the same
      * @return {Devicex.Display.Result}
      */
-    getDisplay(options) {
-        let _opt = typeof options === 'boolean' ? {is_globalize: options} : (options || {});
-        let _is_glob = _opt.is_globalize;
-
+    getDisplay() {
         /** @type {number} */
         let _W, _H;
 
@@ -1018,24 +1012,18 @@ let exp = {
         /** @type {Devicex.Display.Extension} */
         let _ext = {
             refresh() {
+                let _disp_new = _getDisp();
                 let _is_updated = false;
-                Object.keys(_disp = exp.getDisplay()).forEach((k) => {
-                    let _v = _disp[k];
-                    if (typeof _v === 'number' || typeof _v === 'boolean') {
-                        if (global[k] !== undefined && global[k] !== _v) {
-                            global[k] = _v;
-                            _is_updated = true;
-                        }
+                Object.keys(_disp_new).forEach(k => {
+                    if (_disp[k] !== _disp_new[k]) {
+                        _disp[k] = _disp_new[k];
+                        _is_updated = true;
                     }
                 });
                 if (_is_updated) {
                     consolex._('屏幕显示数据已更新');
                     this.debug();
                 }
-                return this;
-            },
-            globalize() {
-                _globalize();
                 return this;
             },
             /**
@@ -1054,9 +1042,7 @@ let exp = {
                 return this;
             },
         };
-        if (_disp || a11yx.wait$(() => _disp = _getDisp(), 3e3, 500)) {
-            _globalizeIFN();
-        } else {
+        if (!_disp && !a11yx.wait$(() => _disp = _getDisp(), 3e3, 500)) {
             console.error('devicex.getDisplay()返回结果异常');
         }
         return Object.assign(_disp, _scale, _ext);
@@ -1315,6 +1301,8 @@ let exp = {
 
                 _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
 
+                _globalize();
+
                 return {
                     W: _W, WIDTH: _W, width: _W,
                     halfW: _W / 2, HALF_WIDTH: _W / 2, half_width: _W / 2,
@@ -1343,13 +1331,22 @@ let exp = {
              * @return {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
              */
             function _raw() {
+                consolex._('devicex display raw() is triggered', 3);
+
                 _W = device.width;
                 _H = device.height;
-                return _W && _H ? {
+
+                _globalize();
+
+                if (!(_W && _H)) {
+                    consolex._('devicex display raw() returns null', 4);
+                    return null;
+                }
+                return {
                     WIDTH: _W,
                     HEIGHT: _H,
                     USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                } : null;
+                };
             }
         }
 
@@ -1364,17 +1361,13 @@ let exp = {
                 /** Half of screen height */
                 halfH: _H / 2,
                 /** Usable screen width */
-                uW: _disp.USABLE_WIDTH,
+                uW: _disp ? _disp.USABLE_WIDTH : _W,
                 /** Usable screen height */
-                uH: _disp.USABLE_HEIGHT,
+                uH: _disp ? _disp.USABLE_HEIGHT : _H,
                 /** @type {Devicex.Display.Rotation} */
-                ROTATION: _disp.display_rotation,
+                ROTATION: _disp ? _disp.display_rotation : 0,
                 cX: cX, cY: cY, cYx: cYx,
             });
-        }
-
-        function _globalizeIFN() {
-            _is_glob && _globalize();
         }
     },
     /** @return {android.view.Display} */
@@ -1520,6 +1513,95 @@ let exp = {
     getUserCount() {
         return this.getUserIds().length;
     },
+    /**
+     *
+     * @see https://en.wikipedia.org/wiki/Android_version_history
+     */
+    getVerInfo(sdk) {
+        let $ = {
+            raw_info: {
+                1: {version: '1.0', release: 'September 23, 2008'},
+                2: {version: '1.1', release: 'February 9, 2009'},
+                3: {version: '1.5', release: 'April 27, 2009'},
+                4: {version: '1.6', release: 'September 15, 2009'},
+                5: {version: '2.0', release: 'October 27, 2009'},
+                6: {version: '2.0.1', release: 'December 3, 2009'},
+                7: {version: '2.1', release: 'January 11, 2010'},
+                8: {version: ['2.2', '2.2.3'], release: 'May 20, 2010'},
+                9: {version: ['2.3', '2.3.2'], release: 'December 6, 2010'},
+                10: {version: ['2.3.3', '2.3.7'], release: 'February 9, 2011'},
+                11: {version: '3.0', release: 'February 22, 2011'},
+                12: {version: '3.1', release: 'May 10, 2011'},
+                13: {version: ['3.2', '3.2.6'], release: 'July 15, 2011'},
+                14: {version: ['4.0', '4.0.2'], release: 'October 18, 2011'},
+                15: {version: ['4.0.3', '4.0.4'], release: 'December 16, 2011'},
+                16: {version: ['4.1', '4.1.2'], release: 'July 9, 2012'},
+                17: {version: ['4.2', '4.2.2'], release: 'November 13, 2012'},
+                18: {version: ['4.3', '4.3.1'], release: 'July 24, 2013'},
+                19: {version: ['4.4', '4.4.4'], release: 'October 31, 2013'},
+                20: {version: ['4.4W', '4.4W.2'], release: 'June 25, 2014'},
+                21: {version: ['5.0', '5.0.2'], release: 'November 4, 2014'},
+                22: {version: ['5.1', '5.1.1'], release: 'March 2, 2015'},
+                23: {version: ['6.0', '6.0.1'], release: 'October 2, 2015'},
+                24: {version: '7.0', release: 'August 22, 2016'},
+                25: {version: ['7.1', '7.1.2'], release: 'October 4, 2016'},
+                26: {version: '8.0', release: 'August 21, 2017'},
+                27: {version: '8.1', release: 'December 5, 2017'},
+                28: {version: '9', release: 'August 6, 2018'},
+                29: {version: '10', release: 'September 7, 2019'},
+                30: {version: '11', release: 'September 8, 2020'},
+                31: {version: '12', release: 'October 4, 2021'},
+            },
+            month_map: {
+                Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+                Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+            },
+            parseDate(s) {
+                let _date_nums = s.replace(/([A-Z]..)\D*?\s(\d\d?), (\d{4})/, ($0, $1, $2, $3) => {
+                    return [$3, this.month_map[$1], $2].join(',');
+                }).split(',').map(s => Number(s));
+                _date_nums.unshift(null);
+                return new (Function.prototype.bind.apply(Date, _date_nums));
+            },
+            parseRawInfo() {
+                this.versions = {};
+                Object.keys(this.raw_info).forEach((k) => {
+                    let _raw = this.raw_info[k];
+                    let _ver = _raw.version;
+                    if (Array.isArray(_ver)) {
+                        _ver = {min: _ver[0], max: _ver[1]};
+                    }
+                    this.versions[k] = {
+                        version: _ver,
+                        release: this.parseDate(_raw.release),
+                    };
+                });
+            },
+            parseArgs() {
+                this.sdk = sdk || device.sdkInt;
+                this.parseRawInfo();
+            },
+            getResult() {
+                this.parseArgs();
+                return this.versions[this.sdk] || {};
+            },
+        };
+
+        return $.getResult();
+    },
+    /**
+     * Check if device is running compatible android sdk version
+     * @param {number} [minimum=24]
+     */
+    ensureSdkInt(minimum) {
+        let _min = minimum || 24;
+        if (device.sdkInt < _min) {
+            let _ver = this.getVerInfo(_min).version;
+            let _floor = typeof _ver === 'object' ? _ver.min : _ver;
+            let _reason = _floor ? '安卓系统版本低于' + _floor : '安卓系统版本过低';
+            consolex.$(['脚本无法继续', _reason], 8, 4, 0, 2);
+        }
+    },
     $bind() {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
             global._$_is_init_scr_on = this.isScreenOn();
@@ -1540,7 +1622,7 @@ exp.$bind();
 
 module.exports = {
     devicex: exp,
-    $$disp: exp.getDisplay({is_globalize: true}),
+    $$disp: exp.getDisplay(),
 };
 
 // constructor(s) //

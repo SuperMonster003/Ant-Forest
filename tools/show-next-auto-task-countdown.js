@@ -1,5 +1,5 @@
-let {} = require('../modules/ext-global');
-let {} = require('../modules/ext-ui');
+require('../modules/mod-global');
+let {uix} = require('../modules/ext-ui');
 let {timersx} = require('../modules/ext-timers');
 
 let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
@@ -38,7 +38,7 @@ ui.run(() => {
     });
 
     _view['btn'].on('click', _exitNow);
-    _setTint(_view['img'], '#BA68C8');
+    uix.setImageTint(_view['img'], '#BA68C8');
 
     let _win = _diag.getWindow();
     _win.setBackgroundDrawableResource(android.R.color.transparent);
@@ -72,14 +72,6 @@ function _getTsFromDiag() {
         }
         alert('需输入合法的数字');
     }
-}
-
-function _setTint(view, color) {
-    if (typeof color === 'number') {
-        color = colors.toString(color);
-    }
-    view.setColorFilter(com.stardust.autojs.core.ui.inflater
-        .util.Colors.parse(view, color));
 }
 
 function _setCtdText(t) {

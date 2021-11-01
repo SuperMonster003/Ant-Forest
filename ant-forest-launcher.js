@@ -1,40 +1,41 @@
 /**
  * Alipay ant forest intelligent collection script launcher
- * @since Oct 27, 2021
- * @version 2.2.1
+ * @since Nov 1, 2021
+ * @version 2.2.2
  * @author SuperMonster003
  * @see https://github.com/SuperMonster003/Ant-Forest
  */
 
 let {
-    requirex, $$toast, $$und, $$obj, $$arr, $$cvt, $$bool,
-    $$func, $$num, $$sleep, $$impeded, $$str, $$link, isNullish,
-} = require('./modules/ext-global');
-
+    $$toast, $$und, $$obj, $$arr, $$cvt, $$bool, $$func,
+    $$num, $$sleep, $$impeded, $$str, $$link, isNullish,
+} = require('./modules/mod-global');
 let {uix} = require('./modules/ext-ui');
-let {dbx} = require('./modules/ext-database');
 let {appx} = require('./modules/ext-app');
+let {db} = require('./modules/mod-database');
 let {filesx} = require('./modules/ext-files');
-let {autojsx} = require('./modules/ext-autojs');
+let {alipay} = require('./modules/mod-alipay');
+let {autojs} = require('./modules/mod-autojs');
+let {cryptox} = require('./modules/ext-crypto');
 let {imagesx} = require('./modules/ext-images');
 let {timersx} = require('./modules/ext-timers');
-let {alipayx} = require('./modules/ext-alipay');
-let {cryptox} = require('./modules/ext-crypto');
 let {colorsx} = require('./modules/ext-colors');
 let {eventsx} = require('./modules/ext-events');
+let {project} = require('./modules/mod-project');
 let {dialogsx} = require('./modules/ext-dialogs');
 let {threadsx} = require('./modules/ext-threads');
 let {enginesx} = require('./modules/ext-engines');
 let {consolex} = require('./modules/ext-console');
-let {projectx} = require('./modules/ext-project');
+let {pluginsx} = require('./modules/ext-plugins');
 let {storagesx} = require('./modules/ext-storages');
 let {a11yx, $$sel} = require('./modules/ext-a11y');
 let {devicex, $$disp} = require('./modules/ext-device');
 
 let $$init = {
     check() {
+        devicex.ensureSdkInt();
+        autojs.ensureVersion();
         appx.checkAlipayPackage();
-        appx.checkSdkAndAJVer();
         appx.checkScreenOffTimeout();
         appx.checkAccessibility();
 
@@ -74,16 +75,16 @@ let $$init = {
                 storagesx['@default'].af,
                 storagesx.af_cfg.get('config'));
 
-            global.$$db = dbx.create('af', {alter_type: 'union'});
+            global.$$db = db.create('af', {alter_type: 'union'});
 
             global.$$app = {
                 developer: String.unTap('434535154232343343441542000003'),
                 rl_title: String.unEsc('2615FE0F0020597D53CB6392884C699C'),
                 task_name: String.unEsc('8682868168EE6797').surround('"'),
-                autojs_name: autojsx.getAppName(),
-                autojs_pkg: autojsx.getPkgName(),
-                autojs_ver_name: autojsx.getVerName(),
-                project_ver_name: projectx.getLocalVerName(),
+                autojs_name: autojs.getAppName(),
+                autojs_pkg: autojs.getPkgName(),
+                autojs_ver_name: autojs.getVerName(),
+                project_ver_name: project.getLocalVerName(),
                 init_scr_on: devicex.is_init_screen_on,
                 init_fg_pkg: currentPackage(),
                 engines_exec_argv: enginesx.my_engine_exec_argv,
@@ -257,24 +258,39 @@ let $$init = {
                         let _is_toast = _opt.is_toast === undefined || _opt.is_toast === true;
 
                         let _task_s = this.task_name + '任务';
-                        let _du_str = du_minute + '分钟';
-                        _is_toast && toast(_task_s + '推迟 ' + _du_str);
-                        consolex.$(['推迟' + _task_s, '推迟时长: ' + _du_str], 1, 0, 0, 2);
+                        let _toast_lv = _is_toast ? 2 : 0;
+                        let _msg = s => consolex.d(['推迟' + _task_s, s], _toast_lv, 0, 2);
 
-                        let _this = this;
                         let _ts = this.ts + du_minute * 60e3;
                         let _suff = storagesx.af.get('fg_blist_ctr') ? '_auto' : '';
 
-                        timersx.addDisposableTask({
-                            path: _this.cwp,
-                            date: _ts,
-                            is_async: _is_async,
-                            callback: (task) => _this.setStoAutoTask({
-                                task: task,
-                                next_ts: _ts,
-                                next_type: 'postponed' + _suff,
-                            }, () => _this.exit()),
-                        });
+                        if (Number(du_minute) === -1) {
+                            //// -=-= PENDING =-=- ////
+                            _msg('任务触发条件: 息屏时');
+                            pluginsx.af.on_screen_off_launcher.deploy({
+                                callback(task) {
+                                    $$app.setStoAutoTask({
+                                        task: task,
+                                        next_ts: -1,
+                                        next_type: 'on_screen_off',
+                                    }, () => $$app.exit());
+                                },
+                            });
+                        } else {
+                            _msg('推迟时长: ' + du_minute + '分钟');
+                            timersx.addDisposableTask({
+                                path: $$app.cwp,
+                                date: _ts,
+                                is_async: _is_async,
+                                callback(task) {
+                                    $$app.setStoAutoTask({
+                                        task: task,
+                                        next_ts: _ts,
+                                        next_type: 'postponed' + _suff,
+                                    }, () => $$app.exit());
+                                },
+                            });
+                        }
                     };
                     /**
                      * @param {Object} auto_task
@@ -287,7 +303,7 @@ let $$init = {
                     $$app.setStoAutoTask = function (auto_task, callback) {
                         /**
                          * @typedef {
-                         *     'uninterrupted'|'min_countdown'|'postponed'|'postponed_auto'
+                         *     'uninterrupted'|'min_countdown'|'postponed'|'postponed_auto'|'on_screen_off'
                          * } NextAutoTaskType
                          * @typedef {{
                          *     task_id?: number,
@@ -321,10 +337,15 @@ let $$init = {
                      * @return {boolean}
                      */
                     $$app.removeStoAutoTaskIFN = function (task) {
-                        let _sto_id = this.getStoAutoTask().task_id;
+                        let _sto_task = this.getStoAutoTask();
+                        let _sto_id = _sto_task.task_id;
                         if (_sto_id > 0 && _sto_id !== task.task_id) {
                             consolex._(['移除旧的自动定时任务', '任务ID: ' + _sto_id]);
-                            timersx.removeTimedTask(_sto_id, {is_async: true});
+                            if (_sto_task.timestamp < 0) {
+                                timersx.removeIntentTask(_sto_id, {is_async: true});
+                            } else {
+                                timersx.removeTimedTask(_sto_id, {is_async: true});
+                            }
                         }
                     };
 
@@ -529,7 +550,7 @@ let $$init = {
 
                                                 function _orientation() {
                                                     if ($$disp.is_display_rotation_landscape) {
-                                                        if ($$flag.show_energy_result) {
+                                                        if ($$flag.show_energy_result && $$flag.show_floaty_result) {
                                                             consolex.$([
                                                                 '当前设备屏幕为水平显示方向',
                                                                 '悬浮窗结果展示方式已被禁用',
@@ -612,7 +633,7 @@ let $$init = {
                                     _launcher(trigger, shared_opt) {
                                         return appx.launch(trigger, Object.assign({
                                             task_name: '好友排行榜',
-                                            package_name: alipayx.package_name,
+                                            package_name: alipay.package_name,
                                             screen_orientation: android.view.Surface.ROTATION_0,
                                             condition_launch: () => true,
                                             condition_ready() {
@@ -831,7 +852,7 @@ let $$init = {
                             home(par) {
                                 $$app.monitor.launch_confirm.start();
                                 $$app.monitor.permission_allow.start(0);
-                                let _res = appx.launch(alipayx.package_name, Object.assign({
+                                let _res = appx.launch(alipay.package_name, Object.assign({
                                     app_name: '支付宝',
                                     screen_orientation: 0,
                                     condition_ready() {
@@ -845,7 +866,7 @@ let $$init = {
                             },
                             close() {
                                 consolex._('关闭支付宝');
-                                if (appx.kill(alipayx.package_name, {
+                                if (appx.kill(alipay.package_name, {
                                     shell_acceptable: $$app.has_root && $$app.root_fxs.force_stop,
                                 })) {
                                     consolex._('支付宝关闭完毕');
@@ -897,7 +918,7 @@ let $$init = {
                                 consolex._(_tOut() ? '页面关闭可能未成功' : _succ);
                             },
                             isInPage() {
-                                return alipayx.package_name === currentPackage()
+                                return alipay.package_name === currentPackage()
                                     || $$sel.get('rl_ent')
                                     || $$sel.get('af_home')
                                     || $$sel.get('wait_awhile');
@@ -1135,7 +1156,7 @@ let $$init = {
                         closeIntelligently() {
                             let _cA = () => $$cfg.kill_when_done_switch;
                             let _cB1 = () => $$cfg.kill_when_done_intelligent;
-                            let _cB2 = () => $$app.init_fg_pkg !== alipayx.package_name;
+                            let _cB2 = () => $$app.init_fg_pkg !== alipay.package_name;
                             let _cB = () => _cB1() && _cB2();
 
                             if (_cA() || _cB()) {
@@ -1185,9 +1206,11 @@ let $$init = {
                             xml: <frame id="cover" bg="#DD000000"/>,
                             deploy() {
                                 let _win = this.window = floaty.rawWindow(this.xml);
-                                // prevent touch event being transferred to the view beneath
-                                _win.setTouchable(true);
-                                _win.setSize(-1, -1);
+                                ui.post(() => {
+                                    // prevent touch event being transferred to the view beneath
+                                    _win.setTouchable(true);
+                                    _win.setSize(-1, -1);
+                                });
                             },
                             close() {
                                 _closeWindow.call(this);
@@ -1235,13 +1258,16 @@ let $$init = {
                                 let _w = this.cfg.layout_width;
                                 let _y = this.cfg.position_y;
                                 let _win = this.window = floaty.rawWindow(this.xml);
-                                _win.setSize(_w, -2);
-                                _win.setPosition(halfW - _w / 2, _y);
-                                _win['view'].on('click', this._onClick.bind(this));
-                                _win['img'].attr('tint_color', this.cfg.colors.img);
-                                _win['text'].attr('color', this.cfg.colors.text);
 
-                                this._countdown($$app.next_auto_task_ts);
+                                ui.post(() => {
+                                    _win.setSize(_w, -2);
+                                    _win.setPosition(halfW - _w / 2, _y);
+                                    _win['view'].on('click', this._onClick.bind(this));
+                                    _win['img'].attr('tint_color', this.cfg.colors.img);
+                                    _win['text'].attr('color', this.cfg.colors.text);
+                                    this._countdown($$app.next_auto_task_ts);
+                                });
+
                             },
                             _countdown(t) {
                                 let _now = new Date();
@@ -1329,8 +1355,9 @@ let $$init = {
                                 $$app.layout.closeAll();
 
                                 if ($$app.next_auto_task_ts) {
-                                    filesx.run('./tools/show-next-auto-task-countdown', {
-                                        timestamp: $$app.next_auto_task_ts,
+                                    timersx.addDisposableTask({
+                                        path: './tools/show-next-auto-task-countdown.js',
+                                        is_async: true,
                                     });
                                 }
                             },
@@ -1373,28 +1400,30 @@ let $$init = {
                                     let _w_sum_t = _win['sum']['text'];
                                     let _w_ctd_t = _win['ctd']['text'];
 
-                                    _win.setSize(_w, -2);
-                                    _win.setPosition(halfW - _w / 2, _y);
+                                    ui.post(() => {
+                                        _win.setSize(_w, -2);
+                                        _win.setPosition(halfW - _w / 2, _y);
 
-                                    if (!_e_own && !_e_fri) {
-                                        this._setBg([_stp.up, _stp.dn], _c.vain);
-                                        _w_hint_t.setText(this._getHints());
-                                        _w_sum_t.setText('0');
-                                    } else if (_e_own > 0) {
-                                        this._setBg([_stp.up, _stp.dn], _c.own);
-                                        _w_hint_t.setText('Yourself');
-                                        _w_sum_t.setText(_e_own.toString());
-                                    } else if (_e_fri > 0) {
-                                        this._setBg([_stp.up, _stp.dn], _c.fri);
-                                        _w_hint_t.setText('Friends');
-                                        _w_sum_t.setText(_e_fri.toString());
-                                    } else {
-                                        this._setBg([_stp.up, _stp.dn], _c.failed);
-                                        _w_hint_t.setText('Failed');
-                                        _w_sum_t.setText('Statistics failed');
-                                    }
+                                        if (!_e_own && !_e_fri) {
+                                            this._setBg([_stp.up, _stp.dn], _c.vain);
+                                            _w_hint_t.setText(this._getHints());
+                                            _w_sum_t.setText('0');
+                                        } else if (_e_own > 0) {
+                                            this._setBg([_stp.up, _stp.dn], _c.own);
+                                            _w_hint_t.setText('Yourself');
+                                            _w_sum_t.setText(_e_own.toString());
+                                        } else if (_e_fri > 0) {
+                                            this._setBg([_stp.up, _stp.dn], _c.fri);
+                                            _w_hint_t.setText('Friends');
+                                            _w_sum_t.setText(_e_fri.toString());
+                                        } else {
+                                            this._setBg([_stp.up, _stp.dn], _c.failed);
+                                            _w_hint_t.setText('Failed');
+                                            _w_sum_t.setText('Statistics failed');
+                                        }
 
-                                    uix.setTextColor([_w_hint_t, _w_sum_t, _w_ctd_t], _c.text);
+                                        uix.setTextColor([_w_hint_t, _w_sum_t, _w_ctd_t], _c.text);
+                                    });
                                 },
                             },
                             du: {
@@ -1431,16 +1460,18 @@ let $$init = {
                                     let _w_sum_t = _win['sum']['text'];
                                     let _w_ctd_t = _win['ctd']['text'];
 
-                                    _win.setSize(_w, -2);
-                                    _win.setPosition(halfW - _w / 2, _y);
+                                    ui.post(() => {
+                                        _win.setSize(_w, -2);
+                                        _win.setPosition(halfW - _w / 2, _y);
 
-                                    _w_hint_o.setText('Yourself: ' + _e_own);
-                                    _w_hint_f.setText('Friends: ' + _e_fri);
-                                    _w_sum_t.setText((_e_own + _e_fri).toString());
+                                        _w_hint_o.setText('Yourself: ' + _e_own);
+                                        _w_hint_f.setText('Friends: ' + _e_fri);
+                                        _w_sum_t.setText((_e_own + _e_fri).toString());
 
-                                    this._setBg([_stp.up['own'], _stp.dn['own']], _c.own);
-                                    this._setBg([_stp.up['fri'], _stp.dn['fri']], _c.fri);
-                                    uix.setTextColor([_w_hint_o, _w_hint_f, _w_sum_t, _w_ctd_t], _c.text);
+                                        this._setBg([_stp.up['own'], _stp.dn['own']], _c.own);
+                                        this._setBg([_stp.up['fri'], _stp.dn['fri']], _c.fri);
+                                        uix.setTextColor([_w_hint_o, _w_hint_f, _w_sum_t, _w_ctd_t], _c.text);
+                                    });
                                 },
                             },
                             /**
@@ -1546,7 +1577,7 @@ let $$init = {
                                 let _getVer = () => _ver = $$app.newest_release_ver_name;
                                 threadsx.start(function () {
                                     if (a11yx.wait(_getVer, 0, 120)) {
-                                        if (projectx.version.isNewer(_ver, $$app.project_ver_name)) {
+                                        if (appx.version.isNewer(_ver, $$app.project_ver_name)) {
                                             _this._deploy();
                                         }
                                     }
@@ -1558,20 +1589,22 @@ let $$init = {
                             _deploy() {
                                 let _ver_local = $$app.project_ver_name;
                                 let _ver_newest = $$app.newest_release_ver_name;
-                                if (projectx.version.isNewer(_ver_newest, _ver_local)) {
+                                if (appx.version.isNewer(_ver_newest, _ver_local)) {
                                     _initCfgColors.call(this);
                                     let _w = this.cfg.layout_width;
                                     let _y = this.cfg.position_y;
                                     let _c = this.cfg.colors;
                                     let _win = this.window = floaty.rawWindow(this.xml);
-                                    _win.setSize(_w, -2);
-                                    _win.setPosition(halfW - _w / 2, _y);
-                                    _win['view'].on('click', this._onClick.bind(this));
-                                    _win['text_title'].attr('text', 'Update available');
-                                    _win['text_title'].attr('color', _c.text);
-                                    _win['text_ver'].attr('text', _ver_local + '  ->  ' + _ver_newest);
-                                    _win['text_ver'].attr('color', _c.text);
-                                    _win['img'].attr('tint_color', _c.img);
+                                    ui.post(() => {
+                                        _win.setSize(_w, -2);
+                                        _win.setPosition(halfW - _w / 2, _y);
+                                        _win['view'].on('click', this._onClick.bind(this));
+                                        _win['text_title'].attr('text', 'Update available');
+                                        _win['text_title'].attr('color', _c.text);
+                                        _win['text_ver'].attr('text', _ver_local + '  ->  ' + _ver_newest);
+                                        _win['text_ver'].attr('color', _c.text);
+                                        _win['img'].attr('tint_color', _c.img);
+                                    });
                                 }
                             },
                             _onClick() {
@@ -1641,7 +1674,7 @@ let $$init = {
                                             delete $$flag.update_dialog_deploying;
                                             delete $$flag.update_dialog_uphold;
                                         };
-                                        projectx.deploy(_newest, {
+                                        project.deploy(_newest, {
                                             onDeployStart() {
                                                 ds.dismiss();
                                                 $$flag.update_dialog_deploying = true;
@@ -1685,9 +1718,12 @@ let $$init = {
                                 let _y = this.cfg.position_y;
                                 let _c = this.cfg.colors;
                                 let _win = this.window = floaty.rawWindow(this.xml);
-                                _win.setTouchable(false);
-                                _win.setSize(_w, -1);
-                                _win.setPosition(halfW - _w / 2, _y);
+
+                                ui.post(() => {
+                                    _win.setTouchable(false);
+                                    _win.setSize(_w, -1);
+                                    _win.setPosition(halfW - _w / 2, _y);
+                                });
 
                                 let _w_img = _win['img'];
                                 let _w_title = _win['title'];
@@ -1835,7 +1871,7 @@ let $$init = {
                         user_list: {
                             _plans: {
                                 intent() {
-                                    alipayx.startApp('account_manager');
+                                    alipay.startApp('account_manager');
                                 },
                                 pipeline() {
                                     $$app.page.alipay.home({is_debug: false});
@@ -2142,7 +2178,7 @@ let $$init = {
                                         if (!$$acc.isInLoginPg()) {
                                             let _w = $$sel.get('login_new_acc');
                                             if (!a11yx.click([_w, 'k4'], 'w')) {
-                                                alipayx.startApp('account_login');
+                                                alipay.startApp('account_login');
                                             }
                                         }
                                         return _clickOtherBtnIFN();
@@ -2978,7 +3014,7 @@ let $$init = {
                     let _time = _delay.delay_time;
                     let _sum = _delay.delay_time_sum;
                     if (_ctr === 1) {
-                        consolex.$('本次任务自动推迟运行');
+                        consolex.$('本次任务自动推迟执行');
                     } else {
                         consolex.$('本次任务自动推迟: ' + _time + '分钟');
                         consolex.$('当前连续推迟次数: ' + _ctr);
@@ -3282,7 +3318,7 @@ let $$init = {
                         },
                         onRelease() {
                             consolex._('前置"支付宝"应用');
-                            app.launchPackage(alipayx.package_name);
+                            app.launchPackage(alipay.package_name);
                         },
                     },
                     screen: {
@@ -3330,7 +3366,7 @@ let $$init = {
                         },
                         _msgAboutToTrigger() {
                             try {
-                                requirex('plugin-alarm-countdown').run({
+                                pluginsx.device.next_alarm_clock.run({
                                     is_async: true, title: '闹钟即将触发',
                                 });
                             } catch (e) {
@@ -3516,7 +3552,7 @@ let $$init = {
                     }
                 },
                 newestVer() {
-                    projectx.getNewestReleaseCared({
+                    project.getNewestReleaseCared({
                         min_version_name: 'v2.0.1',
                     }, (release) => {
                         if (release) {
@@ -3898,55 +3934,55 @@ let $$init = {
                 prompt() {
                     dialogsx.buildCountdown(['运行提示',
                         '\n即将在 %timeout% 秒内运行' + $$app.task_name + '任务\n',
-                        ['推迟运行', 'warn'], ['放弃任务', 'caution'],
-                        ['立即开始', 'attraction'], 1,
+                        ['推迟任务', 'warn'], ['放弃任务', 'caution'], ['立即开始', 'attraction'], 1,
                     ], {
                         timeout: $$cfg.prompt_before_running_countdown_seconds,
                         timeout_button: 'positive',
                         onNeutral(d) {
+                            let _ = {
+                                key: 'prompt_before_running_postponed_minutes',
+                            };
                             let _cfg = {
-                                _key: 'prompt_before_running_postponed_minutes',
                                 /** @return {number[]} */
-                                get sto_min_map() {
-                                    return $$cfg[this._key + '_choices'];
-                                },
+                                sto_min_map: [-1].concat($$cfg[_.key + '_choices']),
                                 /** @return {number} */
                                 get sto_min() {
-                                    return $$cfg[this._key];
+                                    return Number($$cfg[_.key]);
                                 },
                                 /** @param {number} v */
                                 set sto_min(v) {
                                     let _new = {};
-                                    _new[this._key] = v;
+                                    _new[_.key] = v;
                                     storagesx.af_cfg.put('config', _new);
                                     Object.assign($$cfg, _new);
                                 },
                                 /** @return {number} */
                                 get user_min() {
-                                    return $$cfg[this._key + '_user'];
+                                    return Number($$cfg[_.key + '_user']);
                                 },
                                 /** @param {number} v */
                                 set user_min(v) {
                                     let _new = {};
-                                    _new[this._key + '_user'] = v;
+                                    _new[_.key + '_user'] = v;
                                     storagesx.af_cfg.put('config', _new);
                                     Object.assign($$cfg, _new);
                                 },
                             };
-                            if (_cfg.sto_min > 0) {
+                            if (!isNaN(_cfg.sto_min) && _cfg.sto_min !== 0) {
                                 d.dismiss();
                                 return $$app.monitor.insurance.clean({
                                     is_async: true,
                                     callback: () => $$app.setPostponedTask(_cfg.sto_min),
                                 }).reset();
                             }
-                            let _minutes = _cfg.sto_min_map; // [1, 2, 5, 10, ...]
-                            let _suffix = '\x20min';
+                            let _minutes = _cfg.sto_min_map; // [-1, 1, 2, 5, 10, ...]
                             dialogsx
                                 .builds(['设置任务推迟时间', '',
                                     0, 'B', ['K', 'warn'],
                                     1, '记住设置且不再提示'], {
-                                    items: _minutes.map(x => x + _suffix),
+                                    items: _minutes.map(x => x > 0 ? x + '\x20min' : {
+                                        '-1': '息屏时',
+                                    }[x]),
                                     itemsSelectMode: 'single',
                                     itemsSelectedIndex: _minutes.indexOf(_cfg.user_min),
                                 })
@@ -4287,7 +4323,8 @@ let $$af = {
                     },
                     isInSlakePage() {
                         let _sltr = [/.*返回.*森林.*/, {clickable: true}];
-                        return $$sel.pickup(_sltr, 'exists', {refresh: true});
+                        return $$sel.pickup(_sltr, 'exists', {refresh: true})
+                            || pluginsx.af.energy_rain.isInPage();
                     },
                     isMaxCntCycleReached() {
                         return this.ignored.getMaxCount() > this.max_cnt_cycle;
@@ -4421,7 +4458,7 @@ let $$af = {
                         if (!a11yx.wait(_sltr, 3e3)) {
                             let _max = 5;
 
-                            do appx.restart(alipayx.package_name);
+                            do appx.restart(alipay.package_name);
                             while (_max-- || !a11yx.wait(_sltr, 15e3));
 
                             if (_max < 0) {
@@ -4707,7 +4744,7 @@ let $$af = {
 
                                     let _ctd = _nor_balls.map((o) => {
                                         a11yx.click(o, 'p', {pt$: $$cfg.forest_balls_click_duration});
-                                        return eventsx.getToasts(/才能收取/, alipayx.package_name);
+                                        return eventsx.getToasts(/才能收取/, alipay.package_name);
                                     }).flat(Infinity);
 
                                     if (_ctd.length) {
@@ -5921,14 +5958,10 @@ let $$af = {
                         let _ready = () => {
                             let _thd_title = threadsx.start(_title);
                             let _is_slake = false;
-                            let _thd_slake = threadsx.start(function () {
-                                return a11yx.wait(() => {
-                                    return _is_slake = $$af.stroll.isInSlakePage();
-                                }, 18e3, 80);
+                            let _thd_slake = threadsx.start(() => {
+                                a11yx.wait(() => _is_slake = $$af.stroll.isInSlakePage(), 18e3, 80);
                             });
-                            a11yx.wait(() => {
-                                return !_thd_title.isAlive() || !_thd_slake.isAlive();
-                            });
+                            a11yx.wait(() => !_thd_title.isAlive() || !_thd_slake.isAlive());
                             if (_is_slake) {
                                 consolex._('终止逛一逛采集流程');
                                 consolex._('检测到逛一逛结束页面');
@@ -6561,7 +6594,7 @@ let $$af = {
                         }
                         if ($$cfg.update_auto_check_switch && $$cfg.update_show_on_e_result) {
                             let _ver = $$app.newest_release_ver_name;
-                            if (_ver && projectx.version.isNewer(_ver, $$app.project_ver_name)) {
+                            if (_ver && appx.version.isNewer(_ver, $$app.project_ver_name)) {
                                 msg += '\n' + [_line, 'Update available:', _ver].join('\n');
                             }
                         }

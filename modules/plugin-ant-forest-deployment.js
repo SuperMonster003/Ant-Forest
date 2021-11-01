@@ -1,8 +1,7 @@
-let {} = require('./ext-global.js');
-
+require('./mod-global.js');
+let {project} = require('./mod-project');
 let {threadsx} = require('./ext-threads');
 let {dialogsx} = require('./ext-dialogs');
-let {projectx} = require('./ext-project');
 
 /** @type {Plugin$Exportation} */
 let _export = {
@@ -38,7 +37,7 @@ function _getDiagWelcome() {
         })
         .on('positive', (d) => {
             d.dismiss();
-            projectx.getReleases({
+            project.getReleases({
                 min_version_name: 'v2.0.1',
                 show_progress_dialog: true,
             }, _projReleaseCbk);
@@ -77,7 +76,7 @@ function _projReleaseCbk(releases) {
             itemsSelectedIndex: 0,
         })
         .on('neutral', () => {
-            projectx.getChangelog(_newest_ver_n.match(/v(\d+)/)[1], {
+            project.getChangelog(_newest_ver_n.match(/v(\d+)/)[1], {
                 is_show_dialog: true,
             });
         })
@@ -115,7 +114,7 @@ function _projReleaseCbk(releases) {
 }
 
 function _deployVersion(version) {
-    projectx.deploy(version, {
+    project.deploy(version, {
         onSuccess(o, d) {
             let _tar = o.target_path;
             d.removeAllListeners('positive');
