@@ -17,8 +17,6 @@
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let {isNullish} = require('./mod-global');
-
 let SQLiteDatabase = android.database.sqlite.SQLiteDatabase;
 let ContentValues = android.content.ContentValues;
 
@@ -91,7 +89,7 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
             let _q = this.rawQueryData(_sql, ['table', this.table_name]);
             return _q[0].sql.match(/\((.+(?=\)$))/)[1].split(/,\s*/).map((s) => {
                 let _o = {};
-                [_o.name, _o.type] = s.split('\x20');
+                [_o.name, _o.type] = s.split(' ');
                 _o.type = (_o.type || 'text').toLowerCase();
                 if (s.match(/not null/i)) {
                     _o.not_null = true;
@@ -147,9 +145,9 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
                     let _def = o.default;
                     // language=SQLite
                     this.database.execSQL(
-                        'ALTER TABLE\x20' + this.table_name + '\x20' +
-                        'ADD COLUMN\x20' + o.name + '\x20' + _type + '\x20' +
-                        (isNullish(_def) ? '' : 'DEFAULT\x20' + _def));
+                        'ALTER TABLE ' + this.table_name + ' ' +
+                        'ADD COLUMN ' + o.name + ' ' + _type + ' ' +
+                        (isNullish(_def) ? '' : 'DEFAULT ' + _def));
                 }
             };
             Array.isArray(columns) ? columns.forEach(_add) : _add(columns);
@@ -168,12 +166,12 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
             let _table_bak = _table + '_$_bak';
             // language=SQLite
             [
-                'CREATE TEMPORARY TABLE\x20' + _table_bak + '(' + _col_names + ')',
-                'INSERT INTO\x20' + _table_bak + '\x20SELECT\x20' + _col_names + '\x20FROM\x20' + _table,
-                'DROP TABLE\x20' + _table,
-                'CREATE TABLE\x20' + _table + '(' + _col_names + ')',
-                'INSERT INTO\x20' + _table + '\x20SELECT\x20' + _col_names + '\x20FROM\x20' + _table_bak,
-                'DROP TABLE\x20' + _table_bak,
+                'CREATE TEMPORARY TABLE ' + _table_bak + '(' + _col_names + ')',
+                'INSERT INTO ' + _table_bak + ' SELECT ' + _col_names + ' FROM ' + _table,
+                'DROP TABLE ' + _table,
+                'CREATE TABLE ' + _table + '(' + _col_names + ')',
+                'INSERT INTO ' + _table + ' SELECT ' + _col_names + ' FROM ' + _table_bak,
+                'DROP TABLE ' + _table_bak,
             ].forEach(sql => this.database.execSQL(sql));
         },
         checkTableExists() {
@@ -187,14 +185,14 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
             return _ret;
         },
         createTable() {
-            let _sql = 'CREATE TABLE\x20' + this.table_name + ' (';
+            let _sql = 'CREATE TABLE ' + this.table_name + ' (';
             this.table_columns.forEach((o, idx) => {
                 _sql += idx ? ',' : '';
-                _sql += o.name.toString() + '\x20';
+                _sql += o.name.toString() + ' ';
                 _sql += o.type ? o.type.toUpperCase() : 'TEXT';
-                _sql += o.primary_key ? '\x20PRIMARY KEY' : '';
-                _sql += o.not_null ? '\x20NOT NULL' : '';
-                _sql += isNullish(o.default) ? '' : '\x20DEFAULT\x20' + o.default;
+                _sql += o.primary_key ? ' PRIMARY KEY' : '';
+                _sql += o.not_null ? ' NOT NULL' : '';
+                _sql += isNullish(o.default) ? '' : ' DEFAULT ' + o.default;
             });
             this.database.execSQL(_sql + ')');
         },
@@ -242,7 +240,7 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
         },
         drop() {
             // language=SQLite
-            this.database.execSQL('DROP TABLE\x20' + this.table_name);
+            this.database.execSQL('DROP TABLE ' + this.table_name);
         },
         /**
          * Drop and re-create the table

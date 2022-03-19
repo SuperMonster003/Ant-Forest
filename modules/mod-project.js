@@ -1,5 +1,5 @@
 let {
-    $$cvt, isNullish,
+    $$cvt,
 } = require('./mod-global');
 let {appx} = require('./ext-app');
 let {httpx} = require('./ext-http');
@@ -131,7 +131,7 @@ let exp = {
                 console.warn(e.stack);
             }
         }
-        console.warn('Both\x20' + _json_name + '\x20and\x20' + _main_name + '\x20do not exist');
+        console.warn('Both ' + _json_name + ' and ' + _main_name + ' do not exist');
         return _res;
     },
     /**
@@ -281,7 +281,7 @@ let exp = {
                         if (typeof info.cvt === 'function') {
                             _v = info.cvt.call(null, _v);
                         }
-                        return info.desc + ':\x20' + _v;
+                        return info.desc + ': ' + _v;
                     }
                 }).filter(s => !!s).join('\n\n');
 
@@ -405,7 +405,7 @@ let exp = {
                     .replace(/ ?_\[`(issue |pr )?#(\d+)`](\(http.+?\))?_ ?/g, '[$2]')
                     .replace(_rex_remove, '')
                     .replace(/(\[\d+])+/g, ($) => (
-                        '\x20' + $.split(/\[]/).join(',').replace(/\d+/g, '#$&')
+                        ' ' + $.split(/\[]/).join(',').replace(/\d+/g, '#$&')
                     ))
                     .replace(/(\s*\n\s*){2,}/g, '\n'),
             }));
@@ -577,7 +577,7 @@ let exp = {
         let _full_path = files.join(filesx['.local']('bak', 'ant-forest', _file_full_name));
 
         let _cont_len = -1;
-        let _tt_suff = _opt.is_hide_title_version ? '' : '\x20' + version.version_name;
+        let _tt_suff = _opt.is_hide_title_version ? '' : ' ' + version.version_name;
 
         let _steps = _.step;
         let _diag_dn = dialogsx.buildFlow({

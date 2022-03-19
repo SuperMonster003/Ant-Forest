@@ -2,7 +2,7 @@ module.exports = {
     af: {
         // project description
         project_desc: '蚂蚁森林',
-        // i know the trick about the reason you wanna turn this switch off
+        // i know the trick about the reason you want to turn this switch off
         self_collect_switch: true,
         // sometimes alipay will not be launched without Auto.js running in the foreground
         app_launch_springboard: 'OFF',
@@ -33,7 +33,7 @@ module.exports = {
         // just in case of infinite loop check
         homepage_wball_check_limit: 120,
         // max hue value in HSB mode without blue component for water wall identification
-        homepage_wball_max_hue_no_blue: 47,
+        homepageWaterBallMaxHueNoBlue: 47,
         // seriously? i cannot believe it if you turn this switch off
         friend_collect_switch: true,
         // color for collect icon with a hand pattern
@@ -45,31 +45,31 @@ module.exports = {
         // 1 <= x <= 5; to avoid infinite loop targets detection
         max_continuous_not_targeted_stroll_cycle: 3,
         // 1 <= x <= 8; size limitation for forest balls samples pool
-        forest_image_pool_limit: 3,
+        forestImagePoolLimit: 3,
         // 10 <= x <= 500; interval between two samples when saving into forest balls samples pool
-        forest_image_pool_itv: 60,
+        forestImagePoolItv: 60,
         // rectangle region for energy balls recognition in forest page
-        eballs_recognition_region: [0.1 /* cX */, 0.15 /* cYx */, 0.9 /* cX */, 0.45 /* cYx */],
+        energyBallsRecognitionRegion: [0.1 /* cX */, 0.15 /* cYx */, 0.9 /* cX */, 0.45 /* cYx */],
         // strategies for cv::houghCircles image source (8bit, single-channel and grayscale)
-        hough_src_img_strategy: {
-            gray: true, // images.grayscale(image)
-            adapt_thrd: true, // images.adaptiveThreshold(image, 255, 'GAUSSIAN_C', 'BINARY_INV', 9, 6)
-            med_blur: true, // images.medianBlur(image, 9)
+        houghSrcImageStrategy: {
+            grayscale: true, // images.grayscale(image)
+            adaptiveThreshold: true, // images.adaptiveThreshold(image, 255, 'GAUSSIAN_C', 'BINARY_INV', 9, 6)
+            medianBlur: true, // images.medianBlur(image, 9)
             blur: true, // images.blur(image, 9, null, 'REPLICATE')
-            blt_fltr: false, // imagesx.bilateralFilter(image, 9, 20, 20, 'REPLICATE')
+            bilateralFilter: false, // images.bilateralFilter(image, 9, 20, 20, 'REPLICATE')
         },
         // strategies for handling cv::houghCircles results
-        hough_results_strategy: {
-            anti_ovl: true, // anti overlap: remove redundant balls overlapped
+        houghResultsStrategy: {
+            antiOverlap: true, // anti overlap: remove redundant balls overlapped
             symmetrical: true, // symmetrical: calculated outer absent ball of one side
-            linear_itp: true, // linear interpolate: calculated inner absent ball(s)
+            linearInterpolate: true, // linear interpolate: calculated inner absent ball(s)
         },
         // 0 <= x <= 40; the smaller, the stricter;
-        ripe_ball_detect_threshold: 13,
+        ripeBallDetectThreshold: 13,
         // color for ripe balls in forest page since Oct 16, 2020 around (old value: '#CEFF5F')
-        ripe_ball_detect_color_val: '#DEFF00',
+        ripeBallDetectColorVal: '#DEFF00',
         // 0.06 <= x <= 0.15; minimum distance between two energy balls
-        min_balls_distance: 0.09,
+        minBallsDistance: 0.09,
         // protect cover identifying color from a certain point in countdown area
         protect_cover_detect_color_val: '#BEF658', // TODO...
         // do not set this value too big in case that green balls will be recognized as protect cover

@@ -8,7 +8,7 @@ let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
 let _view = ui.inflate(
     <vertical gravity="center">
         <x-img id="img" src="@drawable/ic_alarm_on_black_48dp"
-               height="70" margin="0 26 0 18" gravity="center"
+               height="70" margin="0 26 0 18"
                bg="?selectableItemBackgroundBorderless"/>
         <vertical>
             <x-text text="Next auto task" gravity="center" color="#DDF3E5F5" padding="5 0 5 20" size="19"/>
@@ -126,14 +126,14 @@ function _setCtdText(t) {
         let _now = new Date();
         let _today_0h_ts = new Date(_now.toLocaleDateString()).getTime();
         let _aim_sign = _aim_ts >= _today_0h_ts + _day_ms ? '+' : '=';
-        return _aim_sign + '\x20' + _aim_str + '\x20' + _aim_sign;
+        return _aim_sign + ' ' + _aim_str + ' ' + _aim_sign;
     };
 
     let _getCtdStr = () => {
         let _ctd_sign = '-';
         let _gap_ts = _aim_ts - Date.now();
         _ctd_str = _tsToTime(Math.max(_gap_ts, 0), 'GAP');
-        return _ctd_sign + '\x20' + _ctd_str + '\x20' + _ctd_sign;
+        return _ctd_sign + ' ' + _ctd_str + ' ' + _ctd_sign;
     };
 
     try {

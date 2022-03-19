@@ -1,6 +1,5 @@
 let {
-    $$impeded, $$str, $$num, $$rex, isPlainObject, isNullish,
-    isNonEmptyObject, $$sleep, requirex, $$toast,
+    $$impeded, $$str, $$num, $$rex, isNonEmptyObject, requirex,
 } = require('./mod-global');
 let {consolex} = require('./ext-console');
 
@@ -58,7 +57,7 @@ let _ = {
             let {enginesx} = requirex('ext-engines');
             consolex.$(['已自动开启无障碍服务', '尝试一次项目重启操作'], 1, 0, 0, 2);
             enginesx.restart({
-                is_debug: true,
+                isDebug: true,
                 is_instant_running: false,
                 max_restart_e_times: 1,
             });
@@ -928,9 +927,13 @@ let exp = {
         // when accessibility service enabled by user
         threads.start(function () {
             auto.waitFor();
-        }).join(timeout || 60e3);
+        });
 
-        return this.state() || consolex.$('等待用户开启无障碍服务超时', 8, 2, 0, 2);
+        return this.wait(() => this.state(), timeout || 60e3, {
+            else() {
+                consolex.$('等待用户开启无障碍服务超时', 8, 2, 0, 2);
+            },
+        });
     },
     /** @return {boolean} */
     isAutoEnableEnabled() {
@@ -963,11 +966,11 @@ let exp = {
         }
 
         let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-        let _pkg_n_perm = context.getPackageName() + '\x20' + _perm;
+        let _pkg_n_perm = context.getPackageName() + ' ' + _perm;
 
         if (typeof activity !== 'undefined') {
             if (this.enable(true)) {
-                $$toast('已自动启用无障碍服务\n需要重新运行当前脚本', 'long');
+                toast('已自动启用无障碍服务\n需要重新运行当前脚本', 'long');
             } else if (_is_ess) {
                 consolex.$('自动启用无障碍服务失败', 4, 2, 0, 2);
             }
@@ -979,7 +982,7 @@ let exp = {
         _.tryEnableAndRestart();
 
         if (_hasRoot()) {
-            shell('pm grant\x20' + _pkg_n_perm, true);
+            shell('pm grant ' + _pkg_n_perm, true);
             _.tryEnableAndRestart();
         }
         _failedHint();
@@ -1006,7 +1009,7 @@ let exp = {
                     android.Manifest.permission.WRITE_SECURE_SETTINGS) ===
                 android.content.pm.PackageManager.PERMISSION_GRANTED;
             if (!_hasSecure()) {
-                let _shell_sc = 'adb shell pm grant\x20' + _pkg_n_perm;
+                let _shell_sc = 'adb shell pm grant ' + _pkg_n_perm;
                 consolex.$('Auto.js缺少以下权限:', 4, 0, 0, -1);
                 consolex.$('WRITE_SECURE_SETTINGS', 4, 0, 0, 1);
                 consolex.$('可尝试使用ADB工具连接手机', 3);
@@ -1044,6 +1047,9 @@ let exp = {
             }
         }
     },
+    /**
+     * Make sure a11y is on service and try turning it on when necessary
+     */
     ensureSvcAndFunc() {
         this.ensureService();
         this.ensureFunctionality();
@@ -1209,11 +1215,11 @@ let exp = {
 
                 do {
                     if (!this.clickOnce(o)) {
-                        $$sleep(this.timeout);
+                        sleep(this.timeout);
                         continue;
                     }
                     if (this.wait(this.condition, this.timeout, 80)) {
-                        $$sleep(this.buffer_time);
+                        sleep(this.buffer_time);
                         return true;
                     }
                 } while (this.times--);
@@ -1325,16 +1331,12 @@ let exp = {
                 }
             },
             callbackIFN() {
-                if (typeof this.options.then === 'function') {
-                    if (this.result) {
-                        let _res = this.options.then.call(this.options.this, this.result);
-                        if (typeof _res !== 'undefined') {
-                            this.result = _res;
-                        }
+                let _fn = this.result ? this.options.then : this.options.else;
+                if (typeof _fn === 'function') {
+                    let _res = _fn.call(this.options.this || this.options, this.result);
+                    if (typeof _res !== 'undefined') {
+                        this.result = _res;
                     }
-                }
-                if (typeof this.options.else === 'function') {
-                    this.result || this.options.else.call(this.options.this);
                 }
             },
             getResult() {
@@ -1389,7 +1391,7 @@ let exp = {
      * And returns the final stable value.
      * 1. Wait until generator returns different values (not longer than generator_timeout)
      * 2. Wait until changing value is stable (not longer than stable_threshold each time)
-     * @param {function():any} condition - if condition (dynamic output) is not true then waiting
+     * @param {function} condition - if condition (dynamic output) is not true then waiting
      * @param {?number|A11yx.WaitAndStable.Options} [limit=10e3] - if < 100, taken as times
      * @param {?number|A11yx.WaitAndStable.Options} [interval=200]
      * @param {A11yx.WaitAndStable.Options} [stable_options]
@@ -1397,7 +1399,7 @@ let exp = {
      * let members = ['John', 'Zach', 'Cole', 'Eric'];
      * toastLog('Rolling the dice...');
      * let idx = a11yx.waitAndStable(() => Math.floor(Math.random() * members.length));
-     * toastLog(members[idx] + '\x20is the lucky one');
+     * toastLog(members[idx] + ' is the lucky one');
      * @return {any}
      */
     waitAndStable(condition, limit, interval, stable_options) {
@@ -1496,7 +1498,7 @@ let exp = {
                 }
                 if (isPlainObject(o)) {
                     if (typeof o.x !== 'number' || typeof o.y !== 'number') {
-                        throw Error('Invalid object point: ' + o.x + ',\x20' + o.y);
+                        throw Error('Invalid object point: ' + o.x + ', ' + o.y);
                     }
                     return {
                         x: this.scale(o.x, 'x'),

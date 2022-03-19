@@ -427,7 +427,7 @@ let exp = {
             attr_name: 'line_spacing',
             setter(view, name, value) {
                 let _setLineSpacing = (val) => {
-                    let _int = Dimensions.parseToIntPixel(val, view);
+                    let _int = Dimensions.parseToIntPixel(Number(val).toFixed(0), view);
                     view.setLineSpacing(_int, view.getLineSpacingMultiplier());
                 };
                 if (!value.match(/cy|cy?x/i)) {
@@ -477,7 +477,7 @@ let exp = {
                 '    <vertical id="_img_btn_outer" height="53">\n' +
                 '        <frame gravity="center">\n' +
                 '            <x-img id="_img" width="53" height="53" switch="off"\n' +
-                '                   tint_color="#16FFFFFF" gravity="center"\n' +
+                '                   tint_color="#16FFFFFF"\n' +
                 '                   src="@drawable/ic_brightness_1_black_48dp"\n' +
                 '                   bg="?selectableItemBackgroundBorderless"\n' +
                 '            />\n' +

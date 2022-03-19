@@ -71,7 +71,7 @@ let _getViewConfig = function () {
 };
 
 let _view = ui.inflate(<vertical gravity="center">
-    <x-img id="img" height="70" margin="0 26 0 18" gravity="center"
+    <x-img id="img" height="70" margin="0 26 0 18"
            bg="?selectableItemBackgroundBorderless"/>
     <vertical>
         <mem-info-text id="title" text="Memory Info" size="19"/>
@@ -141,7 +141,6 @@ let _diag = global._$_diag_mem_info = dialogsx.builds({
 
 _setListeners();
 
-/** @type {Plugin$Exportation} */
 let _export = {
     dialog: _diag,
     view: _view,

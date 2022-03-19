@@ -1,5 +1,5 @@
 let {
-    $$impeded, $$toast, isNullish,
+    $$impeded,
 } = require('./mod-global');
 let {a11yx} = require('./ext-a11y');
 let {devicex} = require('./ext-device');
@@ -23,10 +23,12 @@ let ActivityManager = android.app.ActivityManager;
 let ScriptFile = org.autojs.autojs.model.script.ScriptFile;
 let ActivityNotFoundException = android.content.ActivityNotFoundException;
 let ShortcutCreateActivity = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity;
+let TimerThread = com.stardust.autojs.core.looper.TimerThread;
 
 let _ = {
     alipay_pkg: 'com.eg.android.AlipayGphone',
     autojs_pkg: context.getPackageName(),
+    pkg_mgr: context.getPackageManager(),
     get autojs_ver() {
         // Pro version(s) (e.g. 8.8.16-0) returns abnormal value like '${xxx.xxx}'
         let _ver = app.autojs.versionName;
@@ -38,7 +40,7 @@ let _ = {
         return (is_keep_trailing_zero ? _fixed : Number(_fixed)) + '%';
     },
     /**
-     * @param {Appx.Intent.Extension|Intent$|string} o
+     * @param {Appx.Intent.Extension|Intent|string} o
      */
     startActivity(o) {
         let _flag_new_task = Intent.FLAG_ACTIVITY_NEW_TASK;
@@ -48,13 +50,13 @@ let _ = {
         if (typeof o === 'object') {
             threadsx.monitorIFN(o.monitor);
             return o.root
-                ? void shell('am start\x20' + app.intentToShell(o), true)
+                ? void shell('am start ' + app.intentToShell(o), true)
                 : context.startActivity(exp.intent(o, {flags: _flag_new_task}));
         }
         if (typeof o === 'string') {
             let _cls = runtime.getProperty('class.' + o);
             if (!_cls) {
-                throw new Error('Class\x20' + o + '\x20not found');
+                throw new Error('Class ' + o + ' not found');
             }
             return context.startActivity(exp.intent(new Intent(context, _cls), {flags: _flag_new_task}));
         }
@@ -94,12 +96,12 @@ let exp = {
                 if ($4) {
                     if ($4.match(/b(eta)?/i)) {
                         if (_$5 >= _max_b) {
-                            throw Error('Beta version code must be smaller than\x20' + _max_b);
+                            throw Error('Beta version code must be smaller than ' + _max_b);
                         }
                         _$4 = _max_a;
                     } else if ($4.match(/a(lpha)?/i)) {
                         if (_$5 > _max_a) {
-                            throw Error('Alpha version code cannot be greater than\x20' + _max_a);
+                            throw Error('Alpha version code cannot be greater than ' + _max_a);
                         }
                         _$4 = 0;
                     }
@@ -133,10 +135,10 @@ let exp = {
                 let _$4 = Number('0x' + $4);
                 let _$b = '';
                 if (_$4 <= _max_alpha) {
-                    _$b = '\x20Alpha' + (_$4 === 1 ? '' : _$4);
+                    _$b = ' Alpha' + (_$4 === 1 ? '' : _$4);
                 } else if (_$4 < 0xFF) {
                     _$4 -= _max_alpha;
-                    _$b = '\x20Beta' + (_$4 === 1 ? '' : _$4);
+                    _$b = ' Beta' + (_$4 === 1 ? '' : _$4);
                 }
                 return (prefix === null ? '' : prefix || 'v') + _$a + _$b;
             });
@@ -160,7 +162,7 @@ let exp = {
             let _rex = /^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?\s*((a(lpha)?|b(eta)?)\s*\d*)?$/i;
             let _v = String(ver);
             return _v.match(_rex) ? this.parseHex(this.getHex(_v.replace(_rex, ($0, $1, $2, $3, $4) => {
-                return $1 + '.' + ($2 || 0) + '.' + ($3 || 0) + ($4 ? '\x20' + $4 : '');
+                return $1 + '.' + ($2 || 0) + '.' + ($3 || 0) + ($4 ? ' ' + $4 : '');
             }))) : String();
         },
         /**
@@ -182,9 +184,9 @@ let exp = {
      * @example
      * let _pkg = 'com.eg.android.AlipayGphone';
      * let _app = 'Alipay';
-     * console.log(appx.getPkgName(_app)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getPackageName(_app)); // "com.eg.android.AlipayGphone"
      * console.log(appx.getAppName(_pkg)); // "Alipay"
-     * console.log(appx.getPkgName(_pkg)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getPackageName(_pkg)); // "com.eg.android.AlipayGphone"
      * console.log(appx.getAppName(_app)); // "Alipay"
      * @return {?string}
      */
@@ -199,13 +201,13 @@ let exp = {
      * @example
      * let _pkg = 'com.eg.android.AlipayGphone';
      * let _app = 'Alipay';
-     * console.log(appx.getPkgName(_app)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getPackageName(_app)); // "com.eg.android.AlipayGphone"
      * console.log(appx.getAppName(_pkg)); // "Alipay"
-     * console.log(appx.getPkgName(_pkg)); // "com.eg.android.AlipayGphone"
+     * console.log(appx.getPackageName(_pkg)); // "com.eg.android.AlipayGphone"
      * console.log(appx.getAppName(_app)); // "Alipay"
      * @return {?string}
      */
-    getPkgName(source) {
+    getPackageName(source) {
         if (!source) {
             return null;
         }
@@ -226,7 +228,7 @@ let exp = {
                     if (source.match(/^current$/i)) {
                         return currentPackage();
                     }
-                    return exp.getPkgName(source);
+                    return exp.getPackageName(source);
                 }
             },
             getResult() {
@@ -237,7 +239,7 @@ let exp = {
                          * Java Array is not iterable
                          * @type {android.content.pm.PackageInfo[]}
                          */
-                        let _i_pkgs = context.getPackageManager().getInstalledPackages(0).toArray();
+                        let _i_pkgs = _.pkg_mgr.getInstalledPackages(0).toArray();
                         for (let i in _i_pkgs) {
                             if (_pkg === _i_pkgs[i].packageName) {
                                 return _i_pkgs[i].versionName;
@@ -254,112 +256,24 @@ let exp = {
         return $.getResult();
     },
     /**
-     * Make sure a11y is on service and try turning it on when necessary
-     */
-    checkAccessibility() {
-        a11yx.ensureSvcAndFunc();
-    },
-    /**
-     * @param {string[]} modules
-     */
-    checkModules(modules) {
-        let _line = () => '-'.repeat(33);
-        let _dash = () => ' -'.repeat(17).slice(1);
-
-        modules.filter((mod) => {
-            let _path = './' + mod + '.js';
-            try {
-                require(_path);
-            } catch (e) {
-                console.log(_line());
-                console.warn(_path);
-                console.log(_dash());
-                console.warn(e.message);
-                console.warn(e.stack);
-                return true;
-            }
-        }).some((mod, idx, arr) => {
-            let _str = '';
-            _str += '脚本无法继续|以下模块缺失或加载失败:';
-            _str += _dash().surround('|');
-            arr.forEach(n => _str += '-> ' + n.surround('"'));
-            _str += _dash().surround('|');
-            _str += '需正确放置模块文件';
-            console.log(_line());
-            _str.split('|').forEach(s => console.error(s));
-            console.log(_line());
-            toast('模块缺失或加载失败');
-            exit();
-        });
-    },
-    /**
-     * Make sure that Alipay is installed on device
-     */
-    checkAlipayPackage() {
-        let _pkg_mgr = context.getPackageManager();
-        let _app_name, _app_info;
-        try {
-            _app_info = _pkg_mgr.getApplicationInfo(_.alipay_pkg, 0);
-            _app_name = _pkg_mgr.getApplicationLabel(_app_info);
-        } catch (e) {
-            consolex.w(e, 0, 0, 2);
-        }
-        if (!_app_name) {
-            consolex.$(['脚本无法继续', '此设备可能未安装"支付宝"应用'], 8, 4, 0, 2);
-        }
-    },
-    /**
-     * Make sure System.SCREEN_OFF_TIMEOUT greater than min_timeout.
-     * Abnormal value might be auto-corrected to default_timeout determined by is_auto_correction.
-     * @param {Object} [options]
-     * @property {number} [min_timeout=15000]
-     * @property {number} [default_timeout=120000]
-     * @property {boolean} [is_auto_correction=true]
-     */
-    checkScreenOffTimeout(options) {
-        // checker for legacy bug (before v1.9.24 Beta)
-        // which may cause a tiny value for `System.SCREEN_OFF_TIMEOUT`
-
-        let _opt = options || {};
-        let _scr_off_tt_val = devicex.screen_off_timeout.get();
-        let _min_timeout = _opt.min_timeout || 15 * 1e3; // 15 seconds
-        if (_scr_off_tt_val < _min_timeout) {
-            if (_opt.is_auto_correction !== undefined && !_opt.is_auto_correction) {
-                throw Error('Abnormal screen off timeout: ' + _scr_off_tt_val);
-            }
-            let _def_tt = _opt.default_timeout || 2 * 60e3; // 2 minutes
-            let _def_mm = (_def_tt / 60e3).toFixedNum(2);
-            consolex.d([
-                '修正异常的设备屏幕超时参数',
-                '修正值: ' + _def_tt + '(\x20' + _def_mm + '分钟)',
-            ], 0, 0, -2);
-            try {
-                devicex.screen_off_timeout.put(_def_tt);
-            } catch (e) {
-                consolex.e(['修正失败', e], 2, 0, -2);
-            }
-        }
-    },
-    /**
      * Check if an activity intent is available to start
-     * @param {Appx.Intent.Extension|Intent$} o
+     * @param {Appx.Intent.Extension|Intent} o
      * @return {boolean}
      */
     checkActivity(o) {
-        let _pkg_mgr = context.getPackageManager();
-        let _query_res = _pkg_mgr.queryIntentActivities(this.intent(o), 0);
+        let _query_res = _.pkg_mgr.queryIntentActivities(this.intent(o), 0);
         return _query_res && _query_res.toArray().length !== 0;
     },
     /**
-     * @param {Appx.Intent.Extension|Intent$} o
+     * @param {Appx.Intent.Extension|Intent} o
      * @return {android.content.ComponentName}
      */
     resolveActivity(o) {
-        return this.intent(o).resolveActivity(context.getPackageManager());
+        return this.intent(o).resolveActivity(_.pkg_mgr);
     },
     /**
      * Substitution of app.startActivity()
-     * @param {Appx.Intent.Extension|Intent$|string} o
+     * @param {Appx.Intent.Extension|Intent|string} o
      * @param {Appx.StartActivity.Options} [options]
      * @example
      * appx.startActivity({
@@ -391,7 +305,7 @@ let exp = {
         } catch (e) {
             let _opt = options || {};
             if (typeof _opt.onActivityNotFoundException === 'function') {
-                if (e['javaException'] instanceof ActivityNotFoundException) {
+                if (e.javaException instanceof ActivityNotFoundException) {
                     _opt.onActivityNotFoundException.call(o);
                 }
             } else if (_opt.onActivityNotFoundException !== 'suppress') {
@@ -402,9 +316,9 @@ let exp = {
     },
     /**
      * Substitution of app.intent()
-     * @param {Appx.Intent.Extension|Intent$} o
+     * @param {Appx.Intent.Extension|Intent} o
      * @param {{flags?: number, category?: string}} [addition]
-     * @return {Intent$}
+     * @return {Intent}
      */
     intent(o, addition) {
         let _intent = o instanceof Intent ? o : _getIntentWithOptions(o);
@@ -538,7 +452,7 @@ let exp = {
     },
     /**
      * Launch some app with package name or intent and wait for conditions ready if specified
-     * @param {App.Intent.CommonWithRoot|string|function|Intent$} trigger
+     * @param {App.Intent.CommonWithRoot|string|function|Intent} trigger
      * @param {Appx.Launch.Options} [options]
      * @example
      * appx.launch('com.eg.android.AlipayGphone');
@@ -560,198 +474,269 @@ let exp = {
      * @return {boolean}
      */
     launch(trigger, options) {
-        let _opt = options || {};
-        _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.launch.name);
-
-        if (typeof _opt.package !== 'undefined') {
-            if (typeof _opt.package_name === 'undefined') {
-                _opt.package_name = _opt.package;
-                delete _opt.package;
-            }
-        }
-        if (typeof _opt.package_name === 'string') {
-            if (_opt.package_name.toLowerCase() === 'alipay') {
-                _opt.package_name = _.alipay_pkg;
-            }
-        }
-
-        let _debug = consolex.debug.fuel(_opt);
-
-        let _trig = trigger || _.autojs_pkg;
-        if (!['object', 'string', 'function'].includes(typeof _trig)) {
-            consolex.$('应用启动目标参数无效', 8, 4, 0, 2);
-        }
-
-        let _pkg_name = '';
-        let _app_name = '';
-        let _task_name = _opt.task_name || '';
-        let _1st_launch = true;
-
-        _setAppName();
-
-        _app_name = _app_name || _opt.app_name;
-        _pkg_name = _pkg_name || _opt.package_name;
-
-        let _name = (_task_name || _app_name).replace(/^["']+|["']+$/g, '');
-
-        _debug('启动目标名称: ' + _name);
-        _debug('启动参数类型: ' + typeof _trig);
-
-        let _cond_ready = typeof _opt.condition_ready !== 'function'
-            ? null : () => {
-                a11yx.service.refreshServiceInfo();
-                return _opt.condition_ready();
-            };
-
-        let _cond_launch = typeof _opt.condition_launch !== 'function'
-            ? () => currentPackage() === _pkg_name : () => {
-                a11yx.service.refreshServiceInfo();
-                return _opt.condition_launch();
-            };
-
-        let _thd_dist;
-        let _dist = _opt.disturbance;
-        if (_dist) {
-            _debug('已开启干扰排除线程');
-            _thd_dist = threadsx.start(function () {
-                while (1) {
-                    sleep(1.2e3);
-                    _dist();
-                }
-            });
-        }
-
-        let _max_retry = _opt.global_retry_times || 2;
-        let _max_retry_b = _max_retry;
-        while (_max_retry--) {
-            let _max_lch = _opt.launch_retry_times || 3;
-            let _max_lch_b = _max_lch;
-
-            let _toast = _opt.is_show_toast;
-            if (_toast && _toast !== 'none') {
-                let _msg = _task_name
-                    ? '重新开始' + _task_name.surround('"') + '任务'
-                    : '重新启动' + _app_name.surround('"') + '应用';
-                if (_1st_launch) {
-                    if (_toast === true || String(_toast).match(/^(all|greeting(_only)?)$/)) {
-                        consolex.d(_msg.replace(/重新/g, ''), 1, 0, 2);
+        let $ = {
+            options: options || {},
+            disturbance: {
+                /** @type {?Threadsx.TimerThread} */
+                thread: null,
+                start() {
+                    if (typeof $.options.disturbance === 'function') {
+                        $.debug('已开启干扰排除线程');
+                        this.thread = threadsx.start(() => {
+                            while (1) {
+                                sleep(1.2e3);
+                                $.options.disturbance();
+                            }
+                        });
                     }
-                } else {
-                    if (!String(_toast).match(/^(greeting(_only)?)$/)) {
-                        $$toast(_msg);
+                },
+                interrupt() {
+                    if (this.thread instanceof TimerThread) {
+                        $.debug('干扰排除线程结束');
+                        this.thread.interrupt();
+                    }
+                },
+            },
+            impededIFN() {
+                this.options.no_impeded || typeof $$impeded === 'function' && $$impeded('appx.launch');
+            },
+            parseTrigger() {
+                this.trigger = !isNullish(trigger) ? trigger : _.autojs_pkg;
+                this.debug('启动参数类型: ' + typeof this.trigger);
+            },
+            parsePackage() {
+                let _pkg = this.options.package_name || this.options.package;
+                if (typeof _pkg === 'string') {
+                    return this.pkg_name = _pkg.match(/alipay/i) ? _.alipay_pkg : _pkg;
+                }
+                if (typeof this.trigger === 'string' && app.getAppName(this.trigger)) {
+                    return this.pkg_name = this.trigger;
+                }
+                if (isPlainObject(this.trigger)) {
+                    if (this.trigger.packageName) {
+                        return this.pkg_name = this.trigger.packageName;
+                    }
+                    if (String(this.trigger.data).match(/^alipays/i)) {
+                        return this.pkg_name = _.alipay_pkg;
                     }
                 }
-            }
+            },
+            parseAppName() {
+                let _name = this.options.app_name;
+                if (typeof _name === 'string') {
+                    return this.app_name = _name;
+                }
+                if (typeof this.trigger === 'string' && app.getPackageName(this.trigger)) {
+                    return this.app_name = this.trigger;
+                }
+                if (typeof this.pkg_name === 'string') {
+                    let _n = app.getAppName(this.pkg_name);
+                    if (_n) {
+                        return this.app_name = _n;
+                    }
+                }
+            },
+            ensurePkgAndAppName() {
+                if (!this.pkg_name) {
+                    this.pkg_name = exp.getPackageName(this.app_name);
+                }
+                if (!this.app_name && !this.pkg_name) {
+                    consolex.$(['Invalid trigger for appx.launch()', this.trigger], 8, 0, 0, 2);
+                }
+                this.app_name_quo = this.app_name.surround('"');
+            },
+            parseTaskName() {
+                let _name = this.options.task_name || this.app_name || String();
 
-            while (_max_lch--) {
-                if (typeof _trig === 'object') {
-                    _debug('加载intent参数启动应用');
-                    this.startActivity(_trig);
-                } else if (typeof _trig === 'string') {
-                    _debug('加载应用包名参数启动应用');
-                    if (!app.launchPackage(_pkg_name)) {
-                        _debug('加载应用名称参数启动应用');
-                        app.launchApp(_app_name);
+                this.task_name = _name.replace(/^['"]?(.*?)['"]?$/, '$1');
+                this.debug('启动目标名称: ' + this.task_name);
+
+                this.task_name_quo = this.task_name.surround('"');
+            },
+            wrapDebug() {
+                this.debug = consolex.debug.fuel(this.options.isDebug);
+            },
+            parseCondition() {
+                this.condition = {};
+                if (typeof this.options.condition_ready === 'function') {
+                    this.condition.ready = () => {
+                        a11yx.service.refreshServiceInfo();
+                        return this.options.condition_ready();
+                    };
+                }
+
+                if (typeof this.options.condition_launch === 'function') {
+                    this.condition.launch = () => {
+                        a11yx.service.refreshServiceInfo();
+                        return this.options.condition_launch();
+                    };
+                } else {
+                    this.condition.launch = () => currentPackage() === this.pkg_name;
+                }
+            },
+            parseRetries() {
+                this.retries = {
+                    global: {
+                        ctr: 0,
+                        max: this.options.global_retry_times || 2,
+                        check() {
+                            $.retries.launch.reset();
+                            $.retries.ready.reset();
+                            return this.ctr++ < this.max;
+                        },
+                        isLimitReached() {
+                            return this.ctr >= this.max;
+                        },
+                    },
+                    launch: {
+                        ctr: 0,
+                        max: this.options.launch_retry_times || 3,
+                        reset() {
+                            this.ctr = 0;
+                        },
+                        check() {
+                            return this.ctr++ < this.max;
+                        },
+                    },
+                    ready: {
+                        ctr: 0,
+                        max: this.options.ready_retry_times || 5,
+                        reset() {
+                            this.ctr = 0;
+                        },
+                        check() {
+                            return this.ctr++ < this.max;
+                        },
+                    },
+                };
+                Object.defineProperty(this, 'is_first_launch', {
+                    get() {
+                        return !(this.retries.global.ctr > 1);
+                    },
+                });
+            },
+            parseToast() {
+                this.toast_message = this.task_name
+                    ? '开始' + this.task_name_quo + '任务'
+                    : '启动' + this.app_name_quo + '应用';
+                this.is_show_toast = this.options.is_show_toast && this.options.is_show_toast !== 'none';
+                this.is_show_greeting = this.is_show_toast && this.options.is_show_toast !== 'no_greeting';
+                this.is_show_retry = this.is_show_toast && this.options.is_show_toast !== 'greeting_only';
+            },
+            parseArgs() {
+                this.wrapDebug();
+                this.parseTrigger();
+                this.parsePackage();
+                this.parseAppName();
+                this.ensurePkgAndAppName();
+                this.parseTaskName();
+                this.parseCondition();
+                this.parseRetries();
+                this.parseToast();
+            },
+            greetIFN() {
+                if (this.is_first_launch) {
+                    if (this.is_show_greeting) {
+                        consolex.d(this.toast_message, 1, 0, 2);
                     }
                 } else {
-                    _debug('使用触发器方法启动应用');
-                    _trig();
+                    if (this.is_show_retry) {
+                        toast('重新' + this.toast_message);
+                    }
+                }
+            },
+            launch() {
+                while (this.retries.launch.check()) {
+                    if (typeof this.trigger === 'object') {
+                        this.debug('加载intent参数启动应用');
+                        exp.startActivity(this.trigger);
+                    } else if (typeof this.trigger === 'string') {
+                        this.debug('加载应用包名参数启动应用');
+                        if (!app.launchPackage(this.pkg_name)) {
+                            this.debug('加载应用名称参数启动应用');
+                            app.launchApp(this.app_name);
+                        }
+                    } else {
+                        this.debug('使用触发器方法启动应用');
+                        this.trigger();
+                    }
+
+                    if (a11yx.wait(this.condition.launch, 5e3, 800)) {
+                        return this.debug('应用启动成功'); // true
+                    }
+                    this.debug('应用启动超时' + ' (' + this.retries.launch.ctr + '/' + this.retries.launch.max + ')');
+                    this.debug('当前包名: ' + currentPackage(), 0, 1);
+                }
+                consolex.$('打开' + this.app_name_quo + '失败', 8, 4, 0, 2);
+            },
+            ready() {
+                if (typeof this.condition.ready !== 'function') {
+                    this.debug('未设置启动完成条件参数');
+                    return true;
+                }
+                this.debug('开始监测启动完成条件');
+
+                while (this.retries.ready.check()) {
+                    if (a11yx.wait(this.condition.ready, 8e3)) {
+                        return this.debug('启动完成条件监测完毕'); // true
+                    }
+                    let _ctr = ' (' + this.retries.ready.ctr + '/' + this.retries.ready.max + ')';
+                    if (typeof this.trigger === 'object') {
+                        this.debug('重新启动Activity ' + _ctr);
+                        exp.startActivity(this.trigger);
+                    } else {
+                        this.debug('重新启动应用 ' + _ctr);
+                        app.launchPackage(this.trigger);
+                    }
+                }
+            },
+            close() {
+                this.debug('尝试关闭' + this.app_name_quo + '应用');
+                exp.close(this.pkg_name);
+            },
+            tryLaunch() {
+                this.disturbance.start();
+
+                while (this.retries.global.check()) {
+                    this.greetIFN();
+                    if (this.launch() && this.ready()) {
+                        break;
+                    }
+                    this.close();
                 }
 
-                let _succ = a11yx.wait(_cond_launch, 5e3, 800);
-                let _suff = '(\x20' + (_max_lch_b - _max_lch) + '/' + _max_lch_b + ')';
-                if (_succ) {
-                    _debug('应用启动成功');
-                    break;
+                this.disturbance.interrupt();
+
+                if (!this.retries.global.isLimitReached()) {
+                    return this.debug(this.task_name_quo + '初始状态准备完毕'); // true
                 }
-                _debug('应用启动超时' + _suff);
-                _debug(currentPackage(), 0, 1);
-            }
+                consolex.$(this.task_name_quo + '初始状态准备失败', 8, 4, 0, 2);
+            },
+            getResult() {
+                this.impededIFN();
+                this.parseArgs();
+                return this.tryLaunch();
+            },
+        };
 
-            if (_max_lch < 0) {
-                consolex.$('打开' + _app_name.surround('"') + '失败', 8, 4, 0, 2);
-            }
-
-            if (isNullish(_cond_ready)) {
-                _debug('未设置启动完成条件参数');
-                break;
-            }
-
-            _1st_launch = false;
-            _debug('开始监测启动完成条件');
-
-            let _max_ready = _opt.ready_retry_times || 3;
-            let _max_ready_b = _max_ready;
-
-            while (!a11yx.wait(_cond_ready, 8e3) && _max_ready--) {
-                let _ctr = (_max_ready_b - _max_ready + '/' + _max_ready_b).surround('()');
-                if (typeof _trig === 'object') {
-                    _debug('重新启动Activity ' + _ctr);
-                    this.startActivity(_trig);
-                } else {
-                    _debug('重新启动应用 ' + _ctr);
-                    app.launchPackage(_trig);
-                }
-            }
-
-            if (_max_ready >= 0) {
-                _debug('启动完成条件监测完毕');
-                break;
-            }
-
-            _debug('尝试关闭' + _app_name.surround('"') + '应用:');
-            _debug((_max_retry_b - _max_retry + '/' + _max_retry_b).surround('()'));
-            this.kill(_pkg_name);
-        }
-
-        if (_thd_dist) {
-            _thd_dist.interrupt();
-            _debug('干扰排除线程结束');
-            _thd_dist = null;
-        }
-
-        if (_max_retry < 0) {
-            consolex.$(_name.surround('"') + '初始状态准备失败', 8, 4, 0, 2);
-        }
-        _debug(_name.surround('"') + '初始状态准备完毕');
-
-        return true;
-
-        // tool function(s) //
-
-        function _setAppName() {
-            if (typeof _trig === 'string') {
-                _app_name = !_trig.match(/.+\..+\./) && app.getPackageName(_trig) && _trig;
-                _pkg_name = app.getAppName(_trig) && _trig.toString();
-            } else {
-                _app_name = _opt.app_name;
-                _pkg_name = _opt.package_name;
-                if (!_pkg_name && typeof _trig === 'object') {
-                    _pkg_name = _trig.packageName || _trig.data && _trig.data.match(/^alipays/i) && _.alipay_pkg;
-                }
-            }
-            _app_name = _app_name || _pkg_name && app.getAppName(_pkg_name);
-            _pkg_name = _pkg_name || _app_name && app.getPackageName(_app_name);
-            if (!_app_name && !_pkg_name) {
-                consolex.$(['未找到应用:', _trig], 8, 0, 0, 2);
-            }
-        }
+        return $.getResult();
     },
     /**
-     * @param {string} [pkg=autojs.getPkgName()]
+     * @param {string} [pkg=autojs.getPackageName()]
      */
-    launchAndClearTop(pkg) {
+    launchPackageAndClearTop(pkg) {
         this.startActivity(this.intent(this.getLaunchIntentForPackage(pkg), {
             flags: Intent.FLAG_ACTIVITY_CLEAR_TOP,
         }));
     },
     /**
-     * @param {string} [pkg=autojs.getPkgName()]
-     * @return {Intent$}
+     * @param {string} [pkg=autojs.getPackageName()]
+     * @return {Intent}
      */
     getLaunchIntentForPackage(pkg) {
-        return context.getPackageManager().getLaunchIntentForPackage(pkg || _.autojs_pkg);
+        return _.pkg_mgr.getLaunchIntentForPackage(pkg || _.autojs_pkg);
     },
+
     /**
      * Close or minimize a certain app
      * @param {string} [source]
@@ -763,9 +748,9 @@ let exp = {
      * });
      * @return {boolean}
      */
-    kill(source, options) {
+    close(source, options) {
         let _opt = options || {};
-        _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.kill.name);
+        _opt.no_impeded || typeof $$impeded === 'function' && $$impeded(this.close.name);
 
         let _src = source || '';
         if (!_src) {
@@ -776,7 +761,7 @@ let exp = {
             ]);
         }
         let _app_name = this.getAppName(_src);
-        let _pkg_name = this.getPkgName(_src);
+        let _pkg_name = this.getPackageName(_src);
         if (!_app_name || !_pkg_name) {
             consolex.$('解析应用名称及包名失败', 8, 4, 0, 2);
         }
@@ -951,7 +936,7 @@ let exp = {
     restart(source, options) {
         let _src = source || currentPackage();
         let _opt = options || {};
-        return this.kill(_src, _opt.kill) && this.launch(_src, _opt.launch);
+        return this.close(_src, _opt.kill) && this.launch(_src, _opt.launch);
     },
     /**
      * Returns if Auto.js has attained root access by running a shell command
@@ -1030,8 +1015,8 @@ let exp = {
      *         'Alipay', 'WeChat', 'Chrome', 'Google Play Store',
      *         'CoolApk', 'Camera', 'Auto.js',
      *     ],
-     * }).getPkgNames());
-     * log(appx.getInstalledApplications({include: 'Alipay'}).getPkgNames());
+     * }).getPackageNames());
+     * log(appx.getInstalledApplications({include: 'Alipay'}).getPackageNames());
      * @return {{
      *     app_name: string,
      *     pkg_name: string,
@@ -1039,7 +1024,7 @@ let exp = {
      *     is_system: boolean,
      * }[] & {
      *     getAppNames: function(): string[],
-     *     getPkgNames: function(): string[],
+     *     getPackageNames: function(): string[],
      *     getJointStrArr: function(string?, boolean?): string[],
      * }}
      */
@@ -1056,9 +1041,8 @@ let exp = {
         };
         let _getState = k => typeof _opt[k] === 'function' ? _opt[k]() : _opt[k];
 
-        let _pkg_mgr = context.getPackageManager();
-        let _items = _pkg_mgr.getInstalledApplications(0).toArray().map((o) => ({
-            app_name: o.loadLabel(_pkg_mgr),
+        let _items = _.pkg_mgr.getInstalledApplications(0).toArray().map((o) => ({
+            app_name: o.loadLabel(_.pkg_mgr),
             pkg_name: o.packageName,
             is_enabled: o.enabled,
             is_system: this.isSystemApp(o),
@@ -1079,7 +1063,7 @@ let exp = {
             getAppNames() {
                 return this.map(o => o.app_name);
             },
-            getPkgNames() {
+            getPackageNames() {
                 return this.map(o => o.pkg_name);
             },
             getJointStrArr(separator, is_reverse) {

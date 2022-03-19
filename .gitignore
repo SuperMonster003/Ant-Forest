@@ -8,15 +8,4 @@ test*.js
 /.git
 /.github
 /.idea
-/assets/declarations/android/android-framework-26.d.ts
-/assets/declarations/android/android-platform-27.d.ts
-/assets/declarations/android/androidx-26.d.ts
-/assets/declarations/auto.js/auto.js-4.1.1-alpha2.d.ts
-/assets/declarations/auto.js/auto.js-jsx-element-extension.d.ts
-/assets/declarations/modules/com.google.android.material-material-1.4.0.d.ts
-/assets/declarations/modules/rhino-1.7.7.2.d.ts
-/assets/declarations/modules/opencv-3.4.3.d.ts
-/assets/declarations/modules/log4j-1.2.17.d.ts
-/assets/declarations/modules/com.squareup.okhttp3-okhttp-4.9.1.d.ts
-/assets/declarations/modules/junit-4.13.2.d.ts
-/assets/declarations/modules/com.afollestad.materialdialogs-core-3.3.0.d.ts
+/assets/declarations/*

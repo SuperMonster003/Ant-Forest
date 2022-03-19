@@ -1,4 +1,3 @@
-/** @type {Plugin$Exportation} */
 let exp = {
     dialog: null,
     view: null,

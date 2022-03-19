@@ -2,8 +2,8 @@
 'ui'; // lgtm [js/unknown-directive]
 
 let {
-    $$toast, $$und, $$obj, $$arr, $$cvt, $$T, $$F, $$0, $$func,
-    $$num, $$sleep, $$str, $$nul, isPlainObject, isNonEmptyObject,
+    $$und, $$obj, $$arr, $$cvt, $$T, $$F, $$0, $$func,
+    $$num, $$str, $$nul, isNonEmptyObject,
 } = require('./modules/mod-global');
 let {db} = require('./modules/mod-database');
 let {project} = require('./modules/mod-project');
@@ -26,7 +26,7 @@ let $$init = {
     check() {
         devicex.ensureSdkInt();
         autojs.ensureVersion();
-        appx.checkAccessibility();
+        a11yx.ensureSvcAndFunc();
 
         uix.init({requested_orientation: 'PORTRAIT'});
 
@@ -236,9 +236,9 @@ let $$init = {
                         }
                         if ($$und(_content[1]) || _content[1]) {
                             _content[1] =
-                                '有效值: ' + _mini + '\x20[\x20' + _mini_p + '\x20]\x20' +
-                                ' -  ' + _maxi + '\x20[\x20' + _maxi_p + '\x20]\n' +
-                                '默认值: ' + _cvt(_getDefVal()) + '\x20[\x20' + _getDefVal() + ' ]';
+                                '有效值: ' + _mini + ' [ ' + _mini_p + ' ] ' +
+                                ' -  ' + _maxi + ' [ ' + _maxi_p + ' ]\n' +
+                                '默认值: ' + _cvt(_getDefVal()) + ' [ ' + _getDefVal() + ' ]';
                         }
                         if (_content[0]) {
                             if (_content[1] || _content[2]) {
@@ -505,7 +505,7 @@ let $$init = {
                         }
                     } else {
                         let _col = _sess_val.toString();
-                        view.setHints('#', _col.slice(1) + '\x20', _col);
+                        view.setHints('#', _col.slice(1) + ' ', _col);
                     }
                 },
             },
@@ -1168,8 +1168,8 @@ let $$init = {
                         _seekbar.setProgress(Math.ceil((init - min) / inc));
 
                         let update = src => _new_view['_text'].setText(
-                            (title ? title + ':\x20' : '') + src.toString() +
-                            (unit ? '\x20' + unit : ''));
+                            (title ? title + ': ' : '') + src.toString() +
+                            (unit ? ' ' + unit : ''));
 
                         _new_view['_text'].on('long_click', (e) => {
                             e.consumed = true;
@@ -1443,7 +1443,7 @@ let $$init = {
                                 ['从列表中选择', 'hint'],
                                 ['检索选择', 'hint'],
                                 '确认添加', 1,
-                            ], {items: ['\x20']});
+                            ], {items: [' ']});
                             _diag.on('neutral', () => {
                                 let _diag_add_from_lst = dialogsx.builds([
                                     '列表选择好友', '',
@@ -1498,7 +1498,7 @@ let $$init = {
                                             let _cA = !_blist_sel_fri.includes(_nick);
                                             let _cB = !_tmp_sel_fri.includes(_nick);
                                             if (_cA && _cB) {
-                                                _items.push(o.rank_num + '.\x20' + _nick);
+                                                _items.push(o.rank_num + '. ' + _nick);
                                             }
                                         });
                                     }
@@ -2060,7 +2060,7 @@ let $$init = {
             },
             setTimePickerView(params) {
                 let time_picker_view = null;
-                let week_checkbox_states = Array(7).join('\x20').split('\x20').map(() => false);
+                let week_checkbox_states = Array(7).join(' ').split(' ').map(() => false);
 
                 params = params || {};
                 if (!$$und($$ses)) {
@@ -2311,13 +2311,13 @@ let $$init = {
                     let {prefix, format, suffix, middle} = params.time_str || {};
                     let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
 
-                    prefix = prefix && prefix.replace(/: ?/, '') + ':\x20' || '';
+                    prefix = prefix && prefix.replace(/: ?/, '') + ': ' || '';
 
                     if ($$func(middle)) middle = middle(getTimeInfoFromPicker);
                     middle = middle || formatTimeStr();
 
                     if ($$func(suffix)) suffix = suffix(getTimeInfoFromPicker);
-                    suffix = suffix && suffix.replace(/^ */, '\x20') || '';
+                    suffix = suffix && suffix.replace(/^ */, ' ') || '';
 
                     time_picker_view.time_str.setText(prefix + middle + suffix);
 
@@ -2329,7 +2329,7 @@ let $$init = {
                             let str = getTimeInfoFromPicker(date_or_time_indices[0] + 1).default();
                             if (len === 2) {
                                 str += (
-                                    picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? '\x20-\x20' : '\x20'
+                                    picker_views[date_or_time_indices[0]].type === picker_views[date_or_time_indices[1]].type ? ' - ' : ' '
                                 ) + getTimeInfoFromPicker(date_or_time_indices[1] + 1).default();
                             }
                             picker_views.forEach((o, idx) => {
@@ -2713,7 +2713,7 @@ let $$init = {
                             }
                             if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
                             let items = [];
-                            Object.keys(value_obj).forEach(key => items.push(key + ':\x20' + value_obj[key]));
+                            Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
                             _diag.setItems(items);
                         }
                     }]);
@@ -2950,7 +2950,7 @@ let $$init = {
                     let hint_text = '';
                     if (Array.isArray(dependencies)) {
                         dependencies.forEach((conj_text) => {
-                            hint_text += $$ses.title[conj_text] + '\x20';
+                            hint_text += $$ses.title[conj_text] + ' ';
                         });
                         if (dependencies.length > 1) {
                             hint_text += '均';
@@ -3208,7 +3208,7 @@ let $$init = {
                 let _range = $$ses.stat_list_date_range_data || [];
                 let _ts_a = _range[0] || 0;
                 let _ts_b = _range[1] || 1e10 - 1;
-                let _ts = _ts_a + '\x20and\x20' + _ts_b;
+                let _ts = _ts_a + ' and ' + _ts_b;
 
                 let _zero = $$ses.stat_list_show_zero;
                 _zero = $$und(_zero) ? $$cfg.ses.stat_list_show_zero : _zero;
@@ -3220,7 +3220,7 @@ let $$init = {
                 }
 
                 let _sql = 'select name, sum(pick) as pick, timestamp as ts ' +
-                    'from ant_forest where timestamp between\x20' + _ts + '\x20' +
+                    'from ant_forest where timestamp between ' + _ts + ' ' +
                     (_show_zero ? '' : 'and pick <> 0 ') + 'group by name';
                 let _db_data = $$ses.db.rawQueryData(_sql);
 
@@ -3374,7 +3374,7 @@ let $$init = {
                     let dd = padZero(time.getDate());
                     let hh = padZero(time.getHours());
                     let mm = padZero(time.getMinutes());
-                    time_str = yy + '/' + MM + '/' + dd + '\x20' + hh + ':' + mm;
+                    time_str = yy + '/' + MM + '/' + dd + ' ' + hh + ':' + mm;
                 }
 
                 return {
@@ -3757,7 +3757,7 @@ let $$init = {
                                         _new[_k] = $$cfg.ses[_k] = _data;
                                         $$view.updateViewByTag('update_ignore_list');
                                         $$sto.af_cfg.put('config', _new);
-                                        $$toast('已忽略当前版本', 'long');
+                                        toast('已忽略当前版本', 'long');
                                     }).show();
                                 }).on('negative', (d) => {
                                     d.dismiss();
@@ -4352,7 +4352,7 @@ $$view.page.new('主页能量球循环监测', 'homepage_monitor_page', (t) => {
                 });
             },
             updateOpr(view) {
-                view.setHintText($$cfg.ses[this.config_conj].toString() + '\x20min');
+                view.setHintText($$cfg.ses[this.config_conj].toString() + ' min');
             },
         }))
         .add('split_line')
@@ -4401,7 +4401,7 @@ $$view.page.new('主页能量球返检监控', 'homepage_background_monitor_page
                 });
             },
             updateOpr(view) {
-                view.setHintText($$cfg.ses[this.config_conj].toString() + '\x20min');
+                view.setHintText($$cfg.ses[this.config_conj].toString() + ' min');
             },
         }))
         .ready();
@@ -4440,7 +4440,7 @@ $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
-            config_conj: 'homepage_wball_max_hue_no_blue',
+            config_conj: 'homepageWaterBallMaxHueNoBlue',
             newWindow() {
                 $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
             },
@@ -4569,7 +4569,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                             '1260: 每次滑动 1260 像素\n' +
                             '0.6: 每次滑动 60% 屏幕距离',
                             '%show_valid_and_default_values%',
-                            '安全值: ' + _safe + '\x20[\x20' +
+                            '安全值: ' + _safe + ' [ ' +
                             (_safe / H).toFixedNum(2) + ' ]',
                         ],
                         positiveAddn(d, input, positiveFunc) {
@@ -4592,17 +4592,17 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                                         content: '安全值指排行榜滑动时' +
                                             '可避免采集目标遗漏的理论最大值\n\n' +
                                             '计算方法:\n屏幕高度' +
-                                            '\x20[\x20' + H + ' ]\n' +
+                                            ' [ ' + H + ' ]\n' +
                                             '减去 导航栏高度' +
-                                            '\x20[\x20' + $$disp.navigation_bar_height + ' ]\n' +
+                                            ' [ ' + $$disp.navigation_bar_height + ' ]\n' +
                                             '减去 状态栏高度' +
-                                            '\x20[\x20' + $$disp.status_bar_height + ' ]\n' +
+                                            ' [ ' + $$disp.status_bar_height + ' ]\n' +
                                             '减去 ActionBar默认高度' +
-                                            '\x20[\x20' + $$disp.action_bar_default_height + ' ]\n' +
+                                            ' [ ' + $$disp.action_bar_default_height + ' ]\n' +
                                             '减去 排行榜图标缩放高度' +
-                                            '\x20[\x20' + _icon_h + ' ]\n' +
+                                            ' [ ' + _icon_h + ' ]\n' +
                                             '得到 安全值' +
-                                            '\x20[\x20' + _safe + ' ]\n\n' +
+                                            ' [ ' + _safe + ' ]\n\n' +
                                             '* 括号中的数据均源自当前设备\n' +
                                             '* 安全值为理论值\n-- 不代表真实可操作的最佳值',
                                     }).show();
@@ -4655,7 +4655,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                 if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
                     let _cfg_conj = this.config_conj;
                     let _n = $$cfg.ses[_cfg_conj] || $$sto.def.af[_cfg_conj];
-                    view.setHintText(_n + '\x20ms');
+                    view.setHintText(_n + ' ms');
                 } else {
                     view.setHintText('自动');
                 }
@@ -4680,7 +4680,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             updateOpr(view) {
                 let conj = this.config_conj;
                 let data = $$cfg.ses[conj] || $$sto.def.af[conj];
-                view.setHintText(data.toString() + '\x20ms');
+                view.setHintText(data.toString() + ' ms');
             },
         }))
         .add('split_line')
@@ -4849,7 +4849,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('采集样本池', {color: 'highlight'}))
         .add('button', new Layout('样本池总容量', 'hint', {
-            config_conj: 'forest_image_pool_limit',
+            config_conj: 'forestImagePoolLimit',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 8);
             },
@@ -4858,7 +4858,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             },
         }))
         .add('button', new Layout('样本采集间隔', 'hint', {
-            config_conj: 'forest_image_pool_itv',
+            config_conj: 'forestImagePoolItv',
             newWindow() {
                 $$view.diag.numSetter.call(this, 10, 500);
             },
@@ -4868,7 +4868,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
         }))
         .add('subhead', new Layout('识别与定位', {color: 'highlight'}))
         .add('button', new Layout('能量球识别区域', 'hint', {
-            config_conj: 'eballs_recognition_region',
+            config_conj: 'energyBallsRecognitionRegion',
             newWindow() {
                 $$view.diag.rectSetter.call(this, {
                     title: '森林页面能量球识别区域',
@@ -4880,11 +4880,11 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
                     .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
                 let _rect = [[_l, _t], [_r, _b]]
                     .map(a => a.join(' , ')).join('  -  ');
-                view.setHintText('Rect  [ ' + _rect + '\x20]\x20');
+                view.setHintText('Rect  [ ' + _rect + ' ] ');
             },
         }))
         .add('button', new Layout('能量球最小球心间距', 'hint', {
-            config_conj: 'min_balls_distance',
+            config_conj: 'minBallsDistance',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0.06, 0.15, {
                     title: '设置能量球最小球心间距',
@@ -4918,7 +4918,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
                 $$view.diag.numSetter.call(this, 10, 500);
             },
             updateOpr(view) {
-                view.setHintText($$cfg.ses[this.config_conj].toString() + '\x20ms');
+                view.setHintText($$cfg.ses[this.config_conj].toString() + ' ms');
             },
         }))
         .add('button', new Layout('能量球点击间隔', 'hint', {
@@ -4927,7 +4927,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
                 $$view.diag.numSetter.call(this, 10, 2e3);
             },
             updateOpr(view) {
-                view.setHintText($$cfg.ses[this.config_conj].toString() + '\x20ms');
+                view.setHintText($$cfg.ses[this.config_conj].toString() + ' ms');
             },
         }))
         .ready();
@@ -4936,7 +4936,7 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('成熟 (绿色) 能量球', {color: 'highlight'}))
         .add('button', new Layout('识别色值', 'hint', {
-            config_conj: 'ripe_ball_detect_color_val',
+            config_conj: 'ripeBallDetectColorVal',
             newWindow() {
                 $$view.diag.colorSetter.call(this, {
                     title: '成熟能量球颜色检测色值',
@@ -4947,7 +4947,7 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
             },
         }))
         .add('button', new Layout('识别阈值', 'hint', {
-            config_conj: 'ripe_ball_detect_threshold',
+            config_conj: 'ripeBallDetectThreshold',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0, 40, {
                     title: '成熟能量球颜色检测阈值',
@@ -4960,7 +4960,7 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
         .add('invisible_split_line')
         .add('subhead', new Layout('浇水回赠 (金色) 能量球', {color: 'highlight'}))
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
-            config_conj: 'homepage_wball_max_hue_no_blue',
+            config_conj: 'homepageWaterBallMaxHueNoBlue',
             newWindow() {
                 $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
             },
@@ -4974,9 +4974,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('数据传入策略', {color: 'highlight'}))
         .add('checkbox_switch', new Layout('灰度化 (grayscale)', {
-            kk: 'gray',
-            config_conj: 'hough_src_img_strategy',
-            view_tag: 'hough_src_stg_grayscale',
+            kk: 'grayscale',
+            config_conj: 'houghSrcImageStrategy',
+            view_tag: 'houghSrcStrategyGrayscale',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -4995,9 +4995,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('自适应阈值 (adaptiveThreshold)', {
-            kk: 'adapt_thrd',
-            config_conj: 'hough_src_img_strategy',
-            view_tag: 'hough_src_stg_adapt_thrd',
+            kk: 'adaptiveThreshold',
+            config_conj: 'houghSrcImageStrategy',
+            view_tag: 'houghSrcStrategyAdaptiveThreshold',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5016,9 +5016,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('中值滤波 (medianBlur)', {
-            kk: 'med_blur',
-            config_conj: 'hough_src_img_strategy',
-            view_tag: 'hough_src_stg_median_blur',
+            kk: 'medianBlur',
+            config_conj: 'houghSrcImageStrategy',
+            view_tag: 'houghSrcStrategyMedianBlur',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5038,8 +5038,8 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         .add('split_line')
         .add('checkbox_switch', new Layout('均值滤波 (blur)', {
             kk: 'blur',
-            config_conj: 'hough_src_img_strategy',
-            view_tag: 'hough_src_stg_blur',
+            config_conj: 'houghSrcImageStrategy',
+            view_tag: 'houghSrcStrategyBlur',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5058,9 +5058,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('双边滤波 (bilateralFilter)', {
-            kk: 'blt_fltr',
-            config_conj: 'hough_src_img_strategy',
-            view_tag: 'hough_src_stg_bilateral_filter',
+            kk: 'bilateralFilter',
+            config_conj: 'houghSrcImageStrategy',
+            view_tag: 'houghSrcStrategyBilateralFilter',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5080,9 +5080,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('数据处理策略', {color: 'highlight'}))
         .add('checkbox_switch', new Layout('覆盖检测', {
-            kk: 'anti_ovl',
-            config_conj: 'hough_results_strategy',
-            view_tag: 'hough_results_anti_ovl',
+            kk: 'antiOverlap',
+            config_conj: 'houghResultsStrategy',
+            view_tag: 'houghResultsAntiOverlap',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5102,8 +5102,8 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         .add('split_line')
         .add('checkbox_switch', new Layout('对称检测', {
             kk: 'symmetrical',
-            config_conj: 'hough_results_strategy',
-            view_tag: 'hough_results_symmetrical',
+            config_conj: 'houghResultsStrategy',
+            view_tag: 'houghResultsSymmetrical',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5122,9 +5122,9 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('线性插值', {
-            kk: 'linear_itp',
-            config_conj: 'hough_results_strategy',
-            view_tag: 'hough_results_linear_itp',
+            kk: 'linearInterpolate',
+            config_conj: 'houghResultsStrategy',
+            view_tag: 'houghResultsLinearInterpolate',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5294,7 +5294,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                 });
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString() + '\x20ms');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.unlock[this.config_conj]).toString() + ' ms');
             },
         }))
         .add('button', new Layout('起点位置', 'hint', {
@@ -5373,7 +5373,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
             updateOpr(view) {
                 let _cfg_conj = this.getConfigConj();
-                view.setHintText(($$cfg.ses[_cfg_conj] || $$sto.def.unlock[_cfg_conj]).toString() + '\x20ms');
+                view.setHintText(($$cfg.ses[_cfg_conj] || $$sto.def.unlock[_cfg_conj]).toString() + ' ms');
             },
         }))
         .add('button', new Layout('点阵边长', 'hint', {
@@ -5459,7 +5459,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
                 });
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20s');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' s');
             },
         }))
         .add('button', new Layout('推迟任务间隔时长', 'hint', {
@@ -5470,7 +5470,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             }, (function $iiFe() {
                 let _o = {};
                 let _k = 'prompt_before_running_postponed_minutes_choices';
-                $$sto.def.af[_k].forEach(n => _o[n] = n + '\x20min');
+                $$sto.def.af[_k].forEach(n => _o[n] = n + ' min');
                 return _o;
             })()),
             newWindow() {
@@ -5871,7 +5871,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                 let timers_prefer_auto_unlock_dialog_prompt_prompted = false;
                 let diag = dialogsx.builds([
                     ['注意', 'caution'],
-                    'timers_prefer_auto_unlock', 0, 0, '\x20OK\x20', 1, 1,
+                    'timers_prefer_auto_unlock', 0, 0, ' OK ', 1, 1,
                 ]);
                 diag.on('check', checked => timers_prefer_auto_unlock_dialog_prompt_prompted = !!checked);
                 diag.on('positive', () => {
@@ -5969,7 +5969,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             updateOpr(view) {
                 let session_value = +$$cfg.ses[this.config_conj];
                 let value = isNaN(session_value) ? $$sto.def.af[this.config_conj] : session_value;
-                view.setHintText(value === 0 ? '已关闭' : (value.toString() + '\x20min'));
+                view.setHintText(value === 0 ? '已关闭' : (value.toString() + ' min'));
             },
         }))
         .add('split_line')
@@ -6042,7 +6042,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             updateOpr(view) {
                 let session_value = +$$cfg.ses[this.config_conj];
                 let value = isNaN(session_value) ? $$sto.def.af[this.config_conj] : session_value;
-                view.setHintText(value === 0 ? '已关闭' : (value.toString() + '\x20min'));
+                view.setHintText(value === 0 ? '已关闭' : (value.toString() + ' min'));
             },
         }))
         .add('split_line')
@@ -6100,7 +6100,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                 $$view.diag.numSetter.call(this, 1, 10);
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20min');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' min');
             },
         }))
         .add('button', new Layout('最大连续保险次数', 'hint', {
@@ -6364,7 +6364,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
 
                         function showDiagContent() {
                             let is_weekly = type.match(/每周/);
-                            let pad = type.match(/\)$/) ? '\x20' : '';
+                            let pad = type.match(/\)$/) ? ' ' : '';
                             return '任务ID: ' + task_id + '\n\n' +
                                 '任务类型: ' + (is_weekly ? '每周' : type) + pad + '任务' + '\n\n' +
                                 (is_weekly ? '任务周期: ' + type.match(/\d/g).join(', ') + '\n\n' : '') +
@@ -6654,7 +6654,7 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                             }
                             if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
                             let items = [];
-                            Object.keys(value_obj).forEach(key => items.push(key + ':\x20' + value_obj[key]));
+                            Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
                             edit_item_diag.setItems(items);
                         }
                     },
@@ -7021,14 +7021,14 @@ $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
             next_page: 'cover_blacklist_page',
             updateOpr(view) {
                 let amount = $$cfg.ses.blacklist_protect_cover.length;
-                view.setHintText(amount ? '包含成员:  ' + amount + '人\x20' : '空名单');
+                view.setHintText(amount ? '包含成员:  ' + amount + '人 ' : '空名单');
             },
         }))
         .add('page', new Layout('自定义黑名单', 'hint', {
             next_page: 'collect_blacklist_page',
             updateOpr(view) {
                 let amount = $$cfg.ses.blacklist_by_user.length;
-                view.setHintText(amount ? '包含成员:  ' + amount + '人\x20' : '空名单');
+                view.setHintText(amount ? '包含成员:  ' + amount + '人 ' : '空名单');
             },
         }))
         .add('split_line')
@@ -7182,7 +7182,7 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                             }
                             if (prefix && (prefix in value_obj)) value_obj[prefix] = value;
                             let items = [];
-                            Object.keys(value_obj).forEach(key => items.push(key + ':\x20' + value_obj[key]));
+                            Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
                             edit_item_diag.setItems(items);
                         }
                     },
@@ -7311,7 +7311,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                 });
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20min');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' min');
             },
         }))
         .add('button', new Layout('排他性任务最大排队时间', 'hint', {
@@ -7320,7 +7320,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                 $$view.diag.numSetter.call(this, 1, 120);
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20min');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' min');
             },
         }))
         .add('split_line')
@@ -7331,7 +7331,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                 $$view.diag.numSetter.call(this, 100, 800);
             },
             updateOpr(view) {
-                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + '\x20ms');
+                view.setHintText(($$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj]).toString() + ' ms');
             },
         }))
         .add('button', new Layout('Root权限功能', 'hint', {
@@ -7370,7 +7370,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
             updateOpr(view) {
                 let _value = $$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj];
                 let _fxs_len = Object.keys(_value).filter(k => _value[k]).length;
-                view.setHintText(_fxs_len ? '已启用 ' + _fxs_len + '项\x20' : '已全部禁用');
+                view.setHintText(_fxs_len ? '已启用 ' + _fxs_len + '项 ' : '已全部禁用');
             },
         }))
         .add('button', new Layout('自动开启无障碍服务', 'hint', {
@@ -7390,7 +7390,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                             .on('neutral', () => {
                                 let _pkg = context.getPackageName();
                                 let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-                                setClip('adb shell pm grant\x20' + _pkg + '\x20' + _perm);
+                                setClip('adb shell pm grant ' + _pkg + ' ' + _perm);
                                 toast('授权指令已复制到剪切板');
                             })
                             .on('negative', () => {
@@ -7722,7 +7722,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                 let _view_tag = this.view_tag;
 
                 let _amt = ($$cfg.ses[_ds_k] = $$cfg.ses[_ds_k] || []).length;
-                view.setHintText(_amt ? '共计备份:  ' + _amt + '项\x20' : '无备份');
+                view.setHintText(_amt ? '共计备份:  ' + _amt + '项 ' : '无备份');
                 view.setNextPage(_view_tag);
 
                 if ($$und($$ses.local_restore_page_building)) {
@@ -7797,7 +7797,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                     if (typeof _map_o.cvt === 'function') {
                                                         _value = _map_o.cvt.call(null, _value);
                                                     }
-                                                    return _map_o.name + ':\x20' + _value;
+                                                    return _map_o.name + ': ' + _value;
                                                 }).join('\n\n'),
                                                 ['删除此备份', 'caution'], 'B',
                                                 ['还原此备份', 'warn'], 1,
@@ -7926,7 +7926,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                                 if (_k === 'body') {
                                                                     _v = '\n' + _v;
                                                                 }
-                                                                _v && _releases.push(o.desc + ':\x20' + _v);
+                                                                _v && _releases.push(o.desc + ': ' + _v);
                                                             }
                                                         });
                                                         dialogsx
@@ -7974,7 +7974,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                 });
                             }
                         } catch (e) {
-                            $$sleep(240, '±120');
+                            sleep(240, '±120');
                         }
                     }
                     _restoreClickListener();
@@ -8134,7 +8134,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
             },
             updateOpr(view) {
                 let _amt = $$cfg.ses[this.config_conj].length;
-                view.setHintText(_amt ? '共计 ' + _amt + '项\x20' : '无已忽略版本');
+                view.setHintText(_amt ? '共计 ' + _amt + '项 ' : '无已忽略版本');
             },
         }))
         .add('split_line')

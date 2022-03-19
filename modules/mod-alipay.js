@@ -1,7 +1,8 @@
 let {
-    $$num, $$str, isPlainObject,
+    $$num, $$str,
 } = require('./mod-global');
 let {appx} = require('./ext-app');
+let {consolex} = require('./ext-console');
 
 let exp = {
     package_name: 'com.eg.android.AlipayGphone',
@@ -79,6 +80,14 @@ let exp = {
             package: 'alipay',
             monitor: 'ensure_open',
         });
+    },
+    ensureAppInstalled() {
+        try {
+            context.getPackageManager().getApplicationInfo(this.package_name, 0);
+        } catch (e) {
+            consolex.w(e, 0, 0, 2);
+            consolex.$(['脚本无法继续', '此设备可能未安装"支付宝"应用'], 8, 4, 0, 2);
+        }
     },
 };
 

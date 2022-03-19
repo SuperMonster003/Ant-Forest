@@ -50,8 +50,8 @@ let _path = {
     },
 };
 
-let info = device.brand + '\x20' + device.product + '\x20' + device.release + '\n' +
-    'Display resolution: ' + device.width + '\x20×\x20' + device.height + '\n\n';
+let info = device.brand + ' ' + device.product + ' ' + device.release + '\n' +
+    'Display resolution: ' + device.width + ' × ' + device.height + '\n\n';
 
 let keycode_power_bug = [/[Mm]eizu/].some(bug => device.brand.match(bug));
 

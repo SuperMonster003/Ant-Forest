@@ -142,7 +142,7 @@ let exp = {
 
                 let _code = r.code();
                 if (_code !== 200) {
-                    _onFailure(_code + '\x20' + r.message());
+                    _onFailure(_code + ' ' + r.message());
                 }
                 let _is = r.body().byteStream();
                 let _total = r.body().contentLength();

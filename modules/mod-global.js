@@ -8,10 +8,6 @@ let GZIPInputStream = java.util.zip.GZIPInputStream;
 let ByteArrayInputStream = java.io.ByteArrayInputStream;
 let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
-global.de = Packages.de;
-global.okhttp3 = Packages.okhttp3;
-global.androidx = Packages.androidx;
-
 let _ = {
     /** @type {Object.<Stringx.Comparison,function(any,any):boolean>} */
     compare: {
@@ -21,8 +17,6 @@ let _ = {
         '>=': (a, b) => a >= b,
         '=': (a, b) => a === b,
     },
-    isNullish: o => o === null || o === undefined,
-    isPlainObject: o => Object.prototype.toString.call(o).slice(8, -1) === 'Object',
 };
 
 let ext = {
@@ -55,7 +49,7 @@ let ext = {
                  * @return {string}
                  */
                 value(pad, options) {
-                    if (_.isNullish(pad)) {
+                    if (isNullish(pad)) {
                         return this.valueOf();
                     }
                     let _opt = options || {};
@@ -160,45 +154,6 @@ let ext = {
                 },
             });
         }
-        if (!String.prototype.ts) {
-            Object.defineProperty(String.prototype, 'ts', {
-                /**
-                 * @return {string}
-                 */
-                get() {
-                    let _s = String(this);
-                    let _bt = '`'; // backtick
-                    if (_s.length < 2 || _s[0] !== _bt || _s[_s.length - 1] !== _bt) {
-                        return _s;
-                    }
-                    let _backticks, _is_internal;
-                    while ((_backticks = _getBackticks(_s))) {
-                        let [_l, _r] = _backticks; // left/right index
-                        let _q = _is_internal ? '"' : ''; // quotation mark
-                        _s = _s.slice(0, _l++) + _q + _parse(_s.slice(_l, _r++)) + _q + _s.slice(_r);
-                    }
-                    return _s;
-
-                    // tool function(s) //
-
-                    function _getBackticks(str) {
-                        let _bts = [];
-                        Object.values(str).forEach((s, i) => s === _bt && _bts.push(i));
-                        let _half_len = _bts.length / 2;
-                        if (_half_len >> 0 !== _half_len) {
-                            throw Error('Backticks must come in pairs');
-                        }
-                        _is_internal = _half_len > 1;
-                        return _half_len ? _bts.slice(_half_len - 1, _half_len + 1) : null;
-                    }
-
-                    function _parse(str) {
-                        return str.replace(/\${(.*?)}/g, ($0, $1) => Function('return\x20' + $1)());
-                    }
-                },
-                configurable: true,
-            });
-        }
         if (!String.unTap) {
             Object.defineProperty(String, 'unTap', {
                 /**
@@ -283,7 +238,7 @@ let ext = {
                     if (Array.isArray(o)) {
                         return o.length;
                     }
-                    if (!_.isPlainObject(o)) {
+                    if (!isPlainObject(o)) {
                         return -1;
                     }
                     let _arrayify = o => Array.isArray(o) ? o : o === undefined ? [] : [o];
@@ -372,14 +327,18 @@ let ext = {
             });
         }
         if (!Object.shallowClone) {
-            /**
-             * @template T
-             * @param {T} [o]
-             * @return {T}
-             */
-            Object.shallowClone = (o) => _.isPlainObject(o)
-                ? Object.create(Object.getPrototypeOf(o), Object.getOwnPropertyDescriptors(o))
-                : Array.isArray(o) ? o.slice() : o;
+            Object.defineProperty(Object, 'shallowClone', {
+                /**
+                 * @template T
+                 * @param {T} [o]
+                 * @return {T}
+                 */
+                value(o) {
+                    return isPlainObject(o)
+                        ? Object.create(Object.getPrototypeOf(o), Object.getOwnPropertyDescriptors(o))
+                        : Array.isArray(o) ? o.slice() : o;
+                },
+            });
         }
         if (!Object.deepClone) {
             Object.defineProperty(Object, 'deepClone', {
@@ -389,7 +348,7 @@ let ext = {
                  * @return {T}
                  */
                 value: function clone(o) {
-                    if (_.isPlainObject(o)) {
+                    if (isPlainObject(o)) {
                         let _tmp = {};
                         Object.getOwnPropertyNames(o).forEach((k) => {
                             let _des = Object.getOwnPropertyDescriptor(o, k);
@@ -412,7 +371,7 @@ let ext = {
                  * @return {boolean}
                  */
                 value: function isEqual(a, b) {
-                    if (_.isPlainObject(a) && _.isPlainObject(b)) {
+                    if (isPlainObject(a) && isPlainObject(b)) {
                         let _pna = Object.getOwnPropertyNames(a);
                         let _pnb = Object.getOwnPropertyNames(b);
                         return _pna.length === _pnb.length
@@ -423,6 +382,36 @@ let ext = {
                             && a.every((e, i) => isEqual(e, b[i]));
                     }
                     return a === b;
+                },
+            });
+        }
+        if (!Object.ensureKey) {
+            Object.defineProperty(Object, 'ensureKey', {
+                /**
+                 * @param {Object} o
+                 * @param {any|any[]} k
+                 * @param {any} [def]
+                 */
+                value: function ensure(o, k, def) {
+                    if (!Array.isArray(k)) {
+                        if (!isPlainObject(o)) {
+                            throw Error('Param "o" must be a plain object');
+                        }
+                        if (typeof k === 'undefined') {
+                            throw Error('Param "k" must be defined');
+                        }
+                        if (!(k in o)) {
+                            o[k] = def;
+                        }
+                    } else {
+                        if (k.length < 2) {
+                            ensure(o, k.pop(), def);
+                        } else {
+                            let _k = k.shift();
+                            ensure(o, _k, {});
+                            ensure(o[_k], k, def);
+                        }
+                    }
                 },
             });
         }
@@ -512,7 +501,7 @@ let ext = {
             if (String.prototype.padStart) {
                 /**
                  * @param {number} target_len
-                 * @param {string|number} [pad_str='\x20']
+                 * @param {string|number} [pad_str=' ']
                  * @return {string}
                  */
                 Object.defineProperty(Number.prototype, 'padStart', {
@@ -527,7 +516,7 @@ let ext = {
             if (String.prototype.padEnd) {
                 /**
                  * @param {number} target_len
-                 * @param {string|number} [pad_str='\x20']
+                 * @param {string|number} [pad_str=' ']
                  * @return {string}
                  */
                 Object.defineProperty(Number.prototype, 'padEnd', {
@@ -538,15 +527,15 @@ let ext = {
                 });
             }
         }
-        if (!Number.parsePct) {
-            Object.defineProperty(Number, 'parsePct', {
+        if (!Number.parsePercent) {
+            Object.defineProperty(Number, 'parsePercent', {
                 /**
-                 * @param {Percentage$} percentage
+                 * @param {Percentage$} percent
                  * @return {number}
                  */
-                value(percentage) {
-                    if (typeof percentage === 'string') {
-                        let _mch = percentage.replace(/\s*/g, '').match(/^(\d+(?:\.\d+)?)(%+)$/);
+                value(percent) {
+                    if (typeof percent === 'string') {
+                        let _mch = percent.replace(/\s*/g, '').match(/^(\d+(?:\.\d+)?)(%+)$/);
                         if (_mch) {
                             let _res = Number(_mch[1]);
                             for (let i = 0, max = _mch[2].length; i < max; i += 1) {
@@ -826,7 +815,7 @@ let ext = {
                         let _b = Math.pow(point2[1] - point1[1], 2);
                         return Math.sqrt(_a + _b);
                     }
-                    if (_.isPlainObject(point1) && _.isPlainObject(point2)) {
+                    if (isPlainObject(point1) && isPlainObject(point2)) {
                         let _a = Math.pow(point2.x - point1.x, 2);
                         let _b = Math.pow(point2.y - point1.y, 2);
                         return Math.sqrt(_a + _b);
@@ -940,7 +929,7 @@ module.exports = {
     $$bigint: x => typeof x === 'bigint',
     $$func: f => typeof f === 'function',
     $$arr: o => Array.isArray(o),
-    $$obj: o => _.isPlainObject(o),
+    $$obj: o => isPlainObject(o),
     $$rex: o => o instanceof RegExp,
     $$xml: o => /^xml$/.test(typeof o),
     $$T: o => o === true,
@@ -1004,36 +993,19 @@ module.exports = {
         }
         return true;
     },
-    isInteger(o) {
-        // `Number.isInteger(o)` since ES6, and polyfill otherwise
-        return Number.isInteger(o);
-    },
-    isNullish(o) {
-        // nullish coalescing operator: ??
-        return o === null || o === undefined;
-    },
-    isPrimitive(o) {
-        return o !== Object(o);
-    },
-    isReference(o) {
-        return o === Object(o);
-    },
-    isPlainObject(o) {
-        return _.isPlainObject(o);
-    },
     isEmptyObject(o) {
-        return _.isPlainObject(o)
+        return isPlainObject(o)
             && Object.keys(Object.getOwnPropertyDescriptors(o)).length === 0;
     },
     isNonEmptyObject(o) {
-        return _.isPlainObject(o)
+        return isPlainObject(o)
             && Object.keys(Object.getOwnPropertyDescriptors(o)).length > 0;
     },
     isNormalFunction(f) {
-        return typeof f === 'function' && _.isPlainObject(f.prototype);
+        return typeof f === 'function' && isPlainObject(f.prototype);
     },
     isArrowFunction(f) {
-        return typeof f === 'function' && !_.isPlainObject(f.prototype);
+        return typeof f === 'function' && !isPlainObject(f.prototype);
     },
     isXMLType(o) {
         return /^xml$/.test(typeof o);
@@ -1049,24 +1021,6 @@ module.exports = {
             return _mod;
         }
         throw Error('Cannot locate module "' + file_name + '" for global.requirex()');
-    },
-    /**
-     * @param {number} [millis_min]
-     * @param {number|string} [millis_max]
-     */
-    $$sleep(millis_min, millis_max) {
-        if (typeof millis_max === 'string') {
-            let _matched = millis_max.match(/[+-]?(\d+(\.\d+)?(e\d+)?)/);
-            if (_matched) {
-                let _delta = Number(_matched[0]);
-                millis_max = Math.min(millis_min + _delta, Number.MAX_SAFE_INTEGER);
-                millis_min = Math.max(millis_min - _delta, 0);
-            }
-        }
-        if (typeof millis_max === 'number') {
-            return sleep(millis_min + Math.floor(Math.random() * (millis_max - millis_min + 1)));
-        }
-        return sleep(Math.max(millis_min, 0) || 0);
     },
     $$link: function $$link$iiFe() {
         let _ = {
@@ -1107,7 +1061,7 @@ module.exports = {
     $$cvt: function $$cvt$iiFe() {
         let $ = {
             parse(src, init_unit, options, presets) {
-                let _init = _.isNullish(init_unit) ? {} : {init_unit: init_unit};
+                let _init = isNullish(init_unit) ? {} : {init_unit: init_unit};
                 return $$cvt(src, Object.assign(presets, _init, options));
             },
         };
@@ -1134,11 +1088,11 @@ module.exports = {
                 parseSpace() {
                     this.space = this.options.space;
 
-                    if (_.isNullish(this.space)) {
+                    if (isNullish(this.space)) {
                         this.space = String();
                     }
                     if (this.space === true) {
-                        this.space = '\x20';
+                        this.space = ' ';
                     }
                 },
                 parseUnits() {
@@ -1370,7 +1324,7 @@ module.exports = {
                             t = t.replace(/\d{2}/g, '$&%').split('%').slice(0, -1).map((s, i) => {
                                 return i === 0
                                     ? new Date().getFullYear().toString().slice(0, 2) + s
-                                    : i < 3 ? '/' + s : i === 3 ? '\x20' + s : i < 6 ? ':' + s : s;
+                                    : i < 3 ? '/' + s : i === 3 ? ' ' + s : i < 6 ? ':' + s : s;
                             }).join('');
                         } else if (t.length === 14) {
                             // taken as full date and full time
@@ -1378,7 +1332,7 @@ module.exports = {
                             t = t.replace(/\d{2}/g, '$&%').split('%').slice(0, -1).map((s, i) => {
                                 return i > 1 && i < 4
                                     ? '/' + s : i === 4
-                                        ? '\x20' + s : i > 4 && i < 7
+                                        ? ' ' + s : i > 4 && i < 7
                                             ? ':' + s : s;
                             }).join('');
                         }
@@ -1454,64 +1408,6 @@ module.exports = {
 
         return $$cvt;
     }(),
-    $$toast: function $$toast$iiFe() {
-        let $ = {
-            toast: null,
-            parseIsLong(is_long) {
-                if (typeof is_long === 'number') {
-                    return Number(!!is_long);
-                }
-                if (typeof is_long === 'string') {
-                    return Number(/^l(ong)?$/i.test(is_long));
-                }
-                if (typeof is_long === 'boolean') {
-                    return Number(is_long);
-                }
-                return 0;
-            },
-            /** @param {IArguments} args */
-            init(args) {
-                let [msg, is_long, is_forcible] = args;
-                this.message = _.isNullish(msg) ? '' : msg.toString();
-                this.is_long = this.parseIsLong(is_long);
-                this.is_forcible = is_forcible;
-            },
-            post() {
-                ui.post(() => {
-                    new android.os.Handler(Looper.getMainLooper()).post(new Runnable({
-                        run: () => {
-                            this.is_forcible && this.dismiss();
-                            this.toast = Toast.makeText(context, this.message, this.is_long);
-                            this.show();
-                        },
-                    }));
-                });
-            },
-            dismiss() {
-                if (this.toast instanceof Toast) {
-                    this.toast.cancel();
-                    this.toast = null;
-                }
-            },
-            show() {
-                this.toast.show();
-            },
-        };
-
-        /**
-         * @param {$$Toast.Message} [msg='']
-         * @param {$$Toast.IsLong} [is_long=false]
-         * @param {$$Toast.IsForcible} [is_forcible=false]
-         */
-        let $$toast = function (msg, is_long, is_forcible) {
-            $.init(arguments);
-            $.post();
-        };
-
-        $$toast.dismiss = () => $.dismiss();
-
-        return $$toast;
-    }(),
     $$impeded: function $$impeded$iiFe() {
         let _ = {
             events_counter: 0,
@@ -1579,214 +1475,7 @@ module.exports = {
 
         return $$impeded;
     }(),
-    $polyfill() {
-        let $ = {
-            // @ThisPended
-            getPadStr(target_len, pad_str) {
-                let $ = {
-                    tar_len: Number(target_len),
-                    str_len: this.length,
-                    trigger() {
-                        return this.tar_len > this.str_len;
-                    },
-                    getPad() {
-                        let _pad_str = pad_str === undefined ? '\x20' : String(pad_str);
-                        let _gap = this.tar_len - this.str_len;
-                        let _times = Math.ceil(_gap / _pad_str.length);
-                        return _pad_str.repeat(_times).slice(0, _gap);
-                    },
-                    getResult() {
-                        return this.trigger() ? this.getPad() : String();
-                    },
-                };
-                return $.getResult();
-            },
-        };
-
-        if (!String.prototype.padStart) {
-            /**
-             * Pads the current string with a given string to reach a given length (left padding).
-             * @function String.prototype.padStart
-             * @param {number} target_len
-             * @param {string|number} [pad_str='\x20']
-             * @return {string}
-             */
-            Object.defineProperty(String.prototype, 'padStart', {
-                value(target_len, pad_str) {
-                    return $.getPadStr.apply(this, arguments) + this.valueOf();
-                },
-            });
-        }
-        if (!String.prototype.padEnd) {
-            Object.defineProperty(String.prototype, 'padEnd', {
-                /**
-                 * Pads the current string with a given string to reach a given length (right padding).
-                 * @function String.prototype.padEnd
-                 * @param {number} target_len
-                 * @param {string|number} [pad_str='\x20']
-                 * @return {string}
-                 */
-                value(target_len, pad_str) {
-                    return this.valueOf() + $.getPadStr.apply(this, arguments);
-                },
-            });
-        }
-        if (!String.prototype.trimStart) {
-            Object.defineProperty(String.prototype, 'trimStart', {
-                /**
-                 * Removes the leading white space and line terminator characters from a string.
-                 * @function String.prototype.trimStart
-                 * @return {string}
-                 */
-                value() {
-                    return String.prototype.trimLeft.apply(this, arguments);
-                },
-            });
-        }
-        if (!String.prototype.trimEnd) {
-            Object.defineProperty(String.prototype, 'trimEnd', {
-                /**
-                 * Removes the trailing white space and line terminator characters from a string.
-                 * @function String.prototype.trimEnd
-                 * @return {string}
-                 */
-                value() {
-                    return String.prototype.trimRight.apply(this, arguments);
-                },
-            });
-        }
-
-        if (!Object.values) {
-            /**
-             * @param {Iterable|Object} o
-             * @return {*[]}
-             */
-            Object.values = function (o) {
-                if (o[Symbol['iterator']] !== undefined) {
-                    let _res = [];
-                    for (let v of o) {
-                        _res.push(v);
-                    }
-                    return _res;
-                }
-                return Object.keys(o).map(k => o[k]);
-            };
-        }
-        if (!Object.getOwnPropertyDescriptors) {
-            /**
-             * @param {Object} o
-             * @return {Object.<string,PropertyDescriptor>} <!-- or {PropertyDescriptorMap} -->
-             */
-            Object.getOwnPropertyDescriptors = function (o) {
-                let _descriptor = {};
-                Object.getOwnPropertyNames(o).forEach((k) => {
-                    _descriptor[k] = Object.getOwnPropertyDescriptor(o, k);
-                });
-                return _descriptor;
-            };
-        }
-
-        if (!Array.from) {
-            // code from polyfill on the web page below
-            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/from
-            // modified by SuperMonster003 at Sep 21, 2020
-            Array.from = function (arrayLike, mapFn, thisArg) {
-                let isFunc = f => typeof f === 'function';
-                let toInt = v => isNaN(Number(v)) ? 0 : Math.trunc(v);
-                let items = Object(arrayLike);
-                if (_.isNullish(arrayLike)) {
-                    throw TypeError('arrayLike of Array.from must be an array-like object');
-                }
-                if (mapFn !== undefined && !isFunc(mapFn)) {
-                    throw TypeError('mapFn of Array.from must be a function or undefined');
-                }
-                let len = Math.min(Math.max(toInt(items.length), 0), Number.MAX_SAFE_INTEGER);
-                let arr = isFunc(this) ? Object(new this(len)) : new Array(len);
-                let self = thisArg === undefined ? this : thisArg;
-                for (let i = 0; i < len; i += 1) {
-                    arr[i] = mapFn ? mapFn.call(self, items[i], i) : items[i];
-                }
-                arr.length = len;
-                return arr;
-            };
-        }
-        if (!Array.prototype.includes) {
-            Object.defineProperty(Array.prototype, 'includes', {
-                value(x, i) {
-                    return this.slice(i).some((v) => {
-                        if (typeof x !== 'undefined') {
-                            return Number.isNaN(x) ? Number.isNaN(v) : x === v;
-                        }
-                    });
-                },
-            });
-        }
-        if (!Array.prototype.fill) {
-            Object.defineProperty(Array.prototype, 'fill', {
-                value(v, start, end) {
-                    let _len = this.length;
-                    let _a = start >> 0;
-                    _a = _a < 0 ? _a + _len : _a > _len ? _len : _a;
-                    let _b = end === undefined ? _len : end >> 0;
-                    _b = _b < 0 ? _b + _len : _b > _len ? _len : _b;
-                    for (let i = _a; i < _b; i += 1) {
-                        this[i] = v;
-                    }
-                    return this;
-                },
-            });
-        }
-        if (!Array.prototype.flat) {
-            Object.defineProperty(Array.prototype, 'flat', {
-                value(depth) {
-                    return (function _flat(arr, d) {
-                        return d <= 0 ? arr : arr.reduce((a, b) => {
-                            return a.concat(Array.isArray(b) ? _flat(b, d - 1) : b);
-                        }, []);
-                    })(this.slice(), depth || 1);
-                },
-            });
-        }
-        if (!Array.prototype.keys) {
-            /** @return {IterableIterator<number>} */
-            Array.prototype.keys = function () {
-                let _it_keys = this.map((v, i) => i)[Symbol.iterator];
-                return _it_keys();
-            };
-        }
-        if (!Array.prototype.values) {
-            // noinspection JSCheckFunctionSignatures
-            /** @return {IterableIterator<any>} */
-            Array.prototype.values = function () {
-                return this[Symbol.iterator]();
-            };
-        }
-        if (!Array.prototype.entries) {
-            /** @return {IterableIterator<[number,any]>} */
-            Array.prototype.entries = function () {
-                let _it_entries = this.map((v, i) => [i, v])[Symbol.iterator];
-                return _it_entries();
-            };
-        }
-
-        if (!Number.isInteger) {
-            /**
-             * @param {any} o
-             * @return {boolean}
-             */
-            Number.isInteger = function (o) {
-                return typeof o === 'number' && isFinite(o) && (o | 0) === o;
-            };
-        }
-        if (!Number.EPSILON) {
-            Number.EPSILON = Math.pow(2, -52);
-        }
-
-        delete this.$polyfill;
-        return this;
-    },
     $bind() {
-        this.$polyfill();
         Object.keys(ext).forEach(k => ext[k]());
 
         delete this.$bind;

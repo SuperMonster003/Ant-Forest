@@ -3,7 +3,6 @@ let {project} = require('./mod-project');
 let {threadsx} = require('./ext-threads');
 let {dialogsx} = require('./ext-dialogs');
 
-/** @type {Plugin$Exportation} */
 let _export = {
     dialog: _getDiagWelcome(),
     view: null,
@@ -51,7 +50,7 @@ function _showDiagAboutProj() {
             '控制台消息提示', '自动解锁屏幕', '定时任务与循环监测', '多任务自动排队',
             '脚本运行安全', '事件监测与处理', '黑名单机制', '项目管理', '账户功能',
             '统计功能', '图形化配置工具',
-        ].map(s => '·\x20' + s).join('\n') + '\n\n' +
+        ].map(s => '· ' + s).join('\n') + '\n\n' +
         '- 项目作者 -' + '\n' + '· SuperMonster003' + '\n\n' +
         '- 项目链接 -' + '\n' + '· https://github.com/SuperMonster003/Ant-Forest',
         0, 0, '返回', 1,
@@ -173,13 +172,13 @@ function _deployVersion(version) {
 
                     dialogsx
                         .builds(['项目使用声明', ['代码完全公开', '杜绝恶意代码', '项目永久免费', '欢迎提议反馈', '',
-                            '如需获知项目启动方式', '可点击"了解更多"按钮'].map(s => s && '·\x20' + s).join('\n'),
+                            '如需获知项目启动方式', '可点击"了解更多"按钮'].map(s => s && '· ' + s).join('\n'),
                             ['T', 'hint'], 0, ['完成部署', 'finish'], 1])
                         .on('neutral', () => dialogsx
                             .builds(['项目启动方式', '以下方式可用于启动项目:' + '\n' + [
                                 'ant-forest-launcher运行按钮',
                                 '目录顶部的项目运行按钮 (如有)',
-                                '创建并使用桌面快捷方式'].map(s => s && '·\x20' + s).join('\n'),
+                                '创建并使用桌面快捷方式'].map(s => s && '· ' + s).join('\n'),
                                 ['立即运行项目', 'attraction'], ['B', 'default_aj_4'], ['完成部署', 'finish'], 1])
                             .on('neutral', _runNow)
                             .on('negative', ds => ds.dismiss())

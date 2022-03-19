@@ -1,6 +1,5 @@
 let {dialogsx} = require('./ext-dialogs');
 
-/** @type {Plugin$Exportation} */
 let _export = {
     dialog: null,
     view: null,

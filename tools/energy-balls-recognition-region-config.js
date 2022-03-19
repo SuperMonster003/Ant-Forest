@@ -10,7 +10,7 @@ let [_l, _t, _r, _b] = _rect;
 let $_sto = storagesx.create('af_cfg');
 let _o = {
     rect: _rect,
-    af_rect: $_sto.get('config', {}).eballs_recognition_region
+    af_rect: $_sto.get('config', {}).energyBallsRecognitionRegion
         .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true)),
     seekbar: [
         {title: '左', range: [_l - _dx, _l + _dx, _l]},
@@ -48,7 +48,7 @@ function _setHint() {
     let [_l, _t, _r, _b] = _sess_rect;
     let _rect_text = [[_l, _t], [_r, _b]]
         .map(a => a.join(' , ')).join('  -  ');
-    _win_ctrl.hint.text('Rect  [ ' + _rect_text + '\x20]\x20');
+    _win_ctrl.hint.text('Rect  [ ' + _rect_text + ' ] ');
 }
 
 function _setWinCtrl() {
@@ -95,7 +95,7 @@ function _setWinCtrl() {
                 d.dismiss();
 
                 $_sto.put('config', {
-                    eballs_recognition_region: _sess_rect
+                    energyBallsRecognitionRegion: _sess_rect
                         .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true)),
                 });
 
@@ -201,7 +201,7 @@ function _setSeekbar(opt, idx) {
     new_view['_seekbar'].setProgress(init - min);
 
     let update = (src) => {
-        let _s = (title ? title + ':\x20' : '') + src.toString() + (unit ? '\x20' + unit : '');
+        let _s = (title ? title + ': ' : '') + src.toString() + (unit ? ' ' + unit : '');
         return new_view['_text'].setText(_s);
     };
 

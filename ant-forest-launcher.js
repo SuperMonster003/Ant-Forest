@@ -7,15 +7,16 @@
  */
 
 let {
-    $$toast, $$und, $$obj, $$arr, $$cvt, $$bool, $$func,
-    $$num, $$sleep, $$impeded, $$str, $$link, isNullish,
+    $$und, $$obj, $$arr, $$cvt, $$bool, $$func,
+    $$num, $$impeded, $$str, $$link,
 } = require('./modules/mod-global');
 let {uix} = require('./modules/ext-ui');
 let {appx} = require('./modules/ext-app');
 let {db} = require('./modules/mod-database');
-let {filesx} = require('./modules/ext-files');
+let {afrst} = require('./modules/mod-ant-forest');
 let {alipay} = require('./modules/mod-alipay');
 let {autojs} = require('./modules/mod-autojs');
+let {filesx} = require('./modules/ext-files');
 let {cryptox} = require('./modules/ext-crypto');
 let {imagesx} = require('./modules/ext-images');
 let {timersx} = require('./modules/ext-timers');
@@ -35,9 +36,9 @@ let $$init = {
     check() {
         devicex.ensureSdkInt();
         autojs.ensureVersion();
-        appx.checkAlipayPackage();
-        appx.checkScreenOffTimeout();
-        appx.checkAccessibility();
+        alipay.ensureAppInstalled();
+        a11yx.ensureSvcAndFunc();
+        devicex.checkScreenOffTimeout();
 
         return $$init;
     },
@@ -48,7 +49,7 @@ let $$init = {
 
         consolex.__();
         consolex._('开发者测试日志已启用', 0, 0, -2);
-        consolex._('设备型号: ' + device.brand + '\x20' + device.product);
+        consolex._('设备型号: ' + device.brand + ' ' + device.product);
 
         $$disp.debug();
 
@@ -82,7 +83,7 @@ let $$init = {
                 rl_title: String.unEsc('2615FE0F0020597D53CB6392884C699C'),
                 task_name: String.unEsc('8682868168EE6797').surround('"'),
                 autojs_name: autojs.getAppName(),
-                autojs_pkg: autojs.getPkgName(),
+                autojs_pkg: autojs.getPackageName(),
                 autojs_ver_name: autojs.getVerName(),
                 project_ver_name: project.getLocalVerName(),
                 init_scr_on: devicex.is_init_screen_on,
@@ -218,8 +219,8 @@ let $$init = {
 
             let _e_argv = $$app.engines_exec_argv;
             if (Object.size(_e_argv, {exclude: 'intent'}) > 0) {
-                if (!$$und(_e_argv.is_debug)) {
-                    $$flag.show_debug_info = Boolean(_e_argv.is_debug);
+                if (!$$und(_e_argv.isDebug)) {
+                    $$flag.show_debug_info = Boolean(_e_argv.isDebug);
                 }
                 if ($$und(_e_argv.is_instant_running)) {
                     _e_argv.is_instant_running = true;
@@ -549,7 +550,7 @@ let $$init = {
                                                 }
 
                                                 function _orientation() {
-                                                    if ($$disp.is_display_rotation_landscape) {
+                                                    if ($$disp.is_rotation_landscape) {
                                                         if ($$flag.show_energy_result && $$flag.show_floaty_result) {
                                                             consolex.$([
                                                                 '当前设备屏幕为水平显示方向',
@@ -560,7 +561,7 @@ let $$init = {
                                                         consolex._('重新获取当前设备屏幕显示信息');
                                                         $$disp.refresh();
                                                     }
-                                                    return $$disp.is_display_rotation_portrait;
+                                                    return $$disp.is_rotation_portrait;
                                                 }
 
                                                 function _optional() {
@@ -764,7 +765,7 @@ let $$init = {
                                     let _aj_name = $$app.autojs_name;
                                     let _res = appx.launch($$app.autojs_pkg, {
                                         app_name: _aj_name,
-                                        is_debug: false,
+                                        isDebug: false,
                                         condition_ready() {
                                             return $$app.page.autojs.is_fg;
                                         },
@@ -790,7 +791,7 @@ let $$init = {
                                         return _checkInitState();
                                     }
                                     // language=JS
-                                    consolex._('`等待返回${$$app.autojs_name}应用页面超时`'.ts);
+                                    consolex._(`等待返回${$$app.autojs_name}应用页面超时`);
 
                                     // tool function(s) //
 
@@ -866,7 +867,7 @@ let $$init = {
                             },
                             close() {
                                 consolex._('关闭支付宝');
-                                if (appx.kill(alipay.package_name, {
+                                if (appx.close(alipay.package_name, {
                                     shell_acceptable: $$app.has_root && $$app.root_fxs.force_stop,
                                 })) {
                                     consolex._('支付宝关闭完毕');
@@ -1083,9 +1084,9 @@ let $$init = {
                                 $$app.monitor.reload_btn.interrupt();
                                 return _max > 0 || consolex.$('进入好友森林超时', 3, 1);
                             },
-                            pool: new imagesx.ForestImagePool({
-                                interval: $$cfg.forest_image_pool_itv,
-                                limit: $$cfg.forest_image_pool_limit,
+                            pool: new afrst.ForestImagePool({
+                                interval: $$cfg.forestImagePoolItv,
+                                limit: $$cfg.forestImagePoolLimit,
                             }),
                             cover: {
                                 ready() {
@@ -1106,7 +1107,7 @@ let $$init = {
                                         consolex._('可供分析的能量罩样本数量: ' + _pool.len);
                                     }
 
-                                    if (!_pool.filled_up) {
+                                    if (!_pool.isFilledUp()) {
                                         consolex._('能量罩样本数量不足');
                                         let _max_fill = 12;
                                         while (1) {
@@ -1120,7 +1121,7 @@ let $$init = {
                                                 consolex._('现场采集能量罩样本数据');
                                                 return _pool.add();
                                             }
-                                            if (_pool.filled_up) {
+                                            if (_pool.isFilledUp()) {
                                                 consolex._('能量罩样本数据充足');
                                                 return;
                                             }
@@ -1243,10 +1244,10 @@ let $$init = {
                                     text: '#DCEDC8',
                                 },
                             },
-                            xml: <vertical id="view">
+                            xml: <vertical id="view" gravity="center">
                                 <x-img id="img" src="@drawable/ic_alarm_on_black_48dp"
                                        bg="?selectableItemBackgroundBorderless"
-                                       marginBottom="5" height="66" gravity="center"/>
+                                       marginBottom="5" height="66"/>
                                 <x-text id="text" size="17" marginBottom="8" gravity="center"
                                         fontFamily="sans-serif-condensed" line_spacing="5cx"/>
                             </vertical>,
@@ -1321,14 +1322,14 @@ let $$init = {
                                     let _now = new Date();
                                     let _today_0h_ts = new Date(_now.toLocaleDateString()).getTime();
                                     let _aim_sign = _aim_ts >= _today_0h_ts + _day_ms ? '+' : '=';
-                                    return _aim_sign + '\x20' + _aim_str + '\x20' + _aim_sign;
+                                    return _aim_sign + ' ' + _aim_str + ' ' + _aim_sign;
                                 };
 
                                 let _getCtdStr = () => {
                                     let _ctd_sign = '-';
                                     let _gap_ts = _aim_ts - $$app.ts;
                                     _ctd_str = _tsToTime(Math.max(_gap_ts, 0), 'GAP');
-                                    return _ctd_sign + '\x20' + _ctd_str + '\x20' + _ctd_sign;
+                                    return _ctd_sign + ' ' + _ctd_str + ' ' + _ctd_sign;
                                 };
 
                                 let _setText = () => {
@@ -1538,7 +1539,7 @@ let $$init = {
                                         consolex.$('建议改用Toast方式显示收取结果', 3);
                                     });
                                     try {
-                                        _w.setText('- ' + _n + ' -');
+                                        ui.post(() => _w.setText('- ' + _n + ' -'));
                                         _n-- || _fin(() => {
                                             consolex._('Floaty倒计时结束');
                                             consolex._('统计结果展示完毕');
@@ -1646,7 +1647,7 @@ let $$init = {
                                         let _new = {};
                                         _new[_k] = $$cfg[_k].concat([_newest_ver]);
                                         storagesx.af_cfg.put('config', _new);
-                                        $$toast('已忽略当前版本', 'long');
+                                        toast('已忽略当前版本', 'long');
                                         delete $$flag.update_dialog_uphold;
                                     }).show();
                                 }).on('negative', (d) => {
@@ -1874,7 +1875,7 @@ let $$init = {
                                     alipay.startApp('account_manager');
                                 },
                                 pipeline() {
-                                    $$app.page.alipay.home({is_debug: false});
+                                    $$app.page.alipay.home({isDebug: false});
 
                                     return a11yx.pipeline('账号切换页面', [
                                         ['我的', 'p1'],
@@ -1906,7 +1907,7 @@ let $$init = {
                                 a11yx.wait(_sltr, 2e3, 80); // just in case
                                 sleep(240);
 
-                                // current logged in user abbr (with a list arrow)
+                                // current logged-in user abbr (with a list arrow)
                                 let _cur_abbr = $$sel.pickup([_sltr, 's-1'], 'txt');
                                 // abbr of param 'name_str'
                                 let _name_abbr = this.getAbbrFromList(name_str);
@@ -2652,7 +2653,7 @@ let $$init = {
                             _path: filesx['.local']('images', 'avt-main-user-clip.png'),
                             _isTotalGreen(img) {
                                 let _img = imagesx.compress(img, 2);
-                                let _pts = imagesx.findAllPointsForColor(_img, '#30BF6C', {
+                                let _pts = images.findAllPointsForColor(_img, '#30BF6C', {
                                     threshold: 50,
                                 });
                                 let _res = _pts.length > _img.height * _img.width * 0.98;
@@ -2866,7 +2867,7 @@ let $$init = {
                         } catch (e) {
                             // Wrapped java.util.ConcurrentModificationException
                             // exception happens with a tiny possibility
-                            $$sleep(30, 80);
+                            sleep(30, 80);
                         }
                     }
                 },
@@ -2888,7 +2889,7 @@ let $$init = {
                         } catch (e) {
                             // Wrapped java.util.ConcurrentModificationException
                             // exception happens with a small possibility
-                            $$sleep(20, 50);
+                            sleep(20, 50);
                         }
                     }
                 },
@@ -2901,7 +2902,7 @@ let $$init = {
                         } catch (e) {
                             // Wrapped java.util.ConcurrentModificationException
                             // exception happens with a small possibility
-                            $$sleep(20, 50);
+                            sleep(20, 50);
                         }
                     }
                 },
@@ -2960,7 +2961,7 @@ let $$init = {
                             consolex._('强制停止队前所有排他性任务');
                             consolex._('已达最大排队等待时间');
                         }
-                        $$sleep(1e3, '±500');
+                        sleep(1e3, '±500');
                     }
 
                     consolex.debug.__('solid', 1);
@@ -3129,7 +3130,7 @@ let $$init = {
                     if (_ids.length) {
                         _ids.forEach(id => timersx.removeTimedTask(id, task_options));
                         consolex._(['已移除意外保险定时任务:', '任务ID: ' + (
-                            _ids.length > 1 ? '[\x20' + _ids.join(', ') + ']\x20' : _ids[0]
+                            _ids.length > 1 ? '[ ' + _ids.join(', ') + '] ' : _ids[0]
                         )]);
                     }
 
@@ -3218,7 +3219,7 @@ let $$init = {
                         let _keyMsg = (e) => {
                             let _code = e.getKeyCode();
                             return android.view.KeyEvent.keyCodeToString(_code) +
-                                '\x20' + _code.toString().surround('()');
+                                ' ' + _code.toString().surround('()');
                         };
                         events.observeKey();
                         events.setKeyInterceptionEnabled('volume_down', true);
@@ -3373,12 +3374,12 @@ let $$init = {
                                 let _delay = 2;
                                 setTimeout(() => {
                                     let _t = Math.ceil(devicex.getNextAlarmClockTriggerGap() / 1e3);
-                                    $$toast('闹钟即将在 ' + (_t - _delay) + ' 秒内触发', 'L', 'F');
+                                    toast('闹钟即将在 ' + (_t - _delay) + ' 秒内触发', 'L', 'F');
                                 }, _delay * 1e3);
                             }
                         },
                         _msgTriggered() {
-                            $$toast('支付宝界面前置时\n脚本将自动继续', 'L', 'F');
+                            toast('支付宝界面前置时\n脚本将自动继续', 'L', 'F');
                         },
                         trigger() {
                             return devicex.isNextAlarmClockTriggered(this._thrd);
@@ -3395,7 +3396,7 @@ let $$init = {
                             }
                         },
                         onRelease() {
-                            $$toast('闹钟事件已解除', 'S', 'F');
+                            toast('闹钟事件已解除', 'S', 'F');
                         },
                     },
                 },
@@ -3489,7 +3490,7 @@ let $$init = {
                                         if (timersx.rec.gt('glob_e' + _desc, _limit)) {
                                             let _msg = '强制停止' + $$app.task_name + '任务';
                                             let _rsn = _desc + '事件解除超时';
-                                            $$toast(_msg + '\n' + _rsn, 'L', 'F');
+                                            toast(_msg + '\n' + _rsn, 'L', 'F');
                                             consolex.$([_msg, _rsn], 8, 4, 0, 2);
                                         }
                                         sleep(240);
@@ -3667,7 +3668,7 @@ let $$init = {
                 }),
                 rl_in_page: new Monitor('排行榜页面', function () {
                     while (1) {
-                        $$sel.cache.refresh('rl_title'); // including `save()
+                        $$sel.cache.refresh('rl_title'); // including `save()`
                         $$flag.rl_in_page = $$sel.cache.load('rl_title');
                         sleep(120);
                     }
@@ -3750,8 +3751,10 @@ let $$init = {
                     }
 
                     function _signal() {
-                        consolex._('发送排行榜停检信号');
-                        $$flag.rl_bottom_rch = true;
+                        if (!$$flag.rl_bottom_rch) {
+                            consolex._('发送排行榜停检信号');
+                            $$flag.rl_bottom_rch = true;
+                        }
                     }
                 }),
                 tree_rainbow: new Monitor('彩虹对话框', function () {
@@ -3980,7 +3983,7 @@ let $$init = {
                                 .builds(['设置任务推迟时间', '',
                                     0, 'B', ['K', 'warn'],
                                     1, '记住设置且不再提示'], {
-                                    items: _minutes.map(x => x > 0 ? x + '\x20min' : {
+                                    items: _minutes.map(x => x > 0 ? x + ' min' : {
                                         '-1': '息屏时',
                                     }[x]),
                                     itemsSelectMode: 'single',
@@ -4007,7 +4010,7 @@ let $$init = {
                                 d.dismiss();
                                 $$app.tidy(0);
                                 // language=JS
-                                consolex.$('`放弃${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+                                consolex.$(`放弃${$$app.task_name}任务`, 1, 1, 0, 2);
                                 exit();
                             };
 
@@ -4016,7 +4019,7 @@ let $$init = {
                             }
                             dialogsx.builds((function $iiFe() {
                                 // language=JS
-                                let _z = '`当前未设置任何${$$app.task_name}定时任务\n\n`'.ts;
+                                let _z = `当前未设置任何${$$app.task_name}定时任务\n\n`;
                                 let _q = '确认要放弃本次任务吗';
                                 let [_title, _cnt] = timersx.queryTimedTasks({path: $$app.cwp})
                                     .filter(task => task.id !== $$app.monitor.insurance.id).length
@@ -4231,7 +4234,7 @@ let $$af = {
     _launcher: {
         greet() {
             // language=JS
-            consolex.$('`开始${$$app.task_name}任务`'.ts, 1, 1, 0, 2);
+            consolex.$(`开始${$$app.task_name}任务`, 1, 1, 0, 2);
 
             return this;
         },
@@ -4342,18 +4345,19 @@ let $$af = {
                         this.ignored.reset();
                     },
                 },
-                /** @type {Imagesx.EnergyBall.AFResult} */
+                /** @type {AntForest.EnergyBall.Result} */
                 home_balls_info: {},
                 /**
-                 * @param {Imagesx.EnergyBall.Type|'all'} [type]
-                 * @param {Imagesx.EnergyBall.Info.Options} [options]
-                 * @return {Imagesx.EnergyBall.Infos}
+                 * @param {AntForest.EnergyBall.Type|'all'} [type]
+                 * @param {AntForest.EnergyBall.Info.Options} [options]
+                 * @return {AntForest.EnergyBall.Balls}
                  */
                 eballs(type, options) {
                     let _opt = options || {};
                     if (!(_opt.is_cache && Object.size(this.home_balls_info) > 0)) {
-                        this.home_balls_info = imagesx.findAFBallsByHough({
-                            is_debug: _opt.is_debug,
+                        this.home_balls_info = afrst.findEnergyBalls({
+                            isDebug: _opt.isDebug,
+                            config: $$cfg,
                         });
                     }
                     return !type || type === 'all'
@@ -4657,7 +4661,7 @@ let $$af = {
                                     let [_hh, _mm] = _t_str.split(':').map(x => +x);
                                     let _m = _hh * 60 + _mm;
 
-                                    consolex._('[ ' + _t_str + ' ] -> ' + _m + '\x20min');
+                                    consolex._('[ ' + _t_str + ' ] -> ' + _m + ' min');
 
                                     return _t_spot + _m * 60e3;
                                 }).filter(isFinite);
@@ -4669,7 +4673,7 @@ let $$af = {
 
                                     let _capt = imagesx.capt();
 
-                                    let [_cl, _ct, _cr, _cb] = $$cfg.eballs_recognition_region
+                                    let [_cl, _ct, _cr, _cb] = $$cfg.energyBallsRecognitionRegion
                                         .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
                                     let _clip = images.clip(_capt, _cl, _ct, _cr - _cl, _cb - _ct);
 
@@ -4684,9 +4688,9 @@ let $$af = {
                                     })();
 
                                     let _raw_data = imagesx.baiduOcr(_stitched, {
-                                        fetch_times: 3,
-                                        fetch_interval: 500,
-                                        no_toast_msg_flag: true,
+                                        fetchTimes: 3,
+                                        fetchInterval: 500,
+                                        isToast: false,
                                         capt_img: _clip,
                                     });
 
@@ -4767,7 +4771,7 @@ let $$af = {
                             let _msg_start = '开始监测自己能量';
                             let _max_ts = $$af.min_ctd.own.value + 3e3;
                             let _max_mm = (_max_ts - $$app.ts) / 60e3;
-                            $$toast(_msg_start, 'long');
+                            toast(_msg_start, 'long');
                             consolex._(_msg_start);
                             consolex._('最大超时时间: ' + _max_mm.toFixedNum(2) + '分钟');
                             timersx.rec.save('monitor_own');
@@ -4781,7 +4785,7 @@ let $$af = {
                                 if ($$flag.af_home_in_page) {
                                     // ripe balls recognition will be performed
                                     // in some fixed area(s) without new captures
-                                    let _opt = {is_fixed: true, is_debug: false};
+                                    let _opt = {is_fixed: true, isDebug: false};
                                     if (_getAndCollectRipeBalls(_opt)) {
                                         $$flag.monitor_home_ripe_captured = true;
                                         break;
@@ -4795,7 +4799,7 @@ let $$af = {
                                 } else {
                                     consolex.$(['等待主页能量球成熟超时', '尝试点击全部能量球'], 3, 0, 0, -2);
                                     let _nor_balls = $$af.eballs('naught', {is_cache: true});
-                                    _collectRipeBalls(_nor_balls, {is_debug: false});
+                                    _collectRipeBalls(_nor_balls, {isDebug: false});
                                 }
                             }
 
@@ -4807,7 +4811,7 @@ let $$af = {
                             $$af.home_balls_info = {};
 
                             let _msg_fin = '自己能量监测完毕';
-                            $$toast(_msg_fin, 'long');
+                            toast(_msg_fin, 'long');
                             consolex._(_msg_fin);
                             consolex._('本次监测收取结果: ' + ($$af.emount_c_own - _old_em) + 'g');
                             consolex._('监测用时: ' + $$cvt.time(timersx.rec('monitor_own'), '$zh'));
@@ -4870,8 +4874,7 @@ let $$af = {
                             let _is_continue = false;
                             let _is_detected = false;
                             let _getWballsByCachedPos = () => {
-                                let _capt = imagesx.capt();
-                                return _wb_cache.filter(o => imagesx.isWaterBall(o, _capt));
+                                return _wb_cache.filter(o => afrst.isWaterBall(o));
                             };
 
                             do {
@@ -4889,7 +4892,7 @@ let $$af = {
                                         _is_continue = true;
                                         _is_detected |= true;
                                         _wballs.forEach(_fetch);
-                                        $$sleep(_t_spot + 300 - Date.now());
+                                        sleep(_t_spot + 300 - Date.now());
                                         break;
                                     }
                                     _is_continue = false;
@@ -4910,7 +4913,7 @@ let $$af = {
                                 _lmt.shrink();
                                 consolex._(['浇水回赠能量球点击超时', '可能是能量球误匹配']);
                             }
-                            $$sleep(300 - timersx.rec('fetch_wballs'));
+                            sleep(300 - timersx.rec('fetch_wballs'));
                         }
                     }
 
@@ -4919,8 +4922,8 @@ let $$af = {
                     }
 
                     /**
-                     * @param {Imagesx.EnergyBall.Infos|Imagesx.EnergyBall.Info.Options} [balls]
-                     * @param {Imagesx.EnergyBall.Info.Options} [options]
+                     * @param {AntForest.EnergyBall.Balls|AntForest.EnergyBall.Info.Options} [balls]
+                     * @param {AntForest.EnergyBall.Info.Options} [options]
                      */
                     function _collectRipeBalls(balls, options) {
                         if ($$obj(balls)) {
@@ -4932,10 +4935,10 @@ let $$af = {
                         }
                         let _opt = options || {};
                         let _noRipeBalls = () => {
-                            return !_getRipeBallsData({is_debug: false}).length;
+                            return !_getRipeBallsData({isDebug: false}).length;
                         };
 
-                        let _debug = (m, lv) => _opt.is_debug === false || consolex._(m, lv);
+                        let _debug = (m, lv) => _opt.isDebug === false || consolex._(m, lv);
 
                         let _itv = $$cfg.forest_balls_click_interval;
                         let _du = $$cfg.forest_balls_click_duration;
@@ -4957,17 +4960,17 @@ let $$af = {
                     }
 
                     /**
-                     * @param {Imagesx.EnergyBall.Info.Options} [options]
-                     * @return {Imagesx.EnergyBall.Infos}
+                     * @param {AntForest.EnergyBall.Info.Options} [options]
+                     * @return {AntForest.EnergyBall.Balls}
                      */
                     function _getRipeBallsData(options) {
                         let _o = options || {};
                         /**
-                         * @param {Imagesx.EnergyBall.Info.Options} [o]
-                         * @return {Imagesx.EnergyBall.Info.Options}
+                         * @param {AntForest.EnergyBall.Info.Options} [o]
+                         * @return {AntForest.EnergyBall.Info.Options}
                          */
                         let _wrapOpt = o => Object.assign({
-                            is_debug: _o.is_debug,
+                            isDebug: _o.isDebug,
                         }, o);
                         let _ = {
                             cache: () => $$af.eballs('ripe', _wrapOpt({is_cache: true})),
@@ -4981,7 +4984,7 @@ let $$af = {
                                 let _res = [];
                                 if (_cache.length) {
                                     let _capt = imagesx.capt();
-                                    _cache.forEach(o => imagesx.isRipeBall(o, _capt, _res));
+                                    _cache.forEach(o => afrst.isRipeBall(o, {capt: _capt, container: _res}));
                                 }
                                 return _res;
                             },
@@ -4990,7 +4993,7 @@ let $$af = {
                     }
 
                     /**
-                     * @param {Imagesx.EnergyBall.Info.Options} [options]
+                     * @param {AntForest.EnergyBall.Info.Options} [options]
                      * @return {boolean}
                      */
                     function _getAndCollectRipeBalls(options) {
@@ -5149,8 +5152,9 @@ let $$af = {
                         $$app.page.fri.pool.clear();
                         _fri.eballs.reset();
 
-                        Object.assign(_fri.eballs, imagesx.findAFBallsByHough({
+                        Object.assign(_fri.eballs, afrst.findEnergyBalls({
                             pool: $$app.page.fri.pool,
+                            config: $$cfg,
                         })).duration.debug();
                         delete _fri.eballs.duration;
                     });
@@ -5168,11 +5172,11 @@ let $$af = {
             /** @type {FriTar[]} */
             targets: [],
             eballs: {
-                /** @type {Imagesx.EnergyBall.Infos} */
+                /** @type {AntForest.EnergyBall.Balls} */
                 ripe: [],
-                /** @type {Imagesx.EnergyBall.Infos} */
+                /** @type {AntForest.EnergyBall.Balls} */
                 naught: [],
-                /** @type {Imagesx.EnergyBall.Infos} */
+                /** @type {AntForest.EnergyBall.Balls} */
                 water: [],
                 get length() {
                     return this.ripe.length + this.naught.length;
@@ -5272,12 +5276,12 @@ let $$af = {
 
                                     // from E6683
                                     for (let i = 16; i <= 24; i += (4 / 3)) {
-                                        _mult.push([cX(i), cY(i - 6, -1), -1]);
+                                        _mult.push([cX(i), cY(i - 6), -1]);
                                     }
 
                                     // from E6683
                                     for (let i = 16; i <= 24; i += (8 / 3)) {
-                                        _mult.push([cX(i), cY(i / 2 + 16, -1), -1]);
+                                        _mult.push([cX(i), cY(i / 2 + 16), -1]);
                                     }
 
                                     return _mult;
@@ -5499,7 +5503,7 @@ let $$af = {
                                         let _new_d = new Date().setHours(_real_h);
                                         _date_str = new Date(_new_d).toDateString();
 
-                                        return new Date(_date_str + '\x20' + _time_str).getTime();
+                                        return new Date(_date_str + ' ' + _time_str).getTime();
 
                                         // tool function(s) //
 
@@ -5603,7 +5607,7 @@ let $$af = {
 
                             /**
                              * @param {'pick'} act
-                             * @param {Imagesx.EnergyBall.Infos} data
+                             * @param {AntForest.EnergyBall.Balls} data
                              */
                             function _clickAndCount(act, data) {
                                 let _prop = {
@@ -5808,7 +5812,7 @@ let $$af = {
                                     let _desc = _cfg.ball_desc;
                                     let _du = $$cfg.forest_balls_click_duration;
 
-                                    consolex._('点击' + _desc + ':\x20' + data.length + '个');
+                                    consolex._('点击' + _desc + ': ' + data.length + '个');
 
                                     data.forEach((o) => {
                                         a11yx.click(o, 'p', {pt$: _du});
@@ -5833,7 +5837,7 @@ let $$af = {
                                         $$af[_accu] += _accu ? _sum : 0;
                                         _harvest['cnt_' + act] = _sum;
                                         let _dbl = $$flag.dblclick_checked ? ' (双击卡)' : '';
-                                        consolex.$(_act + ':\x20' + _sum + 'g' + _dbl, +!!_sum, 0, 1);
+                                        consolex.$(_act + ': ' + _sum + 'g' + _dbl, +!!_sum, 0, 1);
                                     } else {
                                         consolex.$(_act + ': 统计数据无效', 0, 0, 1);
                                     }
@@ -6024,10 +6028,10 @@ let $$af = {
                         $$af.min_ctd.fri.reset();
                     } else if (!isFinite($$af.min_ctd.fri.value)) {
                         if ($$af.stroll.trigger()) {
-                            $$toast('正在准备获取排行榜倒计时数据...', 'long');
+                            toast('正在准备获取排行榜倒计时数据...', 'long');
                             $$app.page.rl.launch({is_show_greeting: false});
                             $$af.rl.scroll.toBottom({itv: 0});
-                            $$toast.dismiss();
+                            toast.dismiss();
                         }
                         _fri._chkMinCtd('cache');
                     }
@@ -6314,7 +6318,7 @@ let $$af = {
                     let _now = $$app.now;
                     let _rec_ts = _now.getTime();
                     let _d_ms = 24 * 3.6e6;
-                    let _d_str = _now.toDateString() + '\x20';
+                    let _d_str = _now.toDateString() + ' ';
 
                     consolex._('开始计算最小延时接力时间数据');
 
@@ -6365,7 +6369,7 @@ let $$af = {
                     let _inf = [];
                     let _d_ms = 24 * 3.6e6;
                     // language=JS
-                    let _d_str = '`${$$app.now.toDateString()} `'.ts;
+                    let _d_str = `${$$app.now.toDateString()} `;
                     let _today_min = Date.parse(_d_str);
                     let _today_max = _today_min + _d_ms;
                     let _sto_sxn = _chkAutoTaskSect.sto_sxn;
@@ -6408,7 +6412,7 @@ let $$af = {
                     function _getSxnStr(sxn) {
                         let [_l, _r] = sxn;
                         _r += _r <= _l ? ' (+1)' : '';
-                        return '[\x20' + _l + '\x20-\x20' + _r + ' ]';
+                        return '[ ' + _l + ' - ' + _r + ' ]';
                     }
                 }
             }
@@ -6578,7 +6582,7 @@ let $$af = {
                         function _msg() {
                             let _args = [].slice.call(arguments);
                             let _toast_msg = _args.map(s => s.replace(/^>*/, '')).join('\n');
-                            $$toast(_toast_msg, 'L', 'F');
+                            toast(_toast_msg, 'L', 'F');
                             consolex._(_args, 0, 0, 2);
                         }
                     }
@@ -6598,7 +6602,7 @@ let $$af = {
                                 msg += '\n' + [_line, 'Update available:', _ver].join('\n');
                             }
                         }
-                        $$toast(msg, 'long');
+                        toast(msg, 'long');
                         consolex._('统计结果展示完毕');
                     }
                 }
@@ -6784,7 +6788,7 @@ let $$af = {
                 } while (_opt.loop && _opt.loop());
 
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
-                $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
+                sleep(_bt === true || _bt === -1 ? _itv : _bt);
             },
             toBottom(options) {
                 let _opt = Object.assign({loop: () => !$$flag.rl_bottom_rch}, options || {});
@@ -6850,7 +6854,7 @@ let $$af = {
                 } while (_opt.loop && _opt.loop());
 
                 let _bt = _opt.buffer_time || _opt.bt$ || 0;
-                $$sleep(_bt === true || _bt === -1 ? _itv : _bt);
+                sleep(_bt === true || _bt === -1 ? _itv : _bt);
             },
             autoAdjust() {
                 let _dist0 = Math.trunc(uH * 0.95);

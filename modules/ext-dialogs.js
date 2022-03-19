@@ -1,6 +1,5 @@
 let {
-    $$und, $$func, $$F,
-    isPlainObject, isNullish, isXMLType,
+    $$und, $$func, $$F, isXMLType,
 } = require('./mod-global');
 let {colorsx} = require('./ext-colors');
 let {consolex} = require('./ext-console');
@@ -124,20 +123,17 @@ let exp = {
             return this._data[name];
         },
         clear() {
-            let _showing = Object.keys(this._data)
-                .filter((k) => {
-                    if (this._data[k].isShowing()) {
-                        return true;
-                    }
-                    delete this._data[k];
-                })
-                .map((k) => {
-                    let _diag = this._data[k];
+            let _ctr = 0;
+            Object.keys(this._data).forEach((k) => {
+                let _diag = this._data[k];
+                if (_diag instanceof JsDialog) {
+                    _ctr += 1;
                     _diag.dismiss();
-                    return k.match(/@[a-f0-9]{5,}$/) ? k : k + exp.getName(_diag);
-                });
-            if (_showing.length) {
-                consolex._(['清理扩展对话框样本池:'].concat(_showing), 0, 0, -2);
+                }
+                delete this._data[k];
+            });
+            if (_ctr > 0) {
+                consolex._('清理扩展对话框样本池: ' + _ctr + '项', 0, 0, -2);
             }
         },
     },
@@ -231,7 +227,7 @@ let exp = {
                             return true;
                         });
                 } else {
-                    throw new Error('Unknown itemsSelectMode\x20' + itemsSelectMode);
+                    throw new Error('Unknown itemsSelectMode ' + itemsSelectMode);
                 }
             }
             if (properties.progress !== undefined) {
@@ -576,10 +572,10 @@ let exp = {
         this.pool.clear();
     },
     /**
-     * @template {JsDialog$|MaterialDialog$} DIALOG
-     * @param {DIALOG} d
-     * @param {function(DIALOG)|*} [f]
-     * @return {DIALOG}
+     * @template {JsDialog$|MaterialDialog$} T
+     * @param {T} d
+     * @param {function(T)|*} [f]
+     * @return {T}
      */
     disableBack(d, f) {
         // to prevent dialog from being dismissed
@@ -1077,7 +1073,7 @@ let exp = {
 
         let _diag = Object.create(_dialogsx.builds([
             config.title || '', config.steps.map((step, i) => (
-                '\u3000\x20' + ++i + '.\x20' + step.desc
+                '\u3000 ' + ++i + '. ' + step.desc
             )).join('\n'), 0, 0, 'I', 1], {
             progress: {max: 100, showMinMax: !!config.show_min_max},
         }));

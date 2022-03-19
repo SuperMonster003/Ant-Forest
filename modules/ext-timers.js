@@ -1,4 +1,3 @@
-let {isNullish} = require('./mod-global');
 let {threadsx} = require('./ext-threads');
 
 let is_pro = context.getPackageName().match(/Pro\b/i);
@@ -213,7 +212,7 @@ let exp = {
         let _opt = options || {};
         let _sql = '';
         let _args = [];
-        let _append = str => _sql += _sql.length ? '\x20AND\x20' + str : str;
+        let _append = str => _sql += _sql.length ? ' AND ' + str : str;
         let _path = _opt.path;
         if (_path) {
             _append('script_path = ?');
@@ -234,7 +233,7 @@ let exp = {
         let _opt = options || {};
         let _sql = '';
         let _args = [];
-        let _append = str => _sql += _sql.length ? '\x20AND\x20' + str : str;
+        let _append = str => _sql += _sql.length ? ' AND ' + str : str;
         let {path: _path, action: _act} = _opt;
         if (_path) {
             _append('script_path = ?');
@@ -261,9 +260,9 @@ let exp = {
      * timersx.timeFlagConverter(55);
      * // 23 -- time flag; Sun, Mon, Tue, Thu
      * timersx.timeFlagConverter([0, 1, 2, 4]);
-     * // [0,1,2,3,4,5,6] -- everyday
+     * // [0,1,2,3,4,5,6] -- every day
      * timersx.timeFlagConverter(127);
-     * // 127 -- time flag; everyday
+     * // 127 -- time flag; every day
      * timersx.timeFlagConverter([0,1,2,3,4,5,6]);
      * // [] -- disposable
      * timersx.timeFlagConverter(0);
@@ -297,7 +296,7 @@ let exp = {
      * timersx.setInterval(() => log('Good luck comes later...'), 100, () => {
      *     let num = Math.random() * 100 + 1;
      *     return num > 90 && Math.floor(num);
-     * }, res => log('Your lucky number is\x20' + res));
+     * }, res => log('Your lucky number is ' + res));
      * @see https://dev.to/akanksha_9560/why-not-to-use-setinterval--2na9
      */
     setInterval(func, interval, timeout, callback) {
@@ -333,29 +332,67 @@ let exp = {
     },
     $rec() {
         let _ = {
+            /**
+             * @type {Object.<string,number>}
+             */
             keys: {},
+            /**
+             * @type {number[]}
+             */
             anonymity: [],
+            /**
+             * @param {?number} [ts]
+             * @return {number}
+             */
             ts(ts) {
                 return typeof ts === 'number' ? ts : Date.now();
             },
+            /**
+             * @param {string} [key]
+             * @return {boolean}
+             */
             has(key) {
                 return key in this.keys;
             },
+            /**
+             * @param {string} [key]
+             * @param {?number} [ts]
+             * @return {number}
+             */
             add(key, ts) {
                 key === undefined
                     ? this.anonymity.push(this.ts(ts))
                     : this.keys[key] = this.ts(ts);
                 return this.ts(ts);
             },
+            /**
+             * @param {string} [key]
+             * @return {number|void}
+             */
             get(key) {
                 return key === undefined ? this.anonymity.pop() : this.keys[key];
             },
+            /**
+             * @param {string} [key]
+             * @param {?number} [ts]
+             * @return {number}
+             */
             save(key, ts) {
                 return this.add(key, ts);
             },
+            /**
+             * @param {string} [key]
+             * @param {?number} [ts]
+             * @return {number}
+             */
             load(key, ts) {
                 return this.ts(ts) - this.get(key);
             },
+            /**
+             * @param {string|function} [key]
+             * @param {?number} [ts]
+             * @return {number}
+             */
             shortcut(key, ts) {
                 if (typeof key === 'function') {
                     this.save();

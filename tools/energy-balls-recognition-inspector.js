@@ -1,5 +1,5 @@
 require('../modules/mod-global');
-let {imagesx} = require('../modules/ext-images');
+let {afrst} = require('../modules/mod-ant-forest');
 let {dialogsx} = require('../modules/ext-dialogs');
 let {storagesx} = require('../modules/ext-storages');
 
@@ -50,7 +50,7 @@ function _() {
 
     threads.start(function () {
         while (1) {
-            _balls_data = imagesx.findAFBallsByHough().expand();
+            _balls_data = afrst.findEnergyBalls({config: $_cfg}).expand();
             sleep(10);
         }
     });

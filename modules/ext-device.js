@@ -1,5 +1,5 @@
 let {
-    $$impeded, $$toast, $$cvt, $$link, isNullish, $$str,
+    $$impeded, $$cvt, $$link, $$str,
     $$und, $$nul, $$arr, $$num, $$rex, $$func,
 } = require('./mod-global');
 let {timersx} = require('./ext-timers');
@@ -479,7 +479,7 @@ let exp = {
     screenOff(options) {
         // @Overload
         if (typeof options === 'boolean') {
-            return this.screenOff({is_debug: options});
+            return this.screenOff({isDebug: options});
         }
 
         let _opt = options || {};
@@ -488,7 +488,7 @@ let exp = {
         let _flag = {};
         let _this = this;
 
-        consolex.debug.switchSet(_opt.is_debug);
+        consolex.debug.switchSet(_opt.isDebug);
 
         let _msg = {
             key_code: {
@@ -507,7 +507,7 @@ let exp = {
 
                 consolex.w(['关屏策略执行失败', _msg, '可使用以下工具获得帮助支持', _path], 0, 0, -2);
 
-                $$toast('关闭屏幕失败\n' + _msg, 'long');
+                toast('关闭屏幕失败\n' + _msg, 'long');
             },
             noWriteSecureSettingsPermission() {
                 let _p = 'WRITE_SECURE_SETTINGS';
@@ -515,7 +515,7 @@ let exp = {
                     '权限的详细信息及获取方式', '可参阅项目配置工具',
                     '-> 运行与安全', '-> 自动开启无障碍服务',
                 ], 0, 0, -2);
-                $$toast('关闭屏幕失败\n缺少以下必要权限:\n' + _p, 'long');
+                toast('关闭屏幕失败\n缺少以下必要权限:\n' + _p, 'long');
             },
             toastWithDebugInfo(messages) {
                 let _messages = [];
@@ -580,7 +580,7 @@ let exp = {
                 if (typeof _flag === 'function') {
                     _flag.call(null);
                 } else if (_flag === true || _flag === 'toast') {
-                    $$toast('正在尝试关闭屏幕...\n此过程可能需要几秒钟...', 'long');
+                    toast('正在尝试关闭屏幕...\n此过程可能需要几秒钟...', 'long');
                 }
             }
         }
@@ -629,7 +629,7 @@ let exp = {
                 if (typeof _flag === 'function') {
                     _flag.call(null);
                 } else if (_flag === true || _flag === 'toast') {
-                    $$toast([
+                    toast([
                         '正在尝试关闭屏幕...', '此过程可能需要几秒钟...\n',
                         '触摸屏幕任意区域', '或按下任意按键可终止关屏',
                     ].join('\n'), 'Long');
@@ -713,11 +713,11 @@ let exp = {
         return !this.isLocked();
     },
     /**
-     * @param {Consolex.Print.IsDebug} [is_debug]
+     * @param {Consolex.Print.IsDebug} [isDebug]
      * @return {boolean}
      */
-    unlock(is_debug) {
-        return unlockGenerator().unlock(is_debug);
+    unlock(isDebug) {
+        return unlockGenerator().unlock(isDebug);
     },
     /**
      * Vibrate the device with a certain pattern
@@ -893,7 +893,7 @@ let exp = {
              */
             simulateByAdb(kc) {
                 try {
-                    return shell('input keyevent\x20' + kc, $.hasRoot()).code === 0;
+                    return shell('input keyevent ' + kc, $.hasRoot()).code === 0;
                 } catch (e) {
                     this.showFailedMsgIFN(kc);
                     return false;
@@ -977,398 +977,258 @@ let exp = {
         return context.getSystemService(Context.TELEPHONY_SERVICE).getCallState();
     },
     /**
-     * Returns display screen width and height data and
-     * converter functions with different aspect ratios.
+     * Returns display screen pixel lengths and scale transformers.
      * Scaling based on Sony Xperia XZ1 Compact - G8441 (720 × 1280).
      * @example
-     * require('./modules/ext-device').getDisplay();
-     *
-     * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
      * console.log(W, H, cX(0.2), cY(0.45), cYx(0.45));
-     * console.log(cX(0.2, 'a')); // 'a' will be ignored
-     *
-     * console.log(cX(200, 720), cX(200, -1), cX(200)); // all the same
-     * console.log(cX(200, 1080), cX(200, -2)); // all the same
-     * console.log(cY(300, 1280), cX(300, -1), cY(300)); // all the same
-     * console.log(cY(300, 1920), cX(300, -2)); // all the same
-     * console.log(cYx(400, 720), cYx(400, -1), cYx(400)); // all the same
-     * console.log(cYx(400, 1080), cYx(400, -2)); // all the same
-     * console.log(cYx(0.6, 16/9), cYx(0.6, -1), cYx(0.6)); // all the same
-     * console.log(cYx(0.6, 21/9), cYx(0.6, -2), cYx(0.6, 9/21)); // all the same
+     * console.log(WIDTH, HEIGHT, cX(80), cY(700), cY(700, 1920));
+     * console.log(cX(200, 720), cX(200, 'xz1c'), cX(200)); // all the same
+     * console.log(cX(200, 1080), cX(200, 'z5')); // all the same
+     * console.log(cY(300, 1280), cY(300, 'xz1c'), cY(300)); // all the same
+     * console.log(cY(300, 1920), cY(300, 'z5')); // all the same
+     * console.log(cYx(400, {w: 720, h: 1280}), cYx(400, 'xz1c'), cYx(400)); // all the same
+     * console.log(cYx(400, {w: 1080, h: 1920}), cYx(400, 'z5')); // all the same
+     * console.log(cYx(0.6, 9 / 16), cYx(0.6, 'xz1c'), cYx(0.6)); // all are similar
+     * console.log(cYx(0.6, 9 / 21), cYx(0.6, 'x1m2')); // all are similar
      * @return {Devicex.Display.Result}
      */
     getDisplay() {
-        /** @type {number} */
-        let _W, _H;
-
-        let _metrics = new DisplayMetrics();
-        let _win_svc_disp = this.getDefaultDisplay();
-        _win_svc_disp.getRealMetrics(_metrics);
-
-        /** @type {Devicex.Display.Basic} */
-        let _disp = _getDisp();
-        /** @type {Devicex.Display.Scaler} */
-        let _scale = {cX: cX, cY: cY, cYx: cYx};
-        /** @type {Devicex.Display.Extension} */
-        let _ext = {
-            refresh() {
-                let _disp_new = _getDisp();
-                let _is_updated = false;
-                Object.keys(_disp_new).forEach(k => {
-                    if (_disp[k] !== _disp_new[k]) {
-                        _disp[k] = _disp_new[k];
-                        _is_updated = true;
-                    }
-                });
-                if (_is_updated) {
-                    consolex._('屏幕显示数据已更新');
-                    this.debug();
-                }
-                return this;
+        let _ = {
+            /**
+             * @type {Object.<Devicex.Display.Scaler.PresetBase,{w:number,h:number}>}
+             */
+            preset: {
+                get default() {
+                    return this.xz1c;
+                },
+                xz1c: {w: 720, h: 1280},
+                z5: {w: 1080, h: 1920},
+                x1m2: {w: 1096, h: 2560},
             },
             /**
-             * @param {Consolex.Print.IsDebug} [is_debug]
+             * Return a resource identifier for the given resource name.
+             * @param {string} name
+             * @return {number}
              */
-            debug(is_debug) {
-                let _debug = consolex.debug.fuel(is_debug);
-                _debug('屏幕宽高: ' + _disp.W + '\x20×\x20' + _disp.H);
-                if (_disp.is_display_rotation_portrait) {
-                    _debug('可用高度: ' + _disp.USABLE_HEIGHT);
-                } else if (_disp.is_display_rotation_landscape) {
-                    _debug('可用宽度: ' + _disp.USABLE_WIDTH);
+            getDimenPixSize(name) {
+                try {
+                    return context.getResources().getDimensionPixelSize(
+                        context.getResources().getIdentifier(name, 'dimen', 'android'));
+                } catch (e /* android.content.res.Resources.NotFoundException */) {
+                    return Number.NaN;
                 }
-                _debug('屏幕旋转: ' + (_disp.display_rotation * 90) + '°');
+            },
+            /**
+             * @param {?string|{w:number,h:number}} [base]
+             * @return {{w:number,h:number}}
+             */
+            getBase(base) {
+                if (isPlainObject(base)) {
+                    return {w: base.w, h: base.h};
+                }
+                if (isNullish(base)) {
+                    return this.preset.default;
+                }
+                if (base in this.preset) {
+                    return this.preset[base];
+                }
+                throw Error('Unknown base for calcBase()');
+            },
+            /**
+             * @param {number|*} num
+             * @param {Devicex.Display.Scaler.Base|boolean} [base]
+             * @param {boolean} [is_ratio]
+             * @return {number}
+             */
+            cX(num, base, is_ratio) {
+                // @Overload
+                if (typeof base === 'boolean') {
+                    return this.cX(num, null, base);
+                }
+                let _is_ratio = Math.abs(num) < 1 || is_ratio;
+                if (_is_ratio) {
+                    return Math.round($.W * num).clamp(-$.W, $.W);
+                }
+                let _base = typeof base === 'number' ? base : this.getBase(base).w;
+                return Math.round($.W * num / _base).clamp(-$.W, $.W);
+            },
+            /**
+             * @param {number|*} num
+             * @param {Devicex.Display.Scaler.Base|boolean} [base]
+             * @param {boolean} [is_ratio]
+             * @return {number}
+             */
+            cY(num, base, is_ratio) {
+                // @Overload
+                if (typeof base === 'boolean') {
+                    return this.cY(num, null, base);
+                }
 
-                return this;
+                let _is_ratio = Math.abs(num) < 1 || is_ratio;
+                if (_is_ratio) {
+                    return Math.round($.H * num).clamp(-$.H, $.H);
+                }
+                let _base = typeof base === 'number' ? base : this.getBase(base).h;
+                return Math.round($.H * num / _base).clamp(-$.H, $.H);
+            },
+            /**
+             * @param {number|*} num
+             * @param {Devicex.Display.Scaler.Base|boolean} [base]
+             * @param {boolean} [is_ratio]
+             * @return {number}
+             */
+            cYx(num, base, is_ratio) {
+                // @Overload
+                if (typeof base === 'boolean') {
+                    return this.cYx(num, null, base);
+                }
+
+                let _is_ratio = Math.abs(num) < 1 || is_ratio;
+                if (_is_ratio) {
+                    if (typeof base === 'number') {
+                        if ($$num(0, '<', base, '<=', 1)) {
+                            return Math.round(num * $.W / base).clamp(-$.H, $.H);
+                        }
+                        if (base > 1) {
+                            return Math.round(num * $.W * base).clamp(-$.H, $.H);
+                        }
+                        throw Error('Base is a invalid number for cYx()');
+                    }
+                    let _base = this.getBase(base);
+                    return Math.round(num * _base.h * $.W / _base.w).clamp(-$.H, $.H);
+                }
+                return Math.round(num * $.W / this.getBase(base).w).clamp(-$.H, $.H);
             },
         };
-        if (!_disp && !a11yx.wait$(() => _disp = _getDisp(), 3e3, 500)) {
-            console.error('devicex.getDisplay()返回结果异常');
-        }
-        return Object.assign(_disp, _scale, _ext);
 
-        // tool function(s) //
-
-        /**
-         * Adaptive coordinate transform for x axis
-         * @param {number|*} num - pixel (x) or percentage num (0.x)
-         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
-         * @param {{
-         *     is_ratio?: boolean,
-         *     to_ratio?: boolean,
-         * }} [options]
-         * @example
-         * //-- local device with 720px display width --//
-         *
-         * // on 720px device: 300
-         * // on 1080px device: 450 (300 * 1080 / 720)
-         * // on 1080*1920 device: 450 (same as above)
-         * // on 1080*2520 device: 450 (same as above)
-         * console.log(cX(300, 720));
-         * console.log(cX(300, -1)); // same as above
-         * console.log(cX(300)); // same as above
-         *
-         * //-- local device with 1080px display width --//
-         *
-         * // on 1080px device: 300
-         * // on 720px device: 200 (300 * 720 / 1080)
-         * // on 720*1680 device: 200 (same as above)
-         * console.log(cX(300, 1080));
-         * console.log(cX(300, -2)); // same as above
-         *
-         * //-- local device with 1080px display width --//
-         *
-         * let x1 = cX(0.5);
-         * let x2 = cX(0.5, -1);
-         * let x3 = cX(0.5, -2);
-         * let x4 = cX(0.5, 720);
-         * let x5 = cX(0.5, 1080);
-         * let x6 = cX(0.5, 9999);
-         * console.log(x1, x2, x3, x4, x5, x6);
-         * // on 1080px device: all 540 (1080 * 0.5) -- base options will be ignored
-         * // on 720px device: all 360 (720 * 0.5) -- base options will be ignored
-         * @return {number}
-         */
-        function cX(num, base, options) {
-            return typeof base === 'boolean'
-                ? _cTrans(1, num, -1, Object.assign({is_ratio: base}, options))
-                : _cTrans(1, num, base, options);
-        }
-
-        /**
-         * Adaptive coordinate transform for y axis
-         * @param {number|*} num - pixel (x) or percentage num (0.x)
-         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
-         * @param {{
-         *     is_ratio?: boolean,
-         *     to_ratio?: boolean,
-         * }} [options]
-         * @example
-         * //-- local device with 1280px display height --//
-         *
-         * // on 720*1280 device: 300 (same as source device)
-         * // on 1080*1920 device: 450 (300 * 1920 / 1280)
-         * // on 1080*2520 device: 590 (300 * 2520 / 1280) (remarkable)
-         * console.log(cY(300, 1280));
-         * console.log(cY(300, -1)); // same as above
-         * console.log(cY(300)); // same as above
-         *
-         * //-- local device with 1920px display height --//
-         *
-         * // on 720*1280 device: 200 (300 * 1280 / 1920)
-         * // on 720*1680 device: 262 (300 * 1680 / 1920) (remarkable)
-         * console.log(cY(300, 1080));
-         * console.log(cY(300, -2)); // same as above
-         *
-         * //-- local device with 1920px display height --//
-         *
-         * let y1 = cY(0.5);
-         * let y2 = cY(0.5, -1);
-         * let y3 = cY(0.5, -2);
-         * let y4 = cY(0.5, 1280);
-         * let y5 = cY(0.5, 1920);
-         * let y6 = cY(0.5, 9999);
-         * // on 1080*1920 device: all 960 (1920 * 0.5) -- base options will be ignored
-         * // on 720*1280 device: all 640 (1280 * 0.5) -- base options will be ignored
-         * console.log(y1, y2, y3, y4, y5, y6);
-         * @return {number}
-         */
-        function cY(num, base, options) {
-            return typeof base === 'boolean'
-                ? _cTrans(-1, num, -1, Object.assign({is_ratio: base}, options))
-                : _cTrans(-1, num, base, options);
-        }
-
-        /**
-         * Adaptive coordinate transform for y axis based (and only based) on x axis
-         * @param {number|*} num - pixel (x) or percentage num (0.x)
-         * @param {number|boolean} [base] - pixel (x) or preset negative nums (-1,-2,-3)
-         * @param {{
-         *     is_ratio?: boolean,
-         *     to_ratio?: boolean,
-         * }} [options]
-         * @example
-         * //-- local device with 720*1280 display (try ignoring the height: 1280) --//
-         *
-         * // on 720*1280 device: 300 (same as source device)
-         * // on 1080*1920 device: 450 (300 * 1080 / 720) (same as above)
-         * // on 1080*2520 device: 450 (300 * 1080 / 720) (still same as above)
-         * // on 1080*9999 device: 450 (300 * 1080 / 720) (still same as above)
-         * // all results only affected by width
-         * console.log(cYx(300, 720));
-         * console.log(cYx(300, -1)); // same as above
-         * console.log(cYx(300)); // same as above
-         *
-         * //-- local device with 1080*1920 display --//
-         *
-         * // on 720*1280 device: 200 (300 * 720 / 1080)
-         * // on 720*1680 device: 200 (300 * 720 / 1080) (same as above)
-         * console.log(cYx(300, 1080));
-         * console.log(cYx(300, -2)); // same as above
-         *
-         * //-- local device with 2160*5040 display --//
-         *
-         * let y1 = cYx(0.5); // or cYx(0.5, -1); or cYx(0.5, 16/9);
-         * let y2 = cYx(0.5, 1280); // or cYx(0.5, 1920); or cYx(0.5, 9999); -- Error
-         * let y3 = cYx(0.5, 5040/2160); // or cYx(0.5, 21/9); or cYx(0.5, 2160/5040); or cYx(0.5, -2) -- GOOD!
-         * let y4 = cYx(2020); // or cYx(2020, 720); or cYx(2020, -1); -- even if unreasonable
-         * let y5 = cYx(2020, 5040/2160); // or cYx(2020, 16/9); -- Error
-         * let y6 = cYx(2020, 2160); // GOOD!
-         *
-         * // on 1080*1920 device: (height will be ignored)
-         * // y1: 0.5 * 16/9 * 1080 = 960
-         * // y3: 0.5 * 21/9 * 1080 = 1260 -- which is the proper way of usage
-         * // y4: 2020 / 720 * 1080 = ... -- no one will set 2020 on a device with only 720px available
-         * // y6: 2020 / 2160 * 1080 = 1010 -- which is another proper way of usage
-         *
-         * // on 720*1280 device: (height will be ignored)
-         * // just replacing 1080 in calculations each with 720
-         *
-         * // on 1440*1920 device: (height will be ignored)
-         * // likewise (replace 1080 with 1440)
-         * console.log(y1, y3, y4, y6);
-         * @return {number}
-         */
-        function cYx(num, base, options) {
-            let _opt = options || {};
-            let _is_ratio = _opt.is_ratio;
-            if (typeof base === 'boolean') {
-                _is_ratio = _is_ratio === undefined ? base : _is_ratio;
-                base = -1;
-            }
-
-            let _num = Number(num);
-            let _is_ratio_num = Math.abs(_num) < 1 || _is_ratio;
-            let _base = Number(base);
-
-            if (!_base || _base === -1) {
-                _base = 720;
-                _num *= _is_ratio_num ? 1280 : 1;
-            } else if (_base === -2) {
-                _base = 1080;
-                _num *= _is_ratio_num ? 1920 : 1;
-            } else if (_base === -3) {
-                _base = 1096;
-                _num *= _is_ratio_num ? 2560 : 1;
-            } else if (_base < 0) {
-                throw Error('Can not parse base param for cYx()');
-            } else {
-                if (_is_ratio_num) {
-                    _num *= _H;
-                } else if (_base < 5) {
-                    throw Error('Base and num options should be both pixels for cYx()');
+        let $ = {
+            check() {
+                return this.W > 0 && this.H > 0;
+            },
+            parseMetrics() {
+                this.metrics = new DisplayMetrics();
+                this.win_svc_disp = exp.getDefaultDisplay();
+                this.win_svc_disp.getRealMetrics(this.metrics);
+            },
+            parseBasic() {
+                this.W = this.metrics.widthPixels || device.width;
+                this.H = this.metrics.heightPixels || device.height;
+                try {
+                    // noinspection JSDeprecatedSymbols
+                    this.uW = this.win_svc_disp.getWidth();
+                    // noinspection JSDeprecatedSymbols
+                    this.uH = this.win_svc_disp.getHeight();
+                    this.ROT = this.win_svc_disp.getRotation();
+                } catch (e) {
+                    consolex.w(['devicex display parseBasic():', e]);
+                    this.uH = this.uH !== undefined ? this.uH : this.H;
+                    this.uW = this.uW !== undefined ? this.uW : this.W;
+                    this.ROT = this.ROT !== undefined ? this.ROT : 0;
                 }
-                _base = (_base > 1 ? 1 / _base : _base) * _H;
-            }
-
-            return _opt.to_ratio
-                ? Number((_num * 9 / 16 / _base).toFixed(3))
-                : Math.round(_num * _W / _base);
-        }
-
-        /**
-         * Adaptive coordinate transform function
-         * @param {number} dxn - 1: horizontal; -1: vertical
-         * @param {number} num - pixel (x) or percentage num (0.x)
-         * @param {number} [base] - pixel (x) or preset negative nums (-1,-2,-3)
-         * @param {{
-         *     is_ratio?: boolean,
-         *     to_ratio?: boolean,
-         * }} [options]
-         * @return {number}
-         */
-        function _cTrans(dxn, num, base, options) {
-            let _full = dxn !== -1 ? _W : _H;
-            let _num = Number(num);
-            if (isNaN(_num)) {
-                throw Error('Can not parse num param for cTrans(): ' + num);
-            }
-            let _base = Number(base);
-            if (!base || base === -1) {
-                _base = dxn !== -1 ? 720 : 1280; // e.g. Sony Xperia XZ1 Compact
-            } else if (base === -2) {
-                _base = dxn !== -1 ? 1080 : 1920; // e.g. Sony Xperia Z5
-            } else if (base === -3) {
-                _base = dxn !== -1 ? 1096 : 2560; // e.g. Sony Xperia 1 II
-            }
-            let _opt = options || {};
-            if (Math.abs(_num) < 1 || _opt.is_ratio) {
-                _num *= _base;
-            }
-            return _opt.to_ratio
-                ? Number((_num / _base).toFixed(3))
-                : Math.min(Math.round(_num * _full / _base), _full);
-        }
-
-        /** @return {?Devicex.Display.Basic} */
-        function _getDisp() {
-            try {
-                // noinspection JSDeprecatedSymbols
-                _W = _win_svc_disp.getWidth();
-                // noinspection JSDeprecatedSymbols
-                _H = _win_svc_disp.getHeight();
-
-                if (!(_W * _H)) {
-                    return _raw();
-                }
-
-                // noinspection JSValidateTypes
-                /** @type {Devicex.Display.Rotation} */
-                let _ROT = _win_svc_disp.getRotation();
-                let _is_scr_port = [0, 2].indexOf(_ROT) > -1;
-
-                // let _MAX = _win_svc_disp.maximumSizeDimension;
-                let _MAX = Math.max(_metrics.widthPixels, _metrics.heightPixels);
-
-                let [_UH, _UW] = [_H, _W];
-                /**
-                 * Return a resource identifier for the given resource name.
-                 * @param {string} name
-                 * @return {number}
-                 */
-                let _dimen = (name) => {
-                    try {
-                        let _res = context.getResources();
-                        let _res_id = _res.getIdentifier(name, 'dimen', 'android');
-                        if (_res_id > 0) {
-                            return _res.getDimensionPixelSize(_res_id);
-                        }
-                    } catch (e /* android.content.res.Resources.NotFoundException */) {
-                        // nothing to do here
-                    }
-                    return NaN;
-                };
-
-                _is_scr_port ? [_UH, _H] = [_H, _MAX] : [_UW, _W] = [_W, _MAX];
-
-                _globalize();
-
-                return {
-                    W: _W, WIDTH: _W, width: _W,
-                    halfW: _W / 2, HALF_WIDTH: _W / 2, half_width: _W / 2,
-                    uW: _UW, USABLE_WIDTH: _UW, usable_width: _UW,
-                    H: _H, HEIGHT: _H, height: _H,
-                    halfH: _H / 2, HALF_HEIGHT: _H / 2, half_height: _H / 2,
-                    uH: _UH, USABLE_HEIGHT: _UH, usable_height: _UH,
-                    display_rotation: _ROT, ROTATION: _ROT,
-                    is_display_rotation_portrait:
-                        _ROT === Surface.ROTATION_0 || _ROT === Surface.ROTATION_180,
-                    is_display_rotation_landscape:
-                        _ROT === Surface.ROTATION_90 || _ROT === Surface.ROTATION_270,
-                    status_bar_height: _dimen('status_bar_height'),
-                    navigation_bar_height: _dimen('navigation_bar_height'),
-                    navigation_bar_height_computed: _is_scr_port ? _H - _UH : _W - _UW,
-                    action_bar_default_height: _dimen('action_bar_stacked_max_height')
-                        || _dimen('action_bar_default_height'),
-                };
-            } catch (e) {
-                return _raw();
-            }
-
-            // tool function(s) //
-
-            /**
-             * @return {{USABLE_HEIGHT: number, WIDTH: number, HEIGHT: number}|null}
-             */
-            function _raw() {
-                consolex._('devicex display raw() is triggered', 3);
-
-                _W = device.width;
-                _H = device.height;
-
-                _globalize();
-
-                if (!(_W && _H)) {
-                    consolex._('devicex display raw() returns null', 4);
-                    return null;
-                }
-                return {
-                    WIDTH: _W,
-                    HEIGHT: _H,
-                    USABLE_HEIGHT: Math.trunc(_H * 0.9),
-                };
-            }
-        }
-
-        function _globalize() {
-            Object.assign(global, {
+                this.check() || consolex.$([
+                    'devicex display parseBasic():',
+                    ['W: ' + this.W, 'H: ' + this.H].join(', '),
+                ], 8, 2, 0, 2);
+            },
+            globalize() {
                 /** Screen width */
-                W: _W, WIDTH: _W,
+                global.W = global.WIDTH = this.W;
                 /** Screen height */
-                H: _H, HEIGHT: _H,
-                /** Half of screen width */
-                halfW: _W / 2,
-                /** Half of screen height */
-                halfH: _H / 2,
+                global.H = global.HEIGHT = this.H;
+                /** Semi-length of screen width */
+                global.halfW = this.W / 2;
+                /** Semi-length of screen height */
+                global.halfH = this.H / 2;
                 /** Usable screen width */
-                uW: _disp ? _disp.USABLE_WIDTH : _W,
+                global.uW = this.uW;
                 /** Usable screen height */
-                uH: _disp ? _disp.USABLE_HEIGHT : _H,
+                global.uH = this.uH;
                 /** @type {Devicex.Display.Rotation} */
-                ROTATION: _disp ? _disp.display_rotation : 0,
-                cX: cX, cY: cY, cYx: cYx,
-            });
-        }
+                global.ROT = global.ROTATION = this.ROT;
+
+                Object.assign(global, {
+                    cX() {
+                        return _.cX.apply(_, arguments);
+                    },
+                    cY() {
+                        return _.cY.apply(_, arguments);
+                    },
+                    cYx() {
+                        return _.cYx.apply(_, arguments);
+                    },
+                });
+            },
+            assign() {
+                return this.disp = this.disp || Object.assign({
+                    W: $.W, width: $.W,
+                    H: $.H, height: $.H,
+                    halfW: $.W / 2, semi_width: $.W / 2,
+                    halfH: $.H / 2, semi_height: $.H / 2,
+                    uW: $.uW, usable_width: $.uW,
+                    uH: $.uH, usable_height: $.uH,
+                    ROT: $.ROT, rotation: $.ROT,
+                    is_rotation_portrait: $.ROT === Surface.ROTATION_0 || $.ROT === Surface.ROTATION_180,
+                    is_rotation_landscape: $.ROT === Surface.ROTATION_90 || $.ROT === Surface.ROTATION_270,
+                    status_bar_height: _.getDimenPixSize('status_bar_height'),
+                    action_bar_default_height: _.getDimenPixSize('action_bar_stacked_max_height')
+                        || _.getDimenPixSize('action_bar_default_height'),
+                    navigation_bar_height: _.getDimenPixSize('navigation_bar_height'),
+                    navigation_bar_height_computed: $.W - $.uW,
+                }, {
+                    cX() {
+                        return _.cX.apply(_, arguments);
+                    },
+                    cY() {
+                        return _.cY.apply(_, arguments);
+                    },
+                    cYx() {
+                        return _.cYx.apply(_, arguments);
+                    },
+                }, {
+                    refresh() {
+                        let _new = exp.getDisplay();
+                        let _is_updated = false;
+                        Object.keys(_new).forEach((k) => {
+                            let _val = _new[k];
+                            if (typeof _val === 'number') {
+                                if ($.disp[k] !== _val) {
+                                    $.disp[k] = _val;
+                                    _is_updated = true;
+                                    if (k in $) {
+                                        $[k] = _val;
+                                    }
+                                }
+                            }
+                        });
+                        if (_is_updated) {
+                            consolex._('屏幕显示数据已更新');
+                            this.debug();
+                        }
+                    },
+                    /**
+                     * @param {Consolex.Print.IsDebug} [isDebug]
+                     */
+                    debug(isDebug) {
+                        let _debug = consolex.debug.fuel(isDebug);
+                        _debug('屏幕宽高: ' + $.W + ' × ' + $.H);
+                        if ($.is_rotation_portrait) {
+                            _debug('可用高度: ' + $.uH);
+                        } else if ($.is_rotation_landscape) {
+                            _debug('可用宽度: ' + $.uW);
+                        }
+                        _debug('屏幕旋转: ' + ($.ROT * 90) + '°');
+                    },
+                });
+            },
+            getResult() {
+                this.parseMetrics();
+                this.parseBasic();
+                this.globalize();
+                return this.assign();
+            },
+        };
+
+        return $.getResult();
     },
     /** @return {android.view.Display} */
     getDefaultDisplay() {
@@ -1601,6 +1461,54 @@ let exp = {
             let _reason = _floor ? '安卓系统版本低于' + _floor : '安卓系统版本过低';
             consolex.$(['脚本无法继续', _reason], 8, 4, 0, 2);
         }
+    },
+    /**
+     * Make sure System.SCREEN_OFF_TIMEOUT greater than min_timeout.
+     * Abnormal value might be auto-corrected to correct_timeout determined by is_auto_correct.
+     * @param {Object} [options]
+     * @property {number} [min_timeout=15000]
+     * @property {number} [correct_timeout=120000]
+     * @property {boolean} [is_auto_correct=true]
+     */
+    checkScreenOffTimeout(options) {
+        let $ = {
+            options: options || {},
+            parseArgs() {
+                this.timeout = exp.screen_off_timeout.get();
+                this.min_timeout = this.options.min_timeout || 15 * 1e3; // 15 seconds
+                this.correct_timeout = this.options.correct_timeout || 2 * 60e3; // 2 minutes
+            },
+            trigger() {
+                return this.timeout < this.min_timeout;
+            },
+            isAutoCorrectEnabled() {
+                return this.options.is_auto_correct === undefined || this.options.is_auto_correct;
+            },
+            autoCorrect() {
+                let _mm = (this.correct_timeout / 60e3).toFixedNum(2);
+                consolex.d([
+                    '修正异常的设备屏幕超时参数',
+                    '修正值: ' + this.correct_timeout + ' (' + _mm + '分钟)',
+                ], 0, 0, -2);
+                try {
+                    exp.screen_off_timeout.put(this.correct_timeout);
+                } catch (e) {
+                    consolex.e(['修正失败', e], 2, 0, -2);
+                }
+            },
+            handle() {
+                this.parseArgs();
+
+                if (this.trigger()) {
+                    if (!this.isAutoCorrectEnabled()) {
+                        throw Error('Abnormal screen off timeout: ' + this.timeout);
+                    }
+                    this.autoCorrect();
+                }
+            },
+        };
+
+        $.handle();
     },
     $bind() {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
@@ -2447,7 +2355,7 @@ function unlockGenerator() {
                                             g: [xs4, y2], h: [xs5, y2], j: [xs6, y2], k: [xs7, y2],
                                             l: [xs8, y2], z: [xs1, y3], x: [xs2, y3], c: [xs3, y3],
                                             v: [xs4, y3], b: [xs5, y3], n: [xs6, y3], m: [xs7, y3],
-                                            ',': [xs1, y4], '\x20': [xs4, y4], '.': [xs7, y4], del: [x9, y3],
+                                            ',': [xs1, y4], ' ': [xs4, y4], '.': [xs7, y4], del: [x9, y3],
                                         };
                                     })(),
                                     get suffix() {
@@ -2787,7 +2695,7 @@ function unlockGenerator() {
                         let _rect = pw_rect.map((n, i) => i % 2 ? cY(n) : cX(n));
                         let [_l, _t, _r, _b] = _rect;
                         consolex._('已构建密码区域边界:');
-                        consolex._('Rect(' + _l + ',\x20' + _t + '\x20-\x20' + _r + ',\x20' + _b + ')');
+                        consolex._('Rect(' + _l + ', ' + _t + ' - ' + _r + ', ' + _b + ')');
 
                         _clickVirtualKeypad(_pw, _rect);
 
@@ -2926,22 +2834,22 @@ function unlockGenerator() {
     let _max_try = _cfg.unlock_max_try_times;
     let _pat_sz = _cfg.unlock_pattern_size;
 
-    let _intro = device.brand + '\x20' + device.product + '\x20' + device.release;
+    let _intro = device.brand + ' ' + device.product + ' ' + device.release;
 
     let _debugAct = (act_str, ctr, max) => !ctr
         ? consolex._('尝试' + act_str)
-        : consolex._('重试' + act_str + '(\x20' + ctr + '/' + max + ')');
+        : consolex._('重试' + act_str + ' (' + ctr + '/' + max + ')');
 
     return $_unlk;
 
     // tool function(s) //
 
     /**
-     * @param {Consolex.Print.IsDebug} [is_debug]
+     * @param {Consolex.Print.IsDebug} [isDebug]
      * @return {boolean}
      */
-    function _unlock(is_debug) {
-        consolex.debug.switchSet(is_debug);
+    function _unlock(isDebug) {
+        consolex.debug.switchSet(isDebug);
         consolex._('尝试自动解锁', 0, 0, -2);
 
         _sto.put('config', _cfg);

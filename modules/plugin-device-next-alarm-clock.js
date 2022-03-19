@@ -25,7 +25,6 @@ let _diag = dialogsx.builds({
     keycode_back: () => $exit(),
 });
 
-/** @type {Plugin$Exportation} */
 let _export = {
     dialog: _diag,
     view: _view,

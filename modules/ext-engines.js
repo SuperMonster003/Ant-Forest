@@ -104,12 +104,12 @@ let exp = {
      * <br>
      *     -- *DEFAULT* - old engine task <br>
      *     -- new file - like 'hello.js', '../hello.js' or 'hello'
-     * @param {boolean} [options.is_debug=undefined]
+     * @param {boolean} [options.isDebug=undefined]
      * @param {number} [options.max_restart_e_times=1] - max restart times for avoiding infinite recursion
      * @param {boolean} [options.is_instant_running] - whether to perform an instant run or not
      * @example
      * enginesx.restart({
-     *    is_debug: true,
+     *    isDebug: true,
      *    max_restart_e_times: 3,
      *    is_instant_running: false,
      * });

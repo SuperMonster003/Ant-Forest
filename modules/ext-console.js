@@ -1,6 +1,4 @@
-let {
-    isPlainObject, $$toast,
-} = require('./mod-global');
+require('./mod-global');
 
 let exp = {
     /** @constructor */
@@ -15,6 +13,7 @@ let exp = {
         };
 
         StateManager.prototype = {
+            constructor: StateManager,
             switchOn() {
                 this.last_state = this.state;
                 this.state = true;
@@ -28,7 +27,7 @@ let exp = {
             },
             switchSet(state) {
                 this.last_state = this.state;
-                this.state = isPlainObject(state) ? state.is_debug : state;
+                this.state = isPlainObject(state) ? state.isDebug : state;
             },
             switchBack() {
                 // [this.state, this.last_state] = [this.last_state, this.state];
@@ -72,13 +71,14 @@ let exp = {
                     });
                 },
                 getResult() {
+                    this.parseMsgLevel();
                     if (this.trigger()) {
-                        this.parseMsgLevel();
                         this.print();
                     }
                     return !this.is_high_level;
                 },
             };
+
             return $.getResult();
         };
 
@@ -113,7 +113,7 @@ let exp = {
              * @return {function(msg: Consolex.Print.Message, msg_lv?: Consolex.Print.MessageLevel, indent_lv?: Consolex.Print.IndentLevel, border_line_lv?: Consolex.Print.BorderLevel)}
              */
             fuel(petrol) {
-                let _pet = isPlainObject(petrol) ? petrol.is_debug : petrol;
+                let _pet = isPlainObject(petrol) ? petrol.isDebug : petrol;
                 return new exp.DebugConstructor(_pet, _debug);
             },
             /**
@@ -221,6 +221,7 @@ let exp = {
                 return this.print(msg.message + '\n\n' + msg.stack.replace(/\s+.+?\n/g, '->$&'),
                     msg_lv, toast_lv, indent_lv, border_line_lv, options);
             }
+
             let $ = {
                 trigger() {
                     return exp.print.isEnabled();
@@ -319,7 +320,7 @@ let exp = {
                             let _sym = $.options.indent_symbol || '->';
                             let _rpt = $.options.indent_repeat || 'first';
                             let _tsp = $.options.indent_trailing_space === undefined
-                            || Boolean($.options.indent_trailing_space) ? '\x20' : '';
+                            || Boolean($.options.indent_trailing_space) ? ' ' : '';
                             switch (_rpt) {
                                 case 'first':
                                     return _sym.slice(0, 1).repeat(this.lv) + _sym.slice(1) + _tsp;
@@ -343,7 +344,7 @@ let exp = {
                         return o.join(', ').surround('[ ');
                     }
                     if (isPlainObject(o)) {
-                        return Object.keys(o).map(k => k + ':\x20' + o[k]).join(', ').surround('{ ');
+                        return Object.keys(o).map(k => k + ': ' + o[k]).join(', ').surround('{ ');
                     }
                     if (o && typeof o.toString === 'function') {
                         return o.toString();
@@ -358,26 +359,25 @@ let exp = {
                     this.msg_body = Array.isArray(msg)
                         ? msg.map(this.stringify.bind(this)) : this.stringify(msg);
                     this.prefix = this.options.msg_prefix === undefined
-                        ? '' : String(this.options.msg_prefix || '') + '\x20';
+                        ? '' : String(this.options.msg_prefix || '') + ' ';
                 },
                 toastIFN() {
-                    let _fn = typeof $$toast === 'function' ? $$toast : toast;
                     let _msg = Array.isArray(this.msg_body) ? this.msg_body.join('\n') : this.msg_body;
                     switch (toast_lv) {
                         case 2:
                         case 'l':
                         case 'long':
-                            return _fn(_msg, 'l');
+                            return toast(_msg, 'l');
                         case 3:
                         case 's/f':
                         case 'short/forcible':
-                            return _fn(_msg, 's', 'f');
+                            return toast(_msg, 's', 'f');
                         case 4:
                         case 'l/f':
                         case 'long/forcible':
-                            return _fn(_msg, 'l', 'f');
+                            return toast(_msg, 'l', 'f');
                     }
-                    toast_lv && _fn(_msg, 'S');
+                    toast_lv && toast(_msg, 'S');
                 },
                 showBorderIFN() {
                     let {
@@ -449,7 +449,7 @@ let exp = {
                     style: String(style || 'solid'),
                     level: (border_lv === undefined ? 1 : Number(border_lv) || 0).clamp(0, 1),
                     break: '\n'.repeat(Math.max(Number(break_lv) || 0, 0)),
-                    prefix: prefix === undefined ? '' : String(prefix) + '\x20',
+                    prefix: prefix === undefined ? '' : String(prefix) + ' ',
                     trigger() {
                         return exp.print.isEnabled()
                             && !_.last_border.match(this.style, this.level);
@@ -545,10 +545,10 @@ let exp = {
     $debug() {
         /**
          * Print a message in console for debugging
-         * @param {Consolex.Print.Message} msg - message will be formatted with prefix '»\x20'
+         * @param {Consolex.Print.Message} msg - message will be formatted with prefix '» '
          * @param {Consolex.Print.MessageLevel} [msg_lv=1] - message level
          * @param {Consolex.Print.IndentLevel} [indent_lv=0] - indent ('- ') before message
-         * @param {Consolex.Print.BorderLevel} [border_line_lv=0] - border line(s) with prefix '»\x20'
+         * @param {Consolex.Print.BorderLevel} [border_line_lv=0] - border line(s) with prefix '» '
          * @return {Consolex.Print.Result}
          */
         this._ = this.debug = new this.DebugConstructor(undefined);

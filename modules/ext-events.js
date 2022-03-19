@@ -40,6 +40,7 @@ let exp = {
                 return this.results;
             },
         };
+
         return $.getResult();
     },
 };

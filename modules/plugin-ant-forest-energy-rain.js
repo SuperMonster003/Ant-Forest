@@ -1,6 +1,5 @@
-let {$$toast} = require('./mod-global');
+require('./mod-global');
 let {uix} = require('./ext-ui');
-let {appx} = require('./ext-app');
 let {alipay} = require('./mod-alipay');
 let {autojs} = require('./mod-autojs');
 let {imagesx} = require('./ext-images');
@@ -13,18 +12,15 @@ let {devicex, $$disp} = require('./ext-device');
 let _ = {
     cfg: {
         //// -=-= TEST =-=- ////
-        is_debug: true,
+        isDebug: true,
         press_time: 20,
         press_itv: 0,
+        region: function $iiFe() {
+            let [l, t, r, b] = [cX(0.1), cYx(0.16), cX(0.9), cYx(0.36)];
+            return [l, t, r - l, b - t];
+        }(),
     },
     sel: {
-        // @LegacyBackup as of Oct 22, 2021
-        // entrance: [/开始拯救绿色能量|开启能量拯救之旅/, 'k2', {isCenterX: true}],
-        // manual: [/.*送好友机会.*/, {isCenterX: true}],
-        // result: [/.*拯救了\d+g绿色能量.*|\d+g/, {isCenterX: true}],
-        // finish: [/.*(本次拯救.*能量|机会已用完|明天再来).*|今日已拯救能量雨/, {isCenterX: true}],
-        // return: [/\s*返回蚂蚁森林\s*/, {isCenterX: true}],
-
         entrance: [/.*开[始启].*/, 'k2', {isCenterX: true}],
         bonus: ['再来一次', {c$: true, isCenterX: true}],
         manual: [/送TA机会|更多好友/, 'k2', {c$: true}],
@@ -67,9 +63,9 @@ let _ = {
         this.img = imagesx.capt();
     },
     findPoints() {
-        this.pts = imagesx.findAllPointsForColor(this.img, '#DAFF00', {
+        this.pts = images.findAllPointsForColor(this.img, '#DAFF00', {
             threshold: 0,
-            region: [cX(0.15), cYx(0.16), cX(0.85), cYx(0.36)],
+            region: this.cfg.region,
         });
     },
     isSamePoint(a, b) {
@@ -112,12 +108,14 @@ let _ = {
 let $ = {
     check() {
         devicex.ensureSdkInt();
+        alipay.ensureAppInstalled();
         autojs.ensureVersion();
-        appx.checkAccessibility();
+        a11yx.ensureSvcAndFunc();
+        devicex.checkScreenOffTimeout();
     },
     greet() {
         consolex.d('开始"能量雨"任务', 1, 0, 2);
-        consolex.debug.switchSet(_.cfg.is_debug);
+        consolex.debug.switchSet(_.cfg.isDebug);
     },
     launch() {
         alipay.startApp('af_energy_rain');
@@ -129,7 +127,7 @@ let $ = {
         return consolex.w('进入"能量雨"主页超时', 4, 0, 2);
     },
     ready() {
-        if ($$disp.is_display_rotation_landscape) {
+        if ($$disp.is_rotation_landscape) {
             consolex._('重新获取当前设备屏幕显示信息');
             $$disp.refresh();
         }
@@ -197,7 +195,7 @@ let $ = {
                         devicex.keycode('back', {rush: true});
 
                         let _ctd = 3, _retry = 5;
-                        $$toast('即将在 ' + _ctd + ' 秒内重启能量雨工具', 'L', 'F');
+                        toast('即将在 ' + _ctd + ' 秒内重启能量雨工具', 'L', 'F');
                         sleep(_ctd * 1e3);
                         enginesx.restart({max_restart_e_times: _retry});
                     }
@@ -278,7 +276,7 @@ let $ = {
             !function remind$iiFe() {
                 let _msg = '等待' + _act + '以便继续';
                 consolex._(_msg);
-                $$toast(_msg, 'long');
+                toast(_msg, 'long');
                 devicex.vibrate([100, 200, 100, 200, 200]);
             }();
 
@@ -303,7 +301,7 @@ let $ = {
         if (_.results.length) {
             consolex._('统计数据池: ' + _.results);
             if (!_.results.includes(NaN)) {
-                consolex.d('游戏结果: ' + _getResult(_.results), 4);
+                consolex.d(`游戏结果: ${_getResult(_.results)}`, 4);
             } else {
                 consolex.w('游戏结果: 统计失败', 4);
             }
@@ -318,11 +316,11 @@ let $ = {
          * @return {string}
          */
         function _getResult(res) {
-            let _sum = res.reduce((x, y) => x + y);
+            let sum = res.reduce((x, y) => x + y);
             if (res.length < 2) {
-                return _sum + 'g';
+                return `${sum}g`;
             }
-            return _sum + 'g\x20' + res.map(x => x + 'g').join(' + ').surround('()');
+            return `${sum}g (${res.map(x => `${x}g`).join(` + `)})`;
         }
     },
     start() {
@@ -340,7 +338,6 @@ let $ = {
     },
 };
 
-/** @type {Plugin$Exportation} */
 let exp = {
     dialog: null,
     view: null,

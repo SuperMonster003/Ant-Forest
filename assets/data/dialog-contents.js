@@ -163,7 +163,7 @@ module.exports = {
         '2. 好友森林能量球 (绿/橙/金)\n\n' +
         '设置过小值可能遗漏点击能量球\n' +
         '设置过大值将影响快速收取体验',
-    homepage_wball_max_hue_no_blue: // 金色球最大色相值 (无蓝分量)
+    homepageWaterBallMaxHueNoBlue: // 金色球最大色相值 (无蓝分量)
         '用以判断能量球是否为浇水能量球\n' +
         '即金色能量球\n' +
         '判断及计算方法:\n' +
@@ -206,14 +206,14 @@ module.exports = {
         '参照色值检测阈值\n' +
         '阈值越大 匹配越宽松 反之越严格\n' +
         '0 表示完全相似',
-    forest_image_pool_limit: // 能量球样本采集容量
+    forestImagePoolLimit: // 能量球样本采集容量
         '限制用于存放森林页面截图样本的\n' +
         '采集池数量上限\n\n' +
         '数量过多将导致采集时间过长\n' +
         '影响收取体验\n' +
         '数量过少将导致识别率受影响\n' +
         '出现遗漏或误判',
-    forest_image_pool_itv: // 能量球样本采集间隔
+    forestImagePoolItv: // 能量球样本采集间隔
         '森林页面样本采集池样本之间的' +
         '存放间隔\n\n' +
         '间隔的意义主要在于保证\n' +
@@ -222,7 +222,7 @@ module.exports = {
         '影响收取体验\n' +
         '间隔过小将导致样本差异过小\n' +
         '影响识别率并出现遗漏或误判',
-    eballs_recognition_region: // 森林页面能量球识别区域
+    energyBallsRecognitionRegion: // 森林页面能量球识别区域
         '用于限制森林页面能量球的识别区域\n' +
         '识别的能量球必须全部包含在此区域\n' +
         '才被视为有效的能量球样本\n\n' +
@@ -232,12 +232,12 @@ module.exports = {
         '示例 2 :  0.1,120,0.9,53%\n\n' +
         '也可使用可视化工具进行参数设置:\n' +
         'tools/Floaty_Rectangle_Region.js',
-    ripe_ball_detect_color_val: // 成熟能量球颜色色值
+    ripeBallDetectColorVal: // 成熟能量球颜色色值
         '森林页面识别成熟能量球的参照色值\n\n' +
         '示例:\n' +
         'rgb(67,160,71)\n' +
         '#AEB0B3',
-    ripe_ball_detect_threshold: // 成熟能量球颜色检测阈值
+    ripeBallDetectThreshold: // 成熟能量球颜色检测阈值
         '森林页面识别成熟能量球的\n' +
         '参照色值检测阈值\n' +
         '阈值越大 匹配越宽松 反之越严格\n' +
@@ -817,12 +817,12 @@ module.exports = {
         '关键参数如下:\n' +
         '    image: %img%\n' +
         '    dp: 1\n' +
-        '    minDist: cX(0.09) (可配置)\n' +
+        '    minDst: cX(0.09) (可配置)\n' +
         '    minRadius: cX(0.054)\n' +
         '    maxRadius: cX(0.078)\n' +
         '    param1: 15\n' +
         '    param2: 15\n' +
-        '可参阅 __image__.js 封装模块\n' +
+        '可参阅 __image__.js 内部模块\n' +
         '内部的 images.findCircles() 方法\n\n' +
         '上述的 %img% 传入参数有以下策略:\n' +
         '1. 灰度化\n' +
@@ -887,7 +887,7 @@ module.exports = {
         '因为 1 和 6 镜像后不需补充\n' +
         '线性插值生效\n' +
         '5 和 6 的间距作为参考\n' +
-        '会将 1 与 4 之间插入 2 个球\n' +
+        '会在 1 与 4 之间插入 2 个球\n' +
         '结果: 1,2,3,4,5,6 (正确)\n' +
         '示例 4:\n' +
         '能量球 5 个 位置如下:\n' +

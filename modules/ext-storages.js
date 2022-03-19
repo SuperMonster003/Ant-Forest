@@ -1,6 +1,4 @@
-﻿let {
-    isNullish, isPlainObject,
-} = require('./mod-global');
+﻿require('./mod-global');
 let {filesx} = require('./ext-files');
 let {cryptox} = require('./ext-crypto');
 

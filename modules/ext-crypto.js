@@ -1,7 +1,6 @@
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let {isNullish} = require('./mod-global');
 let {filesx} = require('./ext-files');
 
 let File = java.io.File;
