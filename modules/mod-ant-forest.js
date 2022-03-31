@@ -1203,7 +1203,7 @@ let exp = {
                 };
             }
             if (!exp.isRipeBall) {
-                exp.isRipeBall = (o, capt, container) => {
+                exp.isRipeBall = (o, {capt, container}) => {
                     if (exp.inTreeArea(o)) {
                         return;
                     }
@@ -1547,7 +1547,7 @@ let exp = {
                     // tool function(s) //
 
                     function _isRipeBall(o) {
-                        return exp.isRipeBall(o, capt);
+                        return exp.isRipeBall(o, {capt});
                     }
 
                     /**
@@ -1661,7 +1661,7 @@ let exp = {
                         _filtered.invalid += 1;
                         return false;
                     }
-                    if (exp.isRipeBall(o, capt)) {
+                    if (exp.isRipeBall(o, {capt})) {
                         _filtered.ripe += 1;
                         return true;
                     }
