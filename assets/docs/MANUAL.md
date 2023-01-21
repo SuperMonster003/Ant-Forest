@@ -83,9 +83,7 @@ Auto.js 的自动操作主要基于控件与坐标
 
 ##### 软件安装
 
-- 免费版本 [4.1.1 Alpha2](https://github.com/SuperMonster002/Hello-Sockpuppet/raw/master/%5Bauto.js%5D%5B4.1.1_alpha2%5D%5Barm-v7a%5D(b69a4e23).apk?raw=true)
-
-- 其他版本详见 [README.md](https://github.com/SuperMonster003/Ant-Forest#autojs%E5%8F%AF%E7%94%A8%E7%89%88%E6%9C%AC)
+- [AutoJs6](https://github.com/SuperMonster003/AutoJs6/releases/latest) (`开源免费`)
 
 ##### 开启无障碍服务
 

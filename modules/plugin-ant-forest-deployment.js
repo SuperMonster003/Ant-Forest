@@ -1,6 +1,5 @@
 require('./mod-global.js');
 let {project} = require('./mod-project');
-let {threadsx} = require('./ext-threads');
 let {dialogsx} = require('./ext-dialogs');
 
 let _export = {
@@ -93,7 +92,7 @@ function _projReleaseCbk(releases) {
         .on('positive', (d) => {
             d.dismiss();
             d.getSelectedIndex() === 0
-                ? threadsx.start(() => _deployVersion(_newest))
+                ? threads.start(() => _deployVersion(_newest))
                 : dialogsx.builds([
                     '选择其他项目版本', '', 0, '上一步', '下一步', 1,
                 ], {
@@ -106,7 +105,7 @@ function _projReleaseCbk(releases) {
                 }).on('positive', (ds) => {
                     ds.dismiss();
                     let _idx = ds.getSelectedIndex() + 1;
-                    threadsx.start(() => _deployVersion(releases[_idx]));
+                    threads.start(() => _deployVersion(releases[_idx]));
                 }).show();
         })
         .show();
@@ -148,7 +147,6 @@ function _deployVersion(version) {
 
                 function _showStatement() {
                     let _runNow = function () {
-                        dialogsx.clearPool();
                         let _pkg = context.getPackageName();
                         let _startActivity = (override_class_name_prefix) => {
                             let _cls_n_pref = override_class_name_prefix || _pkg;
@@ -166,7 +164,6 @@ function _deployVersion(version) {
                     };
 
                     let _finish = function () {
-                        dialogsx.clearPool();
                         exit();
                     };
 

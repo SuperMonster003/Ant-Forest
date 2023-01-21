@@ -4,8 +4,8 @@ let {consolex} = require('./ext-console');
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let ScriptConfig = com.stardust.autojs.project.ScriptConfig;
-let ExecutionConfig = com.stardust.autojs.execution.ExecutionConfig;
+let ScriptConfig = org.autojs.autojs.project.ScriptConfig;
+let ExecutionConfig = org.autojs.autojs.execution.ExecutionConfig;
 
 let exp = {
     get my_engine() {
@@ -38,7 +38,7 @@ let exp = {
         return this.my_engine.source.toString().replace(/(.+?)(.(js|auto))?$/, '$1');
     },
     /**
-     * @return {com.stardust.autojs.engine.ScriptEngine[]}
+     * @return {org.autojs.autojs.engine.ScriptEngine[]}
      */
     get all_engines() {
         return engines.all();
@@ -164,7 +164,7 @@ module.exports = {enginesx: exp};
 
 /**
  * @param {Enginesx.ExecutionConfig} c
- * @return {com.stardust.autojs.execution.ExecutionConfig}
+ * @return {org.autojs.autojs.execution.ExecutionConfig}
  */
 function _fillConfig(c) {
     let _cfg = new ExecutionConfig();

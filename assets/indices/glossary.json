@@ -1,4 +1,5 @@
 {
+  "AXR": "Arrow function returns without (X) the 'return' keyword",
   "a11y": "accessibility",
   "acc": "account",
   "accu": "accumulated",
@@ -186,6 +187,7 @@
   "idt": "identification",
   "idx": "index",
   "ifn": "if needed",
+  "IIFE": "Immediately-Invoked Function Expression",
   "inc": "increment",
   "inf": "information",
   "info": "information",

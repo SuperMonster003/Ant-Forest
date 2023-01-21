@@ -2,9 +2,8 @@ let {
     $$impeded, $$cvt, $$link, $$str,
     $$und, $$nul, $$arr, $$num, $$rex, $$func,
 } = require('./mod-global');
-let {timersx} = require('./ext-timers');
-let {consolex} = require('./ext-console');
-let {a11yx, $$sel} = require('./ext-a11y');
+let { consolex } = require('./ext-console');
+let { a11yx, $$sel } = require('./ext-a11y');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -16,7 +15,6 @@ let Secure = Settings.Secure;
 let File = java.io.File;
 let Uri = android.net.Uri;
 let Surface = android.view.Surface;
-let Intent = android.content.Intent;
 let Context = android.content.Context;
 let Resources = android.content.res.Resources;
 let IntentFilter = android.content.IntentFilter;
@@ -37,7 +35,7 @@ let exp = {
         return context.getSystemService(Context.POWER_SERVICE);
     },
     screen_metrics: {
-        /** @type {com.stardust.util.ScreenMetrics} */
+        /** @type {org.autojs.util.ScreenMetrics} */
         metrics: runtime.getScreenMetrics(),
         /** @return {{width: number, height: number}} */
         getInfo() {
@@ -63,7 +61,7 @@ let exp = {
         getRatio() {
             let _width = this.metrics.rescaleX(W) / W;
             let _height = this.metrics.rescaleY(H) / H;
-            return {width: _width, height: _height};
+            return { width: _width, height: _height };
         },
         reset() {
             this.setRatio(0);
@@ -311,7 +309,7 @@ let exp = {
      * devicex.accelerometer_rotation.toggle();
      * @see https://developer.android.com/reference/android/provider/Settings.System#ACCELEROMETER_ROTATION
      */
-    accelerometer_rotation: new StateManager('System', 'ACCELEROMETER_ROTATION', 'Int', [0, 1]),
+    accelerometer_rotation: new StateManager('System', 'ACCELEROMETER_ROTATION', 'Int', [ 0, 1 ]),
     /**
      * Default screen rotation when no other policy applies.
      * @example
@@ -368,7 +366,7 @@ let exp = {
      * Whether user has enabled development settings.
      * @see https://developer.android.com/reference/android/provider/Settings.Global#DEVELOPMENT_SETTINGS_ENABLED
      */
-    development_settings_enabled: new StateManager('Global', 'DEVELOPMENT_SETTINGS_ENABLED', 'Int', [0, 1]),
+    development_settings_enabled: new StateManager('Global', 'DEVELOPMENT_SETTINGS_ENABLED', 'Int', [ 0, 1 ]),
     /**
      * The user directory created by android.server.pm.UserManagerService
      * @type {java.io.File}
@@ -448,7 +446,7 @@ let exp = {
         device.keepScreenOn(_du);
 
         consolex._('已设置屏幕常亮显示');
-        consolex._('最大超时时间: ' + (_du / 60e3).toFixedNum(2) + '分钟');
+        consolex._('最大超时时间: ' + Numberx.toFixedNum(_du / 60e3, 2) + '分钟');
     },
     /**
      * Substitution of device.keepScreenDim()
@@ -461,7 +459,7 @@ let exp = {
         device.keepScreenDim(_du);
 
         consolex._('已设置屏幕常暗显示');
-        consolex._('最大超时时间: ' + (_du / 60e3).toFixedNum(2) + '分钟');
+        consolex._('最大超时时间: ' + Numberx.toFixedNum(_du / 60e3, 2) + '分钟');
     },
     cancelOn() {
         device.cancelKeepingAwake();
@@ -479,7 +477,7 @@ let exp = {
     screenOff(options) {
         // @Overload
         if (typeof options === 'boolean') {
-            return this.screenOff({isDebug: options});
+            return this.screenOff({ isDebug: options });
         }
 
         let _opt = options || {};
@@ -492,29 +490,26 @@ let exp = {
 
         let _msg = {
             key_code: {
-                failed: () => consolex.w(['关屏策略执行失败', '按键模拟失败'], 0, 0, -2),
+                failed: () => consolex.w([ '关屏策略执行失败', '按键模拟失败' ], 0, 0, -2),
                 bugModel: () => consolex._([
                     '跳过当前策略', '设备不支持KeyCode方法', '设备型号: ' + device.brand,
                 ]),
             },
             successWithElapsedTime(et) {
-                consolex._(['策略执行成功', '用时: ' + et]);
+                consolex._([ '策略执行成功', '用时: ' + et ]);
             },
             noWriteSettingsPermission() {
                 let _nm = 'auto.js-write-settings-permission-helper';
                 let _path = files.path('./tools/' + _nm + '.js');
                 let _msg = '需要"修改系统设置"权限';
 
-                consolex.w(['关屏策略执行失败', _msg, '可使用以下工具获得帮助支持', _path], 0, 0, -2);
+                consolex.w([ '关屏策略执行失败', _msg, '可使用以下工具获得帮助支持', _path ], 0, 0, -2);
 
                 toast('关闭屏幕失败\n' + _msg, 'long');
             },
             noWriteSecureSettingsPermission() {
                 let _p = 'WRITE_SECURE_SETTINGS';
-                consolex.w(['无法完成屏幕关闭操作', '需要以下必要权限:', _p,
-                    '权限的详细信息及获取方式', '可参阅项目配置工具',
-                    '-> 运行与安全', '-> 自动开启无障碍服务',
-                ], 0, 0, -2);
+                consolex.w([ '无法完成屏幕关闭操作', '需要以下必要权限:', _p ], 0, 0, -2);
                 toast('关闭屏幕失败\n缺少以下必要权限:\n' + _p, 'long');
             },
             toastWithDebugInfo(messages) {
@@ -549,9 +544,9 @@ let exp = {
                 consolex._('尝试策略: 模拟电源按键');
                 if (!_bugModel()) {
                     _hint();
-                    timersx.rec.save('scr_off_tt');
-                    if (exp.keycode('KEYCODE_POWER', {no_failed_msg: true})) {
-                        let _et_str = $$cvt.time(timersx.rec('scr_off_tt'), '$zh');
+                    recorder.save('scr_off_tt');
+                    if (exp.keycode('KEYCODE_POWER', { no_failed_msg: true })) {
+                        let _et_str = $$cvt.time(recorder('scr_off_tt'), '$zh');
                         _msg.successWithElapsedTime(_et_str);
                         return true;
                     }
@@ -572,7 +567,7 @@ let exp = {
             }
 
             function _bugModel() {
-                return [/[Mm]eizu/].some(m => device.brand.match(m));
+                return [ /[Mm]eizu/ ].some(m => device.brand.match(m));
             }
 
             function _hint() {
@@ -623,7 +618,7 @@ let exp = {
             }
 
             function _hint() {
-                timersx.rec.save('set_provider');
+                recorder.save('set_provider');
 
                 let _flag = _opt_provider.hint;
                 if (typeof _flag === 'function') {
@@ -647,11 +642,11 @@ let exp = {
                     if (_flag.brake_is_triggered) {
                         break;
                     }
-                    let _et = timersx.rec('set_provider');
+                    let _et = recorder('set_provider');
                     let _et_str = $$cvt.time(_et, '$zh');
                     let _et_limit = 55.23e3;
                     if (_et > _et_limit) {
-                        consolex.w(['关屏策略执行失败', '屏幕关闭超时', '耗时: ' + _et_str], 2, 0, -2);
+                        consolex.w([ '关屏策略执行失败', '屏幕关闭超时', '耗时: ' + _et_str ], 2, 0, -2);
                         break;
                     }
                     if (!_this.isScreenOn()) {
@@ -724,7 +719,7 @@ let exp = {
      * @param {number|number[]} pattern - a group of times to control the vibrator
      * @param {number} [repeat=1] - total repeat times
      * @param {boolean} [async=true] - vibrator working asynchronously or not
-     * @see com.stardust.autojs.runtime.api.Device
+     * @see org.autojs.autojs.runtime.api.Device
      * @example
      * // async and repeat once
      * devicex.vibrate(100);
@@ -741,7 +736,7 @@ let exp = {
     vibrate(pattern, repeat, async) {
         let _repeat = repeat || 1;
         let _async = typeof async === 'undefined' ? true : !!async;
-        let _pattern = typeof pattern === 'number' ? [pattern] : pattern;
+        let _pattern = typeof pattern === 'number' ? [ pattern ] : pattern;
         _async ? threads.start(_vibrate) : _vibrate();
 
         // tool function(s) //
@@ -804,13 +799,13 @@ let exp = {
         let $ = {
             options: options || {},
             relations: [
-                {str: 'home', num: 3},
-                {str: 'back', num: 4},
-                {str: 'recents', num: 187},
-                {str: 'quick_settings', num: -1},
-                {str: 'power_dialog', num: -1},
-                {str: 'notifications', num: -1},
-                {str: 'split_screen', num: -1},
+                { str: 'home', num: 3 },
+                { str: 'back', num: 4 },
+                { str: 'recents', num: 187 },
+                { str: 'quick_settings', num: -1 },
+                { str: 'power_dialog', num: -1 },
+                { str: 'notifications', num: -1 },
+                { str: 'split_screen', num: -1 },
             ],
             get autojs_keycode() {
                 return this._aj_kc = this._aj_kc || this.relations.map(o => o.str);
@@ -884,7 +879,7 @@ let exp = {
             },
             showFailedMsgIFN(kc) {
                 if (!this.options.no_failed_msg) {
-                    consolex.w(['按键模拟失败', '键值: ' + kc], 0, 0, -2);
+                    consolex.w([ '按键模拟失败', '键值: ' + kc ], 0, 0, -2);
                 }
             },
             /**
@@ -974,7 +969,12 @@ let exp = {
      * @return {number}
      */
     getCallState() {
-        return context.getSystemService(Context.TELEPHONY_SERVICE).getCallState();
+        try {
+            return context.getSystemService(Context.TELEPHONY_SERVICE).getCallState();
+        } catch (e) {
+            // Doesn't have READ_PHONE_STATE permission
+            return 0;
+        }
     },
     /**
      * Returns display screen pixel lengths and scale transformers.
@@ -995,17 +995,6 @@ let exp = {
     getDisplay() {
         let _ = {
             /**
-             * @type {Object.<Devicex.Display.Scaler.PresetBase,{w:number,h:number}>}
-             */
-            preset: {
-                get default() {
-                    return this.xz1c;
-                },
-                xz1c: {w: 720, h: 1280},
-                z5: {w: 1080, h: 1920},
-                x1m2: {w: 1096, h: 2560},
-            },
-            /**
              * Return a resource identifier for the given resource name.
              * @param {string} name
              * @return {number}
@@ -1017,87 +1006,6 @@ let exp = {
                 } catch (e /* android.content.res.Resources.NotFoundException */) {
                     return Number.NaN;
                 }
-            },
-            /**
-             * @param {?string|{w:number,h:number}} [base]
-             * @return {{w:number,h:number}}
-             */
-            getBase(base) {
-                if (isPlainObject(base)) {
-                    return {w: base.w, h: base.h};
-                }
-                if (isNullish(base)) {
-                    return this.preset.default;
-                }
-                if (base in this.preset) {
-                    return this.preset[base];
-                }
-                throw Error('Unknown base for calcBase()');
-            },
-            /**
-             * @param {number|*} num
-             * @param {Devicex.Display.Scaler.Base|boolean} [base]
-             * @param {boolean} [is_ratio]
-             * @return {number}
-             */
-            cX(num, base, is_ratio) {
-                // @Overload
-                if (typeof base === 'boolean') {
-                    return this.cX(num, null, base);
-                }
-                let _is_ratio = Math.abs(num) < 1 || is_ratio;
-                if (_is_ratio) {
-                    return Math.round($.W * num).clamp(-$.W, $.W);
-                }
-                let _base = typeof base === 'number' ? base : this.getBase(base).w;
-                return Math.round($.W * num / _base).clamp(-$.W, $.W);
-            },
-            /**
-             * @param {number|*} num
-             * @param {Devicex.Display.Scaler.Base|boolean} [base]
-             * @param {boolean} [is_ratio]
-             * @return {number}
-             */
-            cY(num, base, is_ratio) {
-                // @Overload
-                if (typeof base === 'boolean') {
-                    return this.cY(num, null, base);
-                }
-
-                let _is_ratio = Math.abs(num) < 1 || is_ratio;
-                if (_is_ratio) {
-                    return Math.round($.H * num).clamp(-$.H, $.H);
-                }
-                let _base = typeof base === 'number' ? base : this.getBase(base).h;
-                return Math.round($.H * num / _base).clamp(-$.H, $.H);
-            },
-            /**
-             * @param {number|*} num
-             * @param {Devicex.Display.Scaler.Base|boolean} [base]
-             * @param {boolean} [is_ratio]
-             * @return {number}
-             */
-            cYx(num, base, is_ratio) {
-                // @Overload
-                if (typeof base === 'boolean') {
-                    return this.cYx(num, null, base);
-                }
-
-                let _is_ratio = Math.abs(num) < 1 || is_ratio;
-                if (_is_ratio) {
-                    if (typeof base === 'number') {
-                        if ($$num(0, '<', base, '<=', 1)) {
-                            return Math.round(num * $.W / base).clamp(-$.H, $.H);
-                        }
-                        if (base > 1) {
-                            return Math.round(num * $.W * base).clamp(-$.H, $.H);
-                        }
-                        throw Error('Base is a invalid number for cYx()');
-                    }
-                    let _base = this.getBase(base);
-                    return Math.round(num * _base.h * $.W / _base.w).clamp(-$.H, $.H);
-                }
-                return Math.round(num * $.W / this.getBase(base).w).clamp(-$.H, $.H);
             },
         };
 
@@ -1120,21 +1028,21 @@ let exp = {
                     this.uH = this.win_svc_disp.getHeight();
                     this.ROT = this.win_svc_disp.getRotation();
                 } catch (e) {
-                    consolex.w(['devicex display parseBasic():', e]);
+                    consolex.w([ 'devicex display parseBasic():', e ]);
                     this.uH = this.uH !== undefined ? this.uH : this.H;
                     this.uW = this.uW !== undefined ? this.uW : this.W;
                     this.ROT = this.ROT !== undefined ? this.ROT : 0;
                 }
                 this.check() || consolex.$([
                     'devicex display parseBasic():',
-                    ['W: ' + this.W, 'H: ' + this.H].join(', '),
+                    [ 'W: ' + this.W, 'H: ' + this.H ].join(', '),
                 ], 8, 2, 0, 2);
             },
             globalize() {
                 /** Screen width */
-                global.W = global.WIDTH = this.W;
+                global.W = this.W;
                 /** Screen height */
-                global.H = global.HEIGHT = this.H;
+                global.H = this.H;
                 /** Semi-length of screen width */
                 global.halfW = this.W / 2;
                 /** Semi-length of screen height */
@@ -1145,18 +1053,6 @@ let exp = {
                 global.uH = this.uH;
                 /** @type {Devicex.Display.Rotation} */
                 global.ROT = global.ROTATION = this.ROT;
-
-                Object.assign(global, {
-                    cX() {
-                        return _.cX.apply(_, arguments);
-                    },
-                    cY() {
-                        return _.cY.apply(_, arguments);
-                    },
-                    cYx() {
-                        return _.cYx.apply(_, arguments);
-                    },
-                });
             },
             assign() {
                 return this.disp = this.disp || Object.assign({
@@ -1174,16 +1070,6 @@ let exp = {
                         || _.getDimenPixSize('action_bar_default_height'),
                     navigation_bar_height: _.getDimenPixSize('navigation_bar_height'),
                     navigation_bar_height_computed: $.W - $.uW,
-                }, {
-                    cX() {
-                        return _.cX.apply(_, arguments);
-                    },
-                    cY() {
-                        return _.cY.apply(_, arguments);
-                    },
-                    cYx() {
-                        return _.cYx.apply(_, arguments);
-                    },
                 }, {
                     refresh() {
                         let _new = exp.getDisplay();
@@ -1249,10 +1135,10 @@ let exp = {
     },
     /**
      * @param {number} rotation
-     * @param {boolean} [is_async=false]
+     * @param {boolean} [isAsync=false]
      */
-    setUserRotation(rotation, is_async) {
-        this.setAutoRotationDisabled(is_async);
+    setUserRotation(rotation, isAsync) {
+        this.setAutoRotationDisabled(isAsync);
 
         let _aim_user_rotation = {
             0: Surface.ROTATION_0,
@@ -1272,41 +1158,41 @@ let exp = {
         if (!_cond()) {
             this.user_rotation.saveState();
             this.user_rotation.put(_aim_user_rotation);
-            if (!is_async) {
+            if (!isAsync) {
                 a11yx.wait(_cond, 2e3, 80);
                 sleep(360);
             }
         }
     },
-    setUserRotationPortrait(is_async) {
-        this.setUserRotation(Surface.ROTATION_0, is_async);
+    setUserRotationPortrait(isAsync) {
+        this.setUserRotation(Surface.ROTATION_0, isAsync);
     },
-    setUserRotationInverted(is_async) {
-        this.setUserRotation(Surface.ROTATION_180, is_async);
+    setUserRotationInverted(isAsync) {
+        this.setUserRotation(Surface.ROTATION_180, isAsync);
     },
-    setUserRotationLandscapeRight(is_async) {
-        this.setUserRotation(Surface.ROTATION_90, is_async);
+    setUserRotationLandscapeRight(isAsync) {
+        this.setUserRotation(Surface.ROTATION_90, isAsync);
     },
-    setUserRotationLandscapeLeft(is_async) {
-        this.setUserRotation(Surface.ROTATION_270, is_async);
+    setUserRotationLandscapeLeft(isAsync) {
+        this.setUserRotation(Surface.ROTATION_270, isAsync);
     },
-    setAutoRotationEnabled(is_async) {
+    setAutoRotationEnabled(isAsync) {
         let _aim_acc_rotation = 1;
         if (!this.accelerometer_rotation.verify(_aim_acc_rotation)) {
             this.accelerometer_rotation.saveState();
             this.accelerometer_rotation.put(_aim_acc_rotation);
-            if (!is_async) {
+            if (!isAsync) {
                 a11yx.wait(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
                 sleep(360);
             }
         }
     },
-    setAutoRotationDisabled(is_async) {
+    setAutoRotationDisabled(isAsync) {
         let _aim_acc_rotation = 0;
         if (!this.accelerometer_rotation.verify(_aim_acc_rotation)) {
             this.accelerometer_rotation.saveState();
             this.accelerometer_rotation.put(_aim_acc_rotation);
-            if (!is_async) {
+            if (!isAsync) {
                 a11yx.wait(() => this.accelerometer_rotation.verify(_aim_acc_rotation), 2e3, 80);
                 sleep(360);
             }
@@ -1380,37 +1266,37 @@ let exp = {
     getVerInfo(sdk) {
         let $ = {
             raw_info: {
-                1: {version: '1.0', release: 'September 23, 2008'},
-                2: {version: '1.1', release: 'February 9, 2009'},
-                3: {version: '1.5', release: 'April 27, 2009'},
-                4: {version: '1.6', release: 'September 15, 2009'},
-                5: {version: '2.0', release: 'October 27, 2009'},
-                6: {version: '2.0.1', release: 'December 3, 2009'},
-                7: {version: '2.1', release: 'January 11, 2010'},
-                8: {version: ['2.2', '2.2.3'], release: 'May 20, 2010'},
-                9: {version: ['2.3', '2.3.2'], release: 'December 6, 2010'},
-                10: {version: ['2.3.3', '2.3.7'], release: 'February 9, 2011'},
-                11: {version: '3.0', release: 'February 22, 2011'},
-                12: {version: '3.1', release: 'May 10, 2011'},
-                13: {version: ['3.2', '3.2.6'], release: 'July 15, 2011'},
-                14: {version: ['4.0', '4.0.2'], release: 'October 18, 2011'},
-                15: {version: ['4.0.3', '4.0.4'], release: 'December 16, 2011'},
-                16: {version: ['4.1', '4.1.2'], release: 'July 9, 2012'},
-                17: {version: ['4.2', '4.2.2'], release: 'November 13, 2012'},
-                18: {version: ['4.3', '4.3.1'], release: 'July 24, 2013'},
-                19: {version: ['4.4', '4.4.4'], release: 'October 31, 2013'},
-                20: {version: ['4.4W', '4.4W.2'], release: 'June 25, 2014'},
-                21: {version: ['5.0', '5.0.2'], release: 'November 4, 2014'},
-                22: {version: ['5.1', '5.1.1'], release: 'March 2, 2015'},
-                23: {version: ['6.0', '6.0.1'], release: 'October 2, 2015'},
-                24: {version: '7.0', release: 'August 22, 2016'},
-                25: {version: ['7.1', '7.1.2'], release: 'October 4, 2016'},
-                26: {version: '8.0', release: 'August 21, 2017'},
-                27: {version: '8.1', release: 'December 5, 2017'},
-                28: {version: '9', release: 'August 6, 2018'},
-                29: {version: '10', release: 'September 7, 2019'},
-                30: {version: '11', release: 'September 8, 2020'},
-                31: {version: '12', release: 'October 4, 2021'},
+                1: { version: '1.0', release: 'September 23, 2008' },
+                2: { version: '1.1', release: 'February 9, 2009' },
+                3: { version: '1.5', release: 'April 27, 2009' },
+                4: { version: '1.6', release: 'September 15, 2009' },
+                5: { version: '2.0', release: 'October 27, 2009' },
+                6: { version: '2.0.1', release: 'December 3, 2009' },
+                7: { version: '2.1', release: 'January 11, 2010' },
+                8: { version: [ '2.2', '2.2.3' ], release: 'May 20, 2010' },
+                9: { version: [ '2.3', '2.3.2' ], release: 'December 6, 2010' },
+                10: { version: [ '2.3.3', '2.3.7' ], release: 'February 9, 2011' },
+                11: { version: '3.0', release: 'February 22, 2011' },
+                12: { version: '3.1', release: 'May 10, 2011' },
+                13: { version: [ '3.2', '3.2.6' ], release: 'July 15, 2011' },
+                14: { version: [ '4.0', '4.0.2' ], release: 'October 18, 2011' },
+                15: { version: [ '4.0.3', '4.0.4' ], release: 'December 16, 2011' },
+                16: { version: [ '4.1', '4.1.2' ], release: 'July 9, 2012' },
+                17: { version: [ '4.2', '4.2.2' ], release: 'November 13, 2012' },
+                18: { version: [ '4.3', '4.3.1' ], release: 'July 24, 2013' },
+                19: { version: [ '4.4', '4.4.4' ], release: 'October 31, 2013' },
+                20: { version: [ '4.4W', '4.4W.2' ], release: 'June 25, 2014' },
+                21: { version: [ '5.0', '5.0.2' ], release: 'November 4, 2014' },
+                22: { version: [ '5.1', '5.1.1' ], release: 'March 2, 2015' },
+                23: { version: [ '6.0', '6.0.1' ], release: 'October 2, 2015' },
+                24: { version: '7.0', release: 'August 22, 2016' },
+                25: { version: [ '7.1', '7.1.2' ], release: 'October 4, 2016' },
+                26: { version: '8.0', release: 'August 21, 2017' },
+                27: { version: '8.1', release: 'December 5, 2017' },
+                28: { version: '9', release: 'August 6, 2018' },
+                29: { version: '10', release: 'September 7, 2019' },
+                30: { version: '11', release: 'September 8, 2020' },
+                31: { version: '12', release: 'October 4, 2021' },
             },
             month_map: {
                 Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
@@ -1418,7 +1304,7 @@ let exp = {
             },
             parseDate(s) {
                 let _date_nums = s.replace(/([A-Z]..)\D*?\s(\d\d?), (\d{4})/, ($0, $1, $2, $3) => {
-                    return [$3, this.month_map[$1], $2].join(',');
+                    return [ $3, this.month_map[$1], $2 ].join(',');
                 }).split(',').map(s => Number(s));
                 _date_nums.unshift(null);
                 return new (Function.prototype.bind.apply(Date, _date_nums));
@@ -1429,7 +1315,7 @@ let exp = {
                     let _raw = this.raw_info[k];
                     let _ver = _raw.version;
                     if (Array.isArray(_ver)) {
-                        _ver = {min: _ver[0], max: _ver[1]};
+                        _ver = { min: _ver[0], max: _ver[1] };
                     }
                     this.versions[k] = {
                         version: _ver,
@@ -1448,19 +1334,6 @@ let exp = {
         };
 
         return $.getResult();
-    },
-    /**
-     * Check if device is running compatible android sdk version
-     * @param {number} [minimum=24]
-     */
-    ensureSdkInt(minimum) {
-        let _min = minimum || 24;
-        if (device.sdkInt < _min) {
-            let _ver = this.getVerInfo(_min).version;
-            let _floor = typeof _ver === 'object' ? _ver.min : _ver;
-            let _reason = _floor ? '安卓系统版本低于' + _floor : '安卓系统版本过低';
-            consolex.$(['脚本无法继续', _reason], 8, 4, 0, 2);
-        }
     },
     /**
      * Make sure System.SCREEN_OFF_TIMEOUT greater than min_timeout.
@@ -1485,7 +1358,7 @@ let exp = {
                 return this.options.is_auto_correct === undefined || this.options.is_auto_correct;
             },
             autoCorrect() {
-                let _mm = (this.correct_timeout / 60e3).toFixedNum(2);
+                let _mm = Numberx.toFixedNum(this.correct_timeout / 60e3, 2);
                 consolex.d([
                     '修正异常的设备屏幕超时参数',
                     '修正值: ' + this.correct_timeout + ' (' + _mm + '分钟)',
@@ -1493,7 +1366,7 @@ let exp = {
                 try {
                     exp.screen_off_timeout.put(this.correct_timeout);
                 } catch (e) {
-                    consolex.e(['修正失败', e], 2, 0, -2);
+                    consolex.e([ '修正失败', e ], 2, 0, -2);
                 }
             },
             handle() {
@@ -1514,7 +1387,7 @@ let exp = {
         if (typeof global._$_is_init_scr_on !== 'boolean') {
             global._$_is_init_scr_on = this.isScreenOn();
         }
-        this.is_init_screen_on = global._$_is_init_scr_on;
+        this.isInitScreenOn = global._$_is_init_scr_on;
 
         if (typeof global._$_is_init_unlk !== 'boolean') {
             global._$_is_init_unlk = this.isUnlocked();
@@ -1718,7 +1591,7 @@ function StateManager(provider, key, data_type, state_set) {
      * @param {IArguments} args
      */
     function _fixDataTypeAndCall(act, args) {
-        for (let type of ['Int', 'Long', 'Float', 'String']) {
+        for (let type of [ 'Int', 'Long', 'Float', 'String' ]) {
             if (type !== data_type) {
                 try {
                     let _val = Provider[act.toLowerCase() + type].apply(Provider, args);
@@ -1740,7 +1613,7 @@ function unlockGenerator() {
     let _ak = 'com\\.android\\.keyguard:id/';
     let _sk = 'com\\.smartisanos\\.keyguard:id/';
 
-    let {storagesx} = require('./ext-storages');
+    let { storagesx } = require('./ext-storages');
 
     let _flag = {};
 
@@ -1750,7 +1623,7 @@ function unlockGenerator() {
                 _wakeUpWithBuffer();
                 _disturbance();
 
-                return _checkStrategy() && [{
+                return _checkStrategy() && [ {
                     desc: '通用',
                     sel: idMatches(_as + 'preview_container'),
                 }, {
@@ -1766,16 +1639,16 @@ function unlockGenerator() {
                     desc: 'MIUI10',
                     sel: idMatches(_as + '(.*lock_screen_container|notification_(container|panel).*|keyguard_.*)'),
                 }, {
-                    sel: $$sel.pickup(/上滑.{0,4}解锁/, 'selector'),
-                }].some((smp) => {
-                    let {desc: _desc, sel: _sel} = smp;
-                    if (_sel instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                    sel: pickup(/上滑.{0,4}解锁/, '@'),
+                } ].some((smp) => {
+                    let { desc: _desc, sel: _sel } = smp;
+                    if (_sel instanceof org.autojs.autojs.core.accessibility.UiSelector) {
                         if (_sel.exists()) {
                             if (_desc) {
                                 consolex._('匹配到' + _desc + '解锁提示层控件');
                             } else {
                                 consolex._('匹配到解锁提示层文字:');
-                                consolex._($$sel.pickup(_sel, 'txt'));
+                                consolex._(pickup(_sel, 'txt'));
                             }
                             return (this.trigger = _sel.exists.bind(_sel))();
                         }
@@ -1785,14 +1658,14 @@ function unlockGenerator() {
                 // tool function(s) //
 
                 function _disturbance() {
-                    [{
+                    [ {
                         desc: 'QQ锁屏消息弹框控件',
                         trigger() {
-                            return $$sel.pickup('按住录音')
-                                || $$sel.pickup(idMatches(/com.tencent.mobileqq:id.+/));
+                            return pickup('按住录音')
+                                || pickup(idMatches(/com.tencent.mobileqq:id.+/));
                         },
                         handle() {
-                            a11yx.click$($$sel.pickup('关闭'), 'w');
+                            a11yx.click$(pickup('关闭'), 'w');
                             a11yx.wait$(this.trigger.bind(this), 3e3)
                                 ? consolex._('关闭弹框控件成功')
                                 : consolex._('关闭弹框控件超时', 3);
@@ -1812,16 +1685,16 @@ function unlockGenerator() {
                                 ? consolex._('闹钟应用解除前置成功')
                                 : consolex._('闹钟应用解除前置超时', 3);
                         },
-                    }].forEach((o) => {
+                    } ].forEach((o) => {
                         if (o.trigger()) {
-                            consolex._(['检测到提示层页面干扰:', o.desc]);
+                            consolex._([ '检测到提示层页面干扰:', o.desc ]);
                             o.handle();
                         }
                     });
                 }
 
                 function _checkStrategy() {
-                    let _stg = _cfg.unlock_dismiss_layer_strategy;
+                    let _stg = _cfg.unlockDismissLayerStrategy;
                     if (_stg === 'preferred') {
                         return true;
                     }
@@ -1845,11 +1718,11 @@ function unlockGenerator() {
             },
             dismiss() {
                 let _this = this;
-                let _btm = _cfg.unlock_dismiss_layer_bottom;
-                let _top = _cfg.unlock_dismiss_layer_top;
-                let _time_sto = _cfg.unlock_dismiss_layer_swipe_time;
+                let _btm = _cfg.unlockDismissLayerBottom;
+                let _top = _cfg.unlockDismissLayerTop;
+                let _time_sto = _cfg.unlockDismissLayerSwipeDuration;
                 let _from_sto = !!_time_sto;
-                let _pts = [_btm, _top];
+                let _pts = [ _btm, _top ];
                 let _time = _time_sto; // copy
                 /** @type {number[]} */
                 let _reliable = _cfg.swipe_time_reliable || [];
@@ -1879,7 +1752,7 @@ function unlockGenerator() {
 
                 function _dismiss() {
                     // noinspection JSCheckFunctionSignatures
-                    let _gesture_par = [_time].concat(_pts.map(y => [halfW, cY(y)]));
+                    let _gesture_par = [ _time ].concat(_pts.map(y => [ halfW, cY(y) ]));
 
                     let _max = 30, _ctr = 0;
                     exp.keepOn(3);
@@ -1900,7 +1773,7 @@ function unlockGenerator() {
                         if (_from_sto) {
                             if (--_chances < 0) {
                                 _from_sto = false;
-                                _time = _cfg.unlock_dismiss_layer_swipe_time;
+                                _time = _cfg.unlockDismissLayerSwipeDuration;
                                 consolex._('放弃本地存储数据');
                                 consolex._('从默认值模块获取默认值: ' + _time);
                             } else {
@@ -1924,7 +1797,7 @@ function unlockGenerator() {
                         let _is_lmt_reached = _ctr > _max;
                         if (_is_lmt_reached) {
                             _t_pool[_time] = 0;
-                            _sto.put('config', {continuous_swipe: _t_pool});
+                            _sto.put('config', { continuous_swipe: _t_pool });
                             _err('消除解锁页面提示层失败');
                         }
                         return _is_lmt_reached;
@@ -1933,7 +1806,7 @@ function unlockGenerator() {
 
                 function _storage() {
                     if (_time !== _time_sto) {
-                        _sto.put('config', {unlock_dismiss_layer_swipe_time: _time});
+                        _sto.put('config', { unlockDismissLayerSwipeDuration: _time });
                         consolex._('存储滑动时长参数: ' + _time);
                     }
 
@@ -1941,13 +1814,13 @@ function unlockGenerator() {
                         _t_pool[_time] = 0;
                     }
                     let _new_ctr = ++_t_pool[_time];
-                    _sto.put('config', {continuous_swipe: _t_pool});
+                    _sto.put('config', { continuous_swipe: _t_pool });
                     consolex._('存储连续成功滑动次数: ' + _new_ctr);
 
                     if (_new_ctr >= 6 && !_reliable.includes(_time)) {
                         consolex._('当前滑动时长可信度已达标');
                         consolex._('存储可信滑动时长数据: ' + _time);
-                        _sto.put('config', {swipe_time_reliable: _reliable.concat(_time)});
+                        _sto.put('config', { swipe_time_reliable: _reliable.concat(_time) });
                     }
                 }
             },
@@ -1967,18 +1840,18 @@ function unlockGenerator() {
                 if (exp.isScreenOn()) {
                     return _pattern() || _password() || _pin() || _specials() || _unmatched();
                 }
-                consolex._(['跳过解锁控件检测', '屏幕未亮起']);
+                consolex._([ '跳过解锁控件检测', '屏幕未亮起' ]);
 
                 // tool function(s) //
 
                 function _pattern() {
-                    return [{
+                    return [ {
                         desc: '通用',
                         sel: idMatches(_as + 'lockPatternView'),
                     }, {
                         desc: 'MIUI',
                         sel: idMatches(_ak + 'lockPattern(View)?'),
-                    }].some((smp) => {
+                    } ].some((smp) => {
                         if (smp.sel.exists()) {
                             consolex._('匹配到' + smp.desc + '图案解锁控件');
                             return _trigger(smp.sel, _stg);
@@ -1988,12 +1861,12 @@ function unlockGenerator() {
                     // strategy(ies) //
 
                     function _stg() {
-                        let _stg = _cfg.unlock_pattern_strategy;
+                        let _stg = _cfg.unlockPatternStrategy;
                         let _stg_map = {
                             segmental: '叠加路径',
                             solid: '连续路径',
                         };
-                        let _key = 'unlock_pattern_swipe_time_' + _stg;
+                        let _key = 'unlockPatternSwipeDuration' + _stg[0].toUpperCase() + _stg.slice(1);
                         let _time = _cfg[_key]; // swipe time
 
                         let _from_sto = !!_time;
@@ -2015,14 +1888,14 @@ function unlockGenerator() {
                                         let _t2 = _time;
                                         let _pt1 = _pts[i];
                                         let _pt2 = _pts[i + 1];
-                                        let _pts1 = [_pt1[0], _pt1[1]];
-                                        let _pts2 = [_pt2[0], _pt2[1]];
-                                        _args.push([_t1, _t2, _pts1, _pts2]);
+                                        let _pts1 = [ _pt1[0], _pt1[1] ];
+                                        let _pts2 = [ _pt2[0], _pt2[1] ];
+                                        _args.push([ _t1, _t2, _pts1, _pts2 ]);
                                     }
                                     gestures.apply(null, _args);
                                 },
                                 solid() {
-                                    gesture.apply(null, [_time].concat(_pts));
+                                    gesture.apply(null, [ _time ].concat(_pts));
                                 },
                             };
 
@@ -2072,7 +1945,7 @@ function unlockGenerator() {
 
                             let _bnd = _stable(_this.sel);
                             if (!_bnd) {
-                                return _err(['图案解锁方案失败', '无法获取点阵布局']);
+                                return _err([ '图案解锁方案失败', '无法获取点阵布局' ]);
                             }
 
                             let _sz = _pat_sz;
@@ -2098,7 +1971,7 @@ function unlockGenerator() {
 
                             return $_unlk.unlock_pattern_pts = _simplify(_code, _sz)
                                 .filter(n => +n && _pts[n])
-                                .map(n => [_pts[n].x, _pts[n].y]);
+                                .map(n => [ _pts[n].x, _pts[n].y ]);
 
                             // tool function(s) //
 
@@ -2125,14 +1998,14 @@ function unlockGenerator() {
                                             || $$und(_r) || $$und(_b);
                                     };
                                     let _parse = (bnd) => {
-                                        let {left, top, right, bottom} = bnd;
-                                        return [left, top, right, bottom];
+                                        let { left, top, right, bottom } = bnd;
+                                        return [ left, top, right, bottom ];
                                     };
                                     let _asg = (bnd) => {
-                                        [_l, _t, _r, _b] = _parse(bnd);
+                                        [ _l, _t, _r, _b ] = _parse(bnd);
                                     };
                                     let _eql = (bnd) => {
-                                        let [l, t, r, b] = _parse(bnd);
+                                        let [ l, t, r, b ] = _parse(bnd);
                                         return _l === l && _t === t
                                             && _r === r && _b === b;
                                     };
@@ -2193,7 +2066,7 @@ function unlockGenerator() {
                                         let _num = 1;
                                         for (let i = 1; i <= sz; i += 1) {
                                             for (let j = 1; j <= sz; j += 1) {
-                                                _o[_num++] = [i, j];
+                                                _o[_num++] = [ i, j ];
                                             }
                                         }
                                         return _o;
@@ -2204,8 +2077,8 @@ function unlockGenerator() {
                                         let _p1 = _coord[n1];
                                         let _p2 = _coord[n2];
                                         if (Array.isArray(_p1) && Array.isArray(_p2)) {
-                                            let [_x1, _y1] = _p1;
-                                            let [_x2, _y2] = _p2;
+                                            let [ _x1, _y1 ] = _p1;
+                                            let [ _x2, _y2 ] = _p2;
                                             return (_y2 - _y1) / (_x2 - _x1);
                                         }
                                         return NaN;
@@ -2226,7 +2099,7 @@ function unlockGenerator() {
                 }
 
                 function _password() {
-                    return !_misjudge() && [{
+                    return !_misjudge() && [ {
                         desc: '通用',
                         sel: idMatches('.*passwordEntry'),
                     }, {
@@ -2235,7 +2108,7 @@ function unlockGenerator() {
                     }, {
                         desc: '锤子科技',
                         sel: idMatches(_sk + 'passwordEntry(_.+)?').className('EditText'),
-                    }].some((smp) => {
+                    } ].some((smp) => {
                         if (smp.sel.exists()) {
                             consolex._('匹配到' + smp.desc + '密码解锁控件');
                             return _trigger(smp.sel, _stg);
@@ -2251,9 +2124,9 @@ function unlockGenerator() {
                         }
 
                         let _cfm_btn = (type) => (
-                            $$sel.pickup([/确.|完成|[Cc]onfirm|[Ee]nter/, {
+                            pickup([ /确.|完成|[Cc]onfirm|[Ee]nter/, {
                                 className: 'Button', clickable: true,
-                            }], type)
+                            } ], type)
                         );
 
                         let _ctr = 0;
@@ -2335,27 +2208,27 @@ function unlockGenerator() {
                              * }>}
                              */
                             let _smp_o = {
-                                'HUAWEI VOG-AL00 9': {prefix: 1, keys: [[1008, 1706]]},
+                                'HUAWEI VOG-AL00 9': { prefix: 1, keys: [ [ 1008, 1706 ] ] },
                                 'HUAWEI ELE-AL00 10': {
-                                    keys: ['DEL'],
+                                    keys: [ 'DEL' ],
                                     keys_map: (function $iiFe() {
-                                        let y = [1188, 1350, 1511, 1674, 1835];
-                                        let x = [56, 163, 271, 378, 487, 595, 703, 810, 918, 1027];
-                                        let xs = [109.5, 217, 324.5, 432.5, 541, 649, 756.5, 864, 972.5];
-                                        let [y0, y1, y2, y3, y4] = y;
-                                        let [x0, x1, x2, x3, x4, x5, x6, x7, x8, x9] = x;
-                                        let [xs0, xs1, xs2, xs3, xs4, xs5, xs6, xs7, xs8] = xs;
+                                        let y = [ 1188, 1350, 1511, 1674, 1835 ];
+                                        let x = [ 56, 163, 271, 378, 487, 595, 703, 810, 918, 1027 ];
+                                        let xs = [ 109.5, 217, 324.5, 432.5, 541, 649, 756.5, 864, 972.5 ];
+                                        let [ y0, y1, y2, y3, y4 ] = y;
+                                        let [ x0, x1, x2, x3, x4, x5, x6, x7, x8, x9 ] = x;
+                                        let [ xs0, xs1, xs2, xs3, xs4, xs5, xs6, xs7, xs8 ] = xs;
                                         return {
-                                            1: [x0, y0], 2: [x1, y0], 3: [x2, y0], 4: [x3, y0],
-                                            5: [x4, y0], 6: [x5, y0], 7: [x6, y0], 8: [x7, y0],
-                                            9: [x8, y0], 0: [x9, y0], q: [x0, y1], w: [x1, y1],
-                                            e: [x2, y1], r: [x3, y1], t: [x4, y1], y: [x5, y1],
-                                            u: [x6, y1], i: [x7, y1], o: [x8, y1], p: [x9, y1],
-                                            a: [xs0, y2], s: [xs1, y2], d: [xs2, y2], f: [xs3, y2],
-                                            g: [xs4, y2], h: [xs5, y2], j: [xs6, y2], k: [xs7, y2],
-                                            l: [xs8, y2], z: [xs1, y3], x: [xs2, y3], c: [xs3, y3],
-                                            v: [xs4, y3], b: [xs5, y3], n: [xs6, y3], m: [xs7, y3],
-                                            ',': [xs1, y4], ' ': [xs4, y4], '.': [xs7, y4], del: [x9, y3],
+                                            1: [ x0, y0 ], 2: [ x1, y0 ], 3: [ x2, y0 ], 4: [ x3, y0 ],
+                                            5: [ x4, y0 ], 6: [ x5, y0 ], 7: [ x6, y0 ], 8: [ x7, y0 ],
+                                            9: [ x8, y0 ], 0: [ x9, y0 ], q: [ x0, y1 ], w: [ x1, y1 ],
+                                            e: [ x2, y1 ], r: [ x3, y1 ], t: [ x4, y1 ], y: [ x5, y1 ],
+                                            u: [ x6, y1 ], i: [ x7, y1 ], o: [ x8, y1 ], p: [ x9, y1 ],
+                                            a: [ xs0, y2 ], s: [ xs1, y2 ], d: [ xs2, y2 ], f: [ xs3, y2 ],
+                                            g: [ xs4, y2 ], h: [ xs5, y2 ], j: [ xs6, y2 ], k: [ xs7, y2 ],
+                                            l: [ xs8, y2 ], z: [ xs1, y3 ], x: [ xs2, y3 ], c: [ xs3, y3 ],
+                                            v: [ xs4, y3 ], b: [ xs5, y3 ], n: [ xs6, y3 ], m: [ xs7, y3 ],
+                                            ',': [ xs1, y4 ], ' ': [ xs4, y4 ], '.': [ xs7, y4 ], del: [ x9, y3 ],
                                         };
                                     })(),
                                     get suffix() {
@@ -2391,11 +2264,11 @@ function unlockGenerator() {
                             });
 
                             if (_suff) {
-                                if (_suff instanceof com.stardust.automator.UiObject) {
+                                if (_suff instanceof org.autojs.autojs.core.automator.UiObject) {
                                     consolex._('辅助按键后置填充类型: 控件');
                                     return a11yx.click$(_suff);
                                 }
-                                if (_suff instanceof com.stardust.autojs.core.accessibility.UiSelector) {
+                                if (_suff instanceof org.autojs.autojs.core.accessibility.UiSelector) {
                                     consolex._('辅助按键后置填充类型: 选择器');
                                     return a11yx.click$(_suff);
                                 }
@@ -2405,9 +2278,9 @@ function unlockGenerator() {
                                 }
                                 if ($$num(_suff) || $$str(_suff) || $$rex(_suff)) {
                                     consolex._('辅助按键后置填充类型: 文本');
-                                    return a11yx.click$($$sel.pickup('(key.?)?' + _suff));
+                                    return a11yx.click$(pickup('(key.?)?' + _suff));
                                 }
-                                return _err(['密码解锁失败', '无法判断末位字符类型']);
+                                return _err([ '密码解锁失败', '无法判断末位字符类型' ]);
                             }
                         }
                     }
@@ -2421,7 +2294,7 @@ function unlockGenerator() {
                         ].some((sel) => {
                             if (_triStr(sel) || _triRex(sel)) {
                                 _this.misjudge = sel;
-                                consolex._(['匹配到误判干扰', '转移至PIN解锁方案']);
+                                consolex._([ '匹配到误判干扰', '转移至PIN解锁方案' ]);
                                 return true;
                             }
                         });
@@ -2429,7 +2302,7 @@ function unlockGenerator() {
                 }
 
                 function _pin() {
-                    return [{
+                    return [ {
                         desc: '通用',
                         sel: idMatches(_as + 'pinEntry'),
                     }, {
@@ -2458,12 +2331,12 @@ function unlockGenerator() {
                         get sel() {
                             let _dial = {
                                 _side: 3,
-                                _nums: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
+                                _nums: [ 1, 2, 3, 4, 5, 6, 7, 8, 9, 0 ],
                                 _ft: cX(0.0125), // fault tolerance
                                 _checkPoints() {
                                     this._points = this._points || {};
                                     return this._nums.every((n) => {
-                                        return this._points[n] = $$sel.pickup(n, 'point');
+                                        return this._points[n] = pickup(n, 'point');
                                     });
                                 },
                                 _checkOffset() {
@@ -2493,9 +2366,9 @@ function unlockGenerator() {
                             } else {
                                 delete global._$_dial_points;
                             }
-                            return {exists: () => !!global._$_dial_points};
+                            return { exists: () => !!global._$_dial_points };
                         },
-                    }].some((smp) => {
+                    } ].some((smp) => {
                         let _desc = smp.desc;
                         if (smp.sel.exists()) {
                             if (_desc.match(/\w$/)) {
@@ -2528,7 +2401,7 @@ function unlockGenerator() {
                         // tool function(s) //
 
                         function _lmt() {
-                            return _ctr > _max && _err(['PIN解锁方案失败', '尝试次数已达上限']);
+                            return _ctr > _max && _err([ 'PIN解锁方案失败', '尝试次数已达上限' ]);
                         }
 
                         function _clickKeyEnter() {
@@ -2541,7 +2414,7 @@ function unlockGenerator() {
                         }
 
                         function _unlockPin() {
-                            let _samples = [{
+                            let _samples = [ {
                                 desc: '通用PIN/KEY',
                                 test() {
                                     let _sel = n => idMatches(_as + 'key' + n);
@@ -2565,8 +2438,8 @@ function unlockGenerator() {
                                 },
                                 click() {
                                     let _bnd = this.widget.bounds();
-                                    let _bi = [_bnd.left, _bnd.top, _bnd.right, _bnd.bottom];
-                                    let _sel = n => $$sel.pickup([n, {boundsInside: _bi}]);
+                                    let _bi = [ _bnd.left, _bnd.top, _bnd.right, _bnd.bottom ];
+                                    let _sel = n => pickup([ n, { boundsInside: _bi } ]);
                                     return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
                                 },
                             }, {
@@ -2602,11 +2475,11 @@ function unlockGenerator() {
                                         // center coordination
                                         let _ctc = (num) => {
                                             let _bnd = _sel(num).bounds();
-                                            return {x: _bnd.centerX(), y: _bnd.centerY()};
+                                            return { x: _bnd.centerX(), y: _bnd.centerY() };
                                         };
                                         // point of button '0'
                                         let _pt = n => _ctc(8)[n] + _ctc(5)[n] - _ctc(2)[n];
-                                        return [_pt('x'), _pt('y')];
+                                        return [ _pt('x'), _pt('y') ];
                                     };
 
                                     return _trig(() => _pw.forEach(n => a11yx.click$(_sel(n), 'w')));
@@ -2639,10 +2512,10 @@ function unlockGenerator() {
                                 },
                                 click() {
                                     return _trig(() => _pw.forEach((n) => {
-                                        a11yx.click$((global._$_dial_points)[n], 'p', {pt$: 120});
+                                        a11yx.click$((global._$_dial_points)[n], 'p', { pt$: 120 });
                                     }));
                                 },
-                            }];
+                            } ];
                             let _max = 8;
                             while (_max--) {
                                 for (let o of _samples) {
@@ -2678,13 +2551,13 @@ function unlockGenerator() {
                 }
 
                 function _specials() {
-                    return [{
+                    return [ {
                         desc: '"Gxzw"屏下指纹设备',
                         sel: idMatches(/.*[Gg][Xx][Zz][Ww].*/),
-                        pw_rect: [0.0875, 0.47, 0.9125, 0.788], // [cX, cY, cX, cY]
-                    }].some((smp) => {
+                        pw_rect: [ 0.0875, 0.47, 0.9125, 0.788 ], // [cX, cY, cX, cY]
+                    } ].some((smp) => {
                         if (smp.sel.exists()) {
-                            consolex._(['匹配到特殊设备解锁方案:', smp.desc]);
+                            consolex._([ '匹配到特殊设备解锁方案:', smp.desc ]);
                             return _trigger(smp.sel, _stg.bind(null, smp.pw_rect));
                         }
                     });
@@ -2693,7 +2566,7 @@ function unlockGenerator() {
 
                     function _stg(pw_rect) {
                         let _rect = pw_rect.map((n, i) => i % 2 ? cY(n) : cX(n));
-                        let [_l, _t, _r, _b] = _rect;
+                        let [ _l, _t, _r, _b ] = _rect;
                         consolex._('已构建密码区域边界:');
                         consolex._('Rect(' + _l + ', ' + _t + ' - ' + _r + ', ' + _b + ')');
 
@@ -2720,7 +2593,7 @@ function unlockGenerator() {
                     let _r_l, _r_t, _r_w, _r_h;
 
                     if ($$arr(rect)) {
-                        let [_l, _t, _r, _b] = rect;
+                        let [ _l, _t, _r, _b ] = rect;
                         _r_l = _l;
                         _r_t = _t;
                         _r_w = _r - _l;
@@ -2781,9 +2654,9 @@ function unlockGenerator() {
                 // tool function(s) //
 
                 function _correct() {
-                    let _w_bad = $$sel.pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
+                    let _w_bad = pickup(/.*(重试|不正确|错误|[Ii]ncorrect|[Rr]etry|[Ww]rong).*/);
                     if (_w_bad) {
-                        return _err_shown_fg || consolex._($$sel.pickup(_w_bad, 'txt'), 3);
+                        return _err_shown_fg || consolex._(_w_bad.content(), 3);
                     }
                     if (idMatches(new RegExp(_ak + 'phone_locked_textview')).exists()) {
                         return _err_shown_fg || consolex._('密码错误', 3);
@@ -2792,7 +2665,7 @@ function unlockGenerator() {
                 }
 
                 function _chkTryAgain() {
-                    let _chk = () => $$sel.pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
+                    let _chk = () => pickup(/.*([Tt]ry again in.+|\d+.*后重试).*/);
                     if (_chk()) {
                         consolex._('正在等待重试超时');
                         a11yx.wait$(() => !_chk(), 65e3, 500);
@@ -2800,9 +2673,9 @@ function unlockGenerator() {
                 }
 
                 function _chkOKBtn() {
-                    let _w_ok = $$sel.pickup(/OK|确([认定])|好的?/);
+                    let _w_ok = pickup(/OK|确([认定])|好的?/);
                     if (_w_ok) {
-                        consolex._('点击"' + $$sel.pickup(_w_ok, 'txt') + '"按钮');
+                        consolex._('点击"' + _w_ok.content() + '"按钮');
                         a11yx.click$(_w_ok, 'w');
                         sleep(1e3);
                     }
@@ -2815,24 +2688,24 @@ function unlockGenerator() {
     let _sto = storagesx.create('unlock');
     let _cfg = Object.assign({
         /* default unlock configs which updated at Mar 1, 2021 */
-        unlock_code: null,
-        unlock_max_try_times: 20,
-        unlock_pattern_strategy: 'segmental',
-        unlock_pattern_size: 3,
-        unlock_pattern_swipe_time_segmental: 120,
-        unlock_pattern_swipe_time_solid: 200,
-        unlock_dismiss_layer_strategy: 'preferred',
-        unlock_dismiss_layer_bottom: 0.7,
-        unlock_dismiss_layer_top: 0.2,
-        unlock_dismiss_layer_swipe_time: 110,
+        unlockCode: null,
+        unlockTryLimit: 20,
+        unlockPatternStrategy: 'segmental',
+        unlockPatternSize: 3,
+        unlockPatternSwipeDurationSegmental: 120,
+        unlockPatternSwipeDurationSolid: 200,
+        unlockDismissLayerStrategy: 'preferred',
+        unlockDismissLayerBottom: 0.7,
+        unlockDismissLayerTop: 0.3,
+        unlockDismissLayerSwipeDuration: 110,
     }, _sto.get('config'));
 
     let _code = String(_sto.get('config', {
-        prop: 'unlock_code', is_crypto: true, default: '',
+        prop: 'unlockCode', is_crypto: true, default: '',
     }));
     let _pw = _code.split(/\D+/).join('').split('');
-    let _max_try = _cfg.unlock_max_try_times;
-    let _pat_sz = _cfg.unlock_pattern_size;
+    let _max_try = _cfg.unlockTryLimit;
+    let _pat_sz = _cfg.unlockPatternSize;
 
     let _intro = device.brand + ' ' + device.product + ' ' + device.release;
 
@@ -2877,8 +2750,8 @@ function unlockGenerator() {
 
     function _err(s) {
         exp.cancelOn();
-        consolex.e(['解锁失败', s, _intro].flat(), 4, 0, 2);
-        if (!exp.is_init_screen_on) {
+        consolex.e([ '解锁失败', s, _intro ].flat(), 4, 0, 2);
+        if (!exp.isInitScreenOn) {
             consolex.d('自动关闭屏幕');
             exp.screenOff() || consolex.w('自动关闭屏幕失败');
         }

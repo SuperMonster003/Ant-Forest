@@ -4,10 +4,9 @@ let {a11yx, $$sel} = require('./ext-a11y');
 let {filesx} = require('./ext-files');
 let {devicex} = require('./ext-device');
 let {cryptox} = require('./ext-crypto');
-let {threadsx} = require('./ext-threads');
 let {consolex} = require('./ext-console');
 
-global._$_has_scr_capt_perm = global._$_has_scr_capt_perm || threadsx.atomic(0);
+global._$_has_scr_capt_perm = global._$_has_scr_capt_perm || threads.atomic(0);
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -19,10 +18,7 @@ let Core = org.opencv.core.Core;
 let Rect = android.graphics.Rect;
 let Bitmap = android.graphics.Bitmap;
 let BitmapFactory = android.graphics.BitmapFactory;
-let ImageWrapper = com.stardust.autojs.core.image.ImageWrapper;
-let ScreenCapturer = com.stardust.autojs.core.image.capture.ScreenCapturer;
-let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
-let UiObject = com.stardust.automator.UiObject;
+let ScreenCapturer = org.autojs.autojs.core.image.capture.ScreenCapturer;
 let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
 
 let exp = {
@@ -200,7 +196,7 @@ let exp = {
      */
     getMean(img) {
         let [R, G, B] = Core.mean(img.getMat()).val;
-        return {R: R, G: G, B: B, std: Math.std([R, G, B])};
+        return {R: R, G: G, B: B, std: Mathx.std([R, G, B])};
     },
     isRecycled(img, is_strict) {
         if (!this.isImageWrapper(img)) {
@@ -229,9 +225,6 @@ let exp = {
             }
             this.pool.reclaim(i);
         });
-    },
-    clearPool() {
-        this.pool.clear();
     },
     /**
      * @param {Imagesx.Capt.Options} [options]
@@ -289,7 +282,6 @@ let exp = {
         let javaImages = runtime.getImages();
         let ResultAdapter = require.call(global, 'result_adapter');
 
-        let _is_pro = context.getPackageName().match(/Pro\b/i);
         let _orientation = landscape === undefined || landscape === 'AUTO'
             ? ScreenCapturer.ORIENTATION_AUTO : typeof landscape === 'boolean'
                 ? landscape
@@ -298,11 +290,7 @@ let exp = {
                 : landscape === 'LANDSCAPE' ? ScreenCapturer.ORIENTATION_LANDSCAPE
                     : landscape === 'PORTRAIT' ? ScreenCapturer.ORIENTATION_PORTRAIT
                         : ScreenCapturer.ORIENTATION_AUTO;
-        let _adapter = !_is_pro
-            ? javaImages.requestScreenCapture(_orientation)
-            : javaImages.requestScreenCapture.apply(javaImages, [
-                _orientation, /* width: */ -1, /* height: */ -1, /* isAsync: */ false,
-            ].slice(0, app.autojs.versionName.match(/^Pro 7/) ? 3 : 4));
+        let _adapter = javaImages.requestScreenCapture(_orientation);
 
         if (ResultAdapter.wait(_adapter)) {
             return true;
@@ -335,14 +323,9 @@ let exp = {
 
         _debug('已开启弹窗监测线程');
 
-        let _thread_prompt = threadsx.start(function () {
-            /** @return {A11yx.Pickup.Results} */
-            let _sel_rem = () => $$sel.pickup(id('com.android.systemui:id/remember'));
-            /**
-             * @param [t]
-             * @return {A11yx.Pickup.Results}
-             */
-            let _sel_sure = t => $$sel.pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/, t);
+        let _thread_prompt = threads.start(function () {
+            let _sel_rem = () => pickup(id('com.android.systemui:id/remember'));
+            let _sel_sure = () => pickup(/立即开始|允许|S(tart|TART) [Nn](ow|OW)|A(llow|LLOW)/);
 
             if (a11yx.wait(_sel_sure, 4.8e3, 120)) {
                 a11yx.wait(_sel_rem, 600, 120, {
@@ -353,7 +336,7 @@ let exp = {
                 });
                 a11yx.wait(_sel_sure, 2.4e3, 120, {
                     then(w) {
-                        _debug('点击"' + $$sel.pickup(w, 'txt') + '"按钮');
+                        _debug('点击"' + w.content() + '"按钮');
                         a11yx.click(w, 'w');
                         a11yx.wait(() => !_sel_sure(), 1e3, {
                             else() {
@@ -368,7 +351,7 @@ let exp = {
 
         let _sco = _opt.screen_capturer_orientation;
         _sco = _sco === undefined ? 'PORTRAIT' : _sco;
-        let _req_result = exp.requestScreenCapture(_sco);
+        let _req_result = images.requestScreenCapture(_sco);
 
         return a11yx.wait(() => !!_req_result, 4.8e3, 80, {
             then() {
@@ -425,7 +408,7 @@ let exp = {
         let _opt = options || {};
 
         return (function $iiFe() {
-            let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
+            let _lv = Mathx.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
             let _options = {
                 max: _opt.max_results,
                 threshold: _opt.threshold,
@@ -583,7 +566,7 @@ let exp = {
      * @return {T}
      */
     compress(img, compress_level /* inSampleSize */, is_recycle_img) {
-        let _lv = Math.floorPow(2, Math.max(Number(compress_level) || 1, 1));
+        let _lv = Mathx.floorPow(2, Math.max(Number(compress_level) || 1, 1));
         let _new_wrapper = img;
         if (_lv > 1) {
             let _os = new ByteArrayOutputStream();
@@ -684,7 +667,7 @@ let exp = {
      */
     findImage(img, template, options) {
         let _opt = options || {};
-        let _lv = Math.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
+        let _lv = Mathx.floorPow(2, Math.max(Number(_opt.compress_level) || 1, 1));
         let _result = (function $iiFe() {
             if (_lv <= 1) {
                 return images.findImage(img, template, options);
@@ -718,7 +701,7 @@ let exp = {
      * @param {number} [options.timeout=60e3] -- no less than 5e3
      * @example
      * // [[], [], []] -- 3 groups of data
-     * console.log(imagesx.baiduOcr($$sel.pickup(/\xa0/, 'widgets'), {
+     * console.log(imagesx.baiduOcr(pickup(/\xa0/, 'widgets'), {
      *     fetchTimes: 3,
      *     timeout: 12e3
      * }));
@@ -748,7 +731,7 @@ let exp = {
 
         let _token = '';
         let _max_token = 10;
-        let _thd_token = threadsx.start(function () {
+        let _thd_token = threads.start(function () {
             while (_max_token--) {
                 try {
                     // noinspection SpellCheckingInspection
@@ -785,7 +768,7 @@ let exp = {
         let _allDead = () => _thds.every(thd => !thd.isAlive());
 
         while (_max--) {
-            _thds.push(threadsx.start(function () {
+            _thds.push(threads.start(function () {
                 let _max_img = 10;
                 let _img = _stitchImgs(src);
                 while (_max_img--) {
@@ -823,7 +806,7 @@ let exp = {
             sleep(_itv);
         }
 
-        threadsx.start(function () {
+        threads.start(function () {
             while (!_allDead()) {
                 sleep(420);
                 if (Date.now() >= _tt_ts) {
@@ -927,7 +910,7 @@ let exp = {
      * @return {OpenCV.Point}
      */
     findColor(img, color, options) {
-        if (isPlainObject(options) && options.region instanceof android.graphics.Rect) {
+        if (isObjectSpecies(options) && options.region instanceof android.graphics.Rect) {
             let _r = options.region;
             options.region = [_r.left, _r.top, _r.width(), _r.height()];
         }

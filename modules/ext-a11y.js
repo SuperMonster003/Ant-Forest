@@ -1,7 +1,7 @@
 let {
     $$impeded, $$str, $$num, $$rex, isNonEmptyObject, requirex,
 } = require('./mod-global');
-let {consolex} = require('./ext-console');
+let { consolex } = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
@@ -10,10 +10,7 @@ let Settings = android.provider.Settings;
 let Secure = Settings.Secure;
 let Rect = android.graphics.Rect;
 let Point = org.opencv.core.Point;
-let Intent = android.content.Intent;
-let UiObject = com.stardust.automator.UiObject;
-let UiSelector = com.stardust.autojs.core.accessibility.UiSelector;
-let AccessibilityService = com.stardust.autojs.core.accessibility.AccessibilityService;
+let AccessibilityService = org.autojs.autojs.core.accessibility.AccessibilityService;
 let AccessibilityWindowInfo = android.view.accessibility.AccessibilityWindowInfo;
 
 let _ = {
@@ -28,7 +25,7 @@ let _ = {
      * @return {{svc: string[], forcible: boolean}}
      */
     parseArgs(args) {
-        let _svc = [this.autojs_a11y_svc_name];
+        let _svc = [ this.autojs_a11y_svc_name ];
         let _forcible = false;
         let _type0 = typeof args[0];
         if (_type0 !== 'undefined') {
@@ -36,7 +33,7 @@ let _ = {
                 _svc = args[0];
                 _forcible = !!args[1];
             } else if (_type0 === 'string') {
-                _svc = [args[0]];
+                _svc = [ args[0] ];
                 _forcible = !!args[1];
             } else if (_type0 === 'boolean') {
                 _forcible = args[0];
@@ -54,8 +51,8 @@ let _ = {
     },
     tryEnableAndRestart() {
         if (exp.enable(true)) {
-            let {enginesx} = requirex('ext-engines');
-            consolex.$(['已自动开启无障碍服务', '尝试一次项目重启操作'], 1, 0, 0, 2);
+            let { enginesx } = requirex('ext-engines');
+            consolex.$([ '已自动开启无障碍服务', '尝试一次项目重启操作' ], 1, 0, 0, 2);
             enginesx.restart({
                 isDebug: true,
                 is_instant_running: false,
@@ -127,6 +124,7 @@ let exp = {
     },
     service: {
         refreshServiceInfo() {
+            automator.waitForService(3e3);
             auto.service.setServiceInfo(auto.service.getServiceInfo());
         },
     },
@@ -145,7 +143,7 @@ let exp = {
      */
     enable() {
         try {
-            let {forcible, svc} = _.parseArgs(arguments);
+            let { forcible, svc } = _.parseArgs(arguments);
             let _svc;
             if (!this.state(svc)) {
                 _svc = this.enabled_svc.split(':')
@@ -183,7 +181,7 @@ let exp = {
                 Secure.putInt(_.ctx_reso, Secure.ACCESSIBILITY_ENABLED, 1);
                 return true;
             }
-            let {forcible, svc} = _.parseArgs(arguments);
+            let { forcible, svc } = _.parseArgs(arguments);
             let _enabled_svc = _.getString();
             let _contains = function () {
                 for (let i = 0, l = svc.length; i < l; i += 1) {
@@ -233,9 +231,9 @@ let exp = {
         if (Array.isArray(services)) {
             _services = services.slice();
         } else if (typeof services === 'undefined') {
-            _services = [_.autojs_a11y_svc_name];
+            _services = [ _.autojs_a11y_svc_name ];
         } else if (typeof services === 'string') {
-            _services = [services];
+            _services = [ services ];
         } else {
             throw TypeError('Unknown a11y state type');
         }
@@ -265,602 +263,27 @@ let exp = {
         };
         let _ext = {
             /**
-             * @param {A11yx.Pickup.Locators}  [locator]
-             * @param {A11yx.Pickup.Result.Type} [type='widget']
-             * @param {A11yx.Pickup.Options} [options]
-             * @return {A11yx.Pickup.Results}
-             */
-            pickup(locator, type, options) {
-                let $ = {
-                    /** @see {A11yx.Pickup.Select.Abbr} */
-                    loc_keys_abbr: {
-                        bi$: 'boundsInside',
-                        c$: 'clickable',
-                        cn$: 'className',
-                    },
-                    options: options || {},
-                    /** @return {A11yx.Pickup.Result.CanonicalType|any} */
-                    get res_type() {
-                        return this._res_type = this._res_type || this.getResultType(type);
-                    },
-                    /** @return {UiObject$|UiSelector$} */
-                    get locator() {
-                        return this._locator || null;
-                    },
-                    /** @return {?UiObject$} */
-                    get widget() {
-                        return this._widget || null;
-                    },
-                    /** @return {UiObject$[]} */
-                    get widget_collection() {
-                        return this._wc || [];
-                    },
-                    /** @return {?UiSelector$} */
-                    get selector() {
-                        return this._selector || null;
-                    },
-                    tools: {
-                        /**
-                         * @param {UiObject$|any} w
-                         * @return {?org.opencv.core.Point}
-                         */
-                        uiObject2Point(w) {
-                            if (w instanceof UiObject) {
-                                return new Point(w.bounds().centerX(), w.bounds().centerY());
-                            }
-                            return null;
-                        },
-                        wrapStrByOptDef(s) {
-                            return !s && 'default' in $.options ? $.options.default : s;
-                        },
-                        isArrResType() {
-                            return /^(widgets|points)$/.test($.res_type);
-                        },
-                        isCompass(o) {
-                            return typeof o === 'string' && /([pck]\d*)+/.test(o);
-                        },
-                    },
-                    refreshSvcInfoIFN() {
-                        this.options.refresh && exp.service.refreshServiceInfo();
-                    },
-                    /**
-                     * @return {A11yx.Pickup.Locators}
-                     */
-                    parseRawLocator() {
-                        let _locator = locator;
-                        let _addition;
-                        let _compass;
-
-                        if (Array.isArray(_locator)) {
-                            let _loc = _locator.slice();
-                            if (this.tools.isCompass(_loc[_loc.length - 1])) {
-                                _compass = _loc.pop();
-                            }
-                            [_locator, _addition] = _loc;
-                        }
-
-                        let _loc = this.setUniqueLocator(_locator, _addition);
-
-                        if (_loc instanceof UiSelector) {
-                            this._selector = _loc;
-                            this._widget = this.getWidgetByCompass(_loc.findOnce(), _compass);
-                            if (this.tools.isArrResType()) {
-                                this._wc = _loc.find().toArray();
-                            }
-                        } else if (_loc instanceof UiObject) {
-                            this._selector = null;
-                            this._widget = this.getWidgetByCompass(_loc, _compass);
-                            if (this.tools.isArrResType()) {
-                                this._wc = [_loc];
-                            }
-                        }
-                    },
-                    /**
-                     * @param {UiObject$|A11yx.Pickup.Locators} [locator]
-                     * @param {A11yx.Pickup.Select.Object} [addition]
-                     */
-                    setUniqueLocator(locator, addition) {
-                        if (locator instanceof UiSelector) {
-                            return this._locator = this.assembleSelectors(locator, addition);
-                        }
-                        if ($$str(locator) || $$num(locator) || $$rex(locator)) {
-                            // noinspection JSCheckFunctionSignatures
-                            let _loc = this.parseTextSelector(locator);
-                            return this._locator = this.assembleSelectors(_loc, addition);
-                        }
-                        if (isPlainObject(locator)) {
-                            let _loc = global.selector();
-                            let _addi = Object.assign(locator, addition);
-                            return this._locator = this.assembleSelectors(_loc, _addi);
-                        }
-                        return this._locator = locator;
-                    },
-                    /**
-                     * @param {UiSelector$} selector
-                     * @param {string} key
-                     * @param {any[]} [args]
-                     * @return {UiSelector$|void}
-                     */
-                    extendLocator(selector, key, args) {
-                        let {$$disp} = require('./ext-device');
-                        let _ext = {
-                            get W() {
-                                return typeof $$disp === 'object' ? $$disp.W : device.width;
-                            },
-                            get H() {
-                                return typeof $$disp === 'object' ? $$disp.H : device.height;
-                            },
-                            /**
-                             * @param {number|boolean} [ft=0.01] - fault tolerance
-                             * @return {UiSelector$}
-                             */
-                            isCenterX(ft) {
-                                let _def = 0.01;
-                                let _ft_num = Number(ft);
-                                let _ft = ft === true || isNullish(ft) || isNaN(_ft_num)
-                                    ? _def
-                                    : ft === false ? ft : _ft_num.clamp(0, 0.25);
-                                /**
-                                 * @param {UiObject$} w
-                                 * @return {boolean}
-                                 */
-                                let _v = w => Math.abs(w.bounds().centerX() - this.W / 2) <= this.W * _ft;
-                                return _ft !== false
-                                    ? selector.filter(_v.toRegular())
-                                    : selector.filter((w => !_v(w)).toRegular());
-                            },
-                            /**
-                             * @param {number|boolean} [ft_y=0.15] - fault tolerance
-                             * @return {UiSelector$}
-                             */
-                            isFullScreen(ft_y) {
-                                let _def = 0.15;
-                                let _ft_y_num = Number(ft_y);
-                                let _ft_y = ft_y === true || isNaN(_ft_y_num)
-                                    ? _def
-                                    : ft_y === false ? ft_y : _ft_y_num.clamp(0, 0.5);
-                                let _v = w => {
-                                    return w.bounds().height() / this.H >= 1 - _ft_y
-                                        && Math.abs(w.bounds().width() - this.W) <= 4;
-                                };
-                                return _ft_y !== false
-                                    ? selector.filter(_v.toRegular())
-                                    : selector.filter((w => !_v(w)).toRegular());
-                            },
-                            isAlipay(sw) {
-                                if (typeof sw === 'undefined') {
-                                    return sw;
-                                }
-                                let _rex = '.*(Alipay|alipay).*';
-                                return sw
-                                    ? selector.packageNameMatches(_rex)
-                                    : selector.filter((w => !w.packageName().match(_rex)).toRegular());
-                            },
-                        };
-                        let _res;
-                        try {
-                            _res = _ext[key].apply(_ext, args);
-                        } catch (e) {
-                            console.warn(e.message);
-                            throw Error('Cannot apply extended locator: ' + key);
-                        }
-                        if (_res instanceof UiSelector) {
-                            return _res;
-                        }
-                        throw Error('Extended locator (' + key + ') returns non-UiSelector type');
-                    },
-                    /**
-                     * @param {?UiSelector$} locator
-                     * @param {A11yx.Pickup.Select.Object} [addition]
-                     * @return {?UiSelector$}
-                     */
-                    assembleSelectors(locator, addition) {
-                        if (isNullish(locator) || !isNonEmptyObject(addition)) {
-                            return locator;
-                        }
-                        Object.keys(addition).forEach((k) => {
-                            let _k = k in this.loc_keys_abbr ? this.loc_keys_abbr[k] : k;
-                            let _mapper = o => typeof o === 'function' ? o.toRegular() : o;
-                            let _v = Array.isArray(addition[k])
-                                ? addition[k].map(_mapper)
-                                : [addition[k]].map(_mapper);
-
-                            let _sel = locator[_k];
-                            if (typeof _sel === 'function') {
-                                try {
-                                    return locator = _sel.apply(locator, _v);
-                                } catch (e) {
-                                    console.warn(e.message);
-                                    throw Error('Cannot apply selector: ' + _k);
-                                }
-                            }
-                            return locator = this.extendLocator(locator, _k, _v);
-                        });
-                        return locator;
-                    },
-                    /**
-                     * @param {A11yx.Pickup.Select.Text} locator
-                     * @param {{[prop:string]: function(A11yx.Pickup.Select.Text):UiSelector$}} fn
-                     * @return {?UiSelector$}
-                     */
-                    getTextSelector(locator, fn) {
-                        let _desc = {
-                            sel: fn.desc(locator),
-                            get txt() {
-                                let _w = this.sel.findOnce();
-                                return _w && _w.desc() || '';
-                            },
-                        };
-                        let _text = {
-                            sel: fn.text(locator),
-                            get txt() {
-                                let _w = this.sel.findOnce();
-                                return _w && _w.text() || '';
-                            },
-                        };
-                        let _dl = _desc.txt.length;
-                        let _tl = _text.txt.length;
-                        if (_dl || _tl) {
-                            return _tl > _dl ? _text.sel : _desc.sel;
-                        }
-                        let _id_sel = fn.id(locator);
-                        if (_id_sel.exists()) {
-                            return _id_sel;
-                        }
-                        return null;
-                    },
-                    /**
-                     * @param {A11yx.Pickup.Select.Text} locator
-                     * @return {UiSelector$}
-                     */
-                    parseTextSelector(locator) {
-                        if (locator instanceof RegExp) {
-                            return this.getTextSelector(locator, {
-                                desc: descMatches, text: textMatches, id: idMatches,
-                            });
-                        }
-                        if (typeof locator === 'number') {
-                            locator = locator.toString();
-                        }
-                        if (typeof locator === 'string') {
-                            return this.getTextSelector(locator, {
-                                desc: desc, text: text, id: id,
-                            });
-                        }
-                        return null;
-                    },
-                    /**
-                     * Returns a relative widget (UiObject) with compass
-                     * @param {?UiObject$} [w]
-                     * @param {string|any} [compass]
-                     * @return {?UiObject$}
-                     */
-                    getWidgetByCompass(w, compass) {
-                        if (!(w instanceof UiObject)) {
-                            return null;
-                        }
-                        if (typeof compass !== 'string') {
-                            return w;
-                        }
-                        // noinspection SpellCheckingInspection
-                        while (compass.length > 0) {
-                            let _mch_p, _mch_c, _mch_s, _mch_k;
-                            // p2 ( .parent().parent() )
-                            // pppp  ( p4 )
-                            // p  ( p1 )
-                            // p4pppp12p  ( p4 ppp p12 p -> 4 + 3 + 12 + 1 -> p20 )
-                            if ((_mch_p = /^p[p\d]*/.exec(compass))) {
-                                let _up_max = compass.match(/^p\d+|^p+(?!\d)/g).reduce((a, b) => (
-                                    a + (/\d/.test(b) ? Number(b.slice(1)) : b.length)
-                                ), 0);
-                                while (_up_max--) {
-                                    if (!(w = w.parent())) {
-                                        return null;
-                                    }
-                                }
-                                compass = compass.slice(_mch_p[0].length);
-                                continue;
-                            }
-                            // c0c2c0c1  ( .child(0).child(2).child(0).child(1) )
-                            // c0>2>0>1  ( .child(0).child(2).child(0).child(1) )
-                            // c-3  ( .child(childCount()-3) )
-                            // c-3c2c-1  ( .child(childCount()-3).child(2).child(childCount()-1) )
-                            // c1>2>3>0>-1>1  ( c1 c2 c3 c0 c-1 c1 )
-                            if ((_mch_c = /^c-?\d+([>c]?-?\d+)*/.exec(compass))) {
-                                let _nums = _mch_c[0].split(/[>c]/);
-                                for (let s of _nums) {
-                                    if (s.length) {
-                                        if (!(w instanceof UiObject)) {
-                                            return null;
-                                        }
-                                        let _cc = w.childCount();
-                                        let _i = Number(s);
-                                        if (_i < 0) {
-                                            _i += _cc;
-                                        }
-                                        if (_i < 0 || _i >= _cc) {
-                                            return null;
-                                        }
-                                        w = w.child(_i);
-                                    }
-                                }
-                                compass = compass.slice(_mch_c[0].length);
-                                continue;
-                            }
-                            // s2  ( .parent().child(2) )
-                            // s-2  ( .parent().child(childCount()-2) )
-                            // s>2  ( .parent().child(idxInParent()+2) )
-                            // s<2  ( .parent().child(idxInParent()-2) )
-                            if ((_mch_s = /^s[<>]?-?\d+/.exec(compass))) {
-                                let _parent = w.parent();
-                                if (!(_parent instanceof UiObject)) {
-                                    return null;
-                                }
-                                let _idx = w.indexInParent();
-                                if (_idx < 0) {
-                                    return null;
-                                }
-                                let _cc = _parent.childCount();
-                                let _str = _mch_s[0];
-                                let _offset = +_str.match(/-?\d+/)[0];
-                                if (_str.includes('>')) {
-                                    _idx += _offset;
-                                } else if (_str.includes('<')) {
-                                    _idx -= _offset;
-                                } else {
-                                    _idx = _offset < 0 ? _offset + _cc : _offset;
-                                }
-                                if (_idx < 0 || _idx >= _cc) {
-                                    return null;
-                                }
-                                w = _parent.child(_idx);
-                                compass = compass.slice(_mch_s[0].length);
-                                continue;
-                            }
-                            // k/k1  ( .clickable() || .parent().clickable() aka pk/p1k )
-                            // k2  ( .clickable() || .parent().clickable() || .p2.clickable() aka p2k )
-                            // kn  ( .clickable() || .pn.clickable() aka pnk )
-                            if ((_mch_k = /^k[k\d]*/.exec(compass))) {
-                                let _up_max = compass.match(/^k(\d*)/g).map((s) => {
-                                    let _mch = s.match(/\d+/);
-                                    return _mch ? Number(_mch[0]) : 1;
-                                }).reduce((a, b) => a + b);
-
-                                /** @type {?UiObject$} */
-                                w = function $iiFe() {
-                                    let _w_tmp = w;
-                                    do {
-                                        if (!(_w_tmp instanceof UiObject)) {
-                                            return null;
-                                        }
-                                        if (_w_tmp.clickable()) {
-                                            return _w_tmp;
-                                        }
-                                        if (!_up_max--) {
-                                            return w;
-                                        }
-                                        _w_tmp = _w_tmp.parent();
-                                    } while (1);
-                                }();
-                                compass = compass.slice(_mch_k[0].length);
-                                continue;
-                            }
-
-                            throw Error('Invalid rest compass for $$sel.pickup(): ' + compass);
-                        }
-                        return w || null;
-                    },
-                    /**
-                     * @param {A11yx.Pickup.Result.Type} type
-                     * @return {A11yx.Pickup.Result.CanonicalType|any}
-                     */
-                    getResultType(type) {
-                        let _type = type ? String(type) : null;
-                        if (_type === null || _type.match(/^w(idget)?$/)) {
-                            return 'widget';
-                        }
-                        if (_type.match(/^(w(idget)?_?c(ollection)?|wid(get)?s)$/)) {
-                            return 'widgets';
-                        }
-                        if (_type.match(/^t(xt)?$/)) {
-                            return 'txt';
-                        }
-                        if (_type.match(/^s(el(ector)?)?$/)) {
-                            return 'selector';
-                        }
-                        if (_type.match(/^e(xist(s)?)?$/)) {
-                            return 'exists';
-                        }
-                        if (_type.match(/^s(el(ector)?)?(_?s)(tr(ing)?)?$/)) {
-                            return 'selector_name';
-                        }
-                        if (_type.match(/^p(oin)?ts?$/)) {
-                            return _type.includes('s') ? 'points' : 'point';
-                        }
-                        return _type;
-                    },
-                    /**
-                     * @return {UiSelector$|UiObject$|UiObject$[]|OpenCV.Point|OpenCV.Points|string|any}
-                     */
-                    getInternalResult() {
-                        return {
-                            selector: this.selector,
-                            widget: this.widget,
-                            widgets: this.widget_collection,
-                            exists: Boolean(this.widget),
-                            get selector_name() {
-                                if (!this.widget || !this.selector) {
-                                    return $.tools.wrapStrByOptDef('');
-                                }
-                                let _mch = this.selector.toString().match(/[a-z]+/);
-                                return $.tools.wrapStrByOptDef(_mch ? _mch[0] : '');
-                            },
-                            get txt() {
-                                let _text = this.widget && this.widget.text() || '';
-                                let _desc = this.widget && this.widget.desc() || '';
-                                return _desc.length > _text.length
-                                    ? $.tools.wrapStrByOptDef(_desc)
-                                    : $.tools.wrapStrByOptDef(_text);
-                            },
-                            get point() {
-                                return $.tools.uiObject2Point(this.widget);
-                            },
-                            get points() {
-                                return this.widgets.map($.tools.uiObject2Point).filter(w => w !== null);
-                            },
-                        }[this.res_type];
-                    },
-                    /**
-                     * @return {UiSelector$|UiObject$|UiObject$[]|OpenCV.Point|OpenCV.Points|string|any}
-                     */
-                    getResult() {
-                        this.refreshSvcInfoIFN();
-                        this.parseRawLocator();
-
-                        let _res = function $iiFe() {
-                            let _internal = this.getInternalResult();
-                            if (typeof _internal !== 'undefined') {
-                                return _internal;
-                            }
-                            if (this.widget === null) {
-                                return null;
-                            }
-                            let _prop = this.widget[this.res_type];
-                            return typeof _prop === 'function' ? _prop.call(this.widget) : _prop;
-                        }.call(this);
-
-                        if (!isNullish(_res)) {
-                            return _res;
-                        }
-                        return 'default' in this.options ? this.options.default : null;
-                    },
-                };
-
-                return $.getResult();
-            },
-            /**
-             * @param {A11yx.Pickup.Locators} locator
-             * @param {(function(w:UiObject$):boolean)|A11yx.Pickup.Result.Type} [filter]
-             * @param {A11yx.Pickup.Result.Type} [type='widget']
-             * @return {A11yx.Pickup.Results}
-             */
-            traverse(locator, filter, type) {
-                let $ = {
-                    parseFilter() {
-                        if (typeof filter === 'string') {
-                            this.filter = w => _ext.pickup(w, filter);
-                        } else {
-                            this.filter = typeof filter === 'function' ? filter : () => true;
-                        }
-                    },
-                    parseArgs() {
-                        this.parseFilter();
-
-                        this.type = type || 'widget';
-                        this.pickup = _ext.pickup.bind(_ext);
-                        this.pickup_null_res = this.pickup(null, this.type);
-                    },
-                    traverse(locator) {
-                        for (let c of this.pickup(locator, 'children', {default: []})) {
-                            if (!(c instanceof UiObject)) {
-                                continue;
-                            }
-                            if (this.filter(c)) {
-                                return this.pickup(c, this.type);
-                            }
-                            let _res = this.traverse(c);
-                            if (_res !== this.pickup_null_res) {
-                                return _res;
-                            }
-                        }
-                        return this.pickup_null_res;
-                    },
-                    getResult() {
-                        this.parseArgs();
-
-                        return this.filter(locator)
-                            ? this.pickup(locator, this.type)
-                            : this.traverse(locator);
-                    },
-                };
-
-                return $.getResult();
-            },
-            /**
-             * @param {A11yx.Pickup.Locators} locator
-             * @param {(function(w:UiObject$):boolean)|A11yx.Pickup.Result.Type} filter
-             * @param {A11yx.Pickup.Result.Type} [type='widget']
-             * @return {A11yx.Pickup.Results[]}
-             */
-            traverseAll(locator, filter, type) {
-                let $ = {
-                    results: [],
-                    type: type || 'widget',
-                    filter: function $iiFe() {
-                        if (typeof filter === 'string') {
-                            return w => _ext.pickup(w, filter);
-                        }
-                        return typeof filter === 'function' ? filter : () => true;
-                    }(),
-                    pickup: _ext.pickup.bind(_ext),
-                    traverse(locator) {
-                        for (let c of this.pickup(locator, 'children', {default: []})) {
-                            if (!(c instanceof UiObject)) {
-                                continue;
-                            }
-                            if (this.filter(c)) {
-                                this.results.push(this.pickup(c, 'widget'));
-                            }
-                            this.traverse(c);
-                        }
-                        if (this.type.match(/^w(idget)?$/)) {
-                            return this.results;
-                        }
-                        return this.results.map(o => this.pickup(o, this.type));
-                    },
-                    getResult() {
-                        if (this.filter(locator)) {
-                            this.results.push(this.pickup(locator, 'widget'));
-                        }
-                        return this.traverse(locator);
-                    },
-                };
-
-                return $.getResult();
-            },
-            /**
              * @param {string} key
              * @param {A11yx.Pickup.Locators|(function(A11yx.Pickup.Result.Type):A11yx.Pickup.Results)} sel
              * @return {this}
              */
             add(key, sel) {
                 if (typeof sel === 'function') {
-                    _.sel_body_pool[key] = type => sel(type);
+                    _.sel_body_pool[key] = sel;
                 } else {
-                    _.sel_body_pool[key] = type => this.pickup(sel, type);
+                    _.sel_body_pool[key] = () => pickup(sel);
                 }
                 return this; // to make method chaining possible
             },
             /**
              * @param {string} key
-             * @param {A11yx.Pickup.Result.Type|'cache'} [type]
-             * @example
-             * $$sel.add('list', className('ListView'));
-             *  // recommended
-             * console.log($$sel.get('list', 'bounds'));
-             * // NullPointerException may occur
-             * console.log($$sel.get('list').bounds());
-             * // traditional way, and NullPointerException may occur
-             * console.log(className('ListView').findOnce().bounds());
              * @throws {Error} `sel key '${key}' not set in pool`
              * @return {A11yx.Pickup.Results}
              */
-            get(key, type) {
+            get(key) {
                 let _picker = _.sel_body_pool[key];
                 if (typeof _picker !== 'undefined') {
-                    return !_picker ? null : type === 'cache'
-                        ? (_.cache_pool[key] = _picker('w'))
-                        : _picker(type);
+                    return typeof _picker === 'function' ? _picker() : null;
                 }
                 throw Error('Key "' + key + '" is not in the pool');
             },
@@ -869,16 +292,20 @@ let exp = {
              * @return {?UiObject$}
              */
             getAndCache(key) {
-                return this.get(key, 'cache'); // UiObject only
+                let result = this.get(key);
+                if (result) {
+                    _.cache_pool[key] = result; // UiObject only
+                }
+                return result;
             },
             cache: {
                 save(key) {
                     _ext.getAndCache(key);
                 },
                 /** @return {?A11yx.Pickup.Results} */
-                load(key, type) {
+                load(key) {
                     let _cache = _.cache_pool[key];
-                    return _cache ? _ext.pickup(_cache, type) : null;
+                    return _cache || null;
                 },
                 refresh(key) {
                     let _cache = _.cache_pool[key];
@@ -919,7 +346,7 @@ let exp = {
     },
     /**
      * @param {number} [timeout=60e3]
-     * @throws com.stardust.autojs.runtime.exception.ScriptInterruptedException
+     * @throws org.autojs.autojs.runtime.exception.ScriptInterruptedException
      * @return {boolean}
      */
     waitForEnabled(timeout) {
@@ -935,16 +362,6 @@ let exp = {
             },
         });
     },
-    /** @return {boolean} */
-    isAutoEnableEnabled() {
-        try {
-            let {storagesx: _storagesx} = requirex('ext-storages');
-            return _storagesx.create('af_cfg')
-                .get('config', {prop: 'auto_enable_a11y_svc'}) === 'ON';
-        } catch (e) {
-            return false;
-        }
-    },
     /**
      * @param {A11yx.Functional.AutoEnable.Options} [options]
      * @returns {boolean}
@@ -957,12 +374,8 @@ let exp = {
         let _is_ess = _opt.is_essential;
         let _no_man = _opt.is_manual_disallowed;
 
-        if (!this.isAutoEnableEnabled()) {
-            if (!_is_ess) {
-                consolex._('自动开启无障碍服务未启用', 3);
-                return false;
-            }
-            consolex.$('无障碍服务关闭且自动启用未开启', 8, 2, 0, 2);
+        if (!_is_ess) {
+            return false;
         }
 
         let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
@@ -1024,7 +437,7 @@ let exp = {
         }
     },
     ensureService() {
-        this.autoEnable({is_essential: true});
+        this.autoEnable({ is_essential: true });
     },
     ensureFunctionality() {
         if (typeof activity === 'undefined') {
@@ -1062,7 +475,7 @@ let exp = {
      */
     click(o, strategy, options) {
         // @Overload
-        if (isPlainObject(strategy)) {
+        if (isObjectSpecies(strategy)) {
             return this.click(o, 'widget', strategy);
         }
 
@@ -1078,37 +491,36 @@ let exp = {
             container: [],
             options: options || {},
             wait: exp.wait.bind(exp),
-            pickup: _.sel.pickup.bind(_.sel),
             impededIFN() {
                 this.options.no_impeded || typeof $$impeded === 'function' && $$impeded('a11yx.click');
             },
             parsePadding() {
                 let _pad = this.options.padding;
                 if (!_pad) {
-                    return this.padding = {x: 0, y: 0};
+                    return this.padding = { x: 0, y: 0 };
                 }
                 if (typeof _pad === 'number') {
-                    _pad = [0, _pad];
+                    _pad = [ 0, _pad ];
                 } else if (!Array.isArray(_pad)) {
                     throw Error('Invalid paddings for a11yx.click()');
                 }
 
                 let _coords = function $iiFe() {
                     if (_pad.length === 1) {
-                        return [0, _pad[0]];
+                        return [ 0, _pad[0] ];
                     }
                     if (_pad.length === 2) {
-                        let [_k, _v] = _pad;
-                        return _k === 'x' ? [_v, 0] : _k === 'y' ? [0, _v] : [_k, _v];
+                        let [ _k, _v ] = _pad;
+                        return _k === 'x' ? [ _v, 0 ] : _k === 'y' ? [ 0, _v ] : [ _k, _v ];
                     }
                     throw Error('Invalid paddings amount for a11yx.click()');
                 }();
 
-                let [_x, _y] = _coords.map(n => Number(n));
+                let [ _x, _y ] = _coords.map(n => Number(n));
                 if (!(!isNaN(_x) && !isNaN(_y))) {
                     throw Error('Invalid paddings calc results for a11yx.click()');
                 }
-                this.padding = {x: _x, y: _y};
+                this.padding = { x: _x, y: _y };
             },
             parseStrategy() {
                 let _stg = this.options.strategy || this.options.click_strategy
@@ -1155,7 +567,7 @@ let exp = {
                     let _w = o.findOnce();
                     return !_w || !this.container.includes(_w.hashCode());
                 }
-                return this.checkDisappearance(this.pickup(o));
+                return this.checkDisappearance(pickup(o));
             },
             /**
              * @param {UiSelector$|UiObject$|Android.Rect|number[]|{x:number,y:number}} o
@@ -1195,7 +607,7 @@ let exp = {
                 if (o instanceof Point) {
                     return _click(o.x, o.y);
                 }
-                if (isPlainObject(o)) {
+                if (isObjectSpecies(o)) {
                     if (typeof o.x === 'number' && typeof o.y === 'number') {
                         return _click(o.x, o.y);
                     }
@@ -1206,7 +618,7 @@ let exp = {
                     }
                 }
 
-                let _w = this.pickup(o, 'widget');
+                let _w = o.findOnce();
                 return _w ? this.clickOnce(_w) : false;
             },
             getResult() {
@@ -1248,10 +660,9 @@ let exp = {
             get name() {
                 return this._name = this._name || String(this.options.name || 'pipeline').surround('"');
             },
-            pickup: _.sel.pickup.bind(_.sel),
             waitAndClick: exp.waitAndClick.bind(exp),
             parseActions() {
-                return this.actions = actions.map(o => isPlainObject(o) ? o : {locator: o});
+                return this.actions = actions.map(o => isObjectSpecies(o) ? o : { locator: o });
             },
             getResult() {
                 return this.parseActions().every((pipe, idx) => {
@@ -1261,11 +672,11 @@ let exp = {
                                 return pipe.condition;
                             }
                             if (idx < this.actions.length - 1) {
-                                return () => this.pickup(this.actions[idx + 1].locator);
+                                return () => pickup(this.actions[idx + 1].locator);
                             }
                         }.call(this),
                         strategy: pipe.strategy,
-                    })) || consolex.w([this.name + '管道破裂', pipe.locator], 2, 0, -2);
+                    })) || consolex.w([ this.name + '管道破裂', pipe.locator ], 2, 0, -2);
                 });
             },
         };
@@ -1281,19 +692,18 @@ let exp = {
      */
     wait(condition, limit, interval, options) {
         // @Overload
-        if (isPlainObject(limit)) {
+        if (isObjectSpecies(limit)) {
             return this.wait(condition, null, null, limit);
         }
 
         // @Overload
-        if (isPlainObject(interval)) {
+        if (isObjectSpecies(interval)) {
             return this.wait(condition, limit, null, interval);
         }
 
         let $ = {
             result: false,
             start: Date.now(),
-            pickup: _.sel.pickup.bind(_.sel),
             options: options || {},
             impededIFN() {
                 this.options.no_impeded || typeof $$impeded === 'function' && $$impeded('a11yx.wait');
@@ -1317,7 +727,10 @@ let exp = {
                 if (typeof condition === 'function') {
                     return condition();
                 }
-                return this.pickup(condition);
+                if (condition instanceof UiObject) {
+                    return condition;
+                }
+                return pickup(condition);
             },
             wait() {
                 while (this.times--) {
@@ -1367,22 +780,22 @@ let exp = {
      */
     waitAndClick(condition, limit, interval, click_options) {
         // @Overload
-        if (isPlainObject(limit)) {
+        if (isObjectSpecies(limit)) {
             return this.waitAndClick(condition, null, null, limit);
         }
 
         // @Overload
-        if (isPlainObject(interval)) {
+        if (isObjectSpecies(interval)) {
             return this.waitAndClick(condition, limit, null, interval);
         }
 
         let _res_click = true;
-        let _res_wait = this.wait(condition, limit, interval, {
-            then: function (res) {
+        let _res_wait = wait(condition, limit, interval, {
+            then: (res) => {
                 let _opt = click_options || {};
                 sleep(_opt.intermission || 240);
                 _res_click = this.click(res, _opt) && _res_click;
-            }.bind(this),
+            },
         });
         return _res_wait && _res_click;
     },
@@ -1404,12 +817,12 @@ let exp = {
      */
     waitAndStable(condition, limit, interval, stable_options) {
         // @Overload
-        if (isPlainObject(limit)) {
+        if (isObjectSpecies(limit)) {
             return this.waitAndStable(condition, null, null, limit);
         }
 
         // @Overload
-        if (isPlainObject(interval)) {
+        if (isObjectSpecies(interval)) {
             return this.waitAndStable(condition, limit, null, interval);
         }
 
@@ -1485,7 +898,7 @@ let exp = {
              */
             parsePoint(o) {
                 if (typeof o === 'number') {
-                    return {x: halfW, y: this.scale(o, 'y')};
+                    return { x: halfW, y: this.scale(o, 'y') };
                 }
                 if (Array.isArray(o)) {
                     if (o.length !== 2 || !o.every(x => $$num(x))) {
@@ -1496,7 +909,7 @@ let exp = {
                         y: this.scale(o[1], 'y'),
                     };
                 }
-                if (isPlainObject(o)) {
+                if (isObjectSpecies(o)) {
                     if (typeof o.x !== 'number' || typeof o.y !== 'number') {
                         throw Error('Invalid object point: ' + o.x + ', ' + o.y);
                     }
@@ -1515,7 +928,7 @@ let exp = {
             },
             parseDuration() {
                 this.duration = duration >= 200
-                    ? duration : Math.max(Math.dist(this.start, this.end) / 5, 200);
+                    ? duration : Math.max(Mathx.dist(this.start, this.end) / 5, 200);
             },
             parseArgs() {
                 this.options = options || {};
@@ -1847,4 +1260,4 @@ let exp = {
 /**
  * @type {Mod.a11yx}
  */
-module.exports = {a11yx: exp, $$sel: exp.selector()};
+module.exports = { a11yx: exp, $$sel: exp.selector() };

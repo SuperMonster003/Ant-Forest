@@ -1,6 +1,5 @@
 require('../modules/mod-global');
 let {uix} = require('../modules/ext-ui');
-let {timersx} = require('../modules/ext-timers');
 
 let _ts = _getTsFromArgv() || _getTsFromAutoTask() || _getTsFromDiag();
 
@@ -56,7 +55,7 @@ function _getTsFromArgv() {
 }
 
 function _getTsFromAutoTask() {
-    return timersx.queryTimedTasks({
+    return tasks.queryTimedTasks({
         path: files.path('../ant-forest-launcher.js'),
     }).map(task => task.getNextTime()).sort()[0];
 }
@@ -91,9 +90,9 @@ function _setCtdText(t) {
             ts += new Date(new Date().toLocaleDateString()).getTime();
         }
         let _d = new Date(ts);
-        return _d.getHours().padStart(2, 0) + ':' +
-            _d.getMinutes().padStart(2, 0) + ':' +
-            _d.getSeconds().padStart(2, 0);
+        return Numberx.padStart(_d.getHours(), 2) + ':' +
+            Numberx.padStart(_d.getMinutes(), 2) + ':' +
+            Numberx.padStart(_d.getSeconds(), 2);
     };
 
     let _aim = (function $iiFe() {

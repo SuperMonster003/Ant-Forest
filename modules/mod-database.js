@@ -35,7 +35,7 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
 
         this.table_name = info.table_name;
         this.table_columns = info.table_columns;
-        this.alter_type = info.alter_type;
+        this.alterType = info.alterType;
         this.database = SQLiteDatabase.openOrCreateDatabase(this.path, null);
 
         this.createTableIFN();
@@ -70,8 +70,8 @@ let SQLiteDBx = function SQLiteDBxConstructor$iiFe() {
             }
         },
         alterIFN() {
-            if (typeof this.alter_type === 'string') {
-                this.alter(this.alter_type);
+            if (typeof this.alterType === 'string') {
+                this.alter(this.alterType);
             }
         },
         getPath() {
@@ -320,7 +320,7 @@ let exp = {
         return new SQLiteDBx({
             table_name: _opt.table_name || 'ant_forest',
             table_columns: this._parseTableColumns(table_columns),
-            alter_type: _opt.alter_type,
+            alterType: _opt.alterType,
             path: _opt.database_path
                 ? files.path(_opt.database_path)
                 : files.join(files.getSdcardPath(), '.local', 'ant_forest.db'),

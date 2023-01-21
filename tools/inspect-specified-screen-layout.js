@@ -1,8 +1,6 @@
-require('../modules/mod-global');
-let {threadsx} = require('../modules/ext-threads');
 let {consolex} = require('../modules/ext-console');
 
-threadsx.start(() => {
+threads.start(() => {
     toast('目标页面按"音量减"键捕获布局信息', 'L');
     events.observeKey();
     events.onceKeyDown('volume_down', function () {

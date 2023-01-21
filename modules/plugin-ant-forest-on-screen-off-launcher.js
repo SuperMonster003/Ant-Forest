@@ -1,11 +1,8 @@
-let {timersx} = require('./ext-timers');
 let {project} = require('./mod-project');
 let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
-
-let App = org.autojs.autojs.App;
 
 let cfg = {
     action: 'android.intent.action.SCREEN_OFF',
@@ -21,10 +18,10 @@ let $ = {
     addIntentTask(config) {
         Object.assign(cfg, config);
 
-        timersx.addIntentTask({
+        tasks.addIntentTask({
             action: cfg.action,
             path: files.join(project.getLocalPath(), 'modules', this.file_name),
-            is_async: true,
+            isAsync: true,
             callback(task) {
                 consolex._([
                     'Intent task added successfully',
@@ -39,10 +36,10 @@ let $ = {
         });
     },
     removeAllTasks() {
-        let _tasks = timersx.queryIntentTasks({
+        let _tasks = tasks.queryIntentTasks({
             action: cfg.action,
         });
-        _tasks.forEach(task => timersx.removeTask(task));
+        _tasks.forEach(task => tasks.removeTask(task));
 
         consolex._([
             'All intent tasks removed',
@@ -52,7 +49,7 @@ let $ = {
     },
     unregisterAllDynamicBroadcastReceivers() {
         try {
-            App.Companion.getApp().getDynamicBroadcastReceivers().unregisterAll();
+            org.autojs.autojs.App.Companion.getApp().getDynamicBroadcastReceivers().unregisterAll();
         } catch (e) {
             // Wrapped java.lang.IllegalArgumentException: Receiver not registered...
             // Error above could be ignored as the functionality
@@ -62,7 +59,7 @@ let $ = {
         }
     },
     addDisposableTask() {
-        timersx.addDisposableTask({
+        tasks.addDisposableTask({
             date: Date.now() + cfg.delay,
             path: cfg.path,
         });

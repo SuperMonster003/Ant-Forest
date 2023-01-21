@@ -7,62 +7,14 @@ let {consolex} = require('./ext-console');
 
 let exp = {
     /**
-     * @return {boolean}
-     */
-    isPro() {
-        return (this.isPro = () => /Pro\b/i.test(this.getPackageName()))();
-    },
-    /**
-     * @example
-     * console.log(autojs.getName()); // like: 'Auto.js'
-     * @return {string}
-     */
-    getAppName() {
-        return 'Auto.js' + (this.isPro() ? ' Pro' : '');
-    },
-    /**
-     * @example
-     * console.log(appx.getAutoJsPkg()); // like: 'org.autojs.autojs'
-     * @return {string}
-     */
-    getPackageName() {
-        return context.getPackageName();
-    },
-    /**
-     * @example
-     * console.log(appx.getAutoJsVer()); // e.g. '4.1.1 Alpha2'
-     * @return {?string}
-     */
-    getVerName() {
-        // Pro version(s) (e.g. 8.8.16-0) returns abnormal value like '${xxx.xxx}'
-        let _ver = app.autojs.versionName;
-        return String(_ver).match(/^\d/) ? _ver : appx.getVerName('Auto.js');
-    },
-    getVerCode() {
-        return app.autojs.versionCode;
-    },
-    /**
-     * @param {string|number} ver
-     * @example
-     * console.log(autojs.isVerNewer(7)); // e.g. false
-     * console.log(autojs.isVerNewer('4.1.0')); // e.g. true
-     * console.log(autojs.isVerNewer('4.1.1 alpha')); // e.g. true
-     * console.log(autojs.isVerNewer('4.1.1 a2')); // e.g. false
-     * console.log(autojs.isVerNewer('8.9.6 beta')); // e.g. false
-     * @return {boolean}
-     */
-    isVerNewer(ver) {
-        return appx.version.isNewer(this.getVerName(), ver);
-    },
-    /**
      * Check if device is running compatible Auto.js version
      */
     ensureVersion() {
         let _ = {
             VERSION_UNKNOWN: -1,
             VERSION_NORMAL: 0,
-            bug_map: {
-                not_aj6: '项目自 v2.3.0 起将仅支持 Auto.js 6.x 版本\n' +
+            bugMap: {
+                notAutoJs6: '项目自 v2.3.0 起将仅支持 Auto.js 6.x 版本\n' +
                     '因项目运行依赖于 Rhino 引擎的部分新特性及 AutoJs6 的部分自定义模块',
             },
             /**
@@ -77,7 +29,7 @@ let exp = {
                 if (!ver.match(/^(Pro )?\d+\.\d+\.\d+.*$/)) {
                     return this.VERSION_UNKNOWN;
                 }
-                return ['not_aj6'];
+                return ['notAutoJs6'];
             },
             alert(msg) {
                 alert(msg);
@@ -179,17 +131,17 @@ let exp = {
                 let msg = ['脚本可能无法正常运行',
                     '需更换 Auto.js 版本', '',
                     '软件版本:', ver, '',
-                    '异常详情:' + diagnosis.map(s => '\n' + this.bug_map[s]).join(''), '',
+                    '异常详情:' + diagnosis.map(s => '\n' + this.bugMap[s]).join(''), '',
                     '在项目简介中查看支持版本',
                 ].join('\n');
 
-                exp.isVerNewer('v4.1.0') ? this.dialog(msg) : this.alert(msg);
+                appx.version.isNewer(autojs.versionName, 'v4.1.0') ? this.dialog(msg) : this.alert(msg);
             },
         };
 
         let $ = {
             parseArgs() {
-                this.version = exp.getVerName() || '未知版本';
+                this.version = app.autojs.versionName;
                 this.diagnosis = _.diagnose(this.version);
             },
             bugTrigger() {

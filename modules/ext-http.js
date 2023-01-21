@@ -1,5 +1,3 @@
-let {threadsx} = require('./ext-threads');
-
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
@@ -43,10 +41,10 @@ let exp = {
 
         let _tt = _opt.timeout || 10e3;
         let _ts_max = Date.now() + _tt;
-        let _sum_bytes = threadsx.atomic(-1);
+        let _sum_bytes = threads.atomic(-1);
 
         let _executor = function (resolve) {
-            let _thd = threadsx.start(function () {
+            let _thd = threads.start(function () {
                 try {
                     let _cxn = new URL(url).openConnection();
                     _cxn.setRequestProperty('Accept-Encoding', 'identity');
@@ -60,7 +58,7 @@ let exp = {
                     // nothing to do here
                 }
             });
-            threadsx.start(function () {
+            threads.start(function () {
                 try {
                     while (1) {
                         if (_sum_bytes.get() > 0) {
@@ -94,7 +92,7 @@ let exp = {
      * @param {Object} [options]
      * @param {string} [options.path]
      * @param {Object} [options.headers]
-     * @param {boolean} [options.is_async=true]
+     * @param {boolean} [options.isAsync=true]
      * @return {any}
      */
     okhttp3Request(url, callback, options) {
@@ -115,10 +113,10 @@ let exp = {
         if (!url) {
             return _onFailure('url for httpx.okhttp3Request() is required');
         }
-        if (_opt.is_async !== undefined && !_opt.is_async) {
+        if (_opt.isAsync !== undefined && !_opt.isAsync) {
             return _request();
         }
-        threadsx.start(_request);
+        threads.start(_request);
 
         // tool function(s) //
 

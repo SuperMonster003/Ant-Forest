@@ -5,78 +5,75 @@ let {
     $$und, $$obj, $$arr, $$cvt, $$T, $$F, $$0, $$func,
     $$num, $$str, $$nul, isNonEmptyObject,
 } = require('./modules/mod-global');
-let {db} = require('./modules/mod-database');
-let {project} = require('./modules/mod-project');
-let {uix} = require('./modules/ext-ui');
-let {appx} = require('./modules/ext-app');
-let {a11yx} = require('./modules/ext-a11y');
-let {filesx} = require('./modules/ext-files');
-let {autojs} = require('./modules/mod-autojs');
-let {imagesx} = require('./modules/ext-images');
-let {timersx} = require('./modules/ext-timers');
-let {cryptox} = require('./modules/ext-crypto');
-let {colorsx} = require('./modules/ext-colors');
-let {dialogsx} = require('./modules/ext-dialogs');
-let {threadsx} = require('./modules/ext-threads');
-let {consolex} = require('./modules/ext-console');
-let {storagesx} = require('./modules/ext-storages');
-let {devicex, $$disp} = require('./modules/ext-device');
+let { db } = require('./modules/mod-database');
+let { project } = require('./modules/mod-project');
+let { uix } = require('./modules/ext-ui');
+let { appx } = require('./modules/ext-app');
+let { a11yx } = require('./modules/ext-a11y');
+let { filesx } = require('./modules/ext-files');
+let { autojs: autojsExt } = require('./modules/mod-autojs');
+let { imagesx } = require('./modules/ext-images');
+let { cryptox } = require('./modules/ext-crypto');
+let { dialogsx } = require('./modules/ext-dialogs');
+let { consolex } = require('./modules/ext-console');
+let { storagesx } = require('./modules/ext-storages');
+let { devicex, $$disp } = require('./modules/ext-device');
 
 let $$init = {
     check() {
-        devicex.ensureSdkInt();
-        autojs.ensureVersion();
+        requiresApi(util.versionCodes.N.apiLevel);
+        autojsExt.ensureVersion();
         a11yx.ensureSvcAndFunc();
 
-        uix.init({requested_orientation: 'PORTRAIT'});
+        uix.init({ requested_orientation: 'PORTRAIT' });
 
         return $$init;
     },
     global() {
         global.$$cfg = {
             list_heads: {
-                project_backup_info: [{
+                project_backup_info: [ {
                     version_name: '项目版本', width: 0.5,
                 }, {
                     timestamp: '项目备份时间',
-                    sort: {flag: -1, head_name: 'timestamp'},
+                    sort: { flag: -1, head_name: 'timestamp' },
                     stringTransform: {
                         forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
                         backward: t => $$tool.restoreFromTimestamp(t),
                     },
-                }],
-                server_releases_info: [{
+                } ],
+                server_releases_info: [ {
                     tag_name: '项目标签', width: 0.5,
                 }, {
                     published_at: '项目发布时间',
-                    sort: {flag: -1, head_name: 'published_at'},
+                    sort: { flag: -1, head_name: 'published_at' },
                     stringTransform: {
                         forward: t => $$tool.getTimeStrFromTs(new Date(t), 'time_str_full'),
                     },
-                }],
-                blacklist_by_user: [{
+                } ],
+                blacklist_by_user: [ {
                     name: '支付宝好友昵称', width: 0.58,
                 }, {
                     timestamp: '黑名单自动解除',
-                    sort: {flag: 1, head_name: 'timestamp'},
+                    sort: { flag: 1, head_name: 'timestamp' },
                     stringTransform: {
                         forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
                         backward: t => $$tool.restoreFromTimestamp(t),
                     },
-                }],
-                blacklist_protect_cover: [{
+                } ],
+                blacklist_shield: [ {
                     name: '支付宝好友昵称', width: 0.58,
                 }, {
                     timestamp: '黑名单自动解除',
-                    sort: {flag: 1, head_name: 'timestamp'},
+                    sort: { flag: 1, head_name: 'timestamp' },
                     stringTransform: {
                         forward: t => $$tool.getTimeStrFromTs(t, 'time_str_remove'),
                         backward: t => $$tool.restoreFromTimestamp(t),
                     },
-                }],
-                foreground_app_blacklist: [{
+                } ],
+                foregroundAppBlacklist: [ {
                     app_combined_name: '应用名称 (含包名)',
-                    sort: {flag: 1, head_name: 'app_combined_name'},
+                    sort: { flag: 1, head_name: 'app_combined_name' },
                     width: 0.85,
                 }, {
                     available: '有效', gravity: 'center', stringTransform: {
@@ -86,18 +83,18 @@ let $$init = {
                         },
                         backward: '__keep__',
                     },
-                }],
-                timers_uninterrupted_check_sections: [{
+                } ],
+                timersUninterruptedCheckSections: [ {
                     section: '时间区间', width: 0.58,
-                    sort: {flag: 1, head_name: 'section'},
+                    sort: { flag: 1, head_name: 'section' },
                     stringTransform: {
                         forward: arr => $$tool.timeSectionToStr(arr),
                         backward: str => $$tool.timeStrToSection(str),
                     },
                 }, {
                     interval: '间隔 (分)',
-                }],
-                timed_tasks: [{
+                } ],
+                timed_tasks: [ {
                     type: '任务类型', width: 0.47, stringTransform: {
                         // []: daily; number[]: weekly; 0: disposable
                         forward: arr => $$tool.getTimedTaskTypeStr(arr),
@@ -105,18 +102,18 @@ let $$init = {
                     },
                 }, {
                     next_run_time: '下次运行',
-                    sort: {flag: 1, head_name: 'next_run_time'},
+                    sort: { flag: 1, head_name: 'next_run_time' },
                     stringTransform: {
                         forward: t => $$tool.getTimeStrFromTs(t, 'time_str_full'),
                         backward: t => $$tool.restoreFromTimestamp(t),
                     },
-                }],
-                stat_list: [{
+                } ],
+                stat_list: [ {
                     name: '用户昵称', width: 0.72,
                 }, {
                     pick: '收取量统计',
-                    sort: {flag: -1, head_name: 'pick', type: 'number'},
-                }],
+                    sort: { flag: -1, head_name: 'pick', type: 'number' },
+                } ],
             },
         };
 
@@ -134,8 +131,8 @@ let $$init = {
 
         global.$$def = Object.assign({}, $$sto.def.settings, {
             colors: uix.colors,
-            item_area_width: cX($$sto.def.settings.item_area_width) + 'px',
-            homepage_title: $$sto.def.af.project_desc,
+            itemAreaWidth: cX($$sto.def.settings.itemAreaWidth) + 'px',
+            homepage_title: $$sto.def.af.projectDesc,
         });
 
         global.$$view = {
@@ -155,8 +152,8 @@ let $$init = {
                     return dialogsx
                         .builds([
                             _opt.title || this.title, _cfg_conj,
-                            ['R', 'reset'], 'B', 'M', 1,
-                        ], {inputHint: 'rgb(RR,GG,BB) | #RRGGBB'})
+                            [ 'R', 'reset' ], 'B', 'M', 1,
+                        ], { inputHint: 'rgb(RR,GG,BB) | #RRGGBB' })
                         .on('neutral', (d) => {
                             dialogsx.setInputText(d, $$sto.def.af[_cfg_conj]);
                         })
@@ -225,14 +222,14 @@ let $$init = {
                         let _cvt = _dist === 'H' ? cY : cX;
                         let _div = _dist === 'H' ? H : W;
                         _mini = _cvt(min);
-                        _mini_p = (_mini / _div).toFixedNum(2);
+                        _mini_p = Numberx.toFixedNum(_mini / _div, 2);
                         _maxi = _cvt(max);
-                        _maxi_p = (_maxi / _div).toFixedNum(2);
+                        _maxi_p = Numberx.toFixedNum(_maxi / _div, 2);
                         if ($$und(_content)) {
                             _content = '';
                         }
                         if (!$$arr(_content)) {
-                            _content = [_content];
+                            _content = [ _content ];
                         }
                         if ($$und(_content[1]) || _content[1]) {
                             _content[1] =
@@ -257,7 +254,7 @@ let $$init = {
                     return dialogsx
                         .builds([
                             _title, $$und(_content) ? _cfg_conj : $$nul(_content) ? '' : _content,
-                            $$0(_neutral) || $$nul(_neutral) ? 0 : ['R', 'reset'],
+                            $$0(_neutral) || $$nul(_neutral) ? 0 : [ 'R', 'reset' ],
                             $$0(_negative) || $$nul(_negative) ? 0 : 'B',
                             $$0(_positive) || $$nul(_positive) ? 0 : 'M',
                             1,
@@ -281,8 +278,8 @@ let $$init = {
                                     d.dismiss();
                                     $$save.session(_cfg_conj, _save(_n));
                                 };
-                                let _range = [_mini, _maxi];
-                                let _range_p = [_mini_p, _maxi_p];
+                                let _range = [ _mini, _maxi ];
+                                let _range_p = [ _mini_p, _maxi_p ];
                                 let _n = $$view.diag.getInputNumStrByCheckRange(d, _range, _range_p);
                                 if ($$str(_n) && (!_opt.positiveAddn || _opt.positiveAddn(d, _n, _f))) {
                                     return _f();
@@ -299,8 +296,8 @@ let $$init = {
                     dialogsx
                         .builds([
                             _title, _cfg_conj,
-                            ['R', 'reset'], 'Q', 'M', 1,
-                        ], {inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%'})
+                            [ 'R', 'reset' ], 'Q', 'M', 1,
+                        ], { inputHint: 'Rect(l,t,r,b) x.like=72|0.1|10%' })
                         .on('neutral', (d) => {
                             dialogsx.setInputText(d, $$sto.def[_def_key][_cfg_conj].join(','));
                         })
@@ -389,13 +386,13 @@ let $$init = {
                         _neu_value = 0;
                         _neu_lsn = () => null;
                     } else if ($$func(_neutral)) {
-                        _neu_value = ['T', 'hint'];
+                        _neu_value = [ 'T', 'hint' ];
                         _neu_lsn = d => _neutral.call(this, d);
                     } else if ($$obj(_neutral)) {
                         _neu_value = _neutral.value;
                         _neu_lsn = d => _neutral.listener.call(this, d);
                     } else {
-                        _neu_value = ['R', 'reset'];
+                        _neu_value = [ 'R', 'reset' ];
                         _neu_lsn = d => d.setSelectedIndex(_def_sto_idx);
                     }
 
@@ -481,7 +478,7 @@ let $$init = {
                             _min = Number(_arg);
                             _max = Number(arguments[i + 1]);
                         } else if ($$arr(_arg)) {
-                            [_min, _max] = _arg;
+                            [ _min, _max ] = _arg;
                         } else {
                             continue;
                         }
@@ -552,7 +549,7 @@ let $$init = {
                     },
                     stat_page: null,
                     blacklist_page: {
-                        cover_blacklist_page: null,
+                        shield_blacklist_page: null,
                         collect_blacklist_page: null,
                         foreground_app_blacklist_page: null,
                     },
@@ -567,7 +564,7 @@ let $$init = {
                     update_auto_check_page: null,
                 },
                 new(title, tt_key, f) {
-                    return this.buffer[tt_key] = f.bind(null, [title, tt_key]);
+                    return this.buffer[tt_key] = f.bind(null, [ title, tt_key ]);
                 },
                 jump(drxn, nxt) {
                     if (!global._$_page_scrolling_locked) {
@@ -580,14 +577,14 @@ let $$init = {
                                         _pool.pop();
                                         delete global._$_page_scrolling_locked;
                                     },
-                                }, {pages_pool: _pool});
+                                }, { pages_pool: _pool });
                             } else {
                                 uix.smoothScrollPage('left', {
                                     onStart: () => _pool.push($$view.pages[nxt]),
                                     onSuccess() {
                                         delete global._$_page_scrolling_locked;
                                     },
-                                }, {pages_pool: _pool});
+                                }, { pages_pool: _pool });
                             }
                         }
                     }
@@ -620,7 +617,7 @@ let $$init = {
                                 _pages_buffer.push(pages[key]);
                                 _pages_buffered_name[key] = true;
                             }
-                            if (isPlainObject(tree[key])) {
+                            if (isObjectSpecies(tree[key])) {
                                 sub_trees.push(tree[key]);
                             }
                         });
@@ -633,14 +630,14 @@ let $$init = {
             dyn_pages: [],
             setHomePage(home_title, bg_color) {
                 let _homepage = $$view.setPage(home_title, (p_view) => (
-                    $$view.setButtons(p_view, 'homepage', ['save', 'SAVE', 'OFF', (v) => {
+                    $$view.setButtons(p_view, 'homepage', [ 'save', 'SAVE', 'OFF', (v) => {
                         if ($$save.trigger()) {
                             $$save.config();
                             v.switch_off();
                             toast('已保存');
                         }
-                    }])
-                ), {action_bar_bg: bg_color});
+                    } ])
+                ), { action_bar_bg: bg_color });
 
                 _homepage.ready = function () {
                     ui['main'].addView(_homepage);
@@ -651,8 +648,8 @@ let $$init = {
                 return _homepage;
             },
             setPage(title, addn_func, options) {
-                let {no_scroll_view, check_page_state, action_bar_bg} = options || {};
-                let [_title_name, _label_name] = $$arr(title) ? title : [title, ''];
+                let { no_scroll_view, check_page_state, action_bar_bg } = options || {};
+                let [ _title_name, _label_name ] = $$arr(title) ? title : [ title, '' ];
 
                 let _page_view = ui.inflate(<vertical/>);
 
@@ -677,12 +674,12 @@ let $$init = {
                     } else {
                         _v = ui.inflate(
                             <horizontal id="_item_area" padding="16 8" gravity="left|center">
-                                <vertical id="_content" w="{{$$def.item_area_width}}" h="40"
+                                <vertical id="_content" w="{{$$def.itemAreaWidth}}" h="40"
                                           gravity="left|center">
                                     <x-text id="_title" size="16"/>
                                 </vertical>
                             </horizontal>);
-                        _v['_title'].setTextColor(colorsx.toInt($$def.colors.item_title));
+                        _v['_title'].setTextColor(colors.toInt($$def.colors.item_title));
                     }
 
                     if (!$$obj(opt)) {
@@ -698,7 +695,7 @@ let $$init = {
                         });
                     };
                     _v.setHintTextColor = (c) => {
-                        _v['_hint'] && _v['_hint'].setTextColor(colorsx.toInt(c));
+                        _v['_hint'] && _v['_hint'].setTextColor(colors.toInt(c));
                     };
                     _v.setHintVisibility = (v) => {
                         _v['_hint'] && ui.post(() => {
@@ -712,7 +709,7 @@ let $$init = {
                         });
                     };
                     _v.setTitleTextColor = (c) => {
-                        _v['_title'] && _v['_title'].setTextColor(colorsx.toInt(c));
+                        _v['_title'] && _v['_title'].setTextColor(colors.toInt(c));
                     };
                     _v.setChevronVisibility = (v) => {
                         _v['_chevron_icon'] && ui.post(() => {
@@ -740,10 +737,10 @@ let $$init = {
                             let _hint = _view['_sub_hint'];
                             if (_col) {
                                 _hint.setText('\u25D1'); // "◑"
-                                _hint.setTextColor(colorsx.toInt(_col[0]));
+                                _hint.setTextColor(colors.toInt(_col[0]));
                             } else {
                                 _hint.setText(text);
-                                _hint.setTextColor(colorsx.toInt($$def.colors.item_hint));
+                                _hint.setTextColor(colors.toInt($$def.colors.item_hint));
                             }
                             return _view;
                         };
@@ -855,7 +852,7 @@ let $$init = {
                         };
 
                         // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                        /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
+                        /** @type {org.autojs.autojs.core.ui.widget.JsLinearLayout} */
                         let _page_enter_view = ui.inflate(
                             <vertical id="_chevron_icon">
                                 <x-img id="img" h="31" paddingLeft="10"
@@ -879,7 +876,7 @@ let $$init = {
                         }, 100);
                     } else if (type === 'button') {
                         // noinspection HtmlUnknownTarget,HtmlRequiredAltAttribute
-                        /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
+                        /** @type {org.autojs.autojs.core.ui.widget.JsLinearLayout} */
                         let help_view = ui.inflate(
                             <vertical id="_info_icon" visibility="gone">
                                 <x-img id="img" src="@drawable/ic_info_outline_black_48dp"
@@ -938,7 +935,7 @@ let $$init = {
 
                         _view.setTag(type);
                         let _color = options && options.color || $$def.colors.split_line;
-                        _view['_line'].setBackgroundColor(colorsx.toInt(_color));
+                        _view['_line'].setBackgroundColor(colors.toInt(_color));
                         type.match(/invisible/) && _view.setVisibility(8);
 
                         return _view;
@@ -954,7 +951,7 @@ let $$init = {
                         if (_color === 'highlight') {
                             _color = $$def.colors.subhead_highlight;
                         }
-                        _view['_text'].setTextColor(colorsx.toInt(_color));
+                        _view['_text'].setTextColor(colors.toInt(_color));
                         _view['_text'].text(options.title);
 
                         return _view;
@@ -973,7 +970,7 @@ let $$init = {
 
                         let _c = options.color || $$def.colors.info;
                         _view['_info_text'].text(options.title);
-                        _view['_info_text'].setTextColor(colorsx.toInt(_c));
+                        _view['_info_text'].setTextColor(colors.toInt(_c));
                         uix.setImageTint(_view['img'], _c);
 
                         return _view;
@@ -1067,20 +1064,20 @@ let $$init = {
 
                                 let _sort_k = 'list_sort_flag_' + data_key_name;
                                 if ($$und($$ses[_sort_k])) {
-                                    let [a, b] = $$ses[ds_k];
+                                    let [ a, b ] = $$ses[ds_k];
                                     if (a === b) {
                                         $$ses[_sort_k] = 0;
                                     }
                                     $$ses[_sort_k] = a < b ? 1 : -1;
                                 }
 
-                                let _sess_data = $$ses[ds_k].map((v, idx) => [idx, v]);
+                                let _sess_data = $$ses[ds_k].map((v, idx) => [ idx, v ]);
                                 _sess_data.sort((a, b) => {
                                     let _is_num = (title_obj.sort || {}).type === 'number';
                                     let _a = a[1][a[1][data_key_name]];
                                     let _b = b[1][b[1][data_key_name]];
                                     if (_is_num) {
-                                        [_a, _b] = [+_a, +_b];
+                                        [ _a, _b ] = [ +_a, +_b ];
                                     }
                                     if (_a === _b) {
                                         return 0;
@@ -1137,9 +1134,9 @@ let $$init = {
                     }
 
                     function setSeekbar(options) {
-                        let {title, unit, config_conj, nums, inc} = options;
+                        let { title, unit, config_conj, nums, inc } = options;
                         let _def = $$sto.def.af[config_conj];
-                        let [min, max, init] = nums;
+                        let [ min, max, init ] = nums;
                         if (isNaN(+min)) {
                             min = 0;
                         }
@@ -1196,7 +1193,7 @@ let $$init = {
                     if (_label_name) {
                         $$ses['ready_signal_' + _label_name] = true;
                     } else {
-                        consolex.w(['页面标签不存在:', _title_name], 0, 0, 2);
+                        consolex.w([ '页面标签不存在:', _title_name ], 0, 0, 2);
                     }
                     return this;
                 };
@@ -1236,10 +1233,10 @@ let $$init = {
                         return $$view.checkPageState() && $$view.page.jump('back');
                     });
                     _view['_title_text'].setText(_title_name);
-                    _view['_title_text'].setTextColor(colorsx.toInt($$def.colors.page_title));
+                    _view['_title_text'].setTextColor(colors.toInt($$def.colors.page_title));
                     _view['_title_text'].getPaint().setFakeBoldText(true);
 
-                    let _color = colorsx.toInt(action_bar_bg || $$def.colors.action_bar_bg);
+                    let _color = colors.toInt(action_bar_bg || $$def.colors.action_bar_bg);
                     _view['_title_bg'].setBackgroundColor(_color);
 
                     $$func(addn_func) && addn_func(_view);
@@ -1288,16 +1285,16 @@ let $$init = {
                     let def_off_color = $$def.colors.btn_off;
                     let view = buttonView();
                     /** @type {string[]} */
-                    let switch_on_color = [other_params['btn_on_icon_color'] || def_on_color, other_params['btn_on_text_color'] || def_on_color];
+                    let switch_on_color = [ other_params['btn_on_icon_color'] || def_on_color, other_params['btn_on_text_color'] || def_on_color ];
                     /** @type {string[]} */
-                    let switch_off_color = [other_params['btn_off_icon_color'] || def_off_color, other_params['btn_off_text_color'] || def_off_color];
+                    let switch_off_color = [ other_params['btn_off_icon_color'] || def_off_color, other_params['btn_off_text_color'] || def_off_color ];
                     view.switch_on = () => {
                         view[btn_icon_id].attr('tint', switch_on_color[0]);
-                        view[btn_text_id].setTextColor(colorsx.toInt(switch_on_color[1]));
+                        view[btn_text_id].setTextColor(colors.toInt(switch_on_color[1]));
                     };
                     view.switch_off = () => {
                         view[btn_icon_id].attr('tint', switch_off_color[0]);
-                        view[btn_text_id].setTextColor(colorsx.toInt(switch_off_color[1]));
+                        view[btn_text_id].setTextColor(colors.toInt(switch_off_color[1]));
                     };
 
                     switch_state === 'OFF' ? view.switch_off() : view.switch_on();
@@ -1327,23 +1324,23 @@ let $$init = {
             setListPageButtons(p_view, ds_k) {
                 let _scenario = {
                     blacklist_by_user: sceBlacklistByUser,
-                    foreground_app_blacklist: sceForeAppBlacklist,
+                    foregroundAppBlacklist: sceForeAppBlacklist,
                 }[ds_k]();
-                let _args = [p_view, ds_k].concat(_scenario);
+                let _args = [ p_view, ds_k ].concat(_scenario);
                 return $$view.setButtons.apply($$view.setButtons, _args);
 
                 // scenario function(s) //
 
                 function sceBlacklistByUser() {
                     return [
-                        ['restore', 'RESTORE', 'OFF', (btn_view) => {
+                        [ 'restore', 'RESTORE', 'OFF', (btn_view) => {
                             let _blist_bak = $$cfg.sto[ds_k];
                             if (Object.isDeepEqual($$cfg.ses[ds_k], _blist_bak)) {
                                 return;
                             }
                             let _diag = dialogsx.builds([
                                 '恢复列表数据', 'restore_original_list_data',
-                                ['查看恢复列表', 'hint'], 'B', 'K', 1,
+                                [ '查看恢复列表', 'hint' ], 'B', 'K', 1,
                             ]);
                             _diag.on('neutral', () => {
                                 dialogsx.builds([
@@ -1362,7 +1359,7 @@ let $$init = {
                                             _items.push(_split_ln);
                                             return _items;
                                         }
-                                        return ['列表为空'];
+                                        return [ '列表为空' ];
                                     })(),
                                 }).on('positive', (d) => {
                                     d.dismiss();
@@ -1389,11 +1386,11 @@ let $$init = {
                                 _v['_check_all'].setChecked(false);
                             });
                             _diag.show();
-                        }],
-                        ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
+                        } ],
+                        [ 'delete_forever', 'REMOVE', 'OFF', (btn_view) => {
                             let _del_idx_k = ds_k + '_deleted_items_idx';
                             let _del_ctr_k = ds_k + '_deleted_items_idx_count';
-                            $$ses[_del_ctr_k] && threadsx.start(function () {
+                            $$ses[_del_ctr_k] && threads.start(function () {
                                 let _ctr_old = undefined;
                                 while ($$ses[_del_ctr_k] !== _ctr_old) {
                                     _ctr_old = $$ses[_del_ctr_k];
@@ -1428,8 +1425,8 @@ let $$init = {
 
                                 btn_view.switch_off();
                             }
-                        }],
-                        ['add_circle', 'NEW', 'ON', () => {
+                        } ],
+                        [ 'add_circle', 'NEW', 'ON', () => {
                             let _tmp_sel_fri = [];
                             let _blist_sel_fri = [];
                             let _lst_pg_view = $$view.findViewByTag(p_view, 'list_page_view');
@@ -1440,17 +1437,17 @@ let $$init = {
                                 '或检索选择好友';
                             let _diag = dialogsx.builds([
                                 '添加新数据', _diag_def_cnt,
-                                ['从列表中选择', 'hint'],
-                                ['检索选择', 'hint'],
+                                [ '从列表中选择', 'hint' ],
+                                [ '检索选择', 'hint' ],
                                 '确认添加', 1,
-                            ], {items: [' ']});
+                            ], { items: [ ' ' ] });
                             _diag.on('neutral', () => {
                                 let _diag_add_from_lst = dialogsx.builds([
                                     '列表选择好友', '',
-                                    ['刷新列表', 'hint'],
+                                    [ '刷新列表', 'hint' ],
                                     0, '确认选择', 1,
                                 ], {
-                                    items: ['列表为空'],
+                                    items: [ '列表为空' ],
                                     itemsSelectMode: 'multi',
                                 });
                                 _diag_add_from_lst.on('neutral', () => {
@@ -1462,10 +1459,13 @@ let $$init = {
                                         },
                                         onResume() {
                                             _diag.show();
-                                            threadsx.start(function () {
-                                                let _btn_text = _diag.getActionButton('neutral');
-                                                if (_btn_text) {
-                                                    a11yx.waitAndClick(text(_btn_text), 4e3, 100, {cs$: 'w'});
+                                            threads.start(function () {
+                                                let btn = _diag.getActionButton('neutral');
+                                                if (btn !== null) {
+                                                    let buttonText = btn.toString();
+                                                    if (buttonText) {
+                                                        a11yx.waitAndClick(text(buttonText), 4e3, 100, { cs$: 'w' });
+                                                    }
                                                 }
                                             });
                                         },
@@ -1503,7 +1503,7 @@ let $$init = {
                                         });
                                     }
                                     let _i_len = _items.length;
-                                    _items = _i_len ? _items : ['列表为空'];
+                                    _items = _i_len ? _items : [ '列表为空' ];
                                     _diag_add_from_lst.setItems(_items);
                                     let _fri_lst_ts = _fri_lst.timestamp;
                                     if (!isFinite(_fri_lst_ts)) {
@@ -1517,7 +1517,7 @@ let $$init = {
                             _diag.on('negative', () => {
                                 _diag.dismiss();
                                 let _getListData = () => $$sto
-                                    .af_flist.get('friends_list_data', {list_data: []})
+                                    .af_flist.get('friends_list_data', { list_data: [] })
                                     .list_data.map(o => o.nickname);
                                 $$view.setListItemsSearchAndSelectView(_getListData, {
                                     refresh_btn(ds_updater) {
@@ -1527,7 +1527,7 @@ let $$init = {
                                         });
                                     },
                                     list_item(item, closeListPage) {
-                                        let _excluded = [_blist_sel_fri, _tmp_sel_fri];
+                                        let _excluded = [ _blist_sel_fri, _tmp_sel_fri ];
 
                                         for (let i = 0, l = _excluded.length; i < l; i += 1) {
                                             if (_excluded[i].includes(item)) {
@@ -1583,33 +1583,33 @@ let $$init = {
 
                             function refreshDiag() {
                                 let _tmp_items_len = _tmp_sel_fri.length;
-                                let _tmp_items = _tmp_items_len ? _tmp_sel_fri : ['\xa0'];
+                                let _tmp_items = _tmp_items_len ? _tmp_sel_fri : [ '\xa0' ];
                                 _diag.setItems(_tmp_items);
                                 let _cnt_info = _tmp_items_len
                                     ? '当前选择区好友总数: ' + _tmp_items_len
                                     : _diag_def_cnt;
                                 _diag.setContent(_cnt_info);
                             }
-                        }],
+                        } ],
                     ];
                 }
 
                 function sceForeAppBlacklist() {
                     return [
-                        ['restore', 'RESTORE', 'OFF', (btn_view) => {
+                        [ 'restore', 'RESTORE', 'OFF', (btn_view) => {
                             let blacklist_backup = $$cfg.sto[ds_k];
                             if (Object.isDeepEqual($$cfg.ses[ds_k], blacklist_backup)) return;
                             let diag = dialogsx.builds([
                                 '恢复列表数据', 'restore_original_list_data',
-                                ['查看恢复列表', 'hint'], 'B', 'K', 1,
+                                [ '查看恢复列表', 'hint' ], 'B', 'K', 1,
                             ]);
                             diag.on('neutral', () => {
-                                let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
+                                let diag_restore_list = dialogsx.builds([ '查看恢复列表', '', 0, 0, 'B', 1 ], {
                                     content: '共计 ' + blacklist_backup.length + ' 项',
                                     items: (function $iiFe() {
                                         let items = [];
                                         blacklist_backup.forEach(o => items.push(o.app_combined_name));
-                                        return items.length ? items : ['列表为空'];
+                                        return items.length ? items : [ '列表为空' ];
                                     })(),
                                 });
                                 diag_restore_list.on('positive', () => diag_restore_list.dismiss());
@@ -1633,13 +1633,13 @@ let $$init = {
                                 _page_view['_check_all'].setChecked(false);
                             });
                             diag.show();
-                        }],
-                        ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
+                        } ],
+                        [ 'delete_forever', 'REMOVE', 'OFF', (btn_view) => {
                             let deleted_items_idx = ds_k + '_deleted_items_idx';
                             let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
                             if (!$$ses[deleted_items_idx_count]) return;
 
-                            let thread_items_stable = threadsx.start(function () {
+                            let thread_items_stable = threads.start(function () {
                                 let old_count = undefined;
                                 while ($$ses[deleted_items_idx_count] !== old_count) {
                                     old_count = $$ses[deleted_items_idx_count];
@@ -1669,8 +1669,8 @@ let $$init = {
                             _page_view['_check_all'].setChecked(true);
                             _page_view['_check_all'].setChecked(false);
                             btn_view.switch_off();
-                        }],
-                        ['add_circle', 'NEW', 'ON', () => {
+                        } ],
+                        [ 'add_circle', 'NEW', 'ON', () => {
                             let _tmp_selected = [];
                             let _blist_selected = [];
                             let _page_view = $$view.findViewByTag(p_view, 'list_page_view').getParent();
@@ -1680,19 +1680,19 @@ let $$init = {
 
                             let diag = dialogsx.builds([
                                 '添加新数据', '从应用列表中选择并添加应用\n或检索选择应用',
-                                ['从列表中选择', 'hint'],
-                                ['检索选择', 'hint'],
+                                [ '从列表中选择', 'hint' ],
+                                [ '检索选择', 'hint' ],
                                 '确认添加', 1,
-                            ], {items: ['\xa0']});
+                            ], { items: [ '\xa0' ] });
                             diag.on('neutral', () => {
                                 let _diag = dialogsx
                                     .builds([
                                         '列表选择应用', '',
-                                        ['刷新列表', 'hint'],
-                                        ['显示系统应用', 'reset'],
+                                        [ '刷新列表', 'hint' ],
+                                        [ '显示系统应用', 'reset' ],
                                         '确认选择', 1,
                                     ], {
-                                        items: ['\xa0'],
+                                        items: [ '\xa0' ],
                                         itemsSelectMode: 'multi',
                                     })
                                     .on('neutral', _refreshDiagList)
@@ -1725,15 +1725,15 @@ let $$init = {
                                     ds.setItems(Array(15).join('... ...,').split(',').slice(0, -1));
                                     ds.setContent('当前可添加的应用总数: ... ...');
                                     ds.setSelectedIndices([]);
-                                    threadsx.start(function () {
-                                        let _opt = {exclude: _blist_selected.concat(_tmp_selected)};
+                                    threads.start(function () {
+                                        let _opt = { exclude: _blist_selected.concat(_tmp_selected) };
                                         if (dialogsx.getActionButton(ds, 'negative').match(/显示/)) {
                                             _opt.is_system = false;
                                         }
                                         let _items = appx.getInstalledApplications(_opt).getJointStrArr();
                                         ui.post(function () {
                                             ds.setSelectedIndices([]);
-                                            ds.setItems(_items.length ? _items : ['列表为空']);
+                                            ds.setItems(_items.length ? _items : [ '列表为空' ]);
                                             ds.setContent('当前可添加的应用总数: ' + _items.length);
                                         });
                                     });
@@ -1752,7 +1752,7 @@ let $$init = {
                                         view['refresh_btn'].setText('刷新');
                                     },
                                     list_item(item, closeListPage) {
-                                        let _excluded = [_blist_selected, _tmp_selected];
+                                        let _excluded = [ _blist_selected, _tmp_selected ];
 
                                         for (let i = 0, l = _excluded.length; i < l; i += 1) {
                                             if (_excluded[i].includes(item)) {
@@ -1770,7 +1770,7 @@ let $$init = {
                             });
                             diag.on('positive', () => {
                                 _tmp_selected.forEach((n) => {
-                                    $$view.updateDataSource(ds_k, 'update_unshift', {app_combined_name: n});
+                                    $$view.updateDataSource(ds_k, 'update_unshift', { app_combined_name: n });
                                 });
                                 if (_tmp_selected.length) {
                                     setTimeout(function () {
@@ -1788,7 +1788,7 @@ let $$init = {
                                 let diag_items = diag.getItems().toArray();
                                 if (diag_items.length !== 1 || diag_items[0] !== '\xa0') {
                                     dialogsx
-                                        .builds(['确认移除此项吗', '', 0, 'B', 'S', 1])
+                                        .builds([ '确认移除此项吗', '', 0, 'B', 'S', 1 ])
                                         .on('negative', ds => ds.dismiss())
                                         .on('positive', (ds) => {
                                             _tmp_selected.splice(idx, 1);
@@ -1806,14 +1806,14 @@ let $$init = {
 
                             function _refreshDiag() {
                                 let _tmp_len = _tmp_selected.length;
-                                let _tmp = _tmp_len ? _tmp_selected : ['\xa0'];
+                                let _tmp = _tmp_len ? _tmp_selected : [ '\xa0' ];
                                 diag.setItems(_tmp);
                                 let content_info = _tmp_len
                                     ? ('当前选择区应用总数: ' + _tmp_len)
                                     : '从列表中选择并添加应用\n或检索选择并添加应用';
                                 diag.setContent(content_info);
                             }
-                        }],
+                        } ],
                     ];
                 }
             },
@@ -1945,8 +1945,8 @@ let $$init = {
                 }
 
                 function _addButtons() {
-                    let {buttons: _btns} = _par;
-                    let {additional: _addn} = _btns;
+                    let { buttons: _btns } = _par;
+                    let { additional: _addn } = _btns;
 
                     _addn && _addAddnBtns(_addn);
 
@@ -2011,7 +2011,7 @@ let $$init = {
                     // tool function(s) //
 
                     function _addAddnBtns(addn) {
-                        let _addi_btns = $$arr(addn) ? addn.slice() : [addn];
+                        let _addi_btns = $$arr(addn) ? addn.slice() : [ addn ];
                         let _addi_btn_view = ui.inflate(
                             <vertical>
                                 <horizontal id="addi_button_area" w="auto" layout_gravity="center"/>
@@ -2074,7 +2074,7 @@ let $$init = {
 
                 let picker_views = params.picker_views;
                 let date_or_time_indices = [];
-                ['date', 'time'].forEach((aim_type) => {
+                [ 'date', 'time' ].forEach((aim_type) => {
                     picker_views.forEach((o, idx) => aim_type === o.type && date_or_time_indices.push(idx));
                 });
                 let date_or_time_len = date_or_time_indices.length;
@@ -2126,9 +2126,9 @@ let $$init = {
                             </vertical>);
 
                         let text_widget = picker_view['picker_title'];
-                        let {text, text_color, type, init} = o;
+                        let { text, text_color, type, init } = o;
                         text && text_widget.setText(text);
-                        text_color && text_widget.setTextColor(colorsx.toInt(text_color));
+                        text_color && text_widget.setTextColor(colors.toInt(text_color));
 
                         if (type === 'time') {
                             picker_view['picker_root'].addView(ui.inflate(
@@ -2142,7 +2142,7 @@ let $$init = {
                                 }
                                 if ($$num(init) && init.toString().match(/^\d{13}$/)) {
                                     let date = new Date(init);
-                                    init = [date.getHours(), date.getMinutes()];
+                                    init = [ date.getHours(), date.getMinutes() ];
                                 }
                                 if ($$arr(init)) {
                                     picker_view['picker'].setHour(init[0]);
@@ -2174,7 +2174,7 @@ let $$init = {
                                     onDateChanged: setTimeStr,
                                 }));
                         } else if (type === 'week') {
-                            let weeks = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                            let weeks = [ 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' ];
                             let checkbox_views = ui.inflate(
                                 <vertical id="checkboxes">
                                     <horizontal margin="0 15 0 5" layout_gravity="center" w="auto">
@@ -2196,7 +2196,7 @@ let $$init = {
                                 checkbox_views['week_' + i].setText(weeks[i]);
                                 checkbox_views['week_' + i].on('check', (checked, view) => {
                                     week_checkbox_states[weeks.indexOf(view.text)] = checked;
-                                    threadsx.start(function () {
+                                    threads.start(function () {
                                         let max_try_times = 20;
                                         let interval = setInterval(function () {
                                             if (!max_try_times--) return clearInterval(interval);
@@ -2214,8 +2214,8 @@ let $$init = {
                             picker_view['picker_root'].addView(checkbox_views);
 
                             if (init) {
-                                if ($$num(init)) {
-                                    init = timersx.timeFlagConverter(init);
+                                if (typeof init === 'number') {
+                                    init = tasks.timeFlagToDays(init);
                                 }
                                 init.forEach(n => picker_view['checkboxes']['week_' + n].setChecked(true));
                             }
@@ -2227,7 +2227,7 @@ let $$init = {
                             picker_widget.setOnTimeChangedListener(setTimeStr);
                         }
 
-                        let {yy, MM, dd, hh, mm} = {
+                        let { yy, MM, dd, hh, mm } = {
                             yy() {
                                 try {
                                     return picker_widget.getYear();
@@ -2307,8 +2307,8 @@ let $$init = {
                 }
 
                 function setTimeStr() {
-                    let {picker_views} = params || [];
-                    let {prefix, format, suffix, middle} = params.time_str || {};
+                    let { picker_views } = params || [];
+                    let { prefix, format, suffix, middle } = params.time_str || {};
                     let getTimeInfoFromPicker = num => time_picker_view.getPickerTimeInfo[num];
 
                     prefix = prefix && prefix.replace(/: ?/, '') + ': ' || '';
@@ -2355,7 +2355,7 @@ let $$init = {
                             </horizontal>
                         </vertical>);
                     if ((params.buttons || {}).reserved_btn) {
-                        let {text, onClickListener} = params.buttons.reserved_btn;
+                        let { text, onClickListener } = params.buttons.reserved_btn;
                         let reserved_btn_view = btn_view['reserved_btn'];
                         reserved_btn_view.setVisibility(0);
                         text && reserved_btn_view.setText(text);
@@ -2366,7 +2366,7 @@ let $$init = {
                     time_picker_view['time_picker_view_main'].addView(btn_view);
 
                     if ((params.buttons || {}).back_btn) {
-                        let {text, onClickListener} = params.buttons.back_btn;
+                        let { text, onClickListener } = params.buttons.back_btn;
                         let confirm_btn_view = btn_view['back_btn'];
                         text && confirm_btn_view.setText(text);
                         onClickListener && confirm_btn_view.on('click', () => {
@@ -2377,7 +2377,7 @@ let $$init = {
                     }
 
                     if ((params.buttons || {}).confirm_btn) {
-                        let {text, onClickListener} = params.buttons.confirm_btn;
+                        let { text, onClickListener } = params.buttons.confirm_btn;
                         let confirm_btn_view = btn_view['confirm_btn'];
                         text && confirm_btn_view.setText(text);
                         onClickListener && confirm_btn_view.on('click', () => {
@@ -2409,7 +2409,7 @@ let $$init = {
                 }
             },
             setListItemsSearchAndSelectView(data_source_src, listeners, is_empty_prompt) {
-                let {refresh_btn, list_item, on_finish} = listeners;
+                let { refresh_btn, list_item, on_finish } = listeners;
 
                 if (!$$und(global.$$ses)) {
                     $$ses.back_btn_consumed = true;
@@ -2476,8 +2476,8 @@ let $$init = {
                 // tool function(s) //
 
                 function _afterTextChanged(input_text) {
-                    threadsx.interrupt(_thd_calc_n_set_input);
-                    _thd_calc_n_set_input = threadsx.start(function () {
+                    threads.interrupt(_thd_calc_n_set_input);
+                    _thd_calc_n_set_input = threads.start(function () {
                         let _ds = [];
                         if (input_text) {
                             _ds_ori.forEach((name) => {
@@ -2506,7 +2506,7 @@ let $$init = {
                     data_source = data_source || data_source_src;
                     $$ses.list_refreshing_counter = $$ses.list_refreshing_counter || 0;
                     if (!$$ses.list_refreshing_counter) {
-                        threadsx.start(function () {
+                        threads.start(function () {
                             $$ses.list_refreshing_counter += 1;
                             let _ds = $$func(data_source) ? data_source() : data_source;
                             if (!_ds.length && is_empty_prompt) {
@@ -2543,26 +2543,26 @@ let $$init = {
             },
             setTimersUninterruptedCheckAreasPageButtons(p_view, ds_k) {
                 return $$view.setButtons(p_view, ds_k,
-                    ['restore', 'RESTORE', 'OFF', (btn_view) => {
+                    [ 'restore', 'RESTORE', 'OFF', (btn_view) => {
                         let list_data_backup = $$cfg.sto[ds_k];
                         if (Object.isDeepEqual($$cfg.ses[ds_k], list_data_backup)) return;
                         let diag = dialogsx.builds([
                             '恢复列表数据', 'restore_original_list_data',
-                            ['查看恢复列表', 'hint'], 'B', 'K', 1,
+                            [ '查看恢复列表', 'hint' ], 'B', 'K', 1,
                         ]);
                         diag.on('neutral', () => {
-                            let diag_restore_list = dialogsx.builds(['查看恢复列表', '', 0, 0, 'B', 1], {
+                            let diag_restore_list = dialogsx.builds([ '查看恢复列表', '', 0, 0, 'B', 1 ], {
                                 content: '共计 ' + list_data_backup.length + ' 项',
                                 items: (function $iiFe() {
                                     let split_line = '';
                                     for (let i = 0; i < 18; i += 1) split_line += '- ';
-                                    let items = [split_line];
+                                    let items = [ split_line ];
                                     list_data_backup.forEach((o) => {
                                         items.push('区间: ' + $$tool.timeSectionToStr(o.section));
                                         items.push('间隔: ' + o.interval + '分钟');
                                         items.push(split_line);
                                     });
-                                    return items.length > 1 ? items : ['列表为空'];
+                                    return items.length > 1 ? items : [ '列表为空' ];
                                 })(),
                             });
                             diag_restore_list.on('positive', () => diag_restore_list.dismiss());
@@ -2586,14 +2586,14 @@ let $$init = {
                             _page_view['_check_all'].setChecked(false);
                         });
                         diag.show();
-                    }],
-                    ['delete_forever', 'REMOVE', 'OFF', (btn_view) => {
+                    } ],
+                    [ 'delete_forever', 'REMOVE', 'OFF', (btn_view) => {
                         let deleted_items_idx = ds_k + '_deleted_items_idx';
                         let deleted_items_idx_count = ds_k + '_deleted_items_idx_count';
 
                         if (!$$ses[deleted_items_idx_count]) return;
 
-                        let thread_items_stable = threadsx.start(function () {
+                        let thread_items_stable = threads.start(function () {
                             let old_count = undefined;
                             while ($$ses[deleted_items_idx_count] !== old_count) {
                                 old_count = $$ses[deleted_items_idx_count];
@@ -2618,12 +2618,12 @@ let $$init = {
                         _page_view['_check_all'].setChecked(true);
                         _page_view['_check_all'].setChecked(false);
                         btn_view.switch_off();
-                    }],
-                    ['add_circle', 'NEW', 'ON', () => {
+                    } ],
+                    [ 'add_circle', 'NEW', 'ON', () => {
                         let _diag = dialogsx.builds([
                             '添加延时接力数据', '设置新的时间区间及间隔\n点击可编辑对应项数据',
                             0, '放弃添加', '确认添加', 1,
-                        ], {items: ['\xa0']});
+                        ], { items: [ '\xa0' ] });
 
                         refreshItems();
 
@@ -2638,7 +2638,7 @@ let $$init = {
                                 }
                             };
                             let _items = _diag.getItems().toArray();
-                            let [_sect, _itv] = _items.map(x => x.split(': ')[1]);
+                            let [ _sect, _itv ] = _items.map(x => x.split(': ')[1]);
                             $$view.updateDataSource(ds_k, 'update', {
                                 section: sectionStringTransform().backward(_sect),
                                 interval: +_itv,
@@ -2660,8 +2660,8 @@ let $$init = {
                                 _diag.dismiss();
                                 $$view.setTimePickerView({
                                     picker_views: [
-                                        {type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0]},
-                                        {type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1]},
+                                        { type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0] },
+                                        { type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1] },
                                     ],
                                     time_str: {
                                         suffix(getStrFunc) {
@@ -2677,7 +2677,7 @@ let $$init = {
 
                             if (_pref === '间隔') {
                                 dialogsx
-                                    .builds(['修改' + _pref, '', 0, 'B', 'M', 1], {
+                                    .builds([ '修改' + _pref, '', 0, 'B', 'M', 1 ], {
                                         inputHint: '{x|1<=x<=600,x∈N}',
                                         inputPrefill: _cnt.toString(),
                                     })
@@ -2716,38 +2716,38 @@ let $$init = {
                             Object.keys(value_obj).forEach(key => items.push(key + ': ' + value_obj[key]));
                             _diag.setItems(items);
                         }
-                    }]);
+                    } ]);
             },
             setStatPageButtons(p_view, ds_k) {
                 return $$view.setButtons(p_view, ds_k,
-                    ['loop', 'FRI_LS', 'ON', () => {
+                    [ 'loop', 'FRI_LS', 'ON', () => {
                         $$tool.refreshFriLstByLaunchAlipay({
                             dialog_prompt: true,
                             onResume() {
                                 $$view.statListDataSource('SET');
                             },
                         });
-                    }], ['filter_list', 'FILTER', 'ON', () => {
-                        let _show_zero = $$ses.stat_list_show_zero;
-                        let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.stat_list_show_zero : _show_zero;
+                    } ], [ 'filter_list', 'FILTER', 'ON', () => {
+                        let _show_zero = $$ses.statListShowZero;
+                        let _sess_sel_idx = $$und(_show_zero) ? $$cfg.ses.statListShowZero : _show_zero;
                         dialogsx
                             .builds([
-                                '收取值筛选', '', ['设为默认值', 'hint'], 'B', 'K', 1,
+                                '收取值筛选', '', [ '设为默认值', 'hint' ], 'B', 'K', 1,
                             ], {
-                                items: _getItems($$sto.af_cfg.get('config', {}).stat_list_show_zero),
+                                items: _getItems($$sto.af_cfg.get('config', {}).statListShowZero),
                                 itemsSelectMode: 'single',
                                 itemsSelectedIndex: _sess_sel_idx,
                             })
                             .on('neutral', (d) => {
                                 let _sel_i = d.getSelectedIndex();
-                                $$sto.af_cfg.put('config', {stat_list_show_zero: _sel_i});
+                                $$sto.af_cfg.put('config', { statListShowZero: _sel_i });
                                 d.setItems(_getItems(_sel_i));
                             })
                             .on('negative', (d) => {
                                 d.dismiss();
                             })
                             .on('positive', (d) => {
-                                $$ses.stat_list_show_zero = d.getSelectedIndex();
+                                $$ses.statListShowZero = d.getSelectedIndex();
                                 $$view.statListDataSource('SET');
                                 d.dismiss();
                             })
@@ -2757,18 +2757,18 @@ let $$init = {
 
                         /** @return {string[]} */
                         function _getItems(idx) {
-                            return ['显示全部收取值', '不显示零收取值', '仅显示零收取值']
+                            return [ '显示全部收取值', '不显示零收取值', '仅显示零收取值' ]
                                 .map((v, i) => v + (i === idx ? ' (默认值)' : ''));
                         }
-                    }], ['date_range', 'RANGE', 'ON', () => {
-                        let _range = $$ses.stat_list_date_range;
-                        let _sess_sel_idx = $$und(_range) ? $$cfg.ses.stat_list_date_range : _range;
+                    } ], [ 'date_range', 'RANGE', 'ON', () => {
+                        let _range = $$ses.statListDateRange;
+                        let _sess_sel_idx = $$und(_range) ? $$cfg.ses.statListDateRange : _range;
                         let _posFunc = d => _posDefault(d);
                         let _diag = dialogsx.builds([
-                            '日期统计范围', '', ['设为默认值', 'hint'], 'B', 'K', 1,
+                            '日期统计范围', '', [ '设为默认值', 'hint' ], 'B', 'K', 1,
                         ], {
                             items: $$view.getStatPageItems({
-                                def: $$sto.af_cfg.get('config', {}).stat_list_date_range,
+                                def: $$sto.af_cfg.get('config', {}).statListDateRange,
                             }),
                             itemsSelectMode: 'single',
                             itemsSelectedIndex: _sess_sel_idx,
@@ -2777,8 +2777,8 @@ let $$init = {
                             if (!_sel_i || _sel_i < 1 || !$$num(_sel_i)) {
                                 _sel_i = 0;
                             }
-                            $$sto.af_cfg.put('config', {stat_list_date_range: _sel_i});
-                            d.setItems($$view.getStatPageItems({def: _sel_i}));
+                            $$sto.af_cfg.put('config', { statListDateRange: _sel_i });
+                            d.setItems($$view.getStatPageItems({ def: _sel_i }));
                         }).on('negative', (d) => {
                             _thd.interrupt();
                             d.dismiss();
@@ -2786,17 +2786,17 @@ let $$init = {
                             _posFunc(d);
                         }).show();
 
-                        let _thd = threadsx.start(function () {
+                        let _thd = threads.start(function () {
                             let _set_range = '设置范围';
                             while (1) {
                                 if (_diag.getSelectedIndex() === 1) {
-                                    if (_diag.getActionButton('positive') === dialogsx.text.btn.K) {
+                                    if (_diag.getActionButton('positive').toString() === dialogsx.text.btn.K) {
                                         _diag.setActionButton('positive', _set_range);
                                         _diag.setActionButton('neutral', null);
                                         _posFunc = _posSetRange;
                                     }
                                 } else {
-                                    if (_diag.getActionButton('positive') === _set_range) {
+                                    if (_diag.getActionButton('positive').toString() === _set_range) {
                                         _diag.setActionButton('positive', dialogsx.text.btn.K);
                                         _diag.setActionButton('neutral', dialogsx.text.btn.R);
                                         _posFunc = _posDefault;
@@ -2810,11 +2810,11 @@ let $$init = {
 
                         function _posSetRange(d) {
                             d.dismiss();
-                            let _sess_range = $$ses.stat_list_date_range_data || [0, 1e10 - 1];
+                            let _sess_range = $$ses.statListDateRangeData || [ 0, 1e10 - 1 ];
                             $$view.setTimePickerView({
                                 picker_views: [
-                                    {type: 'date', text: '设置开始日期', init: _sess_range[0] * 1e3},
-                                    {type: 'date', text: '设置结束日期', init: _sess_range[1] * 1e3},
+                                    { type: 'date', text: '设置开始日期', init: _sess_range[0] * 1e3 },
+                                    { type: 'date', text: '设置结束日期', init: _sess_range[1] * 1e3 },
                                 ],
                                 buttons: {
                                     back_btn: {
@@ -2826,10 +2826,10 @@ let $$init = {
                                 },
                                 onSuccess(ret) {
                                     if (ret) {
-                                        $$ses.stat_list_date_range = d.getSelectedIndex();
-                                        $$ses.stat_list_date_range_data = $$tool
+                                        $$ses.statListDateRange = d.getSelectedIndex();
+                                        $$ses.statListDateRangeData = $$tool
                                             .timeStrToSection(ret).map((str, idx) => {
-                                                let [yy, mm, dd] = str.split(/\D+/);
+                                                let [ yy, mm, dd ] = str.split(/\D+/);
                                                 // both 'ss' are seconds
                                                 let _ss1 = +new Date(yy, mm - 1, dd) / 1e3 >>> 0;
                                                 let _ss2 = idx && 24 * 3.6e6 / 1e3 - 1;
@@ -2843,13 +2843,13 @@ let $$init = {
 
                         function _posDefault(d) {
                             let _idx = d.getSelectedIndex();
-                            $$ses.stat_list_date_range = _idx;
-                            $$ses.stat_list_date_range_data = $$view.getStatPageItems({sel: _idx});
+                            $$ses.statListDateRange = _idx;
+                            $$ses.statListDateRangeData = $$view.getStatPageItems({ sel: _idx });
                             $$view.statListDataSource('SET');
                             _thd.interrupt();
                             d.dismiss();
                         }
-                    }]);
+                    } ]);
             },
             getStatPageItems(opt) {
                 let _opt = opt || {};
@@ -2874,42 +2874,42 @@ let $$init = {
                         _days = !isFinite(_days) ? 1 : _days;
                         return {
                             item: '全部 (共' + _days + '天)',
-                            range: [0, _today_max_sec],
+                            range: [ 0, _today_max_sec ],
                         };
                     })(), {
                         item: '自定义范围',
                     }, {
                         item: '今天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                        range: [_today_sec, _today_max_sec],
+                        range: [ _today_sec, _today_max_sec ],
                     }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
                         return {
                             item: '昨天 (' + _pad(_mm + 1) + '/' + _pad(_dd) + ')',
-                            range: [_today_sec - _1_day_sec, _today_sec - 1],
+                            range: [ _today_sec - _1_day_sec, _today_sec - 1 ],
                         };
                     })(), {
                         item: '本周 (共' + _day + '天)',
-                        range: [_today_sec - _1_day_sec * (_day - 1), _today_max_sec],
+                        range: [ _today_sec - _1_day_sec * (_day - 1), _today_max_sec ],
                     }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts * 6);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
                         return {
                             item: '近7天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                            range: [_today_sec - _1_day_sec * 6, _today_max_sec],
+                            range: [ _today_sec - _1_day_sec * 6, _today_max_sec ],
                         };
                     })(), {
                         item: '本月 (共' + _dd + '天)',
-                        range: [_today_sec - _1_day_sec * (_dd - 1), _today_max_sec],
+                        range: [ _today_sec - _1_day_sec * (_dd - 1), _today_max_sec ],
                     }, (function $iiFe() {
                         let _date = new Date(+_now - _1_day_ts * 29);
                         let _mm = _date.getMonth();
                         let _dd = _date.getDate();
                         return {
                             item: '近30天 (自' + _pad(_mm + 1) + '/' + _pad(_dd) + '至今)',
-                            range: [_today_sec - _1_day_sec * 29, _today_max_sec],
+                            range: [ _today_sec - _1_day_sec * 29, _today_max_sec ],
                         };
                     })(),
                 ];
@@ -2922,7 +2922,7 @@ let $$init = {
             },
             setTimersControlPanelPageButtons(p_view, data_source_key_name, wizardFunc) {
                 return $$view.setButtons(p_view, data_source_key_name,
-                    ['add_circle', 'NEW', 'ON', () => wizardFunc('add')]);
+                    [ 'add_circle', 'NEW', 'ON', () => wizardFunc('add') ]);
             },
             checkPageState() {
                 let _check = $$view.page.last_rolling.checkPageState;
@@ -2939,7 +2939,7 @@ let $$init = {
                         return _deps.call(null);
                     }
                     if (!Array.isArray(_deps)) {
-                        _deps = [_deps];
+                        _deps = [ _deps ];
                     }
                     return _deps.some((dep) => $$cfg.ses[dep]);
                 })() ? setViewEnabled(view) : setViewDisabled(view, _deps);
@@ -2972,7 +2972,7 @@ let $$init = {
                     view.setChevronVisibility(0);
                     view.setTitleTextColor($$def.colors.item_title);
                     view.setHintTextColor($$def.colors.item_hint);
-                    let {next_page_backup} = view;
+                    let { next_page_backup } = view;
                     next_page_backup && view.setNextPage(next_page_backup);
                 }
             },
@@ -2981,7 +2981,7 @@ let $$init = {
                     .hideSoftInputFromWindow(view.getWindowToken(), 0);
             },
             commonItemBindCheckboxClickListener(checkbox_view, item_holder) {
-                let {data_source_key_name: _ds_k} = this;
+                let { data_source_key_name: _ds_k } = this;
                 let remove_btn_view = $$ses[_ds_k + '_btn_remove'];
                 let item = item_holder.item;
                 let aim_checked = !item.checked;
@@ -3067,7 +3067,7 @@ let $$init = {
                 }
 
                 if (operation.match(/delete|splice/)) {
-                    let _data_params = Array.isArray(data) ? data.slice() : [data];
+                    let _data_params = Array.isArray(data) ? data.slice() : [ data ];
                     if (_data_params.length > 2 && !_data_params[2]['list_item_name_0']) {
                         _data_params[2] = _magicData(_data_params[2]);
                     }
@@ -3077,7 +3077,7 @@ let $$init = {
 
                 if (operation.match(/update/)) {
                     if (data && !Array.isArray(data)) {
-                        data = [data];
+                        data = [ data ];
                     }
                     if (!$$ses[ds_k]) {
                         $$ses[ds_k] = [];
@@ -3127,7 +3127,7 @@ let $$init = {
             },
             showOrHideBySwitch(o, state, hide_when_checked, nearest_end_tag) {
                 let _lbl = o.view.page_view.page_label_name;
-                timersx.setInterval(_act, 80, _ready);
+                timers.setIntervalExt(_act, 80, _ready);
 
                 // tool function(s) //
 
@@ -3172,14 +3172,14 @@ let $$init = {
             },
             weakOrStrongBySwitch(o, state, idx_offset) {
                 let _lbl = o.view.page_view.page_label_name;
-                timersx.setInterval(_act, 80, _ready);
+                timers.setIntervalExt(_act, 80, _ready);
 
                 // tool function(s) //
 
                 function _act() {
                     ui.post(() => {
                         if (!Array.isArray(idx_offset)) {
-                            idx_offset = [idx_offset || 1];
+                            idx_offset = [ idx_offset || 1 ];
                         }
                         let p = o.view.getParent();
                         let cur_i = p.indexOfChild(o.view);
@@ -3188,7 +3188,7 @@ let $$init = {
                             for (let i = 0, l = radio_group_view.getChildCount(); i < l; i += 1) {
                                 let v = radio_group_view.getChildAt(i);
                                 v.setClickable(state);
-                                v.setTextColor(colorsx.toInt(state
+                                v.setTextColor(colors.toInt(state
                                     ? $$def.colors.item_title
                                     : $$def.colors.item_title_light));
                             }
@@ -3205,16 +3205,16 @@ let $$init = {
              * @return {Object[]}
              */
             statListDataSource(act) {
-                let _range = $$ses.stat_list_date_range_data || [];
+                let _range = $$ses.statListDateRangeData || [];
                 let _ts_a = _range[0] || 0;
                 let _ts_b = _range[1] || 1e10 - 1;
                 let _ts = _ts_a + ' and ' + _ts_b;
 
-                let _zero = $$ses.stat_list_show_zero;
-                _zero = $$und(_zero) ? $$cfg.ses.stat_list_show_zero : _zero;
-                let [_show_zero, _show_other] = [0, 1];
+                let _zero = $$ses.statListShowZero;
+                _zero = $$und(_zero) ? $$cfg.ses.statListShowZero : _zero;
+                let [ _show_zero, _show_other ] = [ 0, 1 ];
                 if (_zero === 2) {
-                    [_show_zero, _show_other] = [1, 0];
+                    [ _show_zero, _show_other ] = [ 1, 0 ];
                 } else if ($$0(_zero)) {
                     _show_zero = 1;
                 }
@@ -3226,7 +3226,7 @@ let $$init = {
 
                 if ($$und($$ses.list_data_min_ts)) {
                     let _data = $$ses.db.rawQueryData('select timestamp as ts from ant_forest');
-                    $$ses.list_data_min_ts = Math.mini(_data.map(o => Number(o.ts))) * 1e3;
+                    $$ses.list_data_min_ts = Mathx.min(_data.map(o => Number(o.ts))) * 1e3;
                 }
 
                 _show_other && _db_data.unshift({
@@ -3243,7 +3243,7 @@ let $$init = {
                         _fri_lst.list_data.forEach((o) => {
                             let _nick = o.nickname;
                             if (!_db_nickname.includes(_nick)) {
-                                _db_data.push({name: _nick, pick: 0});
+                                _db_data.push({ name: _nick, pick: 0 });
                             }
                         });
                     }
@@ -3255,7 +3255,7 @@ let $$init = {
 
                 if (_zero === 2) {
                     _db_data.sort((a, b) => {
-                        let [_a, _b] = [a.name, b.name];
+                        let [ _a, _b ] = [ a.name, b.name ];
                         if (_a === _b) {
                             return 0;
                         }
@@ -3263,7 +3263,7 @@ let $$init = {
                     });
                 } else {
                     _db_data.sort((a, b) => {
-                        let [_a, _b] = [+a.pick, +b.pick];
+                        let [ _a, _b ] = [ +a.pick, +b.pick ];
                         if (_a === _b) {
                             return 0;
                         }
@@ -3276,12 +3276,12 @@ let $$init = {
                 }
 
                 $$ses.stat_list.splice(0);
-                $$view.updateDataSource('stat_list', 'update', _db_data, {write_back: false});
+                $$view.updateDataSource('stat_list', 'update', _db_data, { write_back: false });
             },
         };
 
         global.$$ses = {
-            db: db.create('af', {alter_type: 'union'}),
+            db: db.create('af', { alterType: 'union' }),
         };
 
         global.$$save = {
@@ -3292,12 +3292,12 @@ let $$init = {
                 }
                 if (!quiet_flag) {
                     $$lsn.emit('update_all');
-                    threadsx.start(function () {
+                    threads.start(function () {
                         let btn_save = null;
                         a11yx.wait(() => btn_save = $$ses['homepage_btn_save'], 10e3, 80);
-                        ui.post(() => {
-                            $$save.trigger() ? btn_save.switch_on() : btn_save.switch_off();
-                        });
+                        ui.post(() => $$save.trigger()
+                            ? btn_save.switch_on()
+                            : btn_save.switch_off());
                     });
                 }
             },
@@ -3307,7 +3307,7 @@ let $$init = {
                 writeUnlockStorage();
                 writeBlacklist();
                 // only 'cfg' reserved now (without unlock, blacklist, etc)
-                $$sto.af_cfg.put('config', sess_cfg_mixed, {is_forcible: true});
+                $$sto.af_cfg.put('config', sess_cfg_mixed, { is_forcible: true });
                 $$cfg.sto = Object.deepClone($$cfg.ses);
                 return true;
 
@@ -3341,16 +3341,16 @@ let $$init = {
                             timestamp: o.timestamp,
                         });
                     });
-                    let _blist_cvr = sess_cfg_mixed.blacklist_protect_cover;
+                    let _blist_cvr = sess_cfg_mixed.blacklist_shield;
                     _blist_cvr.forEach((o) => {
                         _blist.push({
                             name: o.name,
-                            reason: 'protect_cover',
+                            reason: 'shield',
                             timestamp: o.timestamp,
                         });
                     });
                     $$sto.af_blist.put('blacklist', _blist);
-                    delete sess_cfg_mixed.blacklist_protect_cover;
+                    delete sess_cfg_mixed.blacklist_shield;
                     delete sess_cfg_mixed.blacklist_by_user;
                 }
             },
@@ -3409,12 +3409,12 @@ let $$init = {
                 return (new (Function.prototype.bind.apply(Date, _args))).getTime();
             },
             restoreFromTimedTaskTypeStr(str) {
-                if (str === '每日') return [0, 1, 2, 3, 4, 5, 6];
+                if (str === '每日') return [ 0, 1, 2, 3, 4, 5, 6 ];
                 if (str.match(/每周/)) return str.split(/\D/).filter(x => x !== '').map(x => +x === 7 ? 0 : +x).sort();
                 return str === '一次性' ? 0 : str;
             },
             refreshFriLstByLaunchAlipay(params) {
-                let {dialog_prompt, onTrigger, onResume} = params || {};
+                let { dialog_prompt, onTrigger, onResume } = params || {};
 
                 if (dialog_prompt) {
                     dialogsx.builds([
@@ -3434,7 +3434,7 @@ let $$init = {
 
                 function refreshNow() {
                     $$func(onTrigger) && onTrigger();
-                    filesx.run('launcher$', {cmd: 'get_rank_list_names', monitor: 'ensure_open'});
+                    filesx.run('launcher$', { cmd: 'get_rank_list_names', monitor: 'ensure_open' });
                     $$func(onResume) && ui.emitter.prependOnceListener('resume', onResume);
                     setTimeout(() => toast('即将打开"支付宝"刷新好友列表'), 500);
                 }
@@ -3442,10 +3442,10 @@ let $$init = {
             accountNameConverter(str, opr) {
                 let _str = str || '';
                 let _res = '';
-                let _factor = {e: 1, d: -1}[opr[0]];
+                let _factor = { e: 1, d: -1 }[opr[0]];
                 for (let i in _str) {
                     let _char_code = _str.charCodeAt(+i);
-                    let _shifting = ((996).ICU + +i) * _factor;
+                    let _shifting = (Numberx.ICU + +i) * _factor;
                     _res += String.fromCharCode(_char_code + _shifting);
                 }
                 return _res;
@@ -3495,7 +3495,7 @@ let $$init = {
             let _par = $$obj(hint) ? hint : params || {};
             let _hint = $$obj(hint) ? '' : hint === 'hint' ? '加载中...' : hint;
 
-            Object.assign(this, {hint: _hint, title: title}, _par);
+            Object.assign(this, { hint: _hint, title: title }, _par);
 
             let _conj = _par.config_conj;
             if (_conj) {
@@ -3506,11 +3506,11 @@ let $$init = {
 
             Object.defineProperties(this, (function $iiFe() {
                 let _props = {
-                    newWindow: {get: () => _par.newWindow.bind(this)},
-                    infoWindow: {get: () => _par.infoWindow.bind(this)},
-                    listeners: {get: () => _par.listeners},
-                    updateOpr: {get: () => view => _par.updateOpr(view)},
-                    custom_data_source: {get: () => _par.custom_data_source},
+                    newWindow: { get: () => _par.newWindow.bind(this) },
+                    infoWindow: { get: () => _par.infoWindow.bind(this) },
+                    listeners: { get: () => _par.listeners },
+                    updateOpr: { get: () => view => _par.updateOpr(view) },
+                    custom_data_source: { get: () => _par.custom_data_source },
                 };
                 Object.keys(_props).forEach(k => _par[k] || delete _props[k]);
                 return _props;
@@ -3534,8 +3534,8 @@ let $$init = {
             $$cfg.ses = Object.deepClone($$cfg.sto);
         }
 
-        threadsx.start(_initProjBackups);
-        threadsx.start(_initStatData);
+        threads.start(_initProjBackups);
+        threads.start(_initStatData);
 
         return this;
 
@@ -3553,7 +3553,7 @@ let $$init = {
 
             if (Array.isArray(_blist_sto)) {
                 _blist_data = _blist_sto.slice();
-            } else if (isPlainObject(_blist_sto)) {
+            } else if (isObjectSpecies(_blist_sto)) {
                 _blist_data = Object.keys(_blist_sto).map((name) => ({
                     name: name,
                     timestamp: _blist_sto[name].timestamp,
@@ -3562,8 +3562,8 @@ let $$init = {
             }
 
             for (let o of _blist_data) {
-                let _data = {name: o.name, timestamp: o.timestamp};
-                if (o.reason === 'protect_cover') {
+                let _data = { name: o.name, timestamp: o.timestamp };
+                if (o.reason === 'shield') {
                     _blist_cvr.push(_data);
                 } else if (o.reason === 'by_user') {
                     _blist_usr.push(_data);
@@ -3571,7 +3571,7 @@ let $$init = {
             }
 
             let _res = {
-                blacklist_protect_cover: _blist_cvr,
+                blacklist_shield: _blist_cvr,
                 blacklist_by_user: _blist_usr,
             };
             Object.assign($$ses, _res);
@@ -3625,7 +3625,7 @@ let $$init = {
                     .slice(0, 200 - Object.keys(_sto_data).length)
                     .forEach((name) => {
                         let _fp = files.join(_path, name); // full path
-                        let [_ts, _ver] = files.getNameWithoutExtension(_fp).split('-');
+                        let [ _ts, _ver ] = files.getNameWithoutExtension(_fp).split('-');
                         _sto_data.push({
                             path: _fp,
                             version_name: appx.version.parseHex(_ver),
@@ -3643,10 +3643,10 @@ let $$init = {
 
         function _initStatData() {
             delete $$ses.stat_page_updated;
-            threadsx.start(function () {
+            threads.start(function () {
                 if (a11yx.wait(() => $$view && $$view.statListDataSource, 60e3)) {
-                    $$ses.stat_list_date_range_data = $$view.getStatPageItems({
-                        sel: $$sto.af_cfg.get('config', {}).stat_list_date_range || 0,
+                    $$ses.statListDateRangeData = $$view.getStatPageItems({
+                        sel: $$sto.af_cfg.get('config', {}).statListDateRange || 0,
                     });
                     $$ses.init_stat_list_data = $$view.statListDataSource('GET');
                     $$ses.stat_page_updated = true;
@@ -3679,8 +3679,8 @@ let $$init = {
 
             function _quitConfirm() {
                 dialogsx
-                    .builds(['设置未保存', '确定要退出吗',
-                        'B', ['强制退出', 'caution'], ['保存并退出', 'hint'], 1,
+                    .builds([ '设置未保存', '确定要退出吗',
+                        'B', [ '强制退出', 'caution' ], [ '保存并退出', 'hint' ], 1,
                     ])
                     .on('neutral', d => d.dismiss())
                     .on('negative', _quitNow)
@@ -3693,7 +3693,6 @@ let $$init = {
             }
 
             function _quitNow() {
-                dialogsx.clearPool();
                 ui.finish();
             }
         });
@@ -3702,13 +3701,11 @@ let $$init = {
         // even if in vain with a strong possibility
         events.on('exit', () => {
             $$ses.on_exit_flag = true;
-            $$view.updateViewByTag('aj_global_log_switch');
+            $$view.updateViewByTag('autojsGlobalLogSwitch');
 
             $$lsn.removeAllListeners();
             threads.shutDownAll();
             uix.main.getParent().removeAllViews();
-            dialogsx.clearPool();
-            imagesx.clearPool();
             $$ses.db.close();
 
             ui.finish();
@@ -3727,7 +3724,7 @@ let $$init = {
             $$view.dyn_pages.forEach(view => view.updateOpr(view));
         });
 
-        if ($$cfg.ses.update_auto_check_switch && $$cfg.ses.update_show_on_af_settings) {
+        if ($$cfg.ses.updateAutoCheckSwitch && $$cfg.ses.updateShowOnAfSettings) {
             project.getNewestReleaseCared({
                 min_version_name: 'v2.0.1',
                 ignore_list: $$ses.ignore_list,
@@ -3739,23 +3736,23 @@ let $$init = {
                             onClick() {
                                 dialogsx.builds([
                                     '版本详情', newest.brief_info_str,
-                                    ['忽略此版本', 'warn'], 'B',
-                                    ['立即更新', 'attraction'], 1,
+                                    [ '忽略此版本', 'warn' ], 'B',
+                                    [ '立即更新', 'attraction' ], 1,
                                 ]).on('neutral', (d) => {
                                     d.dismiss();
                                     dialogsx.builds([
                                         '版本忽略提示', 'update_ignore_confirm',
-                                        0, 'Q', ['确定忽略', 'caution'], 1,
+                                        0, 'Q', [ '确定忽略', 'caution' ], 1,
                                     ]).on('negative', (ds) => {
                                         d.show();
                                         ds.dismiss();
                                     }).on('positive', (ds) => {
                                         ds.dismiss();
-                                        let _k = 'update_ignore_list';
+                                        let _k = 'updateIgnoreList';
                                         let _new = {};
-                                        let _data = $$cfg.ses[_k].concat([newest.version_name]);
+                                        let _data = $$cfg.ses[_k].concat([ newest.version_name ]);
                                         _new[_k] = $$cfg.ses[_k] = _data;
-                                        $$view.updateViewByTag('update_ignore_list');
+                                        $$view.updateViewByTag('updateIgnoreList');
                                         $$sto.af_cfg.put('config', _new);
                                         toast('已忽略当前版本', 'long');
                                     }).show();
@@ -3787,14 +3784,14 @@ $$init.check().global().config().listener();
 $$view.setHomePage($$def.homepage_title)
     .add('subhead', new Layout('基本功能'))
     .add('page', new Layout('自收功能', 'hint', {
-        config_conj: 'self_collect_switch',
+        config_conj: 'selfCollectSwitch',
         next_page: 'self_collect_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
         },
     }))
     .add('page', new Layout('收取功能', 'hint', {
-        config_conj: 'friend_collect_switch',
+        config_conj: 'friendCollectSwitch',
         next_page: 'friend_collect_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
@@ -3802,35 +3799,35 @@ $$view.setHomePage($$def.homepage_title)
     }))
     .add('subhead', new Layout('高级功能'))
     .add('page', new Layout('自动解锁', 'hint', {
-        config_conj: 'auto_unlock_switch',
+        config_conj: 'autoUnlockSwitch',
         next_page: 'auto_unlock_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
         },
     }))
     .add('page', new Layout('消息提示', 'hint', {
-        config_conj: 'message_showing_switch',
+        config_conj: 'messageShowingSwitch',
         next_page: 'message_showing_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
         },
     }))
     .add('page', new Layout('本地日志', 'hint', {
-        config_conj: 'aj_global_log_switch',
+        config_conj: 'autojsGlobalLogSwitch',
         next_page: 'aj_global_log_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
         },
     }))
     .add('page', new Layout('定时循环', 'hint', {
-        config_conj: 'timers_switch',
+        config_conj: 'timersSwitch',
         next_page: 'timers_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
         },
     }))
     .add('page', new Layout('账户功能', 'hint', {
-        config_conj: 'account_switch',
+        config_conj: 'accountSwitch',
         next_page: 'account_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
@@ -3845,7 +3842,7 @@ $$view.setHomePage($$def.homepage_title)
             }
             let _view_tag = this.view_tag;
             view.setNextPage('stat_page');
-            threadsx.start(function () {
+            threads.start(function () {
                 if (!(a11yx.wait(() => $$view.pages[_view_tag], 5e3) && !$$ses.stat_page_created)) {
                     return;
                 }
@@ -3865,10 +3862,10 @@ $$view.setHomePage($$def.homepage_title)
 
                                 let _name = item[item['name']];
 
-                                dialogsx.builds([['小心', 'caution'],
-                                    ['要删除以下用户的所有统计数据吗?\n\n' +
-                                    '用户昵称:\n' + _name + '\n\n此操作无法撤销', 'warn'],
-                                    0, 'Q', ['S', 'caution'], 1,
+                                dialogsx.builds([ [ '小心', 'caution' ],
+                                    [ '要删除以下用户的所有统计数据吗?\n\n' +
+                                    '用户昵称:\n' + _name + '\n\n此操作无法撤销', 'warn' ],
+                                    0, 'Q', [ 'S', 'caution' ], 1,
                                 ]).on('negative', (d) => {
                                     d.dismiss();
                                 }).on('positive', (d) => {
@@ -3884,16 +3881,16 @@ $$view.setHomePage($$def.homepage_title)
             });
         },
     }))
-    .add('page', new Layout('黑名单管理', {next_page: 'blacklist_page'}))
-    .add('page', new Layout('运行与安全', {next_page: 'script_security_page'}))
+    .add('page', new Layout('黑名单管理', { next_page: 'blacklist_page' }))
+    .add('page', new Layout('运行与安全', { next_page: 'script_security_page' }))
     .add('subhead', new Layout('备份与还原'))
     .add('button', new Layout('还原初始设置', {
         newWindow() {
             dialogsx
                 .builds([
                     '还原初始设置', 'restore_all_settings',
-                    ['了解内部配置', 'hint'],
-                    'Q', ['全部还原', 'warn'], 1,
+                    [ '了解内部配置', 'hint' ],
+                    'Q', [ '全部还原', 'warn' ], 1,
                 ])
                 .on('neutral', () => {
                     dialogsx.builds([
@@ -3908,7 +3905,7 @@ $$view.setHomePage($$def.homepage_title)
                     dialogsx
                         .builds([
                             '全部还原', '确定要还原全部设置吗',
-                            0, 'Q', ['全部还原', 'caution'], 1,
+                            0, 'Q', [ '全部还原', 'caution' ], 1,
                         ])
                         .on('positive', (ds) => {
                             $$init.config('reset');
@@ -3923,10 +3920,10 @@ $$view.setHomePage($$def.homepage_title)
                 .show();
         },
     }))
-    .add('page', new Layout('项目备份还原', {next_page: 'local_project_backup_restore_page'}))
+    .add('page', new Layout('项目备份还原', { next_page: 'local_project_backup_restore_page' }))
     .add('subhead', new Layout('关于'))
     .add('page', new Layout('自动检查更新', 'hint', {
-        config_conj: 'update_auto_check_switch',
+        config_conj: 'updateAutoCheckSwitch',
         next_page: 'update_auto_check_page',
         updateOpr(view) {
             $$view.udop.main_sw.call(this, view);
@@ -3942,8 +3939,8 @@ $$view.setHomePage($$def.homepage_title)
                 '最新版本: ';
 
             let _diag = dialogsx
-                .builds(['关于', _ori_cont + '检查中...', 0, 'B', '检查更新', 1], {
-                    items: ['开发者: SuperMonster003'],
+                .builds([ '关于', _ori_cont + '检查中...', 0, 'B', '检查更新', 1 ], {
+                    items: [ '开发者: SuperMonster003' ],
                 })
                 .on('negative', (d) => {
                     d.dismiss();
@@ -3970,7 +3967,7 @@ $$view.setHomePage($$def.homepage_title)
                 }
                 $$ses.is_checking_update = true;
 
-                $$ses.thd_checking_update = threadsx.start(function () {
+                $$ses.thd_checking_update = threads.start(function () {
                     /** @type {GitHub.Releases.ExtendedListItem|string} */
                     let _new_ver = '';
                     try {
@@ -3979,13 +3976,13 @@ $$view.setHomePage($$def.homepage_title)
                         _diag.setContent(_ori_cont + '检查中...');
                         dialogsx.setActionButtonColor(_diag, 'positive', 'unavailable');
 
-                        timersx.rec.save('check_update');
+                        recorder.save('check_update');
                         _new_ver = project.getNewestReleaseCared({
                             min_version_name: 'v2.0.1',
                             ignore_list: $$ses.ignore_list,
                         });
                     } catch (e) {
-                        _new_ver = timersx.rec('check_update') > 1e3 ? '检查超时' : '检查失败';
+                        _new_ver = recorder('check_update') > 1e3 ? '检查超时' : '检查失败';
                     } finally {
                         let _new_ver_name = typeof _new_ver === 'object'
                             ? _new_ver.version_name : _new_ver;
@@ -4003,7 +4000,7 @@ $$view.setHomePage($$def.homepage_title)
                                 dialogsx
                                     .builds([
                                         _new_ver_name, _new_ver.brief_info_str,
-                                        ['查看历史更新', 'hint'], 'B', ['立即更新', 'attraction'], 1,
+                                        [ '查看历史更新', 'hint' ], 'B', [ '立即更新', 'attraction' ], 1,
                                     ])
                                     .on('neutral', () => {
                                         project.getChangelog(_new_ver_name.match(/v(\d+)/)[1], {
@@ -4028,7 +4025,7 @@ $$view.setHomePage($$def.homepage_title)
                             dialogsx.setActionButton(_diag, 'neutral', '查看历史更新', 'hint');
                             _diag.on('neutral', () => {
                                 let _ver_num = (_new_ver_name || _local_ver).match(/v(\d+)/)[1];
-                                project.getChangelog(_ver_num, {is_show_dialog: true});
+                                project.getChangelog(_ver_num, { is_show_dialog: true });
                             });
                         }
 
@@ -4091,7 +4088,7 @@ $$view.setHomePage($$def.homepage_title)
                     $$ses.avatar_recycle_opr_working_flag = true;
 
                     let _recycle = [
-                        {name: 'avatar', src: _local_avt || _avt_det, desc: _local_avt_txt},
+                        { name: 'avatar', src: _local_avt || _avt_det, desc: _local_avt_txt },
                     ];
 
                     _setAnm('vanish');
@@ -4113,15 +4110,15 @@ $$view.setHomePage($$def.homepage_title)
                         let _is_vanish = flg === 'vanish';
                         let _anm_y = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar_desc'], 'translationY',
-                            [-100 * (+!_is_vanish), -100 * (+_is_vanish)]);
+                            [ -100 * (+!_is_vanish), -100 * (+_is_vanish) ]);
                         let _anm_scale_x = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar'], 'scaleX',
-                            [+_is_vanish, +!_is_vanish]);
+                            [ +_is_vanish, +!_is_vanish ]);
                         let _anm_scale_y = android.animation.ObjectAnimator.ofFloat(
                             _add_view['_avatar'], 'scaleY',
-                            [+_is_vanish, +!_is_vanish]);
+                            [ +_is_vanish, +!_is_vanish ]);
                         let _anm_set = new android.animation.AnimatorSet();
-                        _anm_set.playTogether([_anm_y, _anm_scale_x, _anm_scale_y]);
+                        _anm_set.playTogether([ _anm_y, _anm_scale_x, _anm_scale_y ]);
                         _anm_set.setDuration(200);
                         _anm_set.start();
                     }
@@ -4161,7 +4158,7 @@ $$view.setHomePage($$def.homepage_title)
                 }
 
                 let _stop_load_avt_sgn = false;
-                _thd_load_avt = threadsx.start(function () {
+                _thd_load_avt = threads.start(function () {
                     try {
                         a11yx.wait(() => _add_view && _add_view['_avatar'], 5e3, 50);
                         let _avt_img = null;
@@ -4269,7 +4266,7 @@ $$view.setHomePage($$def.homepage_title)
 $$view.page.new('自收功能', 'self_collect_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'self_collect_switch',
+            config_conj: 'selfCollectSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4285,21 +4282,21 @@ $$view.page.new('自收功能', 'self_collect_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('page', new Layout('循环监测', 'hint', {
-            config_conj: 'homepage_monitor_switch',
+            config_conj: 'homepageMonitorSwitch',
             next_page: 'homepage_monitor_page',
             updateOpr(view) {
-                $$view.udop.main_sw.call(this, view, 'timers_switch');
+                $$view.udop.main_sw.call(this, view, 'timersSwitch');
             },
         }))
         .add('page', new Layout('返检监控', 'hint', {
-            config_conj: 'homepage_background_monitor_switch',
+            config_conj: 'homepageBackgroundMonitorSwitch',
             next_page: 'homepage_background_monitor_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view);
             },
         }))
         .add('page', new Layout('浇水回赠能量球检测', 'hint', {
-            config_conj: 'homepage_wball_switch',
+            config_conj: 'homepageWaterBallSwitch',
             next_page: 'homepage_wball_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view);
@@ -4315,7 +4312,7 @@ $$view.page.new('自收功能', 'self_collect_page', (t) => {
 $$view.page.new('主页能量球循环监测', 'homepage_monitor_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'homepage_monitor_switch',
+            config_conj: 'homepageMonitorSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4331,17 +4328,17 @@ $$view.page.new('主页能量球循环监测', 'homepage_monitor_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('监测阈值', 'hint', {
-            config_conj: 'homepage_monitor_threshold',
+            config_conj: 'homepageMonitorThreshold',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 3, {
                     title: '主页能量球循环监测阈值',
                     positiveAddn(d, input) {
-                        let _min = $$cfg.ses.homepage_bg_monitor_threshold;
+                        let _min = $$cfg.ses.homepageBackgroundMonitorThreshold;
                         if (input >= _min) {
                             return true;
                         }
                         dialogsx.builds([
-                            ['注意', 'caution'],
+                            [ '注意', 'caution' ],
                             '监测阈值: ' + input + '\n' +
                             '返检阈值: ' + _min + '\n\n' +
                             '监测阈值不可小于返检阈值\n' +
@@ -4363,7 +4360,7 @@ $$view.page.new('主页能量球循环监测', 'homepage_monitor_page', (t) => {
 $$view.page.new('主页能量球返检监控', 'homepage_background_monitor_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'homepage_background_monitor_switch',
+            config_conj: 'homepageBackgroundMonitorSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4379,18 +4376,18 @@ $$view.page.new('主页能量球返检监控', 'homepage_background_monitor_page
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('返检阈值', 'hint', {
-            config_conj: 'homepage_bg_monitor_threshold',
+            config_conj: 'homepageBackgroundMonitorThreshold',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 3, {
                     title: '主页能量球返检阈值',
                     hint_set: 'R',
                     positiveAddn(d, input) {
-                        let _max = $$cfg.ses.homepage_monitor_threshold;
+                        let _max = $$cfg.ses.homepageMonitorThreshold;
                         if (input <= _max) {
                             return true;
                         }
                         dialogsx.builds([
-                            ['注意', 'caution'],
+                            [ '注意', 'caution' ],
                             '返检阈值: ' + input + '\n' +
                             '监测阈值: ' + _max + '\n\n' +
                             '返检阈值不可大于监测阈值\n' +
@@ -4409,7 +4406,7 @@ $$view.page.new('主页能量球返检监控', 'homepage_background_monitor_page
 $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'homepage_wball_switch',
+            config_conj: 'homepageWaterBallSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4425,7 +4422,7 @@ $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('最大检查次数', 'hint', {
-            config_conj: 'homepage_wball_check_limit',
+            config_conj: 'homepageWaterBallCheckLimit',
             newWindow() {
                 $$view.diag.numSetter.call(this, 10, 300, {
                     title: '浇水回赠球最大检查次数',
@@ -4442,7 +4439,7 @@ $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
             config_conj: 'homepageWaterBallMaxHueNoBlue',
             newWindow() {
-                $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
+                $$view.diag.numSetter.call(this, 12, 52, { hint_set: 'R' });
             },
             updateOpr(view) {
                 view.setHintText($$cfg.ses[this.config_conj].toString() + '°');
@@ -4453,7 +4450,7 @@ $$view.page.new('浇水回赠能量球检测', 'homepage_wball_page', (t) => {
 $$view.page.new('收取功能', 'friend_collect_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'friend_collect_switch',
+            config_conj: 'friendCollectSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4479,10 +4476,10 @@ $$view.page.new('收取功能', 'friend_collect_page', (t) => {
 });
 $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('采集策略', {color: 'highlight'}))
-        .add('radio', new Layout(['排行榜列表', '逛一逛按钮'], {
-            values: [false, true],
-            config_conj: 'get_targets_by_stroll_btn',
+        .add('subhead', new Layout('采集策略', { color: 'highlight' }))
+        .add('radio', new Layout([ '排行榜列表', '逛一逛按钮' ], {
+            values: [ false, true ],
+            config_conj: 'getTargetsByStrollButton',
             listeners: {
                 check(checked, view) {
                     checked && $$save.session(this.config_conj, this.values[this.title.indexOf(view.text)]);
@@ -4504,9 +4501,9 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('按钮定位', {color: 'highlight', view_tag: '_get_tar_by_stroll'}))
+        .add('subhead', new Layout('按钮定位', { color: 'highlight', view_tag: '_get_tar_by_stroll' }))
         .add('button', new Layout('主要色值', 'hint', {
-            config_conj: 'stroll_btn_locate_main_color',
+            config_conj: 'strollButtonLocateMainColor',
             view_tag: '_get_tar_by_stroll',
             newWindow() {
                 $$view.diag.colorSetter.call(this, {
@@ -4518,7 +4515,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('button', new Layout('匹配阈值', 'hint', {
-            config_conj: 'stroll_btn_match_threshold',
+            config_conj: 'strollButtonMatchThreshold',
             view_tag: '_get_tar_by_stroll',
             newWindow() {
                 $$view.diag.numSetter.call(this, 2, 32, {
@@ -4530,9 +4527,9 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('invisible_split_line')
-        .add('subhead', new Layout('页面滑动', {color: 'highlight', view_tag: '_get_tar_by_rl'}))
+        .add('subhead', new Layout('页面滑动', { color: 'highlight', view_tag: '_get_tar_by_rl' }))
         .add('button', new Layout('滑动策略', 'hint', {
-            config_conj: 'rank_list_scan_strategy',
+            config_conj: 'rankListScanStrategy',
             view_tag: '_get_tar_by_rl',
             map: {
                 scroll: '控件滚动',
@@ -4543,7 +4540,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                     title: '排行榜页面滑动策略',
                     neutral() {
                         dialogsx.builds([
-                            '关于排行榜页面滑动策略', 'about_rank_list_scan_strategy',
+                            '关于排行榜页面滑动策略', 'aboutRankListScanStrategy',
                             0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
@@ -4554,10 +4551,10 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('button', new Layout('滑动距离', 'hint', {
-            config_conj: 'rank_list_swipe_distance',
+            config_conj: 'rankListSwipeDistance',
             view_tag: '_get_tar_by_rl',
             newWindow() {
-                if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
+                if ($$cfg.ses.rankListScanStrategy === 'swipe') {
                     let _icon_h = cYx(46);
                     let _safe = uH - $$disp.status_bar_height - $$disp.action_bar_default_height - _icon_h;
                     $$view.diag.numSetter.call(this, 0.4, 0.9, {
@@ -4570,7 +4567,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                             '0.6: 每次滑动 60% 屏幕距离',
                             '%show_valid_and_default_values%',
                             '安全值: ' + _safe + ' [ ' +
-                            (_safe / H).toFixedNum(2) + ' ]',
+                            Numberx.toFixedNum(_safe / H, 2) + ' ]',
                         ],
                         positiveAddn(d, input, positiveFunc) {
                             if (input <= _safe) {
@@ -4578,17 +4575,17 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                             }
                             dialogsx
                                 .builds([
-                                    ['注意', 'caution'],
+                                    [ '注意', 'caution' ],
                                     '当前值: ' + input + '\n' +
                                     '安全值: ' + _safe + '\n\n' +
                                     '当前设置值大于安全值\n' +
                                     '滑动时可能出现遗漏采集目标的问题\n\n' +
                                     '确定要保留当前设置值吗',
-                                    ['什么是安全值', 'hint'],
-                                    'Q', ['K', 'warn'], 1,
+                                    [ '什么是安全值', 'hint' ],
+                                    'Q', [ 'K', 'warn' ], 1,
                                 ])
                                 .on('neutral', () => {
-                                    dialogsx.builds(['滑动距离安全值', '', 0, 0, 'B'], {
+                                    dialogsx.builds([ '滑动距离安全值', '', 0, 0, 'B' ], {
                                         content: '安全值指排行榜滑动时' +
                                             '可避免采集目标遗漏的理论最大值\n\n' +
                                             '计算方法:\n屏幕高度' +
@@ -4625,7 +4622,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                 }
             },
             updateOpr(view) {
-                if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
+                if ($$cfg.ses.rankListScanStrategy === 'swipe') {
                     let _cfg_conj = this.config_conj;
                     let _n = $$cfg.ses[_cfg_conj] || $$sto.def.af[_cfg_conj];
                     _n = _n < 1 ? cY(_n) : _n;
@@ -4637,10 +4634,10 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('button', new Layout('滑动时长', 'hint', {
-            config_conj: 'rank_list_swipe_time',
+            config_conj: 'rankListSwipeDuration',
             view_tag: '_get_tar_by_rl',
             newWindow() {
-                if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
+                if ($$cfg.ses.rankListScanStrategy === 'swipe') {
                     $$view.diag.numSetter.call(this, 100, 1.2e3, {
                         title: '设置排行榜页面滑动时长',
                     });
@@ -4652,7 +4649,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
                 }
             },
             updateOpr(view) {
-                if ($$cfg.ses.rank_list_scan_strategy === 'swipe') {
+                if ($$cfg.ses.rankListScanStrategy === 'swipe') {
                     let _cfg_conj = this.config_conj;
                     let _n = $$cfg.ses[_cfg_conj] || $$sto.def.af[_cfg_conj];
                     view.setHintText(_n + ' ms');
@@ -4663,8 +4660,8 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
         }))
         .add('button', new Layout('滑动间隔', 'hint', {
             _getConfigConj() {
-                let _stg = $$cfg.ses.rank_list_scan_strategy;
-                return 'rank_list_' + _stg + '_interval';
+                let _stg = $$cfg.ses.rankListScanStrategy;
+                return 'rankList' + _stg[0].toUpperCase() + _stg.slice(1) + 'Interval';
             },
             get config_conj() {
                 return this._getConfigConj();
@@ -4684,9 +4681,9 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('安全限制', {color: 'highlight', view_tag: '_get_tar_by_stroll'}))
+        .add('subhead', new Layout('安全限制', { color: 'highlight', view_tag: '_get_tar_by_stroll' }))
         .add('button', new Layout('最大无操作循环次数', 'hint', {
-            config_conj: 'max_continuous_not_targeted_stroll_cycle',
+            config_conj: 'strollNotTargetedLimit',
             view_tag: '_get_tar_by_stroll',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 5, {
@@ -4698,17 +4695,17 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('invisible_split_line')
-        .add('subhead', new Layout('高级设置', {view_tag: '_get_tar_by_rl'}))
+        .add('subhead', new Layout('高级设置', { view_tag: '_get_tar_by_rl' }))
         .add('page', new Layout('样本复查', 'hint', {
-            config_conj: 'rank_list_review_switch',
+            config_conj: 'rankListReviewSwitch',
             view_tag: '_get_tar_by_rl',
             next_page: 'rank_list_review_page',
             updateOpr(view) {
-                $$view.udop.main_sw.call(this, view, 'timers_switch');
+                $$view.udop.main_sw.call(this, view, 'timersSwitch');
             },
         }))
         .add('button', new Layout('截图样本池差异检测阈值', 'hint', {
-            config_conj: 'rank_list_capt_pool_diff_check_threshold',
+            config_conj: 'rankListCaptPoolDiffCheckThreshold',
             view_tag: '_get_tar_by_rl',
             newWindow() {
                 $$view.diag.numSetter.call(this, 5, 800, {
@@ -4720,7 +4717,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
             },
         }))
         .add('button', new Layout('最大连续无目标命中次数', 'hint', {
-            config_conj: 'rank_list_max_not_targeted_times',
+            config_conj: 'rankListNotTargetedLimit',
             view_tag: '_get_tar_by_rl',
             newWindow() {
                 $$view.diag.numSetter.call(this, 50, 500);
@@ -4744,7 +4741,7 @@ $$view.page.new('可收取目标采集', 'collectable_samples_page', (t) => {
 $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
     $$view.setPage(t, null, {
         check_page_state(view) {
-            if (!$$cfg.ses.rank_list_review_switch) {
+            if (!$$cfg.ses.rankListReviewSwitch) {
                 return true;
             }
             let _samp = [
@@ -4766,7 +4763,7 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
         },
     })
         .add('switch', new Layout('总开关', {
-            config_conj: 'rank_list_review_switch',
+            config_conj: 'rankListReviewSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -4780,10 +4777,10 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('复查条件', {color: 'highlight'}))
+        .add('subhead', new Layout('复查条件', { color: 'highlight' }))
         .add('checkbox_switch', new Layout('列表状态差异', {
-            config_conj: 'rank_list_review_difference_switch',
-            view_tag: 'rank_list_review_difference_switch',
+            config_conj: 'rankListReviewDifferenceSwitch',
+            view_tag: 'rankListReviewDifferenceSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -4798,8 +4795,8 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('样本点击记录', {
-            config_conj: 'rank_list_review_samples_clicked_switch',
-            view_tag: 'rank_list_review_samples_clicked_switch',
+            config_conj: 'rankListReviewSamplesClickedSwitch',
+            view_tag: 'rankListReviewSamplesClickedSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -4814,8 +4811,8 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('最小倒计时阈值', {
-            config_conj: 'rank_list_review_threshold_switch',
-            view_tag: 'rank_list_review_threshold_switch',
+            config_conj: 'rankListReviewThresholdSwitch',
+            view_tag: 'rankListReviewThresholdSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -4829,8 +4826,8 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
             },
         }))
         .add('seekbar', new Layout('阈值', {
-            config_conj: 'rank_list_review_threshold',
-            nums: [1, 5],
+            config_conj: 'rankListReviewThreshold',
+            nums: [ 1, 5 ],
             unit: 'min',
         }))
         .add('split_line')
@@ -4847,7 +4844,7 @@ $$view.page.new('排行榜样本复查', 'rank_list_review_page', (t) => {
 });
 $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('采集样本池', {color: 'highlight'}))
+        .add('subhead', new Layout('采集样本池', { color: 'highlight' }))
         .add('button', new Layout('样本池总容量', 'hint', {
             config_conj: 'forestImagePoolLimit',
             newWindow() {
@@ -4858,7 +4855,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             },
         }))
         .add('button', new Layout('样本采集间隔', 'hint', {
-            config_conj: 'forestImagePoolItv',
+            config_conj: 'forestImagePoolInterval',
             newWindow() {
                 $$view.diag.numSetter.call(this, 10, 500);
             },
@@ -4866,7 +4863,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
                 view.setHintText($$cfg.ses[this.config_conj].toString());
             },
         }))
-        .add('subhead', new Layout('识别与定位', {color: 'highlight'}))
+        .add('subhead', new Layout('识别与定位', { color: 'highlight' }))
         .add('button', new Layout('能量球识别区域', 'hint', {
             config_conj: 'energyBallsRecognitionRegion',
             newWindow() {
@@ -4876,9 +4873,9 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             },
             updateOpr(view) {
                 let _cfg_conj = this.config_conj;
-                let [_l, _t, _r, _b] = $$cfg.ses[_cfg_conj]
+                let [ _l, _t, _r, _b ] = $$cfg.ses[_cfg_conj]
                     .map((v, i) => i % 2 ? cYx(v, true) : cX(v, true));
-                let _rect = [[_l, _t], [_r, _b]]
+                let _rect = [ [ _l, _t ], [ _r, _b ] ]
                     .map(a => a.join(' , ')).join('  -  ');
                 view.setHintText('Rect  [ ' + _rect + ' ] ');
             },
@@ -4901,7 +4898,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
                 let _cfg_conj = this.config_conj;
                 let _v = $$cfg.ses[_cfg_conj] || $$sto.def.af[_cfg_conj];
                 _v = cX(_v).toString();
-                let _v_p = (_v * 100 / W).toFixedNum(2);
+                let _v_p = Numberx.toFixedNum(_v * 100 / W, 2);
                 view.setHintText(_v + ' px  [ ' + _v_p + '% W ]');
             },
         }))
@@ -4911,9 +4908,9 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
         .add('page', new Layout('霍夫变换数据传入与处理', {
             next_page: 'hough_strategy_page',
         }))
-        .add('subhead', new Layout('操作与控制', {color: 'highlight'}))
+        .add('subhead', new Layout('操作与控制', { color: 'highlight' }))
         .add('button', new Layout('能量球点击时长', 'hint', {
-            config_conj: 'forest_balls_click_duration',
+            config_conj: 'forestBallsClickDuration',
             newWindow() {
                 $$view.diag.numSetter.call(this, 10, 500);
             },
@@ -4922,7 +4919,7 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
             },
         }))
         .add('button', new Layout('能量球点击间隔', 'hint', {
-            config_conj: 'forest_balls_click_interval',
+            config_conj: 'forestBallsClickInterval',
             newWindow() {
                 $$view.diag.numSetter.call(this, 10, 2e3);
             },
@@ -4934,9 +4931,9 @@ $$view.page.new('能量球样本采集', 'forest_samples_collect_page', (t) => {
 });
 $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('成熟 (绿色) 能量球', {color: 'highlight'}))
+        .add('subhead', new Layout('成熟 (绿色) 能量球', { color: 'highlight' }))
         .add('button', new Layout('识别色值', 'hint', {
-            config_conj: 'ripeBallDetectColorVal',
+            config_conj: 'ripeBallDetectColorValue',
             newWindow() {
                 $$view.diag.colorSetter.call(this, {
                     title: '成熟能量球颜色检测色值',
@@ -4958,11 +4955,11 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
             },
         }))
         .add('invisible_split_line')
-        .add('subhead', new Layout('浇水回赠 (金色) 能量球', {color: 'highlight'}))
+        .add('subhead', new Layout('浇水回赠 (金色) 能量球', { color: 'highlight' }))
         .add('button', new Layout('最大色相值 (无蓝分量)', 'hint', {
             config_conj: 'homepageWaterBallMaxHueNoBlue',
             newWindow() {
-                $$view.diag.numSetter.call(this, 12, 52, {hint_set: 'R'});
+                $$view.diag.numSetter.call(this, 12, 52, { hint_set: 'R' });
             },
             updateOpr(view) {
                 view.setHintText($$cfg.ses[this.config_conj].toString() + '°');
@@ -4972,7 +4969,7 @@ $$view.page.new('颜色与阈值', 'eballs_color_config_page', (t) => {
 });
 $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('数据传入策略', {color: 'highlight'}))
+        .add('subhead', new Layout('数据传入策略', { color: 'highlight' }))
         .add('checkbox_switch', new Layout('灰度化 (grayscale)', {
             kk: 'grayscale',
             config_conj: 'houghSrcImageStrategy',
@@ -5078,7 +5075,7 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('数据处理策略', {color: 'highlight'}))
+        .add('subhead', new Layout('数据处理策略', { color: 'highlight' }))
         .add('checkbox_switch', new Layout('覆盖检测', {
             kk: 'antiOverlap',
             config_conj: 'houghResultsStrategy',
@@ -5156,7 +5153,7 @@ $$view.page.new('霍夫变换', 'hough_strategy_page', (t) => {
 $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'auto_unlock_switch',
+            config_conj: 'autoUnlockSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5172,18 +5169,18 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('锁屏密码', 'hint', {
-            config_conj: 'unlock_code',
+            config_conj: 'unlockCode',
             newWindow() {
                 let _cfg_conj = this.config_conj;
                 dialogsx
                     .builds([
                         '设置锁屏解锁密码', _cfg_conj,
-                        ['查看示例', 'hint'], 'B', 'S', 1,
-                    ], {inputHint: '密码将以密文形式存储在本地'})
+                        [ '查看示例', 'hint' ], 'B', 'S', 1,
+                    ], { inputHint: '密码将以密文形式存储在本地' })
                     .on('neutral', () => {
                         dialogsx.builds([
                             '锁屏密码示例', 'unlock_code_demo',
-                            ['了解点阵简化', 'hint'], 0, 'C', 1,
+                            [ '了解点阵简化', 'hint' ], 0, 'C', 1,
                         ]).on('neutral', () => {
                             dialogsx.builds([
                                 '图案解锁密码简化', 'about_pattern_simplification',
@@ -5207,7 +5204,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                         dialogsx
                             .builds([
                                 '风险提示', 'unlock_code_safe_confirm',
-                                ['T', 'hint'], 'Q', ['N', 'caution'], 1, 1,
+                                [ 'T', 'hint' ], 'Q', [ 'N', 'caution' ], 1, 1,
                             ])
                             .on('check', (c) => {
                                 _unlk_safe_fg = !!c;
@@ -5248,7 +5245,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('最大尝试次数', 'hint', {
-            config_conj: 'unlock_max_try_times',
+            config_conj: 'unlockTryLimit',
             newWindow() {
                 $$view.diag.numSetter.call(this, 5, 50, {
                     title: '设置解锁最大尝试次数',
@@ -5261,9 +5258,9 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('提示层页面设置', {color: 'highlight'}))
+        .add('subhead', new Layout('提示层页面设置', { color: 'highlight' }))
         .add('button', new Layout('检测方式', 'hint', {
-            config_conj: 'unlock_dismiss_layer_strategy',
+            config_conj: 'unlockDismissLayerStrategy',
             map: {
                 preferred: '优先',
                 deferred: '滞后',
@@ -5275,7 +5272,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                     def_key: 'unlock',
                     neutral() {
                         dialogsx.builds([
-                            '关于提示层页面检测方式', 'about_unlock_dismiss_layer_strategy',
+                            '关于提示层页面检测方式', 'about_unlockDismissLayerStrategy',
                             0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
@@ -5286,7 +5283,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('button', new Layout('上滑时长', 'hint', {
-            config_conj: 'unlock_dismiss_layer_swipe_time',
+            config_conj: 'unlockDismissLayerSwipeDuration',
             newWindow() {
                 $$view.diag.numSetter.call(this, 110, 1e3, {
                     title: '提示层页面上滑时长',
@@ -5298,7 +5295,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('button', new Layout('起点位置', 'hint', {
-            config_conj: 'unlock_dismiss_layer_bottom',
+            config_conj: 'unlockDismissLayerBottom',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0.5, 0.95, {
                     title: '提示层页面起点位置',
@@ -5315,9 +5312,9 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('button', new Layout('终点位置', 'hint', {
-            config_conj: 'unlock_dismiss_layer_top',
+            config_conj: 'unlockDismissLayerTop',
             newWindow() {
-                $$view.diag.numSetter.call(this, 0.05, 0.3, {
+                $$view.diag.numSetter.call(this, 0.05, 0.4, {
                     title: '提示层页面终点位置',
                     hint_set: 'R',
                     def_key: 'unlock',
@@ -5332,9 +5329,9 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('图案解锁设置', {color: 'highlight'}))
+        .add('subhead', new Layout('图案解锁设置', { color: 'highlight' }))
         .add('button', new Layout('滑动策略', 'hint', {
-            config_conj: 'unlock_pattern_strategy',
+            config_conj: 'unlockPatternStrategy',
             map: {
                 segmental: '叠加路径', // gestures()
                 solid: '连续路径', // gesture()
@@ -5345,7 +5342,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
                     def_key: 'unlock',
                     neutral() {
                         dialogsx.builds([
-                            '关于图案解锁滑动策略', 'about_unlock_pattern_strategy',
+                            '关于图案解锁滑动策略', 'about_unlockPatternStrategy',
                             0, 0, 'C', 1,
                         ]).on('positive', ds => ds.dismiss()).show();
                     },
@@ -5357,9 +5354,9 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
         }))
         .add('button', new Layout('滑动时长', 'hint', {
             getConfigConj() {
-                let _key = 'unlock_pattern_strategy';
+                let _key = 'unlockPatternStrategy';
                 let _stg = $$cfg.ses[_key] || $$sto.def.unlock[_key];
-                return 'unlock_pattern_swipe_time_' + _stg;
+                return 'unlockPatternSwipeDuration' + _stg[0].toUpperCase() + _stg.slice(1);
             },
             newWindow() {
                 let _this = this;
@@ -5377,7 +5374,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
             },
         }))
         .add('button', new Layout('点阵边长', 'hint', {
-            config_conj: 'unlock_pattern_size',
+            config_conj: 'unlockPatternSize',
             newWindow() {
                 $$view.diag.numSetter.call(this, 3, 6, {
                     title: '设置图案解锁边长',
@@ -5393,7 +5390,7 @@ $$view.page.new('自动解锁', 'auto_unlock_page', (t) => {
 $$view.page.new('消息提示', 'message_showing_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'message_showing_switch',
+            config_conj: 'messageShowingSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5409,7 +5406,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('switch', new Layout('控制台消息', {
-            config_conj: 'console_log_switch',
+            config_conj: 'consoleLogSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5424,7 +5421,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('checkbox_switch', new Layout('开发者测试日志', {
             default_state: false,
-            config_conj: 'debug_info_switch',
+            config_conj: 'debugInfoSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5438,7 +5435,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('split_line')
         .add('switch', new Layout('运行前提示对话框', {
-            config_conj: 'prompt_before_running_switch',
+            config_conj: 'promptBeforeRunningSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5452,7 +5449,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             },
         }))
         .add('button', new Layout('对话框倒计时时长', 'hint', {
-            config_conj: 'prompt_before_running_countdown_seconds',
+            config_conj: 'promptBeforeRunningCountdownSeconds',
             newWindow() {
                 $$view.diag.numSetter.call(this, 3, 30, {
                     title: '提示对话框倒计时时长',
@@ -5463,13 +5460,13 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             },
         }))
         .add('button', new Layout('推迟任务间隔时长', 'hint', {
-            config_conj: 'prompt_before_running_postponed_minutes',
+            config_conj: 'promptBeforeRunningPostponedMinute',
             map: Object.assign({
                 '0': '每次都询问',
                 '-1': '息屏时',
             }, (function $iiFe() {
                 let _o = {};
-                let _k = 'prompt_before_running_postponed_minutes_choices';
+                let _k = 'promptBeforeRunningPostponedMinutes';
                 $$sto.def.af[_k].forEach(n => _o[n] = n + ' min');
                 return _o;
             })()),
@@ -5482,7 +5479,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('checkbox_switch', new Layout('放弃任务时显示放弃提示', {
             default_state: true,
-            config_conj: 'prompt_before_running_quit_confirm',
+            config_conj: 'promptBeforeRunningQuitConfirm',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5496,7 +5493,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('checkbox_switch', new Layout('息屏或上锁启动时自动跳过', {
             default_state: true,
-            config_conj: 'prompt_before_running_auto_skip',
+            config_conj: 'promptBeforeRunningAutoSkip',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5510,7 +5507,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('split_line')
         .add('switch', new Layout('运行结果展示', {
-            config_conj: 'result_showing_switch',
+            config_conj: 'resultShowingSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5523,9 +5520,9 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
                 view['_switch'].setChecked(!!$$cfg.ses[this.config_conj]);
             },
         }))
-        .add('radio', new Layout(['Floaty', 'Toast'], {
-            values: [true, false],
-            config_conj: 'floaty_result_switch',
+        .add('radio', new Layout([ 'Floaty', 'Toast' ], {
+            values: [ true, false ],
+            config_conj: 'floatyResultSwitch',
             listeners: {
                 check(checked, view) {
                     if (checked) {
@@ -5538,25 +5535,25 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
             },
             updateOpr(view) {
                 let _ses_idx = this.values.indexOf($$cfg.ses[this.config_conj]);
-                if (!$$ses.floaty_result_switch_inited) {
+                if (!$$ses.floatyResultSwitchInited) {
                     let _def_idx = this.values.indexOf($$sto.def.af[this.config_conj]);
                     if (_def_idx !== _ses_idx) {
                         view['_radiogroup'].getChildAt(_def_idx).setChecked(true);
                     }
-                    $$ses.floaty_result_switch_inited = true;
+                    $$ses.floatyResultSwitchInited = true;
                 }
                 view['_radiogroup'].getChildAt(_ses_idx).setChecked(true);
             },
         }))
         .add('seekbar', new Layout('时长', {
-            config_conj: 'floaty_result_countdown_sec',
-            nums: [2, 9],
+            config_conj: 'floatyResultCountdownSeconds',
+            nums: [ 2, 9 ],
             unit: 's',
         }))
         .add('invisible_split_line')
         .add('checkbox_switch', new Layout('同时展示定时任务信息', {
             default_state: true,
-            config_conj: 'auto_task_show_on_e_result',
+            config_conj: 'autoTaskShowOnShowingResult',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5570,7 +5567,7 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
         }))
         .add('checkbox_switch', new Layout('同时展示版本更新提示', {
             default_state: true,
-            config_conj: 'update_show_on_e_result',
+            config_conj: 'updateShowOnShowingResult',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5597,8 +5594,8 @@ $$view.page.new('消息提示', 'message_showing_page', (t) => {
 $$view.page.new('本地日志', 'aj_global_log_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'aj_global_log_switch',
-            view_tag: 'aj_global_log_switch',
+            config_conj: 'autojsGlobalLogSwitch',
+            view_tag: 'autojsGlobalLogSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5618,10 +5615,10 @@ $$view.page.new('本地日志', 'aj_global_log_page', (t) => {
 
                 function _on() {
                     consolex.setGlobalLogConfig({
-                        file: $$cfg.sto.aj_global_log_cfg_path + 'auto.js-log.log',
-                        filePattern: $$cfg.sto.aj_global_log_cfg_file_pattern,
-                        maxBackupSize: $$cfg.sto.aj_global_log_cfg_max_backup_size,
-                        maxFileSize: $$cfg.sto.aj_global_log_cfg_max_file_size << 10,
+                        file: $$cfg.sto.autojsGlobalLogConfigPath + 'auto.js-log.log',
+                        filePattern: $$cfg.sto.autojsGlobalLogConfigFilePattern,
+                        maxBackupSize: $$cfg.sto.autojsGlobalLogConfigMaxBackupSize,
+                        maxFileSize: $$cfg.sto.autojsGlobalLogConfigMaxFileSize << 10,
                     });
                 }
 
@@ -5637,7 +5634,7 @@ $$view.page.new('本地日志', 'aj_global_log_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('文件路径', 'hint', {
-            config_conj: 'aj_global_log_cfg_path',
+            config_conj: 'autojsGlobalLogConfigPath',
             newWindow() {
                 let _is_valid = true;
                 let _cfg_conj = this.config_conj;
@@ -5645,7 +5642,7 @@ $$view.page.new('本地日志', 'aj_global_log_page', (t) => {
                 dialogsx
                     .builds([
                         '本地日志文件路径', _buildContent(),
-                        ['R', 'reset'], 'B', 'M', 1,
+                        [ 'R', 'reset' ], 'B', 'M', 1,
                     ], {
                         inputHint: '输入路径',
                     })
@@ -5718,30 +5715,30 @@ $$view.page.new('本地日志', 'aj_global_log_page', (t) => {
             },
         }))
         .add('seekbar', new Layout('文件数量限制', {
-            config_conj: 'aj_global_log_cfg_max_backup_size',
-            nums: [1, 9],
+            config_conj: 'autojsGlobalLogConfigMaxBackupSize',
+            nums: [ 1, 9 ],
         }))
         .add('seekbar', new Layout('文件大小限制', {
-            config_conj: 'aj_global_log_cfg_max_file_size',
-            nums: [128, 960],
+            config_conj: 'autojsGlobalLogConfigMaxFileSize',
+            nums: [ 128, 960 ],
             inc: 64,
             unit: 'KB',
         }))
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('日志写入模式', 'hint', {
-            config_conj: 'aj_global_log_cfg_file_pattern',
+            config_conj: 'autojsGlobalLogConfigFilePattern',
             newWindow() {
                 let _cfg_conj = this.config_conj;
 
                 // noinspection HttpUrlsUsage,SpellCheckingInspection
                 dialogsx
-                    .builds(['本地日志写入模式', (() => context.getPackageName().match(/Pro\b/i)
+                    .builds([ '本地日志写入模式', (() => context.getPackageName().match(/Pro\b/i)
                         ? '注意:\n当前Auto.js为Pro版本\n可能不支持自定义日志写入模式\n\n' : '')() +
                     '写入模式示例:\n%m%n\n%d - [%p::%c::%C] - %m%n\n' +
                     '%d{yyyy-MM-dd HH:mm}%m%n\n\n详情参阅:\nhttp://logging.apache.org/' +
                     'log4j/1.2/apidocs/org/apache/log4j/PatternLayout.html',
-                        ['R', 'reset'], 'B', 'M', 1,
+                        [ 'R', 'reset' ], 'B', 'M', 1,
                     ], {
                         inputHint: '输入日志写入模式',
                         linkify: 'WEB_URLS',
@@ -5776,18 +5773,18 @@ $$view.page.new('定时循环', 'timers_page', (t) => {
         check_page_state() {
             // this is just a simple check
             let switches = [
-                'homepage_monitor_switch',
-                'rank_list_review_switch',
-                'timers_self_manage_switch',
+                'homepageMonitorSwitch',
+                'rankListReviewSwitch',
+                'timersSelfManageSwitch',
             ];
             for (let i = 0, l = switches.length; i < l; i += 1) {
                 if ($$cfg.ses[switches[i]]) return true;
             }
-            dialogsx.builds(['提示', '定时循环子功能需至少选择一个', 0, 0, 'B']).show();
+            dialogsx.builds([ '提示', '定时循环子功能需至少选择一个', 0, 0, 'B' ]).show();
         },
     })
         .add('switch', new Layout('总开关', {
-            config_conj: 'timers_switch',
+            config_conj: 'timersSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5801,25 +5798,25 @@ $$view.page.new('定时循环', 'timers_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('循环监测', {color: 'highlight'}))
+        .add('subhead', new Layout('循环监测', { color: 'highlight' }))
         .add('page', new Layout('主页能量球循环监测', 'hint', {
-            config_conj: 'homepage_monitor_switch',
+            config_conj: 'homepageMonitorSwitch',
             next_page: 'homepage_monitor_page',
             updateOpr(view) {
-                $$view.udop.main_sw.call(this, view, 'self_collect_switch');
+                $$view.udop.main_sw.call(this, view, 'selfCollectSwitch');
             },
         }))
         .add('page', new Layout('好友排行榜样本复查', 'hint', {
-            config_conj: 'rank_list_review_switch',
+            config_conj: 'rankListReviewSwitch',
             next_page: 'rank_list_review_page',
             updateOpr(view) {
-                $$view.udop.main_sw.call(this, view, 'friend_collect_switch');
+                $$view.udop.main_sw.call(this, view, 'friendCollectSwitch');
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('定时任务', {color: 'highlight'}))
+        .add('subhead', new Layout('定时任务', { color: 'highlight' }))
         .add('page', new Layout('定时任务自动管理', 'hint', {
-            config_conj: 'timers_self_manage_switch',
+            config_conj: 'timersSelfManageSwitch',
             next_page: 'timers_self_manage_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view);
@@ -5838,15 +5835,15 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             // tool function(s) //
 
             function _chkPageSw() {
-                if (!$$cfg.ses.timers_self_manage_switch) {
+                if (!$$cfg.ses.timersSelfManageSwitch) {
                     return true;
                 }
 
                 let _smp = [
-                    'timers_countdown_check_own_switch',
-                    'timers_countdown_check_friends_switch',
-                    'timers_uninterrupted_check_switch',
-                    'timers_insurance_switch',
+                    'timersCountdownCheckOwnSwitch',
+                    'timersCountdownCheckFriendsSwitch',
+                    'timersUninterruptedCheckSwitch',
+                    'timersInsuranceSwitch',
                 ];
                 let _len = _smp.length;
                 let _chk = (tag) => {
@@ -5859,18 +5856,18 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                     }
                 }
 
-                dialogsx.builds(['提示', '自动管理机制需至少选择一个', 0, 0, 'B']).show();
+                dialogsx.builds([ '提示', '自动管理机制需至少选择一个', 0, 0, 'B' ]).show();
             }
 
             function _chkAutoUnlockSw() {
-                if ($$cfg.ses.auto_unlock_switch
+                if ($$cfg.ses.autoUnlockSwitch
                     || $$sto.af.get('timers_prefer_auto_unlock_dialog_prompt_prompted')
                 ) {
                     return true;
                 }
                 let timers_prefer_auto_unlock_dialog_prompt_prompted = false;
                 let diag = dialogsx.builds([
-                    ['注意', 'caution'],
+                    [ '注意', 'caution' ],
                     'timers_prefer_auto_unlock', 0, 0, ' OK ', 1, 1,
                 ]);
                 diag.on('check', checked => timers_prefer_auto_unlock_dialog_prompt_prompted = !!checked);
@@ -5886,7 +5883,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
         },
     })
         .add('switch', new Layout('总开关', {
-            config_conj: 'timers_self_manage_switch',
+            config_conj: 'timersSelfManageSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -5900,10 +5897,10 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('自动管理机制', {color: 'highlight'}))
+        .add('subhead', new Layout('自动管理机制', { color: 'highlight' }))
         .add('checkbox_switch', new Layout('主页最小倒计时机制', {
-            config_conj: 'timers_countdown_check_own_switch',
-            tag_name: 'timers_countdown_check_own_switch',
+            config_conj: 'timersCountdownCheckOwnSwitch',
+            tag_name: 'timersCountdownCheckOwnSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5917,7 +5914,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('button', new Layout('定时任务提前运行', 'hint', {
-            config_conj: 'timers_countdown_check_own_timed_task_ahead',
+            config_conj: 'timersCountdownCheckOwnTimedTaskAhead',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0, 3, {
                     content: 'timers_countdown_check_timed_task_ahead',
@@ -5930,15 +5927,15 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                             return true;
                         }
                         let {
-                            homepage_monitor_switch: _hp_mon_sw,
-                            homepage_monitor_threshold: _hp_mon_thrd,
+                            homepageMonitorSwitch: _hp_mon_sw,
+                            homepageMonitorThreshold: _hp_mon_thrd,
                         } = $$cfg.ses;
                         if (!_hp_mon_sw) {
                             dialogsx
                                 .builds([
-                                    ['注意', 'caution'],
+                                    [ '注意', 'caution' ],
                                     'timers_ahead_prefer_monitor_own',
-                                    0, 'Q', ['K', 'warn'], 1,
+                                    0, 'Q', [ 'K', 'warn' ], 1,
                                 ])
                                 .on('negative', ds => ds.dismiss())
                                 .on('positive', ds => _saveSess(ds))
@@ -5946,8 +5943,8 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                         } else if (input > _hp_mon_thrd) {
                             dialogsx
                                 .builds([
-                                    ['注意', 'caution'], '',
-                                    0, 'Q', ['K', 'warn'], 1,
+                                    [ '注意', 'caution' ], '',
+                                    0, 'Q', [ 'K', 'warn' ], 1,
                                 ], {
                                     content: '当前设置值: ' + input + '\n' +
                                         '主页能量球监测阈值: ' + _hp_mon_thrd + '\n\n' +
@@ -5974,8 +5971,8 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('排行榜最小倒计时机制', {
-            config_conj: 'timers_countdown_check_friends_switch',
-            tag_name: 'timers_countdown_check_friends_switch',
+            config_conj: 'timersCountdownCheckFriendsSwitch',
+            tag_name: 'timersCountdownCheckFriendsSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -5989,7 +5986,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('button', new Layout('定时任务提前运行', 'hint', {
-            config_conj: 'timers_countdown_check_friends_timed_task_ahead',
+            config_conj: 'timersCountdownCheckFriendsTimedTaskAhead',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0, 5, {
                     content: 'timers_countdown_check_timed_task_ahead',
@@ -6002,16 +5999,16 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                             return true;
                         }
                         let {
-                            rank_list_review_switch: _sw,
-                            rank_list_review_threshold_switch: _thrd_sw,
-                            rank_list_review_threshold: _thrd,
+                            rankListReviewSwitch: _sw,
+                            rankListReviewThresholdSwitch: _thrd_sw,
+                            rankListReviewThreshold: _thrd,
                         } = $$cfg.ses;
                         if (!(_sw && _thrd_sw)) {
                             dialogsx
                                 .builds([
-                                    ['注意', 'caution'],
+                                    [ '注意', 'caution' ],
                                     'timers_ahead_prefer_rank_list_threshold_review',
-                                    0, 'Q', ['K', 'warn'], 1,
+                                    0, 'Q', [ 'K', 'warn' ], 1,
                                 ])
                                 .on('negative', ds => ds.dismiss())
                                 .on('positive', ds => _saveSess(ds))
@@ -6019,8 +6016,8 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                         } else if (input > _thrd) {
                             dialogsx
                                 .builds([
-                                    ['注意', 'caution'], '',
-                                    0, 'Q', ['K', 'warn'], 1,
+                                    [ '注意', 'caution' ], '',
+                                    0, 'Q', [ 'K', 'warn' ], 1,
                                 ], {
                                     content: '当前设置值: ' + input + '\n' +
                                         '排行榜样本复查最小倒计时阈值: ' + _thrd + '\n\n' +
@@ -6047,8 +6044,8 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('延时接力机制', {
-            config_conj: 'timers_uninterrupted_check_switch',
-            view_tag: 'timers_uninterrupted_check_switch',
+            config_conj: 'timersUninterruptedCheckSwitch',
+            view_tag: 'timersUninterruptedCheckSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -6062,7 +6059,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('page', new Layout('时间区间管理', 'hint', {
-            config_conj: 'timers_uninterrupted_check_sections',
+            config_conj: 'timersUninterruptedCheckSections',
             next_page: 'timers_uninterrupted_check_sections_page',
             updateOpr(view) {
                 let _areas = $$cfg.ses[this.config_conj];
@@ -6080,8 +6077,8 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
         }))
         .add('split_line')
         .add('checkbox_switch', new Layout('意外保险机制', {
-            config_conj: 'timers_insurance_switch',
-            view_tag: 'timers_insurance_switch',
+            config_conj: 'timersInsuranceSwitch',
+            view_tag: 'timersInsuranceSwitch',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -6095,7 +6092,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('button', new Layout('保险任务运行间隔', 'hint', {
-            config_conj: 'timers_insurance_interval',
+            config_conj: 'timersInsuranceInterval',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 10);
             },
@@ -6104,7 +6101,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('button', new Layout('最大连续保险次数', 'hint', {
-            config_conj: 'timers_insurance_max_continuous_times',
+            config_conj: 'timersInsuranceMaxContinuousTimes',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 5);
             },
@@ -6113,9 +6110,9 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('自动管理功能有效时段', {color: 'highlight'}))
+        .add('subhead', new Layout('自动管理功能有效时段', { color: 'highlight' }))
         .add('button', new Layout('有效时段管理', 'hint', {
-            config_conj: 'timers_auto_task_sections',
+            config_conj: 'timersAutoTaskSections',
             newWindow() {
                 let _this = this;
                 let _tmp_areas = $$cfg.ses[_this.config_conj].slice();
@@ -6124,14 +6121,14 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                         '有效时段管理', '',
                         '添加时段', 'Q', 'S', 1,
                     ], {
-                        items: ['\xa0'],
+                        items: [ '\xa0' ],
                     })
                     .on('neutral', (d) => {
                         d.dismiss();
                         $$view.setTimePickerView({
                             picker_views: [
-                                {type: 'time', text: '设置开始时间'},
-                                {type: 'time', text: '设置结束时间'},
+                                { type: 'time', text: '设置开始时间' },
+                                { type: 'time', text: '设置结束时间' },
                             ],
                             time_str: {
                                 suffix(getStrFunc) {
@@ -6162,7 +6159,7 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
                         dialogsx
                             .builds([
                                 '提示', '确定删除此时段吗',
-                                0, 'Q', ['D', 'caution'], 1,
+                                0, 'Q', [ 'D', 'caution' ], 1,
                             ])
                             .on('negative', (d) => {
                                 d.dismiss();
@@ -6215,18 +6212,18 @@ $$view.page.new('定时任务自动管理', 'timers_self_manage_page', (t) => {
 $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => {
     $$view.setPage(t, (p_view) => {
         $$view.setTimersControlPanelPageButtons(p_view, 'timed_tasks', wizardFunc);
-    }, {no_scroll_view: true})
+    }, { no_scroll_view: true })
         .add('list', new Layout('/*管理本项目定时任务*/', {
             list_head: 'timed_tasks',
             data_source_key_name: 'timed_tasks',
             custom_data_source() {
-                return timersx.queryTimedTasks({
+                return tasks.queryTimedTasks({
                     path: files.join(files.cwd(), 'ant-forest-launcher.js'),
                 }).map((task) => ({
                     task: task,
-                    type: _getType(timersx.timeFlagConverter(task.getTimeFlag()), task.id),
+                    type: _getType(tasks.timeFlagToDays(task.getTimeFlag()), task.id),
                     next_run_time: task.getNextTime(),
-                })).concat(timersx.queryIntentTasks().map((task) => ({
+                })).concat(tasks.queryIntentTasks().map((task) => ({
                     task: task,
                     type: _getType([], task.id),
                     next_run_time: '广播事件触发',
@@ -6264,7 +6261,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
             listeners: {
                 _list_data: {
                     item_click(item) {
-                        let {task, list_item_name_0} = item;
+                        let { task, list_item_name_0 } = item;
                         let type = list_item_name_0;
                         let next_run_time = typeof task.getNextTime === 'function' ? task.getNextTime() : -1;
                         let type_code = $$tool.restoreFromTimedTaskTypeStr(type);
@@ -6294,8 +6291,8 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                         dialogsx
                             .builds([
                                 '任务详情', showDiagContent(),
-                                ['删除任务', 'caution'],
-                                ['编辑任务', 'warn'],
+                                [ '删除任务', 'caution' ],
+                                [ '编辑任务', 'warn' ],
                                 'C', 1,
                             ])
                             .on('neutral', (d) => {
@@ -6303,7 +6300,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                     .builds([
                                         '删除提示',
                                         '确认要删除当前任务吗\n此操作将立即生效且无法撤销',
-                                        0, 'Q', ['D', 'caution'], 1,
+                                        0, 'Q', [ 'D', 'caution' ], 1,
                                     ])
                                     .on('negative', (ds) => {
                                         ds.dismiss();
@@ -6311,9 +6308,9 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                     .on('positive', (ds) => {
                                         if (type_code === 'min_countdown') {
                                             dialogsx.builds([
-                                                ['小心', 'caution'],
-                                                ['delete_min_countdown_task_warn', 'warn'],
-                                                0, 'Q', ['K', 'caution'], 1,
+                                                [ '小心', 'caution' ],
+                                                [ 'delete_min_countdown_task_warn', 'warn' ],
+                                                0, 'Q', [ 'K', 'caution' ], 1,
                                             ]).on('negative', (ds2) => {
                                                 ds2.dismiss();
                                             }).on('positive', (ds2) => {
@@ -6328,7 +6325,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
 
                                         function deleteNow() {
                                             dialogsx.dismiss(ds, d);
-                                            timersx.removeTimedTask(task_id, {
+                                            tasks.removeTimedTask(task_id, {
                                                 callback: () => $$view.updateDataSource(_ds_k,
                                                     're_init', _custom_ds()),
                                             });
@@ -6346,7 +6343,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                         0, 0, 'B', 1,
                                     ]).on('positive', ds => ds.dismiss()).show();
                                 }
-                                if (!timersx.getTimedTask(task_id)) {
+                                if (!tasks.getTimedTask(task_id)) {
                                     return dialogsx.builds([
                                         '无法编辑', '该任务ID不存在\n可能是任务已自动完成或被删除',
                                         0, 0, 'B', 1,
@@ -6423,7 +6420,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     0, 0, 'C', 1,
                 ]).on('positive', ds => ds.dismiss()).show();
             },
-            positive: {value: '下一步', listeners: () => null},
+            positive: { value: '下一步', listeners: () => null },
             single_choice(i, v, d) {
                 let _map = this.map;
                 let _keys = Object.keys(_map);
@@ -6446,7 +6443,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
             // modify_mode
             let view_title_text_prefix = (is_modify_mode ? '修改' : '设置') + _task_type_map[type_str];
             $$view.setTimePickerView({
-                picker_views: [type_str === 'disposable' ? {
+                picker_views: [ type_str === 'disposable' ? {
                     type: 'date',
                     text: view_title_text_prefix + '日期',
                     init: task ? task.getNextTime() : null,
@@ -6462,7 +6459,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     type: 'time',
                     text: view_title_text_prefix + '时间',
                     init: task ? task.getNextTime() : null,
-                }],
+                } ],
                 time_str: {
                     prefix: '已选择',
                 },
@@ -6493,7 +6490,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     },
                 },
                 onSuccess(ret) {
-                    threadsx.start(function () {
+                    threads.start(function () {
                         ret && (update() || add());
                         // to fresh data list; maybe not a good way
                         ui.emitter.emit('resume');
@@ -6508,7 +6505,7 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                     }
 
                     function update() {
-                        let current_task = task && timersx.getTimedTask(task.id);
+                        let current_task = task && tasks.getTimedTask(task.id);
                         if (current_task) {
                             if (type_str === 'disposable') {
                                 current_task.setMillis(ret);
@@ -6516,28 +6513,28 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
                                 current_task.setMillis(trimTimestamp(ret));
                             } else if (type_str === 'weekly') {
                                 current_task.setMillis(trimTimestamp(ret.timestamp));
-                                current_task.setTimeFlag(timersx.timeFlagConverter(ret.days_of_week));
+                                current_task.setTimeFlag(tasks.daysToTimeFlag(ret.days_of_week));
                             } else {
                                 return;
                             }
-                            return timersx.updateTask(current_task);
+                            return tasks.updateTask(current_task);
                         }
                     }
 
                     function add() {
                         let path = files.join(files.cwd(), 'ant-forest-launcher.js');
                         if (type_str === 'disposable') {
-                            timersx.addDisposableTask({
+                            tasks.addDisposableTask({
                                 path: path,
                                 date: ret,
                             });
                         } else if (type_str === 'daily') {
-                            timersx.addDailyTask({
+                            tasks.addDailyTask({
                                 path: path,
                                 time: trimTimestamp(ret, true),
                             });
                         } else if (type_str === 'weekly') {
-                            timersx.addWeeklyTask({
+                            tasks.addWeeklyTask({
                                 path: path,
                                 time: trimTimestamp(ret.timestamp, true),
                                 daysOfWeek: ret.days_of_week,
@@ -6551,23 +6548,23 @@ $$view.page.new('定时任务控制面板', 'timers_control_panel_page', (t) => 
 });
 $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page', (t) => {
     $$view.setPage(t, (p_view) => {
-        let data_source_key_name = 'timers_uninterrupted_check_sections';
+        let data_source_key_name = 'timersUninterruptedCheckSections';
         $$view.setTimersUninterruptedCheckAreasPageButtons(p_view, data_source_key_name);
-    }, {no_scroll_view: true})
+    }, { no_scroll_view: true })
         .add('list', new Layout('/*延时接力时间区间*/', {
-            list_head: 'timers_uninterrupted_check_sections',
-            data_source_key_name: 'timers_uninterrupted_check_sections',
+            list_head: 'timersUninterruptedCheckSections',
+            data_source_key_name: 'timersUninterruptedCheckSections',
             list_checkbox: 'visible',
             listeners: {
                 _list_data: {
                     item_long_click(e, item, idx, item_view) {
                         item_view['_checkbox'].checked && item_view['_checkbox'].click();
                         e.consumed = true;
-                        let {data_source_key_name: _ds_k} = this;
+                        let { data_source_key_name: _ds_k } = this;
                         let edit_item_diag = dialogsx.builds([
                             '编辑列表项', '点击需要编辑的项',
                             0, 'B', 'S', 1,
-                        ], {items: ['\xa0']});
+                        ], { items: [ '\xa0' ] });
 
                         refreshItems();
 
@@ -6583,11 +6580,11 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                                     }
                                 };
                                 let _items = d.getItems().toArray();
-                                let [_sect, _itv] = _items.map(x => x.split(': ')[1]);
-                                $$view.updateDataSource(_ds_k, 'splice', [idx, 1, {
+                                let [ _sect, _itv ] = _items.map(x => x.split(': ')[1]);
+                                $$view.updateDataSource(_ds_k, 'splice', [ idx, 1, {
                                     section: sectionStringTransform().backward(_sect),
                                     interval: +_itv,
-                                }]);
+                                } ]);
                                 if (!Object.isDeepEqual($$cfg.ses[_ds_k], $$cfg.sto[_ds_k])) {
                                     $$ses[_ds_k + '_btn_restore'].switch_on();
                                 }
@@ -6597,14 +6594,14 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                                 d.dismiss();
                             })
                             .on('item_select', (idx, item) => {
-                                let [_pref, _cnt] = item.split(': ');
+                                let [ _pref, _cnt ] = item.split(': ');
 
                                 if (_pref === '区间') {
                                     edit_item_diag.dismiss();
                                     $$view.setTimePickerView({
                                         picker_views: [
-                                            {type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0]},
-                                            {type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1]},
+                                            { type: 'time', text: '设置开始时间', init: $$tool.timeStrToSection(_cnt)[0] },
+                                            { type: 'time', text: '设置结束时间', init: $$tool.timeStrToSection(_cnt)[1] },
                                         ],
                                         time_str: {
                                             suffix(getStrFunc) {
@@ -6632,7 +6629,7 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                                                 d.dismiss();
                                             }
                                         },
-                                    }, {inputPrefill: _cnt.toString()});
+                                    }, { inputPrefill: _cnt.toString() });
                                 }
                             })
                             .show();
@@ -6670,7 +6667,7 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                 },
                 _check_all: {
                     click(view) {
-                        let {data_source_key_name: _ds_k} = this;
+                        let { data_source_key_name: _ds_k } = this;
                         let aim_checked = view.checked;
                         let blacklist_len = $$ses[_ds_k].length;
                         if (!blacklist_len) {
@@ -6680,7 +6677,7 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
                         $$ses[_ds_k].forEach((o, idx) => {
                             let o_new = Object.deepClone(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(_ds_k, 'splice', [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, 'splice', [ idx, 1, o_new ]);
                         });
 
                         let deleted_items_idx = _ds_k + '_deleted_items_idx';
@@ -6699,13 +6696,13 @@ $$view.page.new('延时接力区间', 'timers_uninterrupted_check_sections_page'
         }))
         .add('info', new Layout('/*dynamic_info*/', {
             updateOpr(view) {
-                let amount = $$cfg.ses.timers_uninterrupted_check_sections.length;
+                let amount = $$cfg.ses.timersUninterruptedCheckSections.length;
                 view['_info_text'].setText(amount ? '时间区间的"+1"表示次日时间' : '点击添加按钮可添加区间');
             },
         }))
         .add('info', new Layout('长按列表项可编辑项目 点击标题可排序', {
             updateOpr(view) {
-                let amount = $$cfg.ses.timers_uninterrupted_check_sections.length;
+                let amount = $$cfg.ses.timersUninterruptedCheckSections.length;
                 view.setVisibility(amount ? 0 : 8);
             },
         }))
@@ -6718,14 +6715,14 @@ $$view.page.new('账户功能', 'account_page', (t) => {
             if (!view['_switch'].checked) {
                 return true;
             }
-            let _main_acc_o = $$cfg.ses.main_account_info;
+            let _main_acc_o = $$cfg.ses.mainAccountInfo;
             if (isNonEmptyObject(_main_acc_o)) {
                 return true;
             }
             dialogsx
                 .builds([
                     '提示', '当前未设置主账户信息\n继续返回将关闭账户功能',
-                    0, '放弃返回', ['继续返回', 'warn'], 1,
+                    0, '放弃返回', [ '继续返回', 'warn' ], 1,
                 ])
                 .on('positive', (d) => {
                     d.dismiss();
@@ -6737,7 +6734,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
         },
     })
         .add('switch', new Layout('总开关', {
-            config_conj: 'account_switch',
+            config_conj: 'accountSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -6751,12 +6748,12 @@ $$view.page.new('账户功能', 'account_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('主账户设置', {color: 'highlight'}))
+        .add('subhead', new Layout('主账户设置', { color: 'highlight' }))
         .add('button', new Layout('主账户信息', 'hint', {
-            config_conj: 'main_account_info',
+            config_conj: 'mainAccountInfo',
             checkMainAccountInfo() {
-                let main_account_info = $$cfg.ses[this.config_conj];
-                return isNonEmptyObject(main_account_info);
+                let mainAccountInfo = $$cfg.ses[this.config_conj];
+                return isNonEmptyObject(mainAccountInfo);
             },
             newWindow() {
                 let _cfg_conj = this.config_conj;
@@ -6766,13 +6763,13 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                 } = $$cfg.ses[_cfg_conj];
 
                 $$view.setInfoInputView({
-                    input_views: [{
+                    input_views: [ {
                         type: 'account', text: '账户',
                         hint_text: '未设置', init: _acc_n,
                     }, {
                         type: 'password', text: '密码',
                         hint_text: () => _acc_c ? '已设置 (点击修改)' : '未设置',
-                    }],
+                    } ],
                     buttons: {
                         reserved_btn: {
                             text: '帮助',
@@ -6780,7 +6777,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                 dialogsx
                                     .builds([
                                         '信息录入提示', 'account_info_hint',
-                                        ['了解密码存储', 'hint'], 0, 'C', 1,
+                                        [ '了解密码存储', 'hint' ], 0, 'C', 1,
                                     ])
                                     .on('neutral', () => {
                                         dialogsx.builds([
@@ -6831,14 +6828,14 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                             },
                         },
                         additional: [
-                            [{
+                            [ {
                                 text: '  信息销毁  ',
                                 hint_color: '#EF9A9A',
                                 onClickListener(input_views_obj) {
-                                    let config_conj = 'main_account_info';
+                                    let config_conj = 'mainAccountInfo';
                                     let checkMainAccountInfo = () => {
-                                        let main_account_info = $$cfg.ses[config_conj];
-                                        return isNonEmptyObject(main_account_info);
+                                        let mainAccountInfo = $$cfg.ses[config_conj];
+                                        return isNonEmptyObject(mainAccountInfo);
                                     };
 
                                     if (!checkMainAccountInfo()) {
@@ -6847,13 +6844,13 @@ $$view.page.new('账户功能', 'account_page', (t) => {
 
                                     let diag = dialogsx.builds([
                                         '主账户信息销毁', 'destroy_main_account_info',
-                                        0, 'B', ['销毁', 'warn'],
+                                        0, 'B', [ '销毁', 'warn' ],
                                     ]);
                                     diag.on('negative', () => diag.dismiss());
                                     diag.on('positive', () => {
                                         let diag_confirm = dialogsx.builds([
                                             '确认销毁吗', '此操作本次会话无法撤销\n销毁后需在首页"保存"生效',
-                                            0, 'Q', ['S', 'caution'], 1,
+                                            0, 'Q', [ 'S', 'caution' ], 1,
                                         ]);
                                         diag_confirm.on('negative', () => diag_confirm.dismiss());
                                         diag_confirm.on('positive', () => {
@@ -6869,8 +6866,8 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                     });
                                     diag.show();
                                 },
-                            }],
-                            [{
+                            } ],
+                            [ {
                                 text: '从 [ 支付宝 ] 录入信息',
                                 hint_color: '#C5CAE9',
                                 onClickListener(input_views_obj) {
@@ -6884,8 +6881,8 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                         $$sto.af.remove(storage_key_name);
                                         toast('即将打开"支付宝"采集当前账户名');
                                         diag.dismiss();
-                                        filesx.run('launcher$', {cmd: 'get_current_acc_name', monitor: 'ensure_open'});
-                                        threadsx.start(function () {
+                                        filesx.run('launcher$', { cmd: 'get_current_acc_name', monitor: 'ensure_open' });
+                                        threads.start(function () {
                                             a11yx.wait(() => currentPackage().match(/AlipayGphone/), 8e3);
                                             ui.emitter.prependOnceListener('resume', () => {
                                                 let collected_name = $$sto.af.get(storage_key_name, '');
@@ -6895,11 +6892,11 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                                     return toast('未能成功采集到当前账户名');
                                                 }
 
-                                                let {input_area} = input_views_obj['账户'];
+                                                let { input_area } = input_views_obj['账户'];
                                                 let _acc = $$tool.accountNameConverter(collected_name, 'decrypt');
                                                 input_area.setText(_acc);
 
-                                                threadsx.start(function () {
+                                                threads.start(function () {
                                                     let max_try_times_input = 3;
                                                     while (max_try_times_input--) {
                                                         if (a11yx.wait(() => {
@@ -6931,16 +6928,16 @@ $$view.page.new('账户功能', 'account_page', (t) => {
                                 text: '从 [ 账户库 ] 录入信息',
                                 hint_color: '#D1C4E9',
                                 onClickListener() {
-                                    dialogsx.builds(['从账户库录入信息', '此功能暂未完成开发', 0, 0, 'B']).show();
+                                    dialogsx.builds([ '从账户库录入信息', '此功能暂未完成开发', 0, 0, 'B' ]).show();
                                 },
-                            }],
+                            } ],
                         ],
                     },
                 });
 
                 if (!$$sto.af.get('before_use_main_account_dialog_prompt_prompted')) {
                     let before_use_main_account_dialog_prompt_prompted = false;
-                    let diag = dialogsx.builds(['功能使用提示', 'before_use_main_account', 0, 0, '继续使用', 1, 1]);
+                    let diag = dialogsx.builds([ '功能使用提示', 'before_use_main_account', 0, 0, '继续使用', 1, 1 ]);
                     diag.on('check', checked => before_use_main_account_dialog_prompt_prompted = !!checked);
                     diag.on('positive', () => {
                         if (before_use_main_account_dialog_prompt_prompted) {
@@ -6958,7 +6955,7 @@ $$view.page.new('账户功能', 'account_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('page', new Layout('旧账户回切', 'hint', {
-            config_conj: 'account_log_back_in_switch',
+            config_conj: 'accountLogBackInSwitch',
             next_page: 'account_log_back_in_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view);
@@ -6978,13 +6975,13 @@ $$view.page.new('账户功能', 'account_page', (t) => {
 $$view.page.new('数据统计', 'stat_page', (t) => {
     $$view.setPage(t, (p_view) => {
         $$view.setStatPageButtons(p_view, 'stat_list');
-    }, {no_scroll_view: true})
+    }, { no_scroll_view: true })
         .ready();
 });
 $$view.page.new('旧账户回切', 'account_log_back_in_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'account_log_back_in_switch',
+            config_conj: 'accountLogBackInSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -7000,7 +6997,7 @@ $$view.page.new('旧账户回切', 'account_log_back_in_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('最大连续回切次数', 'hint', {
-            config_conj: 'account_log_back_in_max_continuous_times',
+            config_conj: 'accountLogBackInMaxContinuousTimes',
             newWindow() {
                 $$view.diag.numSetter.call(this, 0, 10, {
                     title: '设置最大连续回切次数',
@@ -7016,11 +7013,11 @@ $$view.page.new('旧账户回切', 'account_log_back_in_page', (t) => {
 });
 $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('蚂蚁森林名单簿', {color: 'highlight'}))
+        .add('subhead', new Layout('蚂蚁森林名单簿', { color: 'highlight' }))
         .add('page', new Layout('能量罩黑名单', 'hint', {
-            next_page: 'cover_blacklist_page',
+            next_page: 'shield_blacklist_page',
             updateOpr(view) {
-                let amount = $$cfg.ses.blacklist_protect_cover.length;
+                let amount = $$cfg.ses.blacklist_shield.length;
                 view.setHintText(amount ? '包含成员:  ' + amount + '人 ' : '空名单');
             },
         }))
@@ -7032,19 +7029,19 @@ $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('应用程序名单簿', {color: 'highlight'}))
+        .add('subhead', new Layout('应用程序名单簿', { color: 'highlight' }))
         .add('page', new Layout('前置应用黑名单', 'hint', {
             next_page: 'foreground_app_blacklist_page',
             updateOpr(view) {
                 let hint_text = '空名单';
-                let {foreground_app_blacklist: _fg_app_blist} = $$cfg.ses;
+                let { foregroundAppBlacklist: _fg_app_blist } = $$cfg.ses;
                 _fg_app_blist = _fg_app_blist || [];
                 let amount = _fg_app_blist.length;
                 if (amount) {
                     hint_text = '包含应用:  ' + amount + ' 项';
                     let invalid_items_count = 0;
                     _fg_app_blist.forEach((o) => {
-                        let {app_combined_name} = o;
+                        let { app_combined_name } = o;
                         if (app_combined_name) {
                             let pkg_name = app_combined_name.split('\n')[1];
                             if (!app.getAppName(pkg_name)) invalid_items_count += 1;
@@ -7066,11 +7063,11 @@ $$view.page.new('黑名单管理', 'blacklist_page', (t) => {
         }))
         .ready();
 });
-$$view.page.new('能量罩黑名单', 'cover_blacklist_page', (t) => {
-    $$view.setPage(t, null, {no_scroll_view: true})
+$$view.page.new('能量罩黑名单', 'shield_blacklist_page', (t) => {
+    $$view.setPage(t, null, { no_scroll_view: true })
         .add('list', new Layout('/*能量罩黑名单成员*/', {
-            list_head: 'blacklist_protect_cover',
-            data_source_key_name: 'blacklist_protect_cover',
+            list_head: 'blacklist_shield',
+            data_source_key_name: 'blacklist_shield',
             list_checkbox: 'gone',
             listeners: {
                 _list_data: {
@@ -7087,7 +7084,7 @@ $$view.page.new('能量罩黑名单', 'cover_blacklist_page', (t) => {
 $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
     $$view.setPage(t, (p_view) => {
         $$view.setListPageButtons(p_view, 'blacklist_by_user');
-    }, {no_scroll_view: true})
+    }, { no_scroll_view: true })
         .add('list', new Layout('/*自定义黑名单成员*/', {
             list_head: 'blacklist_by_user',
             data_source_key_name: 'blacklist_by_user',
@@ -7097,10 +7094,10 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                     item_long_click(e, item, idx, item_view) {
                         item_view['_checkbox'].checked && item_view['_checkbox'].click();
                         e.consumed = true;
-                        let {data_source_key_name: _ds_k} = this;
+                        let { data_source_key_name: _ds_k } = this;
                         let edit_item_diag = dialogsx.builds([
                             '编辑列表项', '点击需要编辑的项', 0, 'B', 'S', 1,
-                        ], {items: ['\xa0']});
+                        ], { items: [ '\xa0' ] });
 
                         refreshItems();
 
@@ -7109,7 +7106,7 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                             new_item.name = edit_item_diag.getItems().toArray()[0].split(': ')[1];
                             let input = edit_item_diag.getItems().toArray()[1].split(': ')[1];
                             new_item.timestamp = $$tool.restoreFromTimestamp(input);
-                            $$view.updateDataSource(_ds_k, 'splice', [idx, 1, new_item]);
+                            $$view.updateDataSource(_ds_k, 'splice', [ idx, 1, new_item ]);
                             if (!Object.isDeepEqual($$cfg.ses[_ds_k], $$cfg.sto[_ds_k])) {
                                 $$ses[_ds_k + '_btn_restore'].switch_on();
                             }
@@ -7132,8 +7129,8 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                                 if (!isFinite(init_value)) init_value = null;
                                 $$view.setTimePickerView({
                                     picker_views: [
-                                        {type: 'date', text: '设置日期', init: init_value},
-                                        {type: 'time', text: '设置时间', init: init_value},
+                                        { type: 'date', text: '设置日期', init: init_value },
+                                        { type: 'time', text: '设置时间', init: init_value },
                                     ],
                                     time_str: {
                                         prefix: '已选择',
@@ -7198,7 +7195,7 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                 },
                 _check_all: {
                     click(view) {
-                        let {data_source_key_name: _ds_k} = this;
+                        let { data_source_key_name: _ds_k } = this;
                         let aim_checked = view.checked;
                         let blacklist_len = $$ses[_ds_k].length;
                         if (!blacklist_len) return view.checked = !aim_checked;
@@ -7206,7 +7203,7 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
                         $$ses[_ds_k].forEach((o, idx) => {
                             let o_new = Object.deepClone(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(_ds_k, 'splice', [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, 'splice', [ idx, 1, o_new ]);
                         });
 
                         let deleted_items_idx = _ds_k + '_deleted_items_idx';
@@ -7240,11 +7237,11 @@ $$view.page.new('自定义黑名单', 'collect_blacklist_page', (t) => {
 });
 $$view.page.new('前置应用黑名单', 'foreground_app_blacklist_page', (t) => {
     $$view.setPage(t, (p_view) => {
-        $$view.setListPageButtons(p_view, 'foreground_app_blacklist');
-    }, {no_scroll_view: true})
+        $$view.setListPageButtons(p_view, 'foregroundAppBlacklist');
+    }, { no_scroll_view: true })
         .add('list', new Layout('/*前置应用黑名单项目*/', {
-            list_head: 'foreground_app_blacklist',
-            data_source_key_name: 'foreground_app_blacklist',
+            list_head: 'foregroundAppBlacklist',
+            data_source_key_name: 'foregroundAppBlacklist',
             list_checkbox: 'visible',
             listeners: {
                 _list_data: {
@@ -7260,7 +7257,7 @@ $$view.page.new('前置应用黑名单', 'foreground_app_blacklist_page', (t) =>
                 },
                 _check_all: {
                     click(view) {
-                        let {data_source_key_name: _ds_k} = this;
+                        let { data_source_key_name: _ds_k } = this;
                         let aim_checked = view.checked;
                         let blacklist_len = $$ses[_ds_k].length;
                         if (!blacklist_len) return view.checked = !aim_checked;
@@ -7268,7 +7265,7 @@ $$view.page.new('前置应用黑名单', 'foreground_app_blacklist_page', (t) =>
                         $$ses[_ds_k].forEach((o, idx) => {
                             let o_new = Object.deepClone(o);
                             o_new.checked = aim_checked;
-                            $$view.updateDataSource(_ds_k, 'splice', [idx, 1, o_new]);
+                            $$view.updateDataSource(_ds_k, 'splice', [ idx, 1, o_new ]);
                         });
 
                         let deleted_items_idx = _ds_k + '_deleted_items_idx';
@@ -7287,13 +7284,13 @@ $$view.page.new('前置应用黑名单', 'foreground_app_blacklist_page', (t) =>
         }))
         .add('info', new Layout('/*dynamic_info*/', {
             updateOpr(view) {
-                let amount = $$cfg.ses.foreground_app_blacklist.length;
+                let amount = $$cfg.ses.foregroundAppBlacklist.length;
                 view['_info_text'].setText(amount ? '点击标题可排序' : '点击添加按钮可添加应用');
             },
         }))
         .add('info', new Layout('"有效"标签表示应用是否存在于设备中', {
             updateOpr(view) {
-                let amount = $$cfg.ses.foreground_app_blacklist.length;
+                let amount = $$cfg.ses.foregroundAppBlacklist.length;
                 view.setVisibility(amount ? 0 : 8);
             },
         }))
@@ -7304,7 +7301,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
     $$view.setPage(t)
         .add('subhead', new Layout('基本设置'))
         .add('button', new Layout('单次运行最大时间', 'hint', {
-            config_conj: 'max_running_time_global',
+            config_conj: 'maxRunningTimeGlobal',
             newWindow() {
                 $$view.diag.numSetter.call(this, 5, 90, {
                     title: '脚本单次运行最大时间',
@@ -7315,7 +7312,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
             },
         }))
         .add('button', new Layout('排他性任务最大排队时间', 'hint', {
-            config_conj: 'max_queue_time_global',
+            config_conj: 'maxQueueTimeGlobal',
             newWindow() {
                 $$view.diag.numSetter.call(this, 1, 120);
             },
@@ -7326,7 +7323,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('脚本炸弹预防阈值', 'hint', {
-            config_conj: 'min_bomb_interval_global',
+            config_conj: 'minBombIntervalGlobal',
             newWindow() {
                 $$view.diag.numSetter.call(this, 100, 800);
             },
@@ -7335,19 +7332,19 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
             },
         }))
         .add('button', new Layout('Root权限功能', 'hint', {
-            config_conj: 'root_access_functions',
+            config_conj: 'rootAccessPrivileges',
             newWindow() {
                 let _cfg_conj = this.config_conj;
                 let _data = $$cfg.ses[_cfg_conj];
                 let _fxs = [
-                    {key: 'screen_off', desc: '关闭屏幕'},
-                    {key: 'force_stop', desc: '关闭应用'},
+                    { key: 'screenOffByKeyEvent', desc: '关闭屏幕' },
+                    { key: 'forceStopApp', desc: '关闭应用' },
                 ];
                 dialogsx.builds([
                     'Root权限功能', appx.hasRoot()
-                        ? ['当前Root权限状态: 已获取', '#005005']
-                        : ['当前Root权限状态: 未获取', '#A30000'],
-                    ['T', 'hint'], 'B', 'M', 1,
+                        ? [ '当前Root权限状态: 已获取', '#005005' ]
+                        : [ '当前Root权限状态: 未获取', '#A30000' ],
+                    [ 'T', 'hint' ], 'B', 'M', 1,
                 ], {
                     items: _fxs.map(o => o.desc),
                     itemsSelectMode: 'multi',
@@ -7358,7 +7355,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                     _fxs.forEach((o, i) => _data[o.key] = indices.indexOf(i) > -1);
                 }).on('neutral', () => {
                     dialogsx.builds([
-                        '关于Root权限功能', 'about_root_access_functions', 0, 0, 'C', 1,
+                        '关于Root权限功能', 'about_rootAccessPrivileges', 0, 0, 'C', 1,
                     ]).on('positive', d => d.dismiss()).show();
                 }).on('negative', (d) => {
                     d.dismiss();
@@ -7373,48 +7370,8 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
                 view.setHintText(_fxs_len ? '已启用 ' + _fxs_len + '项 ' : '已全部禁用');
             },
         }))
-        .add('button', new Layout('自动开启无障碍服务', 'hint', {
-            config_conj: 'auto_enable_a11y_svc',
-            map: {
-                ON: '启用自动开启',
-                OFF: '禁用自动开启',
-            },
-            newWindow() {
-                $$view.diag.radioSetter.call(this, {
-                    neutral() {
-                        dialogsx
-                            .builds([
-                                '关于自动开启无障碍服务', 'about_auto_enable_a11y_svc',
-                                ['复制授权指令', 'hint'], ['测试权限', 'hint'], 'C', 1,
-                            ])
-                            .on('neutral', () => {
-                                let _pkg = context.getPackageName();
-                                let _perm = 'android.permission.WRITE_SECURE_SETTINGS';
-                                setClip('adb shell pm grant ' + _pkg + ' ' + _perm);
-                                toast('授权指令已复制到剪切板');
-                            })
-                            .on('negative', () => {
-                                let _res = a11yx.test();
-                                dialogsx.builds([
-                                    '权限测试结果', '测试' + (_res ? '' : '未') + '通过\n\n' +
-                                    '当前应用' + (_res ? '已' : '未') + '获得以下权限:\n' +
-                                    'WRITE_SECURE_SETTINGS', 0, 0, 'C', 1,
-                                ]).on('positive', d => d.dismiss()).show();
-                            })
-                            .on('positive', (d) => {
-                                d.dismiss();
-                            })
-                            .show();
-                    },
-                });
-            },
-            updateOpr(view) {
-                let value = $$cfg.ses[this.config_conj] || $$sto.def.af[this.config_conj];
-                view.setHintText('已' + this.map[value.toString()].slice(0, 2));
-            },
-        }))
         .add('button', new Layout('支付宝应用启动跳板', 'hint', {
-            config_conj: 'app_launch_springboard',
+            config_conj: 'appLaunchSpringboard',
             map: {
                 ON: '开启跳板',
                 OFF: '关闭跳板',
@@ -7435,14 +7392,14 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
             },
         }))
         .add('page', new Layout('支付宝应用及页面保留', 'hint', {
-            config_conj: 'kill_when_done_switch',
+            config_conj: 'killWhenDoneSwitch',
             next_page: 'kill_when_done_page',
             updateOpr(view) {
                 view.setHintText(!$$cfg.ses[this.config_conj] ? '已开启' : '已关闭');
             },
         }))
         .add('page', new Layout('通话状态监测', 'hint', {
-            config_conj: 'phone_call_state_monitor_switch',
+            config_conj: 'phoneCallStateMonitorSwitch',
             next_page: 'phone_call_state_monitor_page',
             updateOpr(view) {
                 $$view.udop.main_sw.call(this, view);
@@ -7453,7 +7410,7 @@ $$view.page.new('运行与安全', 'script_security_page', (t) => {
 $$view.page.new('支付宝应用及页面保留', 'kill_when_done_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'kill_when_done_switch',
+            config_conj: 'killWhenDoneSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -7467,13 +7424,13 @@ $$view.page.new('支付宝应用及页面保留', 'kill_when_done_page', (t) => 
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('支付宝应用保留', {color: 'highlight'}))
-        .add('radio', new Layout(['智能保留', '总是保留'], {
-            values: [true, false],
-            config_conj: 'kill_when_done_intelligent',
+        .add('subhead', new Layout('支付宝应用保留', { color: 'highlight' }))
+        .add('radio', new Layout([ '智能保留', '总是保留' ], {
+            values: [ true, false ],
+            config_conj: 'killWhenDoneIntelligent',
             listeners: {
                 check(checked, view) {
-                    let {text} = view;
+                    let { text } = view;
                     checked && $$save.session(this.config_conj, this.values[this.title.indexOf(text)]);
                     text === this.title[0] && $$view.showOrHideBySwitch(this, checked, false, 'split_line');
                 },
@@ -7487,13 +7444,13 @@ $$view.page.new('支付宝应用及页面保留', 'kill_when_done_page', (t) => 
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('蚂蚁森林页面保留', {color: 'highlight'}))
-        .add('radio', new Layout(['智能剔除', '全部保留'], {
-            values: [false, true],
-            config_conj: 'kill_when_done_keep_af_pages',
+        .add('subhead', new Layout('蚂蚁森林页面保留', { color: 'highlight' }))
+        .add('radio', new Layout([ '智能剔除', '全部保留' ], {
+            values: [ false, true ],
+            config_conj: 'killWhenDoneKeepRelatedPages',
             listeners: {
                 check(checked, view) {
-                    let {text} = view;
+                    let { text } = view;
                     checked && $$save.session(this.config_conj, this.values[this.title.indexOf(text)]);
                     text === this.title[0] && $$view.showOrHideBySwitch(this, checked, false, 'split_line');
                 },
@@ -7520,7 +7477,7 @@ $$view.page.new('支付宝应用及页面保留', 'kill_when_done_page', (t) => 
 $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'phone_call_state_monitor_switch',
+            config_conj: 'phoneCallStateMonitorSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -7536,13 +7493,13 @@ $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('空闲状态值', 'hint', {
-            config_conj: 'phone_call_state_idle_value',
+            config_conj: 'phoneCallStateIdleValue',
             newWindow() {
                 dialogsx
                     .builds([
                         '通话空闲状态值', this.config_conj,
-                        ['获取空闲值', 'reset'], 'B', 'M', 1,
-                    ], {inputHint: '{x|x∈N*}'})
+                        [ '获取空闲值', 'reset' ], 'B', 'M', 1,
+                    ], { inputHint: '{x|x∈N*}' })
                     .on('neutral', d => dialogsx.setInputText(d, devicex.getCallState()))
                     .on('negative', d => d.dismiss())
                     .on('positive', (d) => {
@@ -7557,9 +7514,9 @@ $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
                         if (_num !== devicex.getCallState()) {
                             dialogsx
                                 .builds([
-                                    ['小心', 'caution'],
-                                    ['phone_call_state_idle_value_warn', 'warn'],
-                                    0, 'Q', ['K', 'caution'], 1,
+                                    [ '小心', 'caution' ],
+                                    [ 'phoneCallStateIdleValueWarn', 'warn' ],
+                                    0, 'Q', [ 'K', 'caution' ], 1,
                                 ])
                                 .on('negative', (ds) => ds.dismiss())
                                 .on('positive', (ds) => {
@@ -7587,7 +7544,7 @@ $$view.page.new('通话状态监测', 'phone_call_state_monitor_page', (t) => {
 $$view.page.new('能量双击卡', 'e_dblclick_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'e_dblclick_switch',
+            config_conj: 'energyDoubleCollectSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -7607,7 +7564,7 @@ $$view.page.new('能量双击卡', 'e_dblclick_page', (t) => {
 $$view.page.new('能量雨', 'e_rain_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'e_rain_switch',
+            config_conj: 'energyRainCollectSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -7626,7 +7583,7 @@ $$view.page.new('能量雨', 'e_rain_page', (t) => {
 });
 $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) => {
     $$view.setPage(t)
-        .add('subhead', new Layout('备份', {color: 'highlight'}))
+        .add('subhead', new Layout('备份', { color: 'highlight' }))
         .add('button', new Layout('备份至本地', '等待"本地还原"准备就绪...', {
             view_tag: 'backup_projects_from_local',
             newWindow() {
@@ -7635,7 +7592,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                 $$ses.local_restore_page_updated && dialogsx
                     .builds([
                         _title, 'backup_to_local',
-                        ['添加备注', 'hint'], 'Q', '开始备份', 1,
+                        [ '添加备注', 'hint' ], 'Q', '开始备份', 1,
                     ])
                     .on('neutral', (d) => {
                         d.dismiss();
@@ -7643,7 +7600,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                             .builds([
                                 '为备份添加备注',
                                 '添加备注用于区分不同的项目备份\n留空可删除备注',
-                                [_remark ? '删除备注' : 0, 'caution'], 'Q', 'K', 1,
+                                [ _remark ? '删除备注' : 0, 'caution' ], 'Q', 'K', 1,
                             ], {
                                 inputPrefill: _remark,
                             })
@@ -7672,7 +7629,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                     .on('negative', (d) => {
                         d.dismiss();
                     })
-                    .on('positive', (d) => threadsx.start(function () {
+                    .on('positive', (d) => threads.start(function () {
                         let _ds_k = 'project_backup_info';
                         project.backup({
                             onBackupStart() {
@@ -7709,7 +7666,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('还原', {color: 'highlight'}))
+        .add('subhead', new Layout('还原', { color: 'highlight' }))
         .add('page', new Layout('从本地还原', 'hint', {
             view_tag: 'restore_projects_from_local_page',
             next_page: null,
@@ -7731,7 +7688,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                 let _is_building = $$ses.local_restore_page_building;
                 if (!_is_building.get()) {
                     _is_building.incrementAndGet();
-                    threadsx.start(function () {
+                    threads.start(function () {
                         a11yx.wait(() => $$view.pages[_view_tag], 15e3, 120)
                             ? ui.post(_createPageView)
                             : _is_building.decrementAndGet();
@@ -7754,7 +7711,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                 dialogsx
                                     .builds([
                                         '删除备份', '确定删除此备份吗\n此操作无法撤销',
-                                        0, 'Q', ['D', 'caution'], 1,
+                                        0, 'Q', [ 'D', 'caution' ], 1,
                                     ])
                                     .on('negative', (d) => {
                                         d.dismiss();
@@ -7763,7 +7720,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                     .on('positive', (d) => {
                                         d.dismiss();
                                         files.remove($$cfg.ses[_ds_k][idx].path);
-                                        $$view.updateDataSource(_ds_k, 'splice', [idx, 1], {
+                                        $$view.updateDataSource(_ds_k, 'splice', [ idx, 1 ], {
                                             is_quiet: true,
                                             sync_data_source: true,
                                         });
@@ -7782,10 +7739,10 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                     item_click(item, idx) {
                                         let _data = $$cfg.ses[_ds_k][idx] || {};
                                         let _map = {
-                                            version_name: {name: '版本', cvt: null},
-                                            timestamp: {name: '时间', cvt: $$cvt.date},
-                                            path: {name: '路径', cvt: null},
-                                            remark: {name: '备注', cvt: null},
+                                            version_name: { name: '版本', cvt: null },
+                                            timestamp: { name: '时间', cvt: $$cvt.date },
+                                            path: { name: '路径', cvt: null },
+                                            remark: { name: '备注', cvt: null },
                                         };
                                         dialogsx
                                             .builds([
@@ -7799,8 +7756,8 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                     }
                                                     return _map_o.name + ': ' + _value;
                                                 }).join('\n\n'),
-                                                ['删除此备份', 'caution'], 'B',
-                                                ['还原此备份', 'warn'], 1,
+                                                [ '删除此备份', 'caution' ], 'B',
+                                                [ '还原此备份', 'warn' ], 1,
                                             ])
                                             .on('neutral', (d) => this.deleteItem(idx, {
                                                 onStart: () => d.dismiss(),
@@ -7812,13 +7769,13 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                 dialogsx
                                                     .builds([
                                                         '还原本地备份', 'restore_from_local',
-                                                        0, 'Q', ['还原', 'caution'], 1,
+                                                        0, 'Q', [ '还原', 'caution' ], 1,
                                                     ])
                                                     .on('negative', (ds) => {
                                                         ds.dismiss();
                                                         d.show();
                                                     })
-                                                    .on('positive', (ds) => threadsx.start(function () {
+                                                    .on('positive', (ds) => threads.start(function () {
                                                         project.restore(_data.path, {
                                                             onStart: () => ds.dismiss(),
                                                             onSuccess: () => $$view.updateViewByTag('about'),
@@ -7872,7 +7829,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                 view.setHintText('正在从服务器获取数据...');
                 view.setClickListener(() => null);
 
-                threadsx.start(function () {
+                threads.start(function () {
                     let _max = 5;
                     while (_max--) {
                         try {
@@ -7912,10 +7869,10 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                         let _releases = [];
                                                         let _list_item = $$ses.server_releases_info[idx] || {};
                                                         void [
-                                                            {key: 'name', desc: '标题'},
-                                                            {key: 'tag_name', desc: '标签'},
-                                                            {key: 'published_at', desc: '发布'},
-                                                            {key: 'body', desc: '内容描述'},
+                                                            { key: 'name', desc: '标题' },
+                                                            { key: 'tag_name', desc: '标签' },
+                                                            { key: 'published_at', desc: '发布' },
+                                                            { key: 'body', desc: '内容描述' },
                                                         ].forEach((o) => {
                                                             let _k = o.key;
                                                             if (_k in _list_item) {
@@ -7932,8 +7889,8 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                         dialogsx
                                                             .builds([
                                                                 '版本详情', _releases.join('\n\n'),
-                                                                ['浏览器查看', 'hint'], 'B',
-                                                                ['还原此项目', 'warn'], 1,
+                                                                [ '浏览器查看', 'hint' ], 'B',
+                                                                [ '还原此项目', 'warn' ], 1,
                                                             ])
                                                             .on('negative', d => d.dismiss())
                                                             .on('neutral', (d) => {
@@ -7945,7 +7902,7 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
                                                                 dialogsx
                                                                     .builds([
                                                                         '还原项目', 'restore_project_confirm',
-                                                                        0, 'Q', ['还原', 'caution'], 1,
+                                                                        0, 'Q', [ '还原', 'caution' ], 1,
                                                                     ])
                                                                     .on('negative', (ds) => {
                                                                         ds.dismiss();
@@ -7985,17 +7942,17 @@ $$view.page.new('项目备份还原', 'local_project_backup_restore_page', (t) =
         .ready();
 });
 $$view.page.new('从本地还原项目', 'restore_projects_from_local_page', (t) => {
-    $$view.setPage(t, null, {no_scroll_view: true})
+    $$view.setPage(t, null, { no_scroll_view: true })
         .ready();
 });
 $$view.page.new('从服务器还原项目', 'restore_projects_from_server_page', (t) => {
-    $$view.setPage(t, null, {no_scroll_view: true})
+    $$view.setPage(t, null, { no_scroll_view: true })
         .ready();
 });
 $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
     $$view.setPage(t)
         .add('switch', new Layout('总开关', {
-            config_conj: 'update_auto_check_switch',
+            config_conj: 'updateAutoCheckSwitch',
             listeners: {
                 _switch: {
                     check(state) {
@@ -8009,10 +7966,10 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
             },
         }))
         .add('split_line')
-        .add('subhead', new Layout('更新提示场景', {color: 'highlight'}))
+        .add('subhead', new Layout('更新提示场景', { color: 'highlight' }))
         .add('checkbox_switch', new Layout('运行结果展示时', {
-            config_conj: 'update_show_on_e_result',
-            view_tag: 'update_show_on_e_result',
+            config_conj: 'updateShowOnShowingResult',
+            view_tag: 'updateShowOnShowingResult',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -8025,8 +7982,8 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
             },
         }))
         .add('checkbox_switch', new Layout('配置工具启动后', {
-            config_conj: 'update_show_on_af_settings',
-            view_tag: 'update_show_on_af_settings',
+            config_conj: 'updateShowOnAfSettings',
+            view_tag: 'updateShowOnAfSettings',
             listeners: {
                 _checkbox_switch: {
                     check(state) {
@@ -8041,14 +7998,14 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
         .add('split_line')
         .add('subhead', new Layout('高级设置'))
         .add('button', new Layout('版本忽略管理', 'hint', {
-            config_conj: 'update_ignore_list',
-            view_tag: 'update_ignore_list',
+            config_conj: 'updateIgnoreList',
+            view_tag: 'updateIgnoreList',
             newWindow() {
                 let _cfg_conj = this.config_conj;
                 let _tmp_list = $$cfg.ses[_cfg_conj].slice();
                 let _diag = dialogsx
-                    .builds(['版本忽略管理', '', '添加版本', 'Q', 'S', 1], {
-                        items: ['\xa0'],
+                    .builds([ '版本忽略管理', '', '添加版本', 'Q', 'S', 1 ], {
+                        items: [ '\xa0' ],
                     })
                     .on('neutral', (d) => {
                         d.dismiss();
@@ -8061,7 +8018,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
                         ].join('\n');
 
                         dialogsx
-                            .builds(['添加忽略版本', _cont + _none, 0, 'Q', 'K', 1], {
+                            .builds([ '添加忽略版本', _cont + _none, 0, 'Q', 'K', 1 ], {
                                 inputHint: '输入的内容支持实时解析',
                             })
                             .on('negative', ds => ds.dismiss())
@@ -8105,7 +8062,7 @@ $$view.page.new('自动检查更新', 'update_auto_check_page', (t) => {
                         dialogsx
                             .builds([
                                 '提示', '确定移除此版本吗',
-                                0, 'Q', ['移除', 'caution'], 1,
+                                0, 'Q', [ '移除', 'caution' ], 1,
                             ])
                             .on('negative', (d) => {
                                 d.dismiss();

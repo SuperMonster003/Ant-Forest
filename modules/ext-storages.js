@@ -130,7 +130,7 @@ let Storage = function StorageConstructor$iiFe() {
                 return o;
             };
             let _reEnc = (o) => {
-                if (isPlainObject(o)) {
+                if (isObjectSpecies(o)) {
                     return _reEncObject(o);
                 }
                 if (typeof o === 'string') {
@@ -198,7 +198,7 @@ let Storage = function StorageConstructor$iiFe() {
                 if (!_opt.is_crypto) {
                     return o;
                 }
-                if (!isPlainObject(o) || _opt.is_forcible) {
+                if (!isObjectSpecies(o) || _opt.is_forcible) {
                     return _enc(o);
                 }
                 let _o = {};
@@ -213,8 +213,8 @@ let Storage = function StorageConstructor$iiFe() {
             }
 
             if (!_opt.is_forcible
-                && isPlainObject(new_val)
-                && isPlainObject(_val[key])
+                && isObjectSpecies(new_val)
+                && isObjectSpecies(_val[key])
                 && Object.keys(new_val).length > 0
             ) {
                 _tmp[key] = Object.assign(_val[key], _encodeIFN(new_val));

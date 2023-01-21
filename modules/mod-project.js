@@ -4,7 +4,6 @@ let {
 let {appx} = require('./ext-app');
 let {httpx} = require('./ext-http');
 let {filesx} = require('./ext-files');
-let {threadsx} = require('./ext-threads');
 let {dialogsx} = require('./ext-dialogs');
 let {storagesx} = require('./ext-storages');
 
@@ -38,8 +37,8 @@ let _ = {
     ],
     get ignore_list() {
         return this._ignore_list = this._ignore_list
-            || storagesx.af.get('update_ignore_list')
-            || storagesx['@default'].af.update_ignore_list;
+            || storagesx.af.get('updateIgnoreList')
+            || storagesx['@default'].af.updateIgnoreList;
     },
 };
 
@@ -91,6 +90,9 @@ let exp = {
      * }}
      */
     getLocal() {
+        if (typeof global._$_cached_local_project_ === 'object') {
+            return global._$_cached_local_project_;
+        }
         let _ver_name = '';
         let _ver_code = -1;
         let _path = this.getLocalPath();
@@ -110,7 +112,7 @@ let exp = {
         if (files.exists(_json_path)) {
             try {
                 let _o = JSON.parse(filesx.read(_json_path, '{}'));
-                return Object.assign(_res, {
+                return global._$_cached_local_project_ = Object.assign(_res, {
                     version_name: 'v' + _o.versionName,
                     version_code: Number(_o.versionCode),
                     main: {name: _o.main, path: files.join(_path, _o.main)},
@@ -122,7 +124,7 @@ let exp = {
         }
         if (files.exists(_main_path)) {
             try {
-                return Object.assign(_res, {
+                return global._$_cached_local_project_ = Object.assign(_res, {
                     version_name: 'v' + filesx.read(_main_path)
                         .match(/version (\d+\.?)+( ?(Alpha|Beta)(\d+)?)?/)[0].slice(8),
                 });
@@ -132,7 +134,7 @@ let exp = {
             }
         }
         console.warn('Both ' + _json_name + ' and ' + _main_name + ' do not exist');
-        return _res;
+        return global._$_cached_local_project_ = _res;
     },
     /**
      * @param {boolean} [is_with_creation=false]
@@ -192,7 +194,7 @@ let exp = {
         if (typeof callback !== 'function') {
             return _getReleases();
         }
-        threadsx.start(() => callback(_getReleases()));
+        threads.start(() => callback(_getReleases()));
 
         // tool function(s) //
 
@@ -307,7 +309,7 @@ let exp = {
         if (typeof callback !== 'function') {
             return _getRelease();
         }
-        threadsx.start(() => callback(_getRelease()));
+        threads.start(() => callback(_getRelease()));
     },
     /**
      * @param {Object} [options]
@@ -330,7 +332,7 @@ let exp = {
         if (typeof callback !== 'function') {
             return _getRelease();
         }
-        threadsx.start(() => callback(_getRelease()));
+        threads.start(() => callback(_getRelease()));
     },
     /**
      * @param {'1.x'|'2.x'|string|number} ver
@@ -372,7 +374,7 @@ let exp = {
             .on('positive', dialogsx.dismiss)
             .show();
 
-        threadsx.start(_getLog);
+        threads.start(_getLog);
 
         // tool function(s) //
 
@@ -427,15 +429,14 @@ let exp = {
 
             function _getContentByBlob() {
                 let _max = 5;
-                let _url = 'https://cdn.jsdelivr.net/gh/SuperMonster003/Ant-Forest@master' +
-                    '/assets/docs/CHANGELOG-' + _ver_num + '.md';
+                let _url = `https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/CHANGELOG-${_ver_num}.md`;
                 while (_max--) {
                     try {
                         return httpx.okhttp3Request(_url, {
                             onDownloadFailure(e) {
                                 _max || _onFailure('请求失败: ' + e);
                             },
-                        }, {is_async: false});
+                        }, {isAsync: false});
                     } catch (e) {
                         _onFailure(e.message);
                     }
@@ -619,7 +620,7 @@ let exp = {
                         onDownloadFailure(e) {
                             reject(e);
                         },
-                    }, {is_async: true, path: _full_path});
+                    }, {isAsync: true, path: _full_path});
                 }),
             }, {
                 desc: _steps.decompress,
@@ -668,7 +669,7 @@ let exp = {
             }, {
                 desc: _steps.finish_deploy,
                 action: (v, d) => new Promise((resolve, reject) => {
-                    filesx.deleteByList(v.unzipped_files_path, {is_async: true}, {
+                    filesx.deleteByList(v.unzipped_files_path, {isAsync: true}, {
                         onDeleteProgress: o => d.setProgressData(o),
                         onDeleteSuccess: () => resolve({target_path: v.tar_proj_path}),
                         onDeleteFailure: e => reject(e),
@@ -894,7 +895,7 @@ let exp = {
                             onDownloadFailure(e) {
                                 reject(e);
                             },
-                        }, {is_async: true, path: _full_path});
+                        }, {isAsync: true, path: _full_path});
                     }),
                 },
             },
@@ -956,7 +957,7 @@ let exp = {
             }, {
                 desc: _steps.finish_restore,
                 action: (v, d) => new Promise((resolve, reject) => {
-                    filesx.deleteByList(v.unzipped_files_path, {is_async: true}, {
+                    filesx.deleteByList(v.unzipped_files_path, {isAsync: true}, {
                         onStart: () => _mode === 'server' && files.remove(v.zip_src_file),
                         onProgress: o => d.setProgressData(o),
                         onSuccess: () => resolve({target_path: v.tar_proj_path}),

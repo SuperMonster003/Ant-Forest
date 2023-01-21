@@ -1,12 +1,11 @@
 require('./mod-global');
 let {uix} = require('./ext-ui');
 let {alipay} = require('./mod-alipay');
-let {autojs} = require('./mod-autojs');
+let { autojs: autojsExt } = require('./mod-autojs');
 let {imagesx} = require('./ext-images');
 let {enginesx} = require('./ext-engines');
-let {threadsx} = require('./ext-threads');
 let {consolex} = require('./ext-console');
-let {a11yx, $$sel} = require('./ext-a11y');
+let {a11yx} = require('./ext-a11y');
 let {devicex, $$disp} = require('./ext-device');
 
 let _ = {
@@ -21,20 +20,20 @@ let _ = {
         }(),
     },
     sel: {
-        entrance: [/.*开[始启].*/, 'k2', {isCenterX: true}],
-        bonus: ['再来一次', {c$: true, isCenterX: true}],
-        manual: [/送TA机会|更多好友/, 'k2', {c$: true}],
-        result: [/恭喜获得|今日累计获取/, {isCenterX: true}],
-        finish: [/恭喜获得|今日累计获取/, {isCenterX: true}],
-        retry: ['立即重试', {c$: true}],
+        entrance: [/.*开[始启].*/, {screenCenterX: true}],
+        bonus: ['再来一次', {clickable: true, screenCenterX: true}],
+        manual: [/送TA机会|更多好友/, {clickable: true}],
+        result: [/恭喜获得|今日累计获取/, {screenCenterX: true}],
+        finish: [/恭喜获得|今日累计获取/, {screenCenterX: true}],
+        retry: ['立即重试', {clickable: true}],
     },
     w: {
         cache: {},
-        ent: () => _.w.cache.ent = $$sel.pickup(_.sel.entrance),
-        bonus: () => _.w.cache.bonus = $$sel.pickup(_.sel.bonus),
-        finish: () => _.w.cache.finish = $$sel.pickup(_.sel.finish),
-        manual: () => _.w.cache.manual = $$sel.pickup(_.sel.manual),
-        result: () => _.w.cache.result = $$sel.pickup(_.sel.result),
+        ent: () => _.w.cache.ent = pickup(_.sel.entrance, 'k2'),
+        bonus: () => _.w.cache.bonus = pickup(_.sel.bonus),
+        finish: () => _.w.cache.finish = pickup(_.sel.finish),
+        manual: () => _.w.cache.manual = pickup(_.sel.manual, 'k2'),
+        result: () => _.w.cache.result = pickup(_.sel.result),
     },
     cond: {
         ent: () => _.w.ent() && !_.w.finish(),
@@ -49,7 +48,7 @@ let _ = {
     results: [],
     ensureCaptPermission() {
         try {
-            if (imagesx.permit()) {
+            if (images.requestScreenCapture()) {
                 return true;
             }
         } catch (e) {
@@ -60,7 +59,7 @@ let _ = {
         exit();
     },
     capt() {
-        this.img = imagesx.capt();
+        this.img = images.captureScreen();
     },
     findPoints() {
         this.pts = images.findAllPointsForColor(this.img, '#DAFF00', {
@@ -97,7 +96,7 @@ let _ = {
      */
     clickBtn(options) {
         let {widget, name, cond} = options || {};
-        if (a11yx.click([widget, 'k2'], 'w', {condition: cond})) {
+        if (a11yx.click(widget.compass('k2'), 'w', {condition: cond})) {
             consolex._('点击' + name + '按钮成功');
             return true;
         }
@@ -107,15 +106,15 @@ let _ = {
 
 let $ = {
     check() {
-        devicex.ensureSdkInt();
-        alipay.ensureAppInstalled();
-        autojs.ensureVersion();
+        requiresApi(util.versionCodes.N.apiLevel);
+        App.ALIPAY.ensureInstalled();
+        autojsExt.ensureVersion();
         a11yx.ensureSvcAndFunc();
         devicex.checkScreenOffTimeout();
     },
     greet() {
         consolex.d('开始"能量雨"任务', 1, 0, 2);
-        consolex.debug.switchSet(_.cfg.isDebug);
+        // consolex.debug.switchSet(_.cfg.isDebug);
     },
     launch() {
         alipay.startApp('af_energy_rain');
@@ -135,7 +134,7 @@ let $ = {
             consolex._('已匹配"额外奖励"准备条件');
             return _.clickBtn({
                 widget: _.w.cache.bonus,
-                name: $$sel.pickup(_.w.cache.bonus, 'txt').surround('"'),
+                name: _.w.cache.bonus ?_.w.cache.bonus.content().surround('"') : 'Unknown',
                 cond: () => !_.cond.bonus(),
             }) && _.ensureCaptPermission();
         }
@@ -189,7 +188,7 @@ let $ = {
                         consolex._(['发送全局结束信号', '检测到预置的结束条件']);
                         return _.flag.e_rain_finished = true;
                     }
-                    let _w_retry = $$sel.pickup(_.sel.retry);
+                    let _w_retry = pickup(_.sel.retry);
                     if (_w_retry) {
                         a11yx.click(_w_retry, 'w');
                         devicex.keycode('back', {rush: true});
@@ -204,10 +203,10 @@ let $ = {
                 consolex._(['结束"结束条件"监测线程', '检测到结束信号']);
             },
             start() {
-                threadsx.start(() => {
+                threads.start(() => {
                     if (this.click.firstTime()) {
-                        threadsx.start(() => this.click.continuous());
-                        threadsx.start(() => this.finish());
+                        threads.start(() => this.click.continuous());
+                        threads.start(() => this.finish());
                     }
                 });
             },
@@ -232,14 +231,12 @@ let $ = {
         delete _.flag.e_rain_finished;
     },
     statistics() {
-        a11yx.wait(() => _.cond.result(), 5e3, 80, {
+        wait(() => _.cond.result(), 5e3, 80, {
             then(res) {
                 // @LegacyBackup as of Oct 22, 2021
-                // let _mch = $$sel.pickup(res, 'txt').match(/\d+/);
+                // let _mch = res.content().match(/\d+/);
 
-                let _mch = $$sel.traverse([res, 'p2'], (w) => {
-                    return $$sel.pickup(w, 'txt').match(/\s*\+?\d+g\s*/);
-                }, 'txt').match(/\d+/);
+                let _mch = pickup(res.compass('p2'), {filter: w => /\s*\+?\d+g\s*/.test(w.content())}, 'txt').match(/\d+/);
                 if (_mch) {
                     consolex._('统计数据池存入新数据: ' + _mch);
                     _.results.push(Number(_mch));
@@ -258,10 +255,11 @@ let $ = {
         let _name_extra_bonus = '额外奖励';
         let _bonus_triggerred = '检测到' + _name_extra_bonus + '条件';
         let _bonus_not_triggerred = '未' + _bonus_triggerred;
+        a11yx.wait(() => _.cond.bonus() || _.cond.manual(), .8e3, 80);
         if (_.cond.bonus()) {
             let _w = _.w.cache.bonus;
             consolex._(_bonus_triggerred + ':');
-            consolex._($$sel.pickup(_w, 'txt'));
+            consolex._(_w.content());
             return _.clickBtn({
                 widget: _w,
                 name: _name_extra_bonus,

@@ -1,7 +1,6 @@
 let {
     $$und, $$func, $$F, isXMLType,
 } = require('./mod-global');
-let {colorsx} = require('./ext-colors');
 let {consolex} = require('./ext-console');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
@@ -13,7 +12,7 @@ let Looper = android.os.Looper;
 let Linkify = android.text.util.Linkify;
 let ColorStateList = android.content.res.ColorStateList;
 let ColorDrawable = android.graphics.drawable.ColorDrawable;
-let JsDialog = com.stardust.autojs.core.ui.dialog.JsDialog;
+let JsDialog = org.autojs.autojs.core.ui.dialog.JsDialog;
 let DialogAction = com.afollestad.materialdialogs.DialogAction;
 let MaterialDialog = com.afollestad.materialdialogs.MaterialDialog;
 
@@ -163,20 +162,20 @@ let exp = {
         function applyDialogProperty(builder, name, value) {
             let propertySetters = {
                 title: null,
-                titleColor: {adapter: colorsx.toInt},
-                buttonRippleColor: {adapter: colorsx.toInt},
+                titleColor: {adapter: colors.toInt},
+                buttonRippleColor: {adapter: colors.toInt},
                 icon: null,
                 content: null,
-                contentColor: {adapter: colorsx.toInt},
+                contentColor: {adapter: colors.toInt},
                 contentLineSpacing: null,
                 items: null,
-                itemsColor: {adapter: colorsx.toInt},
+                itemsColor: {adapter: colors.toInt},
                 positive: {method: 'positiveText', adapter: text => this.text.btn[text] || text},
-                positiveColor: {adapter: colorsx.toInt},
+                positiveColor: {adapter: colors.toInt},
                 neutral: {method: 'neutralText', adapter: text => this.text.btn[text] || text},
-                neutralColor: {adapter: colorsx.toInt},
+                neutralColor: {adapter: colors.toInt},
                 negative: {method: 'negativeText', adapter: text => this.text.btn[text] || text},
-                negativeColor: {adapter: colorsx.toInt},
+                negativeColor: {adapter: colors.toInt},
                 cancelable: null,
                 canceledOnTouchOutside: null,
                 autoDismiss: null,
@@ -227,7 +226,7 @@ let exp = {
                             return true;
                         });
                 } else {
-                    throw new Error('Unknown itemsSelectMode ' + itemsSelectMode);
+                    throw Error('Unknown itemsSelectMode ' + itemsSelectMode);
                 }
             }
             if (properties.progress !== undefined) {
@@ -272,16 +271,16 @@ let exp = {
      * @return {JsDialog$}
      */
     builds(props, ext) {
-        if (isPlainObject(props)) {
+        if (isObjectSpecies(props)) {
             return this.builds('', props);
         }
         let [
-            $tt, $cnt, $neu, $neg, $pos, $obstinate, $cbx,
+            $tt, $cnt, $neu, $neg, $pos, $stubborn, $cbx,
         ] = typeof props === 'string' ? [props] : props;
 
         let _props = {
-            autoDismiss: !$obstinate,
-            canceledOnTouchOutside: !$obstinate,
+            autoDismiss: !$stubborn,
+            canceledOnTouchOutside: !$stubborn,
             checkBoxPrompt: $cbx ? typeof $cbx === 'string'
                 ? $cbx : this.text.no_more_prompt : undefined,
         };
@@ -312,7 +311,7 @@ let exp = {
         let _diag = this.build(_props);
 
         if (_ext.linkify) {
-            this.linkify(_diag);
+            this.linkify(_diag, _ext.linkify);
         }
         if (_ext.keycode_back !== undefined) {
             let _v = _ext.keycode_back;
@@ -335,7 +334,7 @@ let exp = {
             let _bg = _ext.background;
             if (typeof _bg === 'string') {
                 _bg.match(/^#/)
-                    ? _win.setBackgroundDrawable(new ColorDrawable(colorsx.toInt(_bg)))
+                    ? _win.setBackgroundDrawable(new ColorDrawable(colors.toInt(_bg)))
                     : _win.setBackgroundDrawableResource(android.R.color[_bg]);
             } else if (typeof _bg === 'number') {
                 _win.setBackgroundDrawable(new ColorDrawable(_bg));
@@ -372,7 +371,7 @@ let exp = {
                 }
                 let _k_c = key + 'Color';
                 let _c = _ext[_k_c] || color_lib[_color] || _color || color_lib.default;
-                _ext[_k_c] = colorsx.toInt(_c);
+                _ext[_k_c] = colors.toInt(_c);
             }
         }
     },
@@ -449,7 +448,7 @@ let exp = {
             _titles[d].ori_bg_color = -1;
         }
 
-        _setTitle(d, msg, this.colors.title.alert.map(colorsx.toInt));
+        _setTitle(d, msg, this.colors.title.alert.map(colors.toInt));
 
         duration === 0 || setTimeout(function () {
             --_titles.message_showing || _setTitle(d, _ori_txt, [_ori_color, _ori_bg_color]);
@@ -477,7 +476,7 @@ let exp = {
         let _ori_view = d.getContentView();
         let _ori_text = _ori_view.getText().toString();
         let _is_append = is_append === 'append' || is_append === true;
-        let [_c_text, _c_bg] = this.colors.content.alert.map(s => colorsx.toInt(s));
+        let [_c_text, _c_bg] = this.colors.content.alert.map(s => colors.toInt(s));
 
         ui.post(() => {
             _ori_view.setText((_is_append ? _ori_text + '\n\n' : '') + msg);
@@ -568,9 +567,6 @@ let exp = {
             typeof o === 'object' && o.dismiss && o.dismiss();
         });
     },
-    clearPool() {
-        this.pool.clear();
-    },
     /**
      * @template {JsDialog$|MaterialDialog$} T
      * @param {T} d
@@ -613,7 +609,7 @@ let exp = {
      */
     setTitleTextColor(d, color) {
         ui.run(() => {
-            d && d.getTitleView().setTextColor(colorsx.toInt(this.colors.wrap(color, 'title')));
+            d && d.getTitleView().setTextColor(colors.toInt(this.colors.wrap(color, 'title')));
         });
     },
     /**
@@ -622,7 +618,7 @@ let exp = {
      */
     setTitleBackgroundColor(d, color) {
         ui.run(() => {
-            d && d.getTitleView().setBackgroundColor(colorsx.toInt(this.colors.wrap(color, 'title')));
+            d && d.getTitleView().setBackgroundColor(colors.toInt(this.colors.wrap(color, 'title')));
         });
     },
     /**
@@ -655,7 +651,7 @@ let exp = {
      */
     setContentTextColor(d, color) {
         ui.run(() => {
-            d && d.getContentView().setTextColor(colorsx.toInt(this.colors.wrap(color, 'content')));
+            d && d.getContentView().setTextColor(colors.toInt(this.colors.wrap(color, 'content')));
         });
     },
     /**
@@ -664,7 +660,7 @@ let exp = {
      */
     setContentBackgroundColor(d, color) {
         ui.run(() => {
-            d && d.getContentView().setBackgroundColor(colorsx.toInt(this.colors.wrap(color, 'content')));
+            d && d.getContentView().setBackgroundColor(colors.toInt(this.colors.wrap(color, 'content')));
         });
     },
     /**
@@ -687,7 +683,7 @@ let exp = {
      */
     setInputTextColor(d, color) {
         ui.run(() => {
-            d && d.getInputEditText().setTextColor(colorsx.toInt(color));
+            d && d.getInputEditText().setTextColor(colors.toInt(color));
         });
     },
     /**
@@ -696,7 +692,7 @@ let exp = {
      */
     setInputBackgroundColor(d, color) {
         ui.run(() => {
-            d && d.getInputEditText().setBackgroundColor(colorsx.toInt(color));
+            d && d.getInputEditText().setBackgroundColor(colors.toInt(color));
         });
     },
     /**
@@ -786,7 +782,7 @@ let exp = {
     setActionButtonColor(d, action, color) {
         let _set = function (action) {
             let _act = action.toLowerCase();
-            let _c_int = colorsx.toInt(this.colors.wrap(color, 'button'));
+            let _c_int = colors.toInt(this.colors.wrap(color, 'button'));
             let _d_act = this.getDialogAction(_act);
             ui.run(() => {
                 if (_d_act !== null) {
@@ -910,7 +906,7 @@ let exp = {
                             if (_p[_k]) {
                                 if (Array.isArray(_p[_k])) {
                                     let [_s, _r] = _p[_k];
-                                    o.set(_diag, _k, o.get(_diag, _k).replace(_s, _r));
+                                    o.set(_diag, _k, String(o.get(_diag, _k)).replace(_s, _r));
                                 } else {
                                     o.set(_diag, _k, _p[_k]);
                                 }
@@ -979,7 +975,7 @@ let exp = {
             } : (r => r);
 
             let _btn = _ext.timeout_button;
-            let _btn_str = _btn && _diag.getActionButton(_btn);
+            let _btn_str = _btn && _diag.getActionButton(_btn).toString();
             let _setButton = _btn ? function (t) {
                 _diag.setActionButton(_btn, _btn_str + '  [ ' + t + ' ]');
             } : (r => r);
@@ -1145,7 +1141,6 @@ let exp = {
                             message: err,
                             btn_text: exp.text.btn[config.on_interrupt_btn_text || 'B'],
                             onPositive() {
-                                exp.clearPool();
                                 exit();
                             },
                         }, _diag);
@@ -1347,7 +1342,7 @@ let exp = {
      * @param {Dialogsx.Progress.Color} color
      */
     setProgressTintList(d, color) {
-        let _c_int = colorsx.toInt(this.colors.wrap(color, 'progress'));
+        let _c_int = colors.toInt(this.colors.wrap(color, 'progress'));
         let _csl = ColorStateList.valueOf(_c_int);
         d.getProgressBar().setProgressTintList(_csl);
     },
@@ -1395,7 +1390,7 @@ let exp = {
      * @param {Color$} color
      */
     setProgressBackgroundTintList(d, color) {
-        let _c_int = colorsx.toInt(color);
+        let _c_int = colors.toInt(color);
         let _csl = ColorStateList.valueOf(_c_int);
         d.getProgressBar().setProgressBackgroundTintList(_csl);
     },
@@ -1444,7 +1439,7 @@ let exp = {
         let _button_bg_tint_color = _opt.button_bg_tint_color || '#00251A';
         let _button_font_family = _opt.button_font_family || 'sans-serif';
         let _button_layout_gravity = _opt.button_layout_gravity || 'center';
-        let _dialog_bg_color = _opt.dialog_bg_color || colorsx.hrgba('#005B4F91');
+        let _dialog_bg_color = _opt.dialog_bg_color || colors.rgba('#005B4F91');
         let _dialog_dim_amount = _opt.dialog_dim_amount || 90;
 
         let _view = ui.inflate(<vertical>

@@ -213,12 +213,12 @@ function dismissLayer() {
     let max_try_times_dismiss_layer = 20;
     let data_from_storage_flag = false;
     let chances_for_storage_data = 3;
-    let gesture_time = _cfg_sto.unlock_dismiss_layer_swipe_time;
+    let gesture_time = _cfg_sto.unlockDismissLayerSwipeDuration;
 
     if (gesture_time) {
         data_from_storage_flag = true;
     } else {
-        gesture_time = _cfg_def.unlock_dismiss_layer_swipe_time;
+        gesture_time = _cfg_def.unlockDismissLayerSwipeDuration;
     }
 
     let half_width = cX(0.5);
@@ -235,7 +235,7 @@ function dismissLayer() {
         if (data_from_storage_flag) {
             if (--chances_for_storage_data < 0) {
                 data_from_storage_flag = false;
-                gesture_time = _cfg_def.unlock_dismiss_layer_swipe_time;
+                gesture_time = _cfg_def.unlockDismissLayerSwipeDuration;
             } else {
                 max_try_times_dismiss_layer += 1;
             }

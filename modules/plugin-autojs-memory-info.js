@@ -1,7 +1,6 @@
 let {$$cvt} = require('./mod-global');
 let {appx} = require('./ext-app');
 let {uix} = require('./ext-ui');
-let {colorsx} = require('./ext-colors');
 let {dialogsx} = require('./ext-dialogs');
 
 uix.registerWidget('mem-info-text', <x-text
@@ -55,17 +54,17 @@ let _getViewConfig = function () {
             color: _preset.uss_n_pss.tint.text,
         },
         btn_restart_process: {
-            background_tint: colorsx.hrgba('#8E0000DD'),
-            text_color: colorsx.hrgba('#FFEBEEDD'),
+            background_tint: colors.rgba('#8E0000DD'),
+            text_color: colors.rgba('#FFEBEEDD'),
         },
         btn_close: {
             on_click: $exit,
-            background_tint: colorsx.hrgba('#1B5E20DD'),
-            text_color: colorsx.hrgba('#E8F5E9DD'),
+            background_tint: colors.rgba('#1B5E20DD'),
+            text_color: colors.rgba('#E8F5E9DD'),
         },
         btn_help: {
-            background_tint: colorsx.hrgba('#004C8CDD'),
-            text_color: colorsx.hrgba('#E3F2FDDD'),
+            background_tint: colors.rgba('#004C8CDD'),
+            text_color: colors.rgba('#E3F2FDDD'),
         },
     };
 };
@@ -91,10 +90,10 @@ _view['btn_restart_process'].on('click', function () {
     dialogsx.builds([null,
         ['确定要重启 Auto.js 进程吗\n' +
         '重启完成后当前工具将自动启动\n' +
-        '重启过程可能需要几秒到数十秒', colorsx.hrgba('#FFEBEEDD')],
+        '重启过程可能需要几秒到数十秒', colors.rgba('#FFEBEEDD')],
         ['查看帮助', '#90CAF9'], ['B', '#A5D6A7'], ['K', '#EF9A9A'], 1,
     ], {
-        background: colorsx.hrgba('#7F000044'),
+        background: colors.rgba('#7F000044'),
         animation: 'input_method',
         dim_amount: 85,
     }).on('neutral', (d) => {
@@ -103,7 +102,7 @@ _view['btn_restart_process'].on('click', function () {
             ['about_process_restart', '#E1F5FE'],
             0, 0, ['B', '#A5D6A7'], 1,
         ], {
-            background: colorsx.hrgba('#00005139'),
+            background: colors.rgba('#00005139'),
             animation: 'input_method',
             dim_amount: 85,
         }).on('positive', (ds) => {
@@ -115,7 +114,7 @@ _view['btn_restart_process'].on('click', function () {
     }).on('positive', (d) => {
         dialogsx.setContentText(d, '正在重启进程...');
         dialogsx.setActionButton(d, ['neutral', 'negative', 'positive'], null);
-        appx.killProcess({pending_task: 'current+2s', is_async: true});
+        appx.killProcess({pending_task: 'current+2s', isAsync: true});
     }).show();
 });
 
@@ -124,7 +123,7 @@ _view['btn_help'].on('click', function () {
         ['about_memory_info', '#E1F5FE'],
         0, 0, ['B', '#A5D6A7'], 1,
     ], {
-        background: colorsx.hrgba('#00005139'),
+        background: colors.rgba('#00005139'),
         animation: 'input_method',
         dim_amount: 85,
     }).on('positive', d => d.dismiss()).show();
@@ -201,23 +200,23 @@ function _getConfigFromPreset(pct) {
     let preset = [{
         threshold: 0.9,
         sentiment: 'very_dissatisfied',
-        tint: {icon: '#8E24AA', text: colorsx.hrgba('#EA80FCDD')},
+        tint: {icon: '#8E24AA', text: colors.rgba('#EA80FCDD')},
     }, {
         threshold: 0.8,
         sentiment: 'dissatisfied',
-        tint: {icon: '#BF360C', text: colorsx.hrgba('#E57373DD')},
+        tint: {icon: '#BF360C', text: colors.rgba('#E57373DD')},
     }, {
         threshold: 0.6,
         sentiment: 'neutral',
-        tint: {icon: '#F9A825', text: colorsx.hrgba('#FFF176DD')},
+        tint: {icon: '#F9A825', text: colors.rgba('#FFF176DD')},
     }, {
         threshold: 0.3,
         sentiment: 'satisfied',
-        tint: {icon: '#558B2F', text: colorsx.hrgba('#B3E5FCDD')},
+        tint: {icon: '#558B2F', text: colors.rgba('#B3E5FCDD')},
     }, {
         threshold: 0,
         sentiment: 'very_satisfied',
-        tint: {icon: '#039BE5', text: colorsx.hrgba('#B3E5FCDD')},
+        tint: {icon: '#039BE5', text: colors.rgba('#B3E5FCDD')},
     }];
 
     return (_getConfigFromPreset = function (pct) {

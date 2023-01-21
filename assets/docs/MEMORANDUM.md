@@ -8,7 +8,7 @@ Thank [TonyJiangWJ](https://github.com/TonyJiangWJ) for the great idea :) .
 
 ```typescript
 runtime.getAccessibilityBridge()
-    .setWindowFilter(new com.stardust.autojs.core.accessibility
+    .setWindowFilter(new org.autojs.autojs.core.accessibility
         .AccessibilityBridge$WindowFilter({
             filter: (info: android.view.accessibility
                 .AccessibilityWindowInfo) => boolean,

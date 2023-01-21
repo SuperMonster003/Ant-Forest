@@ -50,7 +50,7 @@ let exp = {
             return this.startApp(20000067, app_id, url);
         }
         // @Overload
-        if (isPlainObject(url)) {
+        if (isObjectSpecies(url)) {
             return this.startApp(app_id, null, url);
         }
         return appx.startActivity({
@@ -80,14 +80,6 @@ let exp = {
             package: 'alipay',
             monitor: 'ensure_open',
         });
-    },
-    ensureAppInstalled() {
-        try {
-            context.getPackageManager().getApplicationInfo(this.package_name, 0);
-        } catch (e) {
-            consolex.w(e, 0, 0, 2);
-            consolex.$(['脚本无法继续', '此设备可能未安装"支付宝"应用'], 8, 4, 0, 2);
-        }
     },
 };
 

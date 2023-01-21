@@ -27,7 +27,7 @@ let exp = {
             },
             switchSet(state) {
                 this.last_state = this.state;
-                this.state = isPlainObject(state) ? state.isDebug : state;
+                this.state = isObjectSpecies(state) ? state.isDebug : state;
             },
             switchBack() {
                 // [this.state, this.last_state] = [this.last_state, this.state];
@@ -113,7 +113,7 @@ let exp = {
              * @return {function(msg: Consolex.Print.Message, msg_lv?: Consolex.Print.MessageLevel, indent_lv?: Consolex.Print.IndentLevel, border_line_lv?: Consolex.Print.BorderLevel)}
              */
             fuel(petrol) {
-                let _pet = isPlainObject(petrol) ? petrol.isDebug : petrol;
+                let _pet = isObjectSpecies(petrol) ? petrol.isDebug : petrol;
                 return new exp.DebugConstructor(_pet, _debug);
             },
             /**
@@ -343,7 +343,7 @@ let exp = {
                     if (Array.isArray(o)) {
                         return o.join(', ').surround('[ ');
                     }
-                    if (isPlainObject(o)) {
+                    if (isObjectSpecies(o)) {
                         return Object.keys(o).map(k => k + ': ' + o[k]).join(', ').surround('{ ');
                     }
                     if (o && typeof o.toString === 'function') {
@@ -386,7 +386,7 @@ let exp = {
                         border_line_break: _break,
                     } = this;
                     let {border_prefix: _prefix} = this.options;
-                    let _border_lv = (msg_lv === undefined ? 1 : Number(msg_lv) || 0).clamp(0, 1);
+                    let _border_lv = Numberx.clamp(msg_lv === undefined ? 1 : Number(msg_lv) || 0, [0, 1]);
                     let _border_it = [() => {
                         if (_style_before !== undefined && !this.no_msg_level) {
                             if (!_.last_border.match(_style_before, _border_lv)) {
@@ -447,7 +447,7 @@ let exp = {
             border(style, border_lv, break_lv, is_save_state, prefix) {
                 let $ = {
                     style: String(style || 'solid'),
-                    level: (border_lv === undefined ? 1 : Number(border_lv) || 0).clamp(0, 1),
+                    level: Numberx.clamp(border_lv === undefined ? 1 : Number(border_lv) || 0, [0, 1]),
                     break: '\n'.repeat(Math.max(Number(break_lv) || 0, 0)),
                     prefix: prefix === undefined ? '' : String(prefix) + ' ',
                     trigger() {

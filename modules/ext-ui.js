@@ -1,14 +1,13 @@
 let {isXMLType} = require('./mod-global');
 let {project} = require('./mod-project');
-let {colorsx} = require('./ext-colors');
 
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
 let Looper = android.os.Looper;
 let ActivityInfo = android.content.pm.ActivityInfo;
-let Colors = com.stardust.autojs.core.ui.inflater.util.Colors;
-let Dimensions = com.stardust.autojs.core.ui.inflater.util.Dimensions;
+let Colors = org.autojs.autojs.core.ui.inflater.util.Colors;
+let Dimensions = org.autojs.autojs.core.ui.inflater.util.Dimensions;
 
 let exp = {
     colors: {
@@ -47,9 +46,9 @@ let exp = {
             </vertical>);
 
         let _ui_view = {
-            /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
+            /** @type {org.autojs.autojs.core.ui.widget.JsLinearLayout} */
             main: ui['main'],
-            /** @type {com.stardust.autojs.core.ui.widget.JsLinearLayout} */
+            /** @type {org.autojs.autojs.core.ui.widget.JsLinearLayout} */
             sub_main: ui['sub_main'],
         };
 
@@ -243,14 +242,14 @@ let exp = {
      * @param {number} color
      */
     setColorFilter(view, color) {
-        view.setColorFilter(Colors.parse(view, colorsx.toStr(color)));
+        view.setColorFilter(Colors.parse(view, colors.toString(color)));
     },
     /**
      * @param {android.widget.TextView|android.widget.TextView[]} view
      * @param {Color$} color
      */
     setTextColor(view, color) {
-        let _set = v => v.setTextColor(colorsx.toInt(color));
+        let _set = v => v.setTextColor(colors.toInt(color));
         Array.isArray(view) ? view.forEach(_set) : _set(view);
     },
     /**
@@ -422,7 +421,7 @@ let exp = {
             setter: (view, name, value) => view.setTextSize(Number(value)),
         }, {
             attr_name: ['color', 'text_color'],
-            setter: (view, name, value) => view.setTextColor(colorsx.toInt(value)),
+            setter: (view, name, value) => view.setTextColor(colors.toInt(value)),
         }, {
             attr_name: 'line_spacing',
             setter(view, name, value) {
@@ -462,12 +461,12 @@ let exp = {
         }, {
             attr_name: 'text_color',
             setter(view, name, value) {
-                view.setTextColor(colorsx.toInt(value));
+                view.setTextColor(colors.toInt(value));
             },
         }, {
             attr_name: 'background_tint',
             setter(view, name, value) {
-                view.setBackgroundTintList(colorsx.toColorStateList(value));
+                view.setBackgroundTintList(colors.toColorStateList(value));
             },
         }]);
         this.registerWidget('x-img-button', function layout$iiFe() {
@@ -502,8 +501,8 @@ let exp = {
             attr_name: 'switch',
             setter(view, name, value) {
                 view['_img'].attr('tint_color', value === 'on'
-                    ? colorsx.hrgba('#AC1900BF')
-                    : colorsx.hrgba('#FFFFFF22'));
+                    ? colors.rgba('#AC1900BF')
+                    : colors.rgba('#FFFFFF22'));
             },
         }, {
             attr_name: 'on_click',
@@ -528,7 +527,7 @@ let exp = {
         }, {
             attr_name: 'text_color',
             setter(view, name, value) {
-                view['_text'].setTextColor(colorsx.toInt(value));
+                view['_text'].setTextColor(colors.toInt(value));
             },
         }, {
             attr_name: 'text_size',

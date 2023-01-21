@@ -1,7 +1,6 @@
 require('./mod-global');
 let {$$disp} = require('./ext-device');
 let {imagesx} = require('./ext-images');
-let {timersx} = require('./ext-timers');
 let {consolex} = require('./ext-console');
 
 let def = {};
@@ -58,7 +57,7 @@ let exp = {
             },
             add(capt, options) {
                 // @Overload
-                if (!imagesx.isImageWrapper(capt) && isPlainObject(capt)) {
+                if (!imagesx.isImageWrapper(capt) && isObjectSpecies(capt)) {
                     return this.add(null, capt);
                 }
                 let _opt = options || {};
@@ -112,7 +111,7 @@ let exp = {
     //  *     pool?: object,
     //  *     config?: {
     //  *         forestImagePoolLimit?: number,
-    //  *         forestImagePoolItv?: number,
+    //  *         forestImagePoolInterval?: number,
     //  *     },
     //  * }} [options]
     //  * @return {AntForest.EnergyBall.Result}
@@ -120,7 +119,7 @@ let exp = {
     // findEnergyBalls(options) {
     //     let _ = {
     //         defaultConfig: {
-    //             ripeBallDetectColorVal: '#DEFF00',
+    //             ripeBallDetectColorValue: '#DEFF00',
     //             ripeBallDetectThreshold: 13,
     //             energyBallsRecognitionRegion: [0.1, 0.15, 0.9, 0.45],
     //             houghSrcImageStrategy: {
@@ -137,7 +136,7 @@ let exp = {
     //             },
     //             minBallsDistance: 0.09,
     //             forestImagePoolLimit: 3,
-    //             forestImagePoolItv: 60,
+    //             forestImagePoolInterval: 60,
     //             homepageWaterBallMaxHueNoBlue: 47,
     //         },
     //         map: {
@@ -157,7 +156,7 @@ let exp = {
     //          * @type {typeof AntForest.EnergyBall.Info.Duration.duration}
     //          */
     //         duration: {
-    //             beginning: timersx.rec.save('houghBeginning'),
+    //             beginning: recorder.save('houghBeginning'),
     //         },
     //         balls: {
     //             /**
@@ -169,7 +168,7 @@ let exp = {
     //              * @param {AntForest.EnergyBall.Type} [type]
     //              */
     //             add(o, type) {
-    //                 if (!isPlainObject(o)) {
+    //                 if (!isObjectSpecies(o)) {
     //                     throw Error(`A "data" is required for "${this.add.name}"`);
     //                 }
     //                 if (typeof o.type !== 'string') {
@@ -444,14 +443,14 @@ let exp = {
     //                                     // e.g.(3/3): [5, 5, 5] (length)
     //                                     // @Ascend
     //                                     this.dimenGroups.sort((g1, g2) => {
-    //                                         let x = Math.std(g1);
-    //                                         let y = Math.std(g2);
+    //                                         let x = Mathx.std(g1);
+    //                                         let y = Mathx.std(g2);
     //                                         return x === y ? 0 : x > y ? 1 : -1;
     //                                     });
     //                                 }
     //                             },
     //                             getFirstDimenGroupMedian() {
-    //                                 return Math.median(this.getFirstDimenGroup());
+    //                                 return Mathx.median(this.getFirstDimenGroup());
     //                             },
     //                             isSameAsLatestDimen(dimen) {
     //                                 let latestDimen = this.getLatestDimen();
@@ -696,16 +695,16 @@ let exp = {
     //
     //             this.pool = this.options.pool || new exp.ForestImagePool({
     //                 limit: this.config.forestImagePoolLimit,
-    //                 interval: this.config.forestImagePoolItv,
+    //                 interval: this.config.forestImagePoolInterval,
     //                 isDebug: this.options.isDebug,
     //             });
     //         },
     //         fillUpPool() {
-    //             this.duration.fillUpPool = timersx.rec(
+    //             this.duration.fillUpPool = recorder(
     //                 function fillUp$BouND() {
     //                     let max = this.pool.limit + 1;
     //                     while (max--) {
-    //                         let et = timersx.rec(this.pool.add(this.options));
+    //                         let et = recorder(this.pool.add(this.options));
     //                         if (this.pool.isEmpty() || this.pool.isFilledUp()) {
     //                             break;
     //                         }
@@ -839,9 +838,9 @@ let exp = {
     //                 },
     //                 getImg(name, condition, imgGenerator) {
     //                     if (condition) {
-    //                         timersx.rec.save(name);
+    //                         recorder.save(name);
     //                         let _img = imgGenerator();
-    //                         let _et = timersx.rec(name);
+    //                         let _et = recorder(name);
     //                         _du[name] ? _du[name] = _et : _du[name] += _et;
     //                         _debug(`${_.map[name]}: ${_et}ms`);
     //                         return _img;
@@ -856,7 +855,7 @@ let exp = {
     //                         $.debug(`${_.map[name]}: discarded`);
     //                         return [];
     //                     }
-    //                     timersx.rec.save(`${name}_cir`);
+    //                     recorder.save(`${name}_cir`);
     //                     let _results = images
     //                         .findCircles(img, {
     //                             dp: 1,
@@ -893,7 +892,7 @@ let exp = {
     //
     //                     _debug(_.map[name] + ':' + ' '
     //                         + _results.length + 'cir in' + ' '
-    //                         + timersx.rec(name + '_cir') + 'ms');
+    //                         + recorder(name + '_cir') + 'ms');
     //
     //                     return _results;
     //                 },
@@ -945,7 +944,7 @@ let exp = {
     //             $p.addBalls();
     //
     //             let _proc_key = 'imgSamplesProcessing';
-    //             timersx.rec.save(_proc_key);
+    //             recorder.save(_proc_key);
     //
     //             /** @type {AntForest.EnergyBall.Basic[]} */
     //             let _wballs = [];
@@ -970,7 +969,7 @@ let exp = {
     //                 addBallsBAK();
     //             }
     //
-    //             _du[_proc_key] = timersx.rec(_proc_key);
+    //             _du[_proc_key] = recorder(_proc_key);
     //         },
     //         cleanUp() {
     //             if (typeof this.options.pool === 'object') {
@@ -992,7 +991,7 @@ let exp = {
     //                     ],
     //                     fillUpPool: _du.fillUpPool,
     //                     imgSamplesProcessing: _du.imgSamplesProcessing,
-    //                     total: timersx.rec('houghBeginning'),
+    //                     total: recorder('houghBeginning'),
     //                     debug() {
     //                         _debug.__();
     //                         _debug('图像填池: ' + this.fillUpPool + 'ms  ' + [
@@ -1042,7 +1041,7 @@ let exp = {
     //     return $.getResult();
     // },
     findEnergyBalls(options) {
-        timersx.rec.save('hough_beginning');
+        recorder.save('hough_beginning');
 
         let _opt = options || {};
         let _debug = consolex.debug.fuel(_opt);
@@ -1096,7 +1095,7 @@ let exp = {
                 ],
                 fill_up_pool: _du.fill_up_pool,
                 img_samples_processing: _du.img_samples_processing,
-                total: timersx.rec('hough_beginning'),
+                total: recorder('hough_beginning'),
                 debug() {
                     _debug.__();
                     _debug('图像填池: ' + this.fill_up_pool + 'ms\x20\x20' + [
@@ -1227,17 +1226,17 @@ let exp = {
         }
 
         function _fillUpForestImgPool() {
-            timersx.rec.save('fill_up_pool');
+            recorder.save('fill_up_pool');
             let _max = _pool.limit + 1;
             while (_max--) {
-                timersx.rec.save('forest_pool_add');
+                recorder.save('forest_pool_add');
                 _pool.add(options);
                 if (!_pool.len || _pool.filled_up) {
                     break;
                 }
-                sleep(_pool.interval - timersx.rec('forest_pool_add'));
+                sleep(_pool.interval - recorder('forest_pool_add'));
             }
-            _du.fill_up_pool = timersx.rec('fill_up_pool');
+            _du.fill_up_pool = recorder('fill_up_pool');
         }
 
         function _analyseEnergyBalls() {
@@ -1283,7 +1282,7 @@ let exp = {
                 }
 
                 let _proc_key = 'img_samples_processing';
-                timersx.rec.save(_proc_key);
+                recorder.save(_proc_key);
 
                 /** @type {Imagesx.EnergyBall.BasicProp[]} */
                 let _wballs = [];
@@ -1313,7 +1312,7 @@ let exp = {
                     _addBalls();
                 }
 
-                _du[_proc_key] = timersx.rec(_proc_key);
+                _du[_proc_key] = recorder(_proc_key);
 
                 _debug.__();
 
@@ -1321,9 +1320,9 @@ let exp = {
 
                 function _getImg(name, condition, imgGenerator) {
                     if (condition) {
-                        timersx.rec.save(name);
+                        recorder.save(name);
                         let _img = imgGenerator();
-                        let _et = timersx.rec(name);
+                        let _et = recorder(name);
                         _du[name] ? _du[name] = _et : _du[name] += _et;
                         _debug(_stg_name_map[name] + ':\x20' + _et + 'ms');
                         return _img;
@@ -1428,12 +1427,12 @@ let exp = {
                         }
                         if (_a.length > 1) {
                             _a.sort((o1, o2) => {
-                                let _a = Math.std(o1);
-                                let _b = Math.std(o2);
+                                let _a = Mathx.std(o1);
+                                let _b = Mathx.std(o2);
                                 return _a === _b ? 0 : _a > _b ? 1 : -1;
                             });
                         }
-                        return Math.median(_a[0]);
+                        return Mathx.median(_a[0]);
                     }
                 }
 
@@ -1615,7 +1614,7 @@ let exp = {
                         _debug(_stg_name_map[name] + ': discarded');
                         return [];
                     }
-                    timersx.rec.save(name + '_cir');
+                    recorder.save(name + '_cir');
                     let _results = images
                         .findCircles(img, {
                             dp: 1,
@@ -1631,7 +1630,7 @@ let exp = {
                             // yet x and y are absolute
                             let _x = Number(o.x + _l);
                             let _y = Number(o.y + _t);
-                            let _r = o.radius.toFixedNum(2);
+                            let _r = Numberx.toFixedNum(o.radius, 2);
                             let _d = _r * 2;
                             let _clip = images.clip(capt, _x - _r, _y - _r, _d, _d);
                             let _mean = imagesx.getMean(_clip);
@@ -1650,7 +1649,7 @@ let exp = {
                         .sort(_sortX);
                     imagesx.reclaim(img);
 
-                    let _et = timersx.rec(name + '_cir');
+                    let _et = recorder(name + '_cir');
                     _debug(_stg_name_map[name] + ':\x20' + _results.length + 'cir in\x20' + _et + 'ms');
 
                     return _results;
@@ -1728,10 +1727,10 @@ let exp = {
     // /**
     //  * @param {AntForest.EnergyBall.Property} ball
     //  * @param {{
-    //  *     capt?: ImageWrapper$,
+    //  *     capt?: org.autojs.autojs.core.image.ImageWrapper$,
     //  *     isDebug?: boolean,
     //  *     config?: {
-    //  *         ripeBallDetectColorVal: Color$,
+    //  *         ripeBallDetectColorValue: Color$,
     //  *         ripeBallDetectThreshold: number,
     //  *     },
     //  * }} options
@@ -1755,7 +1754,7 @@ let exp = {
     //         parseArgs() {
     //             this.capt = this.options.capt || imagesx.capt({isDebug: this.options.isDebug});
     //             this.config = this.options.config || {};
-    //             this.color = this.config.ripeBallDetectColorVal;
+    //             this.color = this.config.ripeBallDetectColorValue;
     //         },
     //         findColor() {
     //             return imagesx.findColor(this.capt, this.color, {
@@ -1770,7 +1769,7 @@ let exp = {
     // /**
     //  * @param {AntForest.EnergyBall.Property} ball
     //  * @param {{
-    //  *     capt?: ImageWrapper$,
+    //  *     capt?: org.autojs.autojs.core.image.ImageWrapper$,
     //  *     isDebug?: boolean,
     //  *     config?: {
     //  *         homepageWaterBallMaxHueNoBlue?: number,
@@ -1884,7 +1883,7 @@ let exp = {
             },
             parseArgs() {
                 this.tree = _.config.treeArea;
-                this.distPts = Math.dist(ball, this.tree);
+                this.distPts = Mathx.dist(ball, this.tree);
                 this.distMax = ball.r + this.tree.r;
             },
         };

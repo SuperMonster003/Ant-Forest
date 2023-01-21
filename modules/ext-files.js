@@ -275,7 +275,7 @@ let exp = {
             }
 
             if (_opt.is_delete_source) {
-                this.removeWithDirs(_i_path, {is_async: true});
+                this.removeWithDirs(_i_path, {isAsync: true});
             }
 
             return true;
@@ -465,7 +465,7 @@ let exp = {
             }
 
             if (_opt.is_delete_source) {
-                this.removeWithDirs(_i_path, {is_async: true});
+                this.removeWithDirs(_i_path, {isAsync: true});
             }
 
             return true;
@@ -511,7 +511,7 @@ let exp = {
      * @param {string} target - target path (absolute or relative directory)
      * @param {Object} [options]
      * @param {boolean} [options.is_unbundled=false]
-     * @param {boolean} [options.is_async=false]
+     * @param {boolean} [options.isAsync=false]
      * @param {function(name:string):boolean} [options.filter]
      * @param {Object} [callback]
      * @param {function():*} [callback.onStart]
@@ -620,10 +620,10 @@ let exp = {
             return _res;
         };
 
-        if (!_opt.is_async) {
+        if (!_opt.isAsync) {
             return _act();
         }
-        threadsx.start(_act);
+        threads.start(_act);
     },
     /**
      * Returns current Auto.js script dir path
@@ -637,7 +637,7 @@ let exp = {
             return Pref.getScriptDirPath();
         }
         // for Auto.js Pro versions
-        return com.stardust.autojs.core['pref']['Pref']['INSTANCE']['getScriptDirPath']();
+        return org.autojs.autojs.core['pref']['Pref']['INSTANCE']['getScriptDirPath']();
     },
     /**
      * @param {string} path
@@ -668,7 +668,7 @@ let exp = {
     /**
      * @param {string} path
      * @param {Object} [options]
-     * @param {boolean} [options.is_async=false]
+     * @param {boolean} [options.isAsync=false]
      * @param {Object} [callback]
      * @param {function():*} [callback.onStart]
      * @param {function():*} [callback.onRemoveStart]
@@ -724,7 +724,7 @@ let exp = {
         };
 
         try {
-            return _opt.is_async ? threadsx.start(_parseLv1Depth) : _parseLv1Depth();
+            return _opt.isAsync ? threads.start(_parseLv1Depth) : _parseLv1Depth();
         } catch (e) {
             _onFailure(e);
         }
@@ -772,7 +772,7 @@ let exp = {
     /**
      * @param {string|java.io.File} file
      * @param {Object} [options]
-     * @param {boolean} [options.is_async=false]
+     * @param {boolean} [options.isAsync=false]
      * @param {Object} [callback]
      * @param {function():*} [callback.onStart]
      * @param {function():*} [callback.onDeleteStart]
@@ -794,10 +794,10 @@ let exp = {
         let _onSuccess = _cbk.onDeleteSuccess || _cbk.onSuccess || (r => r);
         let _onFailure = _cbk.onDeleteFailure || _cbk.onFailure || console.error;
 
-        if (_opt.is_async) {
+        if (_opt.isAsync) {
             return _act();
         }
-        threadsx.start(_act);
+        threads.start(_act);
 
         // tool function(s) //
 

@@ -1,9 +1,6 @@
 /* Here, importClass() is not recommended for intelligent code completion in IDE like WebStorm. */
 /* The same is true of destructuring assignment syntax (like `let {Uri} = android.net`). */
 
-let Looper = android.os.Looper;
-let Toast = android.widget.Toast;
-let Runnable = java.lang.Runnable;
 let GZIPInputStream = java.util.zip.GZIPInputStream;
 let ByteArrayInputStream = java.io.ByteArrayInputStream;
 let ByteArrayOutputStream = java.io.ByteArrayOutputStream;
@@ -238,7 +235,7 @@ let ext = {
                     if (Array.isArray(o)) {
                         return o.length;
                     }
-                    if (!isPlainObject(o)) {
+                    if (!isObjectSpecies(o)) {
                         return -1;
                     }
                     let _arrayify = o => Array.isArray(o) ? o : o === undefined ? [] : [o];
@@ -334,7 +331,7 @@ let ext = {
                  * @return {T}
                  */
                 value(o) {
-                    return isPlainObject(o)
+                    return isObjectSpecies(o)
                         ? Object.create(Object.getPrototypeOf(o), Object.getOwnPropertyDescriptors(o))
                         : Array.isArray(o) ? o.slice() : o;
                 },
@@ -348,7 +345,7 @@ let ext = {
                  * @return {T}
                  */
                 value: function clone(o) {
-                    if (isPlainObject(o)) {
+                    if (isObjectSpecies(o)) {
                         let _tmp = {};
                         Object.getOwnPropertyNames(o).forEach((k) => {
                             let _des = Object.getOwnPropertyDescriptor(o, k);
@@ -371,7 +368,7 @@ let ext = {
                  * @return {boolean}
                  */
                 value: function isEqual(a, b) {
-                    if (isPlainObject(a) && isPlainObject(b)) {
+                    if (isObjectSpecies(a) && isObjectSpecies(b)) {
                         let _pna = Object.getOwnPropertyNames(a);
                         let _pnb = Object.getOwnPropertyNames(b);
                         return _pna.length === _pnb.length
@@ -380,6 +377,9 @@ let ext = {
                     if (Array.isArray(a) && Array.isArray(b)) {
                         return a.length === b.length
                             && a.every((e, i) => isEqual(e, b[i]));
+                    }
+                    if (Number.isNaN(a)) {
+                        return Number.isNaN(b);
                     }
                     return a === b;
                 },
@@ -394,7 +394,7 @@ let ext = {
                  */
                 value: function ensure(o, k, def) {
                     if (!Array.isArray(k)) {
-                        if (!isPlainObject(o)) {
+                        if (!isObjectSpecies(o)) {
                             throw Error('Param "o" must be a plain object');
                         }
                         if (typeof k === 'undefined') {
@@ -445,476 +445,6 @@ let ext = {
             });
         }
     },
-    number() {
-        if (!Number.prototype.ICU) {
-            Object.defineProperty(Number.prototype, 'ICU', {
-                value: (function $iiFe() {
-                    let _workdays = 5;
-                    let _weekends = 2;
-                    let _health = '[your health]';
-                    let _evil = 'Hard working only'
-                        .split(new RegExp(_health))
-                        .map(x => x ? x.charCodeAt(0) : 996 / _workdays / _weekends - _weekends)
-                        .reduce((x, y) => x + y);
-                    return Math.round(_evil);
-                })(),
-            });
-        }
-        if (!Number.prototype.clamp) {
-            Object.defineProperty(Number.prototype, 'clamp', {
-                /**
-                 * @param {...number|*} [args]
-                 * @return {number}
-                 */
-                value(args) {
-                    let _num = this.valueOf();
-                    let _args = (!Array.isArray(args) ? [].slice.call(arguments) : args)
-                        .map(x => Number(x)).filter(x => !isNaN(x))
-                        .sort((x, y) => x === y ? 0 : x > y ? 1 : -1);
-                    let _len = _args.length;
-                    if (_len) {
-                        let _min = _args[0];
-                        let _max = _args[_len - 1];
-                        if (_num < _min) {
-                            return _min;
-                        }
-                        if (_num > _max) {
-                            return _max;
-                        }
-                    }
-                    return _num;
-                },
-            });
-        }
-        if (!Number.prototype.toFixedNum) {
-            Object.defineProperty(Number.prototype, 'toFixedNum', {
-                /**
-                 * @param {number} [fraction=0]
-                 * @return {number}
-                 */
-                value(fraction) {
-                    return Number(this.toFixed(fraction));
-                },
-            });
-        }
-        if (!Number.prototype.padStart) {
-            if (String.prototype.padStart) {
-                /**
-                 * @param {number} target_len
-                 * @param {string|number} [pad_str=' ']
-                 * @return {string}
-                 */
-                Object.defineProperty(Number.prototype, 'padStart', {
-                    value(target_len, pad_str) {
-                        let _this = this.toString();
-                        return _this.padStart.call(_this, target_len, pad_str || 0);
-                    },
-                });
-            }
-        }
-        if (!Number.prototype.padEnd) {
-            if (String.prototype.padEnd) {
-                /**
-                 * @param {number} target_len
-                 * @param {string|number} [pad_str=' ']
-                 * @return {string}
-                 */
-                Object.defineProperty(Number.prototype, 'padEnd', {
-                    value(target_len, pad_str) {
-                        let _this = this.toString();
-                        return _this.padEnd.call(_this, target_len, pad_str || 0);
-                    },
-                });
-            }
-        }
-        if (!Number.parsePercent) {
-            Object.defineProperty(Number, 'parsePercent', {
-                /**
-                 * @param {Percentage$} percent
-                 * @return {number}
-                 */
-                value(percent) {
-                    if (typeof percent === 'string') {
-                        let _mch = percent.replace(/\s*/g, '').match(/^(\d+(?:\.\d+)?)(%+)$/);
-                        if (_mch) {
-                            let _res = Number(_mch[1]);
-                            for (let i = 0, max = _mch[2].length; i < max; i += 1) {
-                                _res /= 100;
-                            }
-                            return _res;
-                        }
-                    }
-                    return NaN;
-                },
-            });
-        }
-    },
-    math() {
-        let $ = {
-            parseArgs(num_arr, fraction) {
-                let _arr, _fraction;
-                if (Array.isArray(num_arr)) {
-                    _arr = this.spreadArr(num_arr);
-                    _fraction = fraction;
-                } else {
-                    _arr = this.spreadArr(arguments);
-                }
-                return [_arr, _fraction];
-            },
-            spreadArr(arr) {
-                let _plain = [];
-                let _len = (arr || []).length;
-                for (let i = 0; i < _len; i += 1) {
-                    let _e = arr[i];
-                    Array.isArray(_e)
-                        ? _plain = _plain.concat(this.spreadArr(_e))
-                        : _plain.push(_e);
-                }
-                return _plain;
-            },
-        };
-
-        if (!Math.rand) {
-            Object.defineProperty(Math, 'rand', {
-                /**
-                 * @param {number[]|number} [range=[0,1]]
-                 * @param {number} [fraction]
-                 * @return {number}
-                 */
-                value(range, fraction) {
-                    let _min, _max;
-                    let _gap = () => _max - _min;
-
-                    if (!Array.isArray(range)) {
-                        range = [0, range || 1];
-                    }
-                    range = range
-                        .map(x => typeof x === 'number' && !isFinite(x) && !isNaN(x)
-                            ? Object.is(0 / x, 0)
-                                ? Number.MAX_SAFE_INTEGER
-                                : Number.MIN_SAFE_INTEGER
-                            : +x)
-                        .filter(x => !isNaN(x))
-                        .sort((a, b) => a === b ? 0 : a > b ? 1 : -1);
-                    _min = range[0];
-                    _max = range[range.length - 1];
-
-                    let _rand = Math.random() * _gap() + _min;
-                    if (typeof fraction === 'undefined') {
-                        return _rand;
-                    }
-                    if (Object.is(fraction, -0)) {
-                        return Math.floor(_rand);
-                    }
-                    return +_rand.toFixed(+fraction || 0);
-                },
-            });
-        }
-        if (!Math.sum) {
-            Object.defineProperty(Math, 'sum', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    if (!_arr.length) {
-                        return 0;
-                    }
-                    let _sum = _arr.reduce((a, b) => {
-                        let [_a, _b] = [+a, +b].map(x => isNaN(x) ? 0 : x);
-                        return _a + _b;
-                    });
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _sum : +_sum.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.avg) {
-            Object.defineProperty(Math, 'avg', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    if (!_filtered.length) {
-                        return NaN;
-                    }
-                    let _sum = _filtered.reduce((a, b) => +a + +b);
-                    let _avg = _sum / _filtered.length;
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _avg : +_avg.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.median) {
-            Object.defineProperty(Math, 'median', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    if (!_filtered.length) {
-                        return NaN;
-                    }
-                    _filtered.sort((a, b) => {
-                        let _a = Number(a);
-                        let _b = Number(b);
-                        return _a === _b ? 0 : _a > b ? 1 : -1;
-                    });
-                    let _len = _filtered.length;
-                    let _med = _len % 2
-                        ? _filtered[Math.floor(_len / 2)]
-                        : (_filtered[_len / 2 - 1] + _filtered[_len / 2]) / 2;
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _med : +_med.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.var) {
-            Object.defineProperty(Math, 'var', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    if (!_arr.length) {
-                        return NaN;
-                    }
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    let _avg = Math.avg(_filtered);
-                    let _len = _filtered.length;
-
-                    let _acc = 0;
-                    for (let i = 0; i < _len; i += 1) {
-                        _acc += Math.pow((_filtered[i] - _avg), 2);
-                    }
-                    let _var = _acc / _len;
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _var : +_var.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.std) {
-            Object.defineProperty(Math, 'std', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    if (!_arr.length) {
-                        return NaN;
-                    }
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    let _std = Math.sqrt(Math.var(_filtered));
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _std : +_std.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.cv) {
-            Object.defineProperty(Math, 'cv', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let [_arr, _frac] = $.parseArgs.apply($, arguments);
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    let _len = _filtered.length;
-                    if (_len < 2) {
-                        return NaN;
-                    }
-
-                    let _avg = Math.avg(_filtered);
-                    let _acc = 0;
-                    for (let i = 0; i < _len; i += 1) {
-                        _acc += Math.pow((_filtered[i] - _avg), 2);
-                    }
-                    /**
-                     * Sample Standard Deviation (zh-CN: 样本标准差)
-                     * @type {number}
-                     */
-                    let _std_smp = Math.pow(_acc / (_len - 1), 0.5);
-                    let _cv = _std_smp / _avg;
-                    let _frac_num = parseInt(_frac);
-                    return isNaN(_frac_num) ? _cv : +_cv.toFixed(_frac_num);
-                },
-            });
-        }
-        if (!Math.maxi) {
-            Object.defineProperty(Math, 'maxi', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let _arr, _fraction;
-
-                    if (Array.isArray(num)) {
-                        _arr = $.spreadArr(num);
-                        _fraction = fraction;
-                    } else {
-                        _arr = $.spreadArr(arguments);
-                    }
-
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    let _max = Math.max.apply(null, _filtered);
-                    let _frac = parseInt(_fraction);
-                    return isNaN(_frac) ? _max : +_max.toFixed(_frac);
-                },
-            });
-        }
-        if (!Math.mini) {
-            Object.defineProperty(Math, 'mini', {
-                /**
-                 * @param {number|number[]} [num]
-                 * @param {?number} [fraction]
-                 * @return {number}
-                 */
-                value(num, fraction) {
-                    let _arr, _fraction;
-
-                    if (Array.isArray(num)) {
-                        _arr = $.spreadArr(num);
-                        _fraction = fraction;
-                    } else {
-                        _arr = $.spreadArr(arguments);
-                    }
-
-                    let _filtered = _arr.filter(x => !isNaN(+x));
-                    let _min = Math.min.apply(null, _filtered);
-                    let _frac = parseInt(_fraction);
-                    return isNaN(_frac) ? _min : +_min.toFixed(_frac);
-                },
-            });
-        }
-        if (!Math.dist) {
-            Object.defineProperty(Math, 'dist', {
-                /**
-                 * @param {number[]|{x:number,y:number}} point1
-                 * @param {number[]|{x:number,y:number}} point2
-                 * @return {number}
-                 */
-                value(point1, point2) {
-                    if (Array.isArray(point1) && Array.isArray(point2)) {
-                        let _a = Math.pow(point2[0] - point1[0], 2);
-                        let _b = Math.pow(point2[1] - point1[1], 2);
-                        return Math.sqrt(_a + _b);
-                    }
-                    if (isPlainObject(point1) && isPlainObject(point2)) {
-                        let _a = Math.pow(point2.x - point1.x, 2);
-                        let _b = Math.pow(point2.y - point1.y, 2);
-                        return Math.sqrt(_a + _b);
-                    }
-                    return NaN;
-                },
-            });
-        }
-        if (!Math.logMn) {
-            Object.defineProperty(Math, 'logMn', {
-                /**
-                 * @param {number} base
-                 * @param {number} antilogarithm
-                 * @param {number} [fraction=13]
-                 * @return {number}
-                 */
-                value(base, antilogarithm, fraction) {
-                    let _frac = typeof fraction === 'number' ? fraction : 13;
-                    let _result = Math.log(antilogarithm) / Math.log(base);
-                    if (isNaN(_result) || !isFinite(_result) || _frac !== -1) {
-                        return _result;
-                    }
-                    return Number(_result.toFixed(_frac));
-                },
-            });
-        }
-        if (!Math.floorLog) {
-            Object.defineProperty(Math, 'floorLog', {
-                /**
-                 * @param {number} base
-                 * @param {number} antilogarithm
-                 * @return {number}
-                 */
-                value(base, antilogarithm) {
-                    return Math.floor(this.logMn(base, antilogarithm));
-                },
-            });
-        }
-        if (!Math.ceilLog) {
-            Object.defineProperty(Math, 'ceilLog', {
-                /**
-                 * @param {number} base
-                 * @param {number} antilogarithm
-                 * @return {number}
-                 */
-                value(base, antilogarithm) {
-                    return Math.ceil(this.logMn(base, antilogarithm));
-                },
-            });
-        }
-        if (!Math.roundLog) {
-            Object.defineProperty(Math, 'roundLog', {
-                /**
-                 * @param {number} base
-                 * @param {number} antilogarithm
-                 * @return {number}
-                 */
-                value(base, antilogarithm) {
-                    return Math.round(this.logMn(base, antilogarithm));
-                },
-            });
-        }
-        if (!Math.floorPow) {
-            Object.defineProperty(Math, 'floorPow', {
-                /**
-                 * @param {number} base
-                 * @param {number} power
-                 * @return {number}
-                 */
-                value(base, power) {
-                    return Math.pow(base, this.floorLog(base, power));
-                },
-            });
-        }
-        if (!Math.ceilPow) {
-            Object.defineProperty(Math, 'ceilPow', {
-                /**
-                 * @param {number} base
-                 * @param {number} power
-                 * @return {number}
-                 */
-                value(base, power) {
-                    return Math.pow(base, this.ceilLog(base, power));
-                },
-            });
-        }
-        if (!Math.roundPow) {
-            Object.defineProperty(Math, 'roundPow', {
-                /**
-                 * @param {number} base
-                 * @param {number} power
-                 * @return {number}
-                 */
-                value(base, power) {
-                    return Math.pow(base, this.roundLog(base, power));
-                },
-            });
-        }
-    },
 };
 
 /**
@@ -929,7 +459,7 @@ module.exports = {
     $$bigint: x => typeof x === 'bigint',
     $$func: f => typeof f === 'function',
     $$arr: o => Array.isArray(o),
-    $$obj: o => isPlainObject(o),
+    $$obj: o => isObjectSpecies(o),
     $$rex: o => o instanceof RegExp,
     $$xml: o => /^xml$/.test(typeof o),
     $$T: o => o === true,
@@ -994,18 +524,18 @@ module.exports = {
         return true;
     },
     isEmptyObject(o) {
-        return isPlainObject(o)
+        return isObjectSpecies(o)
             && Object.keys(Object.getOwnPropertyDescriptors(o)).length === 0;
     },
     isNonEmptyObject(o) {
-        return isPlainObject(o)
+        return isObjectSpecies(o)
             && Object.keys(Object.getOwnPropertyDescriptors(o)).length > 0;
     },
     isNormalFunction(f) {
-        return typeof f === 'function' && isPlainObject(f.prototype);
+        return typeof f === 'function' && isObjectSpecies(f.prototype);
     },
     isArrowFunction(f) {
-        return typeof f === 'function' && !isPlainObject(f.prototype);
+        return typeof f === 'function' && !isObjectSpecies(f.prototype);
     },
     isXMLType(o) {
         return /^xml$/.test(typeof o);

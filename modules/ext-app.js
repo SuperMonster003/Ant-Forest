@@ -3,7 +3,6 @@ let {
 } = require('./mod-global');
 let {a11yx} = require('./ext-a11y');
 let {devicex} = require('./ext-device');
-let {timersx} = require('./ext-timers');
 let {consolex} = require('./ext-console');
 let {threadsx} = require('./ext-threads');
 
@@ -14,7 +13,6 @@ let Uri = android.net.Uri;
 let Runtime = java.lang.Runtime;
 let Manifest = android.Manifest;
 let Process = android.os.Process;
-let Intent = android.content.Intent;
 let Context = android.content.Context;
 let System = android.provider.Settings.System;
 let ApplicationInfo = android.content.pm.ApplicationInfo;
@@ -23,11 +21,11 @@ let ActivityManager = android.app.ActivityManager;
 let ScriptFile = org.autojs.autojs.model.script.ScriptFile;
 let ActivityNotFoundException = android.content.ActivityNotFoundException;
 let ShortcutCreateActivity = org.autojs.autojs.ui.shortcut.ShortcutCreateActivity;
-let TimerThread = com.stardust.autojs.core.looper.TimerThread;
+let TimerThread = org.autojs.autojs.core.looper.TimerThread;
 
 let _ = {
     alipay_pkg: 'com.eg.android.AlipayGphone',
-    autojs_pkg: context.getPackageName(),
+    autojsPackageName: context.getPackageName(),
     pkg_mgr: context.getPackageManager(),
     get autojs_ver() {
         // Pro version(s) (e.g. 8.8.16-0) returns abnormal value like '${xxx.xxx}'
@@ -223,7 +221,7 @@ let exp = {
             parsePkgName() {
                 if (typeof source === 'string') {
                     if (source.match(/^auto\.?js$/i)) {
-                        return _.autojs_pkg;
+                        return _.autojsPackageName;
                     }
                     if (source.match(/^current$/i)) {
                         return currentPackage();
@@ -457,7 +455,7 @@ let exp = {
      * @example
      * appx.launch('com.eg.android.AlipayGphone');
      * appx.launch('com.eg.android.AlipayGphone', {
-     *    task_name: '\u652F\u4ED8\u5B9D\u6D4B\u8BD5',
+     *    taskName: '\u652F\u4ED8\u5B9D\u6D4B\u8BD5',
      *    // is_show_toast: true,
      * });
      * appx.launch({
@@ -465,7 +463,7 @@ let exp = {
      *     data: 'alipays://platformapi/startapp?appId=60000002&appClearTop=false&startMultApp=YES',
      * }, {
      *     package_name: 'com.eg.android.AlipayGphone',
-     *     task_name: '\u8682\u8681\u68EE\u6797',
+     *     taskName: '\u8682\u8681\u68EE\u6797',
      *     condition_launch: () => currentPackage().match(/AlipayGphone/),
      *     condition_ready: () => descMatches(/../).find().size() > 6,
      *     launch_retry_times: 4,
@@ -482,7 +480,7 @@ let exp = {
                 start() {
                     if (typeof $.options.disturbance === 'function') {
                         $.debug('已开启干扰排除线程');
-                        this.thread = threadsx.start(() => {
+                        this.thread = threads.start(() => {
                             while (1) {
                                 sleep(1.2e3);
                                 $.options.disturbance();
@@ -501,7 +499,7 @@ let exp = {
                 this.options.no_impeded || typeof $$impeded === 'function' && $$impeded('appx.launch');
             },
             parseTrigger() {
-                this.trigger = !isNullish(trigger) ? trigger : _.autojs_pkg;
+                this.trigger = !isNullish(trigger) ? trigger : _.autojsPackageName;
                 this.debug('启动参数类型: ' + typeof this.trigger);
             },
             parsePackage() {
@@ -512,7 +510,7 @@ let exp = {
                 if (typeof this.trigger === 'string' && app.getAppName(this.trigger)) {
                     return this.pkg_name = this.trigger;
                 }
-                if (isPlainObject(this.trigger)) {
+                if (isObjectSpecies(this.trigger)) {
                     if (this.trigger.packageName) {
                         return this.pkg_name = this.trigger.packageName;
                     }
@@ -546,12 +544,12 @@ let exp = {
                 this.app_name_quo = this.app_name.surround('"');
             },
             parseTaskName() {
-                let _name = this.options.task_name || this.app_name || String();
+                let _name = this.options.taskName || this.app_name || String();
 
-                this.task_name = _name.replace(/^['"]?(.*?)['"]?$/, '$1');
-                this.debug('启动目标名称: ' + this.task_name);
+                this.taskName = _name.replace(/^['"]?(.*?)['"]?$/, '$1');
+                this.debug('启动目标名称: ' + this.taskName);
 
-                this.task_name_quo = this.task_name.surround('"');
+                this.task_name_quo = this.taskName.surround('"');
             },
             wrapDebug() {
                 this.debug = consolex.debug.fuel(this.options.isDebug);
@@ -616,7 +614,7 @@ let exp = {
                 });
             },
             parseToast() {
-                this.toast_message = this.task_name
+                this.toast_message = this.taskName
                     ? '开始' + this.task_name_quo + '任务'
                     : '启动' + this.app_name_quo + '应用';
                 this.is_show_toast = this.options.is_show_toast && this.options.is_show_toast !== 'none';
@@ -734,7 +732,7 @@ let exp = {
      * @return {Intent}
      */
     getLaunchIntentForPackage(pkg) {
-        return _.pkg_mgr.getLaunchIntentForPackage(pkg || _.autojs_pkg);
+        return _.pkg_mgr.getLaunchIntentForPackage(pkg || _.autojsPackageName);
     },
 
     /**
@@ -877,8 +875,8 @@ let exp = {
      * Main process of Auto.js will be killed
      * @param {{
      *     pid?: number,
-     *     is_async?: boolean,
-     *     pending_task?: Timersx.TimedTask.Disposable|'launcher'|'launcher+3s'|'current'|'current+3s'|string,
+     *     isAsync?: boolean,
+     *     pending_task?: Tasks.TimedTask.Disposable|'launcher'|'launcher+3s'|'current'|'current+3s'|string,
      * }} [options]
      */
     killProcess(options) {
@@ -898,7 +896,7 @@ let exp = {
                         return {
                             path: engines.myEngine().getSource(),
                             date: Date.now() + (_mch_min ? _mch_min[0] : 5) * 1e3,
-                            is_async: $.options.is_async,
+                            isAsync: $.options.isAsync,
                         };
                     }
                 }
@@ -906,7 +904,7 @@ let exp = {
             },
             addTask() {
                 if ((this.pending_task = this.options.pending_task)) {
-                    timersx.addDisposableTask(Object.assign(this.parseTask(), {
+                    tasks.addDisposableTask(Object.assign(this.parseTask(), {
                         callback() {
                             $.killNow();
                         },
@@ -945,7 +943,7 @@ let exp = {
      */
     hasRoot() {
         try {
-            // 1. com.stardust.autojs.core.util.ProcessShell
+            // 1. org.autojs.autojs.core.util.ProcessShell
             //    .execCommand('date', true).code === 0;
             //    code above doesn't work on Auto.js Pro
             // 2. some devices may stop the script without

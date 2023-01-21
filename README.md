@@ -2,7 +2,7 @@
 
 <div align="center">
   <p>
-    <img alt="AF_Banner" src="https://github.com/SuperMonster002/Hello-Sockpuppet/raw/master/ant-forest-banner_374×106.png"/>
+    <img alt="AF_Banner" src="https://raw.githubusercontent.com/SuperMonster002/Hello-Sockpuppet/master/ant-forest-banner_374%C3%97106.png"/>
   </p>
 
   <p>基于 Auto.js 的蚂蚁森林能量自动收取脚本</p>
@@ -11,10 +11,9 @@
   <p>
     <a href="https://github.com/SuperMonster003/Ant-Forest/releases/latest"><img alt="GitHub release (latest by date)" src="https://img.shields.io/github/v/release/SuperMonster003/Ant-Forest"/></a>
     <a href="https://github.com/SuperMonster003/Ant-Forest/issues"><img alt="GitHub closed issues" src="https://img.shields.io/github/issues/SuperMonster003/Ant-Forest?color=009688"/></a>
-    <a href="https://github.com/SuperMonster003/AutoJs6"><img alt="GitHub AutoJs6 repository" src="https://img.shields.io/badge/auto.js->= 6.0.1-67a91b"/></a>
+    <a href="https://github.com/SuperMonster003/AutoJs6"><img alt="GitHub AutoJs6 repository" src="https://img.shields.io/badge/auto.js->= 6.2.0-67a91b"/></a>
     <a href="https://github.com/topics/javascript"><img alt="GitHub top language" src="https://img.shields.io/github/languages/top/SuperMonster003/Ant-Forest?color=eb8031"/></a>
     <a href="https://www.codefactor.io/repository/github/SuperMonster003/Ant-Forest"><img alt="CodeFactor Grade" src="https://www.codefactor.io/repository/github/SuperMonster003/Ant-Forest/badge"/></a>
-    <a href="https://lgtm.com/projects/g/SuperMonster003/Ant-Forest/?mode=list"><img alt="LGTM Grade" src="https://img.shields.io/lgtm/grade/javascript/github/SuperMonster003/Ant-Forest?label=lgtm"/></a>
     <br>
     <a href="https://github.com/SuperMonster003/Ant-Forest/commit/d43a0119b214a17062501ea8a938b13bd97d2028"><img alt="Created" src="https://img.shields.io/date/1552924800?color=2e7d32&label=created"/></a>
     <a href="https://github.com/SuperMonster003/Ant-Forest/find/master"><img alt="GitHub Code Size" src="https://img.shields.io/github/languages/code-size/SuperMonster003/Ant-Forest?color=795548"/></a>
@@ -31,21 +30,21 @@
 
 ******
 
-| Status | Task | Date | Cost | Progress |
-| :---: | --- | :---: | :---: | :---: |
-| ✔️ | 推迟任务加入下次关屏选项 | 2021-11-01 18:16:56 | 5 | 1 |
-| ✔️ | 能量雨加入近似区域点击检测 | 2021-10-27 14:48:18 | 3 | 1 |
-| ✔️ | v2.2.0 发布后检查 documents 相关的链接 | 2021-10-26 23:07:16 | 1 | 1 |
-| ✒️ | 扩展模块及插件重构 | 2021-10-26 14:37:07 | ! 8 | 0.39 <!-- 13 / 33 --> |
-| ✒️ | 排行榜策略加入黑名单检测方案配置 (#529) | 2021-10-31 18:57:17 | ! 5 | 0.00 |
-| ✒️ | 事件监测配置 (#533) <!-- REM#1 --> | 2021-10-26 10:50:40 | ! 6 | 0.00 <!-- 0 / 3 --> |
-| ✒️ | 自动关闭屏幕配置 (#476) <!-- REM#4 --> | 2021-10-26 11:15:11 | ! 6 | 0.00 |
-| ✒️ | 提取 JSDoc@typedef 到 TS 声明文件 | 2021-10-25 22:25:18 | 10 | 0.94 <!-- 1 - 5 / 86 --> |
-| ✒️ | 保护地巡护工具 | 2021-10-26 10:34:25 | 9 | 0.20 <!-- est --> |
-| ✒️ | 将 tool functions 转换为 OOP | 2021-10-25 22:24:13 | 10 | 0.18 <!-- 1 - 208 / 256 --> |
-| ✒️ | 分离 appx 模块 (autojs / alipay ...) | 2021-10-25 22:24:13 | 6 | 0.17 <!-- 1 - 24 / 29 --> |
-| ✒️ | 启动器模块化 | 2021-10-26 08:25:42 | 10 | 0.00 <!-- 1 -  6947 / 6998 --> |
-| ✒️ | 配置工具模块化 | 2021-10-26 08:24:34 | 10 | 0.00 <!-- 1 - 8152 / 8138 --> |
+| Status | Task                             |        Date         | Cost |            Progress            |
+|:------:|----------------------------------|:-------------------:|:----:|:------------------------------:|
+|   ✔️   | 推迟任务加入下次关屏选项                     | 2021-11-01 18:16:56 |  5   |               1                |
+|   ✔️   | 能量雨加入近似区域点击检测                    | 2021-10-27 14:48:18 |  3   |               1                |
+|   ✔️   | v2.2.0 发布后检查 documents 相关的链接     | 2021-10-26 23:07:16 |  1   |               1                |
+|   ✒️   | 扩展模块及插件重构                        | 2021-10-26 14:37:07 | ! 8  |     0.39 <!-- 13 / 33 -->      |
+|   ✒️   | 排行榜策略加入黑名单检测方案配置 (#529)          | 2021-10-31 18:57:17 | ! 5  |              0.00              |
+|   ✒️   | 事件监测配置 (#533) <!-- REM#1 -->     | 2021-10-26 10:50:40 | ! 6  |      0.00 <!-- 0 / 3 -->       |
+|   ✒️   | 自动关闭屏幕配置 (#476) <!-- REM#4 -->   | 2021-10-26 11:15:11 | ! 6  |              0.00              |
+|   ✒️   | 提取 JSDoc@typedef 到 TS 声明文件       | 2021-10-25 22:25:18 |  10  |    0.94 <!-- 1 - 5 / 86 -->    |
+|   ✒️   | 保护地巡护工具                          | 2021-10-26 10:34:25 |  9   |       0.20 <!-- est -->        |
+|   ✒️   | 将 tool functions 转换为 OOP         | 2021-10-25 22:24:13 |  10  |  0.18 <!-- 1 - 208 / 256 -->   |
+|   ✒️   | 分离 appx 模块 (autojs / alipay ...) | 2021-10-25 22:24:13 |  6   |   0.17 <!-- 1 - 24 / 29 -->    |
+|   ✒️   | 启动器模块化                           | 2021-10-26 08:25:42 |  10  | 0.00 <!-- 1 -  6947 / 6998 --> |
+|   ✒️   | 配置工具模块化                          | 2021-10-26 08:24:34 |  10  | 0.00 <!-- 1 - 8152 / 8138 -->  |
 
 > 全部待办事项可参阅 [TODO.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/TODO.md) (共计 56 项)
 
@@ -64,23 +63,23 @@
 - [AutoJs6](https://github.com/SuperMonster003/AutoJs6/releases/latest) (`开源免费`)
 
 > 自 v2.3.0 起将仅支持使用 AutoJs6 运行当前项目  
-> 因项目运行依赖于 [Rhino 引擎](https://github.com/mozilla/rhino) 的部分 [新特性](https://github.com/SuperMonster003/AutoJs6/blob/master/app/src/main/assets/doc/RHINO.md) 及 AutoJs6 的部分自定义模块
+> 因项目运行依赖于 [Rhino 引擎](https://github.com/mozilla/rhino) 的部分 [新特性](https://github.com/SuperMonster003/AutoJs6/blob/master/app/src/main/assets/doc/RHINO.md) 及 AutoJs6 的部分新 API 及内置模块
 
 3. 下载并部署项目 (任意一种方式)
 
 - [下载项目部署工具](https://raw.githubusercontent.com/SuperMonster003/Ant-Forest/master/tools/ant-forest-deployment-tool.min.js) (`*.js`)
     1. 将部署工具 (脚本文件) `保存` 或 `另存为` 至本地存储
-    2. 用 `Auto.js` 直接运行 (或导入后运行) 脚本文件完成部署
-    3. 部署后可能需要关闭并重启 `Auto.js` 才能看到项目目录
+    2. 用 `AutoJs6` 直接运行 (或导入后运行) 脚本文件完成部署
+    3. 部署后可能需要关闭并重启 `AutoJs6` 才能看到项目目录
 - [下载最新项目数据包](https://github.com/SuperMonster003/Ant-Forest/archive/master.zip) (`*.zip`)
     1. 将项目数据包解压到本地存储
     2. 定位到设备的内部存储目录 如:  
        `/内部存储/` `/Internal Storage/` `/sdcard/` `/storage/emulated/0/` 等
-    3. 在此目录下找到 `Auto.js` 默认工作目录  
+    3. 在此目录下找到 `AutoJs6` 默认工作目录  
        · 中文系统默认目录 `./脚本/`  
        · 英文系统默认目录 `./Scripts/`
     4. 若不存在则需手动建立工作目录  
-       或在 `Auto.js` 软件中设置工作目录
+       或在 `AutoJs6` 软件中设置工作目录
     5. 将解压后的项目文件夹放置在工作目录中
 
 > 项目支持更新版本的自动检查/提示/下载/版本忽略等相关功能
@@ -162,6 +161,12 @@
 
 [comment]: <> (Version history only shows last 3 versions)
 
+# v2.3.1
+
+###### 2023/01/21
+
+* `修复` 蚂蚁森林页面更新后无法收取自己及好友能量的问题
+
 # v2.3.0
 
 ###### 2022/03/20 - 代码重构 谨慎升级
@@ -181,16 +186,6 @@
 * `管理` 项目图片资源文件夹移除打赏二维码并迁移至README.md中
 * `管理` 项目图片资源文件夹内增加.nomedia防止媒体库中出现无关资源
 
-# v2.2.1
-
-###### 2021/10/27
-
-* `修复` 能量雨工具运行时旧窗口实例没有按预期移除的问题
-* `修复` 能量雨工具增加近似区域点击检测避免错误的结束条件检测 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952476244)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
-* `修复` imagesx.concat()潜在的内存泄漏问题 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527#issuecomment-952084434)_
-* `修复` a11yx扩展模块无阻塞方法内部arguments的语法错误 _[`issue #527`](https://github.com/SuperMonster003/Ant-Forest/issues/527)_ _[`#530`](https://github.com/SuperMonster003/Ant-Forest/issues/530)_
-* `修复` Pro版本Auto.js内存管理工具重启进程后的任务残余 (试修) _[`issue #528`](https://github.com/SuperMonster003/Ant-Forest/issues/528)_
-
 ##### 更多版本历史可参阅
 
 * [CHANGELOG-2.md](https://github.com/SuperMonster003/Ant-Forest/blob/master/assets/docs/CHANGELOG-2.md)  ( 2.x 版本 )
@@ -205,7 +200,7 @@
 * [Auto.js](https://github.com/hyb1996/Auto.js) { author: [hyb1996](https://github.com/hyb1996) }
     - `安卓平台 JavaScript 自动化工具`
 * [Auto.js-TypeScript-Declarations](https://github.com/SuperMonster003/Auto.js-TypeScript-Declarations) { author: [SuperMonster003](https://github.com/SuperMonster003) }
-    - `Auto.js 声明文件 (.d.ts)`
+    - `Auto.js 声明文件 (d.ts)`
 
 ******
 

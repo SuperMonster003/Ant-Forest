@@ -117,7 +117,7 @@ module.exports = {
         '如有疑问或疑虑\n' +
         '可按音量键强制停止脚本\n' +
         '成功登陆后再重新运行脚本',
-    account_log_back_in_max_continuous_times: // 最大连续回切次数
+    accountLogBackInMaxContinuousTimes: // 最大连续回切次数
         '计数器达最大次数时将不再回切\n' +
         '且计数器将自动清零\n\n' +
         '* 设置 0 值可不限制回切次数\n' +
@@ -145,7 +145,7 @@ module.exports = {
         '推迟分钟按以下方案逐次增量\n' +
         '[ 1, 1, 2, 3, 5, 8, 10 ]\n' +
         '达到 10 后将一直保持 10 分钟',
-    forest_balls_click_duration: // 能量球点击时长
+    forestBallsClickDuration: // 能量球点击时长
         '此设置值影响能量球的点击时间\n' +
         '点击方法采用press()\n\n' +
         '注意:\n' +
@@ -154,7 +154,7 @@ module.exports = {
         '2. 好友森林能量球 (绿/橙/金)\n\n' +
         '设置过小值可能造成点击不被响应\n' +
         '设置过大值将影响快速收取体验',
-    forest_balls_click_interval: // 能量球点击间隔
+    forestBallsClickInterval: // 能量球点击间隔
         '当可点击的能量球数量超过 1 时\n' +
         '此设置值影响能量球之间的点击间隔\n\n' +
         '注意:\n' +
@@ -176,7 +176,7 @@ module.exports = {
         '统计出可同时适配白天及黑夜场景\n' +
         '且数值出现概率合适的极大值\n' +
         '将此值作为参数值即可实现匹配',
-    homepage_monitor_threshold: // 主页能量球循环监测阈值
+    homepageMonitorThreshold: // 主页能量球循环监测阈值
         '当进入主页存在未成熟能量球\n' +
         '且最小成熟倒计时达到阈值时\n' +
         '将循环监测直到能量球成熟并收取\n' +
@@ -185,7 +185,7 @@ module.exports = {
         '则继续重复循环监测操作\n' +
         '直到没有未成熟能量球\n' +
         '或最小倒计时未达到设定阈值为止',
-    homepage_bg_monitor_threshold: // 主页能量球返检阈值
+    homepageBackgroundMonitorThreshold: // 主页能量球返检阈值
         '好友排行榜操作期间\n' +
         '若主页能量最小成熟时间达到阈值\n' +
         '则返回森林主页开始监控能量球\n' +
@@ -196,12 +196,12 @@ module.exports = {
         '* 返检阈值不可大于监测阈值\n' +
         '* 接受非整数数值' +
         '-- 如 1.5, 2.8 等',
-    friend_collect_icon_color: // 收取图标颜色色值
+    friendCollectIconColor: // 收取图标颜色色值
         '排行榜识别绿色手形图标的参照色值\n\n' +
         '示例:\n' +
         'rgb(67,160,71)\n' +
         '#AEB0B3',
-    friend_collect_icon_threshold: // 收取图标颜色检测阈值
+    friendCollectIconThreshold: // 收取图标颜色检测阈值
         '排行榜识别绿色手形图标的\n' +
         '参照色值检测阈值\n' +
         '阈值越大 匹配越宽松 反之越严格\n' +
@@ -213,7 +213,7 @@ module.exports = {
         '影响收取体验\n' +
         '数量过少将导致识别率受影响\n' +
         '出现遗漏或误判',
-    forestImagePoolItv: // 能量球样本采集间隔
+    forestImagePoolInterval: // 能量球样本采集间隔
         '森林页面样本采集池样本之间的' +
         '存放间隔\n\n' +
         '间隔的意义主要在于保证\n' +
@@ -232,7 +232,7 @@ module.exports = {
         '示例 2 :  0.1,120,0.9,53%\n\n' +
         '也可使用可视化工具进行参数设置:\n' +
         'tools/Floaty_Rectangle_Region.js',
-    ripeBallDetectColorVal: // 成熟能量球颜色色值
+    ripeBallDetectColorValue: // 成熟能量球颜色色值
         '森林页面识别成熟能量球的参照色值\n\n' +
         '示例:\n' +
         'rgb(67,160,71)\n' +
@@ -242,7 +242,7 @@ module.exports = {
         '参照色值检测阈值\n' +
         '阈值越大 匹配越宽松 反之越严格\n' +
         '0 表示完全相似',
-    unlock_code: // 设置锁屏解锁密码
+    unlockCode: // 设置锁屏解锁密码
         '密码长度不小于 3 位\n' +
         '无密码可留空\n\n' +
         '若采用图案解锁方式\n' +
@@ -291,21 +291,21 @@ module.exports = {
         '如 微博/微信/支付宝 以及 QQ 等\n' +
         '详情参阅:\n' +
         'https://www.zhihu.com/question/20206696',
-    unlock_dismiss_layer_swipe_time: // 提示层页面上滑时长
+    unlockDismissLayerSwipeDuration: // 提示层页面上滑时长
         '设置整百值可保证匀速滑动\n' +
         '十位小于5可实现不同程度惯性滑动\n\n' +
         '* 通常无需自行设置\n' +
         '* 脚本会自动尝试增量赋值\n' +
         '-- 以获得最佳值',
-    unlock_dismiss_layer_bottom: // 提示层页面起点位置
+    unlockDismissLayerBottom: // 提示层页面起点位置
         '设置滑动起点的屏高百分比\n\n' +
         '* 通常无需自行设置\n' +
         '* 设置过大值可能激活非预期控件',
-    unlock_dismiss_layer_top: // 提示层页面终点位置
+    unlockDismissLayerTop: // 提示层页面终点位置
         '设置滑动终点的屏高百分比\n\n' +
         '* 通常无需自行设置\n' +
         '* 此配置值对滑动影响程度较小',
-    about_unlock_pattern_strategy: // 关于图案解锁滑动策略
+    about_unlockPatternStrategy: // 关于图案解锁滑动策略
         '叠加路径:\n\n' +
         '采用 gestures() 方法\n' +
         '将每两个点组成直线路径\n' +
@@ -331,7 +331,7 @@ module.exports = {
         '* 推荐优先使用\'叠加路径\'策略\n' +
         '-- 当出现路径断开现象时\n' +
         '-- 可尝试"连续路径"策略',
-    about_unlock_dismiss_layer_strategy: // 关于提示层页面检测方式
+    about_unlockDismissLayerStrategy: // 关于提示层页面检测方式
         '解锁前通常需要上滑提示层页面\n' +
         '然后再输入密码或进行图案解锁\n\n' +
         '解锁模块执行逻辑默认会\n' +
@@ -341,7 +341,7 @@ module.exports = {
         '滞后: 先判断解锁页面\n' +
         '禁用: 只判断解锁页面\n\n' +
         '* 通常无需修改此项设置',
-    unlock_pattern_swipe_time_segmental: // 设置图案解锁滑动时长 - 叠加路径策略
+    unlockPatternSwipeDurationSegmental: // 设置图案解锁滑动时长 - 叠加路径策略
         '此参数表示两拐点间滑动时长\n' +
         '并非表示滑动总时间\n' +
         '总时间=(拐点数+1)×此参数\n' +
@@ -354,13 +354,13 @@ module.exports = {
         '* 通常无需自行设置\n' +
         '-- 脚本会自动尝试增量赋值\n' +
         '-- 以获得最佳值',
-    unlock_pattern_swipe_time_solid: // 设置图案解锁滑动时长 - 连续路径策略
+    unlockPatternSwipeDurationSolid: // 设置图案解锁滑动时长 - 连续路径策略
         '此参数表示首末点间滑动时长\n' +
         '亦即表示滑动总时间\n\n' +
         '* 通常无需自行设置\n' +
         '-- 脚本会自动尝试增量赋值\n' +
         '-- 以获得最佳值',
-    unlock_pattern_size: // 设置图案解锁边长
+    unlockPatternSize: // 设置图案解锁边长
         '图案解锁通常为 N × N 的点阵\n' +
         '通常边长 N 为 3\n\n' +
         '若未使用图案解锁方式\n' +
@@ -420,13 +420,13 @@ module.exports = {
         '-- 目标可收取前不断检测倒计时\n' +
         '-- 进而保证目标及时收取\n\n' +
         '确定要保留当前设置值吗',
-    timers_insurance_interval: // 保险任务运行间隔
+    timersInsuranceInterval: // 保险任务运行间隔
         '设置值用于当保险任务保留时\n' +
         '下次定时任务启动的时间间隔\n\n' +
         '* 保险任务在脚本运行时设置\n' +
         '* 脚本运行中每10秒钟自动重置间隔\n' +
         '* 脚本结束前自动移除所有保险任务',
-    timers_insurance_max_continuous_times: // 最大连续保险次数
+    timersInsuranceMaxContinuousTimes: // 最大连续保险次数
         '设置值用于当保险任务连续激活\n' +
         '次数超过一定值时\n' +
         '不再继续自动设置保险任务\n' +
@@ -538,11 +538,11 @@ module.exports = {
         '则时段管理将失去意义\n' +
         '如 [ 05:23, 05:23 ]\n' +
         '等同于"全天有效"的效果',
-    max_running_time_global: // 脚本单次运行最大时间
+    maxRunningTimeGlobal: // 脚本单次运行最大时间
         '设置值用于脚本单次运行\n' +
         '可消耗的最大时间\n' +
         '避免无人值守时的无响应情况',
-    max_queue_time_global: // 排他性任务最大排队时间
+    maxQueueTimeGlobal: // 排他性任务最大排队时间
         '当旧排他性任务运行或排队时\n' +
         '新排他性任务将继续排队\n' +
         '排队时间与排他性任务总数相关\n\n' +
@@ -550,7 +550,7 @@ module.exports = {
         '-- 当前正在运行的排他性任务\n' +
         '* 设置过小的值可能在脚本\n' +
         '-- 正常结束前被意外终止',
-    min_bomb_interval_global: // 脚本炸弹预防阈值
+    minBombIntervalGlobal: // 脚本炸弹预防阈值
         '若当前脚本与最近一个正在运行的蚂蚁森林脚本的运行时间差小于此阈值\n' +
         '则视当前脚本为炸弹脚本\n' +
         '炸弹脚本将自动强制停止\n' +
@@ -598,17 +598,17 @@ module.exports = {
         '4. 解锁模块的开发者测试模式\n' +
         '5. 重要的工具函数\n\n' +
         '缺少工具函数将导致项目无法运行',
-    rank_list_swipe_time: // 设置排行榜页面滑动时长
+    rankListSwipeDuration: // 设置排行榜页面滑动时长
         '通常无需自行设置\n' +
         '若出现滑动异常现象\n' +
         '可尝试适当增大此设置值',
-    rank_list_swipe_interval: // 设置排行榜页面滑动间隔
+    rankListSwipeInterval: // 设置排行榜页面滑动间隔
         '若出现遗漏目标的情况\n' +
         '可尝试适当增大此设置值',
-    rank_list_scroll_interval: // 设置排行榜页面滑动间隔
+    rankListScrollInterval: // 设置排行榜页面滑动间隔
         '若出现遗漏目标的情况\n' +
         '可尝试适当增大此设置值',
-    rank_list_capt_pool_diff_check_threshold: // 排行榜截图样本池差异检测阈值
+    rankListCaptPoolDiffCheckThreshold: // 排行榜截图样本池差异检测阈值
         '排行榜滑动前后截图样本相同时\n' +
         '脚本认为滑动无效 并进行无效次数统计 ' +
         '当连续无效次数达到阈值时 将放弃滑动并结束好友能量检查\n\n' +
@@ -616,7 +616,7 @@ module.exports = {
         '根据实际情况点击"再试一次"或等待"正在加载"按钮消失 (最大等待2分钟)\n\n' +
         '* 此参数主要避免因意外情况导致当前页面不在排行榜页面时的无限滑动\n' +
         '* 截图样本相同指: 相似度极高',
-    rank_list_max_not_targeted_times: // 最大连续无目标命中次数
+    rankListNotTargetedLimit: // 最大连续无目标命中次数
         '排行榜每滑动一次\n' +
         '若当前页面没有好友\n' +
         '则记录一次无目标命中次数\n' +
@@ -652,13 +652,13 @@ module.exports = {
         '则触发复查条件\n\n' +
         '* 有效点击指进入好友森林后\n' +
         '-- 点击过可收取的能量球',
-    stroll_btn_locate_main_color: // 逛一逛按钮定位主要色值
+    strollButtonLocateMainColor: // 逛一逛按钮定位主要色值
         '参数用于配置多点取色方式\n' +
         '定位逛一逛按钮时的基准色值',
-    stroll_btn_match_threshold: // 逛一逛按钮定位匹配阈值
+    strollButtonMatchThreshold: // 逛一逛按钮定位匹配阈值
         '参数用于配置多点取色方式\n' +
         '定位逛一逛按钮时的匹配阈值',
-    max_continuous_not_targeted_stroll_cycle: // 逛一逛最大无操作循环次数
+    strollNotTargetedLimit: // 逛一逛最大无操作循环次数
         '参数用于防止逛一逛策略\n' +
         '在采集过程中遇到无操作好友\n' +
         '可能引起的无限循环\n\n' +
@@ -707,7 +707,7 @@ module.exports = {
         '手动添加易出错\n' +
         '且难以键入特殊字符\n' +
         '建议使用列表导入功能',
-    phone_call_state_idle_value: // 通话空闲状态值
+    phoneCallStateIdleValue: // 通话空闲状态值
         '当设备当前通话状态值\n' +
         '与空闲状态值不一致时\n' +
         '将触发通话状态事件\n' +
@@ -717,7 +717,7 @@ module.exports = {
         '-- 脚本将执行一次支付宝前置操作\n' +
         '* 不同设备的通话空闲状态值\n' +
         '-- 可能存在差异',
-    phone_call_state_idle_value_warn: // 通话空闲状态值设置警告
+    phoneCallStateIdleValueWarn: // 通话空闲状态值设置警告
         '输入值与当前通话空闲值不一致\n' +
         '此配置将导致脚本无法正常运行\n\n' +
         '确定要使用当前输入值吗',
@@ -733,7 +733,7 @@ module.exports = {
     rank_list_bottom_template_hint_not_exists: // 排行榜底部控件图片模板不存在附加提示
         '当前暂未生成图片模板\n' +
         '脚本在下次运行时将自动生成新模板',
-    about_root_access_functions: // 关于Root权限功能
+    about_rootAccessPrivileges: // 关于Root权限功能
         '当Auto.js被授予Root权限时\n' +
         '可通过Root权限实现功能升级\n' +
         '如可以直接模拟按键实现快速关屏\n' +
@@ -746,25 +746,6 @@ module.exports = {
         '可能出现几秒钟的黑屏现象\n' +
         '此时Toast及Floaty消息会出现阻塞\n' +
         '因此可能影响运行结果展示的效果',
-    about_auto_enable_a11y_svc: // 关于自动开启无障碍服务
-        '通过修改系统无障碍服务的列表参数\n' +
-        '实现Auto.js无障碍服务的自动开启\n' +
-        '此过程需要授予Auto.js以下权限:\n\n' +
-        'WRITE_SECURE_SETTINGS\n\n' +
-        '如果设备已经获取Root权限\n' +
-        '脚本将自动完成上述所需权限的授权\n' +
-        '否则需要将手机连接到计算机\n' +
-        '然后在计算机使用ADB工具\n' +
-        '执行以下指令(无换行):\n\n' +
-        'adb shell pm grant org.autojs.autojs ' +
-        'android.permission.WRITE_SECURE_SETTINGS\n\n' +
-        '执行后Auto.js将获取上述权限\n' +
-        '如需撤销授权需将上述指令的\n' +
-        'grant替换为revoke\n\n' +
-        '注: 如果没有权限授权\n' +
-        '脚本则会在需要的时候\n' +
-        '提示用户手动开启无障碍服务\n\n' +
-        '* 参数默认值: 禁用自动启动',
     about_app_launch_springboard: // 关于启动跳板
         '某些设备或应用无法直接调用 APP\n' +
         '如 launch() 或 startActivity() 等\n' +
@@ -793,7 +774,7 @@ module.exports = {
         '除非已确定此任务的异常性\n' +
         '否则强烈不建议删除此任务\n\n' +
         '确定要删除最小倒计时任务吗',
-    prompt_before_running_countdown_seconds: // 提示对话框倒计时时长
+    promptBeforeRunningCountdownSeconds: // 提示对话框倒计时时长
         '倒计时结束前\n' +
         '用户可自主点击按钮执行相应操作\n' +
         '否则倒计时超时后脚本将自动执行',
@@ -937,7 +918,7 @@ module.exports = {
         '此时如果再将v2.0.3添加至列表\n' +
         '则脚本依然会提示项目有更新\n' +
         '且最新版本为v2.0.2\n',
-    about_rank_list_scan_strategy: // 关于排行榜页面滑动策略
+    aboutRankListScanStrategy: // 关于排行榜页面滑动策略
         '控件滚动:\n' +
         '基于排行榜可滚动控件的\n' +
         '无障碍行为实现列表滚动\n' +

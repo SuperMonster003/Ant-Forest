@@ -9,3 +9,4 @@ test*.js
 /.github
 /.idea
 /assets/declarations/*
+/checkin-alipay.js

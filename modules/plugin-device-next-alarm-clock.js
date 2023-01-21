@@ -1,9 +1,7 @@
 require('./mod-global');
 let {uix} = require('./ext-ui');
-let {colorsx} = require('./ext-colors');
 let {devicex} = require('./ext-device');
 let {dialogsx} = require('./ext-dialogs');
-let {threadsx} = require('./ext-threads');
 
 uix.registerWidget('alarm-ctd-text', <x-text
     gravity="center" color="#FFF3E0" size="17"
@@ -19,7 +17,7 @@ let _view = ui.inflate(<vertical>
 let _diag = dialogsx.builds({
     customView: _view,
     canceledOnTouchOutside: false,
-    background: colorsx.hrgba('#005B4F91'),
+    background: colors.rgba('#005B4F91'),
     animation: 'input_method',
     dim_amount: 75,
     keycode_back: () => $exit(),
@@ -30,13 +28,13 @@ let _export = {
     view: _view,
     /**
      * @param {{
-     *     is_async?: boolean,
+     *     isAsync?: boolean,
      *     title?: string,
      * }} [options]
      */
     run(options) {
         let _opt = options || {};
-        _opt.is_async ? threadsx.start($main.bind(null, _opt)) : $main(_opt);
+        _opt.isAsync ? threads.start($main.bind(null, _opt)) : $main(_opt);
     },
     config() {
         uix.execScript('test', function () {
@@ -78,9 +76,9 @@ function $main(options) {
         }
         let _date = new Date(ts);
         return (_d ? '< +' + _d + ' >\n' : '') +
-            _date.getHours().padStart(2, 0) + ':' +
-            _date.getMinutes().padStart(2, 0) + ':' +
-            _date.getSeconds().padStart(2, 0);
+            Numberx.padStart(_date.getHours(), 2) + ':' +
+            Numberx.padStart(_date.getMinutes(), 2) + ':' +
+            Numberx.padStart(_date.getSeconds(), 2);
     };
 
     let _ts = _getTimeout();
